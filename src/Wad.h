@@ -16,33 +16,33 @@ struct COLOR3
 struct WADHEADER
 {
 	char szMagic[4];    // should be WAD2/WAD3
-	int nDir;			// number of directory entries
-	int nDirOffset;		// offset into directories
+	int32_t nDir;			// number of directory entries
+	int32_t nDirOffset;		// offset into directories
 };
 
 struct WADDIRENTRY
 {
-	int nFilePos;				 // offset in WAD
-	int nDiskSize;				 // size in file
-	int nSize;					 // uncompressed size
+	int32_t nFilePos;				 // offset in WAD
+	int32_t nDiskSize;				 // size in file
+	int32_t nSize;					 // uncompressed size
 	char nType;					 // type of entry
 	bool bCompression;           // 0 if none
-	short nDummy;				 // not used
+	int16_t nDummy;				 // not used
 	char szName[MAXTEXTURENAME]; // must be null terminated
 };
 
 struct BSPMIPTEX
 {
 	char szName[MAXTEXTURENAME];  // Name of texture
-	uint nWidth, nHeight;		  // Extends of the texture
-	uint nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps BSPMIPTEX;
+	uint32_t nWidth, nHeight;		  // Extends of the texture
+	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps BSPMIPTEX;
 };
 
 struct WADTEX
 {
 	char szName[MAXTEXTURENAME];
-	uint nWidth, nHeight;
-	uint nOffsets[MIPLEVELS];
+	uint32_t nWidth, nHeight;
+	uint32_t nOffsets[MIPLEVELS];
 	byte * data; // all mip-maps and pallete
 };
 
