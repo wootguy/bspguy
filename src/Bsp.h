@@ -20,6 +20,24 @@
 #define LUMP_MODELS       14
 #define HEADER_LUMPS      15
 
+static char* g_lump_names[HEADER_LUMPS] = {
+	"ENTITIES",
+	"PLANES",
+	"TEXTURES",
+	"VERTICES",
+	"VISIBILITY",
+	"NODES",
+	"TEXINFO",
+	"FACES",
+	"LIGHTING",
+	"CLIPNODES",
+	"LEAVES",
+	"MARKSURFACES",
+	"EDGES",
+	"SURFEDGES",
+	"MODELS"
+};
+
 struct BSPLUMP
 {
 	int nOffset; // File offset to data
@@ -50,10 +68,10 @@ struct membuf : std::streambuf
 class Bsp
 {
 public:
-	std::string path;
+	string path;
+	string name;
 	BSPHEADER header;
 	byte ** lumps;
-	bool valid;
 	
 	vector<Entity*> ents;
 
@@ -61,9 +79,12 @@ public:
 	Bsp(std::string fname);
 	~Bsp();
 
+	void merge(Bsp& other);
+	void write(string path);
+
 private:
 
 	bool load_lumps(string fname);
-
 	void load_ents();
+	void merge_ents(Bsp& other);
 };

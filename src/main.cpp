@@ -16,8 +16,13 @@ int merge_maps(vector<string> options) {
 	Bsp outputMap;
 
 	for (int i = 0; i < options.size() - 1; i++) {
+		cout << "Opening " << options[i] << endl;
+		Bsp inputMap(options[i]);
 
+		outputMap.merge(inputMap);
 	}
+
+	outputMap.write(output_path);
 
  	return 0;
 }

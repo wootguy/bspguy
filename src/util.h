@@ -11,3 +11,8 @@ bool fileExists(const string& fileName);
 
 char * loadFile( const string& fileName, int& length);
 
+vector<string> splitString(string str, const char* delimitters);
+
+string basename(string path);
+
+string stripExt(string filename);
