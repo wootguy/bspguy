@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <string.h>
 #include <sstream>
+#include <fstream>
+#include <set>
+#include <iomanip>
 
 Bsp::Bsp() {
 	lumps = new byte * [HEADER_LUMPS];
@@ -123,7 +126,6 @@ void Bsp::merge(Bsp& other) {
 	//	merge_lighting(other);
 	//if (shouldMerge[LUMP_CLIPNODES])
 	//	merge_clipnodes(other);
-	
 	
 	//if (shouldMerge[LUMP_MODELS])
 	//	merge_models(other);
@@ -794,4 +796,267 @@ void Bsp::load_ents()
 
 	if (ent != NULL)
 		delete ent;
+}
+
+void Bsp::print_bsp() {
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	BSPMODEL world = models[0];
+
+	
+	int node = world.iHeadnodes[0];
+	cout << "Head node: " << node << endl;
+
+	recurse_node(node, 0);
+}
+
+void Bsp::recurse_node(int16_t nodeIdx, int depth) {
+
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+
+	for (int i = 0; i < depth; i++) {
+		cout << "    ";
+	}
+
+	if (nodeIdx < 0) {
+		BSPLEAF* leaves = (BSPLEAF * )lumps[LUMP_LEAVES];
+		BSPLEAF leaf = leaves[~nodeIdx];
+		print_leaf(leaf);
+		cout << " (LEAF " << ~nodeIdx << ")" << endl;
+		return;
+	}
+	else {
+		print_node(nodes[nodeIdx]);
+		cout << endl;
+	}
+	
+	recurse_node(nodes[nodeIdx].iChildren[0], depth+1);
+	recurse_node(nodes[nodeIdx].iChildren[1], depth+1);
+}
+
+void Bsp::print_node(BSPNODE node) {
+	BSPPLANE* planes = (BSPPLANE * )lumps[LUMP_PLANES];
+	BSPPLANE plane = planes[node.iPlane];
+
+	cout << "Plane (" << plane.vNormal.x << " " << plane.vNormal.y << " " << plane.vNormal.z << ") d: " << plane.fDist;
+}
+
+int Bsp::pointContents(int iNode, vec3 p)
+{
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+
+	float       d;
+	BSPNODE* node;
+	BSPPLANE* plane;
+
+	while (iNode >= 0)
+	{
+		node = &nodes[iNode];
+		plane = &planes[node->iPlane];
+
+		d = dotProduct(plane->vNormal, p) - plane->fDist;
+		if (d < 0)
+			iNode = node->iChildren[1];
+		else
+			iNode = node->iChildren[0];
+	}
+
+	cout << "Contents at " << p.x << " " << p.y << " " << p.z << " is ";
+	print_leaf(leaves[~iNode]);
+	cout << " (LEAF " << ~iNode << ")\n";
+
+	return leaves[~iNode].nContents;
+}
+
+void Bsp::write_csg_outputs(string path) {
+	BSPPLANE* thisPlanes = (BSPPLANE*)lumps[LUMP_PLANES];
+	int numPlanes = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+
+	// add flipped version of planes since face output files can't specify plane side
+	BSPPLANE* newPlanes = new BSPPLANE[numPlanes*2];
+	memcpy(newPlanes, thisPlanes, numPlanes * sizeof(BSPPLANE));
+	for (int i = 0; i < numPlanes; i++) {
+		BSPPLANE flipped = thisPlanes[i];
+		flipped.vNormal = { flipped.vNormal.x > 0 ? -flipped.vNormal.x : flipped.vNormal.x,
+							flipped.vNormal.y > 0 ? -flipped.vNormal.y : flipped.vNormal.y,
+							flipped.vNormal.z > 0 ? -flipped.vNormal.z : flipped.vNormal.z, };
+		flipped.fDist = -flipped.fDist;
+		newPlanes[numPlanes + i] = flipped;
+	}
+	delete [] lumps[LUMP_PLANES];
+	lumps[LUMP_PLANES] = (byte*)newPlanes;
+	numPlanes *= 2;
+	header.lump[LUMP_PLANES].nLength = numPlanes * sizeof(BSPPLANE);
+	thisPlanes = newPlanes;
+
+	ofstream pln_file(path + name + ".pln", ios::out | ios::binary | ios::trunc);
+	for (int i = 0; i < numPlanes; i++) {
+		BSPPLANE& p = thisPlanes[i];
+		CSGPLANE csgplane = {
+			{p.vNormal.x, p.vNormal.y, p.vNormal.z},
+			{0,0,0},
+			p.fDist,
+			p.nType
+		};
+		pln_file.write((char*)&csgplane, sizeof(CSGPLANE));
+	}
+	cout << "Wrote " << numPlanes << " planes\n";
+
+	BSPFACE* thisFaces = (BSPFACE*)lumps[LUMP_FACES];
+	int thisFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	BSPMODEL world = models[0];
+
+	for (int i = 0; i < 4; i++) {
+		FILE* polyfile = fopen((path + name + ".p" + to_string(i)).c_str(), "wb");
+		write_csg_polys(world.iHeadnodes[i], polyfile, numPlanes/2, i == 0);
+		fprintf(polyfile, "-1 -1 -1 -1 -1\n"); // end of file marker (parsing fails without this)
+		fclose(polyfile);
+
+		FILE* detailfile = fopen((path + name + ".b" + to_string(i)).c_str(), "wb");
+		fprintf(detailfile, "-1\n");
+		fclose(detailfile);
+	}
+
+	ofstream hsz_file(path + name + ".hsz", ios::out | ios::binary | ios::trunc);
+	const char* hullSizes = "0 0 0 0 0 0\n"
+							"-16 -16 -36 16 16 36\n"
+							"-32 -32 -32 32 32 32\n"
+							"-16 -16 -18 16 16 18\n";
+	hsz_file.write(hullSizes, strlen(hullSizes));
+
+	ofstream bsp_file(path + name + "_new.bsp", ios::out | ios::binary | ios::trunc);
+	// calculate lump offsets
+	int offset = sizeof(BSPHEADER);
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		header.lump[i].nOffset = offset;
+		if (i == LUMP_ENTITIES || i == LUMP_PLANES || i == LUMP_TEXTURES || i == LUMP_TEXINFO) {
+			offset += header.lump[i].nLength;
+			if (i == LUMP_PLANES) {
+				int count = header.lump[i].nLength / sizeof(BSPPLANE);
+				cout << "BSP HAS " << count << " PLANES\n";
+			}
+		}
+		else {
+			header.lump[i].nLength = 0;
+		}
+	}
+	bsp_file.write((char*)&header, sizeof(BSPHEADER));
+	// write the lumps
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		bsp_file.write((char*)lumps[i], header.lump[i].nLength);
+	}
+}
+
+void Bsp::write_csg_polys(int16_t nodeIdx, FILE* polyfile, int flipPlaneSkip, bool debug) {
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+
+	if (nodeIdx >= 0) {
+		write_csg_polys(nodes[nodeIdx].iChildren[0], polyfile, flipPlaneSkip, debug);
+		write_csg_polys(nodes[nodeIdx].iChildren[1], polyfile, flipPlaneSkip, debug);
+		return;
+	}
+
+	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+	BSPLEAF leaf = leaves[~nodeIdx];
+
+	int detaillevel = 0; // no way to know which faces came from a func_detail
+	int32_t contents = leaf.nContents;
+
+	uint16* marksurfs = (uint16*)lumps[LUMP_MARKSURFACES];
+	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+	int numVerts = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+
+	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+
+	
+	for (int i = leaf.iFirstMarkSurface; i < leaf.iFirstMarkSurface + leaf.nMarkSurfaces; i++) {
+		for (int z = 0; z < 2; z++) {
+			BSPFACE& face = faces[marksurfs[i]];
+
+			bool flipped = (z == 1 || face.nPlaneSide) && !(z == 1 && face.nPlaneSide);
+
+			int iPlane = !flipped ? face.iPlane : face.iPlane + flipPlaneSkip;
+
+			// contents in front of the face
+			int faceContents = z == 0 ? leaf.nContents : CONTENTS_SOLID;
+
+			//int texInfo = z == 1 ? face.iTextureInfo : -1;
+
+			if (debug) {
+				BSPPLANE plane = planes[iPlane];
+				printf("Writing face (%2.0f %2.0f %2.0f) %4.0f  %s\n", 
+					plane.vNormal.x, plane.vNormal.y, plane.vNormal.z, plane.fDist,
+					(faceContents == CONTENTS_SOLID ? "SOLID" : "EMPTY"));
+				if (flipped && false) {
+					cout << " (flipped)";
+				}
+			}
+
+			fprintf(polyfile, "%i %i %i %i %u\n", detaillevel, iPlane, face.iTextureInfo, faceContents, face.nEdges);
+
+			if (flipped) {
+				for (int e = (face.iFirstEdge + face.nEdges) - 1; e >= (int)face.iFirstEdge; e--) {
+					int32_t edgeIdx = surfEdges[e];
+					BSPEDGE& edge = edges[abs(edgeIdx)];
+					vec3 v = edgeIdx >= 0 ? verts[edge.iVertex[1]] : verts[edge.iVertex[0]];
+					fprintf(polyfile, "%5.8f %5.8f %5.8f\n", v.x, v.y, v.z);
+				}
+			}
+			else {
+				for (int e = face.iFirstEdge; e < face.iFirstEdge + face.nEdges; e++) {
+					int32_t edgeIdx = surfEdges[e];
+					BSPEDGE& edge = edges[abs(edgeIdx)];
+					vec3 v = edgeIdx >= 0 ? verts[edge.iVertex[1]] : verts[edge.iVertex[0]];
+					fprintf(polyfile, "%5.8f %5.8f %5.8f\n", v.x, v.y, v.z);
+				}
+			}
+
+			fprintf(polyfile, "\n");
+		}
+		if (debug)
+			printf("\n");
+	}
+}
+
+void Bsp::print_leaf(BSPLEAF leaf) {
+	switch (leaf.nContents) {
+		case CONTENTS_EMPTY:
+			cout << "EMPTY"; break;
+		case CONTENTS_SOLID:
+			cout << "SOLID"; break;
+		case CONTENTS_WATER:
+			cout << "WATER"; break;
+		case CONTENTS_SLIME:
+			cout << "SLIME"; break;
+		case CONTENTS_LAVA:
+			cout << "LAVA"; break;
+		case CONTENTS_SKY:
+			cout << "SKY"; break;
+		case CONTENTS_ORIGIN:
+			cout << "ORIGIN"; break;
+		case CONTENTS_CURRENT_0:
+			cout << "CURRENT_0"; break;
+		case CONTENTS_CURRENT_90:
+			cout << "CURRENT_90"; break;
+		case CONTENTS_CURRENT_180:
+			cout << "CURRENT_180"; break;
+		case CONTENTS_CURRENT_270:
+			cout << "CURRENT_270"; break;
+		case CONTENTS_CURRENT_UP:
+			cout << "CURRENT_UP"; break;
+		case CONTENTS_CURRENT_DOWN:
+			cout << "CURRENT_DOWN"; break;
+		case CONTENTS_TRANSLUCENT:
+			cout << "TRANSLUCENT"; break;
+		default:
+			cout << "UNKNOWN"; break;
+	}
+
+	cout << " " << leaf.nMarkSurfaces << " surfs";
 }

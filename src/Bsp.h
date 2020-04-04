@@ -3,6 +3,8 @@
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
+#define MAX_MAP_HULLS	4
+
 #define LUMP_ENTITIES      0
 #define LUMP_PLANES        1
 #define LUMP_TEXTURES      2
@@ -19,6 +21,22 @@
 #define LUMP_SURFEDGES    13
 #define LUMP_MODELS       14
 #define HEADER_LUMPS      15
+
+#define CONTENTS_EMPTY        -1
+#define CONTENTS_SOLID        -2
+#define CONTENTS_WATER        -3
+#define CONTENTS_SLIME        -4
+#define CONTENTS_LAVA         -5
+#define CONTENTS_SKY          -6
+#define CONTENTS_ORIGIN       -7
+#define CONTENTS_CLIP         -8
+#define CONTENTS_CURRENT_0    -9
+#define CONTENTS_CURRENT_90   -10
+#define CONTENTS_CURRENT_180  -11
+#define CONTENTS_CURRENT_270  -12
+#define CONTENTS_CURRENT_UP   -13
+#define CONTENTS_CURRENT_DOWN -14
+#define CONTENTS_TRANSLUCENT  -15
 
 static char* g_lump_names[HEADER_LUMPS] = {
 	"ENTITIES",
@@ -38,6 +56,7 @@ static char* g_lump_names[HEADER_LUMPS] = {
 	"MODELS"
 };
 
+
 struct BSPLUMP
 {
 	int nOffset; // File offset to data
@@ -53,6 +72,13 @@ struct BSPHEADER
 struct BSPPLANE {
 	vec3 vNormal;
 	float fDist;
+	int32_t nType;
+};
+
+struct CSGPLANE {
+	double normal[3];
+	double origin[3];
+	double dist;
 	int32_t nType;
 };
 
@@ -88,6 +114,24 @@ struct BSPEDGE {
 	uint16_t iVertex[2]; // Indices into vertex array
 };
 
+struct BSPMODEL
+{
+	vec3 nMins;
+	vec3 nMaxs;
+	vec3 vOrigin;                  // Coordinates to move the // coordinate system
+	int32_t iHeadnodes[MAX_MAP_HULLS]; // Index into nodes array
+	int32_t nVisLeafs;                 // ???
+	int32_t iFirstFace, nFaces;        // Index and count into faces
+};
+
+struct BSPNODE
+{
+	uint32_t iPlane;            // Index into Planes lump
+	int16_t iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
+	int16_t nMins[3], nMaxs[3]; // Defines bounding box
+	uint16_t firstFace, nFaces; // Index and count into Faces
+};
+
 struct BSPTEXDATA
 {
 	int32_t numTex;
@@ -120,6 +164,12 @@ public:
 	void merge(Bsp& other);
 	void write(string path);
 
+	void print_bsp();
+	void recurse_node(int16_t node, int depth);
+	int32_t pointContents(int iNode, vec3 p);
+
+	void write_csg_outputs(string path);
+
 private:
 
 	bool load_lumps(string fname);
@@ -134,6 +184,11 @@ private:
 	void merge_marksurfs(Bsp& other);
 	void merge_edges(Bsp& other);
 	void merge_surfedges(Bsp& other);
+
+	void print_leaf(BSPLEAF leaf);
+	void print_node(BSPNODE node);
+	
+	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
 	// remapped structure locations for the other bsp file when merging
 	vector<int> texRemap;
