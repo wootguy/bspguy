@@ -11,6 +11,7 @@ int merge_maps(vector<string> options) {
 		return 1;
 	}
 
+	/*
 	Bsp csgTestMap("merge0.bsp");
 	csgTestMap.write_csg_outputs("");
 
@@ -18,6 +19,7 @@ int merge_maps(vector<string> options) {
 	badMap.print_bsp();
 
 	return 0;
+	*/
 
 	string output_path = options[options.size() - 1];
 
@@ -28,14 +30,11 @@ int merge_maps(vector<string> options) {
 		Bsp inputMap(options[i]);
 
 		outputMap.merge(inputMap);
-		break;
 	}
 
 	outputMap.write(output_path);
 
-
-
-	//outputMap.print_bsp();
+	outputMap.print_bsp();
 	//outputMap.pointContents(0, { 256, 256, 128 });
 
  	return 0;

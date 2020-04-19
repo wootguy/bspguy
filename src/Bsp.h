@@ -38,6 +38,13 @@
 #define CONTENTS_CURRENT_DOWN -14
 #define CONTENTS_TRANSLUCENT  -15
 
+#define PLANE_X 0     // Plane is perpendicular to given axis
+#define PLANE_Y 1
+#define PLANE_Z 2
+#define PLANE_ANYX 3  // Non-axial plane is snapped to the nearest
+#define PLANE_ANYY 4
+#define PLANE_ANYZ 5
+
 static char* g_lump_names[HEADER_LUMPS] = {
 	"ENTITIES",
 	"PLANES",
@@ -108,6 +115,14 @@ struct BSPLEAF
 	int16_t nMins[3], nMaxs[3];                // Defines bounding box
 	uint16_t iFirstMarkSurface, nMarkSurfaces; // Index and count into marksurfaces array
 	uint8_t nAmbientLevels[4];                 // Ambient sound levels
+
+	bool isEmpty() {
+		BSPLEAF emptyLeaf;
+		memset(&emptyLeaf, 0, sizeof(BSPLEAF));
+		emptyLeaf.nContents = CONTENTS_SOLID;
+
+		return memcmp(&emptyLeaf, this, sizeof(BSPLEAF)) == 0;
+	}
 };
 
 struct BSPEDGE {
@@ -130,6 +145,12 @@ struct BSPNODE
 	int16_t iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
 	int16_t nMins[3], nMaxs[3]; // Defines bounding box
 	uint16_t firstFace, nFaces; // Index and count into Faces
+};
+
+struct BSPCLIPNODE
+{
+	int32_t iPlane;       // Index into planes
+	int16_t iChildren[2]; // negative numbers are contents
 };
 
 struct BSPTEXDATA
@@ -184,6 +205,15 @@ private:
 	void merge_marksurfs(Bsp& other);
 	void merge_edges(Bsp& other);
 	void merge_surfedges(Bsp& other);
+	void merge_nodes(Bsp& other);
+	void merge_clipnodes(Bsp& other);
+	void merge_models(Bsp& other);
+
+	// Finds an axis-aligned hyperplane that separates the BSPs and
+	// adds the plane and new root node to the bsp.
+	// Must be called after planes are merged but before nodes/clipnodes.
+	// returns false if maps overlap and can't be separated.
+	bool separate(Bsp& other);
 
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
@@ -200,4 +230,6 @@ private:
 	vector<int> vertRemap;
 	vector<int> leavesRemap;
 	vector<int> facesRemap;
+	int newHeadNodeIdx;
+	int emptyLeafOldIdx;
 };
