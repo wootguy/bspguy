@@ -230,6 +230,4 @@ private:
 	vector<int> vertRemap;
 	vector<int> leavesRemap;
 	vector<int> facesRemap;
-	int newHeadNodeIdx;
-	int emptyLeafOldIdx;
 };

@@ -123,9 +123,8 @@ void Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_NODES]) {
 		separate(other);
 		merge_nodes(other);
-	}
-	//if (shouldMerge[LUMP_CLIPNODES])
-	//	merge_clipnodes(other);
+		merge_clipnodes(other);
+	}		
 
 	if (shouldMerge[LUMP_MODELS])
 		merge_models(other);
@@ -689,9 +688,11 @@ void Bsp::merge_nodes(Bsp& other) {
 	for (int i = 0; i < thisNodeCount; i++) {
 		BSPNODE node = thisNodes[i];
 
-		for (int k = 0; k < 2; k++) {
-			if (node.iChildren[k] >= 0) {
-				node.iChildren[k] += 1; // shifted from new head node
+		if (i > 0) { // new headnode should already be correct
+			for (int k = 0; k < 2; k++) {
+				if (node.iChildren[k] >= 0) {
+					node.iChildren[k] += 1; // shifted from new head node
+				}
 			}
 		}
 
@@ -735,11 +736,26 @@ void Bsp::merge_clipnodes(Bsp& other) {
 	mergedNodes.reserve(thisNodeCount + otherNodeCount);
 
 	for (int i = 0; i < thisNodeCount; i++) {
-		mergedNodes.push_back(thisNodes[i]);
+		BSPCLIPNODE node = thisNodes[i];
+		if (i > 2) { // new headnodes should already be correct
+			for (int k = 0; k < 2; k++) {
+				if (node.iChildren[k] >= 0) {
+					node.iChildren[k] += MAX_MAP_HULLS-1; // offset from new headnodes being added
+				}
+			}
+		}
+		mergedNodes.push_back(node);
 	}
 
 	for (int i = 0; i < otherNodeCount; i++) {
 		BSPCLIPNODE node = otherNodes[i];
+		node.iPlane = planeRemap[node.iPlane];
+
+		for (int k = 0; k < 2; k++) {
+			if (node.iChildren[k] >= 0) {
+				node.iChildren[k] += thisNodeCount;
+			}
+		}
 		mergedNodes.push_back(node);
 	}
 
@@ -762,8 +778,6 @@ void Bsp::merge_models(Bsp& other) {
 	vector<BSPMODEL> mergedModels;
 	mergedModels.reserve(thisModelCount + otherModelCount);
 
-	cout << "Updated head node to " << newHeadNodeIdx << endl;
-
 	for (int i = 0; i < thisModelCount; i++) {
 		mergedModels.push_back(thisModels[i]);
 	}
@@ -775,22 +789,19 @@ void Bsp::merge_models(Bsp& other) {
 	}
 
 	// update world head nodes
-	mergedModels[0].iHeadnodes[0] = newHeadNodeIdx;
+	mergedModels[0].iHeadnodes[0] = 0;
+	mergedModels[0].iHeadnodes[1] = 0;
+	mergedModels[0].iHeadnodes[2] = 1;
+	mergedModels[0].iHeadnodes[3] = 2;
 	mergedModels[0].nVisLeafs = thisModels[0].nVisLeafs + otherModels[0].nVisLeafs;
 	mergedModels[0].nFaces = thisModels[0].nFaces + otherModels[0].nFaces;
-
-	//mergedModels[0].nVisLeafs = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF); // TODO: exclude non-world leaves?
-	//mergedModels[0].nFaces = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE); // TODO: exclude non-world faces
-
-	printf("ACTUAL LEAVES %d -> %d\n", thisModels[0].nVisLeafs + otherModels[0].nVisLeafs, header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF));
-	printf("ACTUAL FACES %d -> %d\n", thisModels[0].nFaces + otherModels[0].nFaces, header.lump[LUMP_FACES].nLength / sizeof(BSPFACE));
 
 	vec3 amin = thisModels[0].nMins;
 	vec3 bmin = otherModels[0].nMins;
 	vec3 amax = thisModels[0].nMaxs;
 	vec3 bmax = otherModels[0].nMaxs;
-	//mergedModels[0].nMins = { min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) };
-	//mergedModels[0].nMaxs = { max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) };
+	mergedModels[0].nMins = { min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) };
+	mergedModels[0].nMaxs = { max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) };
 
 	int newLen = mergedModels.size() * sizeof(BSPMODEL);
 
@@ -878,28 +889,57 @@ bool Bsp::separate(Bsp& other) {
 	int separationPlaneIdx = numThisPlanes;
 
 
-	// write new head nodes
-	BSPNODE* thisNodes = (BSPNODE*)lumps[LUMP_NODES];
-	int numThisNodes = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	// write new head node (visible BSP)
+	{
+		BSPNODE* thisNodes = (BSPNODE*)lumps[LUMP_NODES];
+		int numThisNodes = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 
-	newHeadNodeIdx = 0; // sven expects head node to be idx 0 (bspviewer doesn't care)
+		BSPNODE headNode = {
+			separationPlaneIdx,			// plane idx
+			{1, numThisNodes+1},		// child nodes
+			{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
+			{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs
+			0, // first face
+			0  // n faces (none since this plane is in the void)
+		};
 
-	BSPNODE headNode = {
-		separationPlaneIdx,			// plane idx
-		{numThisNodes, 0},	// child nodes (for some reason 0 != headnode?)
-		{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
-		{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs
-		0, // first face
-		0  // n faces (none since this plane is in the void)
-	};
+		BSPNODE* newThisNodes = new BSPNODE[numThisNodes + 1];
+		memcpy(newThisNodes + 1, thisNodes, numThisNodes * sizeof(BSPNODE));
+		newThisNodes[0] = headNode;
 
-	BSPNODE* newThisNodes = new BSPNODE[numThisNodes + 1];
-	memcpy(newThisNodes+1, thisNodes, numThisNodes * sizeof(BSPNODE));
-	newThisNodes[newHeadNodeIdx] = headNode;
+		delete[] this->lumps[LUMP_NODES];
+		this->lumps[LUMP_NODES] = (byte*)newThisNodes;
+		header.lump[LUMP_NODES].nLength = (numThisNodes + 1) * sizeof(BSPNODE);
+	}
 
-	delete[] this->lumps[LUMP_NODES];
-	this->lumps[LUMP_NODES] = (byte*)newThisNodes;
-	header.lump[LUMP_NODES].nLength = (numThisNodes + 1) * sizeof(BSPNODE);
+
+	// write new head node (clipnode BSP)
+	{
+		BSPCLIPNODE* thisNodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+		int numThisNodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+		const int NEW_NODE_COUNT = MAX_MAP_HULLS - 1;
+
+		BSPCLIPNODE newHeadNodes[NEW_NODE_COUNT];
+		for (int i = 0; i < NEW_NODE_COUNT; i++) {
+			printf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
+
+			newHeadNodes[i] = {
+				separationPlaneIdx,	// plane idx
+				{	// child nodes
+					(int16_t)(thisWorld.iHeadnodes[i+1] + NEW_NODE_COUNT), 
+					(int16_t)(otherWorld.iHeadnodes[i+1] + numThisNodes + NEW_NODE_COUNT)
+				}, 
+			};
+		}
+
+		BSPCLIPNODE* newThisNodes = new BSPCLIPNODE[numThisNodes + NEW_NODE_COUNT];
+		memcpy(newThisNodes, newHeadNodes, NEW_NODE_COUNT * sizeof(BSPCLIPNODE));
+		memcpy(newThisNodes + NEW_NODE_COUNT, thisNodes, numThisNodes * sizeof(BSPCLIPNODE));
+
+		delete[] this->lumps[LUMP_CLIPNODES];
+		this->lumps[LUMP_CLIPNODES] = (byte*)newThisNodes;
+		header.lump[LUMP_CLIPNODES].nLength = (numThisNodes + NEW_NODE_COUNT) * sizeof(BSPCLIPNODE);
+	}
 
 	return true;
 }
