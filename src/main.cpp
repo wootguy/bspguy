@@ -34,7 +34,7 @@ int merge_maps(vector<string> options) {
 
 	outputMap.write(output_path);
 
-	outputMap.print_bsp();
+	//outputMap.print_bsp();
 	//outputMap.pointContents(0, { 256, 256, 128 });
 
  	return 0;

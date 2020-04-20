@@ -4,6 +4,7 @@
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
 #define MAX_MAP_HULLS	4
+#define MAX_MAP_LEAFS 32760
 
 #define LUMP_ENTITIES      0
 #define LUMP_PLANES        1
@@ -208,6 +209,7 @@ private:
 	void merge_nodes(Bsp& other);
 	void merge_clipnodes(Bsp& other);
 	void merge_models(Bsp& other);
+	void merge_vis(Bsp& other);
 
 	// Finds an axis-aligned hyperplane that separates the BSPs and
 	// adds the plane and new root node to the bsp.
@@ -230,4 +232,7 @@ private:
 	vector<int> vertRemap;
 	vector<int> leavesRemap;
 	vector<int> facesRemap;
+
+	int thisLeafCount;
+	int otherLeafCount;
 };

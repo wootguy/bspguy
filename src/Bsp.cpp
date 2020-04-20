@@ -120,6 +120,9 @@ void Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_LEAVES])
 		merge_leaves(other); // references vis data, and marksurfs
 
+	if (shouldMerge[LUMP_VISIBILITY])
+		merge_vis(other);
+
 	if (shouldMerge[LUMP_NODES]) {
 		separate(other);
 		merge_nodes(other);
@@ -476,8 +479,8 @@ void Bsp::merge_faces(Bsp& other) {
 void Bsp::merge_leaves(Bsp& other) {
 	BSPLEAF* thisLeaves = (BSPLEAF*)lumps[LUMP_LEAVES];
 	BSPLEAF* otherLeaves = (BSPLEAF*)other.lumps[LUMP_LEAVES];
-	int thisLeafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
-	int otherLeafCount = other.header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	thisLeafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	otherLeafCount = other.header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
 
 	vector<BSPLEAF> mergedLeaves;
 	mergedLeaves.reserve(thisLeafCount + otherLeafCount);
@@ -491,7 +494,6 @@ void Bsp::merge_leaves(Bsp& other) {
 		if (leaf.nMarkSurfaces) {
 			leaf.iFirstMarkSurface = markSurfRemap[leaf.iFirstMarkSurface];
 		}
-		// TODO: vis data remap
 
 		bool isUnique = true;
 		for (int k = 0; k < thisLeafCount; k++) {
@@ -509,7 +511,9 @@ void Bsp::merge_leaves(Bsp& other) {
 	}
 
 	int newLen = mergedLeaves.size() * sizeof(BSPLEAF);
-	int duplicates = mergedLeaves.size() - (thisLeafCount + otherLeafCount);
+	int duplicates = (thisLeafCount + otherLeafCount) - mergedLeaves.size();
+
+	otherLeafCount -= duplicates;
 
 	cout << "Removed " << duplicates << " duplicate leaves\n";
 
@@ -813,6 +817,217 @@ void Bsp::merge_models(Bsp& other) {
 	cout << "models: " << thisModelCount << " -> " << mergedModels.size() << endl;
 }
 
+#define hlassume(expr, err) if (!(expr)) {printf(#err "\n");}
+
+void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_length, uint numLeaves)
+{
+	unsigned int    current_length = 0;
+	int             c;
+	byte* out;
+	int             row;
+
+	row = (numLeaves + 7) >> 3; // same as the length used by VIS program in CompressVis
+	// The wrong size will cause DecompressVis to spend extremely long time once the source pointer runs into the invalid area in g_dvisdata (for example, in BuildFaceLights, some faces could hang for a few seconds), and sometimes to crash.
+	out = dest;
+
+	do
+	{
+		//hlassume(src - g_dvisdata < g_visdatasize, assume_DECOMPRESSVIS_OVERFLOW);
+		if (*src)
+		{
+			current_length++;
+			hlassume(current_length <= dest_length, assume_DECOMPRESSVIS_OVERFLOW);
+
+			*out = *src;
+			out++;
+			src++;
+			continue;
+		}
+
+		//hlassume(&src[1] - g_dvisdata < g_visdatasize, assume_DECOMPRESSVIS_OVERFLOW);
+		c = src[1];
+		src += 2;
+		while (c)
+		{
+			current_length++;
+			hlassume(current_length <= dest_length, assume_DECOMPRESSVIS_OVERFLOW);
+
+			*out = 0;
+			out++;
+			c--;
+
+			if (out - dest >= row)
+			{
+				return;
+			}
+		}
+	} while (out - dest < row);
+}
+
+void shiftVis(byte* vis, int len, int shift) {
+
+	for (int k = 0; k < shift; k++) {
+		bool carry = 0;
+		for (int i = 0; i < len; i++) {
+			byte oldCarry = carry;
+			carry = (vis[i] & 0x80) != 0;
+			vis[i] = (vis[i] << 1) + oldCarry;
+		}
+
+		if (carry) {
+			printf("ZOMG OVERFLOW");
+		}
+	}
+}
+
+int DecompressAll(BSPLEAF* leafLump, byte* visLump, byte* output, int numLeaves, int newNumLeaves, bool prependNewLeaves)
+{
+	byte* dest;
+	uint oldBitbytes = ((numLeaves + 63) & ~63) >> 3;
+	uint newBitbytes = ((newNumLeaves + 63) & ~63) >> 3;
+	int len = 0;
+
+	for (int i = 0; i < numLeaves; i++)
+	{
+		dest = output + i * newBitbytes;
+
+		if (prependNewLeaves) {
+
+		}
+
+		DecompressVis((const unsigned char*)(visLump + (byte)leafLump[i+1].nVisOffset), dest, oldBitbytes, numLeaves);
+	
+		if (prependNewLeaves) {
+			shiftVis(dest, newBitbytes, newNumLeaves - numLeaves);
+		}
+	}
+
+	return numLeaves* newBitbytes;
+}
+
+int CompressVis(const byte* const src, const unsigned int src_length, byte* dest, unsigned int dest_length)
+{
+	unsigned int    j;
+	byte* dest_p = dest;
+	unsigned int    current_length = 0;
+
+	for (j = 0; j < src_length; j++)
+	{
+		current_length++;
+		hlassume(current_length <= dest_length, assume_COMPRESSVIS_OVERFLOW);
+
+		*dest_p = src[j];
+		dest_p++;
+
+		if (src[j])
+		{
+			continue;
+		}
+
+		unsigned char   rep = 1;
+
+		for (j++; j < src_length; j++)
+		{
+			if (src[j] || rep == 255)
+			{
+				break;
+			}
+			else
+			{
+				rep++;
+			}
+		}
+		current_length++;
+		hlassume(current_length <= dest_length, assume_COMPRESSVIS_OVERFLOW);
+
+		*dest_p = rep;
+		dest_p++;
+		j--;
+	}
+
+	return dest_p - dest;
+}
+
+int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves)
+{
+	int i, x = 0;
+	byte* dest;
+	byte* src;
+	byte compressed[MAX_MAP_LEAFS / 8];
+	uint g_bitbytes = ((numLeaves + 63) & ~63) >> 3;
+	int len = 0;
+
+	byte* vismap_p = output;
+
+	for (i = 0; i < numLeaves; i++)
+	{
+		memset(&compressed, 0, sizeof(compressed));
+
+		src = uncompressed + i * g_bitbytes;
+
+		// Compress all leafs into global compression buffer
+		x = CompressVis(src, g_bitbytes, compressed, sizeof(compressed));
+
+		dest = vismap_p;
+		vismap_p += x;
+
+		/*
+		if (vismap_p > vismap_end)
+		{
+			Error("Vismap expansion overflow");
+		}
+		*/
+
+		leafs[i + 1].nVisOffset = dest - output;            // leaf 0 is a common solid
+
+		memcpy(dest, compressed, x);
+		len += x;
+	}
+	return len;
+}
+
+void print_vis(byte* vis, int visLeafCount) {
+	uint g_bitbytes = ((visLeafCount + 63) & ~63) >> 3;
+	for (int k = 0; k < visLeafCount; k++) {
+		for (int i = 0; i < g_bitbytes; i++) {
+			printf("%3d ", vis[k * g_bitbytes + i]);
+		}
+		cout << endl;
+	}
+}
+
+void Bsp::merge_vis(Bsp& other) {
+	byte* thisVis = (byte*)lumps[LUMP_VISIBILITY];
+	byte* otherVis = (byte*)other.lumps[LUMP_VISIBILITY];
+
+	BSPLEAF* allLeaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+	int totalLeaves = thisLeafCount + otherLeafCount;
+
+	byte* decompressedVis = new byte[65535];
+	memset(decompressedVis, 0, 65535);
+
+	// decompress this map's vis data (skip empty first leaf)
+	int thisDecompLen = DecompressAll(allLeaves, thisVis, decompressedVis, thisLeafCount-1, totalLeaves-1, false);
+	//cout << "Decompressed this vis:\n";
+	//print_vis(decompressedVis, thisLeafCount-1);
+
+	// decompress other map's vis data (skip empty first leaf, which now only the first map should have)
+	byte* decompressedOtherVis = decompressedVis + thisDecompLen;
+	int otherDecompLen = DecompressAll(allLeaves + (thisLeafCount - 1), otherVis, decompressedOtherVis, otherLeafCount, totalLeaves-1, true);
+	//cout << "Decompressed other vis:\n";
+	//print_vis(decompressedOtherVis, otherLeafCount);
+
+	// recompress the combined vis data
+	byte* compressedVis = new byte[65535];
+	memset(compressedVis, 0, 65535);
+	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalLeaves-1);
+
+	delete[] this->lumps[LUMP_VISIBILITY];
+	this->lumps[LUMP_VISIBILITY] = new byte[newVisLen];
+	memcpy(this->lumps[LUMP_VISIBILITY], compressedVis, newVisLen);
+	header.lump[LUMP_VISIBILITY].nLength = newVisLen;
+}
+
 bool Bsp::separate(Bsp& other) {
 	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
 	BSPMODEL& otherWorld = ((BSPMODEL*)other.lumps[LUMP_MODELS])[0];
@@ -896,7 +1111,7 @@ bool Bsp::separate(Bsp& other) {
 
 		BSPNODE headNode = {
 			separationPlaneIdx,			// plane idx
-			{1, numThisNodes+1},		// child nodes
+			{numThisNodes+1, 1},		// child nodes
 			{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
 			{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs
 			0, // first face
