@@ -210,6 +210,7 @@ private:
 	void merge_clipnodes(Bsp& other);
 	void merge_models(Bsp& other);
 	void merge_vis(Bsp& other);
+	void merge_lighting(Bsp& other);
 
 	// Finds an axis-aligned hyperplane that separates the BSPs and
 	// adds the plane and new root node to the bsp.
@@ -235,4 +236,5 @@ private:
 
 	int thisLeafCount;
 	int otherLeafCount;
+	int thisFaceCount;
 };

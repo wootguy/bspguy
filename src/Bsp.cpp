@@ -132,8 +132,8 @@ void Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_MODELS])
 		merge_models(other);
 
-	//if (shouldMerge[LUMP_LIGHTING])
-	//	merge_lighting(other);
+	if (shouldMerge[LUMP_LIGHTING])
+		merge_lighting(other);
 }
 
 void Bsp::merge_ents(Bsp& other)
@@ -425,7 +425,7 @@ void Bsp::merge_texinfo(Bsp& other) {
 void Bsp::merge_faces(Bsp& other) {
 	BSPFACE* thisFaces = (BSPFACE*)lumps[LUMP_FACES];
 	BSPFACE* otherFaces = (BSPFACE*)other.lumps[LUMP_FACES];
-	int thisFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+	thisFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 	int otherFaceCount = other.header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 	vector<BSPFACE> mergedFaces;
@@ -1026,6 +1026,30 @@ void Bsp::merge_vis(Bsp& other) {
 	this->lumps[LUMP_VISIBILITY] = new byte[newVisLen];
 	memcpy(this->lumps[LUMP_VISIBILITY], compressedVis, newVisLen);
 	header.lump[LUMP_VISIBILITY].nLength = newVisLen;
+}
+
+void Bsp::merge_lighting(Bsp& other) {
+	COLOR3* thisRad = (COLOR3*)lumps[LUMP_LIGHTING];
+	COLOR3* otherRad = (COLOR3*)other.lumps[LUMP_LIGHTING];
+	int thisColorCount = header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
+	int otherColorCount = other.header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
+	int totalColorCount = thisColorCount + otherColorCount;
+
+	COLOR3* newRad = new COLOR3[totalColorCount];
+	memcpy(newRad, thisRad, thisColorCount * sizeof(COLOR3));
+	memcpy((byte*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
+
+
+	delete[] this->lumps[LUMP_LIGHTING];
+	this->lumps[LUMP_LIGHTING] = (byte*)newRad;
+	header.lump[LUMP_LIGHTING].nLength = totalColorCount*sizeof(COLOR3);
+
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	int totalFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+	for (int i = thisFaceCount; i < totalFaceCount; i++) {
+		faces[i].nLightmapOffset += thisColorCount*sizeof(COLOR3);
+	}
 }
 
 bool Bsp::separate(Bsp& other) {
