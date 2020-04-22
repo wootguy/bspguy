@@ -5,6 +5,7 @@
 
 #define MAX_MAP_HULLS	4
 #define MAX_MAP_LEAFS 32760
+#define MAX_MAP_COORD 32767 // stuff breaks past this point
 
 #define LUMP_ENTITIES      0
 #define LUMP_PLANES        1
@@ -183,6 +184,7 @@ public:
 	Bsp(std::string fname);
 	~Bsp();
 
+	bool move(vec3 offset);
 	void merge(Bsp& other);
 	void write(string path);
 
@@ -222,6 +224,8 @@ private:
 	void print_node(BSPNODE node);
 	
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
+
+	void update_ent_lump();
 
 	// remapped structure locations for the other bsp file when merging
 	vector<int> texRemap;

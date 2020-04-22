@@ -16,5 +16,3 @@ vector<string> splitString(string str, const char* delimitters);
 string basename(string path);
 
 string stripExt(string filename);
-
-float dotProduct(vec3 v1, vec3 v2);

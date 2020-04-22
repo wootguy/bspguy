@@ -12,11 +12,9 @@ int merge_maps(vector<string> options) {
 	}
 
 	/*
-	Bsp csgTestMap("merge0.bsp");
-	csgTestMap.write_csg_outputs("");
-
-	Bsp badMap("merge0_bad.bsp");
-	badMap.print_bsp();
+	Bsp moveTest("yabma.bsp");
+	moveTest.move({ 1024, 0, 0 });
+	moveTest.write("yabma_move.bsp");
 
 	return 0;
 	*/

@@ -194,24 +194,7 @@ void Bsp::merge_ents(Bsp& other)
 		}
 	}
 
-	stringstream ent_data;
-
-	for (int i = 0; i < ents.size(); i++) {
-		ent_data << "{\n";
-
-		for (auto it = ents[i]->keyvalues.begin(); it != ents[i]->keyvalues.end(); it++) {
-			ent_data << "\"" << it->first << "\" \"" << it->second << "\"\n";
-		}
-
-		ent_data << "}\n";
-	}
-
-	string str_data = ent_data.str();
-
-	delete [] lumps[LUMP_ENTITIES];
-	header.lump[LUMP_ENTITIES].nLength = str_data.size();
-	lumps[LUMP_ENTITIES] = new byte[str_data.size()];
-	memcpy((char*)lumps[LUMP_ENTITIES], str_data.c_str(), str_data.size());
+	update_ent_lump();
 }
 
 void Bsp::merge_planes(Bsp& other) {
@@ -1194,6 +1177,186 @@ bool Bsp::separate(Bsp& other) {
 	}
 
 	return true;
+}
+
+bool Bsp::move(vec3 offset) {
+	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
+	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+	
+	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+
+	for (int i = 0; i < planeCount; i++) {
+		BSPPLANE& plane = planes[i];
+		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
+
+		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
+			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
+			printf("WARNING: Plane origin moved past safe world boundary!");
+		}
+
+		// get distance between new plane origin and the origin-aligned plane
+		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
+	}	
+
+	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
+	BSPMIPTEX* textures = (BSPMIPTEX*)(lumps[LUMP_TEXTURES] + sizeof(uint32_t) * (texCount + 1));
+	vec3 offsetDir = offset.normalize();
+	float offsetLen = offset.length();
+	for (int i = 0; i < texInfoCount; i++) {
+		BSPTEXTUREINFO& info = texInfo[i];
+		BSPMIPTEX& tex = textures[info.iMiptex];
+
+		float scaleS = info.vS.length();
+		float scaleT = info.vT.length();
+		vec3 nS = info.vS.normalize();
+		vec3 nT = info.vT.normalize();
+
+		vec3 newOriS = offset + (nS * info.shiftS);
+		vec3 newOriT = offset + (nT * info.shiftT);
+
+		float shiftScaleS = dotProduct(offsetDir, nS);
+		float shiftScaleT = dotProduct(offsetDir, nT);
+
+		info.shiftS -= shiftScaleS * offsetLen*scaleS;
+		info.shiftT -= shiftScaleT * offsetLen*scaleT;
+
+		// TODO: minimize texture shift values (width/height only stored in WADs?)
+		/*
+		while (fabs(info.shiftS) > tex.nWidth) {
+			info.shiftS += info.shiftS < 0 ? tex.nWidth : -tex.nWidth;
+			printf("MINIMIZE SHIFT S %d %f\n", i, info.shiftS);
+		}
+		while (fabs(info.shiftT) > tex.nHeight) {
+			info.shiftT += info.shiftT < 0 ? tex.nHeight : -tex.nHeight;
+			printf("MINIMIZE SHIFT T %d\n", i);
+		}
+		*/
+	}
+
+	for (int i = 0; i < leafCount; i++) {
+		BSPLEAF& leaf = leaves[i];
+
+		if (fabs((float)leaf.nMins[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMins[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+		}
+		leaf.nMins[0] += offset.x;
+		leaf.nMaxs[0] += offset.x;
+		leaf.nMins[1] += offset.y;
+		leaf.nMaxs[1] += offset.y;
+		leaf.nMins[2] += offset.z;
+		leaf.nMaxs[2] += offset.z;
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		model.nMins += offset;
+		model.nMaxs += offset;
+		//model.vOrigin += offset; (wouldn't work once maps are merged into one model)
+
+		if (fabs(model.nMins.x) > MAX_MAP_COORD ||
+			fabs(model.nMins.y) > MAX_MAP_COORD ||
+			fabs(model.nMins.z) > MAX_MAP_COORD ||
+			fabs(model.nMaxs.z) > MAX_MAP_COORD ||
+			fabs(model.nMaxs.z) > MAX_MAP_COORD ||
+			fabs(model.nMaxs.z) > MAX_MAP_COORD) {
+			printf("WARNING: Model moved past safe world boundary!");
+		}
+	}
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = nodes[i];
+
+		if (fabs((float)node.nMins[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)node.nMins[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+		}
+		node.nMins[0] += offset.x;
+		node.nMaxs[0] += offset.x;
+		node.nMins[1] += offset.y;
+		node.nMaxs[1] += offset.y;
+		node.nMins[2] += offset.z;
+		node.nMaxs[2] += offset.z;
+	}
+
+	for (int i = 0; i < vertCount; i++) {
+		vec3& vert = verts[i];
+
+		vert += offset;
+
+		if (fabs(vert.x) > MAX_MAP_COORD ||
+			fabs(vert.y) > MAX_MAP_COORD ||
+			fabs(vert.z) > MAX_MAP_COORD) {
+			printf("WARNING: Vertex moved past safe world boundary!");
+		}
+	}
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (!ents[i]->hasKey("origin"))
+			continue;
+
+		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
+		vec3 ori = keyvalue.getVector();
+		ori += offset;
+
+		string parts[3] = { to_string(ori.x) , to_string(ori.y), to_string(ori.z) };
+
+		// remove trailing zeros to save some space
+		for (int i = 0; i < 3; i++) {
+			parts[i].erase(parts[i].find_last_not_of('0') + 1, std::string::npos);
+
+			// strip dot if there's no fractional part
+			if (parts[i][parts[i].size() - 1] == '.') {
+				parts[i] = parts[i].substr(0, parts[i].size() - 1);
+			}
+		}
+
+		ents[i]->keyvalues["origin"] = parts[0] + " " + parts[1] + " " + parts[2];
+		//printf("NEW ORI: %s\n", ents[i]->keyvalues["origin"].c_str());
+	}
+
+	update_ent_lump();
+
+	return true;
+}
+
+void Bsp::update_ent_lump() {
+	stringstream ent_data;
+
+	for (int i = 0; i < ents.size(); i++) {
+		ent_data << "{\n";
+
+		for (auto it = ents[i]->keyvalues.begin(); it != ents[i]->keyvalues.end(); it++) {
+			ent_data << "\"" << it->first << "\" \"" << it->second << "\"\n";
+		}
+
+		ent_data << "}\n";
+	}
+
+	string str_data = ent_data.str();
+
+	delete[] lumps[LUMP_ENTITIES];
+	header.lump[LUMP_ENTITIES].nLength = str_data.size();
+	lumps[LUMP_ENTITIES] = new byte[str_data.size()];
+	memcpy((char*)lumps[LUMP_ENTITIES], str_data.c_str(), str_data.size());
 }
 
 void Bsp::write(string path) {

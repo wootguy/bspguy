@@ -9,6 +9,7 @@ set(SOURCE_FILES
 	src/Wad.h			src/Wad.cpp
     src/util.h			src/util.cpp
 	src/types.h
+	src/vectors.h		src/vectors.cpp
 )
 
 if(MSVC)

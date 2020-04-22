@@ -63,33 +63,16 @@ Keyvalue::~Keyvalue(void)
 vec3 Keyvalue::getVector()
 {
 	vec3 v;
-	int coordidx = 0;
-	int begin = -1;
-	for (int i = 0, len = value.length(); i < len; i++)
-	{
-		char c = value[i];
-		if (begin != -1)
-		{
-			if (i == len-1)
-				i = len;
-			if (c == ' ' || i == len)
-			{
-				float coord = atof(value.substr(begin,i-begin).c_str());
-				if (coordidx == 0)
-					v.x = coord;
-				else if (coordidx == 1)
-					v.y = coord;
-				else if (coordidx == 2)
-					v.z = coord;
-				else
-					cout << "too many coordinates in vertex '" + value + "'\n";
-				coordidx++;
-				begin = -1;
-			}
-		}
-		else if (isdigit(c) || c == '.' || c == '-')
-			begin = i;
+	vector<string> parts = splitString(value, " ");
+
+	if (parts.size() != 3) {
+		cout << "Not enough coordinates in vector '" << value << "'\n";
+		return v;
 	}
-	if (coordidx < 3) cout << "Not enough coordinates in vector '" + value + "'\n";
+
+	v.x = atof(parts[0].c_str());
+	v.y = atof(parts[1].c_str());
+	v.z = atof(parts[2].c_str());
+
 	return v;
 }
