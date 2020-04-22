@@ -1071,6 +1071,9 @@ bool Bsp::separate(Bsp& other) {
 	BSPPLANE separationPlane;
 	memset(&separationPlane, 0, sizeof(BSPPLANE));
 
+	// planes with negative normals mess up VIS and lighting stuff, so swap children instead
+	bool swapNodeChildren = false;
+
 	// separating plane points toward the other map (b)
 	if (bmin.x >= amax.x) {
 		separationPlane.nType = PLANE_X;
@@ -1079,8 +1082,9 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.x <= amin.x) {
 		separationPlane.nType = PLANE_X;
-		separationPlane.vNormal = { -1, 0, 0 };
+		separationPlane.vNormal = { 1, 0, 0 };
 		separationPlane.fDist = bmax.x + (amin.x - bmax.x) * 0.5f;
+		swapNodeChildren = true;
 	}
 	else if (bmin.y >= amax.y) {
 		separationPlane.nType = PLANE_Y;
@@ -1089,8 +1093,9 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.y <= amin.y) {
 		separationPlane.nType = PLANE_Y;
-		separationPlane.vNormal = { 0, -1, 0 };
+		separationPlane.vNormal = { 0, 1, 0 };
 		separationPlane.fDist = bmax.y;
+		swapNodeChildren = true;
 	}
 	else if (bmin.z >= amax.z) {
 		separationPlane.nType = PLANE_Z;
@@ -1099,8 +1104,9 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.z <= amin.z) {
 		separationPlane.nType = PLANE_Z;
-		separationPlane.vNormal = { 0, 0, -1 };
+		separationPlane.vNormal = { 0, 0, 1 };
 		separationPlane.fDist = bmax.z;
+		swapNodeChildren = true;
 	}
 	else {
 		separationPlane.nType = -1; // no simple separating axis
@@ -1133,6 +1139,8 @@ bool Bsp::separate(Bsp& other) {
 		BSPNODE* thisNodes = (BSPNODE*)lumps[LUMP_NODES];
 		int numThisNodes = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 
+
+
 		BSPNODE headNode = {
 			separationPlaneIdx,			// plane idx
 			{numThisNodes+1, 1},		// child nodes
@@ -1141,6 +1149,12 @@ bool Bsp::separate(Bsp& other) {
 			0, // first face
 			0  // n faces (none since this plane is in the void)
 		};
+
+		if (swapNodeChildren) {
+			int16_t temp = headNode.iChildren[0];
+			headNode.iChildren[0] = headNode.iChildren[1];
+			headNode.iChildren[1] = temp;
+		}
 
 		BSPNODE* newThisNodes = new BSPNODE[numThisNodes + 1];
 		memcpy(newThisNodes + 1, thisNodes, numThisNodes * sizeof(BSPNODE));
@@ -1161,13 +1175,12 @@ bool Bsp::separate(Bsp& other) {
 		BSPCLIPNODE newHeadNodes[NEW_NODE_COUNT];
 		for (int i = 0; i < NEW_NODE_COUNT; i++) {
 			printf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
-
 			newHeadNodes[i] = {
 				separationPlaneIdx,	// plane idx
 				{	// child nodes
-					(int16_t)(thisWorld.iHeadnodes[i+1] + NEW_NODE_COUNT), 
-					(int16_t)(otherWorld.iHeadnodes[i+1] + numThisNodes + NEW_NODE_COUNT)
-				}, 
+					(int16_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT),
+					(int16_t)(otherWorld.iHeadnodes[i + 1] + numThisNodes + NEW_NODE_COUNT)
+				},
 			};
 		}
 
@@ -1380,6 +1393,22 @@ int Bsp::pointContents(int iNode, vec3 p)
 
 	return leaves[~iNode].nContents;
 }
+/*
+int Bsp::PM_HullPointContents(hull_t* hull, int num, const vec3_t p)
+{
+	mplane_t* plane;
+
+	if (!hull || !hull->planes)	// fantom bmodels?
+		return CONTENTS_NONE;
+
+	while (num >= 0)
+	{
+		plane = &hull->planes[hull->clipnodes[num].planenum];
+		num = hull->clipnodes[num].children[PlaneDiff(p, plane) < 0];
+	}
+	return num;
+}
+*/
 
 void Bsp::write_csg_outputs(string path) {
 	BSPPLANE* thisPlanes = (BSPPLANE*)lumps[LUMP_PLANES];
