@@ -140,6 +140,22 @@ void Bsp::merge_ents(Bsp& other)
 {
 	printf("Merging ents...\n");
 
+	// update model indexes since this map's models will be appended after the other map's models
+	int otherModelCount = (other.header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) - 1;
+	for (int i = 0; i < ents.size(); i++) {
+		if (!ents[i]->hasKey("model") || ents[i]->keyvalues["model"][0] != '*') {
+			continue;
+		}
+		string modelIdxStr = ents[i]->keyvalues["model"].substr(1);
+
+		if (!isNumeric(modelIdxStr)) {
+			continue;
+		}
+
+		int newModelIdx = atoi(modelIdxStr.c_str()) + otherModelCount;
+		ents[i]->keyvalues["model"] = "*" + to_string(newModelIdx);
+	}
+
 	for (int i = 0; i < other.ents.size(); i++) {
 		if (other.ents[i]->keyvalues["classname"] == "worldspawn") {
 			Entity* otherWorldspawn = other.ents[i];
@@ -516,10 +532,13 @@ void Bsp::merge_leaves(Bsp& other) {
 	thisLeafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
 	otherLeafCount = other.header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
 
+	int thisWorldLeafCount = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs+1; // include solid leaf
+
 	vector<BSPLEAF> mergedLeaves;
 	mergedLeaves.reserve(thisLeafCount + otherLeafCount);
 
-	for (int i = 0; i < thisLeafCount; i++) {
+	for (int i = 0; i < thisWorldLeafCount; i++) {
+		modelLeafRemap.push_back(i);
 		mergedLeaves.push_back(thisLeaves[i]);
 	}
 
@@ -529,20 +548,22 @@ void Bsp::merge_leaves(Bsp& other) {
 			leaf.iFirstMarkSurface = markSurfRemap[leaf.iFirstMarkSurface];
 		}
 
-		bool isUnique = true;
-		for (int k = 0; k < thisLeafCount; k++) {
-			bool isSharedSolidLeaf = i == 0; // always merge first solid leaf since there can only be one per map
-			if (isSharedSolidLeaf || memcmp(&leaf, &thisLeaves[k], sizeof(BSPLEAF)) == 0) {
-				isUnique = false;
-				leavesRemap.push_back(k);
-				break;
-			}
-		}
-
-		if (isUnique) {
+		bool isSharedSolidLeaf = i == 0;
+		if (!isSharedSolidLeaf) {
 			leavesRemap.push_back(mergedLeaves.size());
 			mergedLeaves.push_back(leaf);
 		}
+		else {
+			// always exclude the first solid leaf since there can only be one per map, at index 0
+			leavesRemap.push_back(0);
+		}
+	}
+
+	// append A's submodel leaves after B's world leaves
+	// Order will be: A's world leaves -> B's world leaves -> B's submodel leaves -> A's submodel leaves
+	for (int i = thisWorldLeafCount; i < thisLeafCount; i++) {
+		modelLeafRemap.push_back(mergedLeaves.size());
+		mergedLeaves.push_back(thisLeaves[i]);
 	}
 
 	int newLen = mergedLeaves.size() * sizeof(BSPLEAF);
@@ -736,6 +757,9 @@ void Bsp::merge_nodes(Bsp& other) {
 				if (node.iChildren[k] >= 0) {
 					node.iChildren[k] += 1; // shifted from new head node
 				}
+				else {
+					node.iChildren[k] = ~((int16_t)modelLeafRemap[~node.iChildren[k]]);
+				}
 			}
 		}
 
@@ -825,23 +849,26 @@ void Bsp::merge_models(Bsp& other) {
 	vector<BSPMODEL> mergedModels;
 	mergedModels.reserve(thisModelCount + otherModelCount);
 
-	for (int i = 0; i < thisModelCount; i++) {
-		BSPMODEL model = thisModels[i];
-		if (i > 0) { // non-world models need to be shifted to account for new headnodes in the world tree
-			model.iHeadnodes[0] += 1; // 1 = new headnode
-			for (int k = 1; k < MAX_MAP_HULLS; k++) {
-				model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // skip this nodes + new head nodes
-			}
-		}
-		mergedModels.push_back(model);
-	}
+	// merged world model
+	mergedModels.push_back(thisModels[0]);
 
-	// skip first model because there can only be one "world" model
+	// other map's submodels
 	for (int i = 1; i < otherModelCount; i++) {
 		BSPMODEL model = otherModels[i];
 		model.iHeadnodes[0] += thisNodeCount + 1;
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			model.iHeadnodes[k] += thisClipnodeCount + (MAX_MAP_HULLS-1);
+			model.iHeadnodes[k] += thisClipnodeCount;
+		}
+		model.iFirstFace = facesRemap[model.iFirstFace];
+		mergedModels.push_back(model);
+	}
+
+	// this map's submodels
+	for (int i = 1; i < thisModelCount; i++) {
+		BSPMODEL model = thisModels[i];
+		model.iHeadnodes[0] += 1; // adjust for new head node
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			model.iHeadnodes[k] += (MAX_MAP_HULLS-1); // adjust for new head nodes
 		}
 		mergedModels.push_back(model);
 	}
@@ -851,10 +878,8 @@ void Bsp::merge_models(Bsp& other) {
 	mergedModels[0].iHeadnodes[1] = 0;
 	mergedModels[0].iHeadnodes[2] = 1;
 	mergedModels[0].iHeadnodes[3] = 2;
-	//mergedModels[0].nVisLeafs = thisModels[0].nVisLeafs + otherModels[0].nVisLeafs;
-	mergedModels[0].nVisLeafs = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	mergedModels[0].nVisLeafs = thisModels[0].nVisLeafs + otherModels[0].nVisLeafs;
 	mergedModels[0].nFaces = thisModels[0].nFaces + otherModels[0].nFaces;
-	//mergedModels[0].nFaces = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 	vec3 amin = thisModels[0].nMins;
 	vec3 bmin = otherModels[0].nMins;
@@ -920,14 +945,29 @@ void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_le
 	} while (out - dest < row);
 }
 
-void shiftVis(byte* vis, int len, int shift) {
+void Bsp::shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
+	byte offsetBit = offsetLeaf % 8;
+	byte mask = 0; // part of the byte that shouldn't be shifted
+	for (int i = 0; i < offsetBit; i++) {
+		mask |= 1 << i;
+	}
 
 	for (int k = 0; k < shift; k++) {
+
 		bool carry = 0;
 		for (int i = 0; i < len; i++) {
 			byte oldCarry = carry;
 			carry = (vis[i] & 0x80) != 0;
-			vis[i] = (vis[i] << 1) + oldCarry;
+
+			if (offsetBit != 0 && i*8 < offsetLeaf && i*8 + 8 > offsetLeaf) {
+				vis[i] = (vis[i] & mask) | ((vis[i] & ~mask) << 1);
+			}
+			else if (i >= offsetLeaf / 8) {
+				vis[i] = (vis[i] << 1) + oldCarry;
+			}
+			else {
+				carry = 0;
+			}
 		}
 
 		if (carry) {
@@ -936,25 +976,29 @@ void shiftVis(byte* vis, int len, int shift) {
 	}
 }
 
-int DecompressAll(BSPLEAF* leafLump, byte* visLump, byte* output, int numLeaves, int newNumLeaves, bool prependNewLeaves)
+// decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
+// iterationLeaves = number of leaves to decompress vis for
+// visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
+// newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
+void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, 
+	int iterationLeaves, int visDataLeafCount, int newNumLeaves, 
+	int shiftOffsetBit, int shiftAmount)
 {
 	byte* dest;
-	uint oldBitbytes = ((numLeaves + 63) & ~63) >> 3;
-	uint newBitbytes = ((newNumLeaves + 63) & ~63) >> 3;
+	uint oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
+	uint newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
 	int len = 0;
 
-	for (int i = 0; i < numLeaves; i++)
+	for (int i = 0; i < iterationLeaves; i++)
 	{
-		dest = output + i * newBitbytes;
+		dest = output + i * newVisRowSize;
 
-		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldBitbytes, numLeaves);
+		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
 	
-		if (prependNewLeaves) {
-			shiftVis(dest, newBitbytes, newNumLeaves - numLeaves);
+		if (shiftAmount) {
+			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 		}
 	}
-
-	return numLeaves* newBitbytes;
 }
 
 int CompressVis(const byte* const src, const unsigned int src_length, byte* dest, unsigned int dest_length)
@@ -1040,7 +1084,7 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves)
 
 void print_vis(byte* vis, int visLeafCount, int g_bitbytes) {
 	for (int k = 0; k < visLeafCount; k++) {
-		printf("LEAF %d: ", k+1);
+		printf("LEAF %02d: ", k+1);
 		for (int i = 0; i < g_bitbytes; i++) {
 			printf("%3d ", vis[k * g_bitbytes + i]);
 		}
@@ -1059,18 +1103,6 @@ void debug_vis(byte* vis, BSPLEAF* leafs, int visLeafCount) {
 
 		memset(decompressed, 0, g_bitbytes);
 		memset(compressed, 0, g_bitbytes);
-
-		if (i == 55) {
-			if (i < visLeafCount - 1) {
-				int oldCompressLen = leafs[i + 2].nVisOffset - leafs[i + 1].nVisOffset;
-				memcpy(compressed, vis + leafs[i + 1].nVisOffset, oldCompressLen);
-
-				printf("\n         ");
-				for (int k = 0; k < oldCompressLen; k++) {
-					printf("%3d ", compressed[k]);
-				}
-			}
-		}
 
 		DecompressVis((const unsigned char*)(vis + leafs[i + 1].nVisOffset), decompressed, g_bitbytes, visLeafCount);
 		for (int k = 0; k < g_bitbytes; k++) {
@@ -1105,10 +1137,29 @@ void Bsp::merge_vis(Bsp& other) {
 	byte* otherVis = (byte*)other.lumps[LUMP_VISIBILITY];
 
 	BSPLEAF* allLeaves = (BSPLEAF*)lumps[LUMP_LEAVES];
-	int totalLeaves = thisLeafCount + otherLeafCount;
 
-	uint newBitbytes = ((totalLeaves + 63) & ~63) >> 3;
-	int decompressedVisSize = (totalLeaves-1) * newBitbytes;
+	
+	int thisVisLeaves = thisLeafCount - 1; // VIS ignores the shared solid leaf 0
+	int otherVisLeaves = otherLeafCount; // already does not include the solid leaf (see merge_leaves)
+	int totalVisLeaves = thisVisLeaves + otherVisLeaves;
+
+	int thisWorldLeafCount = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // excludes solid leaf 0
+	int otherWorldLeafCount = ((BSPMODEL*)other.lumps[LUMP_MODELS])->nVisLeafs; // excluding solid leaf 0
+	int thisModelLeafCount = thisVisLeaves - thisWorldLeafCount;
+	int otherModelLeafCount = otherVisLeaves - otherWorldLeafCount;
+
+	uint newVisRowSize = ((totalVisLeaves + 63) & ~63) >> 3;
+	int decompressedVisSize = totalVisLeaves * newVisRowSize;
+
+	// submodel leaves should come after world leaves and need to be moved after the incoming world leaves from the other map
+	int shiftOffsetBit = 0; // where to start making room for the submodel leaves
+	int shiftAmount = otherLeafCount;
+	for (int k = 0; k < modelLeafRemap.size(); k++) {
+		if (k != modelLeafRemap[k]) {
+			shiftOffsetBit = k - 1; // skip solid leaf
+			break;
+		}
+	}
 
 	//debug_vis(thisVis, allLeaves, totalLeaves - 1);
 	//return;
@@ -1118,21 +1169,43 @@ void Bsp::merge_vis(Bsp& other) {
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 
-	// decompress this map's vis data (skip empty first leaf)
-	int thisDecompLen = DecompressAll(allLeaves, thisVis, decompressedVis, thisLeafCount-1, totalLeaves-1, false);
+	// decompress this map's world leaves
+	decompress_vis_lump(allLeaves, thisVis, decompressedVis, 
+		thisWorldLeafCount, thisVisLeaves, totalVisLeaves,
+		shiftOffsetBit, shiftAmount);
+
+	// decompress this map's model leaves (also making room for the other map's world leaves)
+	BSPLEAF* thisModelLeaves = allLeaves + thisWorldLeafCount + otherLeafCount;
+	byte* modelLeafVisDest = decompressedVis + (thisWorldLeafCount + otherLeafCount) * newVisRowSize;
+	decompress_vis_lump(thisModelLeaves, thisVis, modelLeafVisDest,
+		thisModelLeafCount, thisVisLeaves, totalVisLeaves,
+		shiftOffsetBit, shiftAmount);
+
 	//cout << "Decompressed this vis:\n";
-	//print_vis(decompressedVis, thisLeafCount-1, newBitbytes);
+	//print_vis(decompressedVis, thisVisLeaves + otherLeafCount, newVisRowSize);
+
+	// all of other map's leaves come after this map's world leaves
+	shiftOffsetBit = 0;
+	shiftAmount = thisWorldLeafCount; // world leaf count (exluding solid leaf)
 
 	// decompress other map's vis data (skip empty first leaf, which now only the first map should have)
-	byte* decompressedOtherVis = decompressedVis + thisDecompLen;
-	int otherDecompLen = DecompressAll(allLeaves + (thisLeafCount - 1), otherVis, decompressedOtherVis, otherLeafCount, totalLeaves-1, true);
+	byte* decompressedOtherVis = decompressedVis + thisWorldLeafCount*newVisRowSize;
+	decompress_vis_lump(allLeaves + thisWorldLeafCount, otherVis, decompressedOtherVis,
+		otherLeafCount, otherLeafCount, totalVisLeaves,
+		shiftOffsetBit, shiftAmount);
+	
 	//cout << "Decompressed other vis:\n";
-	//print_vis(decompressedOtherVis, otherLeafCount, newBitbytes);
+	//print_vis(decompressedOtherVis, otherLeafCount, newVisRowSize);
+
+	//memset(decompressedVis + 9 * newBitbytes, 0xff, otherMapVisSize);
+
+	//cout << "Decompressed combined vis:\n";
+	//print_vis(decompressedVis, totalVisLeaves, newVisRowSize);
 
 	// recompress the combined vis data
 	byte* compressedVis = new byte[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalLeaves-1);
+	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves);
 	int oldLen = header.lump[LUMP_VISIBILITY].nLength;
 
 	delete[] this->lumps[LUMP_VISIBILITY];
@@ -1627,14 +1700,14 @@ void Bsp::load_ents()
 }
 
 void Bsp::print_bsp() {
-	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
-	BSPMODEL world = models[0];
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];		
 
+	for (int i = 0; i < header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL); i++) {
+		int node = models[i].iHeadnodes[0];
+		printf("\nModel %02d\n", i);
+		recurse_node(node, 0);
+	}
 	
-	int node = world.iHeadnodes[0];
-	cout << "Head node: " << node << endl;
-
-	recurse_node(node, 0);
 }
 
 void Bsp::recurse_node(int16_t nodeIdx, int depth) {

@@ -16,3 +16,5 @@ vector<string> splitString(string str, const char* delimitters);
 string basename(string path);
 
 string stripExt(string filename);
+
+bool isNumeric(const std::string& s);

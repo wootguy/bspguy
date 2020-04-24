@@ -214,6 +214,12 @@ private:
 	void merge_vis(Bsp& other);
 	void merge_lighting(Bsp& other);
 
+	void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
+		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
+		int shiftOffsetBit, int shiftAmount);
+
+	void shiftVis(byte* vis, int len, int offsetLeaf, int shift);
+
 	// Finds an axis-aligned hyperplane that separates the BSPs and
 	// adds the plane and new root node to the bsp.
 	// Must be called after planes are merged but before nodes/clipnodes.
@@ -227,7 +233,7 @@ private:
 
 	void update_ent_lump();
 
-	// remapped structure locations for the other bsp file when merging
+	// remapped structure indexes for the other bsp file when merging
 	vector<int> texRemap;
 	vector<int> texInfoRemap;
 	vector<int> planeRemap;
@@ -237,6 +243,9 @@ private:
 	vector<int> vertRemap;
 	vector<int> leavesRemap;
 	vector<int> facesRemap;
+
+	// remapped leaf indexes for this map's submodel leaves
+	vector<int> modelLeafRemap;
 
 	int thisLeafCount;
 	int otherLeafCount;
