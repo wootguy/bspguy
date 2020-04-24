@@ -4,8 +4,24 @@
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
 #define MAX_MAP_HULLS	4
-#define MAX_MAP_LEAFS 32760
 #define MAX_MAP_COORD 32767 // stuff breaks past this point
+
+#define MAX_MAP_MODELS 4096
+#define MAX_MAP_PLANES 65535
+#define MAX_MAP_VERTS 65535
+#define MAX_MAP_NODES 32768
+#define MAX_MAP_TEXINFOS 32767
+#define MAX_MAP_FACES 65535 // This ought to be 32768, otherwise faces(in world) can become invisible. --vluzacn
+#define MAX_MAP_CLIPNODES 32767
+#define MAX_MAP_LEAVES 65536
+#define MAX_MAP_MARKSURFS 65536
+#define MAX_MAP_TEXDATA 0
+#define MAX_MAP_VISDATA 0x800000 //0x400000 //vluzacn
+#define MAX_MAP_ENTS 8192
+#define MAX_MAP_SURFEDGES 512000
+#define MAX_MAP_EDGES 256000
+#define MAX_MAP_TEXTURES 4096
+#define MAX_MAP_LIGHTDATA 0x3000000 //0x600000 //vluzacn
 
 #define LUMP_ENTITIES      0
 #define LUMP_PLANES        1
@@ -188,6 +204,7 @@ public:
 	void merge(Bsp& other);
 	void write(string path);
 
+	void print_info();
 	void print_bsp();
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
@@ -228,6 +245,7 @@ private:
 
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
+	void print_stat(string name, uint val, uint max, bool isMem);
 	
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
