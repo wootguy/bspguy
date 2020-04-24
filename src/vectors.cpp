@@ -155,6 +155,8 @@ float dotProduct( vec3 v1, vec3 v2 )
 
 vec3 vec3::normalize( float length )
 {
+	if (x == 0 && y == 0 && z == 0)
+		return vec3(0, 0, 0);
 	float d = length / sqrt( (x*x) + (y*y) + (z*z) );
 	return vec3(x*d, y*d, z*d);
 }

@@ -241,4 +241,6 @@ private:
 	int thisLeafCount;
 	int otherLeafCount;
 	int thisFaceCount;
+	int thisNodeCount;
+	int thisClipnodeCount;
 };

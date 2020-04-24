@@ -138,6 +138,8 @@ void Bsp::merge(Bsp& other) {
 
 void Bsp::merge_ents(Bsp& other)
 {
+	printf("Merging ents...\n");
+
 	for (int i = 0; i < other.ents.size(); i++) {
 		if (other.ents[i]->keyvalues["classname"] == "worldspawn") {
 			Entity* otherWorldspawn = other.ents[i];
@@ -198,6 +200,8 @@ void Bsp::merge_ents(Bsp& other)
 }
 
 void Bsp::merge_planes(Bsp& other) {
+	printf("Merging planes...\n");
+
 	BSPPLANE* thisPlanes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPPLANE* otherPlanes = (BSPPLANE*)other.lumps[LUMP_PLANES];
 	int numThisPlanes = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
@@ -211,6 +215,7 @@ void Bsp::merge_planes(Bsp& other) {
 	}
 	for (int i = 0; i < numOtherPlanes; i++) {
 		bool isUnique = true;
+		/*
 		for (int k = 0; k < numThisPlanes; k++) {
 			if (memcmp(&otherPlanes[i], &thisPlanes[k], sizeof(BSPPLANE)) == 0) {
 				isUnique = false;
@@ -218,7 +223,7 @@ void Bsp::merge_planes(Bsp& other) {
 				break;
 			}
 		}
-
+		*/
 		if (isUnique) {
 			planeRemap.push_back(mergedPlanes.size());
 			mergedPlanes.push_back(otherPlanes[i]);
@@ -228,9 +233,8 @@ void Bsp::merge_planes(Bsp& other) {
 	int newLen = mergedPlanes.size() * sizeof(BSPPLANE);
 	int duplicates = mergedPlanes.size() - (numThisPlanes + numOtherPlanes);
 
-	cout << "Removed " << duplicates << " duplicate planes\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate planes\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -243,30 +247,65 @@ void Bsp::merge_planes(Bsp& other) {
 	cout << "planes: " << numThisPlanes << " -> " << mergedPlanes.size() << endl;
 }
 
-void Bsp::merge_textures(Bsp& other) {
-	uint32_t thisTexCount =  (uint32_t)(lumps[LUMP_TEXTURES])[0];
-	uint32_t otherTexCount = (uint32_t)(other.lumps[LUMP_TEXTURES])[0];
-	BSPMIPTEX* thisTex = (BSPMIPTEX*)(lumps[LUMP_TEXTURES] + sizeof(uint32_t)*(thisTexCount+1));
-	BSPMIPTEX* otherTex = (BSPMIPTEX*)(other.lumps[LUMP_TEXTURES] + sizeof(uint32_t)*(otherTexCount+1));
+int getMipTexDataSize(int width, int height) {
+	int sz = 256*3 + 4; // pallette + padding
 
-	uint32_t newTexCount = thisTexCount + otherTexCount;
-
-	vector<BSPMIPTEX> mergedTex;
-
-	for (int i = 0; i < thisTexCount; i++) {
-		if (thisTex[i].nOffsets[0] != 0) {
-			cout << "0ZOMG " << thisTex[i].szName << " STORED IN BSP ZOMG " << thisTex[i].nOffsets[0] << endl;
-		}
-		
-		mergedTex.push_back(thisTex[i]);
+	for (int i = 0; i < MIPLEVELS; i++) {
+		sz += (width >> i) * (height >> i);
 	}
 
+	return sz;
+}
+
+void Bsp::merge_textures(Bsp& other) {
+	printf("Merging textures...\n");
+
+	int32_t thisTexCount =  *((int32_t*)(lumps[LUMP_TEXTURES]));
+	int32_t otherTexCount = *((int32_t*)(other.lumps[LUMP_TEXTURES]));
+	byte* thisTex = lumps[LUMP_TEXTURES];
+	byte* otherTex = other.lumps[LUMP_TEXTURES];
+
+	uint32_t newTexCount = 0;
+
+	// temporary buffer for holding miptex + embedded textures (too big but doesn't matter)
+	uint maxMipTexDataSize = header.lump[LUMP_TEXTURES].nLength + other.header.lump[LUMP_TEXTURES].nLength;
+	byte* newMipTexData = new byte[maxMipTexDataSize];
+
+	byte* mipTexWritePtr = newMipTexData;
+
+	// offsets relative to the start of the mipmap data, not the lump
+	uint32_t* mipTexOffsets = new uint32_t[thisTexCount + otherTexCount];
+
+	uint thisMergeSz = (thisTexCount + 1) * 4;
+	for (int i = 0; i < thisTexCount; i++) {
+		int32_t offset = ((int32_t*)thisTex)[i + 1];
+		BSPMIPTEX* tex = (BSPMIPTEX*)(thisTex + offset);
+
+		int sz = sizeof(BSPMIPTEX);
+		if (tex->nOffsets[0] != 0) {
+			sz += getMipTexDataSize(tex->nWidth, tex->nHeight);
+		}
+		//memset(tex->nOffsets, 0, sizeof(uint32) * 4);
+		
+		mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
+		memcpy(mipTexWritePtr, tex, sz);
+		mipTexWritePtr += sz;
+		newTexCount++;
+		thisMergeSz += sz;
+	}
+
+	uint otherMergeSz = (otherTexCount+1)*4;
 	for (int i = 0; i < otherTexCount; i++) {
-		if (otherTex[i].nOffsets[0] != 0) {
-			cout << "1ZOMG " << otherTex[i].szName << " STORED IN BSP ZOMG " << otherTex[i].nOffsets[0] << endl;
+		int32_t offset = ((int32_t*)otherTex)[i + 1];
+		BSPMIPTEX* tex = (BSPMIPTEX*)(otherTex + offset);
+
+		int sz = sizeof(BSPMIPTEX);
+		if (tex->nOffsets[0] != 0) {
+			sz += getMipTexDataSize(tex->nWidth, tex->nHeight);
 		}
 
 		bool isUnique = true;
+		/*
 		for (int k = 0; k < thisTexCount; k++) {
 			if (memcmp(&otherTex[i], &thisTex[k], sizeof(BSPMIPTEX)) == 0) {
 				isUnique = false;
@@ -274,25 +313,32 @@ void Bsp::merge_textures(Bsp& other) {
 				break;
 			}
 		}
+		*/
 		
 		if (isUnique) {
-			texRemap.push_back(mergedTex.size());
-			mergedTex.push_back(otherTex[i]);
+			mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
+			if (mipTexOffsets[newTexCount] > maxMipTexDataSize) {
+				printf("ZOMG OVERFLOW\n");
+			}
+
+			texRemap.push_back(newTexCount);
+			memcpy(mipTexWritePtr, tex, sz);
+			mipTexWritePtr += sz;
+			newTexCount++;
+			otherMergeSz += sz;
 		}
 	}
 
-	uint32_t texHeaderSize = sizeof(uint32_t) * (newTexCount + 1);
-
-	int newLen = mergedTex.size() * sizeof(BSPMIPTEX) + texHeaderSize;
-	int duplicates = mergedTex.size() - (thisTexCount + otherTexCount);
-
-	cout << "Removed " << duplicates << " duplicate textures\n";
+	int duplicates = newTexCount - (thisTexCount + otherTexCount);
 
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate textures\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
 
+	uint texHeaderSize = (newTexCount + 1) * sizeof(int32_t);
+	uint newLen = (mipTexWritePtr - newMipTexData) + texHeaderSize;
 	delete[] this->lumps[LUMP_TEXTURES];
 	this->lumps[LUMP_TEXTURES] = new byte[newLen];
 
@@ -300,16 +346,18 @@ void Bsp::merge_textures(Bsp& other) {
 	uint32_t* texHeader = (uint32_t*)(this->lumps[LUMP_TEXTURES]);
 	texHeader[0] = newTexCount;
 	for (int i = 0; i < newTexCount; i++) {
-		texHeader[i+1] = texHeaderSize + sizeof(BSPMIPTEX) * i;
+		texHeader[i+1] = mipTexOffsets[i] + texHeaderSize;
 	}
 
-	memcpy(this->lumps[LUMP_TEXTURES] + texHeaderSize, &mergedTex[0], sizeof(BSPMIPTEX)*mergedTex.size());
+	memcpy(this->lumps[LUMP_TEXTURES] + texHeaderSize, newMipTexData, mipTexWritePtr - newMipTexData);
 	header.lump[LUMP_TEXTURES].nLength = newLen;
 
 	cout << "textures: " << thisTexCount << " -> " << newTexCount << endl;
 }
 
 void Bsp::merge_vertices(Bsp& other) {
+	printf("Merging vertices...");
+
 	vec3* thisVerts = (vec3*)lumps[LUMP_VERTICES];
 	vec3* otherVerts = (vec3*)other.lumps[LUMP_VERTICES];
 	int thisVertsCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
@@ -340,9 +388,8 @@ void Bsp::merge_vertices(Bsp& other) {
 	int newLen = mergedVerts.size() * sizeof(vec3);
 	int duplicates = mergedVerts.size() - (thisVertsCount + otherVertsCount);
 
-	cout << "Removed " << duplicates << " duplicate verts\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate verts\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -356,6 +403,8 @@ void Bsp::merge_vertices(Bsp& other) {
 }
 
 void Bsp::merge_texinfo(Bsp& other) {
+	printf("Merging texture coordinates...\n");
+
 	BSPTEXTUREINFO* thisInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPTEXTUREINFO* otherInfo = (BSPTEXTUREINFO*)other.lumps[LUMP_TEXINFO];
 	int thisInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
@@ -390,9 +439,8 @@ void Bsp::merge_texinfo(Bsp& other) {
 	int newLen = mergedInfo.size() * sizeof(BSPTEXTUREINFO);
 	int duplicates = mergedInfo.size() - (thisInfoCount + otherInfoCount);
 
-	cout << "Removed " << duplicates << " duplicate texinfos\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate texinfos\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -406,6 +454,8 @@ void Bsp::merge_texinfo(Bsp& other) {
 }
 
 void Bsp::merge_faces(Bsp& other) {
+	printf("Merging faces...\n");
+
 	BSPFACE* thisFaces = (BSPFACE*)lumps[LUMP_FACES];
 	BSPFACE* otherFaces = (BSPFACE*)other.lumps[LUMP_FACES];
 	thisFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
@@ -444,9 +494,8 @@ void Bsp::merge_faces(Bsp& other) {
 	int newLen = mergedFaces.size() * sizeof(BSPFACE);
 	int duplicates = mergedFaces.size() - (thisFaceCount + otherFaceCount);
 
-	cout << "Removed " << duplicates << " duplicate faces\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate faces\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -460,6 +509,8 @@ void Bsp::merge_faces(Bsp& other) {
 }
 
 void Bsp::merge_leaves(Bsp& other) {
+	printf("Merging leaves...\n");
+
 	BSPLEAF* thisLeaves = (BSPLEAF*)lumps[LUMP_LEAVES];
 	BSPLEAF* otherLeaves = (BSPLEAF*)other.lumps[LUMP_LEAVES];
 	thisLeafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
@@ -480,7 +531,8 @@ void Bsp::merge_leaves(Bsp& other) {
 
 		bool isUnique = true;
 		for (int k = 0; k < thisLeafCount; k++) {
-			if (memcmp(&leaf, &thisLeaves[k], sizeof(BSPLEAF)) == 0) {
+			bool isSharedSolidLeaf = i == 0; // always merge first solid leaf since there can only be one per map
+			if (isSharedSolidLeaf || memcmp(&leaf, &thisLeaves[k], sizeof(BSPLEAF)) == 0) {
 				isUnique = false;
 				leavesRemap.push_back(k);
 				break;
@@ -498,9 +550,8 @@ void Bsp::merge_leaves(Bsp& other) {
 
 	otherLeafCount -= duplicates;
 
-	cout << "Removed " << duplicates << " duplicate leaves\n";
-
-	if (duplicates) {
+	if (duplicates > 1) {
+		cout << "Removed " << duplicates << " duplicate leaves\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -514,6 +565,8 @@ void Bsp::merge_leaves(Bsp& other) {
 }
 
 void Bsp::merge_marksurfs(Bsp& other) {
+	printf("Merging mark surfaces...\n");
+
 	uint16* thisMarks = (uint16*)lumps[LUMP_MARKSURFACES];
 	uint16* otherMarks = (uint16*)other.lumps[LUMP_MARKSURFACES];
 	int thisMarkCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16);
@@ -548,9 +601,8 @@ void Bsp::merge_marksurfs(Bsp& other) {
 	int newLen = mergedMarks.size() * sizeof(uint16);
 	int duplicates = mergedMarks.size() - (thisMarkCount + otherMarkCount);
 
-	cout << "Removed " << duplicates << " duplicate marksurfaces\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate marksurfaces\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -564,6 +616,8 @@ void Bsp::merge_marksurfs(Bsp& other) {
 }
 
 void Bsp::merge_edges(Bsp& other) {
+	printf("Merging edges...\n");
+
 	BSPEDGE* thisEdges = (BSPEDGE*)lumps[LUMP_EDGES];
 	BSPEDGE* otherEdges = (BSPEDGE*)other.lumps[LUMP_EDGES];
 	int thisEdgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
@@ -598,9 +652,8 @@ void Bsp::merge_edges(Bsp& other) {
 	int newLen = mergedEdges.size() * sizeof(BSPEDGE);
 	int duplicates = mergedEdges.size() - (thisEdgeCount + otherEdgeCount);
 
-	cout << "Removed " << duplicates << " duplicate edges\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate edges\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -614,6 +667,8 @@ void Bsp::merge_edges(Bsp& other) {
 }
 
 void Bsp::merge_surfedges(Bsp& other) {
+	printf("Merging surface edges...\n");
+
 	int32_t* thisSurfs = (int32_t*)lumps[LUMP_SURFEDGES];
 	int32_t* otherSurfs = (int32_t*)other.lumps[LUMP_SURFEDGES];
 	int thisSurfCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
@@ -648,9 +703,8 @@ void Bsp::merge_surfedges(Bsp& other) {
 	int newLen = mergedSurfs.size() * sizeof(int32_t);
 	int duplicates = mergedSurfs.size() - (thisSurfCount + otherSurfCount);
 
-	cout << "Removed " << duplicates << " duplicate surfedges\n";
-
 	if (duplicates) {
+		cout << "Removed " << duplicates << " duplicate surfedges\n";
 		cout << "ZOMG NOT READY FOR THIS\n";
 		// TODO: update plane references in other BSP when duplicates are removed
 	}
@@ -664,9 +718,11 @@ void Bsp::merge_surfedges(Bsp& other) {
 }
 
 void Bsp::merge_nodes(Bsp& other) {
+	printf("Merging nodes...\n");
+
 	BSPNODE* thisNodes = (BSPNODE*)lumps[LUMP_NODES];
 	BSPNODE* otherNodes = (BSPNODE*)other.lumps[LUMP_NODES];
-	int thisNodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	thisNodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int otherNodeCount = other.header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 
 	vector<BSPNODE> mergedNodes;
@@ -714,15 +770,17 @@ void Bsp::merge_nodes(Bsp& other) {
 }
 
 void Bsp::merge_clipnodes(Bsp& other) {
+	printf("Merging clipnodes...\n");
+
 	BSPCLIPNODE* thisNodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
 	BSPCLIPNODE* otherNodes = (BSPCLIPNODE*)other.lumps[LUMP_CLIPNODES];
-	int thisNodeCount = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
-	int otherNodeCount = other.header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+	thisClipnodeCount = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+	int otherClipnodeCount = other.header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 
 	vector<BSPCLIPNODE> mergedNodes;
-	mergedNodes.reserve(thisNodeCount + otherNodeCount);
+	mergedNodes.reserve(thisClipnodeCount + otherClipnodeCount);
 
-	for (int i = 0; i < thisNodeCount; i++) {
+	for (int i = 0; i < thisClipnodeCount; i++) {
 		BSPCLIPNODE node = thisNodes[i];
 		if (i > 2) { // new headnodes should already be correct
 			for (int k = 0; k < 2; k++) {
@@ -734,13 +792,13 @@ void Bsp::merge_clipnodes(Bsp& other) {
 		mergedNodes.push_back(node);
 	}
 
-	for (int i = 0; i < otherNodeCount; i++) {
+	for (int i = 0; i < otherClipnodeCount; i++) {
 		BSPCLIPNODE node = otherNodes[i];
 		node.iPlane = planeRemap[node.iPlane];
 
 		for (int k = 0; k < 2; k++) {
 			if (node.iChildren[k] >= 0) {
-				node.iChildren[k] += thisNodeCount;
+				node.iChildren[k] += thisClipnodeCount;
 			}
 		}
 		mergedNodes.push_back(node);
@@ -753,10 +811,12 @@ void Bsp::merge_clipnodes(Bsp& other) {
 	memcpy(this->lumps[LUMP_CLIPNODES], &mergedNodes[0], newLen);
 	header.lump[LUMP_CLIPNODES].nLength = newLen;
 
-	cout << "clipnodes: " << thisNodeCount << " -> " << mergedNodes.size() << endl;
+	cout << "clipnodes: " << thisClipnodeCount << " -> " << mergedNodes.size() << endl;
 }
 
 void Bsp::merge_models(Bsp& other) {
+	printf("Merging models...\n");
+
 	BSPMODEL* thisModels = (BSPMODEL*)lumps[LUMP_MODELS];
 	BSPMODEL* otherModels = (BSPMODEL*)other.lumps[LUMP_MODELS];
 	int thisModelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
@@ -766,13 +826,24 @@ void Bsp::merge_models(Bsp& other) {
 	mergedModels.reserve(thisModelCount + otherModelCount);
 
 	for (int i = 0; i < thisModelCount; i++) {
-		mergedModels.push_back(thisModels[i]);
+		BSPMODEL model = thisModels[i];
+		if (i > 0) { // non-world models need to be shifted to account for new headnodes in the world tree
+			model.iHeadnodes[0] += 1; // 1 = new headnode
+			for (int k = 1; k < MAX_MAP_HULLS; k++) {
+				model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // skip this nodes + new head nodes
+			}
+		}
+		mergedModels.push_back(model);
 	}
 
 	// skip first model because there can only be one "world" model
 	for (int i = 1; i < otherModelCount; i++) {
-		BSPMODEL node = otherModels[i];
-		mergedModels.push_back(node);
+		BSPMODEL model = otherModels[i];
+		model.iHeadnodes[0] += thisNodeCount + 1;
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			model.iHeadnodes[k] += thisClipnodeCount + (MAX_MAP_HULLS-1);
+		}
+		mergedModels.push_back(model);
 	}
 
 	// update world head nodes
@@ -780,8 +851,10 @@ void Bsp::merge_models(Bsp& other) {
 	mergedModels[0].iHeadnodes[1] = 0;
 	mergedModels[0].iHeadnodes[2] = 1;
 	mergedModels[0].iHeadnodes[3] = 2;
-	mergedModels[0].nVisLeafs = thisModels[0].nVisLeafs + otherModels[0].nVisLeafs;
+	//mergedModels[0].nVisLeafs = thisModels[0].nVisLeafs + otherModels[0].nVisLeafs;
+	mergedModels[0].nVisLeafs = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
 	mergedModels[0].nFaces = thisModels[0].nFaces + otherModels[0].nFaces;
+	//mergedModels[0].nFaces = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 	vec3 amin = thisModels[0].nMins;
 	vec3 bmin = otherModels[0].nMins;
@@ -874,11 +947,7 @@ int DecompressAll(BSPLEAF* leafLump, byte* visLump, byte* output, int numLeaves,
 	{
 		dest = output + i * newBitbytes;
 
-		if (prependNewLeaves) {
-
-		}
-
-		DecompressVis((const unsigned char*)(visLump + (byte)leafLump[i+1].nVisOffset), dest, oldBitbytes, numLeaves);
+		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldBitbytes, numLeaves);
 	
 		if (prependNewLeaves) {
 			shiftVis(dest, newBitbytes, newNumLeaves - numLeaves);
@@ -969,9 +1038,9 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves)
 	return len;
 }
 
-void print_vis(byte* vis, int visLeafCount) {
-	uint g_bitbytes = ((visLeafCount + 63) & ~63) >> 3;
+void print_vis(byte* vis, int visLeafCount, int g_bitbytes) {
 	for (int k = 0; k < visLeafCount; k++) {
+		printf("LEAF %d: ", k+1);
 		for (int i = 0; i < g_bitbytes; i++) {
 			printf("%3d ", vis[k * g_bitbytes + i]);
 		}
@@ -979,31 +1048,92 @@ void print_vis(byte* vis, int visLeafCount) {
 	}
 }
 
+void debug_vis(byte* vis, BSPLEAF* leafs, int visLeafCount) {
+	uint g_bitbytes = ((visLeafCount + 63) & ~63) >> 3;
+
+	byte* decompressed = new byte[g_bitbytes];
+	byte* compressed = new byte[g_bitbytes];
+
+	for (int i = 0; i < visLeafCount; i++) {
+		printf("LEAF %02d: ", i + 1);
+
+		memset(decompressed, 0, g_bitbytes);
+		memset(compressed, 0, g_bitbytes);
+
+		if (i == 55) {
+			if (i < visLeafCount - 1) {
+				int oldCompressLen = leafs[i + 2].nVisOffset - leafs[i + 1].nVisOffset;
+				memcpy(compressed, vis + leafs[i + 1].nVisOffset, oldCompressLen);
+
+				printf("\n         ");
+				for (int k = 0; k < oldCompressLen; k++) {
+					printf("%3d ", compressed[k]);
+				}
+			}
+		}
+
+		DecompressVis((const unsigned char*)(vis + leafs[i + 1].nVisOffset), decompressed, g_bitbytes, visLeafCount);
+		for (int k = 0; k < g_bitbytes; k++) {
+			printf("%3d ", decompressed[k]);
+		}
+
+
+		if (i < visLeafCount - 1) {
+			int oldCompressLen = leafs[i+2].nVisOffset - leafs[i+1].nVisOffset;
+			memcpy(compressed, vis + leafs[i+1].nVisOffset, oldCompressLen);
+
+			printf("\n         ");
+			for (int k = 0; k < oldCompressLen; k++) {
+				printf("%3d ", compressed[k]);
+			}
+		}
+		
+		int compressLen = CompressVis(decompressed, 11, compressed, sizeof(compressed));
+
+		printf("\n         ");
+		for (int k = 0; k < compressLen; k++) {
+			printf("%3d ", compressed[k]);
+		}
+		printf("\n");
+	}
+}
+
 void Bsp::merge_vis(Bsp& other) {
+	printf("Merging VIS data...\n");
+
 	byte* thisVis = (byte*)lumps[LUMP_VISIBILITY];
 	byte* otherVis = (byte*)other.lumps[LUMP_VISIBILITY];
 
 	BSPLEAF* allLeaves = (BSPLEAF*)lumps[LUMP_LEAVES];
 	int totalLeaves = thisLeafCount + otherLeafCount;
 
-	byte* decompressedVis = new byte[65535];
-	memset(decompressedVis, 0, 65535);
+	uint newBitbytes = ((totalLeaves + 63) & ~63) >> 3;
+	int decompressedVisSize = (totalLeaves-1) * newBitbytes;
+
+	//debug_vis(thisVis, allLeaves, totalLeaves - 1);
+	//return;
+
+	printf("Decompressed VIS size: %d\n", decompressedVisSize);
+
+	byte* decompressedVis = new byte[decompressedVisSize];
+	memset(decompressedVis, 0, decompressedVisSize);
 
 	// decompress this map's vis data (skip empty first leaf)
 	int thisDecompLen = DecompressAll(allLeaves, thisVis, decompressedVis, thisLeafCount-1, totalLeaves-1, false);
 	//cout << "Decompressed this vis:\n";
-	//print_vis(decompressedVis, thisLeafCount-1);
+	//print_vis(decompressedVis, thisLeafCount-1, newBitbytes);
 
 	// decompress other map's vis data (skip empty first leaf, which now only the first map should have)
 	byte* decompressedOtherVis = decompressedVis + thisDecompLen;
 	int otherDecompLen = DecompressAll(allLeaves + (thisLeafCount - 1), otherVis, decompressedOtherVis, otherLeafCount, totalLeaves-1, true);
 	//cout << "Decompressed other vis:\n";
-	//print_vis(decompressedOtherVis, otherLeafCount);
+	//print_vis(decompressedOtherVis, otherLeafCount, newBitbytes);
 
 	// recompress the combined vis data
-	byte* compressedVis = new byte[65535];
-	memset(compressedVis, 0, 65535);
+	byte* compressedVis = new byte[decompressedVisSize];
+	memset(compressedVis, 0, decompressedVisSize);
 	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalLeaves-1);
+	int oldLen = header.lump[LUMP_VISIBILITY].nLength;
 
 	delete[] this->lumps[LUMP_VISIBILITY];
 	this->lumps[LUMP_VISIBILITY] = new byte[newVisLen];
@@ -1012,6 +1142,8 @@ void Bsp::merge_vis(Bsp& other) {
 }
 
 void Bsp::merge_lighting(Bsp& other) {
+	printf("Merging lightmaps...\n");
+
 	COLOR3* thisRad = (COLOR3*)lumps[LUMP_LIGHTING];
 	COLOR3* otherRad = (COLOR3*)other.lumps[LUMP_LIGHTING];
 	int thisColorCount = header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
@@ -1122,8 +1254,6 @@ bool Bsp::separate(Bsp& other) {
 		BSPNODE* thisNodes = (BSPNODE*)lumps[LUMP_NODES];
 		int numThisNodes = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 
-
-
 		BSPNODE headNode = {
 			separationPlaneIdx,			// plane idx
 			{numThisNodes+1, 1},		// child nodes
@@ -1161,10 +1291,16 @@ bool Bsp::separate(Bsp& other) {
 			newHeadNodes[i] = {
 				separationPlaneIdx,	// plane idx
 				{	// child nodes
-					(int16_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT),
-					(int16_t)(otherWorld.iHeadnodes[i + 1] + numThisNodes + NEW_NODE_COUNT)
+					(int16_t)(otherWorld.iHeadnodes[i + 1] + numThisNodes + NEW_NODE_COUNT),
+					(int16_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT)
 				},
 			};
+
+			if (swapNodeChildren) {
+				int16_t temp = newHeadNodes[i].iChildren[0];
+				newHeadNodes[i].iChildren[0] = newHeadNodes[i].iChildren[1];
+				newHeadNodes[i].iChildren[1] = temp;
+			}
 		}
 
 		BSPCLIPNODE* newThisNodes = new BSPCLIPNODE[numThisNodes + NEW_NODE_COUNT];
@@ -1180,6 +1316,8 @@ bool Bsp::separate(Bsp& other) {
 }
 
 bool Bsp::move(vec3 offset) {
+	printf("Moving BSP...\n");
+
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
@@ -1194,6 +1332,7 @@ bool Bsp::move(vec3 offset) {
 	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
 
+	
 	for (int i = 0; i < planeCount; i++) {
 		BSPPLANE& plane = planes[i];
 		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
@@ -1206,11 +1345,12 @@ bool Bsp::move(vec3 offset) {
 		// get distance between new plane origin and the origin-aligned plane
 		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
 	}	
-
+	
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	BSPMIPTEX* textures = (BSPMIPTEX*)(lumps[LUMP_TEXTURES] + sizeof(uint32_t) * (texCount + 1));
 	vec3 offsetDir = offset.normalize();
 	float offsetLen = offset.length();
+	
 	for (int i = 0; i < texInfoCount; i++) {
 		BSPTEXTUREINFO& info = texInfo[i];
 		BSPMIPTEX& tex = textures[info.iMiptex];
@@ -1556,22 +1696,6 @@ int Bsp::pointContents(int iNode, vec3 p)
 
 	return leaves[~iNode].nContents;
 }
-/*
-int Bsp::PM_HullPointContents(hull_t* hull, int num, const vec3_t p)
-{
-	mplane_t* plane;
-
-	if (!hull || !hull->planes)	// fantom bmodels?
-		return CONTENTS_NONE;
-
-	while (num >= 0)
-	{
-		plane = &hull->planes[hull->clipnodes[num].planenum];
-		num = hull->clipnodes[num].children[PlaneDiff(p, plane) < 0];
-	}
-	return num;
-}
-*/
 
 void Bsp::write_csg_outputs(string path) {
 	BSPPLANE* thisPlanes = (BSPPLANE*)lumps[LUMP_PLANES];
