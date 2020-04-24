@@ -201,7 +201,7 @@ public:
 	~Bsp();
 
 	bool move(vec3 offset);
-	void merge(Bsp& other);
+	bool merge(Bsp& other);
 	void write(string path);
 
 	void print_info();
@@ -239,9 +239,12 @@ private:
 
 	// Finds an axis-aligned hyperplane that separates the BSPs and
 	// adds the plane and new root node to the bsp.
-	// Must be called after planes are merged but before nodes/clipnodes.
 	// returns false if maps overlap and can't be separated.
-	bool separate(Bsp& other);
+	BSPPLANE separate(Bsp& other);
+
+	// creates new headnodes from the plane that separates the two maps
+	// Must be called after planes are merged but before nodes/clipnodes.
+	void create_merge_headnodes(Bsp& other, BSPPLANE separationPlane);
 
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);

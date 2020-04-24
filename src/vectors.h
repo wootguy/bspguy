@@ -8,6 +8,7 @@ struct vec3
 	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
 	vec3 normalize(float length=1.0f);
 	float length();
+	vec3 invert();
 
 	void operator-=(vec3 v);
 	void operator+=(vec3 v);

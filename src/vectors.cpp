@@ -161,6 +161,10 @@ vec3 vec3::normalize( float length )
 	return vec3(x*d, y*d, z*d);
 }
 
+vec3 vec3::invert() {
+	return vec3(x != 0 ? -x : x, y != 0 ? -y : y, z != 0 ? -z : z);
+}
+
 float vec3::length()
 {
 	return sqrt( (x*x) + (y*y) + (z*z) );

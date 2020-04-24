@@ -51,8 +51,14 @@ Bsp::~Bsp()
 		delete ents[i];
 }
 
-void Bsp::merge(Bsp& other) {
+bool Bsp::merge(Bsp& other) {
 	cout << "Merging " << other.path << " into " << path << endl;
+
+	BSPPLANE separationPlane = separate(other);
+	if (separationPlane.nType == -1) {
+		printf("No separating axis found. The maps overlap and can't be merged.\n");
+		return false;
+	}
 
 	texRemap.clear();
 	texInfoRemap.clear();
@@ -124,7 +130,7 @@ void Bsp::merge(Bsp& other) {
 		merge_vis(other);
 
 	if (shouldMerge[LUMP_NODES]) {
-		separate(other);
+		create_merge_headnodes(other, separationPlane);
 		merge_nodes(other);
 		merge_clipnodes(other);
 	}
@@ -134,6 +140,8 @@ void Bsp::merge(Bsp& other) {
 
 	if (shouldMerge[LUMP_LIGHTING])
 		merge_lighting(other);
+
+	return true;
 }
 
 void Bsp::merge_ents(Bsp& other)
@@ -1169,8 +1177,6 @@ void Bsp::merge_vis(Bsp& other) {
 	//debug_vis(thisVis, allLeaves, totalLeaves - 1);
 	//return;
 
-	printf("Decompressed VIS size: %d\n", decompressedVisSize);
-
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 
@@ -1250,7 +1256,7 @@ void Bsp::merge_lighting(Bsp& other) {
 	cout << oldLen << " -> " << header.lump[LUMP_LIGHTING].nLength << endl;
 }
 
-bool Bsp::separate(Bsp& other) {
+BSPPLANE Bsp::separate(Bsp& other) {
 	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
 	BSPMODEL& otherWorld = ((BSPMODEL*)other.lumps[LUMP_MODELS])[0];
 
@@ -1269,9 +1275,6 @@ bool Bsp::separate(Bsp& other) {
 	BSPPLANE separationPlane;
 	memset(&separationPlane, 0, sizeof(BSPPLANE));
 
-	// planes with negative normals mess up VIS and lighting stuff, so swap children instead
-	bool swapNodeChildren = false;
-
 	// separating plane points toward the other map (b)
 	if (bmin.x >= amax.x) {
 		separationPlane.nType = PLANE_X;
@@ -1280,9 +1283,8 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.x <= amin.x) {
 		separationPlane.nType = PLANE_X;
-		separationPlane.vNormal = { 1, 0, 0 };
+		separationPlane.vNormal = { -1, 0, 0 };
 		separationPlane.fDist = bmax.x + (amin.x - bmax.x) * 0.5f;
-		swapNodeChildren = true;
 	}
 	else if (bmin.y >= amax.y) {
 		separationPlane.nType = PLANE_Y;
@@ -1291,9 +1293,8 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.y <= amin.y) {
 		separationPlane.nType = PLANE_Y;
-		separationPlane.vNormal = { 0, 1, 0 };
+		separationPlane.vNormal = { 0, -1, 0 };
 		separationPlane.fDist = bmax.y;
-		swapNodeChildren = true;
 	}
 	else if (bmin.z >= amax.z) {
 		separationPlane.nType = PLANE_Z;
@@ -1302,18 +1303,29 @@ bool Bsp::separate(Bsp& other) {
 	}
 	else if (bmax.z <= amin.z) {
 		separationPlane.nType = PLANE_Z;
-		separationPlane.vNormal = { 0, 0, 1 };
+		separationPlane.vNormal = { 0, 0, -1 };
 		separationPlane.fDist = bmax.z;
-		swapNodeChildren = true;
 	}
 	else {
 		separationPlane.nType = -1; // no simple separating axis
 	}
 
-	if (separationPlane.nType == -1) {
-		printf("No separating axis found. The maps overlap and can't be merged.\n");
-		return false;
-	}
+	return separationPlane;	
+}
+
+void Bsp::create_merge_headnodes(Bsp& other, BSPPLANE separationPlane) {
+	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
+	BSPMODEL& otherWorld = ((BSPMODEL*)other.lumps[LUMP_MODELS])[0];
+
+	vec3 amin = thisWorld.nMins;
+	vec3 amax = thisWorld.nMaxs;
+	vec3 bmin = otherWorld.nMins;
+	vec3 bmax = otherWorld.nMaxs;
+
+	// planes with negative normals mess up VIS and lighting stuff, so swap children instead
+	bool swapNodeChildren = separationPlane.vNormal.x < 0 || separationPlane.vNormal.y < 0 || separationPlane.vNormal.z < 0;
+	if (swapNodeChildren)
+		separationPlane.vNormal = separationPlane.vNormal.invert();
 
 	printf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
 
@@ -1394,8 +1406,6 @@ bool Bsp::separate(Bsp& other) {
 		this->lumps[LUMP_CLIPNODES] = (byte*)newThisNodes;
 		header.lump[LUMP_CLIPNODES].nLength = (numThisNodes + NEW_NODE_COUNT) * sizeof(BSPCLIPNODE);
 	}
-
-	return true;
 }
 
 bool Bsp::move(vec3 offset) {
