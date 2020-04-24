@@ -947,24 +947,27 @@ void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_le
 	} while (out - dest < row);
 }
 
-void Bsp::shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
-	byte offsetBit = offsetLeaf % 8;
-	byte mask = 0; // part of the byte that shouldn't be shifted
+void Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
+	byte bitsPerStep = 64;
+	byte offsetBit = offsetLeaf % bitsPerStep;
+	uint64 mask = 0; // part of the byte that shouldn't be shifted
 	for (int i = 0; i < offsetBit; i++) {
 		mask |= 1 << i;
 	}
+
+	len /= 8; // byte -> uint64 (vis rows are always divisible by 8)
 
 	for (int k = 0; k < shift; k++) {
 
 		bool carry = 0;
 		for (int i = 0; i < len; i++) {
-			byte oldCarry = carry;
-			carry = (vis[i] & 0x80) != 0;
+			uint64 oldCarry = carry;
+			carry = (vis[i] & 0x8000000000000000L) != 0;
 
-			if (offsetBit != 0 && i*8 < offsetLeaf && i*8 + 8 > offsetLeaf) {
+			if (offsetBit != 0 && i * bitsPerStep < offsetLeaf && i * bitsPerStep + bitsPerStep > offsetLeaf) {
 				vis[i] = (vis[i] & mask) | ((vis[i] & ~mask) << 1);
 			}
-			else if (i >= offsetLeaf / 8) {
+			else if (i >= offsetLeaf / bitsPerStep) {
 				vis[i] = (vis[i] << 1) + oldCarry;
 			}
 			else {
@@ -998,7 +1001,7 @@ void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
 	
 		if (shiftAmount) {
-			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 		}
 	}
 }

@@ -235,7 +235,7 @@ private:
 		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
 		int shiftOffsetBit, int shiftAmount);
 
-	void shiftVis(byte* vis, int len, int offsetLeaf, int shift);
+	void shiftVis(uint64* vis, int len, int offsetLeaf, int shift);
 
 	// Finds an axis-aligned hyperplane that separates the BSPs and
 	// adds the plane and new root node to the bsp.
