@@ -51,6 +51,163 @@ Bsp::~Bsp()
 		delete ents[i];
 }
 
+bool Bsp::merge(vector<Bsp*>& maps, vec3 gap) {
+
+	maps.insert(maps.begin(), this);
+	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
+
+	printf("Arranging maps...\n");
+
+	for (int z = 0; z < blocks.size(); z++) {
+		for (int y = 0; y < blocks[z].size(); y++) {
+			for (int x = 0; x < blocks[z][y].size(); x++) {
+				MAPBLOCK& block = blocks[z][y][x];
+
+				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
+					block.map->move(block.offset);
+				}
+			}
+		}
+	}
+
+	printf("Beginning merge...\n");
+
+	// Merge order matters. The bounding box of the merged map is expanded to contain both maps
+
+	// first merge all rows
+	printf("Merging rows of maps\n");
+	for (int z = 0; z < blocks.size(); z++) {
+		for (int y = 0; y < blocks[z].size(); y++) {
+			MAPBLOCK& rowStart = blocks[z][y][0];
+			for (int x = 0; x < blocks[z][y].size(); x++) {
+				MAPBLOCK& block = blocks[z][y][x];
+
+				if (x != 0) {
+					printf("Merge %d,%d,%d -> %d,%d,%d\n", x, y, z, 0, y, z);
+					rowStart.map->merge(*block.map);
+				}
+			}
+		}
+	}
+
+	printf("Merging columns of merged rows\n");
+	// then merge the columns of merged rows
+	for (int z = 0; z < blocks.size(); z++) {
+		MAPBLOCK& colStart = blocks[z][0][0];
+		for (int y = 0; y < blocks[z].size(); y++) {
+			MAPBLOCK& block = blocks[z][y][0];
+
+			if (y != 0) {
+				printf("Merge %d,%d,%d -> %d,%d,%d\n", 0, y, z, 0, 0, z);
+				colStart.map->merge(*block.map);
+			}
+		}
+	}
+
+	printf("Merging layers of merged columns+rows\n");
+	// then merge the layers of merged cols+rows
+	MAPBLOCK& layerStart = blocks[0][0][0];
+	for (int z = 0; z < blocks.size(); z++) {
+		MAPBLOCK& block = blocks[z][0][0];
+
+		if (z != 0) {
+			printf("Merge %d,%d,%d -> %d,%d,%d\n", 0, 0, z, 0, 0, 0);
+			layerStart.map->merge(*block.map);
+		}
+	}
+
+
+	return true;
+}
+
+vector<vector<vector<MAPBLOCK>>> Bsp::separate(vector<Bsp*>& maps, vec3 gap) {
+	vector<MAPBLOCK> blocks;
+
+	vector<vector<vector<MAPBLOCK>>> orderedBlocks;
+
+	vec3 maxDims = vec3(0, 0, 0);
+	for (int i = 0; i < maps.size(); i++) {
+		MAPBLOCK block = maps[i]->get_bounding_box();
+
+		if (block.size.x > maxDims.x) {
+			maxDims.x = block.size.x;
+		}
+		if (block.size.y > maxDims.y) {
+			maxDims.y = block.size.y;
+		}
+		if (block.size.z > maxDims.z) {
+			maxDims.z = block.size.z;
+		}
+
+		blocks.push_back(block);
+	}
+
+	bool noOverlap = true;
+	for (int i = 0; i < blocks.size() && noOverlap; i++) {
+		for (int k = i+i; k < blocks.size(); k++) {
+			if (blocks[i].intersects(blocks[k])) {
+				noOverlap = false;
+				break;
+			}
+		}
+	}
+
+	if (noOverlap) {
+		printf("Maps do not overlap. They will be merged without moving.");
+		return orderedBlocks;
+	}
+
+	maxDims += gap;
+
+	int maxMapsPerRow = (MAX_MAP_COORD * 2.0f) / maxDims.x;
+	int maxMapsPerCol = (MAX_MAP_COORD * 2.0f) / maxDims.y;
+	int maxMapsPerLayer = (MAX_MAP_COORD * 2.0f) / maxDims.z;
+
+	int idealMapsPerAxis = std::ceil(std::pow(maps.size(), 1 / 3.0f));
+
+	if (maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer < maps.size()) {
+		printf("Not enough space to merge all maps! Try moving them individually before merging.");
+		return orderedBlocks;
+	}
+
+	vec3 mergedMapSize = maxDims * (float)idealMapsPerAxis;
+	vec3 mergedMapMin = maxDims * -0.5f;
+
+	printf("Max map size: %.0f %.0f %.0f\n", maxDims.x, maxDims.y, maxDims.z);
+	printf("Max maps per axis: x=%d y=%d z=%d\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer);
+	printf("Max maps of this size: %d\n", maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
+	printf("Ideal maps per dimension: %d\n", idealMapsPerAxis);
+
+	vec3 targetMins = mergedMapMin;
+	int blockIdx = 0;
+	for (int z = 0; z < idealMapsPerAxis && blockIdx < blocks.size(); z++) {
+		targetMins.y = -mergedMapMin.y;
+		vector<vector<MAPBLOCK>> col;
+		for (int y = 0; y < idealMapsPerAxis && blockIdx < blocks.size(); y++) {
+			targetMins.x = -mergedMapMin.x;
+			vector<MAPBLOCK> row;
+			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
+				MAPBLOCK& block = blocks[blockIdx];
+				
+				block.offset = targetMins - block.mins;
+				printf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
+				//printf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
+
+				row.push_back(block);
+
+				blockIdx++;
+				targetMins.x += maxDims.x;
+			}
+			col.push_back(row);
+			targetMins.y += maxDims.y;
+		}
+		orderedBlocks.push_back(col);
+		targetMins.z += maxDims.z;
+	}
+
+	return orderedBlocks;
+}
+
 bool Bsp::merge(Bsp& other) {
 	cout << "Merging " << other.path << " into " << path << endl;
 
@@ -72,6 +229,7 @@ bool Bsp::merge(Bsp& other) {
 	edgeRemap.clear();
 	leavesRemap.clear();
 	facesRemap.clear();
+	modelLeafRemap.clear();
 
 	bool shouldMerge[HEADER_LUMPS] = { false };
 
@@ -223,6 +381,7 @@ void Bsp::merge_ents(Bsp& other)
 		else {
 			Entity* copy = new Entity();
 			copy->keyvalues = other.ents[i]->keyvalues;
+			copy->keyOrder = other.ents[i]->keyOrder;
 			ents.push_back(copy);
 		}
 	}
@@ -262,13 +421,7 @@ void Bsp::merge_planes(Bsp& other) {
 	}
 
 	int newLen = mergedPlanes.size() * sizeof(BSPPLANE);
-	int duplicates = mergedPlanes.size() - (numThisPlanes + numOtherPlanes);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate planes\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
-	}
+	int duplicates = (numThisPlanes + numOtherPlanes) - mergedPlanes.size();
 
 	delete [] this->lumps[LUMP_PLANES];
 	this->lumps[LUMP_PLANES] = new byte[newLen];
@@ -276,7 +429,9 @@ void Bsp::merge_planes(Bsp& other) {
 	header.lump[LUMP_PLANES].nLength = newLen;
 
 	// add 1 for the separation plane coming later
-	cout << (numThisPlanes+1) << " -> " << mergedPlanes.size() << endl;
+	cout << (numThisPlanes + 1) << " -> " << mergedPlanes.size();
+	if (duplicates) cout << " (" << duplicates << " deduped)";
+	cout << endl;
 }
 
 int getMipTexDataSize(int width, int height) {
@@ -402,6 +557,7 @@ void Bsp::merge_vertices(Bsp& other) {
 	}
 	for (int i = 0; i < otherVertsCount; i++) {
 		bool isUnique = true;
+		/*
 		for (int k = 0; k < thisVertsCount; k++) {
 			if (memcmp(&otherVerts[i], &thisVerts[k], sizeof(vec3)) == 0) {
 				isUnique = false;
@@ -409,7 +565,7 @@ void Bsp::merge_vertices(Bsp& other) {
 				break;
 			}
 		}
-
+		*/
 		if (isUnique) {
 			vertRemap.push_back(mergedVerts.size());
 			mergedVerts.push_back(otherVerts[i]);
@@ -1259,6 +1415,19 @@ void Bsp::merge_lighting(Bsp& other) {
 	cout << oldLen << " -> " << header.lump[LUMP_LIGHTING].nLength << endl;
 }
 
+MAPBLOCK Bsp::get_bounding_box() {
+	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
+
+	MAPBLOCK block;
+	block.offset = vec3(0, 0, 0);
+	block.mins = thisWorld.nMins;
+	block.maxs = thisWorld.nMaxs;
+	block.size = block.maxs - block.mins;
+	block.map = this;
+
+	return block;
+}
+
 BSPPLANE Bsp::separate(Bsp& other) {
 	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
 	BSPMODEL& otherWorld = ((BSPMODEL*)other.lumps[LUMP_MODELS])[0];
@@ -1267,13 +1436,6 @@ BSPPLANE Bsp::separate(Bsp& other) {
 	vec3 amax = thisWorld.nMaxs;
 	vec3 bmin = otherWorld.nMins;
 	vec3 bmax = otherWorld.nMaxs;
-	
-	printf("Bounding boxes for each map:\n");
-	printf("(%6.0f, %6.0f, %6.0f)", amin.x, amin.y, amin.z);
-	printf(" - (%6.0f, %6.0f, %6.0f) %s\n", amax.x, amax.y, amax.z, this->name.c_str());
-
-	printf("(%6.0f, %6.0f, %6.0f)", bmin.x, bmin.y, bmin.z);
-	printf(" - (%6.0f, %6.0f, %6.0f) %s\n", bmax.x, bmax.y, bmax.z, other.name.c_str());
 
 	BSPPLANE separationPlane;
 	memset(&separationPlane, 0, sizeof(BSPPLANE));
@@ -1311,6 +1473,13 @@ BSPPLANE Bsp::separate(Bsp& other) {
 	}
 	else {
 		separationPlane.nType = -1; // no simple separating axis
+
+		printf("Bounding boxes for each map:\n");
+		printf("(%6.0f, %6.0f, %6.0f)", amin.x, amin.y, amin.z);
+		printf(" - (%6.0f, %6.0f, %6.0f) %s\n", amax.x, amax.y, amax.z, this->name.c_str());
+
+		printf("(%6.0f, %6.0f, %6.0f)", bmin.x, bmin.y, bmin.z);
+		printf(" - (%6.0f, %6.0f, %6.0f) %s\n", bmax.x, bmax.y, bmax.z, other.name.c_str());
 	}
 
 	return separationPlane;	
@@ -1385,7 +1554,7 @@ void Bsp::create_merge_headnodes(Bsp& other, BSPPLANE separationPlane) {
 
 		BSPCLIPNODE newHeadNodes[NEW_NODE_COUNT];
 		for (int i = 0; i < NEW_NODE_COUNT; i++) {
-			printf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
+			//printf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
 			newHeadNodes[i] = {
 				separationPlaneIdx,	// plane idx
 				{	// child nodes
@@ -1412,13 +1581,14 @@ void Bsp::create_merge_headnodes(Bsp& other, BSPPLANE separationPlane) {
 }
 
 bool Bsp::move(vec3 offset) {
-	printf("Moving BSP...\n");
+	printf("Moving %s by (%.0f, %.0f, %.0f)...\n", name.c_str(), offset.x, offset.y, offset.z);
 
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
 	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
 	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
 	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
 	
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
@@ -1427,6 +1597,7 @@ bool Bsp::move(vec3 offset) {
 	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 	
 	for (int i = 0; i < planeCount; i++) {
@@ -1440,8 +1611,8 @@ bool Bsp::move(vec3 offset) {
 
 		// get distance between new plane origin and the origin-aligned plane
 		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
-	}	
-	
+	}
+
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
 	vec3 offsetDir = offset.normalize();
@@ -1464,6 +1635,9 @@ bool Bsp::move(vec3 offset) {
 		float shiftScaleS = dotProduct(offsetDir, nS);
 		float shiftScaleT = dotProduct(offsetDir, nT);
 
+		int olds = info.shiftS;
+		int oldt = info.shiftT;
+
 		info.shiftS -= shiftScaleS * offsetLen*scaleS;
 		info.shiftT -= shiftScaleT * offsetLen*scaleT;
 
@@ -1473,6 +1647,13 @@ bool Bsp::move(vec3 offset) {
 		}
 		while (fabs(info.shiftT) > tex.nHeight) {
 			info.shiftT += (info.shiftT < 0) ? (int)tex.nHeight : -(int)(tex.nHeight);
+		}
+
+		while (info.shiftS < 0) {
+			info.shiftS = tex.nWidth;
+		}
+		while (info.shiftT < 0) {
+			info.shiftT += tex.nHeight;
 		}
 		*/
 	}
@@ -1664,6 +1845,7 @@ bool Bsp::load_lumps(string fpath)
 
 void Bsp::load_ents()
 {
+	ents.clear();
 	bool verbose = true;
 	membuf sbuf((char*)lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength);
 	istream in(&sbuf);

@@ -179,6 +179,21 @@ struct BSPTEXDATA
 	WADTEX** tex;
 };
 
+class Bsp;
+
+// bounding box for a map, used for arranging maps for merging
+struct MAPBLOCK
+{
+	vec3 mins, maxs, size, offset;
+	Bsp* map;
+
+	bool intersects(MAPBLOCK& other) {
+		return (mins.x <= other.maxs.x && maxs.x >= other.mins.x) &&
+			(mins.y <= other.maxs.y && maxs.y >= other.mins.y) &&
+			(mins.z <= other.maxs.z && maxs.y >= other.mins.z);
+	}
+};
+
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -201,6 +216,7 @@ public:
 	~Bsp();
 
 	bool move(vec3 offset);
+	bool merge(vector<Bsp*>& maps, vec3 gap);
 	bool merge(Bsp& other);
 	void write(string path);
 
@@ -231,6 +247,8 @@ private:
 	void merge_vis(Bsp& other);
 	void merge_lighting(Bsp& other);
 
+	MAPBLOCK get_bounding_box();
+
 	void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
 		int shiftOffsetBit, int shiftAmount);
@@ -241,6 +259,9 @@ private:
 	// adds the plane and new root node to the bsp.
 	// returns false if maps overlap and can't be separated.
 	BSPPLANE separate(Bsp& other);
+
+	// calculates map offsets needed to prevent overlapping
+	vector<vector<vector<MAPBLOCK>>> separate(vector<Bsp*>& maps, vec3 gap);
 
 	// creates new headnodes from the plane that separates the two maps
 	// Must be called after planes are merged but before nodes/clipnodes.

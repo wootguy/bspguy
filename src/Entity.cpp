@@ -20,8 +20,10 @@ Entity::~Entity(void)
 void Entity::addKeyvalue( Keyvalue& k )
 {
 	int dup = 1;
-	if (keyvalues.find(k.key) == keyvalues.end())
+	if (keyvalues.find(k.key) == keyvalues.end()) {
 		keyvalues[k.key] = k.value;
+		keyOrder.push_back(k.key);
+	}
 	else
 	{
 		while (true)
@@ -31,13 +33,12 @@ void Entity::addKeyvalue( Keyvalue& k )
 			{
 				//println("wrote dup key " + newKey);
 				keyvalues[newKey] = k.value;
+				keyOrder.push_back(newKey);
 				break;
 			}
 			dup++;
 		}
 	}
-
-	keyOrder.push_back(k.key);
 }
 
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
