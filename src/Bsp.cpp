@@ -1584,7 +1584,7 @@ void Bsp::update_ent_lump() {
 		}
 
 		ent_data << "}";
-		if (i == ents.size() - 1) {
+		if (i < ents.size() - 1) {
 			ent_data << "\n"; // trailing newline crashes sven, and only sven, and only sometimes
 		}
 	}
