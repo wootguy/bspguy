@@ -36,11 +36,15 @@ void Entity::addKeyvalue( Keyvalue& k )
 			dup++;
 		}
 	}
+
+	keyOrder.push_back(k.key);
 }
 
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
 {
 	keyvalues[key] = value;
+
+	keyOrder.push_back(key);
 }
 
 bool Entity::hasKey(const std::string& key)

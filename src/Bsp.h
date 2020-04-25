@@ -273,4 +273,6 @@ private:
 	int thisFaceCount;
 	int thisNodeCount;
 	int thisClipnodeCount;
+	int thisWorldLeafCount; // excludes solid leaf 0
+	int otherWorldLeafCount; // excluding solid leaf 0
 };

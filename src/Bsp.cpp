@@ -60,6 +60,9 @@ bool Bsp::merge(Bsp& other) {
 		return false;
 	}
 
+	thisWorldLeafCount = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // excludes solid leaf 0
+	otherWorldLeafCount = ((BSPMODEL*)other.lumps[LUMP_MODELS])->nVisLeafs; // excluding solid leaf 0
+
 	texRemap.clear();
 	texInfoRemap.clear();
 	planeRemap.clear();
@@ -126,8 +129,6 @@ bool Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_LEAVES])
 		merge_leaves(other); // references vis data, and marksurfs
 
-	if (shouldMerge[LUMP_VISIBILITY])
-		merge_vis(other);
 
 	if (shouldMerge[LUMP_NODES]) {
 		create_merge_headnodes(other, separationPlane);
@@ -140,6 +141,11 @@ bool Bsp::merge(Bsp& other) {
 
 	if (shouldMerge[LUMP_LIGHTING])
 		merge_lighting(other);
+
+	// doing this last because it takes way longer than anything else, and limit overflows should fail the
+	// merge as soon as possible.
+	if (shouldMerge[LUMP_VISIBILITY])
+		merge_vis(other);
 
 	return true;
 }
@@ -242,7 +248,6 @@ void Bsp::merge_planes(Bsp& other) {
 	}
 	for (int i = 0; i < numOtherPlanes; i++) {
 		bool isUnique = true;
-		/*
 		for (int k = 0; k < numThisPlanes; k++) {
 			if (memcmp(&otherPlanes[i], &thisPlanes[k], sizeof(BSPPLANE)) == 0) {
 				isUnique = false;
@@ -250,7 +255,6 @@ void Bsp::merge_planes(Bsp& other) {
 				break;
 			}
 		}
-		*/
 		if (isUnique) {
 			planeRemap.push_back(mergedPlanes.size());
 			mergedPlanes.push_back(otherPlanes[i]);
@@ -334,7 +338,8 @@ void Bsp::merge_textures(Bsp& other) {
 
 		bool isUnique = true;
 		for (int k = 0; k < thisTexCount; k++) {
-			if (memcmp(&otherTex[i], &thisTex[k], sizeof(BSPMIPTEX)) == 0) {
+			BSPMIPTEX* thisTex = (BSPMIPTEX*)(newMipTexData + mipTexOffsets[k]);
+			if (memcmp(tex, thisTex, sz) == 0 && false) {
 				isUnique = false;
 				texRemap.push_back(k);
 				break;
@@ -499,8 +504,6 @@ void Bsp::merge_faces(Bsp& other) {
 		face.iPlane = planeRemap[face.iPlane];
 		face.iFirstEdge = surfEdgeRemap[face.iFirstEdge];
 		face.iTextureInfo = texInfoRemap[face.iTextureInfo];
-		//face.nLightmapOffset = 0; // TODO: lightmap remap
-		
 
 		bool isUnique = true;
 		for (int k = 0; k < thisFaceCount; k++) {
@@ -788,8 +791,10 @@ void Bsp::merge_nodes(Bsp& other) {
 			}
 		}
 		node.iPlane = planeRemap[node.iPlane];
-		node.firstFace = facesRemap[node.firstFace];
-
+		if (node.nFaces) {
+			node.firstFace = facesRemap[node.firstFace];
+		}
+		
 		mergedNodes.push_back(node);
 	}
 
@@ -984,7 +989,7 @@ void Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
 		}
 
 		if (carry) {
-			printf("ZOMG OVERFLOW");
+			printf("ZOMG OVERFLOW VIS\n");
 		}
 	}
 }
@@ -1156,8 +1161,6 @@ void Bsp::merge_vis(Bsp& other) {
 	int otherVisLeaves = otherLeafCount; // already does not include the solid leaf (see merge_leaves)
 	int totalVisLeaves = thisVisLeaves + otherVisLeaves;
 
-	int thisWorldLeafCount = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // excludes solid leaf 0
-	int otherWorldLeafCount = ((BSPMODEL*)other.lumps[LUMP_MODELS])->nVisLeafs; // excluding solid leaf 0
 	int thisModelLeafCount = thisVisLeaves - thisWorldLeafCount;
 	int otherModelLeafCount = otherVisLeaves - otherWorldLeafCount;
 
@@ -1440,13 +1443,15 @@ bool Bsp::move(vec3 offset) {
 	}	
 	
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
-	BSPMIPTEX* textures = (BSPMIPTEX*)(lumps[LUMP_TEXTURES] + sizeof(uint32_t) * (texCount + 1));
+	byte* textures = lumps[LUMP_TEXTURES];
 	vec3 offsetDir = offset.normalize();
 	float offsetLen = offset.length();
 	
 	for (int i = 0; i < texInfoCount; i++) {
 		BSPTEXTUREINFO& info = texInfo[i];
-		BSPMIPTEX& tex = textures[info.iMiptex];
+		
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 		float scaleS = info.vS.length();
 		float scaleT = info.vT.length();
@@ -1462,19 +1467,16 @@ bool Bsp::move(vec3 offset) {
 		info.shiftS -= shiftScaleS * offsetLen*scaleS;
 		info.shiftT -= shiftScaleT * offsetLen*scaleT;
 
-		// TODO: minimize texture shift values (width/height only stored in WADs?)
 		/*
 		while (fabs(info.shiftS) > tex.nWidth) {
-			info.shiftS += info.shiftS < 0 ? tex.nWidth : -tex.nWidth;
-			printf("MINIMIZE SHIFT S %d %f\n", i, info.shiftS);
+			info.shiftS = (info.shiftS < 0) ? (int)tex.nWidth : -(int)(tex.nWidth);
 		}
 		while (fabs(info.shiftT) > tex.nHeight) {
-			info.shiftT += info.shiftT < 0 ? tex.nHeight : -tex.nHeight;
-			printf("MINIMIZE SHIFT T %d\n", i);
+			info.shiftT += (info.shiftT < 0) ? (int)tex.nHeight : -(int)(tex.nHeight);
 		}
 		*/
 	}
-
+	
 	for (int i = 0; i < leafCount; i++) {
 		BSPLEAF& leaf = leaves[i];
 
@@ -1563,7 +1565,6 @@ bool Bsp::move(vec3 offset) {
 		}
 
 		ents[i]->keyvalues["origin"] = parts[0] + " " + parts[1] + " " + parts[2];
-		//printf("NEW ORI: %s\n", ents[i]->keyvalues["origin"].c_str());
 	}
 
 	update_ent_lump();
@@ -1577,11 +1578,15 @@ void Bsp::update_ent_lump() {
 	for (int i = 0; i < ents.size(); i++) {
 		ent_data << "{\n";
 
-		for (auto it = ents[i]->keyvalues.begin(); it != ents[i]->keyvalues.end(); it++) {
-			ent_data << "\"" << it->first << "\" \"" << it->second << "\"\n";
+		for (int k = 0; k < ents[i]->keyOrder.size(); k++) {
+			string key = ents[i]->keyOrder[k];
+			ent_data << "\"" << key << "\" \"" << ents[i]->keyvalues[key] << "\"\n";
 		}
 
-		ent_data << "}\n";
+		ent_data << "}";
+		if (i == ents.size() - 1) {
+			ent_data << "\n"; // trailing newline crashes sven, and only sven, and only sometimes
+		}
 	}
 
 	string str_data = ent_data.str();

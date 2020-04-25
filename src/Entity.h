@@ -1,13 +1,14 @@
 #pragma once
 #include "Keyvalue.h"
-#include <unordered_map>
+#include <map>
 
-typedef std::unordered_map< std::string, std::string > hashmap;
+typedef std::map< std::string, std::string > hashmap;
 
 class Entity
 {
 public:
 	hashmap keyvalues;
+	vector<string> keyOrder;
 
 	Entity(void);
 	Entity(const std::string& classname);
