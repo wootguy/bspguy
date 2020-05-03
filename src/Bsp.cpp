@@ -1723,6 +1723,9 @@ bool Bsp::move(vec3 offset) {
 
 	qrad_init_globals(this);
 
+	//FILE* oldLuxelFile = fopen("luxels.txt", "w");
+	FILE* oldLuxelFile = fopen("luxels.txt", "r");
+
 	int expectedOffset = 0;
 	int lastLightmapSz = 0;
 	for (int i = 0; i < faceCount; i++) {
@@ -1757,12 +1760,67 @@ bool Bsp::move(vec3 offset) {
 		oldLightmaps[i].minx = surfInfo.min_lmcoord[0];
 		oldLightmaps[i].miny = surfInfo.min_lmcoord[1];
 
+		if (i == 13708)
+			printf("");
+
 		lightmap_flags_t shiftInfo = qrad_get_lightmap_flags(this, i);
 		memcpy(oldLightmaps[i].luxelFlags, shiftInfo.luxelFlags, sizeof(shiftInfo.luxelFlags));
+
+		if (false) {
+			char scan[4096];
+			fgets(scan, sizeof(scan), oldLuxelFile);
+
+			light_flag_t oldLuxels[MAX_SINGLEMAP];
+			int numLuxel = 0;
+			sscanf(scan, "%d ", &numLuxel);
+			for (int k = 0; k < numLuxel; k++) {
+				sscanf(scan + 4 + k*2, "%d ", &oldLuxels[k]);
+			}
+			sscanf(scan, "\n");
+
+			if (numLuxel != shiftInfo.w * shiftInfo.h) {
+				printf("ASFASDFAWEF\n");
+			}
+			/*
+			for (int k = 0; k < numLuxel; k++) {
+				if (oldLuxels[k] != oldLightmaps[i].luxelFlags[k]) {
+					printf("OLD LIGHTMAP FLAGS %d:\n", i);
+					for (int t = 0; t < shiftInfo.h; t++)
+					{
+						for (int s = 0; s < shiftInfo.w; s++)
+						{
+							printf("%d ", oldLuxels[s + shiftInfo.w * t]);
+						}
+						printf("\n");
+					}
+					printf("NEW LIGHTMAP FLAGS:\n");
+					for (int t = 0; t < shiftInfo.h; t++)
+					{
+						for (int s = 0; s < shiftInfo.w; s++)
+						{
+							printf("%d ", shiftInfo.luxelFlags[s + shiftInfo.w * t]);
+						}
+						printf("\n");
+					}
+
+					printf("LUXEL MISMATCH\n");
+					break;
+				}
+			}
+			*/
+		} else if (false) {
+			fprintf(oldLuxelFile, "%03d ", shiftInfo.w * shiftInfo.h);
+			for (int k = 0; k < shiftInfo.w * shiftInfo.h; k++) {
+				fprintf(oldLuxelFile, "%d ", shiftInfo.luxelFlags[k]);
+			}
+			fprintf(oldLuxelFile, "\n");
+		}
 
 		lastLightmapSz = lightmapSz;
 		expectedOffset = face.nLightmapOffset + lightmapSz * sizeof(COLOR3);
 	}
+
+	fclose(oldLuxelFile);
 
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
@@ -2046,15 +2104,16 @@ bool Bsp::move(vec3 offset) {
 	int totalGuesses = 0;
 
 	printf("init qrad\n");
-	qrad_cleanup_globals();
 	qrad_init_globals(this);
+
+	
 
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 		BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
 		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-		
+
 		BSPPLANE& plane = planes[face.iPlane];
 		vec3 normal = plane.vNormal * (face.nPlaneSide ? -1 : 1);
 
@@ -2524,7 +2583,6 @@ bool Bsp::move(vec3 offset) {
 
 	delete[] oldLightmaps;
 	delete[] newLightmaps;
-	qrad_cleanup_globals();
 
 	return true;
 }

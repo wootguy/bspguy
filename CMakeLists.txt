@@ -13,8 +13,6 @@ set(SOURCE_FILES
 	src/lodepng.h		src/lodepng.cpp
 	src/rad.h			src/rad.cpp
 	src/winding.h		src/winding.cpp
-	src/mathlib.h		src/mathlib.cpp
-	src/boundingbox.h
 	src/bsplimits.h
 )
 
