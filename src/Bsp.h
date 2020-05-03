@@ -1,6 +1,7 @@
 #include "Wad.h"
 #include "Entity.h"
 #include "bsplimits.h"
+#include "rad.h"
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
@@ -115,6 +116,7 @@ struct LIGHTMAP
 	int layers; // for when multiple lights hit the same face (nStyles != 0)
 	float minx, miny; // minimum texture coordinates the face uses
 	bool debug;
+	light_flag_t luxelFlags[MAX_SINGLEMAP];
 };
 
 struct BSPLEAF
@@ -184,21 +186,6 @@ struct SURFACEINFO
 	int roundedExtents[2];
 	int bmins[2];
 	int bmaxs[2];
-};
-
-struct FLIPSTATS
-{
-	int minEqualsExactMin;
-	int maxEqualsExactMax;
-	int xPlaneType;
-	int yPlaneType;
-	int zPlaneType;
-	int anyxPlaneType;
-	int anyyPlaneType;
-	int anyzPlaneType;
-	int oppositeFaceSide;
-	int totalFlip;
-
 };
 
 class Bsp;

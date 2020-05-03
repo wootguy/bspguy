@@ -362,9 +362,9 @@ intersecttest_t;
 
 typedef struct
 {
-	bool leftShift, topShift;
-
-} lightmap_shift_t;
+	int w, h;
+	light_flag_t luxelFlags[MAX_SINGLEMAP];
+} lightmap_flags_t;
 
 extern dface_t g_dfaces[MAX_MAP_FACES];
 extern vec3_t g_face_offset[MAX_MAP_FACES];
@@ -401,7 +401,7 @@ class Bsp;
 
 void qrad_init_globals(Bsp* bsp);
 void qrad_cleanup_globals();
-lightmap_shift_t qrad_get_lightmap_shift(Bsp* bsp, int faceIdx);
+lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx);
 
 const dplane_t* getPlaneFromFace(const dface_t* const face);
 void CreateOpaqueNodes();

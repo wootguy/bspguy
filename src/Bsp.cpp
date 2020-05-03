@@ -1721,6 +1721,8 @@ bool Bsp::move(vec3 offset) {
 	memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
 	memset(newLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
 
+	qrad_init_globals(this);
+
 	int expectedOffset = 0;
 	int lastLightmapSz = 0;
 	for (int i = 0; i < faceCount; i++) {
@@ -1754,6 +1756,9 @@ bool Bsp::move(vec3 offset) {
 		oldLightmaps[i].offset = face.nLightmapOffset;
 		oldLightmaps[i].minx = surfInfo.min_lmcoord[0];
 		oldLightmaps[i].miny = surfInfo.min_lmcoord[1];
+
+		lightmap_flags_t shiftInfo = qrad_get_lightmap_flags(this, i);
+		memcpy(oldLightmaps[i].luxelFlags, shiftInfo.luxelFlags, sizeof(shiftInfo.luxelFlags));
 
 		lastLightmapSz = lightmapSz;
 		expectedOffset = face.nLightmapOffset + lightmapSz * sizeof(COLOR3);
@@ -2037,19 +2042,12 @@ bool Bsp::move(vec3 offset) {
 	memset(newLightData, 0, newColorCount * sizeof(COLOR3));
 	int lightmapOffset = 0;
 
-	vec3 mostCommonModeNormal[4];
-	vec3 mostCommonCount;
-
-	FLIPSTATS flipstats;
-	memset(&flipstats, 0, sizeof(FLIPSTATS));
 	int incorrectGuesses = 0;
 	int totalGuesses = 0;
 
-	FILE* flipfile = fopen("flips.txt", "w");
-
-	printf("Init qrad...");
+	printf("init qrad\n");
+	qrad_cleanup_globals();
 	qrad_init_globals(this);
-	printf("done\n");
 
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
@@ -2075,7 +2073,8 @@ bool Bsp::move(vec3 offset) {
 		if (face.nStyles[0] == 255)
 			continue;
 
-		lightmap_shift_t shiftInfo = qrad_get_lightmap_shift(this, i);
+		lightmap_flags_t shiftInfo = qrad_get_lightmap_flags(this, i);
+		memcpy(newLight.luxelFlags, shiftInfo.luxelFlags, sizeof(shiftInfo.luxelFlags));
 
 		totalLightmaps++;
 
@@ -2216,79 +2215,91 @@ bool Bsp::move(vec3 offset) {
 					}
 				}
 
-
-
-				float ratio = newLight.height / (float)newLight.width;
 				int sureness = (float)bestMatch / (float)(newLight.width * newLight.height) * 100.0f;
-				vec3 n = face.nPlaneSide ? plane.vNormal.invert() : plane.vNormal;
-				float dot = dotProduct(n, info.vS);
-				mostCommonModeNormal[bestMode] += n;
-				mostCommonCount += n;
 
-				float range = maxLightU - minLightU;
-				float middle = minLightU + (range) * 0.5f;
+				bool shiftX = bestMode == 0 || bestMode == 2;
+				bool shiftY = bestMode == 0 || bestMode == 1;
 
-				// confirmed doesn't mean a face is flipped:
-				// - precision error in the extent calculation.
-				// - plane orientation
-				// - texture coordinates
+				int bestLuxelMode = 0;
+				bestMatch = 0;
+				for (int t = 0; t < 4; t++) {
+					int numMatch = 0;
+					for (int y = 0; y < oldLight.height; y++) {
+						for (int x = 0; x < oldLight.width; x++) {
+							int srcX = x;
+							int srcY = y;
 
-				bool flippedX = bestMode == 1 || bestMode == 3;
-				bool flippedY = bestMode == 2 || bestMode == 3;
-				bool flipped = flippedX;
-				bool guess = false;
+							if (t == 1) {
+								srcX = x+uDiff;
+							}
+							if (t == 2) {
+								srcY = y+vDiff;
+							}
+							if (t == 3) {
+								srcX = x+uDiff;
+								srcY = y+vDiff;
+							}
 
-				faceShouldFlipLightMap = flipped;
+							int oldLuxelFlag = oldLight.luxelFlags[y * oldLight.width + x];
+							int newLuxelFlag = newLight.luxelFlags[srcY * newLight.width + srcX];
 
-				guess = plane.nType == PLANE_Z && !face.nPlaneSide ||
-						plane.nType == PLANE_X && face.nPlaneSide || 
-						plane.nType == PLANE_Y && face.nPlaneSide;
+							if (oldLuxelFlag == newLuxelFlag) {
+								numMatch += 1;
+							}
+						}
+					}
 
-				if (plane.nType == PLANE_X) {
-					guess = info.vS.y < -0.01f || (info.vT.y >= 1.0f && info.vS.y >= 0.01f);
+					if (numMatch > bestMatch) {
+						bestMatch = numMatch;
+						bestLuxelMode = t;
+					}
 				}
 
-				guess = !shiftInfo.leftShift;
+				bool guessShiftLeft = bestLuxelMode == 1 || bestLuxelMode == 3;
+				bool guessShiftTop = bestLuxelMode == 2 || bestLuxelMode == 3;
+
+				bool guessedRight = (shiftX == guessShiftLeft || newLight.width == oldLight.width || isSymmetricX) &&
+									(shiftY == guessShiftTop || newLight.height == oldLight.height || isSymmetricY);
+
+				faceShouldFlipLightMap = shiftX;
 
 				bool shouldConsiderFlip = (newLight.width != oldLight.width && !isSymmetricX) || (newLight.height != oldLight.height && !isSymmetricY);
 				shouldConsiderFlip = shouldConsiderFlip && !monochrome && sureness >= 80 && newLight.height == oldLight.height;
-				if (shouldConsiderFlip)
-					fprintf(flipfile, "%d %d %d %d %d %d\n", i, shouldConsiderFlip, newLight.width, newLight.height,
-						bestMode == 1 || bestMode == 3, bestMode == 2 || bestMode == 3);
 
-
-
-				// 7455
-				if (bestMode != 2 && newLight.width > oldLight.width && newLight.height == oldLight.height && sureness >= 80 && !monochrome && !isSymmetricX) {
+				if (newLight.width >= oldLight.width && newLight.height >= oldLight.height && sureness > 0 && !monochrome) {
 				//if (bestMode != 1 && newLight.height != oldLight.height && sureness >= 90 && !monochrome && !isSymmetricY) {
-					printf("%5d: %d %3d%%  %2d %2d | %5.2f %5.2f + %6.2f | %5.2f %5.2f + %6.2f | %5.2f %s\n",
-						i, bestMode == 0 ? 0 : 1, sureness,
-						oldLight.width, oldLight.height,
-						info.vS.y, info.vS.z, info.shiftS,
-						info.vT.y, info.vT.z, info.shiftT,
-						dot,
-						guess == flipped ? "" : "(WRONG)");
+					if (!guessedRight)
+					printf("%5d: %d %d %3d%%  %d %d | %s\n",
+						i, shiftX, shiftY, sureness,
+						guessShiftLeft, guessShiftTop,
+						guessedRight ? "" : "(WRONG)");
 
 					faceShouldConsiderFlip = true;
 
-					
-
 					totalGuesses++;
-					if (guess != flipped) {
+					if (!guessedRight) {
 						incorrectGuesses++;
-					}
 
-					if (flipped) {
-						flipstats.minEqualsExactMin += surfInfo.bmins[0] == surfInfo.mins[0];
-						flipstats.maxEqualsExactMax += surfInfo.bmaxs[0] == surfInfo.maxs[0];
-						flipstats.xPlaneType += plane.nType == PLANE_X;
-						flipstats.yPlaneType += plane.nType == PLANE_Y;
-						flipstats.zPlaneType += plane.nType == PLANE_Z;
-						flipstats.anyxPlaneType += plane.nType == PLANE_ANYX;
-						flipstats.anyyPlaneType += plane.nType == PLANE_ANYY;
-						flipstats.anyzPlaneType += plane.nType == PLANE_ANYZ;
-						flipstats.oppositeFaceSide += face.nPlaneSide != 0;
-						flipstats.totalFlip += 1;
+						printf("OLD LIGHTMAP FLAGS:\n");
+						for (int t = 0; t < oldLight.height; t++)
+						{
+							for (int s = 0; s < oldLight.width; s++)
+							{
+								printf("%d ", oldLight.luxelFlags[s + oldLight.width * t]);
+							}
+							printf("\n");
+						}
+						printf("NEW LIGHTMAP FLAGS:\n");
+						for (int t = 0; t < newLight.height; t++)
+						{
+							for (int s = 0; s < newLight.width; s++)
+							{
+								printf("%d ", newLight.luxelFlags[s + newLight.width * t]);
+							}
+							printf("\n");
+						}
+
+						printf("");
 					}
 				}
 			}
@@ -2323,7 +2334,6 @@ bool Bsp::move(vec3 offset) {
 				printf("Lightmap resized from %02d x %02d -> %02d x %02d\n", oldLight.width, oldLight.height, newLight.width, newLight.height);
 			}
 
-			//printf("OH MY: %f %f\n", newLight.minx, newLight.miny);
 
 			for (int layer = 0; layer < newLight.layers; layer++) {
 				int srcOffset = (face.nLightmapOffset + oldLayerSz*layer) / sizeof(COLOR3);
@@ -2378,7 +2388,6 @@ bool Bsp::move(vec3 offset) {
 							int srcX = x - uDiff;
 							int srcY = y - vDiff;
 							
-							/*
 							if (bestMode == 1) {
 								srcX = x;
 							}
@@ -2389,7 +2398,7 @@ bool Bsp::move(vec3 offset) {
 								srcX = x;
 								srcY = y;
 							}
-							*/
+							
 							// x is USUALLY shifted on these planes. Not always, but good enough.
 							/*
 							if (plane.nType == PLANE_Z || plane.nType == PLANE_ANYZ || plane.nType == PLANE_Y) {
@@ -2430,7 +2439,16 @@ bool Bsp::move(vec3 offset) {
 							src.b = 128;
 						}
 						*/
-
+						if (i == 16302 || i == 16305 || i == 16309 || i == 16311 || i == 16353) {
+							src.r = 255;
+							src.g = 0;
+							src.b = 0;
+						}
+						else {
+							src.r = 0;
+							src.g = 0;
+							src.b = 20;
+						}
 						if (false) {
 							if (false && oldLight.width == newLight.width && oldLight.height == newLight.height) {
 								src.r = 255;
@@ -2465,7 +2483,7 @@ bool Bsp::move(vec3 offset) {
 			}
 			// 6919
 			// 328
-			if (i == 13519) {
+			if (i == 6450 || i == 14972 || i == 16302 || i == 16305 || i == 16309 || i == 16311 || i == 16353) {
 				lodepng_encode24_file(("lightmap/" + to_string(i) + "__before.png").c_str(),
 					(byte*)lightdata + face.nLightmapOffset, oldLight.width, oldLight.height);
 				lodepng_encode24_file(("lightmap/" + to_string(i) + "_after.png").c_str(),
@@ -2491,26 +2509,6 @@ bool Bsp::move(vec3 offset) {
 		face.nLightmapOffset = lightmapOffset;
 		lightmapOffset += newSz;
 	}
-
-	printf("Most common mode normals:\n");
-	for (int i = 0; i < 4; i++) {
-		printf("%d = %.2f %.2f %.2f\n", i,
-			mostCommonModeNormal[i].x / mostCommonCount.x, 
-			mostCommonModeNormal[i].y / mostCommonCount.y,
-			mostCommonModeNormal[i].z / mostCommonCount.z);
-	}
-
-	printf("Flip stats:\n");
-	printf("totalFlip         = %d\n", flipstats.totalFlip);
-	printf("minEqualsExactMin = %d\n", flipstats.minEqualsExactMin);
-	printf("maxEqualsExactMax = %d\n", flipstats.maxEqualsExactMax);
-	printf("xPlaneType        = %d\n", flipstats.xPlaneType);
-	printf("yPlaneType        = %d\n", flipstats.yPlaneType);
-	printf("zPlaneType        = %d\n", flipstats.zPlaneType);
-	printf("anyxPlaneType     = %d\n", flipstats.anyxPlaneType);
-	printf("anyyPlaneType     = %d\n", flipstats.anyyPlaneType);
-	printf("anyzPlaneType     = %d\n", flipstats.anyzPlaneType);
-	printf("oppositeFaceSide  = %d\n", flipstats.oppositeFaceSide);
 
 	printf("Incorrect gueses: %d / %d (%.1f%%)\n\n", incorrectGuesses, totalGuesses, (incorrectGuesses / (float)totalGuesses) * 100);
 	

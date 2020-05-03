@@ -259,11 +259,11 @@ void qrad_cleanup_globals() {
 	delete[] g_textures;
 }
 
-lightmap_shift_t qrad_get_lightmap_shift(Bsp* bsp, int faceIdx) {
+lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx) {
 
 	dface_t* f = &g_dfaces[faceIdx];
 
-	lightmap_shift_t shift;
+	lightmap_flags_t shift;
 	memset(&shift, 0, sizeof(shift));
 
 	f->lightofs = -1;
@@ -287,11 +287,9 @@ lightmap_shift_t qrad_get_lightmap_shift(Bsp* bsp, int faceIdx) {
 	VectorCopy(plane->normal, l.facenormal);
 	l.facedist = plane->dist;
 
-	light_flag_t LuxelFlags[MAX_SINGLEMAP];
-
 	CalcFaceVectors(&l);
 	CalcFaceExtents(&l);
-	CalcPoints(&l, LuxelFlags);
+	CalcPoints(&l, shift.luxelFlags);
 
 	free(l.lmcache);
 	free(l.lmcache_normal);
@@ -299,33 +297,13 @@ lightmap_shift_t qrad_get_lightmap_shift(Bsp* bsp, int faceIdx) {
 	free(l.surfpt_position);
 	free(l.surfpt_surface);
 	
-	int shiftedEdgeSamples[4] = { 0, 0, 0, 0 }; // left, right, top, bottom
 	int w = l.texsize[0] + 1;
 	int h = l.texsize[1] + 1;
 
-	bool printMap = false;
+	bool printMap = faceIdx == 3245;
 
-	if (printMap) printf("LIGHTMAP FOR FACE %d\n", faceIdx);
-	for (int t = 0; t < h; t++)
-	{
-		for (int s = 0; s < w; s++)
-		{
-			if (printMap) printf("%d ", LuxelFlags[s + w * t]);
-			bool is_shifted = LuxelFlags[s + w * t] != LightNormal;
-			if (s == 0)
-				shiftedEdgeSamples[0] += is_shifted;
-			if (s == w - 1)
-				shiftedEdgeSamples[1] += is_shifted;
-			if (t == 0)
-				shiftedEdgeSamples[2] += is_shifted;
-			if (t == h - 1)
-				shiftedEdgeSamples[3] += is_shifted;
-		}
-		if (printMap) printf("\n");
-	}
-
-	shift.leftShift = shiftedEdgeSamples[0] > shiftedEdgeSamples[1];
-	shift.topShift = shiftedEdgeSamples[2] > shiftedEdgeSamples[3];
+	shift.w = w;
+	shift.h = h;
 
 	return shift;
 }
