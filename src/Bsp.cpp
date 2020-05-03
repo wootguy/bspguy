@@ -6,6 +6,8 @@
 #include <fstream>
 #include <set>
 #include <iomanip>
+#include "lodepng.h"
+#include "rad.h"
 
 Bsp::Bsp() {
 	lumps = new byte * [HEADER_LUMPS];
@@ -1415,6 +1417,118 @@ void Bsp::merge_lighting(Bsp& other) {
 	cout << oldLen << " -> " << header.lump[LUMP_LIGHTING].nLength << endl;
 }
 
+float CalculatePointVecsProduct(const volatile vec3& point, const volatile vec3& axis, const volatile float shift)
+{
+	volatile double val;
+	volatile double tmp;
+
+	val = (double)point.x * (double)axis.x; // always do one operation at a time and save to memory
+	tmp = (double)point.y * (double)axis.y;
+	val = val + tmp;
+	tmp = (double)point.z * (double)axis.z;
+	val = val + tmp;
+	val = val + (double)shift;
+
+	return (float)val;
+}
+
+SURFACEINFO Bsp::get_face_extents(BSPFACE& face) {
+	//CorrectFPUPrecision();
+
+	SURFACEINFO surfInfo;
+
+	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
+	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+
+	float mins[2], maxs[2], texturemins[2], val;
+	int i, j, e;
+	vec3* v;
+	BSPTEXTUREINFO* tex;
+	int bmins[2], bmaxs[2];
+
+	mins[0] = mins[1] = 999999;
+	maxs[0] = maxs[1] = -99999;
+
+	surfInfo.mins[0] = surfInfo.mins[1] = 999999;
+	surfInfo.maxs[0] = surfInfo.maxs[1] = -99999;
+
+	tex = &texInfo[face.iTextureInfo];
+
+
+	for (i = 0; i < face.nEdges; i++)
+	{
+		e = surfEdges[face.iFirstEdge + i];
+		if (e >= 0)
+		{
+			v = &verts[edges[e].iVertex[0]];
+		}
+		else
+		{
+			v = &verts[edges[-e].iVertex[1]];
+		}
+		for (j = 0; j < 2; j++)
+		{
+			// The old code: val = v->point[0] * tex->vecs[j][0] + v->point[1] * tex->vecs[j][1] + v->point[2] * tex->vecs[j][2] + tex->vecs[j][3];
+			//   was meant to be compiled for x86 under MSVC (prior to VS 11), so the intermediate values were stored as 64-bit double by default.
+			// The new code will produce the same result as the old code, but it's portable for different platforms.
+			// See this article for details: Intermediate Floating-Point Precision by Bruce-Dawson http://www.altdevblogaday.com/2012/03/22/intermediate-floating-point-precision/
+
+			// The essential reason for having this ugly code is to get exactly the same value as the counterpart of game engine.
+			// The counterpart of game engine is the function CalcFaceExtents in HLSDK.
+			// So we must also know how Valve compiles HLSDK. I think Valve compiles HLSDK with VC6.0 in the past.
+			vec3& axis = j == 0 ? tex->vS : tex->vT;
+			float shift = j == 0 ? tex->shiftS : tex->shiftT;
+			val = CalculatePointVecsProduct(*v, axis, shift);
+
+			if (val < mins[j])
+			{
+				mins[j] = val;
+				surfInfo.mins[j] = val;
+			}
+			if (val > maxs[j])
+			{
+				maxs[j] = val;
+				surfInfo.maxs[j] = val;
+			}
+		}
+	}
+
+	for (i = 0; i < 2; i++)
+	{
+		bmins[i] = (int)floor(mins[i] / 16);
+		bmaxs[i] = (int)ceil(maxs[i] / 16);
+
+		surfInfo.bmins[i] = bmins[i];
+		surfInfo.bmaxs[i] = bmaxs[i];
+		surfInfo.roundedMins[i] = (int)floor((mins[i] / 16) + 0.5f);
+		surfInfo.roundedMaxs[i] = (int)ceil((maxs[i] / 16) - 0.5f);
+		surfInfo.mins[i] = mins[i] / 16.0f;
+		surfInfo.maxs[i] = maxs[i] / 16.0f;
+
+		surfInfo.midPoly[i] = (float)(surfInfo.maxs[i] + surfInfo.mins[i]) * 0.5f;
+	}
+
+
+
+	for (i = 0; i < 2; i++)
+	{
+		surfInfo.texturemins[i] = bmins[i] * 16;
+		surfInfo.extents[i] = (bmaxs[i] - bmins[i]) *16;
+		surfInfo.fextents[i] = (surfInfo.maxs[i] - surfInfo.mins[i]) *16;
+		surfInfo.roundedExtents[i] = (surfInfo.roundedMaxs[i] - surfInfo.roundedMins[i]) *16;
+		surfInfo.roundedExtents[i] = (surfInfo.roundedMaxs[i] - surfInfo.roundedMins[i]) *16;
+	}
+
+	//printf("EXTENTS: %d %d\n", extents_out[0], extents_out[1]);
+	
+
+	return surfInfo;
+}
+
+
+
 MAPBLOCK Bsp::get_bounding_box() {
 	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
 
@@ -1581,7 +1695,7 @@ void Bsp::create_merge_headnodes(Bsp& other, BSPPLANE separationPlane) {
 }
 
 bool Bsp::move(vec3 offset) {
-	printf("Moving %s by (%.0f, %.0f, %.0f)...\n", name.c_str(), offset.x, offset.y, offset.z);
+	//printf("Moving %s by (%.0f, %.0f, %.0f)...\n", name.c_str(), offset.x, offset.y, offset.z);
 
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
@@ -1590,6 +1704,7 @@ bool Bsp::move(vec3 offset) {
 	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
 	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
 	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+	COLOR3* lightdata = (COLOR3*)lumps[LUMP_LIGHTING];
 	
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
@@ -1598,19 +1713,50 @@ bool Bsp::move(vec3 offset) {
 	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
 	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+	int thisColorCount = header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
 
-	
-	for (int i = 0; i < planeCount; i++) {
-		BSPPLANE& plane = planes[i];
-		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
 
-		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
-			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
-			printf("WARNING: Plane origin moved past safe world boundary!");
+	LIGHTMAP* oldLightmaps = new LIGHTMAP[faceCount];
+	LIGHTMAP* newLightmaps = new LIGHTMAP[faceCount];
+	memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
+	memset(newLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
+
+	int expectedOffset = 0;
+	int lastLightmapSz = 0;
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+
+		if (face.nLightmapOffset != expectedOffset && lastLightmapSz != 0) {
+			//printf("ughhh %d %d\n", expectedOffset - face.nLightmapOffset, lastLightmapSz);
+			oldLightmaps[i - 1].debug = true;
 		}
 
-		// get distance between new plane origin and the origin-aligned plane
-		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
+		SURFACEINFO surfInfo = get_face_extents(face);
+
+		for (int i = 0; i < 2; i++) {
+			surfInfo.extents[i] = (surfInfo.extents[i] >> 4) + 1;
+		}
+
+		int lightmapSz = surfInfo.extents[0] * surfInfo.extents[1];
+
+		int lightmapCount = 0;
+		for (int k = 0; k < 4; k++) {
+			if (face.nStyles[k] != 255)
+				lightmapCount++;
+		}
+		lightmapSz *= lightmapCount;
+
+		//printf("Extents: %d x %d   %d %d %d %d\n", extents[0], extents[1], face.nStyles[0], face.nStyles[1], face.nStyles[2], face.nStyles[3]);
+
+		oldLightmaps[i].width = surfInfo.extents[0];
+		oldLightmaps[i].height = surfInfo.extents[1];
+		oldLightmaps[i].layers = lightmapCount;
+		oldLightmaps[i].offset = face.nLightmapOffset;
+		oldLightmaps[i].minx = surfInfo.min_lmcoord[0];
+		oldLightmaps[i].miny = surfInfo.min_lmcoord[1];
+
+		lastLightmapSz = lightmapSz;
+		expectedOffset = face.nLightmapOffset + lightmapSz * sizeof(COLOR3);
 	}
 
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
@@ -1621,7 +1767,7 @@ bool Bsp::move(vec3 offset) {
 	for (int i = 0; i < texInfoCount; i++) {
 		BSPTEXTUREINFO& info = texInfo[i];
 		
-		int32_t texOffset = ((int32_t*)textures)[info.iMiptex];
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex+1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 		float scaleS = info.vS.length();
@@ -1638,26 +1784,164 @@ bool Bsp::move(vec3 offset) {
 		int olds = info.shiftS;
 		int oldt = info.shiftT;
 
-		info.shiftS -= shiftScaleS * offsetLen*scaleS;
-		info.shiftT -= shiftScaleT * offsetLen*scaleT;
+		float shiftAmountS = shiftScaleS * offsetLen * scaleS;
+		float shiftAmountT = shiftScaleT * offsetLen * scaleT;
 
-		/*
+		info.shiftS -= shiftAmountS;
+		info.shiftT -= shiftAmountT;
+
+		// minimize shift value
 		while (fabs(info.shiftS) > tex.nWidth) {
-			info.shiftS = (info.shiftS < 0) ? (int)tex.nWidth : -(int)(tex.nWidth);
+			info.shiftS += (info.shiftS < 0) ? (int)tex.nWidth : -(int)(tex.nWidth);
 		}
 		while (fabs(info.shiftT) > tex.nHeight) {
 			info.shiftT += (info.shiftT < 0) ? (int)tex.nHeight : -(int)(tex.nHeight);
 		}
 
-		while (info.shiftS < 0) {
-			info.shiftS = tex.nWidth;
+
+		//
+		// Floating point inaccuracies change the lightmap size after moving, which breaks lighting.
+		// This will brute force different inputs until the lightmaps go back to the original size.
+		//
+
+		continue;
+
+		float macroRange = 128 * tex.nWidth;
+		float range = 0.1f;
+
+		float originalShiftS = info.shiftS;
+		float originalShiftT = info.shiftT;
+		int affectedFaces = 0;
+
+		affectedFaces = 0;
+		for (int k = 0; k < faceCount; k++) {
+			BSPFACE& face = faces[k];
+
+			// ignore faces that don't use these UV coordinates or that don't have any lightmaps
+			if (face.iTextureInfo != i || face.nStyles[0] == 255)
+				continue;
+
+			affectedFaces++;
 		}
-		while (info.shiftT < 0) {
-			info.shiftT += tex.nHeight;
+
+		if (affectedFaces == 0)
+			continue;
+
+		int unchangedLightmaps = 0;
+
+		//printf("FIX %d\n", i);
+		for (float macroT = -macroRange; macroT < macroRange && unchangedLightmaps < affectedFaces; macroT += tex.nWidth) {
+			for (float t = -range; t < range && unchangedLightmaps < affectedFaces; t += 0.01f) {
+				info.shiftS = originalShiftS + macroT + t;
+
+				unchangedLightmaps = 0;
+				for (int k = 0; k < faceCount; k++) {
+					BSPFACE& face = faces[k];
+
+					// ignore faces that don't use these UV coordinates or that don't have any lightmaps
+					if (face.iTextureInfo != i || face.nStyles[0] == 255)
+						continue;
+
+					SURFACEINFO surfInfo = get_face_extents(face);
+					for (int e = 0; e < 2; e++) {
+						surfInfo.extents[e] = (surfInfo.extents[e] >> 4) + 1;
+					}
+
+					//if (i == 54)
+					//	printf("OK %d %d\n", extents[0], oldLightmaps[k].width);
+
+					if (surfInfo.extents[0] == oldLightmaps[k].width) {
+						unchangedLightmaps++;
+					}
+				}
+			}
 		}
-		*/
+
+		if (unchangedLightmaps < affectedFaces) {
+			printf("Failed to find shift that works for %d faces (%s)\n", affectedFaces, tex.szName);
+		}
+		else {
+			printf("ZOMG fixed the lightmaps %f -> %f\n", originalShiftS, info.shiftS);
+		}
+
 	}
-	
+
+	for (int i = 0; i < vertCount; i++) {
+		vec3& vert = verts[i];
+
+		vert += offset;
+
+		if (fabs(vert.x) > MAX_MAP_COORD ||
+			fabs(vert.y) > MAX_MAP_COORD ||
+			fabs(vert.z) > MAX_MAP_COORD) {
+			printf("WARNING: Vertex moved past safe world boundary!");
+		}
+	}
+
+	//printf("NOW TIME TO UPDATE DEM LIGHTMAPS\n");
+	expectedOffset = 0;
+	lastLightmapSz = 0;
+	int newLightDataSz = 0;
+	mismatchCount = 0;
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+
+		BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+		SURFACEINFO surfInfo = get_face_extents(face);
+
+		for (int i = 0; i < 2; i++) {
+			surfInfo.extents[i] = (surfInfo.extents[i] >> 4) + 1;
+		}
+
+		int lightmapSz = surfInfo.extents[0] * surfInfo.extents[1];
+
+		newLightmaps[i].width = surfInfo.extents[0];
+		newLightmaps[i].height = surfInfo.extents[1];
+		newLightmaps[i].layers = oldLightmaps[i].layers;
+		newLightmaps[i].offset = newLightDataSz;
+		newLightmaps[i].minx = surfInfo.min_lmcoord[0];
+		newLightmaps[i].miny = surfInfo.min_lmcoord[1];
+
+		if (newLightmaps[i].width != oldLightmaps[i].width || newLightmaps[i].height != oldLightmaps[i].height) {
+			if (newLightmaps[i].layers != 0) {
+				mismatchCount++;
+			}
+		}
+
+		newLightDataSz += (lightmapSz * newLightmaps[i].layers) * sizeof(COLOR3);
+
+		//printf("Extents: %d x %d   %d %d %d %d  (%d)\n", extents[0], extents[1], face.nStyles[0], face.nStyles[1], face.nStyles[2], face.nStyles[3], newLightmaps[i].layers);
+
+		lastLightmapSz = lightmapSz;
+		expectedOffset = face.nLightmapOffset + lightmapSz * sizeof(COLOR3);
+	}
+
+	/*
+	if (mismatchCount) {
+		delete[] oldLightmaps;
+		delete[] newLightmaps;
+		return false;
+	}
+
+	return true;
+	*/
+
+	for (int i = 0; i < planeCount; i++) {
+		BSPPLANE& plane = planes[i];
+		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
+
+		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
+			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
+			printf("WARNING: Plane origin moved past safe world boundary!");
+		}
+
+		// get distance between new plane origin and the origin-aligned plane
+		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
+	}
+
 	for (int i = 0; i < leafCount; i++) {
 		BSPLEAF& leaf = leaves[i];
 
@@ -1713,21 +1997,13 @@ bool Bsp::move(vec3 offset) {
 		node.nMaxs[2] += offset.z;
 	}
 
-	for (int i = 0; i < vertCount; i++) {
-		vec3& vert = verts[i];
-
-		vert += offset;
-
-		if (fabs(vert.x) > MAX_MAP_COORD ||
-			fabs(vert.y) > MAX_MAP_COORD ||
-			fabs(vert.z) > MAX_MAP_COORD) {
-			printf("WARNING: Vertex moved past safe world boundary!");
-		}
-	}
-
 	for (int i = 0; i < ents.size(); i++) {
 		if (!ents[i]->hasKey("origin"))
 			continue;
+
+		if (ents[i]->keyvalues["classname"] == "info_node") {
+			ents[i]->keyvalues["classname"] = "info_bode";
+		}
 
 		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
 		vec3 ori = keyvalue.getVector();
@@ -1748,7 +2024,509 @@ bool Bsp::move(vec3 offset) {
 		ents[i]->keyvalues["origin"] = parts[0] + " " + parts[1] + " " + parts[2];
 	}
 
+	Bsp radfix("yabma_move_rad.bsp");
+
+	COLOR3* radfix_lightdata = (COLOR3*)radfix.lumps[LUMP_LIGHTING];
+	BSPFACE* radfix_faces = (BSPFACE*)radfix.lumps[LUMP_FACES];
+
+	int lightmapsResized = 0;
+	int totalLightmaps = 0;
+
+	int newColorCount = newLightDataSz / sizeof(COLOR3);
+	COLOR3* newLightData = new COLOR3[newColorCount];
+	memset(newLightData, 0, newColorCount * sizeof(COLOR3));
+	int lightmapOffset = 0;
+
+	vec3 mostCommonModeNormal[4];
+	vec3 mostCommonCount;
+
+	FLIPSTATS flipstats;
+	memset(&flipstats, 0, sizeof(FLIPSTATS));
+	int incorrectGuesses = 0;
+	int totalGuesses = 0;
+
+	FILE* flipfile = fopen("flips.txt", "w");
+
+	printf("Init qrad...");
+	qrad_init_globals(this);
+	printf("done\n");
+
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+		BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+		
+		BSPPLANE& plane = planes[face.iPlane];
+		vec3 normal = plane.vNormal * (face.nPlaneSide ? -1 : 1);
+
+		LIGHTMAP& oldLight = oldLightmaps[i];
+		LIGHTMAP& newLight = newLightmaps[i];
+		int oldLayerSz = (oldLight.width * oldLight.height) * sizeof(COLOR3);
+		int newLayerSz = (newLight.width * newLight.height) * sizeof(COLOR3);
+		int oldSz = oldLayerSz * oldLight.layers;
+		int newSz = newLayerSz * newLight.layers;
+
+		if (oldSz == 0) {
+			//printf("Skipping empty lightmap\n");
+			continue;
+		}
+
+		if (face.nStyles[0] == 255)
+			continue;
+
+		lightmap_shift_t shiftInfo = qrad_get_lightmap_shift(this, i);
+
+		totalLightmaps++;
+
+		if (oldLight.width == newLight.width && oldLight.height == newLight.height && false) {
+			memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+		}
+		else {
+			int uDiff = newLight.width - oldLight.width;
+			int vDiff = newLight.height - oldLight.height;
+
+			// COMPARE LIGHTMAPS
+
+			int bestMode = 0;
+			bool faceShouldFlipLightMap = false;
+			bool faceShouldConsiderFlip = false;
+			bool monochrome = true;
+			if (true) {
+
+				int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+				vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+				BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+
+				SURFACEINFO surfInfo = get_face_extents(face);
+
+				float minLightU = 99999;
+				float maxLightU = -99999;
+				float firstDot = 0;
+				for (int e = 0; e < face.nEdges; e++)
+				{
+					int index = surfEdges[faces[i].iFirstEdge + e];
+					vec3* v;
+					if (index < 0)
+						v = &verts[edges[index * -1].iVertex[1]];
+					else
+						v = &verts[edges[index].iVertex[0]];
+
+					float s = dotProduct(*v, info.vS) + info.shiftS;
+					firstDot = s;
+					s -= surfInfo.texturemins[0];
+					//s += fa->light_s * LM_SAMPLE_SIZE;
+					s /= 16.0f;
+
+					if (s < minLightU) {
+						minLightU = s;
+					}
+					if (s > maxLightU) {
+						maxLightU = s;
+					}
+				}
+
+
+
+				int tstOffset = (face.nLightmapOffset) / sizeof(COLOR3);
+				int radOffset = (radfix_faces[i].nLightmapOffset) / sizeof(COLOR3);
+
+
+				int bestMatch = 0;
+				monochrome = true;
+				vector<COLOR3> colors;
+				for (int z = 0; z < oldLight.width * oldLight.height; z++) {
+					COLOR3 test = lightdata[tstOffset + z];
+					bool isUnique = true;
+					for (int g = 0; g < colors.size(); g++) {
+						if (test.r == colors[g].r && test.g == colors[g].g && test.b == colors[g].b) {
+							isUnique = false;
+							break;
+						}
+					}
+					if (isUnique) {
+						colors.push_back(test);
+					}
+					if (colors.size() > 3) {
+						monochrome = false;
+						break;
+					}
+				}
+
+				bool isSymmetricX = true;
+				for (int y = 0; y < oldLight.height && isSymmetricX; y++) {
+					for (int x = 0; x < oldLight.width; x++) {
+						COLOR3 left = lightdata[tstOffset + y * oldLight.width + x];
+						COLOR3 right = lightdata[tstOffset + y * oldLight.width + (oldLight.width - (x+1))];
+						if (left.r != right.r || left.g != right.g || left.b != right.b) {
+							isSymmetricX = false;
+							break;
+						}
+					}
+				}
+
+				bool isSymmetricY = true;
+				for (int x = 0; x < oldLight.width && isSymmetricY; x++) {
+					for (int y = 0; y < oldLight.height; y++) {
+						COLOR3 top = lightdata[tstOffset + y * oldLight.width + x];
+						COLOR3 bottom = lightdata[tstOffset + (oldLight.height - (y+1)) * oldLight.width + x];
+						if (top.r != bottom.r || top.g != bottom.g || top.b != bottom.b) {
+							isSymmetricY = false;
+							break;
+						}
+					}
+				}
+
+				for (int t = 0; t < 4; t++) {
+
+					int numMatch = 0;
+					for (int y = 0; y < newLight.height; y++) {
+						for (int x = 0; x < newLight.width; x++) {
+							int srcX = x - uDiff;
+							int srcY = y - vDiff;
+
+							if (t == 1) {
+								srcX = x;
+							}
+							if (t == 2) {
+								srcY = y;
+							}
+							if (t == 3) {
+								srcX = x;
+								srcY = y;
+							}
+
+							srcX = max(srcX, 0);
+							srcY = max(srcY, 0);
+							srcX = min(srcX, oldLight.width - 1);
+							srcY = min(srcY, oldLight.height - 1);
+
+							COLOR3 test = lightdata[tstOffset + srcY * oldLight.width + srcX];
+							COLOR3 radfix = radfix_lightdata[radOffset + y * newLight.width + x];
+
+							if (test.r == radfix.r && test.g == radfix.g && test.b == radfix.b) {
+								numMatch += 1;
+							}
+						}
+					}
+
+					if (numMatch > bestMatch) {
+						bestMatch = numMatch;
+						bestMode = t;
+					}
+				}
+
+
+
+				float ratio = newLight.height / (float)newLight.width;
+				int sureness = (float)bestMatch / (float)(newLight.width * newLight.height) * 100.0f;
+				vec3 n = face.nPlaneSide ? plane.vNormal.invert() : plane.vNormal;
+				float dot = dotProduct(n, info.vS);
+				mostCommonModeNormal[bestMode] += n;
+				mostCommonCount += n;
+
+				float range = maxLightU - minLightU;
+				float middle = minLightU + (range) * 0.5f;
+
+				// confirmed doesn't mean a face is flipped:
+				// - precision error in the extent calculation.
+				// - plane orientation
+				// - texture coordinates
+
+				bool flippedX = bestMode == 1 || bestMode == 3;
+				bool flippedY = bestMode == 2 || bestMode == 3;
+				bool flipped = flippedX;
+				bool guess = false;
+
+				faceShouldFlipLightMap = flipped;
+
+				guess = plane.nType == PLANE_Z && !face.nPlaneSide ||
+						plane.nType == PLANE_X && face.nPlaneSide || 
+						plane.nType == PLANE_Y && face.nPlaneSide;
+
+				if (plane.nType == PLANE_X) {
+					guess = info.vS.y < -0.01f || (info.vT.y >= 1.0f && info.vS.y >= 0.01f);
+				}
+
+				guess = !shiftInfo.leftShift;
+
+				bool shouldConsiderFlip = (newLight.width != oldLight.width && !isSymmetricX) || (newLight.height != oldLight.height && !isSymmetricY);
+				shouldConsiderFlip = shouldConsiderFlip && !monochrome && sureness >= 80 && newLight.height == oldLight.height;
+				if (shouldConsiderFlip)
+					fprintf(flipfile, "%d %d %d %d %d %d\n", i, shouldConsiderFlip, newLight.width, newLight.height,
+						bestMode == 1 || bestMode == 3, bestMode == 2 || bestMode == 3);
+
+
+
+				// 7455
+				if (bestMode != 2 && newLight.width > oldLight.width && newLight.height == oldLight.height && sureness >= 80 && !monochrome && !isSymmetricX) {
+				//if (bestMode != 1 && newLight.height != oldLight.height && sureness >= 90 && !monochrome && !isSymmetricY) {
+					printf("%5d: %d %3d%%  %2d %2d | %5.2f %5.2f + %6.2f | %5.2f %5.2f + %6.2f | %5.2f %s\n",
+						i, bestMode == 0 ? 0 : 1, sureness,
+						oldLight.width, oldLight.height,
+						info.vS.y, info.vS.z, info.shiftS,
+						info.vT.y, info.vT.z, info.shiftT,
+						dot,
+						guess == flipped ? "" : "(WRONG)");
+
+					faceShouldConsiderFlip = true;
+
+					
+
+					totalGuesses++;
+					if (guess != flipped) {
+						incorrectGuesses++;
+					}
+
+					if (flipped) {
+						flipstats.minEqualsExactMin += surfInfo.bmins[0] == surfInfo.mins[0];
+						flipstats.maxEqualsExactMax += surfInfo.bmaxs[0] == surfInfo.maxs[0];
+						flipstats.xPlaneType += plane.nType == PLANE_X;
+						flipstats.yPlaneType += plane.nType == PLANE_Y;
+						flipstats.zPlaneType += plane.nType == PLANE_Z;
+						flipstats.anyxPlaneType += plane.nType == PLANE_ANYX;
+						flipstats.anyyPlaneType += plane.nType == PLANE_ANYY;
+						flipstats.anyzPlaneType += plane.nType == PLANE_ANYZ;
+						flipstats.oppositeFaceSide += face.nPlaneSide != 0;
+						flipstats.totalFlip += 1;
+					}
+				}
+			}
+
+
+			// END COMPARe
+
+
+
+			lightmapsResized++;
+
+			if (newLight.width - oldLight.width != 1 || newLight.height - oldLight.height != 1) {
+				//printf("OH MY\n");
+			}
+
+			bool stretch = false;
+			//bool allGreen = (i == 930 || i == 928); // stadium4 bad lightmaps from spotlight
+
+			//bool allGreen = (i == 1600 || i == 1601 || i == 1608 || i == 1610); // osprey bad lightmaps
+
+			bool allGreen = false;
+			//allGreen = i == 18035 || i == 18036;
+
+			// yabma areas of interest
+			//allGreen = i >= 467 && i <= 469;
+			allGreen = i == 4668 || i == 4697 || i == 4711;
+			bool allRed = i == 4676 || i == 4677 || i == 4703 || i == 4704 || i == 4712 || i == 4713;
+			
+			
+
+			if (allGreen && false) {
+				printf("Lightmap resized from %02d x %02d -> %02d x %02d\n", oldLight.width, oldLight.height, newLight.width, newLight.height);
+			}
+
+			//printf("OH MY: %f %f\n", newLight.minx, newLight.miny);
+
+			for (int layer = 0; layer < newLight.layers; layer++) {
+				int srcOffset = (face.nLightmapOffset + oldLayerSz*layer) / sizeof(COLOR3);
+				int dstOffset = (lightmapOffset + newLayerSz*layer) / sizeof(COLOR3);
+				for (int y = 0; y < newLight.height; y++) {
+					for (int x = 0; x < newLight.width; x++) {
+						COLOR3 src = COLOR3();
+						src.r = 255;
+						src.g = 255;
+						src.b = 255;
+
+						int srcX = x;
+						int srcY = y;
+
+						if (stretch) {
+
+							float u = ((float)x / (float)(newLight.width-1)) * (float)oldLight.width;
+							float v = ((float)y / (float)(newLight.height-1)) * (float)oldLight.height;
+
+							//float u *= scale;
+							//float v = ((float)y / (float)(newLight.height - 1)) * (float)(oldLight.height);
+
+							//u -= 0.5f;
+							//v -= 0.5f;
+
+							u -= 0.5f;
+							v -= 0.5f;
+
+							float xFract = u - floor(u);
+							float yFract = v - floor(v);
+
+							int umin = max(0, (int)u);
+							int vmin = max(0, (int)v);
+							int umax = min(((int)u) + 1, oldLight.width - 1);
+							int vmax = min(((int)v) + 1, oldLight.height - 1);
+
+							COLOR3 p00 = lightdata[srcOffset + vmin * oldLight.width + umin];
+							COLOR3 p01 = lightdata[srcOffset + vmin * oldLight.width + umax];
+							COLOR3 p10 = lightdata[srcOffset + vmax * oldLight.width + umin];
+							COLOR3 p11 = lightdata[srcOffset + vmax * oldLight.width + umax];
+
+							
+							COLOR3 col0 = p00.lerp(p10, xFract);
+							COLOR3 col1 = p01.lerp(p11, xFract);
+							src = col0.lerp(col1, yFract);
+
+						}
+						else { // clamp
+							
+							// shift texture to the bottom right of the new image
+							// this matches what hlrad would do (but not always)
+							int srcX = x - uDiff;
+							int srcY = y - vDiff;
+							
+							/*
+							if (bestMode == 1) {
+								srcX = x;
+							}
+							if (bestMode == 2) {
+								srcY = y;
+							}
+							if (bestMode == 3) {
+								srcX = x;
+								srcY = y;
+							}
+							*/
+							// x is USUALLY shifted on these planes. Not always, but good enough.
+							/*
+							if (plane.nType == PLANE_Z || plane.nType == PLANE_ANYZ || plane.nType == PLANE_Y) {
+								srcX = x;
+							}
+							if (plane.nType == PLANE_Z || plane.nType == PLANE_ANYZ) {
+								srcY = y;
+							}
+							*/
+
+							// never -diff works for stadium4
+							// srcX=x on PLANE_Z works for: merge0 and stadium4 and osprey
+
+							// yabma not resized lm bordered by resized lms has seams
+							// unless all lm coords are srcX=x srcY=y, but then that causes
+							// seams in other places
+
+							srcX = max(srcX, 0);
+							srcY = max(srcY, 0);
+							srcX = min(srcX, oldLight.width - 1);
+							srcY = min(srcY, oldLight.height - 1);
+							src = lightdata[srcOffset + srcY * oldLight.width + srcX];
+						}
+						/*
+						if (allGreen) {
+							src.r = 0; 
+							src.g = 255;
+							src.b = 0;
+						}
+						else if (allRed) {
+							src.r = 255;
+							src.g = 0;
+							src.b = 0;
+						}
+						else {
+							src.r = 0;
+							src.g = 0;
+							src.b = 128;
+						}
+						*/
+
+						if (false) {
+							if (false && oldLight.width == newLight.width && oldLight.height == newLight.height) {
+								src.r = 255;
+								src.g = 255;
+								src.b = 255;
+							}
+							else if (faceShouldConsiderFlip) {
+								if (faceShouldFlipLightMap) {
+									src.r = 255;
+									src.g = 0;
+									src.b = 0;
+								}
+								else {
+									src.r = 0;
+									src.g = 255;
+									src.b = 0;
+								}
+							}
+							else {
+								src.r = 0;
+								src.g = 0;
+								src.b = 128;
+							}
+						}
+						
+						
+
+						int dst = dstOffset + y * newLight.width + x;
+						newLightData[dst] = src;
+					}
+				}
+			}
+			// 6919
+			// 328
+			if (i == 13519) {
+				lodepng_encode24_file(("lightmap/" + to_string(i) + "__before.png").c_str(),
+					(byte*)lightdata + face.nLightmapOffset, oldLight.width, oldLight.height);
+				lodepng_encode24_file(("lightmap/" + to_string(i) + "_after.png").c_str(),
+					(byte*)newLightData + lightmapOffset, newLight.width, newLight.height);
+				lodepng_encode24_file(("lightmap/" + to_string(i) + "_fix.png").c_str(),
+					(byte*)radfix_lightdata + radfix_faces[i].nLightmapOffset, newLight.width, newLight.height);
+			}
+
+			if ((i == 930 || i == 928) && false) {
+				byte* imported;
+				uint width, height;
+				lodepng_decode24_file(&imported, &width, &height, ("lightmap/import" + to_string(i) + ".png").c_str());
+				if (width != newLight.width || height != newLight.height) {
+					printf("ZOMG BAD LIGHTMAP IMPORTS\n");
+				}
+				else {
+					memcpy(newLightData + (lightmapOffset / 3), imported, width * height * sizeof(COLOR3));
+				}
+				
+			}
+		}
+
+		face.nLightmapOffset = lightmapOffset;
+		lightmapOffset += newSz;
+	}
+
+	printf("Most common mode normals:\n");
+	for (int i = 0; i < 4; i++) {
+		printf("%d = %.2f %.2f %.2f\n", i,
+			mostCommonModeNormal[i].x / mostCommonCount.x, 
+			mostCommonModeNormal[i].y / mostCommonCount.y,
+			mostCommonModeNormal[i].z / mostCommonCount.z);
+	}
+
+	printf("Flip stats:\n");
+	printf("totalFlip         = %d\n", flipstats.totalFlip);
+	printf("minEqualsExactMin = %d\n", flipstats.minEqualsExactMin);
+	printf("maxEqualsExactMax = %d\n", flipstats.maxEqualsExactMax);
+	printf("xPlaneType        = %d\n", flipstats.xPlaneType);
+	printf("yPlaneType        = %d\n", flipstats.yPlaneType);
+	printf("zPlaneType        = %d\n", flipstats.zPlaneType);
+	printf("anyxPlaneType     = %d\n", flipstats.anyxPlaneType);
+	printf("anyyPlaneType     = %d\n", flipstats.anyyPlaneType);
+	printf("anyzPlaneType     = %d\n", flipstats.anyzPlaneType);
+	printf("oppositeFaceSide  = %d\n", flipstats.oppositeFaceSide);
+
+	printf("Incorrect gueses: %d / %d (%.1f%%)\n\n", incorrectGuesses, totalGuesses, (incorrectGuesses / (float)totalGuesses) * 100);
+	
+
+	printf("Resized %d of %d lightmaps\n", lightmapsResized, totalLightmaps);
+
+	delete[] this->lumps[LUMP_LIGHTING];
+	this->lumps[LUMP_LIGHTING] = (byte*)newLightData;
+	header.lump[LUMP_LIGHTING].nLength = lightmapOffset;
+
+
 	update_ent_lump();
+
+	delete[] oldLightmaps;
+	delete[] newLightmaps;
+	qrad_cleanup_globals();
 
 	return true;
 }
@@ -2025,6 +2803,24 @@ int Bsp::pointContents(int iNode, vec3 p)
 	cout << " (LEAF " << ~iNode << ")\n";
 
 	return leaves[~iNode].nContents;
+}
+
+void Bsp::dump_lightmap(int faceIdx, string outputPath)
+{
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+	byte* lightdata = (byte*)lumps[LUMP_LIGHTING];
+
+	BSPFACE& face = faces[faceIdx];
+
+	SURFACEINFO surfInfo = get_face_extents(face);
+	for (int i = 0; i < 2; i++) {
+		surfInfo.extents[i] = (surfInfo.extents[i] >> 4) + 1;
+	}
+
+	int lightmapSz = surfInfo.extents[0] * surfInfo.extents[1];
+
+	lodepng_encode24_file(outputPath.c_str(), lightdata + face.nLightmapOffset, surfInfo.extents[0], surfInfo.extents[1]);
 }
 
 void Bsp::write_csg_outputs(string path) {

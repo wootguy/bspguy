@@ -4,6 +4,28 @@
 #include <algorithm>
 #include <iostream>
 
+// super todo:
+// broken lightmaps shifting stadium4 up 768 units
+// levers in the air when moving stadium4
+
+// Ideas for commands:
+// optimize:
+//		- merges redundant submodels (copy-pasting a picard coin all over the map)
+//		- remove hull2 or func_illusionary clipnodes
+// copymodel:
+//		- copies a model from the source map into the target map (for adding new perfectly shaped brush ents)
+// addbox:
+//		- creates a new box-shaped brush model (faster than copymodel if you don't need anything fancy)
+// info (default command if none set):
+//		- check how close the map is to each BSP limit
+// extract:
+//		- extracts an isolated room from the BSP
+
+// Lightmap debugging:
+// resizing glitchy, sometimes you offset the lightmap but not always the same way?
+// lightmap size calulation has precision problems. You can shift the map so that the lightmap size
+// doesn't change for a single face but probably impossible for all faces at the same time.
+
 int merge_maps(vector<string> options) {
 	
 	if (options.size() <= 1) {
@@ -11,14 +33,65 @@ int merge_maps(vector<string> options) {
 		return 1;
 	}
 
-	/*
-	Bsp moveTest("yabma.bsp");
-	moveTest.move({ 1024, 0, 0 });
-	moveTest.write("yabma_move.bsp");
+	//Bsp asdf("yabma_move.bsp");
+	//asdf.dump_lightmap(5, "lightmap/rad.png");
+	//return 0;
 
+	Bsp* mapA = new Bsp("yabma.bsp");
+	//Bsp* mapA = new Bsp("saving_the_2nd_amendment.bsp");
+	//Bsp* mapB = new Bsp("saving_the_2nd_amendment2.bsp");
+	//Bsp* mapC = new Bsp("saving_the_2nd_amendment3.bsp");
+	//Bsp* mapD = new Bsp("saving_the_2nd_amendment4.bsp");
+
+	vector<Bsp*> maps;
+	//maps.push_back(mapB);
+	//maps.push_back(mapC);
+	//maps.push_back(mapD);
+
+	//mapA->merge(maps, vec3(0, 0, 0));
+	/*
+	vec3 offset = vec3(3072, 2944, -736);
+
+	Bsp map("stadium4.bsp");
+	byte* oldVertData = new byte[map.header.lump[LUMP_VERTICES].nLength];
+	byte* oldTexInfo = new byte[map.header.lump[LUMP_TEXINFO].nLength];
+	memcpy(oldVertData, map.lumps[LUMP_VERTICES], map.header.lump[LUMP_VERTICES].nLength);
+	memcpy(oldTexInfo, map.lumps[LUMP_TEXINFO], map.header.lump[LUMP_TEXINFO].nLength);
+
+	float range = 1024;
+	float step = range / 16.0f;
+	for (float z = -range; z < range; z += step) {
+		for (float y = -range; y < range; y += step) {
+			for (float x = -range; x < range; x += step) {
+				
+				vec3 test = vec3(x, y, z);
+
+				bool worked = map.move(offset);
+				memcpy(map.lumps[LUMP_VERTICES], oldVertData, map.header.lump[LUMP_VERTICES].nLength);
+				memcpy(map.lumps[LUMP_TEXINFO], oldTexInfo, map.header.lump[LUMP_TEXINFO].nLength);
+
+				if (worked) {
+					printf("Move %f %f %f  %s\n", test.x, test.y, test.z, "PASS");
+					return 0;
+				}
+				else {
+					printf("Move %f %f %f  %s  %d\n", test.x, test.y, test.z, "FAIL", map.mismatchCount);
+				}
+			}
+		}
+	}
 	return 0;
 	*/
+	mapA->move(vec3(-3072, 2944, -736));
+	//mapA->merge(*mapB);
+	mapA->write("yabma_move.bsp");
+	mapA->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 
+	mapA->print_info();
+	//mapA.print_bsp();
+
+	return 0;
+	
 	string output_path = options[options.size() - 1];
 
 	Bsp outputMap;

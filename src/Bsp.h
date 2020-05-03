@@ -1,27 +1,8 @@
 #include "Wad.h"
 #include "Entity.h"
+#include "bsplimits.h"
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
-
-#define MAX_MAP_HULLS	4
-#define MAX_MAP_COORD 32767 // stuff breaks past this point
-
-#define MAX_MAP_MODELS 4096
-#define MAX_MAP_PLANES 65535
-#define MAX_MAP_VERTS 65535
-#define MAX_MAP_NODES 32768
-#define MAX_MAP_TEXINFOS 32767
-#define MAX_MAP_FACES 65535 // This ought to be 32768, otherwise faces(in world) can become invisible. --vluzacn
-#define MAX_MAP_CLIPNODES 32767
-#define MAX_MAP_LEAVES 65536
-#define MAX_MAP_MARKSURFS 65536
-#define MAX_MAP_TEXDATA 0
-#define MAX_MAP_VISDATA 0x800000 //0x400000 //vluzacn
-#define MAX_MAP_ENTS 8192
-#define MAX_MAP_SURFEDGES 512000
-#define MAX_MAP_EDGES 256000
-#define MAX_MAP_TEXTURES 4096
-#define MAX_MAP_LIGHTDATA 0x3000000 //0x600000 //vluzacn
 
 #define LUMP_ENTITIES      0
 #define LUMP_PLANES        1
@@ -126,6 +107,16 @@ struct BSPFACE {
 	uint32_t nLightmapOffset; // Offsets into the raw lightmap data
 };
 
+// for a single face
+struct LIGHTMAP
+{
+	int offset; // offset in the lightmap lump
+	int width, height;
+	int layers; // for when multiple lights hit the same face (nStyles != 0)
+	float minx, miny; // minimum texture coordinates the face uses
+	bool debug;
+};
+
 struct BSPLEAF
 {
 	int32_t nContents;                         // Contents enumeration
@@ -179,6 +170,37 @@ struct BSPTEXDATA
 	WADTEX** tex;
 };
 
+struct SURFACEINFO
+{
+	float mins[2];
+	float maxs[2];
+	float fextents[2];
+	int extents[2];
+	int texturemins[2];
+	float min_lmcoord[2];
+	float midPoly[2];
+	int roundedMins[2];
+	int roundedMaxs[2];
+	int roundedExtents[2];
+	int bmins[2];
+	int bmaxs[2];
+};
+
+struct FLIPSTATS
+{
+	int minEqualsExactMin;
+	int maxEqualsExactMax;
+	int xPlaneType;
+	int yPlaneType;
+	int zPlaneType;
+	int anyxPlaneType;
+	int anyyPlaneType;
+	int anyzPlaneType;
+	int oppositeFaceSide;
+	int totalFlip;
+
+};
+
 class Bsp;
 
 // bounding box for a map, used for arranging maps for merging
@@ -208,6 +230,8 @@ public:
 	string name;
 	BSPHEADER header;
 	byte ** lumps;
+
+	int mismatchCount = 0;
 	
 	vector<Entity*> ents;
 
@@ -224,6 +248,8 @@ public:
 	void print_bsp();
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
+
+	void dump_lightmap(int faceIdx, string outputPath);
 
 	void write_csg_outputs(string path);
 
@@ -246,6 +272,8 @@ private:
 	void merge_models(Bsp& other);
 	void merge_vis(Bsp& other);
 	void merge_lighting(Bsp& other);
+	
+	SURFACEINFO get_face_extents(BSPFACE& face);
 
 	MAPBLOCK get_bounding_box();
 

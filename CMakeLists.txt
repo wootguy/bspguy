@@ -10,6 +10,12 @@ set(SOURCE_FILES
     src/util.h			src/util.cpp
 	src/types.h
 	src/vectors.h		src/vectors.cpp
+	src/lodepng.h		src/lodepng.cpp
+	src/rad.h			src/rad.cpp
+	src/winding.h		src/winding.cpp
+	src/mathlib.h		src/mathlib.cpp
+	src/boundingbox.h
+	src/bsplimits.h
 )
 
 if(MSVC)
