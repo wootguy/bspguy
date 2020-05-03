@@ -82,6 +82,20 @@ struct BSPPLANE {
 	int32_t nType;
 };
 
+typedef struct
+{
+	BSPPLANE planes[4];
+}
+samplefragrect_t;
+
+typedef struct samplefrag_s
+{
+	int facenum; // facenum
+	samplefragrect_t rect; // original rectangle that forms the boundary
+	Winding* mywinding; // relative to the texture coordinate on that face
+}
+samplefrag_t;
+
 struct CSGPLANE {
 	double normal[3];
 	double origin[3];

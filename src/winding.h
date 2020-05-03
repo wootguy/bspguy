@@ -10,20 +10,23 @@
 #define	SIDE_BACK		1
 #define	SIDE_CROSS		-2
 
+struct BSPPLANE;
+struct BSPFACE;
+
 class Winding
 {
 public:
 	uint32  m_NumPoints;
 	vec3_t* m_Points;
 
-	Winding(const dface_t& face, vec_t epsilon = ON_EPSILON);
+	Winding(const BSPFACE& face, vec_t epsilon = ON_EPSILON);
 	Winding(uint32 points);
 	Winding(const Winding& other);
 	virtual ~Winding();
 	Winding& operator=(const Winding& other);
 
     void RemoveColinearPoints(vec_t epsilon = ON_EPSILON);
-    bool Clip(const dplane_t& split, bool keepon, vec_t epsilon = ON_EPSILON);
+    bool Clip(const BSPPLANE& split, bool keepon, vec_t epsilon = ON_EPSILON);
 
 
 protected:

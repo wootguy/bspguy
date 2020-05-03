@@ -48,6 +48,10 @@ typedef struct
 }
 matrix_t;
 
+struct BSPEDGE;
+struct BSPTEXTUREINFO;
+struct BSPPLANE;
+struct BSPFACE;
 class Winding;
 
 typedef enum
@@ -74,68 +78,11 @@ planetypes;
 
 typedef struct
 {
-	float           normal[3];
-	float           dist;
-	planetypes      type;                                  // PLANE_X - PLANE_ANYZ ?remove? trivial to regenerate
-}
-dplane_t;
-
-typedef struct
-{
-	float           point[3];
-}
-dvertex_t;
-
-typedef struct
-{
-	unsigned short  v[2];                                  // vertex numbers
-}
-dedge_t;
-
-typedef struct texinfo_s
-{
-	float           vecs[2][4];                            // [s/t][xyz offset]
-	int             miptex;
-	int             flags;
-}
-texinfo_t;
-
-typedef struct
-{
-	unsigned short	planenum;
-	short           side;
-
-	int             firstedge;                             // we must support > 64k edges
-	short           numedges;
-	short           texinfo;
-
-	// lighting info
-	byte            styles[MAXLIGHTMAPS];
-	int             lightofs;                              // start of [numstyles*surfsize] samples
-}
-dface_t;
-
-typedef struct
-{
 	int             texmins[2], texsize[2];
 	int             surfnum;
-	dface_t* face;
+	BSPFACE* face;
 }
 lightinfo_t;
-
-typedef struct
-{
-	dplane_t planes[4];
-}
-samplefragrect_t;
-
-typedef struct samplefrag_s
-{
-	int facenum; // facenum
-	samplefragrect_t rect; // original rectangle that forms the boundary
-	Winding* mywinding; // relative to the texture coordinate on that face
-}
-samplefrag_t;
 
 typedef struct
 {
@@ -143,14 +90,14 @@ typedef struct
 	light_flag_t luxelFlags[MAX_SINGLEMAP];
 } lightmap_flags_t;
 
-extern dface_t g_dfaces[MAX_MAP_FACES];
-extern vec3_t g_face_offset[MAX_MAP_FACES];
-extern dplane_t backplanes[MAX_MAP_PLANES];
-extern dplane_t g_dplanes[MAX_MAP_PLANES];
-extern texinfo_t g_texinfo[MAX_MAP_TEXINFOS];
-extern int g_dsurfedges[MAX_MAP_SURFEDGES];
-extern dedge_t g_dedges[MAX_MAP_EDGES];
-extern dvertex_t g_dvertexes[MAX_MAP_VERTS];
+extern BSPFACE* g_dfaces;
+extern BSPPLANE* g_dplanes;
+extern BSPTEXTUREINFO* g_texinfo;
+extern int32_t* g_dsurfedges;
+extern BSPEDGE* g_dedges;
+extern vec3* g_dvertexes;
+
+extern BSPPLANE backplanes[MAX_MAP_PLANES];
 
 extern const vec3_t vec3_origin;
 
@@ -159,7 +106,7 @@ class Bsp;
 void qrad_init_globals(Bsp* bsp);
 lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx);
 
-const dplane_t* getPlaneFromFace(const dface_t* const face);
+const BSPPLANE* getPlaneFromFace(const BSPFACE* const face);
 
 void CalcFaceExtents(lightinfo_t* l);
 void CalcPoints(lightinfo_t* l, light_flag_t* LuxelFlags);

@@ -2,6 +2,9 @@
 
 #include "winding.h"
 #include "rad.h"
+#include "Bsp.h"
+
+#undef ON_EPSILON
 
 #define ON_EPSILON epsilon
 
@@ -39,30 +42,30 @@ Winding::~Winding()
     delete[] m_Points;
 }
 
-Winding::Winding(const dface_t& face, vec_t epsilon)
+Winding::Winding(const BSPFACE& face, vec_t epsilon)
 {
     int             se;
-    dvertex_t*      dv;
+    vec3*      dv;
     int             v;
 
-    m_NumPoints = face.numedges;
+    m_NumPoints = face.nEdges;
     m_Points = new vec3_t[m_NumPoints];
 
     unsigned i;
-    for (i = 0; i < face.numedges; i++)
+    for (i = 0; i < face.nEdges; i++)
     {
-        se = g_dsurfedges[face.firstedge + i];
+        se = g_dsurfedges[face.iFirstEdge + i];
         if (se < 0)
         {
-            v = g_dedges[-se].v[1];
+            v = g_dedges[-se].iVertex[1];
         }
         else
         {
-            v = g_dedges[se].v[0];
+            v = g_dedges[se].iVertex[0];
         }
 
         dv = &g_dvertexes[v];
-        VectorCopy(dv->point, m_Points[i]);
+        VectorCopy((vec_t*)dv, m_Points[i]);
     }
 
     RemoveColinearPoints(
@@ -99,7 +102,7 @@ void Winding::RemoveColinearPoints(vec_t epsilon)
 	}
 }
 
-bool Winding::Clip(const dplane_t& split, bool keepon, vec_t epsilon)
+bool Winding::Clip(const BSPPLANE& split, bool keepon, vec_t epsilon)
 {
     vec_t           dists[MAX_POINTS_ON_WINDING];
     int             sides[MAX_POINTS_ON_WINDING];
@@ -113,8 +116,8 @@ bool Winding::Clip(const dplane_t& split, bool keepon, vec_t epsilon)
     // do this exactly, with no epsilon so tiny portals still work
     for (i = 0; i < m_NumPoints; i++)
     {
-        dot = DotProduct(m_Points[i], split.normal);
-        dot -= split.dist;
+        dot = DotProduct(m_Points[i], ((vec_t*)&split.vNormal));
+        dot -= split.fDist;
         dists[i] = dot;
         if (dot > ON_EPSILON)
         {
@@ -188,10 +191,10 @@ bool Winding::Clip(const dplane_t& split, bool keepon, vec_t epsilon)
         dot = dists[i] / (dists[i] - dists[i + 1]);
         for (j = 0; j < 3; j++)
         {                                                  // avoid round off error when possible
-            if (split.normal[j] == 1)
-                mid[j] = split.dist;
-            else if (split.normal[j] == -1)
-                mid[j] = -split.dist;
+            if (((vec_t*)&split.vNormal)[j] == 1)
+                mid[j] = split.fDist;
+            else if (((vec_t*)&split.vNormal)[j] == -1)
+                mid[j] = -split.fDist;
             else
                 mid[j] = p1[j] + dot * (p2[j] - p1[j]);
         }
