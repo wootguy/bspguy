@@ -1,3 +1,5 @@
+#include <chrono>
+#include <ctime> 
 #include "Wad.h"
 #include "Entity.h"
 #include "bsplimits.h"
@@ -190,19 +192,6 @@ struct SURFACEINFO
 
 class Bsp;
 
-// bounding box for a map, used for arranging maps for merging
-struct MAPBLOCK
-{
-	vec3 mins, maxs, size, offset;
-	Bsp* map;
-
-	bool intersects(MAPBLOCK& other) {
-		return (mins.x <= other.maxs.x && maxs.x >= other.mins.x) &&
-			(mins.y <= other.maxs.y && maxs.y >= other.mins.y) &&
-			(mins.z <= other.maxs.z && maxs.y >= other.mins.z);
-	}
-};
-
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -227,7 +216,6 @@ public:
 	~Bsp();
 
 	bool move(vec3 offset);
-	bool merge(vector<Bsp*>& maps, vec3 gap);
 	bool merge(Bsp& other);
 	void write(string path);
 
@@ -241,8 +229,9 @@ public:
 
 	void write_csg_outputs(string path);
 
-private:
+	void get_bounding_box(vec3& mins, vec3& maxs);
 
+private:
 	bool load_lumps(string fname);
 	void load_ents();
 	void merge_ents(Bsp& other);
@@ -266,8 +255,6 @@ private:
 	// to the qrad code. Shifts apply to one or both of the lightmaps, depending on which dimension is bigger.
 	void get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY);
 
-	MAPBLOCK get_bounding_box();
-
 	void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
 		int shiftOffsetBit, int shiftAmount);
@@ -279,9 +266,6 @@ private:
 	// returns false if maps overlap and can't be separated.
 	BSPPLANE separate(Bsp& other);
 
-	// calculates map offsets needed to prevent overlapping
-	vector<vector<vector<MAPBLOCK>>> separate(vector<Bsp*>& maps, vec3 gap);
-
 	// creates new headnodes from the plane that separates the two maps
 	// Must be called after planes are merged but before nodes/clipnodes.
 	void create_merge_headnodes(Bsp& other, BSPPLANE separationPlane);
@@ -289,7 +273,8 @@ private:
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
-	
+	void print_merge_progress(); // also increments progress counter
+
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
 	void update_ent_lump();
@@ -315,4 +300,10 @@ private:
 	int thisClipnodeCount;
 	int thisWorldLeafCount; // excludes solid leaf 0
 	int otherWorldLeafCount; // excluding solid leaf 0
+
+	chrono::system_clock::time_point last_progress;
+	char* progress_title;
+	char* last_progress_title;
+	int progress;
+	int progress_total;
 };

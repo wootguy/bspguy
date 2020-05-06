@@ -5,6 +5,11 @@
 #include <iostream>
 #include <fstream>
 
+#define PRINT_BLUE		1
+#define PRINT_GREEN		2
+#define PRINT_RED		4
+#define PRINT_BRIGHT	8
+
 #define __WINDOWS__
 
 bool fileExists(const string& fileName);
@@ -18,3 +23,5 @@ string basename(string path);
 string stripExt(string filename);
 
 bool isNumeric(const std::string& s);
+
+void print_color(int colors);

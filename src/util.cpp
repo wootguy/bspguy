@@ -77,3 +77,35 @@ bool isNumeric(const std::string& s)
 
 	return !s.empty() && it == s.end();
 }
+
+#ifdef WIN32
+#include <Windows.h>
+void print_color(int colors)
+{
+	HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+	colors = colors ? colors : (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+	SetConsoleTextAttribute(console, (WORD)colors);
+}
+#else
+void print_color(int colors)
+{
+	if (!colors)
+	{
+		printf("\x1B[0m");
+		return;
+	}
+	char* mode = colors & PRINT_BRIGHT ? "1" : "0";
+	char* color = "37";
+	switch (colors & ~PRINT_BRIGHT)
+	{
+	case PRINT_RED:								color = "31"; break;
+	case PRINT_GREEN:							color = "32"; break;
+	case PRINT_RED | PRINT_GREEN:				color = "33"; break;
+	case PRINT_BLUE:							color = "34"; break;
+	case PRINT_RED | PRINT_BLUE:				color = "35"; break;
+	case PRINT_GREEN | PRINT_BLUE:				color = "36"; break;
+	case PRINT_GREEN | PRINT_BLUE | PRINT_RED:	color = "36"; break;
+	}
+	printf("\x1B[%s;%sm", mode, color);
+}
+#endif

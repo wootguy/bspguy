@@ -4,7 +4,7 @@
 #include "bsplimits.h"
 
 #define MAX_SINGLEMAP ((MAX_SURFACE_EXTENT+1)*(MAX_SURFACE_EXTENT+1))
-#define MAX_SURFACE_EXTENT  16 // if lightmap extent exceeds 16, the map will not be able to load in 'Software' renderer and HLDS.
+#define MAX_SURFACE_EXTENT  32 // if lightmap extent exceeds 16, the map will not be able to load in 'Software' renderer and HLDS.
 #define TEXTURE_STEP        16 // this constant was previously defined in lightmap.cpp. --vluzacn
 #define TEX_SPECIAL     1    // sky or slime or null, no lightmap or 256 subdivision
 
@@ -83,12 +83,6 @@ typedef struct
 	BSPFACE* face;
 }
 lightinfo_t;
-
-typedef struct
-{
-	int w, h;
-	light_flag_t luxelFlags[MAX_SINGLEMAP];
-} lightmap_flags_t;
 
 extern BSPFACE* g_dfaces;
 extern BSPPLANE* g_dplanes;

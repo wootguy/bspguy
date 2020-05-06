@@ -1,5 +1,5 @@
 #include "util.h"
-#include "Bsp.h"
+#include "BspMerger.h"
 #include <string>
 #include <algorithm>
 #include <iostream>
@@ -27,22 +27,36 @@ int merge_maps(vector<string> options) {
 		return 1;
 	}
 
+	string output_path = options[options.size() - 1];
+
 	//Bsp asdf("yabma_move.bsp");
 
-	Bsp* mapA = new Bsp("yabma.bsp");
+	//Bsp* mapA = new Bsp("yabma.bsp");
 
-	//Bsp* mapA = new Bsp("saving_the_2nd_amendment.bsp");
-	//Bsp* mapB = new Bsp("saving_the_2nd_amendment2.bsp");
-	//Bsp* mapC = new Bsp("saving_the_2nd_amendment3.bsp");
-	//Bsp* mapD = new Bsp("saving_the_2nd_amendment4.bsp");
+	Bsp* mapA = new Bsp("saving_the_2nd_amendment.bsp");
+	Bsp* mapB = new Bsp("saving_the_2nd_amendment2.bsp");
+	Bsp* mapC = new Bsp("saving_the_2nd_amendment3.bsp");
+	Bsp* mapD = new Bsp("saving_the_2nd_amendment4.bsp");
 
 	vector<Bsp*> maps;
+	//maps.push_back(mapA);
 	//maps.push_back(mapB);
 	//maps.push_back(mapC);
 	//maps.push_back(mapD);
+	for (int i = 0; i < 200; i++)
+	maps.push_back(new Bsp("merge1.bsp"));
 
 
-	mapA->move(vec3(-3072, 2944, -736));
+	BspMerger merger;
+	Bsp* result = merger.merge(maps, vec3(0, 0, 0));
+	result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+	result->print_info();
+	return 0;
+
+	//mapA->merge(maps, vec3(0,0,0));
+
+
+	//mapA->move(vec3(-3072, 2944, -736));
 	//mapA->move(vec3(0, 0, 0));
 	mapA->write("yabma_move.bsp");
 	mapA->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
@@ -52,24 +66,6 @@ int merge_maps(vector<string> options) {
 	//mapA.print_bsp();
 
 	return 0;
-	
-	string output_path = options[options.size() - 1];
-
-	Bsp outputMap;
-
-	for (int i = 0; i < options.size() - 1; i++) {
-		cout << "Opening " << options[i] << endl;
-		Bsp inputMap(options[i]);
-
-		outputMap.merge(inputMap);
-	}
-
-	outputMap.write(output_path);
-
-	//outputMap.print_bsp();
-	//outputMap.pointContents(0, { 256, 256, 128 });
-
- 	return 0;
 }
 
 int main(int argc, char* argv[])

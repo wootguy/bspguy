@@ -3,6 +3,7 @@ project(bspguy)
 
 set(SOURCE_FILES 
     src/main.cpp
+	src/BspMerger.h		src/BspMerger.cpp
 	src/Bsp.h			src/Bsp.cpp
 	src/Entity.h		src/Entity.cpp
 	src/Keyvalue.h		src/Keyvalue.cpp
@@ -12,6 +13,7 @@ set(SOURCE_FILES
 	src/vectors.h		src/vectors.cpp
 	src/lodepng.h		src/lodepng.cpp
 	src/rad.h			src/rad.cpp
+	src/vis.h			src/vis.cpp
 	src/winding.h		src/winding.cpp
 	src/bsplimits.h
 )
