@@ -1030,7 +1030,10 @@ void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		dest = output + i * newVisRowSize;
 
 		if (leafLump[i + 1].nVisOffset == -1) {
-			memset(dest, 255, oldVisRowSize); // TODO: Set partion bits on first/last byte
+			memset(dest, 255, visDataLeafCount/8);
+			for (int k = 0; k < visDataLeafCount % 8; k++) {
+				dest[visDataLeafCount / 8] |= 1 << k;
+			}
 			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 			continue;
 		}
