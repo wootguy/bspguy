@@ -125,11 +125,8 @@ struct BSPFACE {
 // for a single face
 struct LIGHTMAP
 {
-	int offset; // offset in the lightmap lump
 	int width, height;
 	int layers; // for when multiple lights hit the same face (nStyles != 0)
-	float minx, miny; // minimum texture coordinates the face uses
-	bool debug;
 	light_flag_t luxelFlags[MAX_SINGLEMAP];
 };
 
@@ -188,18 +185,7 @@ struct BSPTEXDATA
 
 struct SURFACEINFO
 {
-	float mins[2];
-	float maxs[2];
-	float fextents[2];
 	int extents[2];
-	int texturemins[2];
-	float min_lmcoord[2];
-	float midPoly[2];
-	int roundedMins[2];
-	int roundedMaxs[2];
-	int roundedExtents[2];
-	int bmins[2];
-	int bmaxs[2];
 };
 
 class Bsp;
@@ -251,6 +237,7 @@ public:
 	int32_t pointContents(int iNode, vec3 p);
 
 	void dump_lightmap(int faceIdx, string outputPath);
+	void dump_lightmap_atlas(string outputPath);
 
 	void write_csg_outputs(string path);
 
@@ -273,8 +260,11 @@ private:
 	void merge_models(Bsp& other);
 	void merge_vis(Bsp& other);
 	void merge_lighting(Bsp& other);
-	
-	SURFACEINFO get_face_extents(BSPFACE& face);
+
+	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
+	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according
+	// to the qrad code. Shifts apply to one or both of the lightmaps, depending on which dimension is bigger.
+	void get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY);
 
 	MAPBLOCK get_bounding_box();
 

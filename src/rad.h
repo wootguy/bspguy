@@ -104,9 +104,11 @@ extern const vec3_t vec3_origin;
 class Bsp;
 
 void qrad_init_globals(Bsp* bsp);
-lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx);
+void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, light_flag_t* luxelFlagsOut);
 
 const BSPPLANE* getPlaneFromFace(const BSPFACE* const face);
 
+void GetFaceLightmapSize(int facenum, int size[2]);
+void GetFaceExtents(int facenum, int mins_out[2], int extents_out[2]);
 void CalcFaceExtents(lightinfo_t* l);
 void CalcPoints(lightinfo_t* l, light_flag_t* LuxelFlags);

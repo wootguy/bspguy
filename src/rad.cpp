@@ -29,15 +29,12 @@ void qrad_init_globals(Bsp* bsp) {
 	}
 }
 
-lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx) {
+void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, light_flag_t* luxelFlagsOut) {
 
 	BSPFACE* f = &g_dfaces[faceIdx];
 
-	lightmap_flags_t shift;
-	memset(&shift, 0, sizeof(shift));
-
 	if (g_texinfo[f->iTextureInfo].nFlags & TEX_SPECIAL)
-		return shift;                                            // non-lit texture
+		return;                                            // non-lit texture
 
 	lightinfo_t l;
 	memset(&l, 0, sizeof(l));
@@ -45,12 +42,9 @@ lightmap_flags_t qrad_get_lightmap_flags(Bsp* bsp, int faceIdx) {
 	l.face = f;
 
 	CalcFaceExtents(&l);
-	CalcPoints(&l, shift.luxelFlags);
-	
-	shift.w = l.texsize[0] + 1;
-	shift.h = l.texsize[1] + 1;
+	CalcPoints(&l, luxelFlagsOut);
 
-	return shift;
+	return;
 }
 
 //
@@ -280,6 +274,16 @@ float CalculatePointVecsProduct(const volatile float* point, const volatile floa
 	return (float)val;
 }
 
+void GetFaceLightmapSize(int facenum, int size[2]) {
+	int mins[2];
+	int maxs[2];
+
+	GetFaceExtents(facenum, mins, maxs);
+
+	size[0] = (maxs[0] - mins[0]) + 1;
+	size[1] = (maxs[1] - mins[1]) + 1;
+}
+
 void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
 {
 	//CorrectFPUPrecision();
@@ -334,14 +338,8 @@ void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
 
 	for (i = 0; i < 2; i++)
 	{
-		bmins[i] = (int)floor(mins[i] / TEXTURE_STEP);
-		bmaxs[i] = (int)ceil(maxs[i] / TEXTURE_STEP);
-	}
-
-	for (i = 0; i < 2; i++)
-	{
-		mins_out[i] = bmins[i];
-		maxs_out[i] = bmaxs[i];
+		mins_out[i] = (int)floor(mins[i] / TEXTURE_STEP);
+		maxs_out[i] = (int)ceil(maxs[i] / TEXTURE_STEP);
 	}
 }
 
