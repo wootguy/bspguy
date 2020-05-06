@@ -1,6 +1,7 @@
 #include "rad.h"
 #include "winding.h"
 #include "Bsp.h"
+#include <algorithm>
 
 BSPFACE* g_dfaces;
 BSPPLANE* g_dplanes;
@@ -33,7 +34,7 @@ void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, light_flag_t* luxelFlagsOut)
 
 	BSPFACE* f = &g_dfaces[faceIdx];
 
-	if (g_texinfo[f->iTextureInfo].nFlags & TEX_SPECIAL)
+	if (f->nStyles[0] == 255 || g_texinfo[f->iTextureInfo].nFlags & TEX_SPECIAL)
 		return;                                            // non-lit texture
 
 	lightinfo_t l;
@@ -406,6 +407,8 @@ void CalcFaceExtents(lightinfo_t* l)
 			)
 		{
 			printf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
+			l->texsize[0] = min(l->texsize[0], MAX_SURFACE_EXTENT);
+			l->texsize[1] = min(l->texsize[1], MAX_SURFACE_EXTENT);
 		}
 	}
 }

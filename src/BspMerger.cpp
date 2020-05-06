@@ -26,6 +26,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 
 	// Merge order matters. 
 	// The bounding box of a merged map is expanded to contain both maps, and bounding boxes cannot overlap.
+	// TODO: Don't merge linearly. Merge gradually bigger chunks to minimize BSP tree depth.
+	//       Not worth it until more than 27 maps are merged together (merge cube bigger than 3x3x3)
 
 	printf("Merging %d maps:\n", maps.size());
 
@@ -80,7 +82,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
 	string thisName = dst.merge_name.size() ? dst.merge_name : dst.map->name;
 	string otherName = src.merge_name.size() ? src.merge_name : src.map->name;
 	dst.merge_name = resultType;
-	printf("    %10s = %s + %s\n", dst.merge_name.c_str(), thisName.c_str(), otherName.c_str());
+	printf("    %-8s = %s + %s\n", dst.merge_name.c_str(), thisName.c_str(), otherName.c_str());
 
 	dst.map->merge(*src.map);
 }

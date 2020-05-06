@@ -80,11 +80,16 @@ bool Bsp::merge(Bsp& other) {
 	bool shouldMerge[HEADER_LUMPS] = { false };
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
+
+		if (i == LUMP_VISIBILITY || i == LUMP_LIGHTING) {
+			continue; // always merge
+		}
+
 		if (!lumps[i] && !other.lumps[i]) {
 			//cout << "Skipping " << g_lump_names[i] << " lump (missing from both maps)\n";
 		}
 		else if (!lumps[i]) {
-			//cout << "Replacing " << g_lump_names[i] << " lump\n";
+			cout << "Replacing " << g_lump_names[i] << " lump\n";
 			header.lump[i].nLength = other.header.lump[i].nLength;
 			lumps[i] = new byte[other.header.lump[i].nLength];
 			memcpy(lumps[i], other.lumps[i], other.header.lump[i].nLength);
@@ -133,7 +138,6 @@ bool Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_LEAVES])
 		merge_leaves(other); // references vis data, and marksurfs
 
-
 	if (shouldMerge[LUMP_NODES]) {
 		create_merge_headnodes(other, separationPlane);
 		merge_nodes(other);
@@ -143,13 +147,11 @@ bool Bsp::merge(Bsp& other) {
 	if (shouldMerge[LUMP_MODELS])
 		merge_models(other);
 
-	if (shouldMerge[LUMP_LIGHTING])
-		merge_lighting(other);
+	merge_lighting(other);
 
 	// doing this last because it takes way longer than anything else, and limit overflows should fail the
 	// merge as soon as possible.
-	if (shouldMerge[LUMP_VISIBILITY])
-		merge_vis(other);
+	merge_vis(other);
 
 	printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
 	printf("                               ");
@@ -192,7 +194,7 @@ void Bsp::merge_ents(Bsp& other)
 
 			// strip paths from wad names
 			for (int j = 0; j < otherWads.size(); j++) {
-				otherWads[i] = basename(otherWads[i]);
+				otherWads[j] = basename(otherWads[j]);
 			}
 
 			Entity* worldspawn = NULL;
@@ -208,7 +210,7 @@ void Bsp::merge_ents(Bsp& other)
 
 			// strip paths from wad names
 			for (int j = 0; j < thisWads.size(); j++) {
-				thisWads[i] = basename(thisWads[i]);
+				thisWads[j] = basename(thisWads[j]);
 			}
 
 			// add unique wads to this map
@@ -1027,6 +1029,12 @@ void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	{
 		dest = output + i * newVisRowSize;
 
+		if (leafLump[i + 1].nVisOffset == -1) {
+			memset(dest, 255, oldVisRowSize); // TODO: Set partion bits on first/last byte
+			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+			continue;
+		}
+
 		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
 	
 		if (shiftAmount) {
@@ -1143,6 +1151,32 @@ void Bsp::merge_lighting(Bsp& other) {
 	progress = 0;
 	progress_total = 4 + totalFaceCount;
 
+	// create a single full-bright lightmap to use for all faces, if one map has lighting but the other doesn't
+	if (thisColorCount == 0 && otherColorCount != 0) {
+		thisColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
+		totalColorCount += thisColorCount;
+		int sz = thisColorCount * sizeof(COLOR3);
+		lumps[LUMP_LIGHTING] = new byte[sz];
+		header.lump[LUMP_LIGHTING].nLength = sz;
+		thisRad = (COLOR3*)lumps[LUMP_LIGHTING];
+
+		memset(thisRad, 255, sz);
+		
+		for (int i = 0; i < thisFaceCount; i++) {
+			faces[i].nLightmapOffset = 0;
+		}
+	} else if (thisColorCount != 0 && otherColorCount == 0) {
+		otherColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
+		totalColorCount += otherColorCount;
+		otherRad = new COLOR3[otherColorCount];
+
+		memset(otherRad, 255, otherColorCount*sizeof(COLOR3));
+
+		for (int i = thisFaceCount; i < totalFaceCount; i++) {
+			faces[i].nLightmapOffset = 0;
+		}
+	}
+
 	COLOR3* newRad = new COLOR3[totalColorCount];
 	print_merge_progress();
 
@@ -1169,6 +1203,9 @@ void Bsp::merge_lighting(Bsp& other) {
 
 void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 	BSPMODEL& thisWorld = ((BSPMODEL*)lumps[LUMP_MODELS])[0];
+
+	// the model bounds are little bigger than the actual vertices bounds in the map,
+	// but if you go by the vertices then there will be collision problems.
 
 	mins = thisWorld.nMins;
 	maxs = thisWorld.nMaxs;
@@ -1335,7 +1372,7 @@ bool Bsp::move(vec3 offset) {
 	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
 	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
 	COLOR3* lightdata = (COLOR3*)lumps[LUMP_LIGHTING];
-	
+
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
@@ -1345,38 +1382,45 @@ bool Bsp::move(vec3 offset) {
 	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 	int thisColorCount = header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
 
+	bool hasLighting = thisColorCount > 0;
 
-	LIGHTMAP* oldLightmaps = new LIGHTMAP[faceCount];
-	LIGHTMAP* newLightmaps = new LIGHTMAP[faceCount];
-	memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
-	memset(newLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
+	LIGHTMAP* oldLightmaps = NULL;
+	LIGHTMAP* newLightmaps = NULL;
 
-	qrad_init_globals(this);
+	if (hasLighting) {
+		oldLightmaps = new LIGHTMAP[faceCount];
+		newLightmaps = new LIGHTMAP[faceCount];
+		memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
+		memset(newLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
 
-	for (int i = 0; i < faceCount; i++) {
-		BSPFACE& face = faces[i];
+		qrad_init_globals(this);
 
-		int size[2];
-		GetFaceLightmapSize(i, size);
+		for (int i = 0; i < faceCount; i++) {
+			BSPFACE& face = faces[i];
 
-		int lightmapSz = size[0] * size[1];
+			int size[2];
+			GetFaceLightmapSize(i, size);
 
-		int lightmapCount = 0;
-		for (int k = 0; k < 4; k++) {
-			lightmapCount += face.nStyles[k] != 255;
-		}
-		lightmapSz *= lightmapCount;
+			int lightmapSz = size[0] * size[1];
 
-		oldLightmaps[i].width = size[0];
-		oldLightmaps[i].height = size[1];
-		oldLightmaps[i].layers = lightmapCount;
+			int lightmapCount = 0;
+			for (int k = 0; k < 4; k++) {
+				lightmapCount += face.nStyles[k] != 255;
+			}
+			lightmapSz *= lightmapCount;
 
-		qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
+			oldLightmaps[i].width = size[0];
+			oldLightmaps[i].height = size[1];
+			oldLightmaps[i].layers = lightmapCount;
 
-		if (i % (faceCount / 3) == 0) {
-			printf(".");
+			qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
+
+			if (i % (faceCount / 3) == 0) {
+				printf(".");
+			}
 		}
 	}
+	
 
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
@@ -1527,117 +1571,119 @@ bool Bsp::move(vec3 offset) {
 
 	update_ent_lump();
 
-	// calculate new lightmap sizes
-	qrad_init_globals(this);
-	int newLightDataSz = 0;
-	int totalLightmaps = 0;
-	int lightmapsResizeCount = 0;
-	for (int i = 0; i < faceCount; i++) {
-		BSPFACE& face = faces[i];
-
-		if (face.nStyles[0] == 255)
-			continue;
-
-		BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
-		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
-		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-
-		int size[2];
-		GetFaceLightmapSize(i, size);
-
-		int lightmapSz = size[0] * size[1];
-
-		newLightmaps[i].width = size[0];
-		newLightmaps[i].height = size[1];
-		newLightmaps[i].layers = oldLightmaps[i].layers;
-
-		newLightDataSz += (lightmapSz * newLightmaps[i].layers) * sizeof(COLOR3);
-
-		totalLightmaps += newLightmaps[i].layers;
-		if (oldLightmaps[i].width != newLightmaps[i].width || oldLightmaps[i].height != newLightmaps[i].height) {
-			lightmapsResizeCount += newLightmaps[i].layers;
-		}
-	}
-
-	if (lightmapsResizeCount > 0) {
-		printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
-
-		int newColorCount = newLightDataSz / sizeof(COLOR3);
-		COLOR3* newLightData = new COLOR3[newColorCount];
-		memset(newLightData, 0, newColorCount * sizeof(COLOR3));
-		int lightmapOffset = 0;
-
-
+	if (hasLighting) {
+		// calculate new lightmap sizes
+		qrad_init_globals(this);
+		int newLightDataSz = 0;
+		int totalLightmaps = 0;
+		int lightmapsResizeCount = 0;
 		for (int i = 0; i < faceCount; i++) {
 			BSPFACE& face = faces[i];
 
-			if (i % (faceCount / 3) == 0) {
-				printf(".");
-			}
-
-			if (face.nStyles[0] == 255) // no lighting
+			if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL)
 				continue;
 
-			LIGHTMAP& oldLight = oldLightmaps[i];
-			LIGHTMAP& newLight = newLightmaps[i];
-			int oldLayerSz = (oldLight.width * oldLight.height) * sizeof(COLOR3);
-			int newLayerSz = (newLight.width * newLight.height) * sizeof(COLOR3);
-			int oldSz = oldLayerSz * oldLight.layers;
-			int newSz = newLayerSz * newLight.layers;
+			BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
+			int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
-			totalLightmaps++;
+			int size[2];
+			GetFaceLightmapSize(i, size);
 
-			if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
-				memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+			int lightmapSz = size[0] * size[1];
+
+			newLightmaps[i].width = size[0];
+			newLightmaps[i].height = size[1];
+			newLightmaps[i].layers = oldLightmaps[i].layers;
+
+			newLightDataSz += (lightmapSz * newLightmaps[i].layers) * sizeof(COLOR3);
+
+			totalLightmaps += newLightmaps[i].layers;
+			if (oldLightmaps[i].width != newLightmaps[i].width || oldLightmaps[i].height != newLightmaps[i].height) {
+				lightmapsResizeCount += newLightmaps[i].layers;
 			}
-			else {
-				qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
+		}
 
-				int minWidth = min(newLight.width, oldLight.width);
-				int minHeight = min(newLight.height, oldLight.height);
+		if (lightmapsResizeCount > 0) {
+			printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
 
-				int srcOffsetX, srcOffsetY;
-				get_lightmap_shift(oldLight, newLight, srcOffsetX, srcOffsetY);
+			int newColorCount = newLightDataSz / sizeof(COLOR3);
+			COLOR3* newLightData = new COLOR3[newColorCount];
+			memset(newLightData, 0, newColorCount * sizeof(COLOR3));
+			int lightmapOffset = 0;
 
-				for (int layer = 0; layer < newLight.layers; layer++) {
-					int srcOffset = (face.nLightmapOffset + oldLayerSz * layer) / sizeof(COLOR3);
-					int dstOffset = (lightmapOffset + newLayerSz * layer) / sizeof(COLOR3);
 
-					for (int y = 0; y < minHeight; y++) {
-						for (int x = 0; x < minWidth; x++) {
-							int offsetX = x + srcOffsetX;
-							int offsetY = y + srcOffsetY;
+			for (int i = 0; i < faceCount; i++) {
+				BSPFACE& face = faces[i];
 
-							int srcX = oldLight.width > newLight.width ? offsetX : x;
-							int srcY = oldLight.height > newLight.height ? offsetY : y;
-							int dstX = newLight.width > oldLight.width ? offsetX : x;
-							int dstY = newLight.height > oldLight.height ? offsetY : y;
+				if (i % (faceCount / 3) == 0) {
+					printf(".");
+				}
 
-							srcX = max(0, min(oldLight.width - 1, srcX));
-							srcY = max(0, min(oldLight.height - 1, srcY));
-							dstX = max(0, min(newLight.width - 1, dstX));
-							dstY = max(0, min(newLight.height - 1, dstY));
+				if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
+					continue;
 
-							COLOR3& src = lightdata[srcOffset + srcY * oldLight.width + srcX];
-							COLOR3& dst = newLightData[dstOffset + dstY * newLight.width + dstX];
+				LIGHTMAP& oldLight = oldLightmaps[i];
+				LIGHTMAP& newLight = newLightmaps[i];
+				int oldLayerSz = (oldLight.width * oldLight.height) * sizeof(COLOR3);
+				int newLayerSz = (newLight.width * newLight.height) * sizeof(COLOR3);
+				int oldSz = oldLayerSz * oldLight.layers;
+				int newSz = newLayerSz * newLight.layers;
 
-							dst = src;
+				totalLightmaps++;
+
+				if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
+					memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+				}
+				else {
+					qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
+
+					int minWidth = min(newLight.width, oldLight.width);
+					int minHeight = min(newLight.height, oldLight.height);
+
+					int srcOffsetX, srcOffsetY;
+					get_lightmap_shift(oldLight, newLight, srcOffsetX, srcOffsetY);
+
+					for (int layer = 0; layer < newLight.layers; layer++) {
+						int srcOffset = (face.nLightmapOffset + oldLayerSz * layer) / sizeof(COLOR3);
+						int dstOffset = (lightmapOffset + newLayerSz * layer) / sizeof(COLOR3);
+
+						for (int y = 0; y < minHeight; y++) {
+							for (int x = 0; x < minWidth; x++) {
+								int offsetX = x + srcOffsetX;
+								int offsetY = y + srcOffsetY;
+
+								int srcX = oldLight.width > newLight.width ? offsetX : x;
+								int srcY = oldLight.height > newLight.height ? offsetY : y;
+								int dstX = newLight.width > oldLight.width ? offsetX : x;
+								int dstY = newLight.height > oldLight.height ? offsetY : y;
+
+								srcX = max(0, min(oldLight.width - 1, srcX));
+								srcY = max(0, min(oldLight.height - 1, srcY));
+								dstX = max(0, min(newLight.width - 1, dstX));
+								dstY = max(0, min(newLight.height - 1, dstY));
+
+								COLOR3& src = lightdata[srcOffset + srcY * oldLight.width + srcX];
+								COLOR3& dst = newLightData[dstOffset + dstY * newLight.width + dstX];
+
+								dst = src;
+							}
 						}
 					}
 				}
+
+				face.nLightmapOffset = lightmapOffset;
+				lightmapOffset += newSz;
 			}
 
-			face.nLightmapOffset = lightmapOffset;
-			lightmapOffset += newSz;
+			delete[] this->lumps[LUMP_LIGHTING];
+			this->lumps[LUMP_LIGHTING] = (byte*)newLightData;
+			header.lump[LUMP_LIGHTING].nLength = lightmapOffset;
 		}
 
-		delete[] this->lumps[LUMP_LIGHTING];
-		this->lumps[LUMP_LIGHTING] = (byte*)newLightData;
-		header.lump[LUMP_LIGHTING].nLength = lightmapOffset;
+		delete[] oldLightmaps;
+		delete[] newLightmaps;
 	}
-
-	delete[] oldLightmaps;
-	delete[] newLightmaps;
 
 	printf("\n");
 
@@ -1905,7 +1951,7 @@ void Bsp::print_stat(string name, uint val, uint max, bool isMem) {
 	printf("  %6.1f%%", percent);
 
 	if (val > max) {
-		printf("  (OVERFLOW OMGGG!!!)");
+		printf("  (OVERFLOW!!!)");
 	}
 
 	printf("\n");
