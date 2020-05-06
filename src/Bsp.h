@@ -283,12 +283,7 @@ private:
 	vector<int> texRemap;
 	vector<int> texInfoRemap;
 	vector<int> planeRemap;
-	vector<int> edgeRemap;
-	vector<int> surfEdgeRemap;
-	vector<int> markSurfRemap;
-	vector<int> vertRemap;
 	vector<int> leavesRemap;
-	vector<int> facesRemap;
 
 	// remapped leaf indexes for this map's submodel leaves
 	vector<int> modelLeafRemap;
@@ -300,6 +295,10 @@ private:
 	int thisClipnodeCount;
 	int thisWorldLeafCount; // excludes solid leaf 0
 	int otherWorldLeafCount; // excluding solid leaf 0
+	int thisSurfEdgeCount;
+	int thisMarkSurfCount;
+	int thisEdgeCount;
+	int thisVertCount;
 
 	chrono::system_clock::time_point last_progress;
 	char* progress_title;

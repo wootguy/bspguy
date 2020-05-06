@@ -69,12 +69,7 @@ bool Bsp::merge(Bsp& other) {
 	texRemap.clear();
 	texInfoRemap.clear();
 	planeRemap.clear();
-	surfEdgeRemap.clear();
-	markSurfRemap.clear();
-	vertRemap.clear();
-	edgeRemap.clear();
 	leavesRemap.clear();
-	facesRemap.clear();
 	modelLeafRemap.clear();
 
 	bool shouldMerge[HEADER_LUMPS] = { false };
@@ -413,53 +408,24 @@ void Bsp::merge_textures(Bsp& other) {
 void Bsp::merge_vertices(Bsp& other) {
 	vec3* thisVerts = (vec3*)lumps[LUMP_VERTICES];
 	vec3* otherVerts = (vec3*)other.lumps[LUMP_VERTICES];
-	int thisVertsCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
-	int otherVertsCount = other.header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
-
-	vector<vec3> mergedVerts;
-	mergedVerts.reserve(thisVertsCount + otherVertsCount);
+	thisVertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int otherVertCount = other.header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int totalVertCount = thisVertCount + otherVertCount;
 
 	progress_title = "verticies";
 	progress = 0;
-	progress_total = thisVertsCount + otherVertsCount;
+	progress_total = 3;
+	print_merge_progress();
 
-	for (int i = 0; i < thisVertsCount; i++) {
-		mergedVerts.push_back(thisVerts[i]);
-		print_merge_progress();
-	}
-	for (int i = 0; i < otherVertsCount; i++) {
-		bool isUnique = true;
-		/*
-		for (int k = 0; k < thisVertsCount; k++) {
-			if (memcmp(&otherVerts[i], &thisVerts[k], sizeof(vec3)) == 0) {
-				isUnique = false;
-				vertRemap.push_back(k);
-				break;
-			}
-		}
-		*/
-		if (isUnique) {
-			vertRemap.push_back(mergedVerts.size());
-			mergedVerts.push_back(otherVerts[i]);
-		}
-		print_merge_progress();
-	}
-
-	int newLen = mergedVerts.size() * sizeof(vec3);
-	int duplicates = mergedVerts.size() - (thisVertsCount + otherVertsCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate verts\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
-	}
+	vec3* newVerts = new vec3[totalVertCount];
+	memcpy(newVerts, thisVerts, thisVertCount * sizeof(vec3));
+	print_merge_progress();
+	memcpy(newVerts + thisVertCount, otherVerts, otherVertCount * sizeof(vec3));
+	print_merge_progress();
 
 	delete[] this->lumps[LUMP_VERTICES];
-	this->lumps[LUMP_VERTICES] = new byte[newLen];
-	memcpy(this->lumps[LUMP_VERTICES], &mergedVerts[0], newLen);
-	header.lump[LUMP_VERTICES].nLength = newLen;
-
-	//cout << thisVertsCount << " -> " << mergedVerts.size() << endl;
+	this->lumps[LUMP_VERTICES] = (byte*)newVerts;
+	header.lump[LUMP_VERTICES].nLength = totalVertCount*sizeof(vec3);
 }
 
 void Bsp::merge_texinfo(Bsp& other) {
@@ -522,56 +488,28 @@ void Bsp::merge_faces(Bsp& other) {
 	BSPFACE* otherFaces = (BSPFACE*)other.lumps[LUMP_FACES];
 	thisFaceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 	int otherFaceCount = other.header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+	int totalFaceCount = thisFaceCount + otherFaceCount;
 
 	progress_title = "faces";
 	progress = 0;
-	progress_total = thisFaceCount + otherFaceCount;
+	progress_total = totalFaceCount + 1;
+	print_merge_progress();
 
-	vector<BSPFACE> mergedFaces;
-	mergedFaces.reserve(thisFaceCount + otherFaceCount);
+	BSPFACE* newFaces = new BSPFACE[totalFaceCount];
+	memcpy(newFaces, thisFaces, thisFaceCount * sizeof(BSPFACE));
+	memcpy(newFaces + thisFaceCount, otherFaces, otherFaceCount * sizeof(BSPFACE));
 
-	for (int i = 0; i < thisFaceCount; i++) {
-		mergedFaces.push_back(thisFaces[i]);
-		print_merge_progress();
-	}
-
-	for (int i = 0; i < otherFaceCount; i++) {
-		BSPFACE face = otherFaces[i];
+	for (int i = thisFaceCount; i < totalFaceCount; i++) {
+		BSPFACE& face = newFaces[i];
 		face.iPlane = planeRemap[face.iPlane];
-		face.iFirstEdge = surfEdgeRemap[face.iFirstEdge];
+		face.iFirstEdge = face.iFirstEdge + thisSurfEdgeCount;
 		face.iTextureInfo = texInfoRemap[face.iTextureInfo];
-
-		bool isUnique = true;
-		for (int k = 0; k < thisFaceCount; k++) {
-			if (memcmp(&face, &thisFaces[k], sizeof(BSPFACE)) == 0) {
-				isUnique = false;
-				facesRemap.push_back(k);
-				break;
-			}
-		}
-
-		if (isUnique) {
-			facesRemap.push_back(mergedFaces.size());
-			mergedFaces.push_back(face);
-		}
 		print_merge_progress();
-	}
-
-	int newLen = mergedFaces.size() * sizeof(BSPFACE);
-	int duplicates = mergedFaces.size() - (thisFaceCount + otherFaceCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate faces\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
 	}
 
 	delete[] this->lumps[LUMP_FACES];
-	this->lumps[LUMP_FACES] = new byte[newLen];
-	memcpy(this->lumps[LUMP_FACES], &mergedFaces[0], newLen);
-	header.lump[LUMP_FACES].nLength = newLen;
-
-	//cout << thisFaceCount << " -> " << mergedFaces.size() << endl;
+	this->lumps[LUMP_FACES] = (byte*)newFaces;
+	header.lump[LUMP_FACES].nLength = totalFaceCount*sizeof(BSPFACE);
 }
 
 void Bsp::merge_leaves(Bsp& other) {
@@ -587,7 +525,8 @@ void Bsp::merge_leaves(Bsp& other) {
 	progress_total = thisLeafCount + otherLeafCount;
 
 	vector<BSPLEAF> mergedLeaves;
-	mergedLeaves.reserve(thisLeafCount + otherLeafCount);
+	mergedLeaves.reserve(thisWorldLeafCount + otherLeafCount);
+	modelLeafRemap.reserve(thisWorldLeafCount + otherLeafCount);
 
 	for (int i = 0; i < thisWorldLeafCount; i++) {
 		modelLeafRemap.push_back(i);
@@ -598,7 +537,7 @@ void Bsp::merge_leaves(Bsp& other) {
 	for (int i = 0; i < otherLeafCount; i++) {
 		BSPLEAF& leaf = otherLeaves[i];
 		if (leaf.nMarkSurfaces) {
-			leaf.iFirstMarkSurface = markSurfRemap[leaf.iFirstMarkSurface];
+			leaf.iFirstMarkSurface = leaf.iFirstMarkSurface + thisMarkSurfCount;
 		}
 
 		bool isSharedSolidLeaf = i == 0;
@@ -620,16 +559,9 @@ void Bsp::merge_leaves(Bsp& other) {
 		mergedLeaves.push_back(thisLeaves[i]);
 	}
 
+	otherLeafCount -= 1; // solid leaf removed
+
 	int newLen = mergedLeaves.size() * sizeof(BSPLEAF);
-	int duplicates = (thisLeafCount + otherLeafCount) - mergedLeaves.size();
-
-	otherLeafCount -= duplicates;
-
-	if (duplicates > 1) {
-		cout << "Removed " << duplicates << " duplicate leaves\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
-	}
 
 	delete[] this->lumps[LUMP_LEAVES];
 	this->lumps[LUMP_LEAVES] = new byte[newLen];
@@ -642,166 +574,83 @@ void Bsp::merge_leaves(Bsp& other) {
 void Bsp::merge_marksurfs(Bsp& other) {
 	uint16* thisMarks = (uint16*)lumps[LUMP_MARKSURFACES];
 	uint16* otherMarks = (uint16*)other.lumps[LUMP_MARKSURFACES];
-	int thisMarkCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16);
+	thisMarkSurfCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16);
 	int otherMarkCount = other.header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16);
+	int totalSurfCount = thisMarkSurfCount + otherMarkCount;
 
 	progress_title = "mark surfaces";
 	progress = 0;
-	progress_total = thisMarkCount + otherMarkCount;
+	progress_total = otherMarkCount + 1;
+	print_merge_progress();
 
-	vector<uint16> mergedMarks;
-	mergedMarks.reserve(thisMarkCount + otherMarkCount);
+	uint16* newSurfs = new uint16[totalSurfCount];
+	memcpy(newSurfs, thisMarks, thisMarkSurfCount * sizeof(uint16));
+	memcpy(newSurfs + thisMarkSurfCount, otherMarks, otherMarkCount * sizeof(uint16));
 
-	for (int i = 0; i < thisMarkCount; i++) {
-		mergedMarks.push_back(thisMarks[i]);
+	for (int i = thisMarkSurfCount; i < totalSurfCount; i++) {
+		uint16& mark = newSurfs[i];
+		mark = mark + thisFaceCount;
 		print_merge_progress();
-	}
-	for (int i = 0; i < otherMarkCount; i++) {
-		uint16 mark = otherMarks[i];
-		mark = facesRemap[mark];
-
-		// TODO: don't remove all duplicates because order matters
-		bool isUnique = true;
-		for (int k = 0; k < thisMarkCount; k++) {
-			if (memcmp(&mark, &thisMarks[k], sizeof(uint16)) == 0) {
-				isUnique = false;
-				markSurfRemap.push_back(k);
-				break;
-			}
-		}
-
-		if (isUnique) {
-			markSurfRemap.push_back(mergedMarks.size());
-			mergedMarks.push_back(mark);
-		}
-		print_merge_progress();
-	}
-
-	int newLen = mergedMarks.size() * sizeof(uint16);
-	int duplicates = mergedMarks.size() - (thisMarkCount + otherMarkCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate marksurfaces\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
 	}
 
 	delete[] this->lumps[LUMP_MARKSURFACES];
-	this->lumps[LUMP_MARKSURFACES] = new byte[newLen];
-	memcpy(this->lumps[LUMP_MARKSURFACES], &mergedMarks[0], newLen);
-	header.lump[LUMP_MARKSURFACES].nLength = newLen;
-
-	//cout << thisMarkCount << " -> " << mergedMarks.size() << endl;
+	this->lumps[LUMP_MARKSURFACES] = (byte*)newSurfs;
+	header.lump[LUMP_MARKSURFACES].nLength = totalSurfCount*sizeof(uint16);
 }
 
 void Bsp::merge_edges(Bsp& other) {
 	BSPEDGE* thisEdges = (BSPEDGE*)lumps[LUMP_EDGES];
 	BSPEDGE* otherEdges = (BSPEDGE*)other.lumps[LUMP_EDGES];
-	int thisEdgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
+	thisEdgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
 	int otherEdgeCount = other.header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
+	int totalEdgeCount = thisEdgeCount + otherEdgeCount;
 
-	progress_title = "mark surfaces";
+	progress_title = "edges";
 	progress = 0;
-	progress_total = thisEdgeCount + otherEdgeCount;
+	progress_total = otherEdgeCount + 1;
+	print_merge_progress();
 
-	vector<BSPEDGE> mergedEdges;
-	mergedEdges.reserve(thisEdgeCount + otherEdgeCount);
+	BSPEDGE* newEdges = new BSPEDGE[totalEdgeCount];
+	memcpy(newEdges, thisEdges, thisEdgeCount * sizeof(BSPEDGE));
+	memcpy(newEdges + thisEdgeCount, otherEdges, otherEdgeCount * sizeof(BSPEDGE));
 
-	for (int i = 0; i < thisEdgeCount; i++) {
-		mergedEdges.push_back(thisEdges[i]);
+	for (int i = thisEdgeCount; i < totalEdgeCount; i++) {
+		BSPEDGE& edge = newEdges[i];
+		edge.iVertex[0] = edge.iVertex[0] + thisVertCount;
+		edge.iVertex[1] = edge.iVertex[1] + thisVertCount;
 		print_merge_progress();
-	}
-	for (int i = 0; i < otherEdgeCount; i++) {
-		BSPEDGE edge = otherEdges[i];
-		edge.iVertex[0] = vertRemap[edge.iVertex[0]];
-		edge.iVertex[1] = vertRemap[edge.iVertex[1]];
-
-		bool isUnique = true;
-		for (int k = 0; k < thisEdgeCount; k++) {
-			if (memcmp(&edge, &thisEdges[k], sizeof(BSPEDGE)) == 0) {
-				isUnique = false;
-				edgeRemap.push_back(k);
-				break;
-			}
-		}
-
-		if (isUnique) {
-			edgeRemap.push_back(mergedEdges.size());
-			mergedEdges.push_back(edge);
-		}
-		print_merge_progress();
-	}
-
-	int newLen = mergedEdges.size() * sizeof(BSPEDGE);
-	int duplicates = mergedEdges.size() - (thisEdgeCount + otherEdgeCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate edges\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
 	}
 
 	delete[] this->lumps[LUMP_EDGES];
-	this->lumps[LUMP_EDGES] = new byte[newLen];
-	memcpy(this->lumps[LUMP_EDGES], &mergedEdges[0], newLen);
-	header.lump[LUMP_EDGES].nLength = newLen;
-
-	//cout << thisEdgeCount << " -> " << mergedEdges.size() << endl;
+	this->lumps[LUMP_EDGES] = (byte*)newEdges;
+	header.lump[LUMP_EDGES].nLength = totalEdgeCount * sizeof(BSPEDGE);
 }
 
 void Bsp::merge_surfedges(Bsp& other) {
 	int32_t* thisSurfs = (int32_t*)lumps[LUMP_SURFEDGES];
 	int32_t* otherSurfs = (int32_t*)other.lumps[LUMP_SURFEDGES];
-	int thisSurfCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
+	thisSurfEdgeCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
 	int otherSurfCount = other.header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
+	int totalSurfCount = thisSurfEdgeCount + otherSurfCount;
 
 	progress_title = "surface edges";
 	progress = 0;
-	progress_total = thisSurfCount + otherSurfCount;
+	progress_total = otherSurfCount + 1;
+	print_merge_progress();
 
-	vector<int32_t> mergedSurfs;
-	mergedSurfs.reserve(thisSurfCount + otherSurfCount);
+	int32_t* newSurfs = new int32_t[totalSurfCount];
+	memcpy(newSurfs, thisSurfs, thisSurfEdgeCount * sizeof(int32_t));
+	memcpy(newSurfs + thisSurfEdgeCount, otherSurfs, otherSurfCount * sizeof(int32_t));
 
-	for (int i = 0; i < thisSurfCount; i++) {
-		mergedSurfs.push_back(thisSurfs[i]);
+	for (int i = thisSurfEdgeCount; i < totalSurfCount; i++) {
+		int32_t& surfEdge = newSurfs[i];
+		surfEdge = surfEdge < 0 ? surfEdge - thisEdgeCount : surfEdge + thisEdgeCount;
 		print_merge_progress();
-	}
-	for (int i = 0; i < otherSurfCount; i++) {
-		int32_t surfEdge = otherSurfs[i];
-		surfEdge = surfEdge < 0 ? -edgeRemap[-surfEdge] : edgeRemap[surfEdge];
-
-		// TODO: don't remove all duplicates because order matters
-		bool isUnique = true;
-		for (int k = 0; k < thisSurfCount; k++) {
-			if (memcmp(&surfEdge, &thisSurfs[k], sizeof(int32_t)) == 0) {
-				isUnique = false;
-				surfEdgeRemap.push_back(k);
-				break;
-			}
-		}
-
-		if (isUnique) {
-			surfEdgeRemap.push_back(mergedSurfs.size());
-			mergedSurfs.push_back(surfEdge);
-		}
-		print_merge_progress();
-	}
-
-	int newLen = mergedSurfs.size() * sizeof(int32_t);
-	int duplicates = mergedSurfs.size() - (thisSurfCount + otherSurfCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate surfedges\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
 	}
 
 	delete[] this->lumps[LUMP_SURFEDGES];
-	this->lumps[LUMP_SURFEDGES] = new byte[newLen];
-	memcpy(this->lumps[LUMP_SURFEDGES], &mergedSurfs[0], newLen);
-	header.lump[LUMP_SURFEDGES].nLength = newLen;
-
-	//cout << thisSurfCount << " -> " << mergedSurfs.size() << endl;
+	this->lumps[LUMP_SURFEDGES] = (byte*)newSurfs;
+	header.lump[LUMP_SURFEDGES].nLength = totalSurfCount*sizeof(int32_t);
 }
 
 void Bsp::merge_nodes(Bsp& other) {
@@ -848,7 +697,7 @@ void Bsp::merge_nodes(Bsp& other) {
 		}
 		node.iPlane = planeRemap[node.iPlane];
 		if (node.nFaces) {
-			node.firstFace = facesRemap[node.firstFace];
+			node.firstFace = node.firstFace + thisFaceCount;
 		}
 		
 		mergedNodes.push_back(node);
@@ -937,7 +786,7 @@ void Bsp::merge_models(Bsp& other) {
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			model.iHeadnodes[k] += thisClipnodeCount;
 		}
-		model.iFirstFace = facesRemap[model.iFirstFace];
+		model.iFirstFace = model.iFirstFace + thisFaceCount;
 		mergedModels.push_back(model);
 		print_merge_progress();
 	}
