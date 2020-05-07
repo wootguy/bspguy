@@ -1975,6 +1975,102 @@ int Bsp::pointContents(int iNode, vec3 p)
 	return leaves[~iNode].nContents;
 }
 
+void Bsp::mark_clipnodes(int iNode, bool* markList) {
+	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+
+	markList[iNode] = true;
+
+	for (int i = 0; i < 2; i++) {
+		if (clipnodes[iNode].iChildren[i] >= 0) {
+			mark_clipnodes(clipnodes[iNode].iChildren[i], markList);
+		}
+	}
+}
+
+
+int Bsp::strip_clipping_hull(int hull_number) {
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+
+	int removed = 0;
+	for (int i = 0; i < modelCount; i++) {
+		removed += strip_clipping_hull(hull_number, i);
+	}
+
+	return removed;
+}
+
+int Bsp::strip_clipping_hull(int hull_number, int modelIdx) {
+	if (modelIdx < 0 || modelIdx > header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) {
+		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
+		return 0;
+	}
+
+	// the first hull is used for point-sized clipping, but uses nodes and not clipnodes.
+	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Clipnode hull numbers are 1 - %d\n", MAX_MAP_HULLS);
+		return 0;
+	}
+
+	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
+
+	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+	int numClipnodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+	bool* shouldRemoveClipnode = new bool[numClipnodes];
+	int* newClipnodeIndex = new int[numClipnodes];
+	memset(shouldRemoveClipnode, 0, numClipnodes * sizeof(bool));
+	
+	mark_clipnodes(model.iHeadnodes[hull_number], shouldRemoveClipnode);
+
+	int removed = 0;
+	for (int i = 0; i < numClipnodes; i++) {
+		if (shouldRemoveClipnode[i]) {
+			removed++;
+		}
+	}
+
+	int newNumClipnodes = numClipnodes - removed;
+	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[newNumClipnodes];
+
+	int insertIdx = 0;
+	for (int i = 0; i < numClipnodes; i++) {
+		if (shouldRemoveClipnode[i]) {
+			newClipnodeIndex[i] = -1; // indicate it was removed, also disables the hull if set for headnode
+		}
+		else {
+			newClipnodeIndex[i] = insertIdx;
+			newClipnodes[insertIdx] = clipnodes[i];
+			insertIdx++;
+		}
+	}
+
+	for (int i = 0; i < newNumClipnodes; i++) {
+		for (int k = 0; k < 2; k++) {
+			int16_t& child = newClipnodes[i].iChildren[k];
+			if (child >= 0) {
+				child = newClipnodeIndex[child];
+			}
+		}
+	}
+
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	int thisModelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+
+	for (int i = 0; i < thisModelCount; i++) {
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			int32_t& headnode = models[i].iHeadnodes[k];
+			headnode = newClipnodeIndex[headnode];
+		}
+	}
+
+	delete[] shouldRemoveClipnode;
+	delete[] newClipnodeIndex;
+
+	lumps[LUMP_CLIPNODES] = (byte*)newClipnodes;
+	header.lump[LUMP_CLIPNODES].nLength = newNumClipnodes * sizeof(BSPCLIPNODE);
+
+	return removed;
+}
+
 void Bsp::dump_lightmap(int faceIdx, string outputPath)
 {
 	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];

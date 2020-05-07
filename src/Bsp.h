@@ -224,6 +224,12 @@ public:
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
 
+	// strips a collision hull from the given model index
+	int strip_clipping_hull(int hull_number, int modelIdx);
+
+	// strips a collision hull from all models and the world
+	int strip_clipping_hull(int hull_number);
+
 	void dump_lightmap(int faceIdx, string outputPath);
 	void dump_lightmap_atlas(string outputPath);
 
@@ -278,6 +284,8 @@ private:
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
 	void update_ent_lump();
+
+	void mark_clipnodes(int iNode, bool* markList);
 
 	// remapped structure indexes for the other bsp file when merging
 	vector<int> texRemap;
