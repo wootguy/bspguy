@@ -827,7 +827,7 @@ void Bsp::merge_models(Bsp& other) {
 	//cout << thisModelCount << " -> " << mergedModels.size() << endl;
 }
 
-void Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
+bool Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
 	byte bitsPerStep = 64;
 	byte offsetBit = offsetLeaf % bitsPerStep;
 	uint64 mask = 0; // part of the byte that shouldn't be shifted
@@ -837,6 +837,7 @@ void Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
 
 	len /= 8; // byte -> uint64 (vis rows are always divisible by 8)
 
+	int overflow = 0;
 	for (int k = 0; k < shift; k++) {
 
 		bool carry = 0;
@@ -856,9 +857,13 @@ void Bsp::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
 		}
 
 		if (carry) {
-			printf("ZOMG OVERFLOW VIS\n");
+			overflow++;
 		}
 	}
+	if (overflow)
+		printf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
+
+	return overflow;
 }
 
 // decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
@@ -874,11 +879,19 @@ void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	uint newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
 	int len = 0;
 
+	// calculate which bits of an uncompressed visibility row are used/unused
+	uint64 lastChunkMask = 0;
+	int lastChunkIdx = (oldVisRowSize / 8) - 1;
+	int maxBitsInLastChunk = (visDataLeafCount % 64);
+	for (uint64 k = 0; k < maxBitsInLastChunk; k++) {
+		lastChunkMask = lastChunkMask | ((uint64)1 << k);
+	}
+
 	for (int i = 0; i < iterationLeaves; i++)
 	{
 		dest = output + i * newVisRowSize;
 
-		if (leafLump[i + 1].nVisOffset == -1) {
+		if (leafLump[i + 1].nVisOffset < 0) {
 			memset(dest, 255, visDataLeafCount/8);
 			for (int k = 0; k < visDataLeafCount % 8; k++) {
 				dest[visDataLeafCount / 8] |= 1 << k;
@@ -888,22 +901,17 @@ void Bsp::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		}
 
 		DecompressVis((const byte*)(visLump + leafLump[i+1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
-	
+
+		// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
+		// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
+		// To prevent overflows when shifting the data later, the unused leaf bits will be forced to zero here.
+		((uint64*)dest)[lastChunkIdx] &= lastChunkMask;
+
 		if (shiftAmount) {
 			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 		}
 
 		print_merge_progress();
-	}
-}
-
-void print_vis(byte* vis, int visLeafCount, int g_bitbytes) {
-	for (int k = 0; k < visLeafCount; k++) {
-		printf("LEAF %02d: ", k+1);
-		for (int i = 0; i < g_bitbytes; i++) {
-			printf("%3d ", vis[k * g_bitbytes + i]);
-		}
-		cout << endl;
 	}
 }
 
@@ -936,9 +944,6 @@ void Bsp::merge_vis(Bsp& other) {
 	progress_title = "visibility";
 	progress = 0;
 	progress_total = thisWorldLeafCount + thisModelLeafCount + otherLeafCount;
-
-	//debug_vis(thisVis, allLeaves, totalLeaves - 1);
-	//return;
 
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
