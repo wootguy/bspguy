@@ -1273,16 +1273,173 @@ bool Bsp::move(vec3 offset) {
 		}
 	}
 	
+	bool* modelHasOrigin = new bool[modelCount];
+	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (!ents[i]->hasKey("origin")) {
+			continue;
+		}
+		if (ents[i]->isBspModel()) {
+			modelHasOrigin[ents[i]->getBspModelIdx()] = true;
+		}
+
+		if (ents[i]->keyvalues["classname"] == "info_node") {
+			ents[i]->keyvalues["classname"] = "info_bode";
+		}
+
+		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
+		vec3 ori = keyvalue.getVector() + offset;
+
+		ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
+	}
+
+	update_ent_lump();
+
+	for (int i = 0; i < leafCount; i++) {
+		BSPLEAF& leaf = leaves[i];
+
+		if (fabs((float)leaf.nMins[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMins[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
+			fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+		}
+		leaf.nMins[0] += offset.x;
+		leaf.nMaxs[0] += offset.x;
+		leaf.nMins[1] += offset.y;
+		leaf.nMaxs[1] += offset.y;
+		leaf.nMins[2] += offset.z;
+		leaf.nMaxs[2] += offset.z;
+	}
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = nodes[i];
+
+		if (fabs((float)node.nMins[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+			fabs((float)node.nMins[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
+			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+		}
+		node.nMins[0] += offset.x;
+		node.nMaxs[0] += offset.x;
+		node.nMins[1] += offset.y;
+		node.nMaxs[1] += offset.y;
+		node.nMins[2] += offset.z;
+		node.nMaxs[2] += offset.z;
+	}
+
+	// map a verts/plane indexes to a model
+	int* vertexToModel = new int[vertCount];
+	int* planeToModel = new int[planeCount];
+	int* texInfoToModel = new int[texInfoCount];
+	memset(vertexToModel, -1, vertCount*sizeof(int));
+	memset(planeToModel, -1, planeCount *sizeof(int));
+	memset(texInfoToModel, -1, texInfoCount *sizeof(int));
+
+	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		if (!modelHasOrigin[i]) {
+			model.nMins += offset;
+			model.nMaxs += offset;
+			//model.vOrigin += offset; (wouldn't work once maps are merged into one model)
+
+			if (fabs(model.nMins.x) > MAX_MAP_COORD ||
+				fabs(model.nMins.y) > MAX_MAP_COORD ||
+				fabs(model.nMins.z) > MAX_MAP_COORD ||
+				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
+				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
+				fabs(model.nMaxs.z) > MAX_MAP_COORD) {
+				printf("WARNING: Model moved past safe world boundary!");
+			}
+		}
+
+		for (int j = 0; j < model.nFaces; j++)
+		{
+			BSPFACE& face = faces[model.iFirstFace + j];
+
+			for (int e = 0; e < face.nEdges; e++) {
+				int32_t edgeIdx = surfEdges[face.iFirstEdge + e];
+				BSPEDGE& edge = edges[abs(edgeIdx)];
+				int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+				int oldVertIdx = vertexToModel[vertIdx];
+				int oldPlaneModelIdx = planeToModel[face.iPlane];
+				int oldTexInfoIdx = texInfoToModel[face.iTextureInfo];
+
+				// TODO: yust duplicate the structure if there's a conflict
+				if (oldVertIdx >= 0 && oldVertIdx != i && modelHasOrigin[oldVertIdx] != modelHasOrigin[i]) {
+					printf("ERROR: Model %d shares a vertex with %d, and only one an origin. Something will be messed up.\n", i, vertexToModel[vertIdx]);
+				}
+				if (oldPlaneModelIdx >= 0 && oldPlaneModelIdx != i && modelHasOrigin[oldPlaneModelIdx] != modelHasOrigin[i]) {
+					printf("ERROR: Model %d shares a plane with %d, and only one an origin. Something will be messed up.\n", i, planeToModel[face.iPlane]);
+				}
+				if (oldTexInfoIdx >= 0 && oldTexInfoIdx != i && modelHasOrigin[oldTexInfoIdx] != modelHasOrigin[i]) {
+					printf("ERROR: Model %d shares a texinfo with %d, and only one an origin. Something will be messed up.\n", i, vertexToModel[vertIdx]);
+				}
+
+				vertexToModel[vertIdx] = i;
+				planeToModel[face.iPlane] = i;
+				texInfoToModel[face.iTextureInfo] = i;
+			}
+		}
+	}
+
+	for (int i = 0; i < vertCount; i++) {
+		if (vertexToModel[i] != -1 && modelHasOrigin[vertexToModel[i]]) {
+			continue; // don't move submodels with origins
+		}
+
+		vec3& vert = verts[i];
+
+		vert += offset;
+
+		if (fabs(vert.x) > MAX_MAP_COORD ||
+			fabs(vert.y) > MAX_MAP_COORD ||
+			fabs(vert.z) > MAX_MAP_COORD) {
+			printf("WARNING: Vertex moved past safe world boundary!");
+		}
+	}
+
+	for (int i = 0; i < planeCount; i++) {
+		if (planeToModel[i] != -1 && modelHasOrigin[planeToModel[i]]) {
+			continue; // don't move submodels with origins
+		}
+
+		BSPPLANE& plane = planes[i];
+		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
+
+		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
+			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
+			printf("WARNING: Plane origin moved past safe world boundary!");
+		}
+
+		// get distance between new plane origin and the origin-aligned plane
+		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
+	}
 
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
 	vec3 offsetDir = offset.normalize();
 	float offsetLen = offset.length();
-	
+
 	for (int i = 0; i < texInfoCount; i++) {
+		if (texInfoToModel[i] != -1 && modelHasOrigin[texInfoToModel[i]]) {
+			continue; // don't move submodels with origins
+		}
+
 		BSPTEXTUREINFO& info = texInfo[i];
-		
-		int32_t texOffset = ((int32_t*)textures)[info.iMiptex+1];
+
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 		float scaleS = info.vS.length();
@@ -1314,114 +1471,9 @@ bool Bsp::move(vec3 offset) {
 		}
 	}
 
-	for (int i = 0; i < vertCount; i++) {
-		vec3& vert = verts[i];
-
-		vert += offset;
-
-		if (fabs(vert.x) > MAX_MAP_COORD ||
-			fabs(vert.y) > MAX_MAP_COORD ||
-			fabs(vert.z) > MAX_MAP_COORD) {
-			printf("WARNING: Vertex moved past safe world boundary!");
-		}
-	}
-
-	for (int i = 0; i < planeCount; i++) {
-		BSPPLANE& plane = planes[i];
-		vec3 newPlaneOri = offset + (plane.vNormal * plane.fDist);
-
-		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
-			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
-			printf("WARNING: Plane origin moved past safe world boundary!");
-		}
-
-		// get distance between new plane origin and the origin-aligned plane
-		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
-	}
-
-	for (int i = 0; i < leafCount; i++) {
-		BSPLEAF& leaf = leaves[i];
-
-		if (fabs((float)leaf.nMins[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMins[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
-		}
-		leaf.nMins[0] += offset.x;
-		leaf.nMaxs[0] += offset.x;
-		leaf.nMins[1] += offset.y;
-		leaf.nMaxs[1] += offset.y;
-		leaf.nMins[2] += offset.z;
-		leaf.nMaxs[2] += offset.z;
-	}
-
-	for (int i = 0; i < modelCount; i++) {
-		BSPMODEL& model = models[i];
-
-		model.nMins += offset;
-		model.nMaxs += offset;
-		//model.vOrigin += offset; (wouldn't work once maps are merged into one model)
-
-		if (fabs(model.nMins.x) > MAX_MAP_COORD ||
-			fabs(model.nMins.y) > MAX_MAP_COORD ||
-			fabs(model.nMins.z) > MAX_MAP_COORD ||
-			fabs(model.nMaxs.z) > MAX_MAP_COORD ||
-			fabs(model.nMaxs.z) > MAX_MAP_COORD ||
-			fabs(model.nMaxs.z) > MAX_MAP_COORD) {
-			printf("WARNING: Model moved past safe world boundary!");
-		}
-	}
-
-	for (int i = 0; i < nodeCount; i++) {
-		BSPNODE& node = nodes[i];
-
-		if (fabs((float)node.nMins[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)node.nMins[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
-		}
-		node.nMins[0] += offset.x;
-		node.nMaxs[0] += offset.x;
-		node.nMins[1] += offset.y;
-		node.nMaxs[1] += offset.y;
-		node.nMins[2] += offset.z;
-		node.nMaxs[2] += offset.z;
-	}
-
-	for (int i = 0; i < ents.size(); i++) {
-		if (!ents[i]->hasKey("origin"))
-			continue;
-
-		if (ents[i]->keyvalues["classname"] == "info_node") {
-			ents[i]->keyvalues["classname"] = "info_bode";
-		}
-
-		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
-		vec3 ori = keyvalue.getVector();
-		ori += offset;
-
-		string parts[3] = { to_string(ori.x) , to_string(ori.y), to_string(ori.z) };
-
-		// remove trailing zeros to save some space
-		for (int i = 0; i < 3; i++) {
-			parts[i].erase(parts[i].find_last_not_of('0') + 1, std::string::npos);
-
-			// strip dot if there's no fractional part
-			if (parts[i][parts[i].size() - 1] == '.') {
-				parts[i] = parts[i].substr(0, parts[i].size() - 1);
-			}
-		}
-
-		ents[i]->keyvalues["origin"] = parts[0] + " " + parts[1] + " " + parts[2];
-	}
-
-	update_ent_lump();
+	delete[] vertexToModel;
+	delete[] modelHasOrigin;
+	delete[] texInfoToModel;
 
 	if (hasLighting) {
 		// calculate new lightmap sizes

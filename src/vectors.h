@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include <string>
 
 struct vec3
 {
@@ -9,6 +10,7 @@ struct vec3
 	vec3 normalize(float length=1.0f);
 	float length();
 	vec3 invert();
+	std::string toKeyvalueString();
 
 	void operator-=(vec3 v);
 	void operator+=(vec3 v);

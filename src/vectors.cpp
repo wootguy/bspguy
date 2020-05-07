@@ -170,7 +170,21 @@ float vec3::length()
 	return sqrt( (x*x) + (y*y) + (z*z) );
 }
 
+string vec3::toKeyvalueString() {
+	string parts[3] = { to_string(x) , to_string(y), to_string(z) };
 
+	// remove trailing zeros to save some space
+	for (int i = 0; i < 3; i++) {
+		parts[i].erase(parts[i].find_last_not_of('0') + 1, std::string::npos);
+
+		// strip dot if there's no fractional part
+		if (parts[i][parts[i].size() - 1] == '.') {
+			parts[i] = parts[i].substr(0, parts[i].size() - 1);
+		}
+	}
+
+	return parts[0] + " " + parts[1] + " " + parts[2];
+}
 
 
 bool operator==(vec2 v1, vec2 v2)

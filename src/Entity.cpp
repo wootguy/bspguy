@@ -1,6 +1,7 @@
 #include "Entity.h"
 #include <string>
 #include "util.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -51,4 +52,25 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 bool Entity::hasKey(const std::string& key)
 {
 	return keyvalues.find(key) != keyvalues.end();
+}
+
+int Entity::getBspModelIdx() {
+	if (!hasKey("model"))
+		return -1;
+
+	string model = keyvalues["model"];
+	if (model.size() <= 1 || model[0] != '*') {
+		return -1;
+	}
+
+	string modelIdxStr = model.substr(1);
+	if (!isNumeric(modelIdxStr)) {
+		return -1;
+	}
+
+	return atoi(modelIdxStr.c_str());
+}
+
+bool Entity::isBspModel() {
+	return getBspModelIdx() >= 0;
 }
