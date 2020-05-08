@@ -206,8 +206,6 @@ public:
 	string name;
 	BSPHEADER header;
 	byte ** lumps;
-
-	int mismatchCount = 0;
 	
 	vector<Entity*> ents;
 
@@ -216,7 +214,6 @@ public:
 	~Bsp();
 
 	bool move(vec3 offset);
-	bool merge(Bsp& other);
 	void write(string path);
 
 	void print_info();
@@ -237,53 +234,24 @@ public:
 
 	void get_bounding_box(vec3& mins, vec3& maxs);
 
+	void load_ents();
+
+	// call this after editing ents
+	void update_ent_lump();
+
 private:
 	bool load_lumps(string fname);
-	void load_ents();
-	void merge_ents(Bsp& other);
-	void merge_planes(Bsp& other);
-	void merge_textures(Bsp& other);
-	void merge_vertices(Bsp& other);
-	void merge_texinfo(Bsp& other);
-	void merge_faces(Bsp& other);
-	void merge_leaves(Bsp& other);
-	void merge_marksurfs(Bsp& other);
-	void merge_edges(Bsp& other);
-	void merge_surfedges(Bsp& other);
-	void merge_nodes(Bsp& other);
-	void merge_clipnodes(Bsp& other);
-	void merge_models(Bsp& other);
-	void merge_vis(Bsp& other);
-	void merge_lighting(Bsp& other);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
 	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according
 	// to the qrad code. Shifts apply to one or both of the lightmaps, depending on which dimension is bigger.
 	void get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY);
 
-	void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
-		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
-		int shiftOffsetBit, int shiftAmount);
-
-	bool shiftVis(uint64* vis, int len, int offsetLeaf, int shift);
-
-	// Finds an axis-aligned hyperplane that separates the BSPs and
-	// adds the plane and new root node to the bsp.
-	// returns false if maps overlap and can't be separated.
-	BSPPLANE separate(Bsp& other);
-
-	// creates new headnodes from the plane that separates the two maps
-	// Must be called after planes are merged but before nodes/clipnodes.
-	void create_merge_headnodes(Bsp& other, BSPPLANE separationPlane);
-
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
-	void print_merge_progress(); // also increments progress counter
 
-	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
-
-	void update_ent_lump();
+	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
 	// move the bounding boxes for iNode and all its children
 	// I'm not sure those values are even used by the game but just in case..
@@ -292,31 +260,4 @@ private:
 	// mark clipnodes that are children of this iNode.
 	// markList should be big enough to hold every clipnode in the map
 	void mark_clipnodes(int iNode, bool* markList);
-
-	// remapped structure indexes for the other bsp file when merging
-	vector<int> texRemap;
-	vector<int> texInfoRemap;
-	vector<int> planeRemap;
-	vector<int> leavesRemap;
-
-	// remapped leaf indexes for this map's submodel leaves
-	vector<int> modelLeafRemap;
-
-	int thisLeafCount;
-	int otherLeafCount;
-	int thisFaceCount;
-	int thisNodeCount;
-	int thisClipnodeCount;
-	int thisWorldLeafCount; // excludes solid leaf 0
-	int otherWorldLeafCount; // excluding solid leaf 0
-	int thisSurfEdgeCount;
-	int thisMarkSurfCount;
-	int thisEdgeCount;
-	int thisVertCount;
-
-	chrono::system_clock::time_point last_progress;
-	char* progress_title;
-	char* last_progress_title;
-	int progress;
-	int progress_total;
 };
