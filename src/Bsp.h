@@ -285,6 +285,12 @@ private:
 
 	void update_ent_lump();
 
+	// move the bounding boxes for iNode and all its children
+	// I'm not sure those values are even used by the game but just in case..
+	void move_nodes(int iNode, vec3 offset);
+
+	// mark clipnodes that are children of this iNode.
+	// markList should be big enough to hold every clipnode in the map
 	void mark_clipnodes(int iNode, bool* markList);
 
 	// remapped structure indexes for the other bsp file when merging

@@ -1301,44 +1301,6 @@ bool Bsp::move(vec3 offset) {
 
 	update_ent_lump();
 
-	for (int i = 0; i < leafCount; i++) {
-		BSPLEAF& leaf = leaves[i];
-
-		if (fabs((float)leaf.nMins[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMins[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
-			fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
-		}
-		leaf.nMins[0] += offset.x;
-		leaf.nMaxs[0] += offset.x;
-		leaf.nMins[1] += offset.y;
-		leaf.nMaxs[1] += offset.y;
-		leaf.nMins[2] += offset.z;
-		leaf.nMaxs[2] += offset.z;
-	}
-
-	for (int i = 0; i < nodeCount; i++) {
-		BSPNODE& node = nodes[i];
-
-		if (fabs((float)node.nMins[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
-			fabs((float)node.nMins[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
-			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
-			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
-		}
-		node.nMins[0] += offset.x;
-		node.nMaxs[0] += offset.x;
-		node.nMins[1] += offset.y;
-		node.nMaxs[1] += offset.y;
-		node.nMins[2] += offset.z;
-		node.nMaxs[2] += offset.z;
-	}
-
 	// map a verts/plane indexes to a model
 	int* vertexToModel = new int[vertCount];
 	int* planeToModel = new int[planeCount];
@@ -1350,6 +1312,7 @@ bool Bsp::move(vec3 offset) {
 	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
 	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
 
+	int leafOffset = 1; // skip solid leaf
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
 
@@ -1366,6 +1329,28 @@ bool Bsp::move(vec3 offset) {
 				fabs(model.nMaxs.z) > MAX_MAP_COORD) {
 				printf("WARNING: Model moved past safe world boundary!");
 			}
+
+			move_nodes(model.iHeadnodes[0], offset);
+
+			for (int k = 0; k < model.nVisLeafs; k++) {
+				BSPLEAF& leaf = leaves[leafOffset + k];
+
+				if (fabs((float)leaf.nMins[0] + offset.x) > MAX_MAP_COORD ||
+					fabs((float)leaf.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+					fabs((float)leaf.nMins[1] + offset.y) > MAX_MAP_COORD ||
+					fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+					fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
+					fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+					printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+				}
+				leaf.nMins[0] += offset.x;
+				leaf.nMaxs[0] += offset.x;
+				leaf.nMins[1] += offset.y;
+				leaf.nMaxs[1] += offset.y;
+				leaf.nMins[2] += offset.z;
+				leaf.nMaxs[2] += offset.z;
+			}
+			leafOffset += model.nVisLeafs;
 		}
 
 		for (int j = 0; j < model.nFaces; j++)
@@ -1975,6 +1960,33 @@ int Bsp::pointContents(int iNode, vec3 p)
 	return leaves[~iNode].nContents;
 }
 
+void Bsp::move_nodes(int iNode, vec3 offset) {
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+
+	BSPNODE& node = nodes[iNode];
+
+	if (fabs((float)node.nMins[0] + offset.x) > MAX_MAP_COORD ||
+		fabs((float)node.nMaxs[0] + offset.x) > MAX_MAP_COORD ||
+		fabs((float)node.nMins[1] + offset.y) > MAX_MAP_COORD ||
+		fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
+		fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
+		fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
+		printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+	}
+	node.nMins[0] += offset.x;
+	node.nMaxs[0] += offset.x;
+	node.nMins[1] += offset.y;
+	node.nMaxs[1] += offset.y;
+	node.nMins[2] += offset.z;
+	node.nMaxs[2] += offset.z;
+
+	for (int i = 0; i < 2; i++) {
+		if (nodes[iNode].iChildren[i] >= 0) {
+			move_nodes(nodes[iNode].iChildren[i], offset);
+		}
+	}
+}
+
 void Bsp::mark_clipnodes(int iNode, bool* markList) {
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
 
@@ -2058,7 +2070,8 @@ int Bsp::strip_clipping_hull(int hull_number, int modelIdx) {
 	for (int i = 0; i < thisModelCount; i++) {
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			int32_t& headnode = models[i].iHeadnodes[k];
-			headnode = newClipnodeIndex[headnode];
+			if (headnode >= 0 && headnode < numClipnodes)
+				headnode = newClipnodeIndex[headnode];
 		}
 	}
 
