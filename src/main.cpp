@@ -4,8 +4,9 @@
 #include <algorithm>
 #include <iostream>
 
-// super todo:
-// ents with same name will conflict (m60 tank)
+// TODO:
+// trigger_changesky for series maps with different skies
+// replace monster_ ents with spawners?
 
 // Ideas for commands:
 // optimize:
@@ -41,8 +42,6 @@ int merge_maps(vector<string> options) {
 
 	vector<Bsp*> maps;
 	for (int i = 1; i < 22; i++) {
-		if (i < 7)
-			continue;
 		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
 		map->strip_clipping_hull(2);
 		maps.push_back(map);

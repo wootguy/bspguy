@@ -40,6 +40,9 @@ private:
 	// - entities in previous levels should be cleaned up
 	void update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sourceMaps);
 
+	// renames any entity that shares a name with an entity in another map
+	void force_unique_ent_names_per_map(Bsp* mergedMap, vector<Bsp*>& sourceMaps);
+
 	BSPPLANE separate(Bsp& mapA, Bsp& mapB);
 
 	int getMipTexDataSize(int width, int height);

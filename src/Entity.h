@@ -27,5 +27,7 @@ public:
 	bool isBspModel();
 
 	bool hasKey(const std::string& key);
+
+	vector<string> getEntityRelatedKeys();
 };
 

@@ -207,15 +207,17 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	return orderedBlocks;
 }
 
-typedef map< string, set<string> > maptriggers;
+typedef map< string, set<string> > mapStringToSet;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sourceMaps) {
 	int originalEntCount = mergedMap->ents.size();
 
+	force_unique_ent_names_per_map(mergedMap, sourceMaps);
+
 	const string load_section_prefix = "bspguy_setup_";
 
 	// things to trigger when loading a new map
-	maptriggers load_map_triggers;
+	mapStringToSet load_map_triggers;
 
 	cout << "First map is " << sourceMaps[0]->name << endl;
 
@@ -433,6 +435,55 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 	mergedMap->update_ent_lump();
 }
 
+void BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap, vector<Bsp*>& sourceMaps) {
+	mapStringToSet mapEntNames;
+	mapStringToSet entsToRename;
+
+	for (int i = 0; i < mergedMap->ents.size(); i++) {
+		Entity* ent = mergedMap->ents[i];
+		string tname = ent->keyvalues["targetname"];
+		string source_map = ent->keyvalues["$s_bspguy_map_source"];
+
+		if (tname.empty())
+			continue;
+
+		bool isUnique = true;
+		for (auto it = mapEntNames.begin(); it != mapEntNames.end(); ++it) {
+			if (it->first != source_map && it->second.find(tname) != it->second.end()) {
+				entsToRename[source_map].insert(tname);
+				isUnique = false;
+				break;
+			}
+		}
+
+		if (isUnique)
+			mapEntNames[source_map].insert(tname);
+	}
+
+	int renameSuffix = 2;
+	for (auto it = entsToRename.begin(); it != entsToRename.end(); ++it) {
+		for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+			string oldName = *it2;
+			string newName = oldName + "_" + to_string(renameSuffix++);
+
+			cout << "Renaming " << *it2 << " to " << newName << endl;
+
+			for (int i = 0; i < mergedMap->ents.size(); i++) {
+				Entity* ent = mergedMap->ents[i];
+				string source_map = ent->keyvalues["$s_bspguy_map_source"];
+				if (source_map != it->first)
+					continue;
+
+				vector<string> entityRelatedKeys = ent->getEntityRelatedKeys();
+				for (int k = 0; k < entityRelatedKeys.size(); k++) {
+					if (ent->keyvalues[entityRelatedKeys[k]] == oldName) {
+						ent->keyvalues[entityRelatedKeys[k]] = newName;
+					}
+				}
+			}
+		}
+	}
+}
 
 bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	// TODO: Create a new map and store result there. Don't break mapA.
