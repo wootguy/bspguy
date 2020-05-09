@@ -5,7 +5,6 @@
 #include <iostream>
 
 // super todo:
-// black lightmaps all over the place
 // ents with same name will conflict (m60 tank)
 
 // Ideas for commands:
@@ -29,11 +28,12 @@ int merge_maps(vector<string> options) {
 	}
 
 	string output_path = options[options.size() - 1];
-
+	
 	/*
-	Bsp test("saving_the_2nd_amendment20.bsp");
+	Bsp test("saving_the_2nd_amendment7.bsp");
 	//test.strip_clipping_hull(2);
-	test.move(vec3(13120, 16160, 1504));
+	test.move(vec3(4992, 6240, 736));
+	test.dump_lightmap_atlas("_after.png");
 	test.write("yabma_move.bsp");
 	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 	return 0;

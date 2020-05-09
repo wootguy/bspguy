@@ -128,7 +128,7 @@ struct BSPFACE {
 struct LIGHTMAP
 {
 	int width, height;
-	int layers; // for when multiple lights hit the same face (nStyles != 0)
+	int layers; // for when multiple lights hit the same face (nStyles[0-3] != 255)
 	light_flag_t luxelFlags[MAX_SINGLEMAP];
 };
 
@@ -253,6 +253,8 @@ private:
 	// If one if it's structures is marked in the doNotMoveList, then it will be duplicated and
 	// all references to it will be updated in this model.
 	void remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists);
+
+	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
 	bool load_lumps(string fname);
 

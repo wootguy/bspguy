@@ -290,122 +290,139 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	if (hasLighting) {
-		// calculate new lightmap sizes
-		qrad_init_globals(this);
-		int newLightDataSz = 0;
-		int totalLightmaps = 0;
-		int lightmapsResizeCount = 0;
-		for (int i = 0; i < faceCount; i++) {
-			BSPFACE& face = faces[i];
-
-			if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL)
-				continue;
-
-			BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
-			int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
-			BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-
-			int size[2];
-			GetFaceLightmapSize(i, size);
-
-			int lightmapSz = size[0] * size[1];
-
-			newLightmaps[i].width = size[0];
-			newLightmaps[i].height = size[1];
-			newLightmaps[i].layers = oldLightmaps[i].layers;
-
-			newLightDataSz += (lightmapSz * newLightmaps[i].layers) * sizeof(COLOR3);
-
-			totalLightmaps += newLightmaps[i].layers;
-			if (oldLightmaps[i].width != newLightmaps[i].width || oldLightmaps[i].height != newLightmaps[i].height) {
-				lightmapsResizeCount += newLightmaps[i].layers;
-			}
-		}
-
-		if (lightmapsResizeCount > 0) {
-			printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
-
-			int newColorCount = newLightDataSz / sizeof(COLOR3);
-			COLOR3* newLightData = new COLOR3[newColorCount];
-			memset(newLightData, 0, newColorCount * sizeof(COLOR3));
-			int lightmapOffset = 0;
-
-
-			for (int i = 0; i < faceCount; i++) {
-				BSPFACE& face = faces[i];
-
-				if (i % (faceCount / 3) == 0) {
-					printf(".");
-				}
-
-				if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
-					continue;
-
-				LIGHTMAP& oldLight = oldLightmaps[i];
-				LIGHTMAP& newLight = newLightmaps[i];
-				int oldLayerSz = (oldLight.width * oldLight.height) * sizeof(COLOR3);
-				int newLayerSz = (newLight.width * newLight.height) * sizeof(COLOR3);
-				int oldSz = oldLayerSz * oldLight.layers;
-				int newSz = newLayerSz * newLight.layers;
-
-				totalLightmaps++;
-
-				if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
-					memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
-				}
-				else {
-					qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
-
-					int minWidth = min(newLight.width, oldLight.width);
-					int minHeight = min(newLight.height, oldLight.height);
-
-					int srcOffsetX, srcOffsetY;
-					get_lightmap_shift(oldLight, newLight, srcOffsetX, srcOffsetY);
-
-					for (int layer = 0; layer < newLight.layers; layer++) {
-						int srcOffset = (face.nLightmapOffset + oldLayerSz * layer) / sizeof(COLOR3);
-						int dstOffset = (lightmapOffset + newLayerSz * layer) / sizeof(COLOR3);
-
-						for (int y = 0; y < minHeight; y++) {
-							for (int x = 0; x < minWidth; x++) {
-								int offsetX = x + srcOffsetX;
-								int offsetY = y + srcOffsetY;
-
-								int srcX = oldLight.width > newLight.width ? offsetX : x;
-								int srcY = oldLight.height > newLight.height ? offsetY : y;
-								int dstX = newLight.width > oldLight.width ? offsetX : x;
-								int dstY = newLight.height > oldLight.height ? offsetY : y;
-
-								srcX = max(0, min(oldLight.width - 1, srcX));
-								srcY = max(0, min(oldLight.height - 1, srcY));
-								dstX = max(0, min(newLight.width - 1, dstX));
-								dstY = max(0, min(newLight.height - 1, dstY));
-
-								COLOR3& src = lightdata[srcOffset + srcY * oldLight.width + srcX];
-								COLOR3& dst = newLightData[dstOffset + dstY * newLight.width + dstX];
-
-								dst = src;
-							}
-						}
-					}
-				}
-
-				face.nLightmapOffset = lightmapOffset;
-				lightmapOffset += newSz;
-			}
-
-			delete[] this->lumps[LUMP_LIGHTING];
-			this->lumps[LUMP_LIGHTING] = (byte*)newLightData;
-			header.lump[LUMP_LIGHTING].nLength = lightmapOffset;
-		}
-
-		delete[] oldLightmaps;
-		delete[] newLightmaps;
+		resize_lightmaps(oldLightmaps, newLightmaps);
 	}
+
+	delete[] oldLightmaps;
+	delete[] newLightmaps;
 
 	printf("\n");
 
 	return true;
+}
+
+void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
+	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	COLOR3* lightdata = (COLOR3*)lumps[LUMP_LIGHTING];
+
+	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
+	byte* textures = lumps[LUMP_TEXTURES];
+
+	// calculate new lightmap sizes
+	qrad_init_globals(this);
+	int newLightDataSz = 0;
+	int totalLightmaps = 0;
+	int lightmapsResizeCount = 0;
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+
+		if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL)
+			continue;
+
+		BSPTEXTUREINFO& info = texInfo[face.iTextureInfo];
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+		int size[2];
+		GetFaceLightmapSize(i, size);
+
+		int lightmapSz = size[0] * size[1];
+
+		newLightmaps[i].width = size[0];
+		newLightmaps[i].height = size[1];
+		newLightmaps[i].layers = oldLightmaps[i].layers;
+
+		newLightDataSz += (lightmapSz * newLightmaps[i].layers) * sizeof(COLOR3);
+
+		totalLightmaps += newLightmaps[i].layers;
+		if (oldLightmaps[i].width != newLightmaps[i].width || oldLightmaps[i].height != newLightmaps[i].height) {
+			lightmapsResizeCount += newLightmaps[i].layers;
+		}
+	}
+
+	if (lightmapsResizeCount > 0) {
+		printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
+
+		int newColorCount = newLightDataSz / sizeof(COLOR3);
+		COLOR3* newLightData = new COLOR3[newColorCount];
+		memset(newLightData, 255, newColorCount * sizeof(COLOR3));
+		int lightmapOffset = 0;
+
+
+		for (int i = 0; i < faceCount; i++) {
+			BSPFACE& face = faces[i];
+
+			if (i % (faceCount / 3) == 0) {
+				printf(".");
+			}
+
+			if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
+				continue;
+
+			LIGHTMAP& oldLight = oldLightmaps[i];
+			LIGHTMAP& newLight = newLightmaps[i];
+			int oldLayerSz = (oldLight.width * oldLight.height) * sizeof(COLOR3);
+			int newLayerSz = (newLight.width * newLight.height) * sizeof(COLOR3);
+			int oldSz = oldLayerSz * oldLight.layers;
+			int newSz = newLayerSz * newLight.layers;
+
+			totalLightmaps++;
+
+			if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
+				memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+			}
+			else {
+				qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
+
+				int maxWidth = min(newLight.width, oldLight.width);
+				int maxHeight = min(newLight.height, oldLight.height);
+
+				int srcOffsetX, srcOffsetY;
+				get_lightmap_shift(oldLight, newLight, srcOffsetX, srcOffsetY);
+
+				for (int layer = 0; layer < newLight.layers; layer++) {
+					int srcOffset = (face.nLightmapOffset + oldLayerSz * layer) / sizeof(COLOR3);
+					int dstOffset = (lightmapOffset + newLayerSz * layer) / sizeof(COLOR3);
+
+					int startX = newLight.width > oldLight.width ? -1 : 0;
+					int startY = newLight.height > oldLight.height ? -1 : 0;
+
+					for (int y = startY; y < newLight.height; y++) {
+						for (int x = startX; x < newLight.width; x++) {
+							int offsetX = x + srcOffsetX;
+							int offsetY = y + srcOffsetY;
+
+							int srcX = oldLight.width > newLight.width ? offsetX : x;
+							int srcY = oldLight.height > newLight.height ? offsetY : y;
+							int dstX = newLight.width > oldLight.width ? offsetX : x;
+							int dstY = newLight.height > oldLight.height ? offsetY : y;
+
+							srcX = max(0, min(oldLight.width - 1, srcX));
+							srcY = max(0, min(oldLight.height - 1, srcY));
+							dstX = max(0, min(newLight.width - 1, dstX));
+							dstY = max(0, min(newLight.height - 1, dstY));
+
+							COLOR3& src = lightdata[srcOffset + srcY * oldLight.width + srcX];
+							COLOR3& dst = newLightData[dstOffset + dstY * newLight.width + dstX];
+
+							dst = src;
+						}
+					}
+				}
+			}
+
+			face.nLightmapOffset = lightmapOffset;
+			lightmapOffset += newSz;
+		}
+
+		delete[] this->lumps[LUMP_LIGHTING];
+		this->lumps[LUMP_LIGHTING] = (byte*)newLightData;
+		header.lump[LUMP_LIGHTING].nLength = lightmapOffset;
+	}
 }
 
 void Bsp::split_shared_model_structures() {
