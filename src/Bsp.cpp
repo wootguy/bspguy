@@ -833,14 +833,11 @@ void Bsp::print_info() {
 	print_stat("entities", entCount, MAX_MAP_ENTS, false);
 }
 
-void Bsp::print_bsp() {
-	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];		
+void Bsp::print_model_bsp(int modelIdx) {
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
 
-	for (int i = 0; i < header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL); i++) {
-		int node = models[i].iHeadnodes[0];
-		printf("\nModel %02d\n", i);
-		recurse_node(node, 0);
-	}
+	int node = models[modelIdx].iHeadnodes[0];
+	recurse_node(node, 0);
 }
 
 void Bsp::print_clipnode_tree(int iNode, int depth) {
@@ -851,18 +848,19 @@ void Bsp::print_clipnode_tree(int iNode, int depth) {
 	}
 
 	if (iNode < 0) {
-		cout << "CONTENTS: " << iNode << endl;
+		print_contents(iNode);
+		printf("\n");
 		return;
 	}
 	else {
-		cout << "NODE " << iNode << endl;
+		BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+		BSPPLANE& plane = planes[clipnodes[iNode].iPlane];
+		printf("NODE (%.2f, %.2f, %.2f) @ %.2f\n", plane.vNormal.x, plane.vNormal.y, plane.vNormal.z, plane.fDist);
 	}
 	
 
 	for (int i = 0; i < 2; i++) {
-		if (clipnodes[iNode].iChildren[i] >= 0) {
-			print_clipnode_tree(clipnodes[iNode].iChildren[i], depth+1);
-		}
+		print_clipnode_tree(clipnodes[iNode].iChildren[i], depth+1);
 	}
 }
 
@@ -873,15 +871,28 @@ void Bsp::print_model_hull(int modelIdx, int hull_number) {
 	}
 
 	// the first hull is used for point-sized clipping, but uses nodes and not clipnodes.
-	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
-		printf("Invalid hull number. Clipnode hull numbers are 1 - %d\n", MAX_MAP_HULLS);
+	if (hull_number < 0 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Clipnode hull numbers are 0 - %d\n", MAX_MAP_HULLS);
 		return;
 	}
 
 	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
 
-	printf("Model %d Hull %d\n", modelIdx, hull_number);
-	print_clipnode_tree(model.iHeadnodes[hull_number], 0);
+	printf("Model %d Hull %d - %s\n", modelIdx, hull_number, get_model_usage(modelIdx).c_str());
+
+	if (hull_number == 0)
+		print_model_bsp(modelIdx);
+	else
+		print_clipnode_tree(model.iHeadnodes[hull_number], 0);
+}
+
+string Bsp::get_model_usage(int modelIdx) {
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->getBspModelIdx() == modelIdx) {
+			return "\"" + ents[i]->keyvalues["targetname"] + "\" (" + ents[i]->keyvalues["classname"] + ")";
+		}
+	}
+	return "(unused)";
 }
 
 void Bsp::recurse_node(int16_t nodeIdx, int depth) {
@@ -1053,7 +1064,6 @@ void Bsp::remap_clipnode_structures(int iNode, REMAPINFO* remapInfo) {
 		}
 	}
 }
-
 
 void Bsp::remap_model_structures(int modelIdx, REMAPINFO* remapInfo) {
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
@@ -1399,39 +1409,42 @@ void Bsp::write_csg_polys(int16_t nodeIdx, FILE* polyfile, int flipPlaneSkip, bo
 	}
 }
 
-void Bsp::print_leaf(BSPLEAF leaf) {
-	switch (leaf.nContents) {
-		case CONTENTS_EMPTY:
-			cout << "EMPTY"; break;
-		case CONTENTS_SOLID:
-			cout << "SOLID"; break;
-		case CONTENTS_WATER:
-			cout << "WATER"; break;
-		case CONTENTS_SLIME:
-			cout << "SLIME"; break;
-		case CONTENTS_LAVA:
-			cout << "LAVA"; break;
-		case CONTENTS_SKY:
-			cout << "SKY"; break;
-		case CONTENTS_ORIGIN:
-			cout << "ORIGIN"; break;
-		case CONTENTS_CURRENT_0:
-			cout << "CURRENT_0"; break;
-		case CONTENTS_CURRENT_90:
-			cout << "CURRENT_90"; break;
-		case CONTENTS_CURRENT_180:
-			cout << "CURRENT_180"; break;
-		case CONTENTS_CURRENT_270:
-			cout << "CURRENT_270"; break;
-		case CONTENTS_CURRENT_UP:
-			cout << "CURRENT_UP"; break;
-		case CONTENTS_CURRENT_DOWN:
-			cout << "CURRENT_DOWN"; break;
-		case CONTENTS_TRANSLUCENT:
-			cout << "TRANSLUCENT"; break;
-		default:
-			cout << "UNKNOWN"; break;
+void Bsp::print_contents(int contents) {
+	switch (contents) {
+	case CONTENTS_EMPTY:
+		cout << "EMPTY"; break;
+	case CONTENTS_SOLID:
+		cout << "SOLID"; break;
+	case CONTENTS_WATER:
+		cout << "WATER"; break;
+	case CONTENTS_SLIME:
+		cout << "SLIME"; break;
+	case CONTENTS_LAVA:
+		cout << "LAVA"; break;
+	case CONTENTS_SKY:
+		cout << "SKY"; break;
+	case CONTENTS_ORIGIN:
+		cout << "ORIGIN"; break;
+	case CONTENTS_CURRENT_0:
+		cout << "CURRENT_0"; break;
+	case CONTENTS_CURRENT_90:
+		cout << "CURRENT_90"; break;
+	case CONTENTS_CURRENT_180:
+		cout << "CURRENT_180"; break;
+	case CONTENTS_CURRENT_270:
+		cout << "CURRENT_270"; break;
+	case CONTENTS_CURRENT_UP:
+		cout << "CURRENT_UP"; break;
+	case CONTENTS_CURRENT_DOWN:
+		cout << "CURRENT_DOWN"; break;
+	case CONTENTS_TRANSLUCENT:
+		cout << "TRANSLUCENT"; break;
+	default:
+		cout << "UNKNOWN"; break;
 	}
+}
 
+void Bsp::print_leaf(BSPLEAF leaf) {
+	print_contents(leaf.nContents);
 	cout << " " << leaf.nMarkSurfaces << " surfs";
 }

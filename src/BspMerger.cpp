@@ -252,7 +252,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 				// re-enable when map is loading
 				if (load_map_triggers[source_map].find(tname) == load_map_triggers[source_map].end()) {
 					load_map_triggers[source_map].insert(tname);
-					cout << "-   Disabling spawn points in " << source_map << endl;
+					//cout << "-   Disabling spawn points in " << source_map << endl;
 				}
 			}
 			if (cname.find("monster_") == 0 && !(spawnflags & 1)) { // not "wait till seen"
@@ -266,7 +266,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 				// re-enable when map is loading
 				if (load_map_triggers[source_map].find(tname) == load_map_triggers[source_map].end()) {
 					load_map_triggers[source_map].insert(tname);
-					cout << "-   Disabling monster_* in " << source_map << endl;
+					//cout << "-   Disabling monster_* in " << source_map << endl;
 				}
 			}
 		}
@@ -285,8 +285,8 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 
 			string newTriggerTarget = load_section_prefix + map;
 
-			cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
-			cout << "        with: ";
+			//cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
+			//cout << "        with: ";
 
 			if (spawnflags & 2) { // USE Only
 				if (tname.empty())
@@ -301,7 +301,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 				ent->addKeyvalue("delay", "0");
 				ent->addKeyvalue("classname", "trigger_relay");
 
-				cout << "trigger_relay -> " << newTriggerTarget << endl;
+				//cout << "trigger_relay -> " << newTriggerTarget << endl;
 			}
 			else {
 				string model = ent->keyvalues["model"];
@@ -311,7 +311,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sou
 				ent->addKeyvalue("target", newTriggerTarget);
 				ent->addKeyvalue("classname", "trigger_once");
 
-				cout << "trigger_once -> " << newTriggerTarget << endl;
+				//cout << "trigger_once -> " << newTriggerTarget << endl;
 			}
 
 			string cleanup_trigger = "bspguy_clean_" + source_map;
@@ -729,6 +729,8 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedPlanes.size() * sizeof(BSPPLANE);
 	int duplicates = (numThisPlanes + numOtherPlanes) - mergedPlanes.size();
+
+	//printf("\nRemoved %d duplicate planes\n", duplicates);
 
 	delete[] mapA.lumps[LUMP_PLANES];
 	mapA.lumps[LUMP_PLANES] = new byte[newLen];
@@ -1216,7 +1218,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	// other map's submodels
 	for (int i = 1; i < otherModelCount; i++) {
 		BSPMODEL model = otherModels[i];
-		model.iHeadnodes[0] += thisNodeCount + 1;
+		model.iHeadnodes[0] += thisNodeCount; // already includes new head nodes (merge_nodes comes after create_merge_headnodes)
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (model.iHeadnodes[k] >= 0)
 				model.iHeadnodes[k] += thisClipnodeCount;

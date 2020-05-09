@@ -219,7 +219,6 @@ public:
 	void write(string path);
 
 	void print_info();
-	void print_bsp();
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
@@ -262,9 +261,13 @@ private:
 	// to the qrad code. Shifts apply to one or both of the lightmaps, depending on which dimension is bigger.
 	void get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY);
 
+	void print_model_bsp(int modelIdx);
 	void print_leaf(BSPLEAF leaf);
+	void print_contents(int contents);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
+
+	string get_model_usage(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 

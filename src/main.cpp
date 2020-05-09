@@ -6,8 +6,7 @@
 
 // super todo:
 // black lightmaps all over the place
-// water not moved
-// huge lag (no vis?) in some spots
+// ents with same name will conflict (m60 tank)
 
 // Ideas for commands:
 // optimize:
@@ -41,12 +40,11 @@ int merge_maps(vector<string> options) {
 	*/
 
 	vector<Bsp*> maps;
-	for (int i = 0; i < 21; i++) {
-		if (i < 12 || i == 20)
+	for (int i = 1; i < 22; i++) {
+		if (i < 7)
 			continue;
-		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 0 ? to_string(i + 1) : "") + ".bsp");
-		
-		//map->strip_clipping_hull(2);
+		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
+		map->strip_clipping_hull(2);
 		maps.push_back(map);
 	}
 
