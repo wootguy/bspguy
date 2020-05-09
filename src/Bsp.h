@@ -191,6 +191,7 @@ struct SURFACEINFO
 };
 
 class Bsp;
+struct MOVEINFO;
 
 struct membuf : std::streambuf
 {
@@ -239,6 +240,8 @@ public:
 	// call this after editing ents
 	void update_ent_lump();
 
+	vec3 get_model_center(int modelIdx);
+
 private:
 	bool load_lumps(string fname);
 
@@ -253,11 +256,59 @@ private:
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
-	// move the bounding boxes for iNode and all its children
-	// I'm not sure those values are even used by the game but just in case..
-	void move_nodes(int iNode, vec3 offset);
+	void mark_node_structures(int iNode, MOVEINFO* markList);
+	void mark_clipnode_structures(int iNode, MOVEINFO* markList);
 
 	// mark clipnodes that are children of this iNode.
 	// markList should be big enough to hold every clipnode in the map
 	void mark_clipnodes(int iNode, bool* markList);
+
+	// marks all structures that this model uses
+	void mark_structures(int modelIdx, MOVEINFO* moveInfo);
+};
+
+
+
+// used to mark structures that were moved as a result of moving a model
+struct MOVEINFO
+{
+	bool* nodes;
+	bool* clipnodes;
+	bool* leaves;
+	bool* planes;
+	bool* verts;
+	bool* texInfo;
+
+	MOVEINFO(Bsp* map) {
+		int planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+		int texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+		int leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+		int nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+		int clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+		int vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+		int faceCount = map->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+		nodes = new bool[nodeCount];
+		clipnodes = new bool[clipnodeCount];
+		leaves = new bool[leafCount];
+		planes = new bool[planeCount];
+		verts = new bool[vertCount];
+		texInfo = new bool[texInfoCount];
+
+		memset(nodes, 0, nodeCount * sizeof(bool));
+		memset(clipnodes, 0, clipnodeCount * sizeof(bool));
+		memset(leaves, 0, leafCount * sizeof(bool));
+		memset(planes, 0, planeCount * sizeof(bool));
+		memset(verts, 0, vertCount * sizeof(bool));
+		memset(texInfo, 0, texInfoCount * sizeof(bool));
+	}
+
+	~MOVEINFO() {
+		delete[] nodes;
+		delete[] clipnodes;
+		delete[] leaves;
+		delete[] planes;
+		delete[] verts;
+		delete[] texInfo;
+	}
 };
