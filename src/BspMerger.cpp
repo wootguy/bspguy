@@ -1460,23 +1460,31 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	//cout << oldLen << " -> " << header.lump[LUMP_LIGHTING].nLength << endl;
 }
 
-bool BspMerger::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
-	byte bitsPerStep = 64;
+bool BspMerger::shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
+	byte bitsPerStep = 8;
 	byte offsetBit = offsetLeaf % bitsPerStep;
 	uint64 mask = 0; // part of the byte that shouldn't be shifted
 	for (int i = 0; i < offsetBit; i++) {
 		mask |= 1 << i;
 	}
 
-	len /= 8; // byte -> uint64 (vis rows are always divisible by 8)
+	int byteShifts = shift / 8;
+	int bitShifts = shift % 8;
+
+	// shift until offsetLeaf isn't sharing a byte with the leaves that come before it
+	// then we can do a much faster memcpy on the section that needs to be shifted
+	if ((offsetLeaf % 8) + bitShifts < 8 && byteShifts > 0) {
+		byteShifts -= 1;
+		bitShifts += 8;
+	}
 
 	int overflow = 0;
-	for (int k = 0; k < shift; k++) {
+	for (int k = 0; k < bitShifts; k++) {
 
 		bool carry = 0;
 		for (int i = 0; i < len; i++) {
-			uint64 oldCarry = carry;
-			carry = (vis[i] & 0x8000000000000000L) != 0;
+			uint oldCarry = carry;
+			carry = (vis[i] & 0x80) != 0;
 
 			if (offsetBit != 0 && i * bitsPerStep < offsetLeaf && i * bitsPerStep + bitsPerStep > offsetLeaf) {
 				vis[i] = (vis[i] & mask) | ((vis[i] & ~mask) << 1);
@@ -1495,6 +1503,20 @@ bool BspMerger::shiftVis(uint64* vis, int len, int offsetLeaf, int shift) {
 	}
 	if (overflow)
 		printf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
+
+
+	if (byteShifts > 0) {
+		// TODO: detect overflows here too
+		static byte temp[MAX_MAP_LEAVES / 8];
+
+		int startByte = (offsetLeaf + bitShifts) / 8;
+		int moveSize = len - (startByte + byteShifts);
+
+		memcpy(temp, (byte*)vis + startByte, moveSize);
+		memset((byte*)vis + startByte, 0, byteShifts);
+		memcpy((byte*)vis + startByte + byteShifts, temp, moveSize);
+
+	}
 
 	return overflow;
 }
@@ -1529,7 +1551,7 @@ void BspMerger::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* outp
 			for (int k = 0; k < visDataLeafCount % 8; k++) {
 				dest[visDataLeafCount / 8] |= 1 << k;
 			}
-			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 			continue;
 		}
 
@@ -1541,7 +1563,7 @@ void BspMerger::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* outp
 		((uint64*)dest)[lastChunkIdx] &= lastChunkMask;
 
 		if (shiftAmount) {
-			shiftVis((uint64*)dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
 		}
 
 		print_merge_progress();

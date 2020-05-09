@@ -65,7 +65,7 @@ private:
 
 	void print_merge_progress();
 
-	bool shiftVis(uint64* vis, int len, int offsetLeaf, int shift);
+	bool shiftVis(byte* vis, int len, int offsetLeaf, int shift);
 
 	// decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
 	// iterationLeaves = number of leaves to decompress vis for
