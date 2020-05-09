@@ -742,6 +742,47 @@ void Bsp::print_bsp() {
 	}
 }
 
+void Bsp::print_clipnode_tree(int iNode, int depth) {
+	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+
+	for (int i = 0; i < depth; i++) {
+		cout << "    ";
+	}
+
+	if (iNode < 0) {
+		cout << "CONTENTS: " << iNode << endl;
+		return;
+	}
+	else {
+		cout << "NODE " << iNode << endl;
+	}
+	
+
+	for (int i = 0; i < 2; i++) {
+		if (clipnodes[iNode].iChildren[i] >= 0) {
+			print_clipnode_tree(clipnodes[iNode].iChildren[i], depth+1);
+		}
+	}
+}
+
+void Bsp::print_model_hull(int modelIdx, int hull_number) {
+	if (modelIdx < 0 || modelIdx > header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) {
+		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
+		return;
+	}
+
+	// the first hull is used for point-sized clipping, but uses nodes and not clipnodes.
+	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Clipnode hull numbers are 1 - %d\n", MAX_MAP_HULLS);
+		return;
+	}
+
+	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
+
+	printf("Model %d Hull %d\n", modelIdx, hull_number);
+	print_clipnode_tree(model.iHeadnodes[hull_number], 0);
+}
+
 void Bsp::recurse_node(int16_t nodeIdx, int depth) {
 
 	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
@@ -886,13 +927,13 @@ int Bsp::strip_clipping_hull(int hull_number) {
 
 	int removed = 0;
 	for (int i = 0; i < modelCount; i++) {
-		removed += strip_clipping_hull(hull_number, i);
+		removed += strip_clipping_hull(hull_number, i, true);
 	}
 
 	return removed;
 }
 
-int Bsp::strip_clipping_hull(int hull_number, int modelIdx) {
+int Bsp::strip_clipping_hull(int hull_number, int modelIdx, bool ignoreSharedIfSameHull) {
 	if (modelIdx < 0 || modelIdx > header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) {
 		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
 		return 0;
@@ -904,30 +945,51 @@ int Bsp::strip_clipping_hull(int hull_number, int modelIdx) {
 		return 0;
 	}
 
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	int thisModelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+
 	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
 
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
 	int numClipnodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
-	bool* shouldRemoveClipnode = new bool[numClipnodes];
 	int* newClipnodeIndex = new int[numClipnodes];
-	memset(shouldRemoveClipnode, 0, numClipnodes * sizeof(bool));
-	
-	mark_clipnodes(model.iHeadnodes[hull_number], shouldRemoveClipnode);
 
-	int removed = 0;
-	for (int i = 0; i < numClipnodes; i++) {
-		if (shouldRemoveClipnode[i]) {
-			removed++;
+	MOVEINFO shouldNotDelete(this);
+	MOVEINFO shouldDelete(this);
+	for (int i = 0; i < thisModelCount; i++) {
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			if (i != modelIdx && k == hull_number && ignoreSharedIfSameHull) {
+				continue;
+			}
+			MOVEINFO* info = (i == modelIdx && k == hull_number) ? &shouldDelete : &shouldNotDelete;
+			if (models[i].iHeadnodes[k] >= 0 && models[i].iHeadnodes[k] < numClipnodes)
+				mark_clipnode_structures(models[i].iHeadnodes[k], info);
 		}
 	}
+
+	int sharedNodes = 0;
+	int removed = 0;
+	for (int i = 0; i < numClipnodes; i++) {
+		if (shouldDelete.clipnodes[i]) {
+			if (shouldNotDelete.clipnodes[i]) {
+				shouldDelete.clipnodes[i] = false;
+				sharedNodes++;
+			}
+			else {
+				removed++;
+			}
+		} 
+	}
+	//if (sharedNodes)
+	//	printf("Not deleting %d clipnodes shared with other models\n", sharedNodes);
 
 	int newNumClipnodes = numClipnodes - removed;
 	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[newNumClipnodes];
 
 	int insertIdx = 0;
 	for (int i = 0; i < numClipnodes; i++) {
-		if (shouldRemoveClipnode[i]) {
-			newClipnodeIndex[i] = -1; // indicate it was removed, also disables the hull if set for headnode
+		if (shouldDelete.clipnodes[i]) {
+			newClipnodeIndex[i] = CONTENTS_EMPTY; // indicate it was removed, also disables the hull if set for headnode
 		}
 		else {
 			newClipnodeIndex[i] = insertIdx;
@@ -945,22 +1007,22 @@ int Bsp::strip_clipping_hull(int hull_number, int modelIdx) {
 		}
 	}
 
-	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
-	int thisModelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
-
 	for (int i = 0; i < thisModelCount; i++) {
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			int32_t& headnode = models[i].iHeadnodes[k];
-			if (headnode >= 0 && headnode < numClipnodes)
+			if (headnode >= 0 && headnode < numClipnodes) {
 				headnode = newClipnodeIndex[headnode];
+			}
 		}
 	}
 
-	delete[] shouldRemoveClipnode;
+	delete[] lumps[LUMP_CLIPNODES];
 	delete[] newClipnodeIndex;
 
 	lumps[LUMP_CLIPNODES] = (byte*)newClipnodes;
 	header.lump[LUMP_CLIPNODES].nLength = newNumClipnodes * sizeof(BSPCLIPNODE);
+
+	// TODO: Remove unused planes
 
 	return removed;
 }

@@ -219,11 +219,14 @@ public:
 
 	void print_info();
 	void print_bsp();
+	void print_model_hull(int modelIdx, int hull);
+	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
 
 	// strips a collision hull from the given model index
-	int strip_clipping_hull(int hull_number, int modelIdx);
+	// ignoreSharedIfSameHull = don't preserve clipnodes shared with other models if hull matches hull_number
+	int strip_clipping_hull(int hull_number, int modelIdx, bool ignoreSharedIfSameHull);
 
 	// strips a collision hull from all models and the world
 	int strip_clipping_hull(int hull_number);
