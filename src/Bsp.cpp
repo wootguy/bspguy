@@ -60,6 +60,8 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 }
 
 bool Bsp::move(vec3 offset) {
+	split_shared_model_structures();
+
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
@@ -139,20 +141,11 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	update_ent_lump();
-
-	// map a verts/plane indexes to a model
-	MOVEINFO shouldBeMoved(this);
-	MOVEINFO shouldNotMove(this);
-
-	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
-	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
-
+	
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
 
 		if (!modelHasOrigin[i]) {
-			mark_structures(i, &shouldBeMoved);
-
 			model.nMins += offset;
 			model.nMaxs += offset;
 
@@ -165,16 +158,16 @@ bool Bsp::move(vec3 offset) {
 				printf("WARNING: Model moved past safe world boundary!");
 			}
 		}
-		else {
-			mark_structures(i, &shouldNotMove);
-		}
+	}
+
+	MOVEINFO shouldBeMoved(this);
+	for (int i = 0; i < modelCount; i++) {
+		if (!modelHasOrigin[i])
+			mark_model_structures(i, &shouldBeMoved);
 	}
 
 	for (int i = 0; i < nodeCount; i++) {
-		if (shouldNotMove.nodes[i]) {
-			if (shouldBeMoved.nodes[i]) {
-				printf("ERROR: Node is shared with models that both do and do not have origins. Something will be broken\n");
-			}
+		if (!shouldBeMoved.nodes[i]) {
 			continue; // don't move submodels with origins
 		}
 
@@ -197,10 +190,7 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	for (int i = 1; i < leafCount; i++) { // don't move the solid leaf (always has 0 size)
-		if (shouldNotMove.leaves[i]) {
-			if (shouldBeMoved.leaves[i]) {
-				printf("ERROR: Leaf %d is shared with models that both do and do not have origins. Something will be broken\n", i);
-			}
+		if (!shouldBeMoved.leaves[i]) {
 			continue; // don't move submodels with origins
 		}
 
@@ -223,10 +213,7 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	for (int i = 0; i < vertCount; i++) {
-		if (shouldNotMove.verts[i]) {
-			if (shouldBeMoved.verts[i]) {
-				printf("ERROR: Vertex is shared with models that both do and do not have origins. Something will be broken\n");
-			}
+		if (!shouldBeMoved.verts[i]) {
 			continue; // don't move submodels with origins
 		}
 
@@ -242,10 +229,7 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	for (int i = 0; i < planeCount; i++) {
-		if (shouldNotMove.planes[i]) {
-			if (shouldBeMoved.planes[i]) {
-				printf("ERROR: Plane is shared with models that both do and do not have origins. Something will be broken\n");
-			}
+		if (!shouldBeMoved.planes[i]) {
 			continue; // don't move submodels with origins
 		}
 
@@ -267,10 +251,7 @@ bool Bsp::move(vec3 offset) {
 	float offsetLen = offset.length();
 
 	for (int i = 0; i < texInfoCount; i++) {
-		if (shouldNotMove.texInfo[i]) {
-			if (shouldBeMoved.texInfo[i]) {
-				printf("ERROR: Plane is shared with models that both do and do not have origins. Something will be broken\n");
-			}
+		if (!shouldBeMoved.texInfo[i]) {
 			continue; // don't move submodels with origins
 		}
 
@@ -425,6 +406,126 @@ bool Bsp::move(vec3 offset) {
 	printf("\n");
 
 	return true;
+}
+
+void Bsp::split_shared_model_structures() {
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+
+
+	bool* modelHasOrigin = new bool[modelCount];
+	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->hasKey("origin") && ents[i]->isBspModel()) {
+			modelHasOrigin[ents[i]->getBspModelIdx()] = true;
+		}
+	}
+
+	// marks which structures should be/not be moved
+	MOVEINFO shouldNotMove(this);
+
+	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+
+	for (int i = 0; i < modelCount; i++) {
+		if (modelHasOrigin[i])
+			mark_model_structures(i, &shouldNotMove);
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		if (!modelHasOrigin[i]) {
+			remap_shared_model_structures(i, &shouldNotMove);
+		}
+	}
+
+	delete[] modelHasOrigin;
+}
+
+void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) {
+	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
+
+	MOVEINFO stuffToMove(this);
+	mark_model_structures(modelIdx, &stuffToMove);
+
+	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
+	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+
+	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+	REMAPINFO remappedStuff(this);
+
+	// TODO: handle all of these, assuming it's possible these are ever shared
+	for (int i = 0; i < doNotMoveLists->clipnodeCount; i++) {
+		if (stuffToMove.clipnodes[i] && doNotMoveLists->clipnodes[i]) {
+			printf("Error: clipnode shared with models of different origin types. Something will break.\n");
+			break;
+		}
+	}
+	for (int i = 1; i < doNotMoveLists->leafCount; i++) { // skip solid leaf - it doesn't matter
+		if (stuffToMove.leaves[i] && doNotMoveLists->leaves[i]) {
+			printf("Error: leaf shared with models of different origin types. Something will break.\n");
+			break;
+		}
+	}
+	for (int i = 0; i < doNotMoveLists->nodeCount; i++) {
+		if (stuffToMove.nodes[i] && doNotMoveLists->nodes[i]) {
+			printf("Error: leaf shared with models of different origin types. Something will break.\n");
+			break;
+		}
+	}
+	for (int i = 0; i < doNotMoveLists->texInfoCount; i++) {
+		if (stuffToMove.texInfo[i] && doNotMoveLists->texInfo[i]) {
+			printf("Error: texinfo shared with models of different origin types. Something will break.\n");
+			break;
+		}
+	}
+
+	int duplicateCount = 0;
+	for (int i = 0; i < doNotMoveLists->planeCount; i++) {
+		if (stuffToMove.planes[i] && doNotMoveLists->planes[i]) {
+			duplicateCount++;
+		}
+	}
+	int newPlaneCount = planeCount + duplicateCount;
+
+	BSPPLANE* newPlanes = new BSPPLANE[newPlaneCount];
+	memcpy(newPlanes, planes, planeCount *sizeof(BSPPLANE));
+
+	int addIdx = planeCount;
+	for (int i = 0; i < doNotMoveLists->planeCount; i++) {
+		if (stuffToMove.planes[i] && doNotMoveLists->planes[i]) {
+			// TODO: Check if there's an existing plane that can be used that is not in the do-not-move list
+			newPlanes[addIdx] = planes[i];
+			remappedStuff.planes[i] = addIdx;
+			addIdx++;
+		}
+		else {
+			remappedStuff.planes[i] = i;
+		}
+	}
+
+	if (duplicateCount)
+		printf("Duplicated %d shared model planes to allow independent movement\n", duplicateCount);
+
+	delete lumps[LUMP_PLANES];
+	lumps[LUMP_PLANES] = (byte*)newPlanes;
+	header.lump[LUMP_PLANES].nLength = newPlaneCount * sizeof(BSPPLANE);
+
+	remap_model_structures(modelIdx, &remappedStuff);
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
@@ -904,12 +1005,7 @@ void Bsp::mark_clipnode_structures(int iNode, MOVEINFO* markList) {
 	}
 }
 
-void Bsp::mark_structures(int modelIdx, MOVEINFO* moveInfo) {
-	if (modelIdx < 0 || modelIdx > header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) {
-		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
-		return;
-	}
-
+void Bsp::mark_model_structures(int modelIdx, MOVEINFO* moveInfo) {
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
 	int numClipnodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 
@@ -919,6 +1015,56 @@ void Bsp::mark_structures(int modelIdx, MOVEINFO* moveInfo) {
 	for (int k = 1; k < MAX_MAP_HULLS; k++) {
 		if (model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] < numClipnodes)
 			mark_clipnode_structures(model.iHeadnodes[k], moveInfo);
+	}
+}
+
+void Bsp::remap_node_structures(int iNode, REMAPINFO* remapInfo) {
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+
+	BSPNODE& node = nodes[iNode];
+
+	node.iPlane = remapInfo->planes[node.iPlane];
+
+	for (int i = 0; i < node.nFaces; i++) {
+		BSPFACE& face = faces[node.firstFace + i];
+		face.iPlane = remapInfo->planes[face.iPlane];
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			remap_node_structures(node.iChildren[i], remapInfo);
+		}
+	}
+}
+
+void Bsp::remap_clipnode_structures(int iNode, REMAPINFO* remapInfo) {
+	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+	BSPCLIPNODE& node = clipnodes[iNode];
+
+	node.iPlane = remapInfo->planes[node.iPlane];
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			remap_clipnode_structures(clipnodes[iNode].iChildren[i], remapInfo);
+		}
+	}
+}
+
+
+void Bsp::remap_model_structures(int modelIdx, REMAPINFO* remapInfo) {
+	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+	int numClipnodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+
+	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
+
+	remap_node_structures(model.iHeadnodes[0], remapInfo);
+	for (int k = 1; k < MAX_MAP_HULLS; k++) {
+		if (model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] < numClipnodes)
+			remap_clipnode_structures(model.iHeadnodes[k], remapInfo);
 	}
 }
 

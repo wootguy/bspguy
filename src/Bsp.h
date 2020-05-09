@@ -192,6 +192,7 @@ struct SURFACEINFO
 
 class Bsp;
 struct MOVEINFO;
+struct REMAPINFO;
 
 struct membuf : std::streambuf
 {
@@ -246,6 +247,14 @@ public:
 	vec3 get_model_center(int modelIdx);
 
 private:
+
+	// for each model, split structures that are shared with models that both have and don't have an origin
+	void split_shared_model_structures();
+
+	// If one if it's structures is marked in the doNotMoveList, then it will be duplicated and
+	// all references to it will be updated in this model.
+	void remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists);
+
 	bool load_lumps(string fname);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
@@ -259,15 +268,19 @@ private:
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
-	void mark_node_structures(int iNode, MOVEINFO* markList);
-	void mark_clipnode_structures(int iNode, MOVEINFO* markList);
-
 	// mark clipnodes that are children of this iNode.
 	// markList should be big enough to hold every clipnode in the map
 	void mark_clipnodes(int iNode, bool* markList);
 
 	// marks all structures that this model uses
-	void mark_structures(int modelIdx, MOVEINFO* moveInfo);
+	void mark_model_structures(int modelIdx, MOVEINFO* moveInfo);
+	void mark_node_structures(int iNode, MOVEINFO* markList);
+	void mark_clipnode_structures(int iNode, MOVEINFO* markList);
+
+	// remaps structure indexes to new locations
+	void remap_model_structures(int modelIdx, REMAPINFO* remapInfo);
+	void remap_node_structures(int iNode, REMAPINFO* remapInfo);
+	void remap_clipnode_structures(int iNode, REMAPINFO* remapInfo);
 };
 
 
@@ -282,14 +295,20 @@ struct MOVEINFO
 	bool* verts;
 	bool* texInfo;
 
+	int planeCount;
+	int texInfoCount;
+	int leafCount;
+	int nodeCount;
+	int clipnodeCount;
+	int vertCount;
+
 	MOVEINFO(Bsp* map) {
-		int planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
-		int texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
-		int leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
-		int nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
-		int clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
-		int vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
-		int faceCount = map->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+		planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+		texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+		leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+		nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+		clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+		vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
 
 		nodes = new bool[nodeCount];
 		clipnodes = new bool[clipnodeCount];
@@ -307,6 +326,56 @@ struct MOVEINFO
 	}
 
 	~MOVEINFO() {
+		delete[] nodes;
+		delete[] clipnodes;
+		delete[] leaves;
+		delete[] planes;
+		delete[] verts;
+		delete[] texInfo;
+	}
+};
+
+// used to remap structure indexes to new locations
+struct REMAPINFO
+{
+	int* nodes;
+	int* clipnodes;
+	int* leaves;
+	int* planes;
+	int* verts;
+	int* texInfo;
+
+	int planeCount;
+	int texInfoCount;
+	int leafCount;
+	int nodeCount;
+	int clipnodeCount;
+	int vertCount;
+
+	REMAPINFO(Bsp* map) {
+		planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+		texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+		leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+		nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+		clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+		vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+
+		nodes = new int[nodeCount];
+		clipnodes = new int[clipnodeCount];
+		leaves = new int[leafCount];
+		planes = new int[planeCount];
+		verts = new int[vertCount];
+		texInfo = new int[texInfoCount];
+
+		memset(nodes, 0, nodeCount * sizeof(int));
+		memset(clipnodes, 0, clipnodeCount * sizeof(int));
+		memset(leaves, 0, leafCount * sizeof(int));
+		memset(planes, 0, planeCount * sizeof(int));
+		memset(verts, 0, vertCount * sizeof(int));
+		memset(texInfo, 0, texInfoCount * sizeof(int));
+	}
+
+	~REMAPINFO() {
 		delete[] nodes;
 		delete[] clipnodes;
 		delete[] leaves;
