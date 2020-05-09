@@ -1,5 +1,7 @@
 #include "BspMerger.h"
 #include <algorithm>
+#include <map>
+#include <set>
 #include "vis.h"
 
 BspMerger::BspMerger() {
@@ -11,6 +13,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 
 	printf("Arranging maps so that they don't overlap:\n");
 
+	bool is_map_series = true;
+
 	for (int z = 0; z < blocks.size(); z++) {
 		for (int y = 0; y < blocks[z].size(); y++) {
 			for (int x = 0; x < blocks[z][y].size(); x++) {
@@ -20,6 +24,13 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 					printf("    Move %s by (%.0f, %.0f, %.0f)", block.map->name.c_str(), 
 						block.offset.x, block.offset.y, block.offset.z);
 					block.map->move(block.offset);
+				}
+
+				if (is_map_series) {
+					// tag ents with the map they belong to
+					for (int i = 0; i < block.map->ents.size(); i++) {
+						block.map->ents[i]->addKeyvalue("$s_bspguy_map_source", toLowerCase(block.map->name));
+					}
 				}
 			}
 		}
@@ -76,7 +87,14 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 		}
 	}
 
-	return layerStart.map;
+	Bsp* output = layerStart.map;
+
+	if (is_map_series) {
+		printf("Updating map series entity logic:\n");
+		update_map_series_entity_logic(output, maps);
+	}
+
+	return output;
 }
 
 void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
@@ -138,7 +156,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	int maxMapsPerLayer = (MAX_MAP_COORD * 2.0f) / maxDims.z;
 
 	int idealMapsPerAxis = floor(pow(maps.size(), 1 / 3.0f));
-	
+
 	if (idealMapsPerAxis * idealMapsPerAxis * idealMapsPerAxis < maps.size()) {
 		idealMapsPerAxis++;
 	}
@@ -151,13 +169,12 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	vec3 mergedMapSize = maxDims * (float)idealMapsPerAxis;
 	vec3 mergedMapMin = maxDims * -0.5f;
 
-	printf("Max map size: %.0f %.0f %.0f\n", maxDims.x, maxDims.y, maxDims.z);
-	printf("Max maps per axis: x=%d y=%d z=%d\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer);
-	printf("Max maps of this size: %d\n", maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
+	printf("Max map size: width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);
+	printf("Max maps per axis: x=%d y=%d z=%d  (total=%d)\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer, maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
 
 	int actualWidth = min(idealMapsPerAxis, (int)maps.size());
 	int actualLength = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis)));
-	int actualHeight = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis*idealMapsPerAxis)));
+	int actualHeight = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis * idealMapsPerAxis)));
 	printf("Merged map dimensions: %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
 
 	vec3 targetMins = mergedMapMin;
@@ -189,6 +206,233 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 
 	return orderedBlocks;
 }
+
+typedef map< string, set<string> > maptriggers;
+
+void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sourceMaps) {
+	int originalEntCount = mergedMap->ents.size();
+
+	const string load_section_prefix = "bspguy_setup_";
+
+	// things to trigger when loading a new map
+	maptriggers load_map_triggers;
+
+	cout << "First map is " << sourceMaps[0]->name << endl;
+
+	for (int i = 0; i < originalEntCount; i++) {
+		Entity* ent = mergedMap->ents[i];
+		string cname = ent->keyvalues["classname"];
+		string tname = ent->keyvalues["targetname"];
+		string source_map = ent->keyvalues["$s_bspguy_map_source"];
+		int spawnflags = atoi(ent->keyvalues["spawnflags"].c_str());
+		bool isInFirstMap = toLowerCase(source_map) == toLowerCase(sourceMaps[0]->name);
+		vec3 origin;
+
+		if (ent->hasKey("origin")) {
+			origin = Keyvalue("origin", ent->keyvalues["origin"]).getVector();
+		}
+		if (ent->isBspModel()) {
+			origin = mergedMap->get_model_center(ent->getBspModelIdx());
+		}
+
+		if (cname == "info_player_start" || cname == "info_player_coop" || cname == "info_player_dm2") {
+			cname = ent->keyvalues["classname"] = "info_player_deathmatch";
+		}
+
+		if (!isInFirstMap) {
+			if (cname == "info_player_deathmatch" && !(spawnflags & 2)) { // not start off
+				// disable spawns in all but the first map
+				ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags | 2));
+
+				if (tname.empty()) {
+					tname = "bspguy_spawns_" + source_map;
+					ent->setOrAddKeyvalue("targetname", tname);
+				}
+
+				// re-enable when map is loading
+				if (load_map_triggers[source_map].find(tname) == load_map_triggers[source_map].end()) {
+					load_map_triggers[source_map].insert(tname);
+					cout << "-   Disabling spawn points in " << source_map << endl;
+				}
+			}
+			if (cname.find("monster_") == 0 && !(spawnflags & 1)) { // not "wait till seen"
+				if (tname.empty()) {
+					tname = "bspguy_npcs_" + source_map;
+					ent->setOrAddKeyvalue("targetname", tname);
+				}
+
+				ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags | 1));
+
+				// re-enable when map is loading
+				if (load_map_triggers[source_map].find(tname) == load_map_triggers[source_map].end()) {
+					load_map_triggers[source_map].insert(tname);
+					cout << "-   Disabling monster_* in " << source_map << endl;
+				}
+			}
+		}
+
+		if (cname == "trigger_changelevel") {
+			string map = toLowerCase(ent->keyvalues["map"]);
+			bool isMergedMap = false;
+			for (int i = 0; i < sourceMaps.size(); i++) {
+				if (map == toLowerCase(sourceMaps[i]->name)) {
+					isMergedMap = true;
+				}
+			}
+			if (!isMergedMap) {
+				continue; // probably the last map in the merge set
+			}
+
+			string newTriggerTarget = load_section_prefix + map;
+
+			cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
+			cout << "        with: ";
+
+			if (spawnflags & 2) { // USE Only
+				if (tname.empty())
+					cout << "Warning: use-only trigger_changelevel has no targetname\n";
+				
+				ent->clearAllKeyvalues();
+				ent->addKeyvalue("origin", origin.toKeyvalueString());
+				ent->addKeyvalue("targetname", tname);
+				ent->addKeyvalue("target", newTriggerTarget);
+				ent->addKeyvalue("spawnflags", "1"); // remove on fire
+				ent->addKeyvalue("triggerstate", "0");
+				ent->addKeyvalue("delay", "0");
+				ent->addKeyvalue("classname", "trigger_relay");
+
+				cout << "trigger_relay -> " << newTriggerTarget << endl;
+			}
+			else {
+				string model = ent->keyvalues["model"];
+
+				ent->clearAllKeyvalues();
+				ent->addKeyvalue("model", model);
+				ent->addKeyvalue("target", newTriggerTarget);
+				ent->addKeyvalue("classname", "trigger_once");
+
+				cout << "trigger_once -> " << newTriggerTarget << endl;
+			}
+
+			string cleanup_trigger = "bspguy_clean_" + source_map;
+			string cleanup_trigger2 = "bspguy_clean2_" + source_map;
+			string cleanup_trigger3 = "bspguy_clean3_" + source_map;
+			string cleanup_trigger4 = "bspguy_clean4_" + source_map;
+			// ".ent_create trigger_changevalue "targetname:kill_me:target:!activator:m_iszValueName:targetname:m_iszNewValue:bee_gun:message:kill_me2"
+
+			if (load_map_triggers[map].find(cleanup_trigger) == load_map_triggers[map].end()) {
+				load_map_triggers[map].insert(cleanup_trigger);
+
+				// delete all entities in this map
+
+				
+				{	// kill spawn points ASAP so everyone can respawn in the new map right away
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("origin", origin.toKeyvalueString());
+					cleanup_ent->addKeyvalue("targetname", cleanup_trigger);
+					cleanup_ent->addKeyvalue("classname_filter", "info_player_*");
+					cleanup_ent->addKeyvalue("target", cleanup_trigger2);
+					cleanup_ent->addKeyvalue("triggerstate", "2"); // toggle
+					cleanup_ent->addKeyvalue("delay_between_triggers", "0.0");
+					cleanup_ent->addKeyvalue("trigger_after_run", "bspguy_finish_clean");
+					cleanup_ent->addKeyvalue("classname", "trigger_entity_iterator");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+				{	// kill ALL entities in the map slower to avoid FSB_OVERFLOW crash
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("origin", origin.toKeyvalueString());
+					cleanup_ent->addKeyvalue("targetname", cleanup_trigger);
+					cleanup_ent->addKeyvalue("classname_filter", "monster_*");
+					cleanup_ent->addKeyvalue("target", cleanup_trigger2);
+					cleanup_ent->addKeyvalue("triggerstate", "2"); // toggle
+					cleanup_ent->addKeyvalue("delay_between_triggers", "0.0");
+					cleanup_ent->addKeyvalue("trigger_after_run", "bspguy_finish_clean");
+					cleanup_ent->addKeyvalue("classname", "trigger_entity_iterator");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+				{	// check if entity is owned by the map that is was just completed
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("origin", origin.toKeyvalueString());
+					cleanup_ent->addKeyvalue("targetname", cleanup_trigger2);
+					cleanup_ent->addKeyvalue("target", "!activator");
+					cleanup_ent->addKeyvalue("m_iszValueName", "$s_bspguy_map_source");
+					cleanup_ent->addKeyvalue("m_iszCheckValue", source_map);
+					cleanup_ent->addKeyvalue("netname", cleanup_trigger3); // true case
+					cleanup_ent->addKeyvalue("spawnflags", "96"); // cyclic + keep !activator
+					cleanup_ent->addKeyvalue("classname", "trigger_condition");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+				{	// check if the entity is EF_NODRAW so that weapons aren't stripped from players
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("origin", origin.toKeyvalueString());
+					cleanup_ent->addKeyvalue("targetname", cleanup_trigger3);
+					cleanup_ent->addKeyvalue("target", "!activator");
+					cleanup_ent->addKeyvalue("m_iszValueName", "effects");
+					cleanup_ent->addKeyvalue("m_iszCheckValue", "128"); // EF_NODRAW
+					cleanup_ent->addKeyvalue("m_iCheckType", "6"); // Logical AND
+					cleanup_ent->addKeyvalue("message", cleanup_trigger4); // false case
+					cleanup_ent->addKeyvalue("spawnflags", "96"); // cyclic + keep !activator
+					cleanup_ent->addKeyvalue("classname", "trigger_condition");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+				{	// mark the entity for killing
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("origin", origin.toKeyvalueString());
+					cleanup_ent->addKeyvalue("targetname", cleanup_trigger4);
+					cleanup_ent->addKeyvalue("target", "!activator");
+					cleanup_ent->addKeyvalue("m_iszValueName", "targetname");
+					cleanup_ent->addKeyvalue("m_iszNewValue", "bspguy_kill_me");
+					//cleanup_ent->addKeyvalue("message", "bspguy_test");
+					cleanup_ent->addKeyvalue("classname", "trigger_changevalue");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+				{
+					Entity* cleanup_ent = new Entity();
+					cleanup_ent->addKeyvalue("targetname", "bspguy_test");
+					cleanup_ent->addKeyvalue("message", "OMG BSPGUY TEST");
+					cleanup_ent->addKeyvalue("spawnflags", "1");
+					cleanup_ent->addKeyvalue("classname", "game_text");
+					mergedMap->ents.push_back(cleanup_ent);
+				}
+			}
+		}
+	}
+
+	Entity* respawn_all_ent = new Entity();
+	respawn_all_ent->addKeyvalue("targetname", "bspguy_respawn_everyone");
+	respawn_all_ent->addKeyvalue("classname", "trigger_respawn");
+	mergedMap->ents.push_back(respawn_all_ent);
+
+	Entity* finish_clean_ent = new Entity();
+	finish_clean_ent->addKeyvalue("targetname", "bspguy_finish_clean");
+	finish_clean_ent->addKeyvalue("bspguy_test", "0");
+	finish_clean_ent->addKeyvalue("bspguy_kill_me", "0#2"); // kill ents in previous map
+	finish_clean_ent->addKeyvalue("classname", "multi_manager");
+	mergedMap->ents.push_back(finish_clean_ent);
+
+	for (auto it = load_map_triggers.begin(); it != load_map_triggers.end(); ++it) {
+		Entity* map_setup = new Entity();
+
+		map_setup->addKeyvalue("origin", "0 0 0");
+		
+
+		int triggerCount = 0;
+		for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+			map_setup->addKeyvalue(*it2, "0");
+			triggerCount++;
+		}
+		
+		map_setup->addKeyvalue("bspguy_respawn_everyone", "1"); // respawn in new spots
+
+		map_setup->addKeyvalue("targetname", load_section_prefix + it->first);
+		map_setup->addKeyvalue("classname", "multi_manager");
+
+		mergedMap->ents.push_back(map_setup);
+	}
+
+	mergedMap->update_ent_lump();
+}
+
 
 bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	// TODO: Create a new map and store result there. Don't break mapA.
@@ -283,7 +527,7 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	merge_lighting(mapA, mapB);
 
 	// doing this last because it takes way longer than anything else, and limit overflows should fail the
-	// merge as soon as possible.
+	// merge as soon as possible. // TODO: fail fast if overflow detected in other merges? Kind ni
 	merge_vis(mapA, mapB);
 
 	printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
@@ -974,7 +1218,8 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 		BSPMODEL model = otherModels[i];
 		model.iHeadnodes[0] += thisNodeCount + 1;
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			model.iHeadnodes[k] += thisClipnodeCount;
+			if (model.iHeadnodes[k] >= 0)
+				model.iHeadnodes[k] += thisClipnodeCount;
 		}
 		model.iFirstFace = model.iFirstFace + thisFaceCount;
 		mergedModels.push_back(model);
@@ -986,7 +1231,8 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 		BSPMODEL model = thisModels[i];
 		model.iHeadnodes[0] += 1; // adjust for new head node
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // adjust for new head nodes
+			if (model.iHeadnodes[k] >= 0)
+				model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // adjust for new head nodes
 		}
 		mergedModels.push_back(model);
 		print_merge_progress();
@@ -1327,6 +1573,14 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 					(int16_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT)
 				},
 			};
+
+			if (otherWorld.iHeadnodes[i + 1] < 0) {
+				newHeadNodes[i].iChildren[0] = CONTENTS_EMPTY;
+			}
+			if (thisWorld.iHeadnodes[i + 1] < 0) {
+				newHeadNodes[i].iChildren[1] = CONTENTS_EMPTY;
+			}
+			
 
 			if (swapNodeChildren) {
 				int16_t temp = newHeadNodes[i].iChildren[0];

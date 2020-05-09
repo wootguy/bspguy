@@ -16,6 +16,10 @@ public:
 
 	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);
+	void removeKeyvalue(const std::string& key);
+	void clearAllKeyvalues();
+
+	void setOrAddKeyvalue(const std::string& key, const std::string& value);
 
 	// returns -1 for invalid idx
 	int getBspModelIdx();

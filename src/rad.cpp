@@ -406,7 +406,7 @@ void CalcFaceExtents(lightinfo_t* l)
 			|| l->texsize[0] < 0 || l->texsize[1] < 0 //--vluzacn
 			)
 		{
-			printf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
+			//printf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
 			l->texsize[0] = min(l->texsize[0], MAX_SURFACE_EXTENT);
 			l->texsize[1] = min(l->texsize[1], MAX_SURFACE_EXTENT);
 		}

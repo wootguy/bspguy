@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <algorithm>
 
 bool fileExists(const string& fileName)
 {
@@ -76,6 +77,12 @@ bool isNumeric(const std::string& s)
 		++it;
 
 	return !s.empty() && it == s.end();
+}
+
+string toLowerCase(string str)
+{
+	transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
 }
 
 #ifdef WIN32

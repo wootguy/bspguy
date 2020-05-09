@@ -49,9 +49,29 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 	keyOrder.push_back(key);
 }
 
+void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
+	if (hasKey(key)) {
+		keyvalues[key] = value;
+		return;
+	}
+	addKeyvalue(key, value);
+}
+
+void Entity::removeKeyvalue(const std::string& key) {
+	if (!hasKey(key))
+		return;
+	keyOrder.erase(find(keyOrder.begin(), keyOrder.end(), key));
+	keyvalues.erase(key);
+}
+
+void Entity::clearAllKeyvalues() {
+	keyOrder.clear();
+	keyvalues.clear();
+}
+
 bool Entity::hasKey(const std::string& key)
 {
-	return keyvalues.find(key) != keyvalues.end();
+	return keyvalues.find(key) != keyvalues.end() && find(keyOrder.begin(), keyOrder.end(), key) != keyOrder.end();
 }
 
 int Entity::getBspModelIdx() {

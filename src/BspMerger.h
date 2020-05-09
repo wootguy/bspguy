@@ -33,6 +33,13 @@ private:
 
 	vector<vector<vector<MAPBLOCK>>> separate(vector<Bsp*>& maps, vec3 gap);
 
+	// for maps in a series:
+	// - changelevels should be replaced with teleports or respawn triggers
+	// - monsters should spawn only when the current map is active
+	// - entities might need map name prefixes
+	// - entities in previous levels should be cleaned up
+	void update_map_series_entity_logic(Bsp* mergedMap, vector<Bsp*>& sourceMaps);
+
 	BSPPLANE separate(Bsp& mapA, Bsp& mapB);
 
 	int getMipTexDataSize(int width, int height);

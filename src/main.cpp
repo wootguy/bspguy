@@ -5,7 +5,9 @@
 #include <iostream>
 
 // super todo:
-// levers in the air when moving stadium4
+// black lightmaps all over the place
+// water not moved
+// huge lag (no vis?) in some spots
 
 // Ideas for commands:
 // optimize:
@@ -29,42 +31,30 @@ int merge_maps(vector<string> options) {
 
 	string output_path = options[options.size() - 1];
 
-	//Bsp asdf("yabma_move.bsp");
-
-	//Bsp* mapA = new Bsp("yabma.bsp");
-
-	Bsp* mapA = new Bsp("saving_the_2nd_amendment.bsp");
-	Bsp* mapB = new Bsp("saving_the_2nd_amendment2.bsp");
-	Bsp* mapC = new Bsp("saving_the_2nd_amendment3.bsp");
-	Bsp* mapD = new Bsp("saving_the_2nd_amendment4.bsp");
+	/*
+	Bsp test("saving_the_2nd_amendment20.bsp");
+	//test.strip_clipping_hull(2);
+	test.move(vec3(13120, 16160, 1504));
+	test.write("yabma_move.bsp");
+	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+	return 0;
+	*/
 
 	vector<Bsp*> maps;
-	//maps.push_back(mapA);
-	//maps.push_back(mapB);
-	//maps.push_back(mapC);
-	//maps.push_back(mapD);
-	for (int i = 0; i < 200; i++)
-	maps.push_back(new Bsp("merge1.bsp"));
-
+	for (int i = 0; i < 21; i++) {
+		if (i < 12 || i == 20)
+			continue;
+		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 0 ? to_string(i + 1) : "") + ".bsp");
+		
+		//map->strip_clipping_hull(2);
+		maps.push_back(map);
+	}
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(0, 0, 0));
+	result->write("yabma_move.bsp");
 	result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 	result->print_info();
-	return 0;
-
-	//mapA->merge(maps, vec3(0,0,0));
-
-
-	//mapA->move(vec3(-3072, 2944, -736));
-	//mapA->move(vec3(0, 0, 0));
-	mapA->write("yabma_move.bsp");
-	mapA->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
-	//mapA->dump_lightmap_atlas("atlas.png");
-
-	mapA->print_info();
-	//mapA.print_bsp();
-
 	return 0;
 }
 
