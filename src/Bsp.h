@@ -252,7 +252,7 @@ private:
 
 	// If one if it's structures is marked in the doNotMoveList, then it will be duplicated and
 	// all references to it will be updated in this model.
-	void remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists);
+	int remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists);
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
@@ -350,6 +350,8 @@ struct REMAPINFO
 	int* verts;
 	int* texInfo;
 
+	bool* visitedClipnodes; // don't try to update the same nodes twice
+
 	int planeCount;
 	int texInfoCount;
 	int leafCount;
@@ -372,8 +374,11 @@ struct REMAPINFO
 		verts = new int[vertCount];
 		texInfo = new int[texInfoCount];
 
+		visitedClipnodes = new bool[clipnodeCount];
+
 		memset(nodes, 0, nodeCount * sizeof(int));
 		memset(clipnodes, 0, clipnodeCount * sizeof(int));
+		memset(visitedClipnodes, 0, clipnodeCount * sizeof(bool));
 		memset(leaves, 0, leafCount * sizeof(int));
 		memset(planes, 0, planeCount * sizeof(int));
 		memset(verts, 0, vertCount * sizeof(int));
@@ -387,5 +392,6 @@ struct REMAPINFO
 		delete[] planes;
 		delete[] verts;
 		delete[] texInfo;
+		delete[] visitedClipnodes;
 	}
 };

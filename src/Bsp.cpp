@@ -450,18 +450,22 @@ void Bsp::split_shared_model_structures() {
 			mark_model_structures(i, &shouldNotMove);
 	}
 
+	int duplicateCount = 0;
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
 
 		if (!modelHasOrigin[i]) {
-			remap_shared_model_structures(i, &shouldNotMove);
+			duplicateCount += remap_shared_model_structures(i, &shouldNotMove);
 		}
 	}
+
+	if (duplicateCount)
+		printf("\nDuplicated %d shared model planes to allow independent movement\n", duplicateCount);
 
 	delete[] modelHasOrigin;
 }
 
-void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) {
+int Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) {
 	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
 
 	MOVEINFO stuffToMove(this);
@@ -470,7 +474,6 @@ void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) 
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
-	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
 	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
 	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
 	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
@@ -478,7 +481,6 @@ void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) 
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
-	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
 	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
@@ -510,6 +512,12 @@ void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) 
 			break;
 		}
 	}
+	for (int i = 0; i < doNotMoveLists->vertCount; i++) {
+		if (stuffToMove.verts[i] && doNotMoveLists->verts[i]) {
+			printf("Error: vertex shared with models of different origin types. Something will break.\n");
+			break;
+		}
+	}
 
 	int duplicateCount = 0;
 	for (int i = 0; i < doNotMoveLists->planeCount; i++) {
@@ -535,14 +543,13 @@ void Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) 
 		}
 	}
 
-	if (duplicateCount)
-		printf("Duplicated %d shared model planes to allow independent movement\n", duplicateCount);
-
 	delete lumps[LUMP_PLANES];
 	lumps[LUMP_PLANES] = (byte*)newPlanes;
 	header.lump[LUMP_PLANES].nLength = newPlaneCount * sizeof(BSPPLANE);
 
 	remap_model_structures(modelIdx, &remappedStuff);
+
+	return duplicateCount;
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
@@ -1022,13 +1029,14 @@ void Bsp::mark_node_structures(int iNode, MOVEINFO* markList) {
 
 void Bsp::mark_clipnode_structures(int iNode, MOVEINFO* markList) {
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+	BSPCLIPNODE& node = clipnodes[iNode];
 
 	markList->clipnodes[iNode] = true;
-	markList->planes[clipnodes[iNode].iPlane] = true;
+	markList->planes[node.iPlane] = true;
 
 	for (int i = 0; i < 2; i++) {
-		if (clipnodes[iNode].iChildren[i] >= 0) {
-			mark_clipnode_structures(clipnodes[iNode].iChildren[i], markList);
+		if (node.iChildren[i] >= 0) {
+			mark_clipnode_structures(node.iChildren[i], markList);
 		}
 	}
 }
@@ -1071,13 +1079,17 @@ void Bsp::remap_node_structures(int iNode, REMAPINFO* remapInfo) {
 
 void Bsp::remap_clipnode_structures(int iNode, REMAPINFO* remapInfo) {
 	BSPCLIPNODE* clipnodes = (BSPCLIPNODE*)lumps[LUMP_CLIPNODES];
+	int numClipnodes = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 	BSPCLIPNODE& node = clipnodes[iNode];
+
+	remapInfo->visitedClipnodes[iNode] = true;
 
 	node.iPlane = remapInfo->planes[node.iPlane];
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			remap_clipnode_structures(clipnodes[iNode].iChildren[i], remapInfo);
+			if (!remapInfo->visitedClipnodes[iNode])
+				remap_clipnode_structures(clipnodes[iNode].iChildren[i], remapInfo);
 		}
 	}
 }
