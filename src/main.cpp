@@ -4,8 +4,9 @@
 #include <algorithm>
 #include <iostream>
 
-// super tod:
+// super todo:
 // game crashes randomly, usually a few minutes after not focused on the game
+// center merge cube
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -50,14 +51,44 @@ int merge_maps(vector<string> options) {
 	*/
 
 	vector<Bsp*> maps;
+	/*
 	for (int i = 1; i < 22; i++) {
 		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
 		map->strip_clipping_hull(2);
 		maps.push_back(map);
 	}
+	*/
+
+	maps.push_back(new Bsp("echoes01.bsp"));
+	maps.push_back(new Bsp("echoes01a.bsp"));
+	maps.push_back(new Bsp("echoes02.bsp"));
+
+	maps.push_back(new Bsp("echoes03.bsp"));
+	maps.push_back(new Bsp("echoes04.bsp"));
+	maps.push_back(new Bsp("echoes05.bsp"));
+
+	maps.push_back(new Bsp("echoes06.bsp"));
+	maps.push_back(new Bsp("echoes07.bsp"));
+	
+	//maps.push_back(new Bsp("echoes09.bsp"));
+	//maps.push_back(new Bsp("echoes09a.bsp"));
+
+	//maps.push_back(new Bsp("echoes09b.bsp"));
+	//maps.push_back(new Bsp("echoes10.bsp"));
+
+	//maps.push_back(new Bsp("echoes12.bsp"));
+	//maps.push_back(new Bsp("echoes13.bsp"));
+
+	//maps.push_back(new Bsp("echoes14.bsp"));
+	//maps.push_back(new Bsp("echoes14b.bsp"));
+	
+	for (int i = 0; i < maps.size(); i++) {
+		//maps[i]->strip_clipping_hull(2);
+	}
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(0, 0, 0));
+	printf("\n");
 	result->write("yabma_move.bsp");
 	result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 	result->print_info();

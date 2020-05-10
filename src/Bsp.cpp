@@ -86,6 +86,10 @@ bool Bsp::move(vec3 offset) {
 	LIGHTMAP* newLightmaps = NULL;
 
 	if (hasLighting) {
+		progress_title = "Calculate lightmaps";
+		progress = 0;
+		progress_total = faceCount;
+
 		oldLightmaps = new LIGHTMAP[faceCount];
 		newLightmaps = new LIGHTMAP[faceCount];
 		memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
@@ -113,12 +117,14 @@ bool Bsp::move(vec3 offset) {
 
 			qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
 
-			if (i % (faceCount / 3) == 0) {
-				printf(".");
-			}
+			print_move_progress();
 		}
 	}
 	
+	progress_title = "Moving structures";
+	progress = 0;
+	progress_total = ents.size() + modelCount;
+
 	bool* modelHasOrigin = new bool[modelCount];
 	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
 
@@ -138,6 +144,8 @@ bool Bsp::move(vec3 offset) {
 		vec3 ori = keyvalue.getVector() + offset;
 
 		ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
+
+		print_move_progress();
 	}
 
 	update_ent_lump();
@@ -155,7 +163,7 @@ bool Bsp::move(vec3 offset) {
 				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
 				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
 				fabs(model.nMaxs.z) > MAX_MAP_COORD) {
-				printf("WARNING: Model moved past safe world boundary!");
+				printf("\nWARNING: Model moved past safe world boundary!\n");
 			}
 		}
 	}
@@ -164,6 +172,7 @@ bool Bsp::move(vec3 offset) {
 	for (int i = 0; i < modelCount; i++) {
 		if (!modelHasOrigin[i])
 			mark_model_structures(i, &shouldBeMoved);
+		print_move_progress();
 	}
 
 	for (int i = 0; i < nodeCount; i++) {
@@ -179,7 +188,7 @@ bool Bsp::move(vec3 offset) {
 			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
 			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
 			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+			printf("\nWARNING: Bounding box for leaf moved past safe world boundary!\n");
 		}
 		node.nMins[0] += offset.x;
 		node.nMaxs[0] += offset.x;
@@ -202,7 +211,7 @@ bool Bsp::move(vec3 offset) {
 			fabs((float)leaf.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
 			fabs((float)leaf.nMins[2] + offset.z) > MAX_MAP_COORD ||
 			fabs((float)leaf.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("WARNING: Bounding box for leaf moved past safe world boundary!");
+			printf("\nWARNING: Bounding box for leaf moved past safe world boundary!\n");
 		}
 		leaf.nMins[0] += offset.x;
 		leaf.nMaxs[0] += offset.x;
@@ -224,7 +233,7 @@ bool Bsp::move(vec3 offset) {
 		if (fabs(vert.x) > MAX_MAP_COORD ||
 			fabs(vert.y) > MAX_MAP_COORD ||
 			fabs(vert.z) > MAX_MAP_COORD) {
-			printf("WARNING: Vertex moved past safe world boundary!");
+			printf("\nWARNING: Vertex moved past safe world boundary!\n");
 		}
 	}
 
@@ -238,7 +247,7 @@ bool Bsp::move(vec3 offset) {
 
 		if (fabs(newPlaneOri.x) > MAX_MAP_COORD || fabs(newPlaneOri.y) > MAX_MAP_COORD ||
 			fabs(newPlaneOri.z) > MAX_MAP_COORD) {
-			printf("WARNING: Plane origin moved past safe world boundary!");
+			printf("\nWARNING: Plane origin moved past safe world boundary!\n");
 		}
 
 		// get distance between new plane origin and the origin-aligned plane
@@ -296,7 +305,9 @@ bool Bsp::move(vec3 offset) {
 	delete[] oldLightmaps;
 	delete[] newLightmaps;
 
-	printf("\n");
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	for (int i = 0; i < 12; i++) printf("    ");
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
 
 	return true;
 }
@@ -312,6 +323,10 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
 
+	progress_title = "Recalculate lightmaps";
+	progress = 0;
+	progress_total = faceCount;
+
 	// calculate new lightmap sizes
 	qrad_init_globals(this);
 	int newLightDataSz = 0;
@@ -319,6 +334,8 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	int lightmapsResizeCount = 0;
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
+
+		print_move_progress();
 
 		if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL)
 			continue;
@@ -345,7 +362,11 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	}
 
 	if (lightmapsResizeCount > 0) {
-		printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
+		//printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
+
+		progress_title = "Resize lightmaps";
+		progress = 0;
+		progress_total = faceCount;
 
 		int newColorCount = newLightDataSz / sizeof(COLOR3);
 		COLOR3* newLightData = new COLOR3[newColorCount];
@@ -356,9 +377,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 		for (int i = 0; i < faceCount; i++) {
 			BSPFACE& face = faces[i];
 
-			if (i % (faceCount / 3) == 0) {
-				printf(".");
-			}
+			print_move_progress();
 
 			if (face.nStyles[0] == 255 || texInfo[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
 				continue;
@@ -429,7 +448,6 @@ void Bsp::split_shared_model_structures() {
 	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
 	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 
-
 	bool* modelHasOrigin = new bool[modelCount];
 	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
 
@@ -445,9 +463,14 @@ void Bsp::split_shared_model_structures() {
 	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
 	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
 
+	progress_title = "Split model structures";
+	progress = 0;
+	progress_total = modelCount*2;
+
 	for (int i = 0; i < modelCount; i++) {
 		if (modelHasOrigin[i])
 			mark_model_structures(i, &shouldNotMove);
+		print_move_progress();
 	}
 
 	int duplicateCount = 0;
@@ -457,10 +480,12 @@ void Bsp::split_shared_model_structures() {
 		if (!modelHasOrigin[i]) {
 			duplicateCount += remap_shared_model_structures(i, &shouldNotMove);
 		}
+
+		print_move_progress();
 	}
 
-	if (duplicateCount)
-		printf("\nDuplicated %d shared model planes to allow independent movement\n", duplicateCount);
+	//if (duplicateCount)
+	//	printf("\nDuplicated %d shared model planes to allow independent movement\n", duplicateCount);
 
 	delete[] modelHasOrigin;
 }
@@ -490,31 +515,31 @@ int Bsp::remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists) {
 	// TODO: handle all of these, assuming it's possible these are ever shared
 	for (int i = 0; i < doNotMoveLists->clipnodeCount; i++) {
 		if (stuffToMove.clipnodes[i] && doNotMoveLists->clipnodes[i]) {
-			printf("Error: clipnode shared with models of different origin types. Something will break.\n");
+			printf("\nError: clipnode shared with models of different origin types. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 1; i < doNotMoveLists->leafCount; i++) { // skip solid leaf - it doesn't matter
 		if (stuffToMove.leaves[i] && doNotMoveLists->leaves[i]) {
-			printf("Error: leaf shared with models of different origin types. Something will break.\n");
+			printf("\nError: leaf shared with models of different origin types. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < doNotMoveLists->nodeCount; i++) {
 		if (stuffToMove.nodes[i] && doNotMoveLists->nodes[i]) {
-			printf("Error: leaf shared with models of different origin types. Something will break.\n");
+			printf("\nError: leaf shared with models of different origin types. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < doNotMoveLists->texInfoCount; i++) {
 		if (stuffToMove.texInfo[i] && doNotMoveLists->texInfo[i]) {
-			printf("Error: texinfo shared with models of different origin types. Something will break.\n");
+			printf("\nError: texinfo shared with models of different origin types. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < doNotMoveLists->vertCount; i++) {
 		if (stuffToMove.verts[i] && doNotMoveLists->verts[i]) {
-			printf("Error: vertex shared with models of different origin types. Something will break.\n");
+			printf("\nError: vertex shared with models of different origin types. Something will break.\n");
 			break;
 		}
 	}
@@ -1476,4 +1501,20 @@ void Bsp::print_contents(int contents) {
 void Bsp::print_leaf(BSPLEAF leaf) {
 	print_contents(leaf.nContents);
 	cout << " " << leaf.nMarkSurfaces << " surfs";
+}
+
+void Bsp::print_move_progress() {
+	if (progress++ > 0) {
+		auto now = std::chrono::system_clock::now();
+		std::chrono::duration<double> delta = now - last_progress;
+		if (delta.count() < 0.016) {
+			return;
+		}
+		last_progress = now;
+	}
+
+	int percent = (progress / (float)progress_total) * 100;
+
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	printf("        %-32s %2d%%", progress_title, percent);
 }

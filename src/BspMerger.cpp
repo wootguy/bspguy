@@ -11,7 +11,7 @@ BspMerger::BspMerger() {
 Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
-	printf("Arranging maps so that they don't overlap:\n");
+	printf("\nArranging maps so that they don't overlap:\n");
 
 	bool is_map_series = true;
 
@@ -21,8 +21,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 				MAPBLOCK& block = blocks[z][y][x];
 
 				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
-					printf("    Move %s by (%.0f, %.0f, %.0f)", block.map->name.c_str(), 
-						block.offset.x, block.offset.y, block.offset.z);
+					printf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n", 
+						block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
 					block.map->move(block.offset);
 				}
 
@@ -41,11 +41,11 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 	// TODO: Don't merge linearly. Merge gradually bigger chunks to minimize BSP tree depth.
 	//       Not worth it until more than 27 maps are merged together (merge cube bigger than 3x3x3)
 
-	printf("Merging %d maps:\n", maps.size());
+	printf("\nMerging %d maps:\n", maps.size());
 
 	// merge maps along X axis to form rows of maps
 	int rowId = 0;
-	int mergeCount = 0;
+	int mergeCount = 1;
 	for (int z = 0; z < blocks.size(); z++) {
 		for (int y = 0; y < blocks[z].size(); y++) {
 			MAPBLOCK& rowStart = blocks[z][y][0];
@@ -54,7 +54,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 
 				if (x != 0) {
 					//printf("Merge %d,%d,%d -> %d,%d,%d\n", x, y, z, 0, y, z);
-					merge(rowStart, block, "row_" + to_string(rowId));
+					string merge_name = ++mergeCount < maps.size() ? "row_" + to_string(rowId) : "result";
+					merge(rowStart, block, merge_name);
 				}
 			}
 			rowId++;
@@ -70,7 +71,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 
 			if (y != 0) {
 				//printf("Merge %d,%d,%d -> %d,%d,%d\n", 0, y, z, 0, 0, z);
-				merge(colStart, block, "layer_" + to_string(colId));
+				string merge_name = ++mergeCount < maps.size() ? "layer_" + to_string(colId) : "result";
+				merge(colStart, block, merge_name);
 			}
 		}
 		colId++;
@@ -96,7 +98,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 				for (int x = 0; x < blocks[z][y].size(); x++)
 					flattenedBlocks.push_back(blocks[z][y][x]);
 
-		printf("Updating map series entity logic:\n");
+		printf("\nUpdating map series entity logic:\n");
 		update_map_series_entity_logic(output, flattenedBlocks, maps[0]->name);
 	}
 
@@ -219,7 +221,11 @@ typedef map< string, MAPBLOCK > mapStringToMapBlock;
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName) {
 	int originalEntCount = mergedMap->ents.size();
 
-	force_unique_ent_names_per_map(mergedMap);
+	int renameCount = force_unique_ent_names_per_map(mergedMap);
+
+	progress_title = "Processing entities";
+	progress = 0;
+	progress_total = originalEntCount;
 
 	const string load_section_prefix = "bspguy_setup_";
 
@@ -231,7 +237,9 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		mapsByName[toLowerCase(sourceMaps[i].map->name)] = sourceMaps[i];
 	}
 
-	cout << "First map is " << firstMapName << endl;
+	int replaced_changelevels = 0;
+	int updated_spawns = 0;
+	int updated_monsters = 0;
 
 	for (int i = 0; i < originalEntCount; i++) {
 		Entity* ent = mergedMap->ents[i];
@@ -268,12 +276,17 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 					load_map_triggers[source_map].insert(tname);
 					//cout << "-   Disabling spawn points in " << source_map << endl;
 				}
+
+				updated_spawns++;
 			}
 			if (cname == "trigger_auto") {
 				ent->addKeyvalue("targetname", "bspguy_autos_" + source_map);
 				ent->keyvalues["classname"] = "trigger_relay";
 			}
-			if (cname.find("monster_") == 0) { // not "wait till seen"
+			if (cname.find("monster_") == 0) {
+				// replace with a squadmaker and spawn when this map section starts
+
+				updated_monsters++;
 				hashmap oldKeys = ent->keyvalues;
 
 				string spawn_name = "bspguy_npcs_" + source_map;
@@ -338,9 +351,13 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 					//cout << "-   Disabling monster_* in " << source_map << endl;
 				}
 			}
+
+			print_merge_progress();
 		}
 
 		if (cname == "trigger_changelevel") {
+			replaced_changelevels++;
+
 			string map = toLowerCase(ent->keyvalues["map"]);
 			bool isMergedMap = false;
 			for (int i = 0; i < sourceMaps.size(); i++) {
@@ -354,13 +371,10 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 			string newTriggerTarget = load_section_prefix + map;
 
-			cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
-			cout << "        with: ";
-
 			// TODO: keep_inventory flag?
 
 			if (spawnflags & 2 && tname.empty())
-				cout << "Warning: use-only trigger_changelevel has no targetname\n";
+				cout << "\nWarning: use-only trigger_changelevel has no targetname\n";
 
 			if (!(spawnflags & 2)) {
 				string model = ent->keyvalues["model"];
@@ -369,8 +383,6 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				ent->addKeyvalue("model", model);
 				ent->addKeyvalue("target", newTriggerTarget);
 				ent->addKeyvalue("classname", "trigger_once");
-
-				cout << "trigger_once -> " << newTriggerTarget << endl;
 			}
 			if (!tname.empty()) { // USE Only
 				Entity* relay = ent;
@@ -388,8 +400,6 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				relay->addKeyvalue("triggerstate", "0");
 				relay->addKeyvalue("delay", "0");
 				relay->addKeyvalue("classname", "trigger_relay");
-
-				cout << "trigger_relay -> " << newTriggerTarget << endl;
 			}
 
 			string cleanup_iter = "bspguy_clean_" + source_map;
@@ -556,7 +566,6 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		Entity* map_setup = new Entity();
 
 		map_setup->addKeyvalue("origin", "0 0 0");
-		
 
 		int triggerCount = 0;
 		for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
@@ -573,10 +582,19 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		mergedMap->ents.push_back(map_setup);
 	}
 
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	for (int i = 0; i < 12; i++) printf("    ");
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+
+	printf("    Replaced %d level transitions\n", replaced_changelevels);
+	printf("    Updated %d spawn points\n", updated_spawns);
+	printf("    Replaced %d monster_* ents with squadmakers\n", updated_monsters);
+	printf("    Renamed %d entities to prevent conflicts between map sections\n", updated_monsters);
+
 	mergedMap->update_ent_lump();
 }
 
-void BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
+int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 	mapStringToSet mapEntNames;
 	mapStringToSet entsToRename;
 
@@ -601,13 +619,21 @@ void BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 			mapEntNames[source_map].insert(tname);
 	}
 
+	int renameCount = 0;
+	for (auto it = entsToRename.begin(); it != entsToRename.end(); ++it)
+		renameCount += it->second.size();
+
+	progress_title = "Renaming entities";
+	progress = 0;
+	progress_total = renameCount;
+
 	int renameSuffix = 2;
 	for (auto it = entsToRename.begin(); it != entsToRename.end(); ++it) {
 		for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
 			string oldName = *it2;
 			string newName = oldName + "_" + to_string(renameSuffix++);
 
-			cout << "Renaming " << *it2 << " to " << newName << endl;
+			//cout << "Renaming " << *it2 << " to " << newName << endl;
 
 			for (int i = 0; i < mergedMap->ents.size(); i++) {
 				Entity* ent = mergedMap->ents[i];
@@ -622,8 +648,12 @@ void BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 					}
 				}
 			}
+
+			print_merge_progress();
 		}
 	}
+
+	return renameCount;
 }
 
 bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
@@ -722,9 +752,9 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	// merge as soon as possible. // TODO: fail fast if overflow detected in other merges? Kind ni
 	merge_vis(mapA, mapB);
 
-	printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-	printf("                               ");
-	printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	for (int i = 0; i < 12; i++) printf("    ");
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
 
 	return true;
 }
@@ -798,7 +828,7 @@ int BspMerger::getMipTexDataSize(int width, int height) {
 
 void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 {
-	progress_title = "entities";
+	progress_title = "Merging entities";
 	progress = 0;
 	progress_total = mapA.ents.size() + mapB.ents.size();
 
@@ -891,7 +921,7 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 	int numThisPlanes = mapA.header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int numOtherPlanes = mapB.header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 
-	progress_title = "planes";
+	progress_title = "Merging planes";
 	progress = 0;
 	progress_total = numThisPlanes + numOtherPlanes;
 
@@ -947,7 +977,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	// offsets relative to the start of the mipmap data, not the lump
 	uint32_t* mipTexOffsets = new uint32_t[thisTexCount + otherTexCount];
 
-	progress_title = "planes";
+	progress_title = "Merging planes";
 	progress = 0;
 	progress_total = thisTexCount + otherTexCount;
 
@@ -1040,7 +1070,7 @@ void BspMerger::merge_vertices(Bsp& mapA, Bsp& mapB) {
 	int otherVertCount = mapB.header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
 	int totalVertCount = thisVertCount + otherVertCount;
 
-	progress_title = "verticies";
+	progress_title = "Merging verticies";
 	progress = 0;
 	progress_total = 3;
 	print_merge_progress();
@@ -1062,7 +1092,7 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 	int thisInfoCount = mapA.header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 	int otherInfoCount = mapB.header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 
-	progress_title = "texture info";
+	progress_title = "Merging texture info";
 	progress = 0;
 	progress_total = thisInfoCount + otherInfoCount;
 
@@ -1118,7 +1148,7 @@ void BspMerger::merge_faces(Bsp& mapA, Bsp& mapB) {
 	int otherFaceCount = mapB.header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 	int totalFaceCount = thisFaceCount + otherFaceCount;
 
-	progress_title = "faces";
+	progress_title = "Merging faces";
 	progress = 0;
 	progress_total = totalFaceCount + 1;
 	print_merge_progress();
@@ -1148,7 +1178,7 @@ void BspMerger::merge_leaves(Bsp& mapA, Bsp& mapB) {
 
 	int thisWorldLeafCount = ((BSPMODEL*)mapA.lumps[LUMP_MODELS])->nVisLeafs + 1; // include solid leaf
 
-	progress_title = "leaves";
+	progress_title = "Merging leaves";
 	progress = 0;
 	progress_total = thisLeafCount + otherLeafCount;
 
@@ -1206,7 +1236,7 @@ void BspMerger::merge_marksurfs(Bsp& mapA, Bsp& mapB) {
 	int otherMarkCount = mapB.header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16);
 	int totalSurfCount = thisMarkSurfCount + otherMarkCount;
 
-	progress_title = "mark surfaces";
+	progress_title = "Merging mark surfaces";
 	progress = 0;
 	progress_total = otherMarkCount + 1;
 	print_merge_progress();
@@ -1233,7 +1263,7 @@ void BspMerger::merge_edges(Bsp& mapA, Bsp& mapB) {
 	int otherEdgeCount = mapB.header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
 	int totalEdgeCount = thisEdgeCount + otherEdgeCount;
 
-	progress_title = "edges";
+	progress_title = "Merging edges";
 	progress = 0;
 	progress_total = otherEdgeCount + 1;
 	print_merge_progress();
@@ -1261,7 +1291,7 @@ void BspMerger::merge_surfedges(Bsp& mapA, Bsp& mapB) {
 	int otherSurfCount = mapB.header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
 	int totalSurfCount = thisSurfEdgeCount + otherSurfCount;
 
-	progress_title = "surface edges";
+	progress_title = "Merging surface edges";
 	progress = 0;
 	progress_total = otherSurfCount + 1;
 	print_merge_progress();
@@ -1287,7 +1317,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 	thisNodeCount = mapA.header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 	int otherNodeCount = mapB.header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 
-	progress_title = "nodes";
+	progress_title = "Merging nodes";
 	progress = 0;
 	progress_total = thisNodeCount + otherNodeCount;
 
@@ -1348,7 +1378,7 @@ void BspMerger::merge_clipnodes(Bsp& mapA, Bsp& mapB) {
 	thisClipnodeCount = mapA.header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 	int otherClipnodeCount = mapB.header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 
-	progress_title = "clipnodes";
+	progress_title = "Merging clipnodes";
 	progress = 0;
 	progress_total = thisClipnodeCount + otherClipnodeCount;
 
@@ -1397,7 +1427,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	int thisModelCount = mapA.header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 	int otherModelCount = mapB.header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 
-	progress_title = "models";
+	progress_title = "Merging models";
 	progress = 0;
 	progress_total = thisModelCount + otherModelCount;
 
@@ -1483,7 +1513,7 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 		}
 	}
 
-	progress_title = "visibility";
+	progress_title = "Merging visibility";
 	progress = 0;
 	progress_total = thisWorldLeafCount + thisModelLeafCount + otherLeafCount;
 
@@ -1546,7 +1576,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	int totalColorCount = thisColorCount + otherColorCount;
 	int totalFaceCount = mapA.header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
-	progress_title = "lightmaps";
+	progress_title = "Merging lightmaps";
 	progress = 0;
 	progress_total = 4 + totalFaceCount;
 
@@ -1826,7 +1856,7 @@ void BspMerger::print_merge_progress() {
 
 	int percent = (progress / (float)progress_total) * 100;
 
-	printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-	printf("    Merging %-13s %2d%%", progress_title, percent);
+	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	printf("        %-32s %2d%%", progress_title, percent);
 }
 
