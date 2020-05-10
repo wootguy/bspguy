@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2

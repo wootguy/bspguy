@@ -2,8 +2,11 @@
 #include "util.h"
 #include <iostream>
 #include <fstream>
+#include <string.h>
 
-#define strcasecmp _stricmp
+#ifdef WIN32
+	#define strcasecmp _stricmp
+#endif
 
 Wad::Wad(void)
 {

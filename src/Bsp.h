@@ -4,6 +4,7 @@
 #include "Entity.h"
 #include "bsplimits.h"
 #include "rad.h"
+#include <string.h>
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <string.h>
 
 bool fileExists(const string& fileName)
 {
@@ -119,8 +120,8 @@ void print_color(int colors)
 		printf("\x1B[0m");
 		return;
 	}
-	char* mode = colors & PRINT_BRIGHT ? "1" : "0";
-	char* color = "37";
+	const char* mode = colors & PRINT_BRIGHT ? "1" : "0";
+	const char* color = "37";
 	switch (colors & ~PRINT_BRIGHT)
 	{
 	case PRINT_RED:								color = "31"; break;

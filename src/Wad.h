@@ -13,24 +13,6 @@ typedef unsigned int uint;
 struct COLOR3
 {
 	unsigned char r, g, b;
-
-	COLOR3 lerp(COLOR3& other, float frac) {
-		COLOR3 ret;
-
-		int r = round((float)this->r + ((float)other.r - (float)this->r) * frac);
-		int g = round((float)this->g + ((float)other.g - (float)this->g) * frac);
-		int b = round((float)this->b + ((float)other.b - (float)this->b) * frac);
-
-		CLAMP(r, 0, 255);
-		CLAMP(g, 0, 255);
-		CLAMP(b, 0, 255);
-
-		ret.r = r;
-		ret.g = g;
-		ret.b = b;
-
-		return ret;
-	}
 };
 
 struct WADHEADER
