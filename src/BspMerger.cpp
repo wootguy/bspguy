@@ -642,20 +642,14 @@ int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 			string oldName = *it2;
 			string newName = oldName + "_" + to_string(renameSuffix++);
 
-			//cout << "Renaming " << *it2 << " to " << newName << endl;
+			//cout << "\nRenaming " << *it2 << " to " << newName << endl;
 
 			for (int i = 0; i < mergedMap->ents.size(); i++) {
 				Entity* ent = mergedMap->ents[i];
-				string source_map = ent->keyvalues["$s_bspguy_map_source"];
-				if (source_map != it->first)
+				if (ent->keyvalues["$s_bspguy_map_source"] != it->first)
 					continue;
 
-				vector<string> entityRelatedKeys = ent->getEntityRelatedKeys();
-				for (int k = 0; k < entityRelatedKeys.size(); k++) {
-					if (ent->keyvalues[entityRelatedKeys[k]] == oldName) {
-						ent->keyvalues[entityRelatedKeys[k]] = newName;
-					}
-				}
+				ent->renameTargetnameValues(oldName, newName);
 			}
 
 			print_merge_progress();

@@ -29,6 +29,6 @@ public:
 
 	bool hasKey(const std::string& key);
 
-	vector<string> getEntityRelatedKeys();
+	void renameTargetnameValues(string oldTargetname, string newTargetname);
 };
 

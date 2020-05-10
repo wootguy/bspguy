@@ -39,6 +39,8 @@
 // clip:
 //		- replace the clipnodes of a model with a simple bounding box.
 
+const char* version_string = "bspguy v1 (May 2020)";
+
 int test() {
 	/*
 	Bsp test("echoes14.bsp");
@@ -78,8 +80,8 @@ int test() {
 	//maps.push_back(new Bsp("echoes12.bsp"));
 	//maps.push_back(new Bsp("echoes13.bsp"));
 
-	maps.push_back(new Bsp("echoes14.bsp"));
-	maps.push_back(new Bsp("echoes14b.bsp"));
+	maps.push_back(new Bsp("echoes01.bsp"));
+	maps.push_back(new Bsp("echoes02.bsp"));
 
 	for (int i = 0; i < maps.size(); i++) {
 		maps[i]->strip_clipping_hull(2);
@@ -267,7 +269,7 @@ void print_help(string command) {
 		cout <<
 			"merge - Merges two or more maps together\n\n"
 
-			"Usage:   bspguy merge <outputname> -maps \"map1, map2, ... mapN\" [options]\n"
+			"Usage:   bspguy merge <mapname> -maps \"map1, map2, ... mapN\" [options]\n"
 			"Example: bspguy merge merged.bsp -maps \"svencoop1, svencoop2\"\n"
 
 			"\n[Options]\n"
@@ -321,8 +323,8 @@ void print_help(string command) {
 			;
 	}
 	else {
-		cout <<
-			"This tool modifies Sven Co-op BSPs without decompiling them.\n\n"
+		cout << version_string << endl << endl <<
+			"This tool modifies Sven Co-op BSPs without having to decompile them.\n\n"
 			"Usage: bspguy <command> <mapname> [options]\n"
 
 			"\n<Commands>\n"
@@ -344,6 +346,11 @@ int main(int argc, char* argv[])
 
 	if (cli.askingForHelp) {
 		print_help(cli.command);
+		return 0;
+	}
+
+	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
+		printf(version_string);
 		return 0;
 	}
 

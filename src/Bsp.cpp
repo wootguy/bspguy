@@ -987,7 +987,6 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		print_stat("visdata", visDataLength, MAX_MAP_VISDATA, true);
 		print_stat("entities", entCount, MAX_MAP_ENTS, false);
 	}
-	
 }
 
 void Bsp::print_model_bsp(int modelIdx) {

@@ -105,220 +105,214 @@ bool Entity::isBspModel() {
 	return getBspModelIdx() >= 0;
 }
 
-// This needs to be kept in sync with the FGD
 // TODO: maybe store this in a text file or something
-vector<string> Entity::getEntityRelatedKeys() {
-	string cname = keyvalues["classname"];
-
-	vector<string> potentialKeys;
-	potentialKeys.reserve(128);
-
+#define TOTAL_TARGETNAME_KEYS 134
+const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {
 	// common target-related keys
-	potentialKeys.push_back("target");
-	potentialKeys.push_back("targetname");
-	potentialKeys.push_back("killtarget");
-	potentialKeys.push_back("master");
-	if (cname != "trigger_numericdisplay")
-		potentialKeys.push_back("netname");
-	potentialKeys.push_back("message"); // not always an entity, but unlikely a .wav file or something will match an entity name
+	"target",
+	"targetname",
+	"killtarget",
+	"master",
+	"netname",
+	"message", // not always an entity, but unlikely a .wav file or something will match an entity name
 
 	// monster_* and monster spawners
-	potentialKeys.push_back("TriggerTarget");
-	potentialKeys.push_back("path_name");
-	potentialKeys.push_back("guard_ent");
-	potentialKeys.push_back("trigger_target");
-	potentialKeys.push_back("xenmaker");
-	potentialKeys.push_back("squadname");
+	"TriggerTarget",
+	"path_name",
+	"guard_ent",
+	"trigger_target",
+	"xenmaker",
+	"squadname",
 
 	// OpenClosable
-	potentialKeys.push_back("fireonopening");
-	potentialKeys.push_back("fireonclosing");
-	potentialKeys.push_back("fireonopened");
-	potentialKeys.push_back("fireonclosed");
+	"fireonopening",
+	"fireonclosing",
+	"fireonopened",
+	"fireonclosed",
 
 	// breakables
-	potentialKeys.push_back("fireonbreak");
+	"fireonbreak",
 
 	// Trackchange
-	potentialKeys.push_back("train");
-	potentialKeys.push_back("toptrack");
-	potentialKeys.push_back("bottomtrack");
+	"train",
+	"toptrack",
+	"bottomtrack",
 
 	// scripted sequences
-	potentialKeys.push_back("m_iszEntity");
-	potentialKeys.push_back("entity");
-	//potentialKeys.push_back("listener"); // TODO: what is this?
+	"m_iszEntity",
+	"entity",
+	//"listener", // TODO: what is this?
 
 	// BaseCharger
-	potentialKeys.push_back("TriggerOnEmpty");
-	potentialKeys.push_back("TriggerOnRecharged");
+	"TriggerOnEmpty",
+	"TriggerOnRecharged",
 
 	// Beams
-	potentialKeys.push_back("LightningStart");
-	potentialKeys.push_back("LightningEnd");
-	potentialKeys.push_back("LaserTarget");
-	potentialKeys.push_back("laserentity");
+	"LightningStart",
+	"LightningEnd",
+	"LaserTarget",
+	"laserentity",
 
 	// func_rot_button
-	potentialKeys.push_back("changetarget");
+	"changetarget",
 
 	// game_zone_player
-	potentialKeys.push_back("intarget");
-	potentialKeys.push_back("outtarget");
+	"intarget",
+	"outtarget",
 
 	// info_bigmomma
-	potentialKeys.push_back("reachtarget");
-	potentialKeys.push_back("presequence");
+	"reachtarget",
+	"presequence",
 
 	// info_monster_goal
-	potentialKeys.push_back("enemy");
+	"enemy",
 
 	// path_condition_controller
-	potentialKeys.push_back("conditions_reference");
-	potentialKeys.push_back("starttrigger");
+	"conditions_reference",
+	"starttrigger",
 	// TODO: support lists of targetnames
-	//potentialKeys.push_back("pathcondition_list");
-	//potentialKeys.push_back("waypoint_list");
-	//potentialKeys.push_back("m_szASConditionsName"); // TODO: what is this?
-	
+	//"pathcondition_list",
+	//"waypoint_list",
+	//"m_szASConditionsName", // TODO: what is this?
+
 	// path_waypoint
-	potentialKeys.push_back("alternate_target");
-	potentialKeys.push_back("trigger_on_arrival");
-	potentialKeys.push_back("trigger_after_arrival");
-	potentialKeys.push_back("wait_master");
-	potentialKeys.push_back("trigger_on_departure");
-	potentialKeys.push_back("overflow_waypoint");
-	potentialKeys.push_back("stop_trigger");
+	"alternate_target",
+	"trigger_on_arrival",
+	"trigger_after_arrival",
+	"wait_master",
+	"trigger_on_departure",
+	"overflow_waypoint",
+	"stop_trigger",
 
 	// path_track
-	potentialKeys.push_back("altpath");
+	"altpath",
 
 	// trigger_camera + trigger_cameratarget
-	potentialKeys.push_back("moveto");
+	"moveto",
 	// TODO: parameters are not always entities(?)
-	potentialKeys.push_back("mouse_param_0_0");
-	potentialKeys.push_back("mouse_param_0_1");
-	potentialKeys.push_back("mouse_param_1_0");
-	potentialKeys.push_back("mouse_param_1_1");
-	potentialKeys.push_back("mouse_param_2_0");
-	potentialKeys.push_back("mouse_param_2_1");
-	potentialKeys.push_back("m_iszOverridePlayerTargetname");
-	potentialKeys.push_back("m_iszTargetWhenPlayerStartsUsing");
-	potentialKeys.push_back("m_iszTargetWhenPlayerStopsUsing");
-	potentialKeys.push_back("m_iszTurnedOffTarget");
-	potentialKeys.push_back("max_player_target");
-	potentialKeys.push_back("mouse_target_0_0");
-	potentialKeys.push_back("mouse_target_0_1");
-	potentialKeys.push_back("mouse_target_1_0");
-	potentialKeys.push_back("mouse_target_1_1");
-	potentialKeys.push_back("mouse_target_2_0");
-	potentialKeys.push_back("mouse_target_2_1");
+	"mouse_param_0_0",
+	"mouse_param_0_1",
+	"mouse_param_1_0",
+	"mouse_param_1_1",
+	"mouse_param_2_0",
+	"mouse_param_2_1",
+	"m_iszOverridePlayerTargetname",
+	"m_iszTargetWhenPlayerStartsUsing",
+	"m_iszTargetWhenPlayerStopsUsing",
+	"m_iszTurnedOffTarget",
+	"max_player_target",
+	"mouse_target_0_0",
+	"mouse_target_0_1",
+	"mouse_target_1_0",
+	"mouse_target_1_1",
+	"mouse_target_2_0",
+	"mouse_target_2_1",
 
 	// trigger_changelevel
-	potentialKeys.push_back("changetarget");
+	"changetarget",
 
 	// trigger_changetarget
-	potentialKeys.push_back("m_iszNewTarget");
+	"m_iszNewTarget",
 
 	// trigger_condition
-	potentialKeys.push_back("m_iszSourceName");
+	"m_iszSourceName",
 
 	// trigger_createentity
-	potentialKeys.push_back("m_iszCrtEntChildName");
-	potentialKeys.push_back("m_iszTriggerAfter"); // commented out in FGD for some reason? Think I've used it before.
-	
+	"m_iszCrtEntChildName",
+	"m_iszTriggerAfter", // commented out in FGD for some reason? Think I've used it before.
+
 	// trigger_endsection
-	potentialKeys.push_back("section"); // TODO: what is this?
+	"section", // TODO: what is this?
 
 	// trigger_entity_iterator
-	potentialKeys.push_back("name_filter");
-	potentialKeys.push_back("trigger_after_run");
+	"name_filter",
+	"trigger_after_run",
 
 	// trigger_load/save
-	potentialKeys.push_back("m_iszTrigger");
+	"m_iszTrigger",
 
 	// BaseRandom
-	potentialKeys.push_back("target1");
-	potentialKeys.push_back("target2");
-	potentialKeys.push_back("target3");
-	potentialKeys.push_back("target4");
-	potentialKeys.push_back("target5");
-	potentialKeys.push_back("target6");
-	potentialKeys.push_back("target7");
-	potentialKeys.push_back("target8");
-	potentialKeys.push_back("target9");
-	potentialKeys.push_back("target10");
-	potentialKeys.push_back("target11");
-	potentialKeys.push_back("target12");
-	potentialKeys.push_back("target13");
-	potentialKeys.push_back("target14");
-	potentialKeys.push_back("target15");
-	potentialKeys.push_back("target16");
+	"target1",
+	"target2",
+	"target3",
+	"target4",
+	"target5",
+	"target6",
+	"target7",
+	"target8",
+	"target9",
+	"target10",
+	"target11",
+	"target12",
+	"target13",
+	"target14",
+	"target15",
+	"target16",
 
 	// trigger_setorigin
-	potentialKeys.push_back("copypointer");
+	"copypointer",
 
-	if (cname == "trigger_vote") {
-		potentialKeys.push_back("noise");
-	}
-	
+	"noise",
+
 	// weapon_displacer
-	potentialKeys.push_back("m_iszTeleportDestination");
+	"m_iszTeleportDestination",
 
-	if (cname == "item_inventory") {
-		potentialKeys.push_back("item_name");
-		potentialKeys.push_back("item_group");
-		potentialKeys.push_back("filter_targetnames");
-		potentialKeys.push_back("item_name_moved");
-		potentialKeys.push_back("item_name_not_moved");
-		potentialKeys.push_back("target_on_collect");
-		potentialKeys.push_back("target_on_collect_team");
-		potentialKeys.push_back("target_on_collect_other");
-		potentialKeys.push_back("target_cant_collect");
-		potentialKeys.push_back("target_cant_collect_team");
-		potentialKeys.push_back("target_cant_collect_other");
-		potentialKeys.push_back("target_on_drop");
-		potentialKeys.push_back("target_on_drop_team");
-		potentialKeys.push_back("target_on_drop_other");
-		potentialKeys.push_back("target_cant_drop");
-		potentialKeys.push_back("target_cant_drop_team");
-		potentialKeys.push_back("target_cant_drop_other");
-		potentialKeys.push_back("target_on_activate");
-		potentialKeys.push_back("target_on_activate_team");
-		potentialKeys.push_back("target_on_activate_other");
-		potentialKeys.push_back("target_cant_activate");
-		potentialKeys.push_back("target_cant_activate_team");
-		potentialKeys.push_back("target_cant_activate_other");
-		potentialKeys.push_back("target_on_use");
-		potentialKeys.push_back("target_on_use_team");
-		potentialKeys.push_back("target_on_use_other");
-		potentialKeys.push_back("target_on_wearing_out");
-		potentialKeys.push_back("target_on_wearing_out_team");
-		potentialKeys.push_back("target_on_wearing_out_other");
-		potentialKeys.push_back("target_on_return");
-		potentialKeys.push_back("target_on_return_team");
-		potentialKeys.push_back("target_on_return_other");
-		potentialKeys.push_back("target_on_materialise");
-		potentialKeys.push_back("target_on_destroy");
-	}
+	// item_inventory
+	"item_name",
+	"item_group",
+	"filter_targetnames",
+	"item_name_moved",
+	"item_name_not_moved",
+	"target_on_collect",
+	"target_on_collect_team",
+	"target_on_collect_other",
+	"target_cant_collect",
+	"target_cant_collect_team",
+	"target_cant_collect_other",
+	"target_on_drop",
+	"target_on_drop_team",
+	"target_on_drop_other",
+	"target_cant_drop",
+	"target_cant_drop_team",
+	"target_cant_drop_other",
+	"target_on_activate",
+	"target_on_activate_team",
+	"target_on_activate_other",
+	"target_cant_activate",
+	"target_cant_activate_team",
+	"target_cant_activate_other",
+	"target_on_use",
+	"target_on_use_team",
+	"target_on_use_other",
+	"target_on_wearing_out",
+	"target_on_wearing_out_team",
+	"target_on_wearing_out_other",
+	"target_on_return",
+	"target_on_return_team",
+	"target_on_return_other",
+	"target_on_materialise",
+	"target_on_destroy",
 
 	// inventory rules
-	potentialKeys.push_back("item_name_required");
-	potentialKeys.push_back("item_group_required");
-	potentialKeys.push_back("item_name_canthave");
-	potentialKeys.push_back("item_group_canthave");
-	potentialKeys.push_back("pass_drop_item_name");
-	potentialKeys.push_back("pass_drop_item_group");
-	potentialKeys.push_back("pass_return_item_name");
-	potentialKeys.push_back("pass_return_item_group");
-	potentialKeys.push_back("pass_destroy_item_name");
-	potentialKeys.push_back("pass_destroy_item_group");
-	
+	"item_name_required",
+	"item_group_required",
+	"item_name_canthave",
+	"item_group_canthave",
+	"pass_drop_item_name",
+	"pass_drop_item_group",
+	"pass_return_item_name",
+	"pass_return_item_group",
+	"pass_destroy_item_name",
+	"pass_destroy_item_group"
+};
 
-	vector<string> keys;
-	for (int i = 0; i < potentialKeys.size(); i++) {
-		if (hasKey(potentialKeys[i]))
-			keys.push_back(potentialKeys[i]);
+// This needs to be kept in sync with the FGD
+
+void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) {
+	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {
+		const char* key = potential_tergetname_keys[i];
+		if (keyvalues.find(key) != keyvalues.end() && keyvalues[key] == oldTargetname) {
+			keyvalues[key] = newTargetname;
+		}
 	}
-	return keys;
 }
