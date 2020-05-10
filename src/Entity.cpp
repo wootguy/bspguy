@@ -111,6 +111,7 @@ vector<string> Entity::getEntityRelatedKeys() {
 	string cname = keyvalues["classname"];
 
 	vector<string> potentialKeys;
+	potentialKeys.reserve(128);
 
 	// common target-related keys
 	potentialKeys.push_back("target");

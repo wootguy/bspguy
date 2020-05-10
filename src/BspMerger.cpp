@@ -9,6 +9,11 @@ BspMerger::BspMerger() {
 }
 
 Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
+	if (maps.size() < 1) {
+		printf("\nMore than 1 map is required for merging. Aborting merge.\n");
+		return NULL;
+	}
+
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
 	printf("\nArranging maps so that they don't overlap:\n");
@@ -175,23 +180,29 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	}
 
 	vec3 mergedMapSize = maxDims * (float)idealMapsPerAxis;
-	vec3 mergedMapMin = maxDims * -0.5f;
+	vec3 mergedMapMin = mergedMapSize * -0.5f;
+	vec3 mergedMapMax = mergedMapMin + mergedMapSize;
 
-	printf("Max map size: width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);
+	printf("Max map size:      width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);
 	printf("Max maps per axis: x=%d y=%d z=%d  (total=%d)\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer, maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
 
 	int actualWidth = min(idealMapsPerAxis, (int)maps.size());
 	int actualLength = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis)));
 	int actualHeight = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis * idealMapsPerAxis)));
-	printf("Merged map dimensions: %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
+	printf("Merged map size:   %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
+
+	printf("Merged map bounds: min=(%.0f, %.0f, %.0f)\n"
+		 "                   max=(%.0f, %.0f, %.0f)\n",
+		mergedMapMin.x, mergedMapMin.y, mergedMapMin.z,
+		mergedMapMax.x, mergedMapMax.y, mergedMapMax.z);
 
 	vec3 targetMins = mergedMapMin;
 	int blockIdx = 0;
 	for (int z = 0; z < idealMapsPerAxis && blockIdx < blocks.size(); z++) {
-		targetMins.y = -mergedMapMin.y;
+		targetMins.y = mergedMapMin.y;
 		vector<vector<MAPBLOCK>> col;
 		for (int y = 0; y < idealMapsPerAxis && blockIdx < blocks.size(); y++) {
-			targetMins.x = -mergedMapMin.x;
+			targetMins.x = mergedMapMin.x;
 			vector<MAPBLOCK> row;
 			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
 				MAPBLOCK& block = blocks[blockIdx];

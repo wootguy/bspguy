@@ -65,6 +65,12 @@ static char* g_lump_names[HEADER_LUMPS] = {
 	"MODELS"
 };
 
+enum MODEL_SORT_MODES {
+	SORT_VERTS,
+	SORT_NODES,
+	SORT_CLIPNODES,
+	SORT_FACES
+};
 
 struct BSPLUMP
 {
@@ -218,7 +224,7 @@ public:
 	bool move(vec3 offset);
 	void write(string path);
 
-	void print_info();
+	void print_info(bool perModelStats, int perModelLimit, int sortMode);
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
@@ -268,6 +274,7 @@ private:
 	void print_contents(int contents);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
+	void print_model_stat(MOVEINFO* modelInfo, uint val, uint max, bool isMem);
 
 	string get_model_usage(int modelIdx);
 
@@ -307,6 +314,7 @@ struct MOVEINFO
 	bool* planes;
 	bool* verts;
 	bool* texInfo;
+	bool* faces;
 
 	int planeCount;
 	int texInfoCount;
@@ -314,14 +322,37 @@ struct MOVEINFO
 	int nodeCount;
 	int clipnodeCount;
 	int vertCount;
+	int faceCount;
+
+	int planeSum;
+	int texInfoSum;
+	int leafSum;
+	int nodeSum;
+	int clipnodeSum;
+	int vertSum;
+	int faceSum;
+
+	int modelIdx;
+
+	MOVEINFO() {
+		modelIdx = 0;
+		planeSum = texInfoSum = leafSum = nodeSum = clipnodeSum = vertSum = faceSum = 0;
+		planeCount = texInfoCount = leafCount = nodeCount = clipnodeCount = vertCount = faceCount = 0;
+		nodes = clipnodes = leaves = planes = verts = texInfo = faces = NULL;
+	}
 
 	MOVEINFO(Bsp* map) {
+		init(map);
+	}
+
+	void init(Bsp* map) {
 		planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 		texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 		leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
 		nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
 		clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
 		vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+		faceCount = map->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 		nodes = new bool[nodeCount];
 		clipnodes = new bool[clipnodeCount];
@@ -329,6 +360,7 @@ struct MOVEINFO
 		planes = new bool[planeCount];
 		verts = new bool[vertCount];
 		texInfo = new bool[texInfoCount];
+		faces = new bool[faceCount];
 
 		memset(nodes, 0, nodeCount * sizeof(bool));
 		memset(clipnodes, 0, clipnodeCount * sizeof(bool));
@@ -336,6 +368,18 @@ struct MOVEINFO
 		memset(planes, 0, planeCount * sizeof(bool));
 		memset(verts, 0, vertCount * sizeof(bool));
 		memset(texInfo, 0, texInfoCount * sizeof(bool));
+		memset(faces, 0, faceCount * sizeof(bool));
+	}
+
+	void compute_sums() {
+		planeSum = texInfoSum = leafSum = nodeSum = clipnodeSum = vertSum = faceSum = 0;
+		for (int i = 0; i < planeCount; i++) planeSum += planes[i];
+		for (int i = 0; i < texInfoCount; i++) texInfoSum += texInfo[i];
+		for (int i = 0; i < leafCount; i++) leafSum += leaves[i];
+		for (int i = 0; i < nodeCount; i++) nodeSum += nodes[i];
+		for (int i = 0; i < clipnodeCount; i++) clipnodeSum += clipnodes[i];
+		for (int i = 0; i < vertCount; i++) vertSum += verts[i];
+		for (int i = 0; i < faceCount; i++) faceSum += faces[i];
 	}
 
 	~MOVEINFO() {
@@ -345,6 +389,7 @@ struct MOVEINFO
 		delete[] planes;
 		delete[] verts;
 		delete[] texInfo;
+		delete[] faces;
 	}
 };
 

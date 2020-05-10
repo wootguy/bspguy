@@ -188,7 +188,7 @@ bool Bsp::move(vec3 offset) {
 			fabs((float)node.nMaxs[1] + offset.y) > MAX_MAP_COORD ||
 			fabs((float)node.nMins[2] + offset.z) > MAX_MAP_COORD ||
 			fabs((float)node.nMaxs[2] + offset.z) > MAX_MAP_COORD) {
-			printf("\nWARNING: Bounding box for leaf moved past safe world boundary!\n");
+			printf("\nWARNING: Bounding box for node moved past safe world boundary!\n");
 		}
 		node.nMins[0] += offset.x;
 		node.nMaxs[0] += offset.x;
@@ -845,10 +845,49 @@ void Bsp::print_stat(string name, uint val, uint max, bool isMem) {
 	print_color(PRINT_RED | PRINT_GREEN | PRINT_BLUE);
 }
 
-void Bsp::print_info() {
-	printf(" Data Type       Current / Max     Fullness\n");
-	printf("------------  -------------------  --------\n");
+void Bsp::print_model_stat(MOVEINFO* modelInfo, uint val, uint max, bool isMem)
+{
+	string classname = modelInfo->modelIdx == 0 ? "worldspawn" : "???";
+	string targetname = modelInfo->modelIdx == 0 ? "" : "???";
+	for (int k = 0; k < ents.size(); k++) {
+		if (ents[k]->getBspModelIdx() == modelInfo->modelIdx) {
+			targetname = ents[k]->keyvalues["targetname"];
+			classname = ents[k]->keyvalues["classname"];
+		}
+	}
 
+	const float meg = 1024 * 1024;
+	float percent = (val / (float)max) * 100;
+
+	if (isMem) {
+		printf("%8.1f / %-5.1f MB", val / meg, max / meg);
+	}
+	else {
+		printf("%-26s %-26s *%-6d %9d", classname.c_str(), targetname.c_str(), modelInfo->modelIdx, val);
+	}
+	if (percent >= 0.1f)
+		printf("  %6.1f%%", percent);
+
+	printf("\n");
+}
+
+int g_sort_mode = SORT_CLIPNODES;
+
+bool sortModelInfos(const MOVEINFO* a, const MOVEINFO* b) {
+	switch (g_sort_mode) {
+	case SORT_VERTS:
+		return a->vertSum > b->vertSum;
+	case SORT_NODES:
+		return a->nodeSum > b->nodeSum;
+	case SORT_CLIPNODES:
+		return a->clipnodeSum > b->clipnodeSum;
+	case SORT_FACES:
+		return a->faceSum > b->faceSum;
+	}
+	
+}
+
+void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
@@ -865,21 +904,79 @@ void Bsp::print_info() {
 	int visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 	int entCount = ents.size();
 
-	print_stat("models", modelCount, MAX_MAP_MODELS, false);
-	print_stat("planes", planeCount, MAX_MAP_PLANES, false);
-	print_stat("vertexes", vertCount, MAX_MAP_VERTS, false);
-	print_stat("nodes", nodeCount, MAX_MAP_NODES, false);
-	print_stat("texinfos", texInfoCount, MAX_MAP_TEXINFOS, false);
-	print_stat("faces", faceCount, MAX_MAP_FACES, false);
-	print_stat("clipnodes", clipnodeCount, MAX_MAP_CLIPNODES, false);
-	print_stat("leaves", leafCount, MAX_MAP_LEAVES, false);
-	print_stat("marksurfaces", marksurfacesCount, MAX_MAP_MARKSURFS, false);
-	print_stat("surfedges", surfedgeCount, MAX_MAP_SURFEDGES, false);
-	print_stat("edges", edgeCount, MAX_MAP_SURFEDGES, false);
-	print_stat("textures", textureCount, MAX_MAP_TEXTURES, false);
-	print_stat("lightdata", lightDataLength, MAX_MAP_LIGHTDATA, true);
-	print_stat("visdata", visDataLength, MAX_MAP_VISDATA, true);
-	print_stat("entities", entCount, MAX_MAP_ENTS, false);
+	if (perModelStats) {
+		g_sort_mode = sortMode;
+
+		if (planeCount >= MAX_MAP_PLANES || texInfoCount >= MAX_MAP_TEXINFOS || leafCount >= MAX_MAP_LEAVES ||
+			modelCount >= MAX_MAP_MODELS || nodeCount >= MAX_MAP_NODES || vertCount >= MAX_MAP_VERTS ||
+			faceCount >= MAX_MAP_FACES || clipnodeCount >= MAX_MAP_CLIPNODES || marksurfacesCount >= MAX_MAP_MARKSURFS ||
+			surfedgeCount >= MAX_MAP_SURFEDGES || edgeCount >= MAX_MAP_EDGES || textureCount >= MAX_MAP_TEXTURES ||
+			lightDataLength >= MAX_MAP_LIGHTDATA || visDataLength >= MAX_MAP_VISDATA) 
+		{
+			printf("Unable to show model stats while BSP limits are exceeded.\n");
+			return;
+		}
+
+		vector<MOVEINFO*> modelStructs;
+		modelStructs.resize(modelCount);
+		
+		for (int i = 0; i < modelCount; i++) {
+			modelStructs[i] = new MOVEINFO(this);
+			modelStructs[i]->modelIdx = i;
+			mark_model_structures(i, modelStructs[i]);
+			modelStructs[i]->compute_sums();
+		}
+
+		int maxCount;
+		char* countName;
+
+		switch (g_sort_mode) {
+		case SORT_VERTS:		maxCount = vertCount; countName = "  Verts";  break;
+		case SORT_NODES:		maxCount = nodeCount; countName = "  Nodes";  break;
+		case SORT_CLIPNODES:	maxCount = clipnodeCount; countName = "Clipnodes";  break;
+		case SORT_FACES:		maxCount = faceCount; countName = "  Faces";  break;
+		}
+
+		sort(modelStructs.begin(), modelStructs.end(), sortModelInfos);
+		printf("       Classname                  Targetname          Model  %-10s  Usage\n", countName);
+		printf("-------------------------  -------------------------  -----  ----------  --------\n");
+
+		for (int i = 0; i < modelCount && i < perModelLimit; i++) {
+
+			int val;
+			switch (g_sort_mode) {
+			case SORT_VERTS:		val = modelStructs[i]->vertSum; break;
+			case SORT_NODES:		val = modelStructs[i]->nodeSum; break;
+			case SORT_CLIPNODES:	val = modelStructs[i]->clipnodeSum; break;
+			case SORT_FACES:		val = modelStructs[i]->faceSum; break;
+			}
+
+			if (val == 0)
+				break;
+
+			print_model_stat(modelStructs[i], val, maxCount, false);
+		}
+	}
+	else {
+		printf(" Data Type       Current / Max     Fullness\n");
+		printf("------------  -------------------  --------\n");
+		print_stat("models", modelCount, MAX_MAP_MODELS, false);
+		print_stat("planes", planeCount, MAX_MAP_PLANES, false);
+		print_stat("vertexes", vertCount, MAX_MAP_VERTS, false);
+		print_stat("nodes", nodeCount, MAX_MAP_NODES, false);
+		print_stat("texinfos", texInfoCount, MAX_MAP_TEXINFOS, false);
+		print_stat("faces", faceCount, MAX_MAP_FACES, false);
+		print_stat("clipnodes", clipnodeCount, MAX_MAP_CLIPNODES, false);
+		print_stat("leaves", leafCount, MAX_MAP_LEAVES, false);
+		print_stat("marksurfaces", marksurfacesCount, MAX_MAP_MARKSURFS, false);
+		print_stat("surfedges", surfedgeCount, MAX_MAP_SURFEDGES, false);
+		print_stat("edges", edgeCount, MAX_MAP_SURFEDGES, false);
+		print_stat("textures", textureCount, MAX_MAP_TEXTURES, false);
+		print_stat("lightdata", lightDataLength, MAX_MAP_LIGHTDATA, true);
+		print_stat("visdata", visDataLength, MAX_MAP_VISDATA, true);
+		print_stat("entities", entCount, MAX_MAP_ENTS, false);
+	}
+	
 }
 
 void Bsp::print_model_bsp(int modelIdx) {
@@ -1030,6 +1127,7 @@ void Bsp::mark_node_structures(int iNode, MOVEINFO* markList) {
 
 	for (int i = 0; i < node.nFaces; i++) {
 		BSPFACE& face = faces[node.firstFace + i];
+		markList->faces[node.firstFace + i] = true;
 		
 		for (int e = 0; e < face.nEdges; e++) {
 			int32_t edgeIdx = surfEdges[face.iFirstEdge + e];
