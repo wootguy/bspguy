@@ -20,7 +20,7 @@ public:
 	BspMerger();
 
 	// merges all maps into one
-	Bsp* merge(vector<Bsp*> maps, vec3 gap);
+	Bsp* merge(vector<Bsp*> maps, vec3 gap, bool noripent);
 
 private:
 	int merge_ops = 0;

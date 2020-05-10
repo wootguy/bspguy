@@ -8,7 +8,7 @@ BspMerger::BspMerger() {
 
 }
 
-Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
+Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 	if (maps.size() < 1) {
 		printf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
@@ -17,8 +17,6 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
 	printf("\nArranging maps so that they don't overlap:\n");
-
-	bool is_map_series = true;
 
 	for (int z = 0; z < blocks.size(); z++) {
 		for (int y = 0; y < blocks[z].size(); y++) {
@@ -31,7 +29,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 					block.map->move(block.offset);
 				}
 
-				if (is_map_series) {
+				if (!noripent) {
 					// tag ents with the map they belong to
 					for (int i = 0; i < block.map->ents.size(); i++) {
 						block.map->ents[i]->addKeyvalue("$s_bspguy_map_source", toLowerCase(block.map->name));
@@ -96,7 +94,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap) {
 
 	Bsp* output = layerStart.map;
 
-	if (is_map_series) {
+	if (!noripent) {
 		vector<MAPBLOCK> flattenedBlocks;
 		for (int z = 0; z < blocks.size(); z++)
 			for (int y = 0; y < blocks[z].size(); y++)

@@ -17,12 +17,17 @@ Bsp::Bsp() {
 	}
 
 	name = "merged";
+	valid = true;
 }
 
 Bsp::Bsp(std::string fpath)
 {
+	if (fpath.rfind(".bsp") != fpath.size() - 4) {
+		fpath = fpath + ".bsp";
+	}
 	this->path = fpath;
 	this->name = stripExt(basename(fpath));
+	valid = false;
 
 	bool exists = true;
 	if (!fileExists(fpath)) {
@@ -36,6 +41,8 @@ Bsp::Bsp(std::string fpath)
 	}
 
 	load_ents();
+
+	valid = true;
 }
 
 Bsp::~Bsp()
@@ -680,6 +687,10 @@ vec3 Bsp::get_model_center(int modelIdx) {
 }
 
 void Bsp::write(string path) {
+	if (path.rfind(".bsp") != path.size() - 4) {
+		path = path + ".bsp";
+	}
+
 	cout << "Writing " << path << endl;
 
 	// calculate lump offsets
@@ -958,7 +969,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		}
 	}
 	else {
-		printf(" Data Type       Current / Max     Fullness\n");
+		printf(" Data Type     Current / Max       Fullness\n");
 		printf("------------  -------------------  --------\n");
 		print_stat("models", modelCount, MAX_MAP_MODELS, false);
 		print_stat("planes", planeCount, MAX_MAP_PLANES, false);

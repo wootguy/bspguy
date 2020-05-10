@@ -85,6 +85,23 @@ string toLowerCase(string str)
 	return str;
 }
 
+string trimSpaces(string s)
+{
+	// Remove white space indents
+	int lineStart = s.find_first_not_of(" \t\n\r");
+	if (lineStart == string::npos)
+		return "";
+
+	// Remove spaces after the last character
+	int lineEnd = s.find_last_not_of(" \t\n\r");
+	if (lineEnd != string::npos && lineEnd < s.length() - 1)
+		s = s.substr(lineStart, (lineEnd + 1) - lineStart);
+	else
+		s = s.substr(lineStart);
+
+	return s;
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

@@ -3,6 +3,7 @@ project(bspguy)
 
 set(SOURCE_FILES 
     src/main.cpp
+	src/CommandLine.h	src/CommandLine.cpp
 	src/BspMerger.h		src/BspMerger.cpp
 	src/Bsp.h			src/Bsp.cpp
 	src/Entity.h		src/Entity.cpp

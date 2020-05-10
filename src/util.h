@@ -27,3 +27,5 @@ bool isNumeric(const std::string& s);
 void print_color(int colors);
 
 string toLowerCase(string str);
+
+string trimSpaces(string s);

@@ -214,6 +214,7 @@ public:
 	string name;
 	BSPHEADER header;
 	byte ** lumps;
+	bool valid;
 	
 	vector<Entity*> ents;
 
