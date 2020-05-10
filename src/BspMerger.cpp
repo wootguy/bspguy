@@ -269,6 +269,10 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 					//cout << "-   Disabling spawn points in " << source_map << endl;
 				}
 			}
+			if (cname == "trigger_auto") {
+				ent->addKeyvalue("targetname", "bspguy_autos_" + source_map);
+				ent->keyvalues["classname"] = "trigger_relay";
+			}
 			if (cname.find("monster_") == 0) { // not "wait till seen"
 				hashmap oldKeys = ent->keyvalues;
 
@@ -350,25 +354,15 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 			string newTriggerTarget = load_section_prefix + map;
 
-			//cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
-			//cout << "        with: ";
+			cout << "-   Replaced: trigger_changelevel -> " << map << "\n";
+			cout << "        with: ";
 
-			if (spawnflags & 2) { // USE Only
-				if (tname.empty())
-					cout << "Warning: use-only trigger_changelevel has no targetname\n";
-				
-				ent->clearAllKeyvalues();
-				ent->addKeyvalue("origin", origin.toKeyvalueString());
-				ent->addKeyvalue("targetname", tname);
-				ent->addKeyvalue("target", newTriggerTarget);
-				ent->addKeyvalue("spawnflags", "1"); // remove on fire
-				ent->addKeyvalue("triggerstate", "0");
-				ent->addKeyvalue("delay", "0");
-				ent->addKeyvalue("classname", "trigger_relay");
+			// TODO: keep_inventory flag?
 
-				//cout << "trigger_relay -> " << newTriggerTarget << endl;
-			}
-			else {
+			if (spawnflags & 2 && tname.empty())
+				cout << "Warning: use-only trigger_changelevel has no targetname\n";
+
+			if (!(spawnflags & 2)) {
 				string model = ent->keyvalues["model"];
 
 				ent->clearAllKeyvalues();
@@ -376,7 +370,26 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				ent->addKeyvalue("target", newTriggerTarget);
 				ent->addKeyvalue("classname", "trigger_once");
 
-				//cout << "trigger_once -> " << newTriggerTarget << endl;
+				cout << "trigger_once -> " << newTriggerTarget << endl;
+			}
+			if (!tname.empty()) { // USE Only
+				Entity* relay = ent;
+
+				if (!(spawnflags & 2)) {
+					relay = new Entity();
+					mergedMap->ents.push_back(relay);
+				}
+
+				relay->clearAllKeyvalues();
+				relay->addKeyvalue("origin", origin.toKeyvalueString());
+				relay->addKeyvalue("targetname", tname);
+				relay->addKeyvalue("target", newTriggerTarget);
+				relay->addKeyvalue("spawnflags", "1"); // remove on fire
+				relay->addKeyvalue("triggerstate", "0");
+				relay->addKeyvalue("delay", "0");
+				relay->addKeyvalue("classname", "trigger_relay");
+
+				cout << "trigger_relay -> " << newTriggerTarget << endl;
 			}
 
 			string cleanup_iter = "bspguy_clean_" + source_map;
@@ -552,6 +565,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		}
 		
 		map_setup->addKeyvalue("bspguy_respawn_everyone", "1"); // respawn in new spots
+		map_setup->addKeyvalue("bspguy_autos_" + it->first, "1"); // fire what used to be trigger_auto
 
 		map_setup->addKeyvalue("targetname", load_section_prefix + it->first);
 		map_setup->addKeyvalue("classname", "multi_manager");
