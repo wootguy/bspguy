@@ -214,7 +214,14 @@ int noclip(CommandLine& cli) {
 			return 1;
 		}
 
-		numDeleted = map->strip_clipping_hull(hull, model, false);
+		if (hull != -1) {
+			numDeleted = map->strip_clipping_hull(hull, model, false);
+		}
+		else {
+			for (int i = 1; i < MAX_MAP_HULLS; i++) {
+				numDeleted += map->strip_clipping_hull(i, model, false);
+			}
+		}
 	}
 	else {
 		if (hull != -1) {
