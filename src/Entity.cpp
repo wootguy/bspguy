@@ -69,6 +69,16 @@ void Entity::clearAllKeyvalues() {
 	keyvalues.clear();
 }
 
+void Entity::clearEmptyKeyvalues() {
+	vector<string> newKeyOrder;
+	for (int i = 0; i < keyOrder.size(); i++) {
+		if (!keyvalues[keyOrder[i]].empty()) {
+			newKeyOrder.push_back(keyOrder[i]);
+		}
+	}
+	keyOrder = newKeyOrder;
+}
+
 bool Entity::hasKey(const std::string& key)
 {
 	return keyvalues.find(key) != keyvalues.end() && find(keyOrder.begin(), keyOrder.end(), key) != keyOrder.end();

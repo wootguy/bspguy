@@ -18,6 +18,7 @@ public:
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
 	void clearAllKeyvalues();
+	void clearEmptyKeyvalues();
 
 	void setOrAddKeyvalue(const std::string& key, const std::string& value);
 

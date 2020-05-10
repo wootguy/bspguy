@@ -4,9 +4,16 @@
 #include <algorithm>
 #include <iostream>
 
-// TODO:
+// super tod:
+// game crashes randomly, usually a few minutes after not focused on the game
+
+// minor todo:
 // trigger_changesky for series maps with different skies
-// replace monster_ ents with spawners?
+// reaplce trigger_autos
+// warn about game_playerjoin and other special names
+// move static origin targets?
+// fix spawners for things with custom keyvalues (apache, osprey, etc.)
+
 
 // Ideas for commands:
 // optimize:
@@ -20,6 +27,8 @@
 //		- check how close the map is to each BSP limit
 // extract:
 //		- extracts an isolated room from the BSP
+// decompile:
+//      - to RMF. Try creating brushes from convex face connections?
 
 int merge_maps(vector<string> options) {
 	
