@@ -283,6 +283,13 @@ void GetFaceLightmapSize(int facenum, int size[2]) {
 
 	size[0] = (maxs[0] - mins[0]) + 1;
 	size[1] = (maxs[1] - mins[1]) + 1;
+
+	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
+	{
+		//printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
+		size[0] = min(size[0], MAX_SURFACE_EXTENT);
+		size[1] = min(size[1], MAX_SURFACE_EXTENT);
+	}
 }
 
 void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
