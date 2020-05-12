@@ -258,10 +258,6 @@ private:
 	// for each model, split structures that are shared with models that both have and don't have an origin
 	void split_shared_model_structures();
 
-	// If one if it's structures is marked in the doNotMoveList, then it will be duplicated and
-	// all references to it will be updated in this model.
-	int remap_shared_model_structures(int modelIdx, MOVEINFO* doNotMoveLists);
-
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
 	bool load_lumps(string fname);
@@ -405,6 +401,7 @@ struct REMAPINFO
 	int* verts;
 	int* texInfo;
 
+	bool* visitedNodes; // don't try to update the same nodes twice
 	bool* visitedClipnodes; // don't try to update the same nodes twice
 
 	int planeCount;
@@ -429,15 +426,18 @@ struct REMAPINFO
 		verts = new int[vertCount];
 		texInfo = new int[texInfoCount];
 
+		visitedNodes = new bool[nodeCount];
 		visitedClipnodes = new bool[clipnodeCount];
 
 		memset(nodes, 0, nodeCount * sizeof(int));
 		memset(clipnodes, 0, clipnodeCount * sizeof(int));
-		memset(visitedClipnodes, 0, clipnodeCount * sizeof(bool));
 		memset(leaves, 0, leafCount * sizeof(int));
 		memset(planes, 0, planeCount * sizeof(int));
 		memset(verts, 0, vertCount * sizeof(int));
 		memset(texInfo, 0, texInfoCount * sizeof(int));
+
+		memset(visitedClipnodes, 0, clipnodeCount * sizeof(bool));
+		memset(visitedNodes, 0, nodeCount * sizeof(bool));
 	}
 
 	~REMAPINFO() {
@@ -448,5 +448,6 @@ struct REMAPINFO
 		delete[] verts;
 		delete[] texInfo;
 		delete[] visitedClipnodes;
+		delete[] visitedNodes;
 	}
 };
