@@ -881,6 +881,41 @@ bool sortModelInfos(const MOVEINFO* a, const MOVEINFO* b) {
 	
 }
 
+bool Bsp::isValid() {
+	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+	int clipnodeCount = header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
+	int marksurfacesCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16_t);
+	int surfedgeCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
+	int edgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
+	int textureCount = *((int32_t*)(lumps[LUMP_TEXTURES]));
+	int lightDataLength = header.lump[LUMP_LIGHTING].nLength;
+	int visDataLength = header.lump[LUMP_VISIBILITY].nLength;
+	int entCount = ents.size();
+
+	return modelCount < MAX_MAP_MODELS
+		&& planeCount < MAX_MAP_PLANES
+		&& vertCount < MAX_MAP_VERTS
+		&& nodeCount < MAX_MAP_NODES
+		&& texInfoCount < MAX_MAP_TEXINFOS
+		&& faceCount < MAX_MAP_FACES
+		&& clipnodeCount < MAX_MAP_CLIPNODES
+		&& leafCount < MAX_MAP_LEAVES
+		&& marksurfacesCount < MAX_MAP_MARKSURFS
+		&& surfedgeCount < MAX_MAP_SURFEDGES
+		&& edgeCount < MAX_MAP_SURFEDGES
+		&& textureCount < MAX_MAP_TEXTURES
+		&& lightDataLength < MAX_MAP_LIGHTDATA
+		&& visDataLength < MAX_MAP_VISDATA
+		&& entCount < MAX_MAP_ENTS;
+
+}
+
 void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);

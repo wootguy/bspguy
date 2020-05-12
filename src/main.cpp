@@ -39,7 +39,7 @@
 // clip:
 //		- replace the clipnodes of a model with a simple bounding box.
 
-const char* version_string = "bspguy v1 (May 2020)";
+const char* version_string = "bspguy v2 WIP (May 2020)";
 
 int test() {
 	/*
@@ -132,7 +132,7 @@ int merge_maps(CommandLine& cli) {
 	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"));
 
 	printf("\n");
-	result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
+	if (result->isValid()) result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
 	printf("\n");
 	result->print_info(false, 0, 0);
 
@@ -235,7 +235,7 @@ int noclip(CommandLine& cli) {
 	}
 
 	printf("Deleted %d clipnodes\n", numDeleted);
-	map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	printf("\n");
 
 	map->print_info(false, 0, 0);
@@ -263,7 +263,7 @@ int transform(CommandLine& cli) {
 		return 1;
 	}
 	
-	map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	printf("\n");
 
 	map->print_info(false, 0, 0);
@@ -347,7 +347,7 @@ void print_help(string command) {
 
 int main(int argc, char* argv[])
 {
-	//test();
+	// return test();
 
 	CommandLine cli(argc, argv);
 

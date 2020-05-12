@@ -253,6 +253,8 @@ public:
 
 	vec3 get_model_center(int modelIdx);
 
+	bool isValid();
+
 private:
 
 	// for each model, split structures that are shared with models that both have and don't have an origin
