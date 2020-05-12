@@ -143,10 +143,6 @@ bool Bsp::move(vec3 offset) {
 			modelHasOrigin[ents[i]->getBspModelIdx()] = true;
 		}
 
-		if (ents[i]->keyvalues["classname"] == "info_node") {
-			ents[i]->keyvalues["classname"] = "info_bode";
-		}
-
 		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
 		vec3 ori = keyvalue.getVector() + offset;
 
