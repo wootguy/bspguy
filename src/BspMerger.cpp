@@ -980,7 +980,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	// offsets relative to the start of the mipmap data, not the lump
 	uint32_t* mipTexOffsets = new uint32_t[thisTexCount + otherTexCount];
 
-	progress_title = "Merging planes";
+	progress_title = "Merging textures";
 	progress = 0;
 	progress_total = thisTexCount + otherTexCount;
 
@@ -1017,7 +1017,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 		bool isUnique = true;
 		for (int k = 0; k < thisTexCount; k++) {
 			BSPMIPTEX* thisTex = (BSPMIPTEX*)(newMipTexData + mipTexOffsets[k]);
-			if (memcmp(tex, thisTex, sz) == 0 && false) {
+			if (memcmp(tex, thisTex, sz) == 0) {
 				isUnique = false;
 				texRemap.push_back(k);
 				break;
@@ -1026,10 +1026,6 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 		if (isUnique) {
 			mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
-			if (mipTexOffsets[newTexCount] > maxMipTexDataSize) {
-				printf("ZOMG OVERFLOW\n");
-			}
-
 			texRemap.push_back(newTexCount);
 			memcpy(mipTexWritePtr, tex, sz);
 			mipTexWritePtr += sz;
@@ -1041,12 +1037,6 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	}
 
 	int duplicates = newTexCount - (thisTexCount + otherTexCount);
-
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate textures\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
-	}
 
 	uint texHeaderSize = (newTexCount + 1) * sizeof(int32_t);
 	uint newLen = (mipTexWritePtr - newMipTexData) + texHeaderSize;
