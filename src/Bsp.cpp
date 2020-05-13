@@ -567,6 +567,104 @@ void Bsp::split_shared_model_structures() {
 	delete[] modelHasOrigin;
 }
 
+int Bsp::remove_unused_model_structures() {
+	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
+	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
+	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
+	BSPNODE* nodes = (BSPNODE*)lumps[LUMP_NODES];
+	BSPFACE* faces = (BSPFACE*)lumps[LUMP_FACES];
+	vec3* verts = (vec3*)lumps[LUMP_VERTICES];
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
+	int leafCount = header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
+	int nodeCount = header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
+	int vertCount = header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
+	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+
+	// marks which structures should not be moved
+	MOVEINFO usedStructures(this);
+
+	//progress_title = "Remove unused structures";
+	//progress = 0;
+	//progress_total = modelCount * 2;
+
+	for (int i = 0; i < modelCount; i++) {
+		mark_model_structures(i, &usedStructures);
+		//print_move_progress();
+	}
+
+	REMAPINFO remappedStuff(this);
+
+	// TODO: handle all of these (not needed until removing faces?)
+	for (int i = 0; i < usedStructures.clipnodeCount; i++) {
+		if (!usedStructures.clipnodes[i]) {
+			printf("\nTODO: Remove unused clipnodes\n");
+			break;
+		}
+	}
+	for (int i = 1; i < usedStructures.leafCount; i++) { // skip solid leaf - it doesn't matter
+		if (!usedStructures.leaves[i]) {
+			printf("\nTODO: Remove unused leaves\n");
+			break;
+		}
+	}
+	for (int i = 0; i < usedStructures.nodeCount; i++) {
+		if (!usedStructures.nodes[i]) {
+			printf("\nTODO: Remove unused nodes\n");
+			break;
+		}
+	}
+	for (int i = 0; i < usedStructures.texInfoCount; i++) {
+		if (!usedStructures.texInfo[i]) {
+			printf("\nTODO: Remove unused texInfos\n");
+			break;
+		}
+	}
+	for (int i = 0; i < usedStructures.vertCount; i++) {
+		if (!usedStructures.verts[i]) {
+			printf("\nTODO: Remove unused verts\n");
+			break;
+		}
+	}
+
+	int unusedPlanes = 0;
+	for (int i = 0; i < usedStructures.planeCount; i++) {
+		if (!usedStructures.planes[i]) {
+			unusedPlanes++;
+		}
+	}
+	int newPlaneCount = planeCount - unusedPlanes;
+
+	BSPPLANE* newPlanes = new BSPPLANE[newPlaneCount];
+
+	int newIdx = 0;
+	for (int i = 0; i < usedStructures.planeCount; i++) {
+		if (!usedStructures.planes[i]) {
+			continue;
+		}
+		newPlanes[newIdx] = planes[i];
+		remappedStuff.planes[i] = newIdx;
+		newIdx++;
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		remap_model_structures(i, &remappedStuff);
+		//print_move_progress();
+	}
+
+	delete lumps[LUMP_PLANES];
+	lumps[LUMP_PLANES] = (byte*)newPlanes;
+	header.lump[LUMP_PLANES].nLength = newPlaneCount * sizeof(BSPPLANE);
+
+	//if (unusedPlanes)
+	//	printf("\nRemoved %d unused planes\n", unusedPlanes);
+	
+	return unusedPlanes;
+}
+
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
 	int minWidth = min(newLightmap.width, oldLightmap.width);
 	int minHeight = min(newLightmap.height, oldLightmap.height);
@@ -1222,7 +1320,6 @@ void Bsp::remap_node_structures(int iNode, REMAPINFO* remapInfo) {
 
 	for (int i = 0; i < node.nFaces; i++) {
 		BSPFACE& face = faces[node.firstFace + i];
-		int oldPlane = face.iPlane;
 		face.iPlane = remapInfo->planes[face.iPlane];
 	}
 
@@ -1360,8 +1457,6 @@ int Bsp::strip_clipping_hull(int hull_number, int modelIdx, bool ignoreSharedIfS
 
 	lumps[LUMP_CLIPNODES] = (byte*)newClipnodes;
 	header.lump[LUMP_CLIPNODES].nLength = newNumClipnodes * sizeof(BSPCLIPNODE);
-
-	// TODO: Remove unused planes
 
 	return removed;
 }

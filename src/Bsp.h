@@ -255,6 +255,9 @@ public:
 
 	bool isValid();
 
+	// delete structures not used by the map (needed after deleting models/hulls)
+	int remove_unused_model_structures();
+
 private:
 
 	// for each model, split structures that are shared with models that both have and don't have an origin

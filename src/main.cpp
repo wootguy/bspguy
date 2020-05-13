@@ -13,6 +13,11 @@
 // warn about game_playerjoin and other special names
 // fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
+// use min lightmap size for faces with bad extents? Saves ~3kb per face
+// automatically remove clipnodes/faces from things that don't need them
+// - no hull2 if map has no large monsters or pushables
+// - no clipnodes if it's func_illusionary or marked as nonsolid
+// - no faces if ent is invisible (trigger_once). Maybe this breaks them tho? 
 
 // refactoring:
 // save data structure pointers+sizes in Bsp class instead of copy-pasting them everywhere
@@ -28,8 +33,6 @@
 //		- copies a model from the source map into the target map (for adding new perfectly shaped brush ents)
 // addbox:
 //		- creates a new box-shaped brush model (faster than copymodel if you don't need anything fancy)
-// info (default command if none set):
-//		- check how close the map is to each BSP limit
 // extract:
 //		- extracts an isolated room from the BSP
 // decompile:
@@ -80,11 +83,18 @@ int test() {
 	//maps.push_back(new Bsp("echoes12.bsp"));
 	//maps.push_back(new Bsp("echoes13.bsp"));
 
-	maps.push_back(new Bsp("echoes01.bsp"));
-	maps.push_back(new Bsp("echoes02.bsp"));
+	maps.push_back(new Bsp("echoes/echoes01.bsp"));
+	maps.push_back(new Bsp("echoes/echoes02.bsp"));
+
+	//maps.push_back(new Bsp("merge0.bsp"));
+	//maps.push_back(new Bsp("merge0.bsp"));
 
 	for (int i = 0; i < maps.size(); i++) {
+		if (!maps[i]->valid) {
+			return 1;
+		}
 		maps[i]->strip_clipping_hull(2);
+		maps[i]->remove_unused_model_structures();
 	}
 
 	BspMerger merger;
@@ -93,8 +103,7 @@ int test() {
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
 		result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
-		result->print_info(false, 0, SORT_CLIPNODES);
-		result->print_info(true, 10, SORT_CLIPNODES);
+		result->print_info(false, 0, false);
 	}
 	return 0;
 }
@@ -119,11 +128,14 @@ int merge_maps(CommandLine& cli) {
 
 	if (cli.hasOption("-nohull2")) {
 		printf("Stripping hull 2 from each input map...\n");
-		int removed = 0;
+		int removedClipnodes = 0;
+		int removedPlanes = 0;
 		for (int i = 0; i < maps.size(); i++) {
-			removed += maps[i]->strip_clipping_hull(2);
+			removedClipnodes += maps[i]->strip_clipping_hull(2);
+			removedPlanes += maps[i]->remove_unused_model_structures();
 		}
-		printf("Deleted %d clipnodes\n\n", removed);
+		printf("Deleted %d clipnodes\n", removedClipnodes);
+		printf("Deleted %d planes\n\n", removedPlanes);
 	}	
 	
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
@@ -199,7 +211,8 @@ int noclip(CommandLine& cli) {
 		}
 	}
 
-	int numDeleted = 0;
+	int numDeletedClipnodes = 0;
+	int numDeletedPlanes = 0;
 	if (cli.hasOption("-model")) {
 		model = cli.getOptionInt("-model");
 
@@ -215,26 +228,29 @@ int noclip(CommandLine& cli) {
 		}
 
 		if (hull != -1) {
-			numDeleted = map->strip_clipping_hull(hull, model, false);
+			numDeletedClipnodes = map->strip_clipping_hull(hull, model, false);
 		}
 		else {
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				numDeleted += map->strip_clipping_hull(i, model, false);
+				numDeletedClipnodes += map->strip_clipping_hull(i, model, false);
 			}
 		}
 	}
 	else {
 		if (hull != -1) {
-			numDeleted = map->strip_clipping_hull(hull);
+			numDeletedClipnodes = map->strip_clipping_hull(hull);
 		}
 		else {
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				numDeleted += map->strip_clipping_hull(i);
+				numDeletedClipnodes += map->strip_clipping_hull(i);
 			}
 		}
 	}
 
-	printf("Deleted %d clipnodes\n", numDeleted);
+	numDeletedPlanes = map->remove_unused_model_structures();
+
+	printf("Deleted %d clipnodes\n", numDeletedClipnodes);
+	printf("Deleted %d planes\n", numDeletedPlanes);
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	printf("\n");
 

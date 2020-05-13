@@ -1120,12 +1120,6 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 	int newLen = mergedInfo.size() * sizeof(BSPTEXTUREINFO);
 	int duplicates = mergedInfo.size() - (thisInfoCount + otherInfoCount);
 
-	if (duplicates) {
-		cout << "Removed " << duplicates << " duplicate texinfos\n";
-		cout << "ZOMG NOT READY FOR THIS\n";
-		// TODO: update plane references in other BSP when duplicates are removed
-	}
-
 	delete[] mapA.lumps[LUMP_TEXINFO];
 	mapA.lumps[LUMP_TEXINFO] = new byte[newLen];
 	memcpy(mapA.lumps[LUMP_TEXINFO], &mergedInfo[0], newLen);
