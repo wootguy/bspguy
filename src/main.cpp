@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include "CommandLine.h"
+#include "remap.h"
 
 // super todo:
 // game crashes randomly, usually a few minutes after not focused on the game (maybe from edit+restart?)
@@ -41,6 +42,11 @@
 //      - export BSP models to MDL models.
 // clip:
 //		- replace the clipnodes of a model with a simple bounding box.
+
+// Notes:
+// Removing HULL 0 from any model crashes when shooting unless it's EF_NODRAW or renderamt=0
+// Removing HULL 0 from solid model crashes game when standing on it
+
 
 const char* version_string = "bspguy v2 WIP (May 2020)";
 
@@ -83,18 +89,36 @@ int test() {
 	//maps.push_back(new Bsp("echoes12.bsp"));
 	//maps.push_back(new Bsp("echoes13.bsp"));
 
-	maps.push_back(new Bsp("echoes/echoes01.bsp"));
-	maps.push_back(new Bsp("echoes/echoes02.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes01.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
 
-	//maps.push_back(new Bsp("merge0.bsp"));
-	//maps.push_back(new Bsp("merge0.bsp"));
+	maps.push_back(new Bsp("merge1.bsp"));
+	maps.push_back(new Bsp("merge0.bsp"));
+	maps.push_back(new Bsp("merge1.bsp"));
 
 	for (int i = 0; i < maps.size(); i++) {
 		if (!maps[i]->valid) {
 			return 1;
 		}
-		maps[i]->strip_clipping_hull(2);
-		maps[i]->remove_unused_model_structures();
+		//maps[i]->strip_clipping_hull(2);
+		//maps[i]->remove_unused_model_structures();
+	}
+
+	if (true) {
+		STRUCTCOUNT deleted = maps[1]->delete_model_faces(1);
+		printf("Deleted %d planes\n", deleted.planes);
+		printf("Deleted %d nodes\n", deleted.nodes);
+		printf("Deleted %d clipnodes\n", deleted.clipnodes);
+		printf("Deleted %d leaves\n", deleted.leaves);
+		printf("Deleted %d faces\n", deleted.faces);
+		printf("Deleted %d markSurfs\n", deleted.markSurfs);
+		printf("Deleted %d surfEdges\n", deleted.surfEdges);
+		printf("Deleted %d texInfos\n", deleted.texInfos);
+		printf("Deleted %d textures\n", deleted.textures);
+		printf("Deleted %d edges\n", deleted.edges);
+		printf("Deleted %d verts\n", deleted.verts);
+		printf("Deleted %.2f KB of lightmap data\n", (float)deleted.lightdata / 1024.0f);
+		printf("Deleted %.2f KB of vis data\n", (float)deleted.visdata / 1024.0f);
 	}
 
 	BspMerger merger;
@@ -132,7 +156,7 @@ int merge_maps(CommandLine& cli) {
 		int removedPlanes = 0;
 		for (int i = 0; i < maps.size(); i++) {
 			removedClipnodes += maps[i]->strip_clipping_hull(2);
-			removedPlanes += maps[i]->remove_unused_model_structures();
+			removedPlanes += maps[i]->remove_unused_model_structures().planes;
 		}
 		printf("Deleted %d clipnodes\n", removedClipnodes);
 		printf("Deleted %d planes\n\n", removedPlanes);
@@ -247,7 +271,7 @@ int noclip(CommandLine& cli) {
 		}
 	}
 
-	numDeletedPlanes = map->remove_unused_model_structures();
+	numDeletedPlanes = map->remove_unused_model_structures().planes;
 
 	printf("Deleted %d clipnodes\n", numDeletedClipnodes);
 	printf("Deleted %d planes\n", numDeletedPlanes);

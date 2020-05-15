@@ -281,15 +281,30 @@ void GetFaceLightmapSize(int facenum, int size[2]) {
 
 	GetFaceExtents(facenum, mins, maxs);
 
-	size[0] = (maxs[0] - mins[0]) + 1;
-	size[1] = (maxs[1] - mins[1]) + 1;
+	size[0] = (maxs[0] - mins[0]);
+	size[1] = (maxs[1] - mins[1]);
 
 	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
 	{
-		//printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
+		printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
 		size[0] = min(size[0], MAX_SURFACE_EXTENT);
 		size[1] = min(size[1], MAX_SURFACE_EXTENT);
 	}
+
+	size[0] += 1;
+	size[1] += 1;
+}
+
+int GetFaceLightmapSizeBytes(int facenum) {
+	int size[2];
+	GetFaceLightmapSize(facenum, size);
+	BSPFACE& face = g_dfaces[facenum];
+
+	int lightmapCount = 0;
+	for (int k = 0; k < 4; k++) {
+		lightmapCount += face.nStyles[k] != 255;
+	}
+	return size[0] * size[1] * lightmapCount * sizeof(COLOR3);
 }
 
 void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])

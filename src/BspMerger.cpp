@@ -819,16 +819,6 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 	return separationPlane;
 }
 
-int BspMerger::getMipTexDataSize(int width, int height) {
-	int sz = 256 * 3 + 4; // pallette + padding
-
-	for (int i = 0; i < MIPLEVELS; i++) {
-		sz += (width >> i)* (height >> i);
-	}
-
-	return sz;
-}
-
 void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 {
 	progress_title = "Merging entities";
@@ -989,10 +979,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 		int32_t offset = ((int32_t*)thisTex)[i + 1];
 		BSPMIPTEX* tex = (BSPMIPTEX*)(thisTex + offset);
 
-		int sz = sizeof(BSPMIPTEX);
-		if (tex->nOffsets[0] != 0) {
-			sz += getMipTexDataSize(tex->nWidth, tex->nHeight);
-		}
+		int sz = getBspTextureSize(tex);
 		//memset(tex->nOffsets, 0, sizeof(uint32) * 4);
 
 		mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
@@ -1009,10 +996,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 		int32_t offset = ((int32_t*)otherTex)[i + 1];
 		BSPMIPTEX* tex = (BSPMIPTEX*)(otherTex + offset);
 
-		int sz = sizeof(BSPMIPTEX);
-		if (tex->nOffsets[0] != 0) {
-			sz += getMipTexDataSize(tex->nWidth, tex->nHeight);
-		}
+		int sz = getBspTextureSize(tex);
 
 		bool isUnique = true;
 		for (int k = 0; k < thisTexCount; k++) {
@@ -1027,7 +1011,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 		if (isUnique) {
 			mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
 			texRemap.push_back(newTexCount);
-			memcpy(mipTexWritePtr, tex, sz);
+			memcpy(mipTexWritePtr, tex, sz); // Note: won't work if pixel data isn't immediately after struct
 			mipTexWritePtr += sz;
 			newTexCount++;
 			otherMergeSz += sz;
@@ -1427,7 +1411,8 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	// other map's submodels
 	for (int i = 1; i < otherModelCount; i++) {
 		BSPMODEL model = otherModels[i];
-		model.iHeadnodes[0] += thisNodeCount; // already includes new head nodes (merge_nodes comes after create_merge_headnodes)
+		if (model.iHeadnodes[0] >= 0)
+			model.iHeadnodes[0] += thisNodeCount; // already includes new head nodes (merge_nodes comes after create_merge_headnodes)
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (model.iHeadnodes[k] >= 0)
 				model.iHeadnodes[k] += thisClipnodeCount;
@@ -1440,7 +1425,8 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	// this map's submodels
 	for (int i = 1; i < thisModelCount; i++) {
 		BSPMODEL model = thisModels[i];
-		model.iHeadnodes[0] += 1; // adjust for new head node
+		if (model.iHeadnodes[0] >= 0)
+			model.iHeadnodes[0] += 1; // adjust for new head node
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (model.iHeadnodes[k] >= 0)
 				model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // adjust for new head nodes
@@ -1502,15 +1488,19 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 
 	progress_title = "Merging visibility";
 	progress = 0;
-	progress_total = thisWorldLeafCount + thisModelLeafCount + otherLeafCount;
+	progress_total = 4;
 
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
+
+	print_merge_progress();
 
 	// decompress this map's world leaves
 	decompress_vis_lump(allLeaves, thisVis, decompressedVis,
 		thisWorldLeafCount, thisVisLeaves, totalVisLeaves,
 		shiftOffsetBit, shiftAmount);
+	
+	print_merge_progress();
 
 	// decompress this map's model leaves (also making room for the other map's world leaves)
 	BSPLEAF* thisModelLeaves = allLeaves + thisWorldLeafCount + otherLeafCount;
@@ -1526,6 +1516,8 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	shiftOffsetBit = 0;
 	shiftAmount = thisWorldLeafCount; // world leaf count (exluding solid leaf)
 
+	print_merge_progress();
+
 	// decompress other map's vis data (skip empty first leaf, which now only the first map should have)
 	byte* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
 	decompress_vis_lump(allLeaves + thisWorldLeafCount, otherVis, decompressedOtherVis,
@@ -1540,11 +1532,13 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	//cout << "Decompressed combined vis:\n";
 	//print_vis(decompressedVis, totalVisLeaves, newVisRowSize);
 
+	print_merge_progress();
+
 	// recompress the combined vis data
 	int compressedMaxSize = decompressedVisSize * 2; // TODO: how is it possible that compressed size is bigger? (merge0 + merge1 + merge0)
 	byte* compressedVis = new byte[compressedMaxSize];
 	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, compressedMaxSize);
+	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, totalVisLeaves, compressedMaxSize);
 	int oldLen = mapA.header.lump[LUMP_VISIBILITY].nLength;
 
 	delete[] mapA.lumps[LUMP_VISIBILITY];
@@ -1618,116 +1612,6 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 	//cout << oldLen << " -> " << header.lump[LUMP_LIGHTING].nLength << endl;
 }
-
-bool BspMerger::shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
-	byte bitsPerStep = 8;
-	byte offsetBit = offsetLeaf % bitsPerStep;
-	uint64 mask = 0; // part of the byte that shouldn't be shifted
-	for (int i = 0; i < offsetBit; i++) {
-		mask |= 1 << i;
-	}
-
-	int byteShifts = shift / 8;
-	int bitShifts = shift % 8;
-
-	// shift until offsetLeaf isn't sharing a byte with the leaves that come before it
-	// then we can do a much faster memcpy on the section that needs to be shifted
-	if ((offsetLeaf % 8) + bitShifts < 8 && byteShifts > 0) {
-		byteShifts -= 1;
-		bitShifts += 8;
-	}
-
-	int overflow = 0;
-	for (int k = 0; k < bitShifts; k++) {
-
-		bool carry = 0;
-		for (int i = 0; i < len; i++) {
-			uint oldCarry = carry;
-			carry = (vis[i] & 0x80) != 0;
-
-			if (offsetBit != 0 && i * bitsPerStep < offsetLeaf && i * bitsPerStep + bitsPerStep > offsetLeaf) {
-				vis[i] = (vis[i] & mask) | ((vis[i] & ~mask) << 1);
-			}
-			else if (i >= offsetLeaf / bitsPerStep) {
-				vis[i] = (vis[i] << 1) + oldCarry;
-			}
-			else {
-				carry = 0;
-			}
-		}
-
-		if (carry) {
-			overflow++;
-		}
-	}
-	if (overflow)
-		printf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
-
-
-	if (byteShifts > 0) {
-		// TODO: detect overflows here too
-		static byte temp[MAX_MAP_LEAVES / 8];
-
-		int startByte = (offsetLeaf + bitShifts) / 8;
-		int moveSize = len - (startByte + byteShifts);
-
-		memcpy(temp, (byte*)vis + startByte, moveSize);
-		memset((byte*)vis + startByte, 0, byteShifts);
-		memcpy((byte*)vis + startByte + byteShifts, temp, moveSize);
-	}
-
-	return overflow;
-}
-
-// decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
-// iterationLeaves = number of leaves to decompress vis for
-// visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
-// newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
-void BspMerger::decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
-	int iterationLeaves, int visDataLeafCount, int newNumLeaves,
-	int shiftOffsetBit, int shiftAmount)
-{
-	byte* dest;
-	uint oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
-	uint newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
-	int len = 0;
-
-	// calculate which bits of an uncompressed visibility row are used/unused
-	uint64 lastChunkMask = 0;
-	int lastChunkIdx = (oldVisRowSize / 8) - 1;
-	int maxBitsInLastChunk = (visDataLeafCount % 64);
-	for (uint64 k = 0; k < maxBitsInLastChunk; k++) {
-		lastChunkMask = lastChunkMask | ((uint64)1 << k);
-	}
-
-	for (int i = 0; i < iterationLeaves; i++)
-	{
-		dest = output + i * newVisRowSize;
-
-		if (leafLump[i + 1].nVisOffset < 0) {
-			memset(dest, 255, visDataLeafCount / 8);
-			for (int k = 0; k < visDataLeafCount % 8; k++) {
-				dest[visDataLeafCount / 8] |= 1 << k;
-			}
-			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
-			continue;
-		}
-
-		DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
-
-		// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
-		// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
-		// To prevent overflows when shifting the data later, the unused leaf bits will be forced to zero here.
-		((uint64*)dest)[lastChunkIdx] &= lastChunkMask;
-
-		if (shiftAmount) {
-			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
-		}
-
-		print_merge_progress();
-	}
-}
-
 
 void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separationPlane) {
 	BSPMODEL& thisWorld = ((BSPMODEL*)mapA.lumps[LUMP_MODELS])[0];

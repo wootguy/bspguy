@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string.h>
+#include "Wad.h"
 
 bool fileExists(const string& fileName)
 {
@@ -102,6 +103,18 @@ string trimSpaces(string s)
 		s = s.substr(lineStart);
 
 	return s;
+}
+
+int getBspTextureSize(BSPMIPTEX* bspTexture) {
+	int sz = sizeof(BSPMIPTEX);
+	if (bspTexture->nOffsets[0] != 0) {
+		sz += 256 * 3 + 4; // pallette + padding
+
+		for (int i = 0; i < MIPLEVELS; i++) {
+			sz += (bspTexture->nWidth >> i)* (bspTexture->nHeight >> i);
+		}
+	}
+	return sz;
 }
 
 #ifdef WIN32

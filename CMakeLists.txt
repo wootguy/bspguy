@@ -9,6 +9,7 @@ set(SOURCE_FILES
 	src/Entity.h		src/Entity.cpp
 	src/Keyvalue.h		src/Keyvalue.cpp
 	src/Wad.h			src/Wad.cpp
+    src/remap.h			src/remap.cpp
     src/util.h			src/util.cpp
 	src/types.h
 	src/vectors.h		src/vectors.cpp

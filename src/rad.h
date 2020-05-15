@@ -103,6 +103,7 @@ void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, light_flag_t* luxelFlagsOut)
 const BSPPLANE* getPlaneFromFace(const BSPFACE* const face);
 
 void GetFaceLightmapSize(int facenum, int size[2]);
+int GetFaceLightmapSizeBytes(int facenum);
 void GetFaceExtents(int facenum, int mins_out[2], int extents_out[2]);
 void CalcFaceExtents(lightinfo_t* l);
 void CalcPoints(lightinfo_t* l, light_flag_t* LuxelFlags);

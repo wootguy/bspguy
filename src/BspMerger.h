@@ -45,8 +45,6 @@ private:
 
 	BSPPLANE separate(Bsp& mapA, Bsp& mapB);
 
-	int getMipTexDataSize(int width, int height);
-
 	void merge_ents(Bsp& mapA, Bsp& mapB);
 	void merge_planes(Bsp& mapA, Bsp& mapB);
 	void merge_textures(Bsp& mapA, Bsp& mapB);
@@ -64,16 +62,6 @@ private:
 	void merge_lighting(Bsp& mapA, Bsp& mapB);
 
 	void print_merge_progress();
-
-	bool shiftVis(byte* vis, int len, int offsetLeaf, int shift);
-
-	// decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
-	// iterationLeaves = number of leaves to decompress vis for
-	// visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
-	// newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
-	void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
-		int iterationLeaves, int visDataLeafCount, int newNumLeaves,
-		int shiftOffsetBit, int shiftAmount);
 
 	void create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separationPlane);
 

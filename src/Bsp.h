@@ -1,3 +1,4 @@
+#pragma once
 #include <chrono>
 #include <ctime> 
 #include "Wad.h"
@@ -5,6 +6,7 @@
 #include "bsplimits.h"
 #include "rad.h"
 #include <string.h>
+#include "remap.h"
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
@@ -184,23 +186,6 @@ struct BSPCLIPNODE
 	int16_t iChildren[2]; // negative numbers are contents
 };
 
-struct BSPTEXDATA
-{
-	int32_t numTex;
-	int32_t* offset;
-	int32_t* len;
-	WADTEX** tex;
-};
-
-struct SURFACEINFO
-{
-	int extents[2];
-};
-
-class Bsp;
-struct MOVEINFO;
-struct REMAPINFO;
-
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -239,6 +224,9 @@ public:
 	// strips a collision hull from all models and the world
 	int strip_clipping_hull(int hull_number);
 
+	// strips HULL 0 from the model and all of its faces
+	STRUCTCOUNT delete_model_faces(int modelIdx);
+
 	void dump_lightmap(int faceIdx, string outputPath);
 	void dump_lightmap_atlas(string outputPath);
 
@@ -256,9 +244,13 @@ public:
 	bool isValid();
 
 	// delete structures not used by the map (needed after deleting models/hulls)
-	int remove_unused_model_structures();
+	STRUCTCOUNT remove_unused_model_structures();
 
 private:
+	int remove_unused_lightmaps(bool* usedFaces);
+	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
+	int remove_unused_textures(bool* usedTextures, int* remappedIndexes);
+	int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
 
 	// for each model, split structures that are shared with models that both have and don't have an origin
 	void split_shared_model_structures();
@@ -277,25 +269,23 @@ private:
 	void print_contents(int contents);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
-	void print_model_stat(MOVEINFO* modelInfo, uint val, uint max, bool isMem);
+	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 
 	string get_model_usage(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
-	// mark clipnodes that are children of this iNode.
-	// markList should be big enough to hold every clipnode in the map
-	void mark_clipnodes(int iNode, bool* markList);
-
 	// marks all structures that this model uses
-	void mark_model_structures(int modelIdx, MOVEINFO* moveInfo);
-	void mark_node_structures(int iNode, MOVEINFO* markList);
-	void mark_clipnode_structures(int iNode, MOVEINFO* markList);
+	void mark_model_structures(int modelIdx, STRUCTUSAGE* STRUCTUSAGE);
+	void mark_face_structures(int iFace, STRUCTUSAGE* usage);
+	void mark_node_structures(int iNode, STRUCTUSAGE* usage);
+	void mark_clipnode_structures(int iNode, STRUCTUSAGE* usage);
 
 	// remaps structure indexes to new locations
-	void remap_model_structures(int modelIdx, REMAPINFO* remapInfo);
-	void remap_node_structures(int iNode, REMAPINFO* remapInfo);
-	void remap_clipnode_structures(int iNode, REMAPINFO* remapInfo);
+	void remap_face_structures(int faceIdx, STRUCTREMAP* remap);
+	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
+	void remap_node_structures(int iNode, STRUCTREMAP* remap);
+	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
 	chrono::system_clock::time_point last_progress;
 	char* progress_title;
@@ -304,155 +294,4 @@ private:
 	int progress_total;
 
 	void print_move_progress();
-};
-
-
-
-// used to mark structures that were moved as a result of moving a model
-struct MOVEINFO
-{
-	bool* nodes;
-	bool* clipnodes;
-	bool* leaves;
-	bool* planes;
-	bool* verts;
-	bool* texInfo;
-	bool* faces;
-
-	int planeCount;
-	int texInfoCount;
-	int leafCount;
-	int nodeCount;
-	int clipnodeCount;
-	int vertCount;
-	int faceCount;
-
-	int planeSum;
-	int texInfoSum;
-	int leafSum;
-	int nodeSum;
-	int clipnodeSum;
-	int vertSum;
-	int faceSum;
-
-	int modelIdx;
-
-	MOVEINFO() {
-		modelIdx = 0;
-		planeSum = texInfoSum = leafSum = nodeSum = clipnodeSum = vertSum = faceSum = 0;
-		planeCount = texInfoCount = leafCount = nodeCount = clipnodeCount = vertCount = faceCount = 0;
-		nodes = clipnodes = leaves = planes = verts = texInfo = faces = NULL;
-	}
-
-	MOVEINFO(Bsp* map) {
-		init(map);
-	}
-
-	void init(Bsp* map) {
-		planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
-		texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
-		leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
-		nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
-		clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
-		vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
-		faceCount = map->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
-
-		nodes = new bool[nodeCount];
-		clipnodes = new bool[clipnodeCount];
-		leaves = new bool[leafCount];
-		planes = new bool[planeCount];
-		verts = new bool[vertCount];
-		texInfo = new bool[texInfoCount];
-		faces = new bool[faceCount];
-
-		memset(nodes, 0, nodeCount * sizeof(bool));
-		memset(clipnodes, 0, clipnodeCount * sizeof(bool));
-		memset(leaves, 0, leafCount * sizeof(bool));
-		memset(planes, 0, planeCount * sizeof(bool));
-		memset(verts, 0, vertCount * sizeof(bool));
-		memset(texInfo, 0, texInfoCount * sizeof(bool));
-		memset(faces, 0, faceCount * sizeof(bool));
-	}
-
-	void compute_sums() {
-		planeSum = texInfoSum = leafSum = nodeSum = clipnodeSum = vertSum = faceSum = 0;
-		for (int i = 0; i < planeCount; i++) planeSum += planes[i];
-		for (int i = 0; i < texInfoCount; i++) texInfoSum += texInfo[i];
-		for (int i = 0; i < leafCount; i++) leafSum += leaves[i];
-		for (int i = 0; i < nodeCount; i++) nodeSum += nodes[i];
-		for (int i = 0; i < clipnodeCount; i++) clipnodeSum += clipnodes[i];
-		for (int i = 0; i < vertCount; i++) vertSum += verts[i];
-		for (int i = 0; i < faceCount; i++) faceSum += faces[i];
-	}
-
-	~MOVEINFO() {
-		delete[] nodes;
-		delete[] clipnodes;
-		delete[] leaves;
-		delete[] planes;
-		delete[] verts;
-		delete[] texInfo;
-		delete[] faces;
-	}
-};
-
-// used to remap structure indexes to new locations
-struct REMAPINFO
-{
-	int* nodes;
-	int* clipnodes;
-	int* leaves;
-	int* planes;
-	int* verts;
-	int* texInfo;
-
-	bool* visitedNodes; // don't try to update the same nodes twice
-	bool* visitedClipnodes; // don't try to update the same nodes twice
-
-	int planeCount;
-	int texInfoCount;
-	int leafCount;
-	int nodeCount;
-	int clipnodeCount;
-	int vertCount;
-
-	REMAPINFO(Bsp* map) {
-		planeCount = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
-		texInfoCount = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
-		leafCount = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
-		nodeCount = map->header.lump[LUMP_NODES].nLength / sizeof(BSPNODE);
-		clipnodeCount = map->header.lump[LUMP_CLIPNODES].nLength / sizeof(BSPCLIPNODE);
-		vertCount = map->header.lump[LUMP_VERTICES].nLength / sizeof(vec3);
-
-		nodes = new int[nodeCount];
-		clipnodes = new int[clipnodeCount];
-		leaves = new int[leafCount];
-		planes = new int[planeCount];
-		verts = new int[vertCount];
-		texInfo = new int[texInfoCount];
-
-		visitedNodes = new bool[nodeCount];
-		visitedClipnodes = new bool[clipnodeCount];
-
-		memset(nodes, 0, nodeCount * sizeof(int));
-		memset(clipnodes, 0, clipnodeCount * sizeof(int));
-		memset(leaves, 0, leafCount * sizeof(int));
-		memset(planes, 0, planeCount * sizeof(int));
-		memset(verts, 0, vertCount * sizeof(int));
-		memset(texInfo, 0, texInfoCount * sizeof(int));
-
-		memset(visitedClipnodes, 0, clipnodeCount * sizeof(bool));
-		memset(visitedNodes, 0, nodeCount * sizeof(bool));
-	}
-
-	~REMAPINFO() {
-		delete[] nodes;
-		delete[] clipnodes;
-		delete[] leaves;
-		delete[] planes;
-		delete[] verts;
-		delete[] texInfo;
-		delete[] visitedClipnodes;
-		delete[] visitedNodes;
-	}
 };
