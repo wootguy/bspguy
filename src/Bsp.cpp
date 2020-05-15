@@ -761,36 +761,6 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 		endLeaf = newVisRowSize * 8 - 1;
 	}
 
-	printf("\nOLD VIS:\n");
-	for (int i = 0; i < lastOldLeafWithVis; i++) {
-		printf("%2d = ", i);
-		bool wholeRowRemove = false;
-		if (!usedLeaves[i + 1]) {
-			print_color(PRINT_RED | PRINT_BRIGHT);
-			wholeRowRemove = true;
-		}
-		for (int k = 0; k < oldVisRowSize; k++) {
-			byte bits = decompressedVis[i * oldVisRowSize + k];
-
-			for (int b = 0; b < 8; b++) {
-				if (!wholeRowRemove) {
-					int leafIdx = k * 8 + b;
-					if (leafIdx < oldLeafCount && !usedLeaves[leafIdx+1]) {
-						print_color(PRINT_RED | PRINT_BRIGHT);
-					}
-					else {
-						print_color(PRINT_RED | PRINT_GREEN | PRINT_BLUE);
-					}
-				}
-
-				printf("%d", (bits >> b) & 1);
-			}
-			printf(" ");
-		}
-		print_color(PRINT_RED | PRINT_GREEN | PRINT_BLUE);
-		printf("\n");
-	}
-
 	byte* newDecompressedVis = new byte[decompressedVisSize];
 
 	int shiftAmount = (startLeaf - endLeaf);
@@ -805,45 +775,10 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 		}
 	}
 
-	printf("\nNEW VIS:\n");
-	for (int i = 0; i < lastNewLeafWithVis; i++) {
-		printf("%2d = ", i);
-		for (int k = 0; k < newVisRowSize; k++) {
-			byte bits = newDecompressedVis[i * newVisRowSize + k];
-			for (int b = 0; b < 8; b++) {
-				printf("%d", (bits >> b) & 1);
-			}
-			printf(" ");
-		}
-		printf("\n");
-	}
-
 	int compressedMaxSize = decompressedVisSize * 2;
 	byte* compressedVis = new byte[compressedMaxSize];
 	memset(compressedVis, 0, compressedMaxSize);
 	int newVisLen = CompressAll(newLeaves, newDecompressedVis, compressedVis, newVisLeafCount, lastNewLeafWithVis, compressedMaxSize);
-
-	memset(decompressedVis, 0, decompressedVisSize);
-	decompress_vis_lump(newLeaves, compressedVis, decompressedVis, newVisLeafCount, lastNewLeafWithVis);
-	printf("\nRECOMPRESSED VIS:\n");
-	for (int i = 0; i < lastNewLeafWithVis; i++) {
-		printf("%2d = ", i);
-		for (int k = 0; k < newVisRowSize; k++) {
-			byte bits = decompressedVis[i * newVisRowSize + k];
-			for (int b = 0; b < 8; b++) {
-				printf("%d", (bits >> b) & 1);
-			}
-			printf(" ");
-		}
-		printf("\n");
-	}
-
-	for (int i = 1; i < oldVisLeafCount + 1; i++) {
-		printf("OLD %d: %d\n", i, oldLeaves[i].nVisOffset);
-	}
-	for (int i = 1; i < newVisLeafCount + 1; i++) {
-		printf("NEW %d: %d\n", i, newLeaves[i].nVisOffset);
-	}
 
 	delete lumps[LUMP_VISIBILITY];
 	lumps[LUMP_VISIBILITY] = compressedVis;
