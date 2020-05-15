@@ -91,7 +91,7 @@ int CompressVis(const byte* const src, const unsigned int src_length, byte* dest
 	return dest_p - dest;
 }
 
-int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves)
+int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves, int bufferSize)
 {
 	int i, x = 0;
 	byte* dest;
@@ -114,12 +114,10 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves)
 		dest = vismap_p;
 		vismap_p += x;
 
-		/*
-		if (vismap_p > vismap_end)
+		if (vismap_p > output + bufferSize)
 		{
-			Error("Vismap expansion overflow");
+			printf("Vismap expansion overflow\n");
 		}
-		*/
 
 		leafs[i + 1].nVisOffset = dest - output;            // leaf 0 is a common solid
 

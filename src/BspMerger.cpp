@@ -1541,9 +1541,10 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	//print_vis(decompressedVis, totalVisLeaves, newVisRowSize);
 
 	// recompress the combined vis data
-	byte* compressedVis = new byte[decompressedVisSize];
+	int compressedMaxSize = decompressedVisSize * 2; // TODO: how is it possible that compressed size is bigger? (merge0 + merge1 + merge0)
+	byte* compressedVis = new byte[compressedMaxSize];
 	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves);
+	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, compressedMaxSize);
 	int oldLen = mapA.header.lump[LUMP_VISIBILITY].nLength;
 
 	delete[] mapA.lumps[LUMP_VISIBILITY];
