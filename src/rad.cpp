@@ -286,7 +286,7 @@ void GetFaceLightmapSize(int facenum, int size[2]) {
 
 	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
 	{
-		printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
+		//printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
 		size[0] = min(size[0], MAX_SURFACE_EXTENT);
 		size[1] = min(size[1], MAX_SURFACE_EXTENT);
 	}

@@ -1469,76 +1469,41 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	int thisVisLeaves = thisLeafCount - 1; // VIS ignores the shared solid leaf 0
 	int otherVisLeaves = otherLeafCount; // already does not include the solid leaf (see merge_leaves)
 	int totalVisLeaves = thisVisLeaves + otherVisLeaves;
-
-	int thisModelLeafCount = thisVisLeaves - thisWorldLeafCount;
-	int otherModelLeafCount = otherVisLeaves - otherWorldLeafCount;
+	
+	int mergedWorldLeafCount = thisWorldLeafCount + otherWorldLeafCount;
 
 	uint newVisRowSize = ((totalVisLeaves + 63) & ~63) >> 3;
 	int decompressedVisSize = totalVisLeaves * newVisRowSize;
 
-	// submodel leaves should come after world leaves and need to be moved after the incoming world leaves from the other map
-	int shiftOffsetBit = 0; // where to start making room for the submodel leaves
-	int shiftAmount = otherLeafCount;
-	for (int k = 0; k < modelLeafRemap.size(); k++) {
-		if (k != modelLeafRemap[k]) {
-			shiftOffsetBit = k - 1; // skip solid leaf
-			break;
-		}
-	}
-
 	progress_title = "Merging visibility";
 	progress = 0;
-	progress_total = 4;
+	progress_total = 2 + otherWorldLeafCount;
+	print_merge_progress();
 
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 
-	print_merge_progress();
-
 	// decompress this map's world leaves
+	// model leaves don't need to be decompressed because the game ignores VIS for them.
 	decompress_vis_lump(allLeaves, thisVis, decompressedVis,
-		thisWorldLeafCount, thisVisLeaves, totalVisLeaves,
-		shiftOffsetBit, shiftAmount);
-	
+		thisWorldLeafCount, thisVisLeaves, totalVisLeaves);
+
+	// decompress other map's world-leaf vis data (skip empty first leaf, which now only the first map should have)
 	print_merge_progress();
-
-	// decompress this map's model leaves (also making room for the other map's world leaves)
-	BSPLEAF* thisModelLeaves = allLeaves + thisWorldLeafCount + otherLeafCount;
-	byte* modelLeafVisDest = decompressedVis + (thisWorldLeafCount + otherLeafCount) * newVisRowSize;
-	decompress_vis_lump(thisModelLeaves, thisVis, modelLeafVisDest,
-		thisModelLeafCount, thisVisLeaves, totalVisLeaves,
-		shiftOffsetBit, shiftAmount);
-
-	//cout << "Decompressed this vis:\n";
-	//print_vis(decompressedVis, thisVisLeaves + otherLeafCount, newVisRowSize);
-
-	// all of other map's leaves come after this map's world leaves
-	shiftOffsetBit = 0;
-	shiftAmount = thisWorldLeafCount; // world leaf count (exluding solid leaf)
-
-	print_merge_progress();
-
-	// decompress other map's vis data (skip empty first leaf, which now only the first map should have)
 	byte* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
 	decompress_vis_lump(allLeaves + thisWorldLeafCount, otherVis, decompressedOtherVis,
-		otherLeafCount, otherLeafCount, totalVisLeaves,
-		shiftOffsetBit, shiftAmount);
+		otherWorldLeafCount, otherLeafCount, totalVisLeaves);
 
-	//cout << "Decompressed other vis:\n";
-	//print_vis(decompressedOtherVis, otherLeafCount, newVisRowSize);
-
-	//memset(decompressedVis + 9 * newBitbytes, 0xff, otherMapVisSize);
-
-	//cout << "Decompressed combined vis:\n";
-	//print_vis(decompressedVis, totalVisLeaves, newVisRowSize);
-
-	print_merge_progress();
+	// shift mapB's world leaves after mapA's world leaves
+	for (int i = 0; i < otherWorldLeafCount; i++) {
+		shiftVis(decompressedOtherVis + i * newVisRowSize, newVisRowSize, 0, thisWorldLeafCount);
+		print_merge_progress();
+	}
 
 	// recompress the combined vis data
-	int compressedMaxSize = decompressedVisSize * 2; // TODO: how is it possible that compressed size is bigger? (merge0 + merge1 + merge0)
-	byte* compressedVis = new byte[compressedMaxSize];
+	byte* compressedVis = new byte[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, totalVisLeaves, compressedMaxSize);
+	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, mergedWorldLeafCount, decompressedVisSize);
 	int oldLen = mapA.header.lump[LUMP_VISIBILITY].nLength;
 
 	delete[] mapA.lumps[LUMP_VISIBILITY];
@@ -1546,7 +1511,8 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	memcpy(mapA.lumps[LUMP_VISIBILITY], compressedVis, newVisLen);
 	mapA.header.lump[LUMP_VISIBILITY].nLength = newVisLen;
 
-	//cout << oldLen << " -> " << newVisLen << endl;
+	delete[] decompressedVis;
+	delete[] compressedVis;
 }
 
 void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {

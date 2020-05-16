@@ -9,8 +9,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift);
 // visDataLeafCount = total leaves in the map (exluding the shared solid leaf 0)
 // newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
 void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
-	int iterationLeaves, int visDataLeafCount, int newNumLeaves,
-	int shiftOffsetBit, int shiftAmount);
+	int iterationLeaves, int visDataLeafCount, int newNumLeaves);
 
 // decompress the given vis data into arrays of bits where each bit indicates if a leaf is visible or not
 void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, int leafCount, int iterLeafCount);

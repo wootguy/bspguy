@@ -705,33 +705,9 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	// exclude solid leaf
 	int oldVisLeafCount = oldLeafCount - 1;
 	int newVisLeafCount = (header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF)) - 1;
-	int removedLeaves = oldVisLeafCount - newVisLeafCount;
 
-	int lastOldLeafWithVis = -1;
-	for (int i = 1; i < oldVisLeafCount +1; i++) {
-		if (oldLeaves[i].nVisOffset == -1) {
-			if (lastOldLeafWithVis == -1)
-				lastOldLeafWithVis = i-1;
-		}
-		else if (oldLeaves[i].nVisOffset != -1 && lastOldLeafWithVis != -1) {
-			printf("\nWARNING: Leaves without vis data do not come last in the old leaf list\n");
-			lastOldLeafWithVis = oldVisLeafCount;
-			break;
-		}
-	}
-
-	int lastNewLeafWithVis = -1;
-	for (int i = 1; i < newVisLeafCount+1; i++) {
-		if (newLeaves[i].nVisOffset == -1) {
-			if (lastNewLeafWithVis == -1)
-				lastNewLeafWithVis = i-1;
-		}
-		else if (newLeaves[i].nVisOffset != -1 && lastNewLeafWithVis != -1) {
-			printf("\nWARNING: Leaves without vis data do not come last in the new leaf list\n");
-			lastNewLeafWithVis = newVisLeafCount;
-			break;
-		}
-	}
+	int oldWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // TODO: allow deleting world leaves
+	int newWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
 
 	uint oldVisRowSize = ((oldLeafCount + 63) & ~63) >> 3;
 	uint newVisRowSize = ((newVisLeafCount + 63) & ~63) >> 3;
@@ -739,50 +715,20 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	int decompressedVisSize = oldLeafCount * oldVisRowSize;
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
-	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, oldVisLeafCount, lastOldLeafWithVis);
+	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, 
+		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
 
-	int startLeaf = -1;
-	int endLeaf = -1;
-	for (int k = 0; k < oldVisRowSize; k++) {
-		for (int b = 0; b < 8; b++) {
-			int leafIdx = k * 8 + b + 1;
+	byte* compressedVis = new byte[decompressedVisSize];
+	memset(compressedVis, 0, decompressedVisSize);
+	int newVisLen = CompressAll(newLeaves, decompressedVis, compressedVis, newVisLeafCount, newWorldLeaves, decompressedVisSize);
 
-			if (startLeaf == -1) {
-				if (!usedLeaves[leafIdx]) {
-					startLeaf = leafIdx-1;
-				}
-			}
-			if (endLeaf == -1 && startLeaf != -1 && usedLeaves[leafIdx]) {
-				endLeaf = leafIdx-1;
-			}
-		}
-	}
-	if (endLeaf == -1) {
-		endLeaf = newVisRowSize * 8 - 1;
-	}
-
-	byte* newDecompressedVis = new byte[decompressedVisSize];
-
-	int shiftAmount = (startLeaf - endLeaf);
-	int offset = 0;
-	for (int i = 0; i < oldVisLeafCount; i++) {
-		if (usedLeaves[i + 1]) {
-			//g_debug_shift = i == 0;
-			shiftVis(decompressedVis + i * oldVisRowSize, oldVisRowSize, startLeaf, shiftAmount);
-
-			memcpy(newDecompressedVis + offset, decompressedVis + i * oldVisRowSize, newVisRowSize);
-			offset += newVisRowSize;
-		}
-	}
-
-	int compressedMaxSize = decompressedVisSize * 2;
-	byte* compressedVis = new byte[compressedMaxSize];
-	memset(compressedVis, 0, compressedMaxSize);
-	int newVisLen = CompressAll(newLeaves, newDecompressedVis, compressedVis, newVisLeafCount, lastNewLeafWithVis, compressedMaxSize);
-
-	delete lumps[LUMP_VISIBILITY];
-	lumps[LUMP_VISIBILITY] = compressedVis;
+	delete[] lumps[LUMP_VISIBILITY];
+	lumps[LUMP_VISIBILITY] = new byte[newVisLen];
+	memcpy(lumps[LUMP_VISIBILITY], compressedVis, newVisLen);
 	header.lump[LUMP_VISIBILITY].nLength = newVisLen;
+
+	delete[] decompressedVis;
+	delete[] compressedVis;
 
 	return oldVisLength - newVisLen;
 }
@@ -1153,7 +1099,7 @@ void Bsp::print_stat(string name, uint val, uint max, bool isMem) {
 
 	printf("%-12s  ", name.c_str());
 	if (isMem) {
-		printf("%8.1f / %-5.1f MB", val/meg, max/meg);
+		printf("%8.2f / %-5.2f MB", val/meg, max/meg);
 	}
 	else {
 		printf("%8u / %-8u", val, max);

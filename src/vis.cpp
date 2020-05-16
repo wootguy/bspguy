@@ -142,8 +142,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 // visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
 // newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
 void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
-	int iterationLeaves, int visDataLeafCount, int newNumLeaves,
-	int shiftOffsetBit, int shiftAmount)
+	int iterationLeaves, int visDataLeafCount, int newNumLeaves)
 {
 	byte* dest;
 	uint oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
@@ -151,11 +150,10 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	int len = 0;
 
 	// calculate which bits of an uncompressed visibility row are used/unused
-	uint64 lastChunkMask = 0;
-	int lastChunkIdx = (oldVisRowSize / 8) - 1;
-	int maxBitsInLastChunk = (visDataLeafCount % 64);
-	for (uint64 k = 0; k < maxBitsInLastChunk; k++) {
-		lastChunkMask = lastChunkMask | ((uint64)1 << k);
+	byte lastChunkMask = 0;
+	int lastUsedIdx = (iterationLeaves / 8);
+	for (byte k = 0; k < iterationLeaves % 8; k++) {
+		lastChunkMask = lastChunkMask | (1 << k);
 	}
 
 	for (int i = 0; i < iterationLeaves; i++)
@@ -163,11 +161,8 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		dest = output + i * newVisRowSize;
 
 		if (leafLump[i + 1].nVisOffset < 0) {
-			memset(dest, 255, visDataLeafCount / 8);
-			for (int k = 0; k < visDataLeafCount % 8; k++) {
-				dest[visDataLeafCount / 8] |= 1 << k;
-			}
-			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+			memset(dest, 255, lastUsedIdx);
+			dest[lastUsedIdx] |= lastChunkMask;
 			continue;
 		}
 
@@ -175,47 +170,15 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 
 		// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
 		// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
-		// To prevent overflows when shifting the data later, the unused leaf bits will be forced to zero here.
-		((uint64*)dest)[lastChunkIdx] &= lastChunkMask;
-
-		if (shiftAmount) {
-			shiftVis(dest, newVisRowSize, shiftOffsetBit, shiftAmount);
+		// Leaves for submodels also don't matter and can be set to 0 to save space during recompression.
+		if (lastUsedIdx >= 0 && lastUsedIdx < newVisRowSize) {
+			dest[lastUsedIdx] &= lastChunkMask;
 		}
-	}
-}
-
-void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, int leafCount, int iterLeafCount)
-{
-	byte* dest;
-	uint visRowSize = ((leafCount + 63) & ~63) >> 3;
-	int len = 0;
-
-	// calculate which bits of an uncompressed visibility row are used/unused
-	uint64 lastChunkMask = 0;
-	int lastChunkIdx = (visRowSize / 8) - 1;
-	int maxBitsInLastChunk = (iterLeafCount % 64);
-	for (uint64 k = 0; k < maxBitsInLastChunk; k++) {
-		lastChunkMask = lastChunkMask | ((uint64)1 << k);
-	}
-
-	for (int i = 0; i < iterLeafCount; i++)
-	{
-		dest = output + i * visRowSize;
-
-		if (leafLump[i + 1].nVisOffset < 0) {
-			memset(dest, 255, leafCount / 8);
-			for (int k = 0; k < leafCount % 8; k++) {
-				dest[leafCount / 8] |= 1 << k;
-			}
-			continue;
+		if (lastUsedIdx < newVisRowSize) {
+			int sz = newVisRowSize - (lastUsedIdx + 1);
+			int last = lastUsedIdx + 1 + sz;
+			memset(dest + lastUsedIdx + 1, 0, sz);
 		}
-
-		DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, visRowSize, leafCount);
-
-		// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
-		// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
-		// To prevent overflows when shifting the data later, the unused leaf bits will be forced to zero here.
-		((uint64*)dest)[lastChunkIdx] &= lastChunkMask;
 	}
 }
 
@@ -313,7 +276,7 @@ int CompressVis(const byte* const src, const unsigned int src_length, byte* dest
 
 int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves, int iterLeaves, int bufferSize)
 {
-	int i, x = 0;
+	int x = 0;
 	byte* dest;
 	byte* src;
 	byte compressed[MAX_MAP_LEAVES / 8];
@@ -321,8 +284,27 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 	byte* vismap_p = output;
 
-	for (i = 0; i < iterLeaves; i++)
+	int* sharedRows = new int[iterLeaves];
+	for (int i = 0; i < iterLeaves; i++) {
+		byte* src = uncompressed + i * g_bitbytes;
+
+		sharedRows[i] = i;
+		for (int k = 0; k < i; k++) {
+			byte* previous = uncompressed + k * g_bitbytes;
+			if (memcmp(src, previous, g_bitbytes) == 0) {
+				sharedRows[i] = k;
+				break;
+			}
+		}
+	}
+
+	for (int i = 0; i < iterLeaves; i++)
 	{
+		if (sharedRows[i] != i) {
+			leafs[i + 1].nVisOffset = leafs[sharedRows[i] + 1].nVisOffset;
+			continue;
+		}
+
 		memset(&compressed, 0, sizeof(compressed));
 
 		src = uncompressed + i * g_bitbytes;
@@ -342,5 +324,8 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 		memcpy(dest, compressed, x);
 	}
+
+	delete[] sharedRows;
+
 	return vismap_p - output;
 }
