@@ -245,6 +245,12 @@ public:
 
 	// delete structures not used by the map (needed after deleting models/hulls)
 	STRUCTCOUNT remove_unused_model_structures();
+	void delete_model(int modelIdx);
+
+	void remove_useless_clipnodes();
+	
+	// check for bad indexes
+	void validate();
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
@@ -272,6 +278,7 @@ private:
 	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 
 	string get_model_usage(int modelIdx);
+	vector<Entity*> get_model_ents(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
