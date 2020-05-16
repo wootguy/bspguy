@@ -623,6 +623,7 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 
 	for (int i = 0, k = 0; i < oldStructCount; i++) {
 		if (!usedStructs[i]) {
+			remappedIndexes[i] = 0; // prevent out-of-bounds remaps later
 			continue;
 		}
 		memcpy(newStructs + k * structSize, oldStructs + i * structSize, structSize);
@@ -646,6 +647,13 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 		if (!usedTextures[i]) {
 			int32_t offset = ((int32_t*)texData)[i + 1];
 			BSPMIPTEX* tex = (BSPMIPTEX*)(texData + offset);
+
+			// don't delete single frames from animated textures or else game crashes
+			if (tex->szName[0] == '-' || tex->szName[1] == '+') {
+				usedTextures[i] = true;
+				// TODO: delete all frames if none are used
+				continue;
+			}
 
 			removeSize += getBspTextureSize(tex) + sizeof(int32_t);
 			removeCount++;
@@ -689,12 +697,13 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 
 	qrad_init_globals(this);
 
+	int* lightmapSizes = new int[faceCount];
+
 	int newLightDataSize = 0;
-	int lastFaceIdx = 0;
 	for (int i = 0; i < faceCount; i++) {
 		if (usedFaces[i]) {
-			newLightDataSize += GetFaceLightmapSizeBytes(i);
-			lastFaceIdx = i;
+			lightmapSizes[i] = GetFaceLightmapSizeBytes(i);
+			newLightDataSize += lightmapSizes[i];
 		}
 	}
 
@@ -705,13 +714,13 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 		BSPFACE& face = faces[i];
 
 		if (usedFaces[i]) {
-			int lightmapSize = GetFaceLightmapSizeBytes(i);
-			memcpy(newColorData + offset, lightdata + face.nLightmapOffset, lightmapSize);
+			memcpy(newColorData + offset, lightdata + face.nLightmapOffset, lightmapSizes[i]);
 			face.nLightmapOffset = offset;
-			offset += lightmapSize;
+			offset += lightmapSizes[i];
 		}
 	}
 
+	delete[] lightmapSizes;
 	delete lumps[LUMP_LIGHTING];
 	lumps[LUMP_LIGHTING] = newColorData;
 	header.lump[LUMP_LIGHTING].nLength = newLightDataSize;
@@ -730,7 +739,7 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	int oldWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // TODO: allow deleting world leaves
 	int newWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
 
-	uint oldVisRowSize = ((oldLeafCount + 63) & ~63) >> 3;
+	uint oldVisRowSize = ((oldVisLeafCount + 63) & ~63) >> 3;
 	uint newVisRowSize = ((newVisLeafCount + 63) & ~63) >> 3;
 
 	int decompressedVisSize = oldLeafCount * oldVisRowSize;
@@ -738,6 +747,20 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	memset(decompressedVis, 0, decompressedVisSize);
 	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, 
 		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
+
+	if (oldVisRowSize != newVisRowSize) {
+		int newDecompressedVisSize = oldLeafCount * newVisRowSize;
+		byte* newDecompressedVis = new byte[decompressedVisSize];
+		memset(newDecompressedVis, 0, newDecompressedVisSize);
+
+		int minRowSize = min(oldVisRowSize, newVisRowSize);
+		for (int i = 0; i < oldWorldLeaves; i++) {
+			memcpy(newDecompressedVis + i * newVisRowSize, decompressedVis + i * oldVisRowSize, minRowSize);
+		}
+
+		delete[] decompressedVis;
+		decompressedVis = newDecompressedVis;
+	}
 
 	byte* compressedVis = new byte[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
@@ -761,13 +784,8 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
 
-	//progress_title = "Remove unused structures";
-	//progress = 0;
-	//progress_total = modelCount * 2;
-
 	for (int i = 0; i < modelCount; i++) {
 		mark_model_structures(i, &usedStructures);
-		//print_move_progress();
 	}
 
 	STRUCTREMAP remap(this);
@@ -882,6 +900,7 @@ void Bsp::remove_useless_clipnodes() {
 		string uses = "";
 		bool needsPlayerHulls = false;
 		bool needsMonsterHulls = false;
+		bool needsVisibleHull = false;
 		for (int k = 0; k < usageEnts.size(); k++) {
 			string cname = usageEnts[k]->keyvalues["classname"];
 			string tname = usageEnts[k]->keyvalues["targetname"];
@@ -892,12 +911,26 @@ void Bsp::remove_useless_clipnodes() {
 			}
 			uses += tname + " (" + cname + ")";
 
-			if (cname != "func_illusionary") {
+			if (cname == "func_illusionary") {
+				needsVisibleHull = true;
+				continue;
+			}
+			else if (cname.find("trigger_") == 0) {
 				needsPlayerHulls = true;
 				needsMonsterHulls = true;
+				// TODO: first check if it can be triggered by point ents
+			}
+			else {
+				needsPlayerHulls = true;
+				needsMonsterHulls = true;
+				needsVisibleHull = true;
 			}
 		}
 
+		if (!needsVisibleHull) {
+			printf("Stripping visible hull from model %d, used in %s\n", i, uses.c_str());
+			delete_model_faces(i);
+		}
 		if (!needsPlayerHulls && !needsMonsterHulls) {
 			printf("Stripping collision from model %d, used in %s\n", i, uses.c_str());
 			strip_clipping_hull(1, i, false);
@@ -906,9 +939,9 @@ void Bsp::remove_useless_clipnodes() {
 		}
 	}
 	
-	update_ent_lump();
-
 	remove_unused_model_structures();
+
+	update_ent_lump();
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
@@ -1259,7 +1292,7 @@ bool Bsp::isValid() {
 
 }
 
-void Bsp::validate() {
+bool Bsp::validate() {
 	BSPPLANE* planes = (BSPPLANE*)lumps[LUMP_PLANES];
 	BSPTEXTUREINFO* texInfo = (BSPTEXTUREINFO*)lumps[LUMP_TEXINFO];
 	BSPLEAF* leaves = (BSPLEAF*)lumps[LUMP_LEAVES];
@@ -1271,6 +1304,7 @@ void Bsp::validate() {
 	COLOR3* lightdata = (COLOR3*)lumps[LUMP_LIGHTING];
 	int32_t* surfEdges = (int32_t*)lumps[LUMP_SURFEDGES];
 	BSPEDGE* edges = (BSPEDGE*)lumps[LUMP_EDGES];
+	uint16* marksurfs = (uint16*)lumps[LUMP_MARKSURFACES];
 
 	int planeCount = header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	int texInfoCount = header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
@@ -1287,69 +1321,98 @@ void Bsp::validate() {
 	int lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	int visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 
+	bool isValid = true;
+
+	for (int i = 0; i < marksurfacesCount; i++) {
+		if (marksurfs[i] >= faceCount) {
+			printf("Bad face reference in marksurf %d: %d\n", i, marksurfs[i]);
+			isValid = false;
+		}
+	}
+	for (int i = 0; i < surfedgeCount; i++) {
+		if (abs(surfEdges[i]) >= edgeCount) {
+			printf("Bad edge reference in surfedge %d: %d\n", i, surfEdges[i]);
+			isValid = false;
+		}
+	}
 	for (int i = 0; i < texInfoCount; i++) {
 		if (texInfo[i].iMiptex < 0 || texInfo[i].iMiptex >= textureCount) {
 			printf("Bad texture reference in textureinfo %d: %d\n", i, texInfo[i].iMiptex);
+			isValid = false;
 		}
 	}
 	for (int i = 0; i < faceCount; i++) {
 		if (faces[i].iPlane < 0 || faces[i].iPlane >= planeCount) {
 			printf("Bad plane reference in face %d: %d\n", i, faces[i].iPlane);
+			isValid = false;
 		}
 		if (faces[i].iFirstEdge < 0 || faces[i].iFirstEdge >= surfedgeCount) {
 			printf("Bad surfedge reference in face %d: %d\n", i, faces[i].iFirstEdge);
+			isValid = false;
 		}
 		if (faces[i].iTextureInfo < 0 || faces[i].iTextureInfo >= texInfoCount) {
 			printf("Bad textureinfo reference in face %d: %d\n", i, faces[i].iTextureInfo);
+			isValid = false;
 		}
-		if (faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) {
+		if (faces[i].nStyles[0] != 255 && faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) {
 			printf("Bad lightmap offset in face %d: %d / %d\n", i, faces[i].nLightmapOffset, lightDataLength);
+			isValid = false;
 		}
 	}
 	for (int i = 0; i < leafCount; i++) {
 		if (leaves[i].iFirstMarkSurface < 0 || leaves[i].iFirstMarkSurface >= marksurfacesCount) {
 			printf("Bad marksurf reference in leaf %d: %d\n", i, leaves[i].iFirstMarkSurface);
+			isValid = false;
 		}
 		if (leaves[i].nVisOffset < -1 || leaves[i].nVisOffset >= visDataLength) {
 			printf("Bad vis offset in leaf %d: %d\n", i, leaves[i].nVisOffset);
+			isValid = false;
 		}
 	}
 	for (int i = 0; i < edgeCount; i++) {
 		for (int k = 0; k < 2; k++) {
 			if (edges[i].iVertex[k] >= vertCount) {
 				printf("Bad vertex reference in edge %d: %d\n", i, edges[i].iVertex[k]);
+				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < nodeCount; i++) {
 		if (nodes[i].firstFace < 0 || nodes[i].firstFace >= faceCount) {
 			printf("Bad face reference in node %d: %d\n", i, nodes[i].firstFace);
+			isValid = false;
 		}
 		if (nodes[i].iPlane < 0 || nodes[i].iPlane >= planeCount) {
 			printf("Bad plane reference in node %d: %d\n", i, nodes[i].iPlane);
+			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (nodes[i].iChildren[k] >= nodeCount) {
 				printf("Bad node reference in node %d child %d: %d\n", i, k, nodes[i].iChildren[k]);
+				isValid = false;
 			}
 			else if (nodes[i].iChildren[k] < 0 && ~nodes[i].iChildren[k] >= leafCount) {
 				printf("Bad leaf reference in node %d child %d: %d\n", i, k, ~nodes[i].iChildren[k]);
+				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < clipnodeCount; i++) {
 		if (clipnodes[i].iPlane < 0 || clipnodes[i].iPlane >= planeCount) {
 			printf("Bad plane reference in clipnode %d: %d\n", i, clipnodes[i].iPlane);
+			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (clipnodes[i].iChildren[k] >= clipnodeCount) {
 				printf("Bad clipnode reference in clipnode %d child %d: %d\n", i, k, clipnodes[i].iChildren[k]);
+				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < ents.size(); i++) {
 		if (ents[i]->getBspModelIdx() >= modelCount) {
 			printf("Bad model reference in entity %d: %d\n", i, ents[i]->getBspModelIdx());
+			isValid = false;
 		}
 	}
 
@@ -1361,19 +1424,25 @@ void Bsp::validate() {
 		totalFaces += models[i].nFaces;
 		if (models[i].iFirstFace < 0 || models[i].iFirstFace >= faceCount) {
 			printf("Bad face reference in model %d: %d\n", i, models[i].iFirstFace);
+			isValid = false;
 		}
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (models[i].iHeadnodes[k] >= clipnodeCount) {
 				printf("Bad clipnode reference in model %d hull %d: %d\n", i, k, models[i].iHeadnodes[k]);
+				isValid = false;
 			}
 		}
 	}
 	if (totalVisLeaves != leafCount) {
 		printf("Bad model vis leaf sum: %d / %d\n", totalVisLeaves, leafCount);
+		isValid = false;
 	}
 	if (totalFaces != faceCount) {
 		printf("Bad model face sum: %d / %d\n", totalFaces, faceCount);
+		isValid = false;
 	}
+
+	return isValid;
 }
 
 void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
@@ -1889,6 +1958,7 @@ STRUCTCOUNT Bsp::delete_model_faces(int modelIdx) {
 	model.iHeadnodes[0] = -1;
 	model.nVisLeafs = 0;
 	model.nFaces = 0;
+	model.iFirstFace = 0;
 
 	return remove_unused_model_structures();
 }

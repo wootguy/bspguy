@@ -250,7 +250,7 @@ public:
 	void remove_useless_clipnodes();
 	
 	// check for bad indexes
-	void validate();
+	bool validate();
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);

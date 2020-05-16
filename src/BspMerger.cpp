@@ -292,7 +292,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				ent->addKeyvalue("targetname", "bspguy_autos_" + source_map);
 				ent->keyvalues["classname"] = "trigger_relay";
 			}
-			if (cname.find("monster_") == 0) {
+			if (cname.find("monster_") == 0 && cname.rfind("_dead") != cname.size()-5) {
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;

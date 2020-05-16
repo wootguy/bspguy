@@ -56,7 +56,7 @@ void STRUCTUSAGE::compute_sum() {
 	for (int i = 0; i < count.clipnodes; i++) sum.clipnodes += clipnodes[i];
 	for (int i = 0; i < count.verts; i++) sum.verts += verts[i];
 	for (int i = 0; i < count.faces; i++) sum.faces += faces[i];
-	for (int i = 0; i < count.textures; i++) sum.texInfos += textures[i];
+	for (int i = 0; i < count.textures; i++) sum.textures += textures[i];
 	for (int i = 0; i < count.markSurfs; i++) sum.markSurfs += markSurfs[i];
 	for (int i = 0; i < count.surfEdges; i++) sum.surfEdges += surfEdges[i];
 	for (int i = 0; i < count.edges; i++) sum.edges += edges[i];
