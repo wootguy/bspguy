@@ -6,6 +6,7 @@
 #include "rad.h"
 #include "vis.h"
 #include "remap.h"
+#include <set>
 
 Bsp::Bsp() {
 	lumps = new byte * [HEADER_LUMPS];
@@ -901,6 +902,46 @@ void Bsp::remove_useless_clipnodes() {
 			continue;
 		}
 
+		set<string> conditionalPointEntTriggers;
+		conditionalPointEntTriggers.insert("trigger_once");
+		conditionalPointEntTriggers.insert("trigger_multiple");
+		conditionalPointEntTriggers.insert("trigger_counter");
+		conditionalPointEntTriggers.insert("trigger_gravity");
+		conditionalPointEntTriggers.insert("trigger_teleport");
+
+		set<string> entsThatNeverNeedAnyHulls;
+		entsThatNeverNeedAnyHulls.insert("env_bubbles");
+		entsThatNeverNeedAnyHulls.insert("func_mortar_field");
+		entsThatNeverNeedAnyHulls.insert("func_tankcontrols");
+		entsThatNeverNeedAnyHulls.insert("func_traincontrols");
+		entsThatNeverNeedAnyHulls.insert("func_vehiclecontrols");
+		entsThatNeverNeedAnyHulls.insert("trigger_autosave"); // obsolete in sven
+		entsThatNeverNeedAnyHulls.insert("trigger_endsection"); // obsolete in sven
+
+		set<string> entsThatNeverNeedCollision;
+		entsThatNeverNeedCollision.insert("func_illusionary");
+
+		set<string> passableEnts;
+		passableEnts.insert("func_door");
+		passableEnts.insert("func_door_rotating");
+		passableEnts.insert("func_pendulum");
+		passableEnts.insert("func_tracktrain");
+		passableEnts.insert("func_train");
+		passableEnts.insert("func_water");
+		passableEnts.insert("momentary_door");
+
+		set<string> playerOnlyTriggers;
+		playerOnlyTriggers.insert("func_ladder");
+		playerOnlyTriggers.insert("game_zone_player");
+		playerOnlyTriggers.insert("player_respawn_zone");
+		playerOnlyTriggers.insert("trigger_cdaudio");
+		playerOnlyTriggers.insert("trigger_changelevel");
+		playerOnlyTriggers.insert("trigger_transition");
+
+		set<string> monsterOnlyTriggers;
+		monsterOnlyTriggers.insert("func_monsterclip");
+		monsterOnlyTriggers.insert("trigger_monsterjump");
+
 		string uses = "";
 		bool needsPlayerHulls = false;
 		bool needsMonsterHulls = false;
@@ -913,33 +954,106 @@ void Bsp::remove_useless_clipnodes() {
 			if (k != 0) {
 				uses += ", ";
 			}
-			uses += tname + " (" + cname + ")";
+			uses += "\"" + tname + "\" (" + cname + ")";
 
-			if (cname == "func_illusionary") {
+			// TODO:
+			// - Strip hull 0 if ent is nonsolid AND invisible AND not a point-ent trigger
+			// - Strip hull 2 if only needed for pushables and there are none big enough for hull 2
+
+			if (entsThatNeverNeedAnyHulls.find(cname) != entsThatNeverNeedAnyHulls.end())  {
+				continue; // no collision or faces needed at all
+			}
+			else if (entsThatNeverNeedCollision.find(cname) != entsThatNeverNeedCollision.end()) {
 				needsVisibleHull = true;
-				continue;
+			}
+			else if (passableEnts.find(cname) != passableEnts.end()) {
+				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 8); // "Passable" or "Not solid" unchecked
+				needsVisibleHull = true;
 			}
 			else if (cname.find("trigger_") == 0) {
+				bool affectsPointEnts = spawnflags & 8; // "Everything else" flag checked
+
+				if (affectsPointEnts && conditionalPointEntTriggers.find(cname) != conditionalPointEntTriggers.end()) {
+					needsVisibleHull = true;
+					needsPlayerHulls = !(spawnflags & 2); // "No clients" unchecked
+					needsMonsterHulls = (spawnflags & 1) || (spawnflags & 4); // "monsters" or "pushables" checked
+				}
+				else if (cname == "trigger_push") { 
+					needsPlayerHulls = !(spawnflags & 8); // "No clients" unchecked
+					needsMonsterHulls = (spawnflags & 4) || !(spawnflags & 16); // "Pushables" checked or "No monsters" unchecked
+					needsVisibleHull = true;
+				}
+				else if (cname == "trigger_hurt") {
+					needsPlayerHulls = !(spawnflags & 8); // "No clients" unchecked
+					needsMonsterHulls = !(spawnflags & 16) || !(spawnflags & 32); // "Fire/Touch client only" unchecked
+				}
+				else {
+					needsPlayerHulls = true;
+					needsMonsterHulls = true;
+				}
+			}
+			else if (cname == "func_clip") {
+				needsPlayerHulls = !(spawnflags & 8); // "No clients" not checked
+				needsMonsterHulls = (spawnflags & 8) || !(spawnflags & 16); // "Pushables" checked or "No monsters" unchecked
+				needsVisibleHull = (spawnflags & 32) || (spawnflags & 64); // "Everything else" or "item_inv" checked
+			}
+			else if (cname == "func_conveyor") {
+				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 2); // "Not Solid" unchecked
+				needsVisibleHull = true;
+			}
+			else if (cname == "func_friction") {
 				needsPlayerHulls = true;
 				needsMonsterHulls = true;
-				// TODO: first check if it can be triggered by point ents
+			}
+			else if (cname == "func_rot_button") {
+				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 1); // "Not solid" unchecked
+			}
+			else if (cname == "func_rotating") {
+				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 64); // "Not solid" unchecked
+			}
+			else if (playerOnlyTriggers.find(cname) != playerOnlyTriggers.end()) {
+				needsPlayerHulls = true;
+			}
+			else if (monsterOnlyTriggers.find(cname) != monsterOnlyTriggers.end()) {
+				needsMonsterHulls = true;
+			}
+			else if (cname == "trigger_cameratarget") {
+				needsPlayerHulls = true;
+				needsMonsterHulls = true;
+				needsVisibleHull = !(spawnflags & 1); // "Invisible" unchecked
 			}
 			else {
+				// assume all hulls are needed
 				needsPlayerHulls = true;
 				needsMonsterHulls = true;
 				needsVisibleHull = true;
+				break;
 			}
 		}
 
+		BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[i];
+
 		if (!needsVisibleHull) {
-			printf("Stripping visible hull from model %d, used in %s\n", i, uses.c_str());
-			delete_model_faces(i);
+			printf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
+
+			model.iHeadnodes[0] = -1;
+			model.nVisLeafs = 0;
+			model.nFaces = 0;
+			model.iFirstFace = 0;
 		}
 		if (!needsPlayerHulls && !needsMonsterHulls) {
-			printf("Stripping collision from model %d, used in %s\n", i, uses.c_str());
-			strip_clipping_hull(1, i, false);
-			strip_clipping_hull(2, i, false);
-			strip_clipping_hull(3, i, false);
+			printf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
+			
+			model.iHeadnodes[1] = -1;
+			model.iHeadnodes[2] = -1;
+			model.iHeadnodes[3] = -1;
+		}
+		else if (!needsMonsterHulls) {
+			printf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
+			model.iHeadnodes[2] = -1;
+		}
+		else if (!needsPlayerHulls) {
+			// monsters use all hulls so can't do anything about this
 		}
 	}
 	
