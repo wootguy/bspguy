@@ -849,7 +849,8 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	}
 	for (int i = 0; i < newCounts.nodes; i++) {
 		nodes[i].iPlane = remap.planes[nodes[i].iPlane];
-		nodes[i].firstFace = remap.faces[nodes[i].firstFace];
+		if (nodes[i].nFaces > 0)
+			nodes[i].firstFace = remap.faces[nodes[i].firstFace];
 		for (int k = 0; k < 2; k++) {
 			if (nodes[i].iChildren[k] >= 0) {
 				nodes[i].iChildren[k] = remap.nodes[nodes[i].iChildren[k]];
@@ -861,16 +862,19 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 		}
 	}
 	for (int i = 1; i < newCounts.leaves; i++) {
-		leaves[i].iFirstMarkSurface = remap.markSurfs[leaves[i].iFirstMarkSurface];
+		if (leaves[i].nMarkSurfaces > 0)
+			leaves[i].iFirstMarkSurface = remap.markSurfs[leaves[i].iFirstMarkSurface];
 	}
 	for (int i = 0; i < newCounts.faces; i++) {
 		faces[i].iPlane = remap.planes[faces[i].iPlane];
-		faces[i].iFirstEdge = remap.surfEdges[faces[i].iFirstEdge];
+		if (faces[i].nEdges > 0)
+			faces[i].iFirstEdge = remap.surfEdges[faces[i].iFirstEdge];
 		faces[i].iTextureInfo = remap.texInfo[faces[i].iTextureInfo];
 	}
 
 	for (int i = 0; i < modelCount; i++) {
-		models[i].iFirstFace = remap.faces[models[i].iFirstFace];
+		if (models[i].nFaces > 0)
+			models[i].iFirstFace = remap.faces[models[i].iFirstFace];
 		if (models[i].iHeadnodes[0] >= 0)
 			models[i].iHeadnodes[0] = remap.nodes[models[i].iHeadnodes[0]];
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
@@ -878,7 +882,7 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 				models[i].iHeadnodes[k] = remap.clipnodes[models[i].iHeadnodes[k]];
 		}
 	}
-	
+
 	return removeCount;
 }
 
@@ -1325,33 +1329,33 @@ bool Bsp::validate() {
 
 	for (int i = 0; i < marksurfacesCount; i++) {
 		if (marksurfs[i] >= faceCount) {
-			printf("Bad face reference in marksurf %d: %d\n", i, marksurfs[i]);
+			printf("Bad face reference in marksurf %d: %d / %d\n", i, marksurfs[i], faceCount);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < surfedgeCount; i++) {
 		if (abs(surfEdges[i]) >= edgeCount) {
-			printf("Bad edge reference in surfedge %d: %d\n", i, surfEdges[i]);
+			printf("Bad edge reference in surfedge %d: %d / %d\n", i, surfEdges[i], edgeCount);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < texInfoCount; i++) {
 		if (texInfo[i].iMiptex < 0 || texInfo[i].iMiptex >= textureCount) {
-			printf("Bad texture reference in textureinfo %d: %d\n", i, texInfo[i].iMiptex);
+			printf("Bad texture reference in textureinfo %d: %d / %d\n", i, texInfo[i].iMiptex, textureCount);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < faceCount; i++) {
 		if (faces[i].iPlane < 0 || faces[i].iPlane >= planeCount) {
-			printf("Bad plane reference in face %d: %d\n", i, faces[i].iPlane);
+			printf("Bad plane reference in face %d: %d / %d\n", i, faces[i].iPlane, planeCount);
 			isValid = false;
 		}
-		if (faces[i].iFirstEdge < 0 || faces[i].iFirstEdge >= surfedgeCount) {
-			printf("Bad surfedge reference in face %d: %d\n", i, faces[i].iFirstEdge);
+		if (faces[i].nEdges > 0 && (faces[i].iFirstEdge < 0 || faces[i].iFirstEdge >= surfedgeCount)) {
+			printf("Bad surfedge reference in face %d: %d / %d\n", i, faces[i].iFirstEdge, surfedgeCount);
 			isValid = false;
 		}
 		if (faces[i].iTextureInfo < 0 || faces[i].iTextureInfo >= texInfoCount) {
-			printf("Bad textureinfo reference in face %d: %d\n", i, faces[i].iTextureInfo);
+			printf("Bad textureinfo reference in face %d: %d / %d\n", i, faces[i].iTextureInfo, texInfoCount);
 			isValid = false;
 		}
 		if (faces[i].nStyles[0] != 255 && faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) {
@@ -1360,58 +1364,58 @@ bool Bsp::validate() {
 		}
 	}
 	for (int i = 0; i < leafCount; i++) {
-		if (leaves[i].iFirstMarkSurface < 0 || leaves[i].iFirstMarkSurface >= marksurfacesCount) {
-			printf("Bad marksurf reference in leaf %d: %d\n", i, leaves[i].iFirstMarkSurface);
+		if (leaves[i].nMarkSurfaces > 0 && (leaves[i].iFirstMarkSurface < 0 || leaves[i].iFirstMarkSurface >= marksurfacesCount)) {
+			printf("Bad marksurf reference in leaf %d: %d / %d\n", i, leaves[i].iFirstMarkSurface, marksurfacesCount);
 			isValid = false;
 		}
 		if (leaves[i].nVisOffset < -1 || leaves[i].nVisOffset >= visDataLength) {
-			printf("Bad vis offset in leaf %d: %d\n", i, leaves[i].nVisOffset);
+			printf("Bad vis offset in leaf %d: %d / %d\n", i, leaves[i].nVisOffset, visDataLength);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < edgeCount; i++) {
 		for (int k = 0; k < 2; k++) {
 			if (edges[i].iVertex[k] >= vertCount) {
-				printf("Bad vertex reference in edge %d: %d\n", i, edges[i].iVertex[k]);
+				printf("Bad vertex reference in edge %d: %d / %d\n", i, edges[i].iVertex[k], vertCount);
 				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < nodeCount; i++) {
-		if (nodes[i].firstFace < 0 || nodes[i].firstFace >= faceCount) {
-			printf("Bad face reference in node %d: %d\n", i, nodes[i].firstFace);
+		if (nodes[i].nFaces > 0 && (nodes[i].firstFace < 0 || nodes[i].firstFace >= faceCount)) {
+			printf("Bad face reference in node %d: %d / %d\n", i, nodes[i].firstFace, faceCount);
 			isValid = false;
 		}
 		if (nodes[i].iPlane < 0 || nodes[i].iPlane >= planeCount) {
-			printf("Bad plane reference in node %d: %d\n", i, nodes[i].iPlane);
+			printf("Bad plane reference in node %d: %d / %d\n", i, nodes[i].iPlane, planeCount);
 			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (nodes[i].iChildren[k] >= nodeCount) {
-				printf("Bad node reference in node %d child %d: %d\n", i, k, nodes[i].iChildren[k]);
+				printf("Bad node reference in node %d child %d: %d / %d\n", i, k, nodes[i].iChildren[k], nodeCount);
 				isValid = false;
 			}
 			else if (nodes[i].iChildren[k] < 0 && ~nodes[i].iChildren[k] >= leafCount) {
-				printf("Bad leaf reference in node %d child %d: %d\n", i, k, ~nodes[i].iChildren[k]);
+				printf("Bad leaf reference in node %d child %d: %d / %d\n", i, k, ~nodes[i].iChildren[k], leafCount);
 				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < clipnodeCount; i++) {
 		if (clipnodes[i].iPlane < 0 || clipnodes[i].iPlane >= planeCount) {
-			printf("Bad plane reference in clipnode %d: %d\n", i, clipnodes[i].iPlane);
+			printf("Bad plane reference in clipnode %d: %d / %d\n", i, clipnodes[i].iPlane, planeCount);
 			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (clipnodes[i].iChildren[k] >= clipnodeCount) {
-				printf("Bad clipnode reference in clipnode %d child %d: %d\n", i, k, clipnodes[i].iChildren[k]);
+				printf("Bad clipnode reference in clipnode %d child %d: %d / %d\n", i, k, clipnodes[i].iChildren[k], clipnodeCount);
 				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < ents.size(); i++) {
 		if (ents[i]->getBspModelIdx() >= modelCount) {
-			printf("Bad model reference in entity %d: %d\n", i, ents[i]->getBspModelIdx());
+			printf("Bad model reference in entity %d: %d / %d\n", i, ents[i]->getBspModelIdx(), modelCount);
 			isValid = false;
 		}
 	}
@@ -1422,13 +1426,13 @@ bool Bsp::validate() {
 	for (int i = 0; i < modelCount; i++) {
 		totalVisLeaves += models[i].nVisLeafs;
 		totalFaces += models[i].nFaces;
-		if (models[i].iFirstFace < 0 || models[i].iFirstFace >= faceCount) {
-			printf("Bad face reference in model %d: %d\n", i, models[i].iFirstFace);
+		if (models[i].nFaces > 0 && (models[i].iFirstFace < 0 || models[i].iFirstFace >= faceCount)) {
+			printf("Bad face reference in model %d: %d / %d\n", i, models[i].iFirstFace, faceCount);
 			isValid = false;
 		}
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (models[i].iHeadnodes[k] >= clipnodeCount) {
-				printf("Bad clipnode reference in model %d hull %d: %d\n", i, k, models[i].iHeadnodes[k]);
+				printf("Bad clipnode reference in model %d hull %d: %d / %d\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
 				isValid = false;
 			}
 		}
@@ -1824,7 +1828,9 @@ void Bsp::remap_model_structures(int modelIdx, STRUCTREMAP* remap) {
 
 	BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[modelIdx];
 
-	model.iFirstFace = remap->faces[model.iFirstFace];
+	// sometimes the face index is invalid when the model has no faces
+	if (model.nFaces > 0)
+		model.iFirstFace = remap->faces[model.iFirstFace];
 
 	if (model.iHeadnodes[0] >= 0) {
 		model.iHeadnodes[0] = remap->nodes[model.iHeadnodes[0]];
