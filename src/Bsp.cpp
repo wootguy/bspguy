@@ -1971,121 +1971,40 @@ void Bsp::remap_model_structures(int modelIdx, STRUCTREMAP* remap) {
 	}
 }
 
-int Bsp::strip_clipping_hull(int hull_number) {
-	if (hull_number < 0 || hull_number >= MAX_MAP_HULLS) {
-		printf("Invalid hull number. Hull numbers are 0 - %d\n", MAX_MAP_HULLS);
-		return 0;
+void Bsp::delete_hull(int hull_number) {
+	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Clipnode hull numbers are 1-%d\n", MAX_MAP_HULLS);
+		return;
 	}
 
-	int removed = 0;
 	for (int i = 0; i < modelCount; i++) {
-		removed += strip_clipping_hull(hull_number, i, true);
+		delete_hull(hull_number, i);
 	}
-
-	return removed;
 }
 
-int Bsp::strip_clipping_hull(int hull_number, int modelIdx, bool ignoreSharedIfSameHull) {
+void Bsp::delete_hull(int hull_number, int modelIdx) {
 	if (modelIdx < 0 || modelIdx >= modelCount) {
 		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
-		return 0;
+		return;
 	}
 
 	// the first hull is used for point-sized clipping, but uses nodes and not clipnodes.
 	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
-		printf("Invalid hull number. Clipnode hull numbers are 1 - %d\n", MAX_MAP_HULLS);
-		return 0;
+		printf("Invalid hull number. Clipnode hull numbers are 1-%d\n", MAX_MAP_HULLS);
+		return;
 	}
 
 	BSPMODEL& model = models[modelIdx];
 
-	int* newClipnodeIndex = new int[clipnodeCount];
-
-	STRUCTUSAGE shouldNotDelete(this);
-	STRUCTUSAGE shouldDelete(this);
-	for (int i = 0; i < modelCount; i++) {
-		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			if (i != modelIdx && k == hull_number && ignoreSharedIfSameHull) {
-				continue;
-			}
-			STRUCTUSAGE* info = (i == modelIdx && k == hull_number) ? &shouldDelete : &shouldNotDelete;
-			if (models[i].iHeadnodes[k] >= 0 && models[i].iHeadnodes[k] < clipnodeCount)
-				mark_clipnode_structures(models[i].iHeadnodes[k], info);
-		}
+	if (hull_number == 0) {
+		model.iHeadnodes[0] = CONTENTS_EMPTY;
+		model.nVisLeafs = 0;
+		model.nFaces = 0;
+		model.iFirstFace = 0;
 	}
-
-	int sharedNodes = 0;
-	int removed = 0;
-	for (int i = 0; i < clipnodeCount; i++) {
-		if (shouldDelete.clipnodes[i]) {
-			if (shouldNotDelete.clipnodes[i]) {
-				shouldDelete.clipnodes[i] = false;
-				sharedNodes++;
-			}
-			else {
-				removed++;
-			}
-		} 
-	}
-	//if (sharedNodes)
-	//	printf("Not deleting %d clipnodes shared with other models\n", sharedNodes);
-
-	int newNumClipnodes = clipnodeCount - removed;
-	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[newNumClipnodes];
-
-	int insertIdx = 0;
-	for (int i = 0; i < clipnodeCount; i++) {
-		if (shouldDelete.clipnodes[i]) {
-			newClipnodeIndex[i] = CONTENTS_EMPTY; // indicate it was removed, also disables the hull if set for headnode
-		}
-		else {
-			newClipnodeIndex[i] = insertIdx;
-			newClipnodes[insertIdx] = clipnodes[i];
-			insertIdx++;
-		}
-	}
-
-	for (int i = 0; i < newNumClipnodes; i++) {
-		for (int k = 0; k < 2; k++) {
-			int16_t& child = newClipnodes[i].iChildren[k];
-			if (child >= 0) {
-				child = newClipnodeIndex[child];
-			}
-		}
-	}
-
-	for (int i = 0; i < modelCount; i++) {
-		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			int32_t& headnode = models[i].iHeadnodes[k];
-			if (headnode >= 0 && headnode < clipnodeCount) {
-				headnode = newClipnodeIndex[headnode];
-			}
-		}
-	}
-
-	delete[] newClipnodeIndex;
-
-	replace_lump(LUMP_CLIPNODES, newClipnodes, newNumClipnodes * sizeof(BSPCLIPNODE));
-
-	return removed;
-}
-
-STRUCTCOUNT Bsp::delete_model_faces(int modelIdx) {
-	STRUCTCOUNT result;
-	memset(&result, 0, sizeof(result));
-
-	if (modelIdx < 0 || modelIdx >= modelCount) {
-		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
-		return result;
-	}
-
-	BSPMODEL& model = models[modelIdx];
-	model.iHeadnodes[0] = -1;
-	model.nVisLeafs = 0;
-	model.nFaces = 0;
-	model.iFirstFace = 0;
-
-	return remove_unused_model_structures();
+	else {
+		model.iHeadnodes[hull_number] = CONTENTS_EMPTY;
+	}	
 }
 
 void Bsp::delete_model(int modelIdx) {

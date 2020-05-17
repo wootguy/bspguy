@@ -20,10 +20,8 @@
 // delete all frames from unused animated textures
 
 // refactoring:
-// save data structure pointers+sizes in Bsp class instead of copy-pasting them everywhere
 // stop mixing printf+cout
 // create progress-printing class instead of the methods used now
-// strip_hull only needs to set headnodes to -1 and call the remove_unused_ func
 
 
 // Ideas for commands:
@@ -111,11 +109,10 @@ int test() {
 		if (!maps[i]->valid) {
 			return 1;
 		}
-		printf("Process %s\n", maps[i]->name.c_str());
 		if (!maps[i]->validate()) {
 			printf("");
 		}
-		maps[i]->strip_clipping_hull(2);
+		maps[i]->delete_hull(2);
 		maps[i]->resize_hull2_ents();
 		maps[i]->delete_unused_hulls();
 		//maps[i]->remove_unused_model_structures();
@@ -159,9 +156,9 @@ int merge_maps(CommandLine& cli) {
 
 	if (cli.hasOption("-nohull2")) {
 		for (int i = 0; i < maps.size(); i++) {
-			int removedClipnodes = maps[i]->strip_clipping_hull(2);
+			maps[i]->delete_hull(2);
 			int resizedEnts = maps[i]->resize_hull2_ents();
-			maps[i]->remove_unused_model_structures();
+			int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
 			printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
 			if (resizedEnts)
 				printf("    Resized %d large monsters/pushables in %s\n", resizedEnts, maps[i]->name.c_str());
@@ -172,7 +169,8 @@ int merge_maps(CommandLine& cli) {
 	if (!cli.hasOption("-safe")) {
 		for (int i = 0; i < maps.size(); i++) {
 			if (!cli.hasOption("-nohull2") && !maps[i]->has_hull2_ents()) {
-				int removedClipnodes = maps[i]->strip_clipping_hull(2);
+				maps[i]->delete_hull(2);
+				int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
 				printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
 			}
 			int deletedHulls = maps[i]->delete_unused_hulls();
@@ -289,9 +287,6 @@ int noclip(CommandLine& cli) {
 
 	remove_unused_data(map);
 
-	STRUCTCOUNT removed;
-	memset(&removed, 0, sizeof(removed));
-
 	if (cli.hasOption("-model")) {
 		model = cli.getOptionInt("-model");
 
@@ -307,20 +302,13 @@ int noclip(CommandLine& cli) {
 		}
 
 		if (hull != -1) {
-			if (hull == 0) {
-				printf("Deleting HULL 0 from model %d:\n", model);
-				removed = map->delete_model_faces(model);
-			}
-			else {
-				printf("Deleting HULL %d from model %d:\n", hull, model);
-				removed.clipnodes += map->strip_clipping_hull(hull, model, false);
-			}
-
+			printf("Deleting HULL %d from model %d:\n", hull, model);
+			map->delete_hull(hull, model);
 		}
 		else {
 			printf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				removed.clipnodes += map->strip_clipping_hull(i, model, false);
+				map->delete_hull(i, model);
 			}
 		}
 	}
@@ -332,17 +320,17 @@ int noclip(CommandLine& cli) {
 
 		if (hull != -1) {
 			printf("Deleting HULL %d:\n", hull);
-			removed.clipnodes += map->strip_clipping_hull(hull);
+			map->delete_hull(hull);
 		}
 		else {
 			printf("Deleting HULL 1, 2, and 3:\n", hull);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				removed.clipnodes += map->strip_clipping_hull(i);
+				map->delete_hull(i);
 			}
 		}
 	}
 
-	removed.add(map->remove_unused_model_structures());
+	STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 	if (!removed.allZero())
 		print_delete_stats(removed);

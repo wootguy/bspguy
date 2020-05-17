@@ -254,14 +254,10 @@ public:
 	int32_t pointContents(int iNode, vec3 p);
 
 	// strips a collision hull from the given model index
-	// ignoreSharedIfSameHull = don't preserve clipnodes shared with other models if hull matches hull_number
-	int strip_clipping_hull(int hull_number, int modelIdx, bool ignoreSharedIfSameHull);
+	void delete_hull(int hull_number, int modelIdx);
 
-	// strips a collision hull from all models and the world
-	int strip_clipping_hull(int hull_number);
-
-	// strips HULL 0 from the model and all of its faces
-	STRUCTCOUNT delete_model_faces(int modelIdx);
+	// strips a collision hull from all models
+	void delete_hull(int hull_number);
 
 	void dump_lightmap(int faceIdx, string outputPath);
 	void dump_lightmap_atlas(string outputPath);
