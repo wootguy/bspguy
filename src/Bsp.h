@@ -207,6 +207,36 @@ public:
 	BSPHEADER header;
 	byte ** lumps;
 	bool valid;
+
+	BSPPLANE* planes;
+	BSPTEXTUREINFO* texinfos;
+	byte* textures;
+	BSPLEAF* leaves;
+	BSPMODEL* models;
+	BSPNODE* nodes;
+	BSPCLIPNODE* clipnodes;
+	BSPFACE* faces;
+	vec3* verts;
+	byte* lightdata;
+	int32_t* surfedges;
+	BSPEDGE* edges;
+	uint16* marksurfs;
+	byte* visdata;
+
+	int planeCount;
+	int texinfoCount;
+	int leafCount;
+	int modelCount;
+	int nodeCount;
+	int vertCount;
+	int faceCount;
+	int clipnodeCount;
+	int marksurfCount;
+	int surfedgeCount;
+	int edgeCount;
+	int textureCount;
+	int lightDataLength;
+	int visDataLength;
 	
 	vector<Entity*> ents;
 
@@ -265,6 +295,11 @@ public:
 	// check for bad indexes
 	bool validate();
 
+	// copies a model from the sourceMap into this one
+	void add_model(Bsp* sourceMap, int modelIdx);
+
+	void replace_lump(int lumpIdx, void* newData, int newLength);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -306,6 +341,8 @@ private:
 	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
+
+	void update_lump_pointers();
 
 	chrono::system_clock::time_point last_progress;
 	char* progress_title;

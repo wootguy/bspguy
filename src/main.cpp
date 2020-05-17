@@ -15,10 +15,7 @@
 // fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
 // use min lightmap size for faces with bad extents? Saves ~3kb per face
-// automatically remove clipnodes/faces from things that don't need them
-// - no hull2 if map has no large monsters or pushables
-// - no clipnodes if it's func_illusionary or marked as nonsolid
-// - no faces if ent is invisible (trigger_once). Maybe this breaks them tho? 
+// delete faces if ent is invisible (renderamt==0)
 // check if models with origins have any special bsp model values, maybe splitting isn't needed
 // delete all frames from unused animated textures
 
@@ -26,6 +23,7 @@
 // save data structure pointers+sizes in Bsp class instead of copy-pasting them everywhere
 // stop mixing printf+cout
 // create progress-printing class instead of the methods used now
+// strip_hull only needs to set headnodes to -1 and call the remove_unused_ func
 
 
 // Ideas for commands:
