@@ -254,10 +254,12 @@ public:
 	int32_t pointContents(int iNode, vec3 p);
 
 	// strips a collision hull from the given model index
-	void delete_hull(int hull_number, int modelIdx);
+	// and redirects to the given hull, if redirect>0
+	void delete_hull(int hull_number, int modelIdx, int redirect);
 
 	// strips a collision hull from all models
-	void delete_hull(int hull_number);
+	// and redirects to the given hull, if redirect>0
+	void delete_hull(int hull_number, int redirect);
 
 	void dump_lightmap(int faceIdx, string outputPath);
 	void dump_lightmap_atlas(string outputPath);
@@ -281,9 +283,6 @@ public:
 
 	// conditionally deletes hulls for entities that aren't using them
 	int delete_unused_hulls();
-
-	// resizes entities to work with hull 1 instead of hull 2
-	int resize_hull2_ents();
 
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();

@@ -21,7 +21,7 @@
 
 // refactoring:
 // stop mixing printf+cout
-// create progress-printing class instead of the methods used now
+// parse vertors in util, not Keyvalue
 
 
 // Ideas for commands:
@@ -112,8 +112,7 @@ int test() {
 		if (!maps[i]->validate()) {
 			printf("");
 		}
-		maps[i]->delete_hull(2);
-		maps[i]->resize_hull2_ents();
+		maps[i]->delete_hull(2, 1);
 		maps[i]->delete_unused_hulls();
 		//maps[i]->remove_unused_model_structures();
 
@@ -121,7 +120,7 @@ int test() {
 	}
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false, true);
+	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false);
 	printf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
@@ -156,12 +155,9 @@ int merge_maps(CommandLine& cli) {
 
 	if (cli.hasOption("-nohull2")) {
 		for (int i = 0; i < maps.size(); i++) {
-			maps[i]->delete_hull(2);
-			int resizedEnts = maps[i]->resize_hull2_ents();
+			maps[i]->delete_hull(2, 1);
 			int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
 			printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
-			if (resizedEnts)
-				printf("    Resized %d large monsters/pushables in %s\n", resizedEnts, maps[i]->name.c_str());
 		}
 		
 	}
@@ -169,7 +165,7 @@ int merge_maps(CommandLine& cli) {
 	if (!cli.hasOption("-safe")) {
 		for (int i = 0; i < maps.size(); i++) {
 			if (!cli.hasOption("-nohull2") && !maps[i]->has_hull2_ents()) {
-				maps[i]->delete_hull(2);
+				maps[i]->delete_hull(2, 1);
 				int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
 				printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
 			}
@@ -185,7 +181,7 @@ int merge_maps(CommandLine& cli) {
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"), cli.hasOption("-nohull2"));
+	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"));
 
 	printf("\n");
 	if (result->isValid()) result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
@@ -275,12 +271,30 @@ int noclip(CommandLine& cli) {
 
 	int model = -1;
 	int hull = -1;
+	int redirect = 0;
 
 	if (cli.hasOption("-hull")) {
 		hull = cli.getOptionInt("-hull");
 
 		if (hull < 0 || hull >= MAX_MAP_HULLS) {
-			cout << "ERROR: hull number must be 1-3\n";
+			cout << "ERROR: hull number must be 0-3\n";
+			return 1;
+		}
+	}
+
+	if (cli.hasOption("-redirect")) {
+		if (!cli.hasOption("-hull")) {
+			printf("ERROR: -redirect must be used with -hull\n");
+			return 1;
+		}
+		redirect = cli.getOptionInt("-redirect");
+
+		if (redirect < 1 || redirect >= MAX_MAP_HULLS) {
+			cout << "ERROR: redirect hull number must be 1-3\n";
+			return 1;
+		}
+		if (redirect == hull) {
+			printf("ERROR: Can't redirect hull to itself\n");
 			return 1;
 		}
 	}
@@ -302,13 +316,17 @@ int noclip(CommandLine& cli) {
 		}
 
 		if (hull != -1) {
-			printf("Deleting HULL %d from model %d:\n", hull, model);
-			map->delete_hull(hull, model);
+			if (redirect)
+				printf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
+			else
+				printf("Deleting HULL %d from model %d:\n", hull, model);
+			
+			map->delete_hull(hull, model, redirect);
 		}
 		else {
 			printf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				map->delete_hull(i, model);
+				map->delete_hull(i, model, redirect);
 			}
 		}
 	}
@@ -319,13 +337,16 @@ int noclip(CommandLine& cli) {
 		}
 
 		if (hull != -1) {
-			printf("Deleting HULL %d:\n", hull);
-			map->delete_hull(hull);
+			if (redirect)
+				printf("Redirecting HULL %d to HULL %d:\n", hull, redirect);
+			else
+				printf("Deleting HULL %d:\n", hull);
+			map->delete_hull(hull, redirect);
 		}
 		else {
 			printf("Deleting HULL 1, 2, and 3:\n", hull);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				map->delete_hull(i);
+				map->delete_hull(i, redirect);
 			}
 		}
 	}
@@ -334,8 +355,8 @@ int noclip(CommandLine& cli) {
 
 	if (!removed.allZero())
 		print_delete_stats(removed);
-	else
-		printf("    Model hull(s) was previously deleted.");
+	else if (redirect == 0)
+		printf("    Model hull(s) was previously deleted or redirected.");
 	printf("\n");
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
@@ -417,8 +438,9 @@ void print_help(string command) {
 			"                 This can be risky and crash the game if assumptions about\n"
 			"                 entity visibility/solidity are wrong. This flag prevents\n"
 			"                 any unsafe hull removals.\n"
-			"  -nohull2     : Forces removal of hull 2 from each map before merging.\n"
-			"                 Large monsters and pushables will be resized if needed.\n"
+			"  -nohull2     : Forces redirection of hull 2 to hull 1 in each map before merging.\n"
+			"                 This reduces clipnodes at the expense of less accurate collision\n"
+			"                 for large monsters and pushables.\n"
 			"  -noripent    : By default, the input maps are assumed to be part of a series.\n"
 			"                 Level changes and other things are updated so that the merged\n"
 			"                 maps can be played one after another. This flag prevents any\n"
@@ -448,13 +470,17 @@ void print_help(string command) {
 			"Example: bspguy noclip svencoop1.bsp -hull 2\n"
 
 			"\n[Options]\n"
-			"  -model #  : Model to strip collision from. By default, all models are stripped.\n"
-			"  -hull #   : Collision hull to strip (0-3). By default, hulls 1-3 are stripped.\n"
-			"              0 = Point-size collision and visible surfaces\n"
-			"              1 = Human-sized monsters and standing players\n"
-			"              2 = Large monsters and pushables\n"
-			"              3 = Small monsters, crouching players, and melee attacks\n"
-			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
+			"  -model #    : Model to strip collision from. By default, all models are stripped.\n"
+			"  -hull #     : Collision hull to delete (0-3). By default, hulls 1-3 are deleted.\n"
+			"                0 = Point-sized entities. Required for rendering\n"
+			"                1 = Human-sized monsters and standing players\n"
+			"                2 = Large monsters and pushables\n"
+			"                3 = Small monsters, crouching players, and melee attacks\n"
+			"  -redirect # : Redirect to this hull after deleting the target hull's clipnodes.\n"
+			"                For example, redirecting hull 2 to hull 1 would allow large\n"
+			"                monsters to function normally instead of falling out of the world.\n"
+			"                Must be used with the -hull option.\n"
+			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
 			;
 	}
 	else if (command == "delete") {

@@ -8,7 +8,7 @@ BspMerger::BspMerger() {
 
 }
 
-Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool nohull2) {
+Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 	if (maps.size() < 1) {
 		printf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
@@ -102,7 +102,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool nohull2) 
 					flattenedBlocks.push_back(blocks[z][y][x]);
 
 		printf("\nUpdating map series entity logic:\n");
-		update_map_series_entity_logic(output, flattenedBlocks, maps[0]->name, nohull2);
+		update_map_series_entity_logic(output, flattenedBlocks, maps[0]->name);
 	}
 
 	return output;
@@ -227,7 +227,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 typedef map< string, set<string> > mapStringToSet;
 typedef map< string, MAPBLOCK > mapStringToMapBlock;
 
-void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName, bool nohull2) {
+void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName) {
 	int originalEntCount = mergedMap->ents.size();
 
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
@@ -567,55 +567,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	//finish_clean_ent->addKeyvalue("bspguy_test", "0");
 	finish_clean_ent->addKeyvalue("bspguy_kill_me", "0#2"); // kill ents in previous map
 	finish_clean_ent->addKeyvalue("classname", "multi_manager");
-	mergedMap->ents.push_back(finish_clean_ent);
-
-	
-	// helper for resizing apaches so that they don't fly into the void if hull 2 is removed.
-	// This has to be done this way because apaches ignore the minhullsize/maxhullsize keys.
-	if (nohull2) {
-		string resize_apaches = "bspguy_resize_apaches";
-		string resize_apaches2 = "bspguy_resize_apaches2";
-		string resize_apaches3 = "bspguy_resize_apaches3";
-		{
-			Entity* resize_ent = new Entity();
-			resize_ent->addKeyvalue("target", resize_apaches);
-			resize_ent->addKeyvalue("delay", "2");
-			resize_ent->addKeyvalue("triggerstate", "2");
-			resize_ent->addKeyvalue("spawnflags", "1");
-			resize_ent->addKeyvalue("classname", "trigger_auto");
-			mergedMap->ents.push_back(resize_ent);
-		}
-		{
-			Entity* resize_ent = new Entity();
-			resize_ent->addKeyvalue("targetname", resize_apaches);
-			resize_ent->addKeyvalue("classname_filter", "monster_apache");
-			resize_ent->addKeyvalue("target", resize_apaches2);
-			resize_ent->addKeyvalue("triggerstate", "2"); // toggle
-			resize_ent->addKeyvalue("delay_between_triggers", "0.0");
-			resize_ent->addKeyvalue("classname", "trigger_entity_iterator");
-			mergedMap->ents.push_back(resize_ent);
-		}
-		{
-			Entity* resize_ent = new Entity();
-			resize_ent->addKeyvalue("targetname", resize_apaches2);
-			resize_ent->addKeyvalue("target", "!activator");
-			resize_ent->addKeyvalue("m_iszValueName", "mins");
-			resize_ent->addKeyvalue("m_iszNewValue", "-18 -18 -64");
-			resize_ent->addKeyvalue("message", resize_apaches3);
-			resize_ent->addKeyvalue("classname", "trigger_changevalue");
-			mergedMap->ents.push_back(resize_ent);
-		}
-		{
-			Entity* resize_ent = new Entity();
-			resize_ent->addKeyvalue("targetname", resize_apaches3);
-			resize_ent->addKeyvalue("target", "!activator");
-			resize_ent->addKeyvalue("m_iszValueName", "maxs");
-			resize_ent->addKeyvalue("m_iszNewValue", "18 18 0");
-			resize_ent->addKeyvalue("classname", "trigger_changevalue");
-			mergedMap->ents.push_back(resize_ent);
-		}
-	}
-	
+	mergedMap->ents.push_back(finish_clean_ent);	
 
 	for (auto it = load_map_triggers.begin(); it != load_map_triggers.end(); ++it) {
 		Entity* map_setup = new Entity();
@@ -628,8 +580,6 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			triggerCount++;
 		}
 		
-		if (nohull2)
-			map_setup->addKeyvalue("bspguy_resize_apaches", "1"); // resize apaches in case hull 2 was removed
 		map_setup->addKeyvalue("bspguy_respawn_everyone", "1"); // respawn in new spots
 		map_setup->addKeyvalue("bspguy_autos_" + it->first, "1"); // fire what used to be trigger_auto
 		

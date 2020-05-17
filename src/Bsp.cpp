@@ -10,7 +10,8 @@
 
 typedef map< string, vec3 > mapStringToVector;
 
-set<string> largeMonsters{
+// monsters that use hull 2 by default
+set<string> largeMonsters {
 	"monster_alien_grunt",
 	"monster_alien_tor",
 	"monster_alien_voltigore",
@@ -867,89 +868,6 @@ bool Bsp::has_hull2_ents() {
 	}
 
 	return false;
-}
-
-int Bsp::resize_hull2_ents() {
-	int resizeCount = 0;
-
-	for (int i = 0; i < ents.size(); i++) {
-		string cname = ents[i]->keyvalues["classname"];
-		string tname = ents[i]->keyvalues["targetname"];
-
-		bool resized = false;
-		if (cname.find("monster_") == 0) {
-			vec3 minhull;
-			vec3 maxhull;
-
-			if (!ents[i]->keyvalues["minhullsize"].empty())
-				minhull = Keyvalue("", ents[i]->keyvalues["minhullsize"]).getVector();
-			if (!ents[i]->keyvalues["maxhullsize"].empty())
-				maxhull = Keyvalue("", ents[i]->keyvalues["maxhullsize"]).getVector();
-
-			if (minhull == vec3(0, 0, 0) && maxhull == vec3(0,0,0)) {
-				// monster is using its default hull size
-				if (largeMonsters.find(cname) != largeMonsters.end()) {
-					vec3 size = defaultHullSize[cname];
-					vec3 mins = vec3(-18, -18, 0);
-					vec3 maxs = vec3(18, 18, size.z);
-
-					if (cname == "monster_ichthyosaur") {
-						mins.z = -size.z * 0.5f;
-						maxs.z = size.z * 0.5f;
-					}
-
-					ents[i]->keyvalues["minhullsize"] = mins.toKeyvalueString();
-					ents[i]->keyvalues["maxhullsize"] = maxs.toKeyvalueString();
-					
-					resized = true;
-				}
-			}
-			else if (abs(minhull.x) > MAX_HULL1_EXTENT_MONSTER || abs(maxhull.x) > MAX_HULL1_EXTENT_MONSTER
-				|| abs(minhull.y) > MAX_HULL1_EXTENT_MONSTER || abs(maxhull.y) > MAX_HULL1_EXTENT_MONSTER) {
-				minhull.x = clamp(minhull.x, -MAX_HULL1_EXTENT_MONSTER, MAX_HULL1_EXTENT_MONSTER);
-				maxhull.y = clamp(maxhull.x, -MAX_HULL1_EXTENT_MONSTER, MAX_HULL1_EXTENT_MONSTER);
-				minhull.y = clamp(minhull.y, -MAX_HULL1_EXTENT_MONSTER, MAX_HULL1_EXTENT_MONSTER);
-				maxhull.y = clamp(maxhull.y, -MAX_HULL1_EXTENT_MONSTER, MAX_HULL1_EXTENT_MONSTER);
-
-				ents[i]->keyvalues["minhullsize"] = minhull.toKeyvalueString();
-				ents[i]->keyvalues["maxhullsize"] = maxhull.toKeyvalueString();
-				resized = true;
-			}
-		}
-		else if (cname == "func_pushable") {
-			int modelIdx = ents[i]->getBspModelIdx();
-			if (modelIdx < modelCount) {
-				BSPMODEL& model = models[modelIdx];
-				vec3 size = model.nMaxs - model.nMins;
-
-				if (size.x > MAX_HULL1_SIZE_PUSHABLE || size.y > MAX_HULL1_SIZE_PUSHABLE) {
-					vec3 center = model.nMins + size * 0.5f;
-					float scale = min(MAX_HULL1_SIZE_PUSHABLE / size.x, MAX_HULL1_SIZE_PUSHABLE / size.y);
-
-					// scale the bounding box to the max size allowed in HULL 1 (otherwise it uses HULL 2)
-					if (size.x > MAX_HULL1_SIZE_PUSHABLE) {
-						float scale = MAX_HULL1_SIZE_PUSHABLE / size.x;
-						model.nMaxs.x = center.x + size.x * scale * 0.5f;
-						model.nMins.x = center.x - size.x * scale * 0.5f;
-					}
-					if (size.y > MAX_HULL1_SIZE_PUSHABLE) {
-						float scale = MAX_HULL1_SIZE_PUSHABLE / size.y;
-						model.nMaxs.y = center.y + size.y * scale * 0.5f;
-						model.nMins.y = center.y - size.y * scale * 0.5f;
-					}
-
-					resized = true;
-				}
-			}
-		}
-
-		if (resized) {
-			resizeCount++;
-			cout << "Resized hull for \"" << tname << "\" (" << cname << ")" << endl;
-		}
-	}
-	
-	return resizeCount;
 }
 
 int Bsp::delete_unused_hulls() {
@@ -1957,26 +1875,36 @@ void Bsp::remap_model_structures(int modelIdx, STRUCTREMAP* remap) {
 	}
 }
 
-void Bsp::delete_hull(int hull_number) {
-	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
-		printf("Invalid hull number. Clipnode hull numbers are 1-%d\n", MAX_MAP_HULLS);
+void Bsp::delete_hull(int hull_number, int redirect) {
+	if (hull_number < 0 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Valid hull numbers are 1-%d\n", MAX_MAP_HULLS);
 		return;
 	}
 
 	for (int i = 0; i < modelCount; i++) {
-		delete_hull(hull_number, i);
+		delete_hull(hull_number, i, redirect);
 	}
 }
 
-void Bsp::delete_hull(int hull_number, int modelIdx) {
+void Bsp::delete_hull(int hull_number, int modelIdx, int redirect) {
 	if (modelIdx < 0 || modelIdx >= modelCount) {
-		printf("Invalid model index %d. Must be 0 - %d\n", modelIdx);
+		printf("Invalid model index %d. Must be 0-%d\n", modelIdx);
 		return;
 	}
 
 	// the first hull is used for point-sized clipping, but uses nodes and not clipnodes.
-	if (hull_number < 1 || hull_number >= MAX_MAP_HULLS) {
-		printf("Invalid hull number. Clipnode hull numbers are 1-%d\n", MAX_MAP_HULLS);
+	if (hull_number < 0 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Valid hull numbers are 1-%d\n", MAX_MAP_HULLS);
+		return;
+	}
+
+	if (redirect >= MAX_MAP_HULLS) {
+		printf("Invalid redirect hull number. Valid redirect hulls are 1-%d\n", MAX_MAP_HULLS);
+		return;
+	}
+
+	if (hull_number == 0 && redirect > 0) {
+		printf("Hull 0 can't be redirected. Hull 0 is the only hull that doesn't use clipnodes.\n", MAX_MAP_HULLS);
 		return;
 	}
 
@@ -1987,6 +1915,15 @@ void Bsp::delete_hull(int hull_number, int modelIdx) {
 		model.nVisLeafs = 0;
 		model.nFaces = 0;
 		model.iFirstFace = 0;
+	}
+	else if (redirect > 0) {
+		if (model.iHeadnodes[hull_number] > 0 && model.iHeadnodes[redirect] < 0) {
+			printf("WARNING: HULL %d is empty\n", redirect);
+		}
+		else if (model.iHeadnodes[hull_number] == model.iHeadnodes[redirect]) {
+			printf("WARNING: HULL %d and %d are already sharing clipnodes\n", hull_number, redirect);
+		}
+		model.iHeadnodes[hull_number] = model.iHeadnodes[redirect];
 	}
 	else {
 		model.iHeadnodes[hull_number] = CONTENTS_EMPTY;

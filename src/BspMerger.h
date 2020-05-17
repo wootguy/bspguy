@@ -21,8 +21,7 @@ public:
 
 	// merges all maps into one
 	// noripent - don't change any entity logic
-	// nohull2 - add entities to resize apaches so that they work without hull 2
-	Bsp* merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool nohull2);
+	Bsp* merge(vector<Bsp*> maps, vec3 gap, bool noripent);
 
 private:
 	int merge_ops = 0;
@@ -40,7 +39,7 @@ private:
 	// - monsters should spawn only when the current map is active
 	// - entities might need map name prefixes
 	// - entities in previous levels should be cleaned up
-	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName, bool nohull2);
+	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName);
 
 	// renames any entity that shares a name with an entity in another map
 	int force_unique_ent_names_per_map(Bsp* mergedMap);
