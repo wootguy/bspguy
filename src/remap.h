@@ -20,6 +20,9 @@ struct STRUCTCOUNT {
 
 	STRUCTCOUNT();
 	STRUCTCOUNT(Bsp* map);
+
+	STRUCTCOUNT add(const STRUCTCOUNT& other);
+	bool allZero();
 };
 
 // used to mark structures that are in use by a model

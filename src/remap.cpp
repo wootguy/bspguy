@@ -21,6 +21,35 @@ STRUCTCOUNT::STRUCTCOUNT(Bsp* map) {
 	visdata = map->header.lump[LUMP_VISIBILITY].nLength;
 }
 
+STRUCTCOUNT STRUCTCOUNT::add(const STRUCTCOUNT& other) {
+	STRUCTCOUNT result;
+	memset(&result, 0, sizeof(result));
+
+	result.planes = planes + other.planes;
+	result.texInfos = texInfos + other.texInfos;
+	result.leaves = leaves + other.leaves;
+	result.nodes = nodes + other.nodes;
+	result.clipnodes = clipnodes + other.clipnodes;
+	result.verts = verts + other.verts;
+	result.faces = faces + other.faces;
+	result.textures = textures + other.textures;
+	result.markSurfs = markSurfs + other.markSurfs;
+	result.surfEdges = surfEdges + other.surfEdges;
+	result.edges = edges + other.edges;
+	result.models = models + other.models;
+	result.lightdata = lightdata + other.lightdata;
+	result.visdata = visdata + other.visdata;
+	
+	return result;
+}
+
+bool STRUCTCOUNT::allZero() {
+	STRUCTCOUNT zeros;
+	memset(&zeros, 0, sizeof(zeros));
+
+	return memcmp(&zeros, this, sizeof(zeros)) == 0;
+}
+
 STRUCTUSAGE::STRUCTUSAGE(Bsp* map) : count(map) {
 	nodes = new bool[count.nodes];
 	clipnodes = new bool[count.clipnodes];

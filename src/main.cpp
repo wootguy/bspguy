@@ -242,6 +242,23 @@ int print_info(CommandLine& cli) {
 	return 0;
 }
 
+void print_delete_stats(STRUCTCOUNT& stats) {
+	if (stats.models) printf("    Deleted %d models\n", stats.models);
+	if (stats.planes) printf("    Deleted %d planes\n", stats.planes);
+	if (stats.verts) printf("    Deleted %d vertexes\n", stats.verts);
+	if (stats.nodes) printf("    Deleted %d nodes\n", stats.nodes);
+	if (stats.texInfos) printf("    Deleted %d texinfos\n", stats.texInfos);
+	if (stats.faces) printf("    Deleted %d faces\n", stats.faces);
+	if (stats.clipnodes) printf("    Deleted %d clipnodes\n", stats.clipnodes);
+	if (stats.leaves) printf("    Deleted %d leaves\n", stats.leaves);
+	if (stats.markSurfs) printf("    Deleted %d marksurfaces\n", stats.markSurfs);
+	if (stats.surfEdges) printf("    Deleted %d surfedges\n", stats.surfEdges);
+	if (stats.edges) printf("    Deleted %d edges\n", stats.edges);
+	if (stats.textures) printf("    Deleted %d textures\n", stats.textures);
+	if (stats.lightdata) printf("    Deleted %.2f KB of lightmap data\n", stats.lightdata / 1024.0f);
+	if (stats.visdata) printf("    Deleted %.2f KB VIS data\n", stats.visdata / 1024.0f);
+}
+
 int noclip(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
@@ -259,8 +276,16 @@ int noclip(CommandLine& cli) {
 		}
 	}
 
-	int numDeletedClipnodes = 0;
-	int numDeletedPlanes = 0;
+	STRUCTCOUNT removed = map->remove_unused_model_structures();
+
+	if (!removed.allZero()) {
+		printf("Deleting unused data:\n");
+		print_delete_stats(removed);
+		printf("\n");
+	}
+
+	memset(&removed, 0, sizeof(removed));
+
 	if (cli.hasOption("-model")) {
 		model = cli.getOptionInt("-model");
 
@@ -276,29 +301,49 @@ int noclip(CommandLine& cli) {
 		}
 
 		if (hull != -1) {
-			numDeletedClipnodes = map->strip_clipping_hull(hull, model, false);
+			if (hull == 0) {
+				printf("Deleting HULL 0 from model %d:\n", model);
+				removed = map->delete_model_faces(model);
+			}
+			else {
+				printf("Deleting HULL %d from model %d:\n", hull, model);
+				removed.clipnodes += map->strip_clipping_hull(hull, model, false);
+			}
+			
 		}
 		else {
+			printf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				numDeletedClipnodes += map->strip_clipping_hull(i, model, false);
+				removed.clipnodes += map->strip_clipping_hull(i, model, false);
 			}
 		}
 	}
 	else {
+		if (hull == 0) {
+			printf("HULL 0 can't be stripped globally. The entire map would be invisible!\n");
+			return 0;
+		}
+
 		if (hull != -1) {
-			numDeletedClipnodes = map->strip_clipping_hull(hull);
+			printf("Deleting HULL %d:\n", hull);
+			removed.clipnodes += map->strip_clipping_hull(hull);
 		}
 		else {
+			printf("Deleting HULL 1, 2, and 3:\n", hull);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				numDeletedClipnodes += map->strip_clipping_hull(i);
+				removed.clipnodes += map->strip_clipping_hull(i);
 			}
 		}
 	}
 
-	numDeletedPlanes = map->remove_unused_model_structures().planes;
+	removed.add(map->remove_unused_model_structures());
 
-	printf("Deleted %d clipnodes\n", numDeletedClipnodes);
-	printf("Deleted %d planes\n", numDeletedPlanes);
+	if (!removed.allZero())
+		print_delete_stats(removed);
+	else
+		printf("    Model hull(s) was previously deleted.");
+	printf("\n");
+
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	printf("\n");
 
@@ -380,7 +425,8 @@ void print_help(string command) {
 
 			"\n[Options]\n"
 			"  -model #  : Model to strip collision from. By default, all models are stripped.\n"
-			"  -hull #   : Collision hull to strip (1-3). By default, all hulls are stripped.\n"
+			"  -hull #   : Collision hull to strip (0-3). By default, hulls 1-3 are stripped.\n"
+			"              0 = Point-size collision and visible surfaces\n"
 			"              1 = Human-sized monsters and standing players\n"
 			"              2 = Large monsters and pushables\n"
 			"              3 = Small monsters, crouching players, and melee attacks\n"
