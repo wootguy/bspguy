@@ -295,6 +295,8 @@ public:
 
 	void replace_lump(int lumpIdx, void* newData, int newLength);
 
+	bool is_invisible_solid(Entity* ent);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves

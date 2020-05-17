@@ -953,32 +953,28 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 			}
 			uses += "\"" + tname + "\" (" + cname + ")";
 
-			// TODO:
-			// - Strip hull 0 if ent is nonsolid AND invisible AND not a point-ent trigger
-			// - Strip hull 2 if only needed for pushables and there are none big enough for hull 2
-
 			if (entsThatNeverNeedAnyHulls.find(cname) != entsThatNeverNeedAnyHulls.end())  {
 				continue; // no collision or faces needed at all
 			}
 			else if (entsThatNeverNeedCollision.find(cname) != entsThatNeverNeedCollision.end()) {
-				needsVisibleHull = true;
+				needsVisibleHull = !is_invisible_solid(usageEnts[k]);
 			}
 			else if (passableEnts.find(cname) != passableEnts.end()) {
 				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 8); // "Passable" or "Not solid" unchecked
-				needsVisibleHull = true;
+				needsVisibleHull = !(spawnflags & 8) || !is_invisible_solid(usageEnts[k]);
 			}
 			else if (cname.find("trigger_") == 0) {
 				bool affectsPointEnts = spawnflags & 8; // "Everything else" flag checked
 
 				if (affectsPointEnts && conditionalPointEntTriggers.find(cname) != conditionalPointEntTriggers.end()) {
-					needsVisibleHull = true;
+					needsVisibleHull = true; // needed for point-ent collision
 					needsPlayerHulls = !(spawnflags & 2); // "No clients" unchecked
 					needsMonsterHulls = (spawnflags & 1) || (spawnflags & 4); // "monsters" or "pushables" checked
 				}
 				else if (cname == "trigger_push") { 
 					needsPlayerHulls = !(spawnflags & 8); // "No clients" unchecked
 					needsMonsterHulls = (spawnflags & 4) || !(spawnflags & 16); // "Pushables" checked or "No monsters" unchecked
-					needsVisibleHull = true;
+					needsVisibleHull = true; // needed for point-ent pushing
 				}
 				else if (cname == "trigger_hurt") {
 					needsPlayerHulls = !(spawnflags & 8); // "No clients" unchecked
@@ -996,7 +992,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 			}
 			else if (cname == "func_conveyor") {
 				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 2); // "Not Solid" unchecked
-				needsVisibleHull = true;
+				needsVisibleHull = !(spawnflags & 2) || !is_invisible_solid(usageEnts[k]);
 			}
 			else if (cname == "func_friction") {
 				needsPlayerHulls = true;
@@ -1013,11 +1009,6 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 			}
 			else if (monsterOnlyTriggers.find(cname) != monsterOnlyTriggers.end()) {
 				needsMonsterHulls = true;
-			}
-			else if (cname == "trigger_cameratarget") {
-				needsPlayerHulls = true;
-				needsMonsterHulls = true;
-				needsVisibleHull = !(spawnflags & 1); // "Invisible" unchecked
 			}
 			else {
 				// assume all hulls are needed
@@ -1074,6 +1065,72 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 	}
 
 	return removed;
+}
+
+bool Bsp::is_invisible_solid(Entity* ent) {
+	if (!ent->isBspModel())
+		return false;
+
+	string tname = ent->keyvalues["targetname"];
+	int rendermode = atoi(ent->keyvalues["rendermode"].c_str());
+	int renderamt = atoi(ent->keyvalues["renderamt"].c_str());
+	int renderfx = atoi(ent->keyvalues["renderfx"].c_str());
+
+	if (rendermode == 0 || renderamt != 0) {
+		return false;
+	}
+	switch(renderfx) {
+		case 1: case 2: case 3: case 4: case 7: 
+		case 8: case 15: case 16: case 17:
+			return false;
+		default:
+			break;
+	}
+	
+	static set<string> renderKeys {
+		"rendermode",
+		"renderamt",
+		"renderfx"
+	};
+
+	for (int i = 0; i < ents.size(); i++) {
+		string cname = ents[i]->keyvalues["classname"];
+
+		if (cname == "env_render") {
+			return false; // assume it will affect the brush since it can be moved anywhere
+		}
+		else if (cname == "env_render_individual") {
+			if (ents[i]->keyvalues["target"] == tname) {
+				return false; // assume it's making the ent visible
+			}
+		}
+		else if (cname == "trigger_changevalue") {
+			if (ents[i]->keyvalues["target"] == tname) {
+				if (renderKeys.find(ents[i]->keyvalues["m_iszValueName"]) != renderKeys.end()) {
+					return false; // assume it's making the ent visible
+				}
+			}
+		}
+		else if (cname == "trigger_copyvalue") {
+			if (ents[i]->keyvalues["target"] == tname) {
+				if (renderKeys.find(ents[i]->keyvalues["m_iszDstValueName"]) != renderKeys.end()) {
+					return false; // assume it's making the ent visible
+				}
+			}
+		}
+		else if (cname == "trigger_createentity") {
+			if (ents[i]->keyvalues["+model"] == tname || ents[i]->keyvalues["-model"] == ent->keyvalues["model"]) {
+				return false; // assume this new ent will be visible at some point
+			}
+		}
+		else if (cname == "trigger_changemodel") {
+			if (ents[i]->keyvalues["model"] == ent->keyvalues["model"]) {
+				return false; // assume the target is visible
+			}
+		}
+	}
+
+	return true;
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
@@ -1915,7 +1972,7 @@ void Bsp::delete_hull(int hull_number, int modelIdx, int redirect) {
 	BSPMODEL& model = models[modelIdx];
 
 	if (hull_number == 0) {
-		model.iHeadnodes[0] = CONTENTS_EMPTY;
+		model.iHeadnodes[0] = -1; // redirect to solid leaf
 		model.nVisLeafs = 0;
 		model.nFaces = 0;
 		model.iFirstFace = 0;

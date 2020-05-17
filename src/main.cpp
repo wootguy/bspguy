@@ -15,9 +15,9 @@
 // fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
 // use min lightmap size for faces with bad extents? Saves ~3kb per face
-// delete faces if ent is invisible (renderamt==0)
 // check if models with origins have any special bsp model values, maybe splitting isn't needed
 // delete all frames from unused animated textures
+// apaches not deleted sometimes
 
 // refactoring:
 // stop mixing printf+cout
@@ -100,7 +100,6 @@ int test() {
 	/*
 	for (int i = 1; i < 22; i++) {
 		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
-		map->strip_clipping_hull(2);
 		maps.push_back(map);
 	}
 	*/
@@ -108,10 +107,6 @@ int test() {
 	//maps.push_back(new Bsp("echoes/echoes01.bsp"));
 	//maps.push_back(new Bsp("echoes/echoes01a.bsp"));
 	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
-
-	//maps.push_back(new Bsp("echoes/echoes03.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes04.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes05.bsp"));
 
 	maps.push_back(new Bsp("merge0.bsp"));
 	maps.push_back(new Bsp("merge1.bsp"));
@@ -121,6 +116,10 @@ int test() {
 	//maps.push_back(new Bsp("op4/of1a3.bsp"));
 	//maps.push_back(new Bsp("op4/of1a4.bsp"));
 
+	STRUCTCOUNT removed;
+	memset(&removed, 0, sizeof(removed));
+
+	g_verbose = true;
 	for (int i = 0; i < maps.size(); i++) {
 		if (!maps[i]->valid) {
 			return 1;
@@ -128,14 +127,17 @@ int test() {
 		if (!maps[i]->validate()) {
 			printf("");
 		}
+		printf("Preprocess %s\n", maps[i]->name.c_str());
 		maps[i]->delete_hull(2, 1);
-		maps[i]->delete_unused_hulls();
+		removed.add(maps[i]->delete_unused_hulls());
 
 		if (!maps[i]->validate())
 			printf("");
 
 		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
+
+	print_delete_stats(1, removed);
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false);
