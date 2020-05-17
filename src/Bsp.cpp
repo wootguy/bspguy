@@ -2159,6 +2159,11 @@ void Bsp::remap_model_structures(int modelIdx, STRUCTREMAP* remap) {
 int Bsp::strip_clipping_hull(int hull_number) {
 	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 
+	if (hull_number < 0 || hull_number >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Hull numbers are 0 - %d\n", MAX_MAP_HULLS);
+		return 0;
+	}
+
 	int removed = 0;
 	for (int i = 0; i < modelCount; i++) {
 		removed += strip_clipping_hull(hull_number, i, true);
@@ -2296,7 +2301,10 @@ void Bsp::delete_model(int modelIdx) {
 	// update model index references
 	for (int i = 0; i < ents.size(); i++) {
 		int entModel = ents[i]->getBspModelIdx();
-		if (entModel >= modelIdx) {
+		if (entModel == modelIdx) {
+			ents[i]->keyvalues["model"] = "error.mdl";
+		}
+		else if (entModel > modelIdx) {
 			ents[i]->keyvalues["model"] = "*" + to_string(entModel-1);
 		}
 	}

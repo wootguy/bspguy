@@ -199,6 +199,8 @@ int merge_maps(CommandLine& cli) {
 	for (int i = 0; i < maps.size(); i++) {
 		delete maps[i];
 	}
+
+	return 0;
 }
 
 int print_info(CommandLine& cli) {
@@ -259,6 +261,17 @@ void print_delete_stats(STRUCTCOUNT& stats) {
 	if (stats.visdata) printf("    Deleted %.2f KB VIS data\n", stats.visdata / 1024.0f);
 }
 
+// remove unused data before modifying anything to avoid misleading results
+void remove_unused_data(Bsp* map) {
+	STRUCTCOUNT removed =  map->remove_unused_model_structures();
+
+	if (!removed.allZero()) {
+		printf("Deleting unused data:\n");
+		print_delete_stats(removed);
+		printf("\n");
+	}
+}
+
 int noclip(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
@@ -276,14 +289,9 @@ int noclip(CommandLine& cli) {
 		}
 	}
 
-	STRUCTCOUNT removed = map->remove_unused_model_structures();
+	remove_unused_data(map);
 
-	if (!removed.allZero()) {
-		printf("Deleting unused data:\n");
-		print_delete_stats(removed);
-		printf("\n");
-	}
-
+	STRUCTCOUNT removed;
 	memset(&removed, 0, sizeof(removed));
 
 	if (cli.hasOption("-model")) {
@@ -309,7 +317,7 @@ int noclip(CommandLine& cli) {
 				printf("Deleting HULL %d from model %d:\n", hull, model);
 				removed.clipnodes += map->strip_clipping_hull(hull, model, false);
 			}
-			
+
 		}
 		else {
 			printf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
@@ -343,6 +351,36 @@ int noclip(CommandLine& cli) {
 	else
 		printf("    Model hull(s) was previously deleted.");
 	printf("\n");
+
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	printf("\n");
+
+	map->print_info(false, 0, 0);
+
+	delete map;
+
+	return 0;
+}
+
+int deleteCmd(CommandLine& cli) {
+	Bsp* map = new Bsp(cli.bspfile);
+	if (!map->valid)
+		return 1;
+
+	remove_unused_data(map);
+
+	if (cli.hasOption("-model")) {
+		int modelIdx = cli.getOptionInt("-model");
+
+		printf("Deleting model %d:\n", modelIdx);
+		map->delete_model(modelIdx);
+		map->update_ent_lump();
+		STRUCTCOUNT removed = map->remove_unused_model_structures();
+
+		if (!removed.allZero())
+			print_delete_stats(removed);
+		printf("\n");
+	}
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	printf("\n");
@@ -433,6 +471,19 @@ void print_help(string command) {
 			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
 			;
 	}
+	else if (command == "delete") {
+		cout <<
+			"delete - Delete BSP models.\n\n"
+
+			"Usage:   bspguy delete <mapname> [options]\n"
+			"Example: bspguy delete svencoop1.bsp -model 3\n"
+
+			"\n[Options]\n"
+			"  -model #  : Model to delete. Entities that reference the deleted\n"
+			"              model will be updated to use error.mdl instead.\n"
+			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
+			;
+	}
 	else if (command == "transform") {
 		cout <<
 			"transform - Apply 3D transformations\n\n"
@@ -453,7 +504,8 @@ void print_help(string command) {
 			"\n<Commands>\n"
 			"  info      : Show BSP data summary\n"
 			"  merge     : Merges two or more maps together\n"
-			"  noclip    : Delete some clipnodes from the BSP\n"
+			"  noclip    : Delete some clipnodes/nodes from the BSP\n"
+			"  delete    : Delete BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
@@ -490,6 +542,9 @@ int main(int argc, char* argv[])
 	}
 	else if (cli.command == "noclip") {
 		return noclip(cli);
+	}
+	else if (cli.command == "delete") {
+		return deleteCmd(cli);
 	}
 	else if (cli.command == "transform") {
 		return transform(cli);
