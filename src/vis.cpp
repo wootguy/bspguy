@@ -291,6 +291,9 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 		sharedRows[i] = i;
 		for (int k = 0; k < i; k++) {
+			if (sharedRows[k] != k) {
+				continue; // already compared in an earlier row
+			}
 			byte* previous = uncompressed + k * g_bitbytes;
 			if (memcmp(src, previous, g_bitbytes) == 0) {
 				sharedRows[i] = k;
