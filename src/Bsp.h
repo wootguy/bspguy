@@ -247,7 +247,11 @@ public:
 	STRUCTCOUNT remove_unused_model_structures();
 	void delete_model(int modelIdx);
 
-	void remove_useless_clipnodes();
+	// conditionally deletes hulls for entities that aren't using them
+	void delete_unused_hulls();
+
+	// resizes entities to work with hull 1 instead of hull 2
+	void resize_hull2_ents();
 	
 	// check for bad indexes
 	bool validate();

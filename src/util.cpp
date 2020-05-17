@@ -117,6 +117,16 @@ int getBspTextureSize(BSPMIPTEX* bspTexture) {
 	return sz;
 }
 
+float clamp(float val, float min, float max) {
+	if (val > max) {
+		return max;
+	}
+	else if (val < min) {
+		return min;
+	}
+	return val;
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

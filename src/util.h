@@ -34,3 +34,5 @@ string toLowerCase(string str);
 string trimSpaces(string s);
 
 int getBspTextureSize(BSPMIPTEX* bspTexture);
+
+float clamp(float val, float min, float max);

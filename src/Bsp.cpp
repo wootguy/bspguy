@@ -139,6 +139,14 @@ bool Bsp::move(vec3 offset) {
 	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
 
 	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->keyvalues["classname"] == "info_node")
+			ents[i]->keyvalues["classname"] = "info_bode";
+		if (ents[i]->keyvalues["classname"] == "env_fade")
+			ents[i]->keyvalues["classname"] = "env_bade";
+		if (ents[i]->keyvalues["classname"] == "worldspawn") {
+			ents[i]->keyvalues["startdark"] = "0";
+		}
+
 		if (!ents[i]->hasKey("origin")) {
 			continue;
 		}
@@ -887,15 +895,118 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	return removeCount;
 }
 
-void Bsp::remove_useless_clipnodes() {
+typedef map< string, vec3 > mapStringToVector;
+
+void Bsp::resize_hull2_ents() {
 	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
 	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
 
+	set<string> largeMonsters;
+	largeMonsters.insert("monster_alien_grunt");
+	largeMonsters.insert("monster_alien_tor");
+	largeMonsters.insert("monster_alien_voltigore");
+	largeMonsters.insert("monster_babygarg");
+	largeMonsters.insert("monster_bigmomma");
+	largeMonsters.insert("monster_bullchicken");
+	largeMonsters.insert("monster_gargantua");
+	largeMonsters.insert("monster_ichthyosaur");
+	largeMonsters.insert("monster_kingpin");
+
+	// monster that require in-game resize (hullsize keyvalues don't work)
+	largeMonsters.insert("monster_apache");
+	largeMonsters.insert("monster_blkop_apache");
+
+	mapStringToVector defaultHullSize;
+	defaultHullSize["monster_alien_grunt"] = vec3(48, 48, 88);
+	defaultHullSize["monster_alien_tor"] = vec3(48, 48, 88);
+	defaultHullSize["monster_alien_voltigore"] = vec3(96, 96, 90);
+	defaultHullSize["monster_babygarg"] = vec3(64, 64, 96);
+	defaultHullSize["monster_bigmomma"] = vec3(64, 64, 170);
+	defaultHullSize["monster_bullchicken"] = vec3(64, 64, 40);
+	defaultHullSize["monster_gargantua"] = vec3(64, 64, 214);
+	defaultHullSize["monster_ichthyosaur"] = vec3(64, 64, 64); // origin at center
+	defaultHullSize["monster_kingpin"] = vec3(24, 24, 112);
+	defaultHullSize["monster_apache"] = vec3(64, 64, 64); // origin at top
+	defaultHullSize["monster_blkop_apache"] = vec3(64, 64, 64); // origin at top
+
+	// osprey, nihilanth, and tentacle are huge but are basically nonsolid (no brush collision or triggers)
+
+	for (int i = 0; i < ents.size(); i++) {
+		string cname = ents[i]->keyvalues["classname"];
+		string tname = ents[i]->keyvalues["targetname"];
+
+		if (cname.find("monster_") == 0) {
+			vec3 minhull = Keyvalue("", ents[i]->keyvalues["minhullsize"]).getVector();
+			vec3 maxhull = Keyvalue("", ents[i]->keyvalues["maxhullsize"]).getVector();
+
+			if (minhull == vec3(0, 0, 0) && maxhull == vec3(0,0,0)) {
+				// monster is using its default hull size
+				if (largeMonsters.find(cname) != largeMonsters.end()) {
+					vec3 size = defaultHullSize[cname];
+					vec3 mins = vec3(-18, -18, 0);
+					vec3 maxs = vec3(18, 18, size.z);
+
+					if (cname == "monster_ichthyosaur") {
+						mins.z = -size.z * 0.5f;
+						maxs.z = size.z * 0.5f;
+					}
+
+					ents[i]->keyvalues["minhullsize"] = mins.toKeyvalueString();
+					ents[i]->keyvalues["maxhullsize"] = maxs.toKeyvalueString();
+					cout << "Resized hull for \"" << tname << "\"" << cname << endl;
+				}
+			}
+			else if (abs(minhull.x) > 18 || abs(maxhull.x) > 18 || abs(minhull.y) > 18 || abs(maxhull.y) > 18) {
+				minhull.x = clamp(minhull.x, -18, 18);
+				maxhull.y = clamp(maxhull.x, -18, 18);
+				minhull.y = clamp(minhull.y, -18, 18);
+				maxhull.y = clamp(maxhull.y, -18, 18);
+
+				ents[i]->keyvalues["minhullsize"] = minhull.toKeyvalueString();
+				ents[i]->keyvalues["maxhullsize"] = maxhull.toKeyvalueString();
+				cout << "Resized custom hull for \"" << tname << "\"" << cname << endl;
+			}
+		}
+		else if (cname == "func_pushable") {
+			int modelIdx = ents[i]->getBspModelIdx();
+			if (modelIdx < modelCount) {
+				BSPMODEL& model = models[modelIdx];
+				vec3 size = model.nMaxs - model.nMins;
+
+				if (size.x > 34 || size.y > 34) {
+					vec3 center = model.nMins + size * 0.5f;
+					float scale = min(34.0f / size.x, 34.0f / size.y);
+
+					// scale the bounding box to the max size allowed in HULL 1 (otherwise it uses HULL 2)
+					model.nMaxs = center + size * scale * 0.5f;
+					model.nMins = center - size * scale * 0.5f;
+
+					cout << "Resized hull for \"" << tname << "\"" << cname << endl;
+				}
+			}
+		}
+	}
+}
+
+void Bsp::delete_unused_hulls() {
+	BSPMODEL* models = (BSPMODEL*)lumps[LUMP_MODELS];
+	int modelCount = header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
+
+	bool verbose = false;
+
+	progress_title = "Deleting unused hulls";
+	progress = 0;
+	progress_total = modelCount-1;
+
 	for (int i = 1; i < modelCount; i++) {
+		if (!verbose)
+			print_move_progress();
+
 		vector<Entity*> usageEnts = get_model_ents(i);
 		
 		if (usageEnts.size() == 0) {
-			printf("Deleting unused model %d\n", i);
+			if (verbose)
+				printf("Deleting unused model %d\n", i);
 			delete_model(i);
 			modelCount--;
 			i--;
@@ -1034,7 +1145,8 @@ void Bsp::remove_useless_clipnodes() {
 		BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[i];
 
 		if (!needsVisibleHull) {
-			printf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
+			if (verbose)
+				printf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
 
 			model.iHeadnodes[0] = -1;
 			model.nVisLeafs = 0;
@@ -1042,14 +1154,16 @@ void Bsp::remove_useless_clipnodes() {
 			model.iFirstFace = 0;
 		}
 		if (!needsPlayerHulls && !needsMonsterHulls) {
-			printf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
+			if (verbose)
+				printf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
 			
 			model.iHeadnodes[1] = -1;
 			model.iHeadnodes[2] = -1;
 			model.iHeadnodes[3] = -1;
 		}
 		else if (!needsMonsterHulls) {
-			printf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
+			if (verbose)
+				printf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
 			model.iHeadnodes[2] = -1;
 		}
 		else if (!needsPlayerHulls) {
@@ -1060,6 +1174,12 @@ void Bsp::remove_useless_clipnodes() {
 	remove_unused_model_structures();
 
 	update_ent_lump();
+
+	if (!verbose) {
+		for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+		for (int i = 0; i < 12; i++) printf("    ");
+		for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	}
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
