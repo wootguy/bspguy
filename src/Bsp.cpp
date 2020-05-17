@@ -612,7 +612,7 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 			BSPMIPTEX* tex = (BSPMIPTEX*)(textures + offset);
 
 			// don't delete single frames from animated textures or else game crashes
-			if (tex->szName[0] == '-' || tex->szName[1] == '+') {
+			if (tex->szName[0] == '-' || tex->szName[0] == '+') {
 				usedTextures[i] = true;
 				// TODO: delete all frames if none are used
 				continue;
@@ -750,7 +750,8 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	byte* oldLeaves = new byte[header.lump[LUMP_LEAVES].nLength];
 	memcpy(oldLeaves, lumps[LUMP_LEAVES], header.lump[LUMP_LEAVES].nLength);
 
-	removeCount.lightdata = remove_unused_lightmaps(usedStructures.faces);
+	if (lightDataLength)
+		removeCount.lightdata = remove_unused_lightmaps(usedStructures.faces);
 
 	removeCount.planes = remove_unused_structs(LUMP_PLANES, usedStructures.planes, remap.planes);
 	removeCount.clipnodes = remove_unused_structs(LUMP_CLIPNODES, usedStructures.clipnodes, remap.clipnodes);
@@ -764,7 +765,8 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	removeCount.verts = remove_unused_structs(LUMP_VERTICES, usedStructures.verts, remap.verts);
 	removeCount.textures = remove_unused_textures(usedStructures.textures, remap.textures);
 
-	removeCount.visdata = remove_unused_visdata(usedStructures.leaves, (BSPLEAF*)oldLeaves, usedStructures.count.leaves);
+	if (visDataLength)
+		removeCount.visdata = remove_unused_visdata(usedStructures.leaves, (BSPLEAF*)oldLeaves, usedStructures.count.leaves);
 
 	STRUCTCOUNT newCounts(this);
 
@@ -1440,7 +1442,9 @@ bool Bsp::validate() {
 			printf("Bad textureinfo reference in face %d: %d / %d\n", i, faces[i].iTextureInfo, texinfoCount);
 			isValid = false;
 		}
-		if (faces[i].nStyles[0] != 255 && faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) {
+		if (lightDataLength > 0 && faces[i].nStyles[0] != 255 && 
+			faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) 
+		{
 			printf("Bad lightmap offset in face %d: %d / %d\n", i, faces[i].nLightmapOffset, lightDataLength);
 			isValid = false;
 		}
@@ -1450,7 +1454,7 @@ bool Bsp::validate() {
 			printf("Bad marksurf reference in leaf %d: %d / %d\n", i, leaves[i].iFirstMarkSurface, marksurfCount);
 			isValid = false;
 		}
-		if (leaves[i].nVisOffset < -1 || leaves[i].nVisOffset >= visDataLength) {
+		if (visDataLength > 0 && leaves[i].nVisOffset < -1 || leaves[i].nVisOffset >= visDataLength) {
 			printf("Bad vis offset in leaf %d: %d / %d\n", i, leaves[i].nVisOffset, visDataLength);
 			isValid = false;
 		}
