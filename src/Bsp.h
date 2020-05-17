@@ -339,12 +339,4 @@ private:
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
 	void update_lump_pointers();
-
-	chrono::system_clock::time_point last_progress;
-	char* progress_title;
-	char* last_progress_title;
-	int progress;
-	int progress_total;
-
-	void print_move_progress();
 };

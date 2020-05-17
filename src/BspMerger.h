@@ -63,8 +63,6 @@ private:
 	void merge_vis(Bsp& mapA, Bsp& mapB);
 	void merge_lighting(Bsp& mapA, Bsp& mapB);
 
-	void print_merge_progress();
-
 	void create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separationPlane);
 
 
@@ -88,10 +86,4 @@ private:
 	int thisMarkSurfCount;
 	int thisEdgeCount;
 	int thisVertCount;
-
-	chrono::system_clock::time_point last_progress;
-	char* progress_title;
-	char* last_progress_title;
-	int progress;
-	int progress_total;
 };

@@ -111,9 +111,7 @@ bool Bsp::move(vec3 offset) {
 	LIGHTMAP* newLightmaps = NULL;
 
 	if (hasLighting) {
-		progress_title = "Calculate lightmaps";
-		progress = 0;
-		progress_total = faceCount;
+		g_progress.update("Calculate lightmaps", faceCount);
 
 		oldLightmaps = new LIGHTMAP[faceCount];
 		newLightmaps = new LIGHTMAP[faceCount];
@@ -142,13 +140,11 @@ bool Bsp::move(vec3 offset) {
 
 			qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
 
-			print_move_progress();
+			g_progress.tick();
 		}
 	}
 	
-	progress_title = "Moving structures";
-	progress = 0;
-	progress_total = ents.size() + modelCount;
+	g_progress.update("Moving structures", ents.size() + modelCount);
 
 	bool* modelHasOrigin = new bool[modelCount];
 	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
@@ -166,7 +162,7 @@ bool Bsp::move(vec3 offset) {
 
 		ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
 
-		print_move_progress();
+		g_progress.tick();
 	}
 
 	update_ent_lump();
@@ -193,7 +189,7 @@ bool Bsp::move(vec3 offset) {
 	for (int i = 0; i < modelCount; i++) {
 		if (!modelHasOrigin[i])
 			mark_model_structures(i, &shouldBeMoved);
-		print_move_progress();
+		g_progress.tick();
 	}
 
 	for (int i = 0; i < nodeCount; i++) {
@@ -326,17 +322,13 @@ bool Bsp::move(vec3 offset) {
 	delete[] oldLightmaps;
 	delete[] newLightmaps;
 
-	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
-	for (int i = 0; i < 12; i++) printf("    ");
-	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+	g_progress.clear();
 
 	return true;
 }
 
 void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
-	progress_title = "Recalculate lightmaps";
-	progress = 0;
-	progress_total = faceCount;
+	g_progress.update("Recalculate lightmaps", faceCount);
 
 	// calculate new lightmap sizes
 	qrad_init_globals(this);
@@ -346,7 +338,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 
-		print_move_progress();
+		g_progress.tick();
 
 		if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)
 			continue;
@@ -375,9 +367,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	if (lightmapsResizeCount > 0) {
 		//printf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
 
-		progress_title = "Resize lightmaps";
-		progress = 0;
-		progress_total = faceCount;
+		g_progress.update("Resize lightmaps", faceCount);
 
 		int newColorCount = newLightDataSz / sizeof(COLOR3);
 		COLOR3* newLightData = new COLOR3[newColorCount];
@@ -388,7 +378,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 		for (int i = 0; i < faceCount; i++) {
 			BSPFACE& face = faces[i];
 
-			print_move_progress();
+			g_progress.tick();
 
 			if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
 				continue;
@@ -467,9 +457,7 @@ void Bsp::split_shared_model_structures() {
 	STRUCTUSAGE shouldMove(this);
 	STRUCTUSAGE shouldNotMove(this);
 
-	progress_title = "Split model structures";
-	progress = 0;
-	progress_total = modelCount*2;
+	g_progress.update("Split model structures", modelCount * 2);
 
 	for (int i = 0; i < modelCount; i++) {
 		if (modelHasOrigin[i])
@@ -477,7 +465,7 @@ void Bsp::split_shared_model_structures() {
 		else
 			mark_model_structures(i, &shouldMove);
 
-		print_move_progress();
+		g_progress.tick();
 	}
 
 	STRUCTREMAP remappedStuff(this);
@@ -542,7 +530,6 @@ void Bsp::split_shared_model_structures() {
 		if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
 			newClipnodes[addIdx] = clipnodes[i];
 			remappedStuff.clipnodes[i] = addIdx;
-			//remappedStuff.clipnodes[i] = i;
 			addIdx++;
 		}
 	}
@@ -559,7 +546,7 @@ void Bsp::split_shared_model_structures() {
 		if (!modelHasOrigin[i]) {
 			remap_model_structures(i, &remappedStuff);
 		}
-		print_move_progress();
+		g_progress.tick();
 	}
 
 	//if (duplicateCount)
@@ -966,15 +953,13 @@ int Bsp::resize_hull2_ents() {
 }
 
 int Bsp::delete_unused_hulls() {
-	progress_title = "Deleting unused hulls";
-	progress = 0;
-	progress_total = modelCount-1;
+	g_progress.update("Deleting unused hulls", modelCount - 1);
 
 	int deletedHulls = 0;
 
 	for (int i = 1; i < modelCount; i++) {
 		if (!g_verbose)
-			print_move_progress();
+			g_progress.tick();
 
 		vector<Entity*> usageEnts = get_model_ents(i);
 		
@@ -1162,9 +1147,7 @@ int Bsp::delete_unused_hulls() {
 	update_ent_lump();
 
 	if (!g_verbose) {
-		for (int i = 0; i < 12; i++) printf("\b\b\b\b");
-		for (int i = 0; i < 12; i++) printf("    ");
-		for (int i = 0; i < 12; i++) printf("\b\b\b\b");
+		g_progress.clear();
 	}
 
 	return deletedHulls;
@@ -2327,20 +2310,4 @@ void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
 	header.lump[lumpIdx].nLength = newLength;
 
 	update_lump_pointers();
-}
-
-void Bsp::print_move_progress() {
-	if (progress++ > 0) {
-		auto now = std::chrono::system_clock::now();
-		std::chrono::duration<double> delta = now - last_progress;
-		if (delta.count() < 0.016) {
-			return;
-		}
-		last_progress = now;
-	}
-
-	int percent = (progress / (float)progress_total) * 100;
-
-	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
-	printf("        %-32s %2d%%", progress_title, percent);
 }

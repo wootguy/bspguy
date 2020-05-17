@@ -7,6 +7,8 @@
 #include <string.h>
 #include "Wad.h"
 
+ProgressMeter g_progress;
+
 bool fileExists(const string& fileName)
 {
 	if (FILE *file = fopen(fileName.c_str(), "r"))

@@ -158,6 +158,7 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 
 	for (int i = 0; i < iterationLeaves; i++)
 	{
+		g_progress.tick();
 		dest = output + i * newVisRowSize;
 
 		if (leafLump[i + 1].nVisOffset < 0) {
@@ -300,6 +301,8 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 	for (int i = 0; i < iterLeaves; i++)
 	{
+		g_progress.tick();
+
 		if (sharedRows[i] != i) {
 			leafs[i + 1].nVisOffset = leafs[sharedRows[i] + 1].nVisOffset;
 			continue;

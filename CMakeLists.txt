@@ -8,6 +8,7 @@ set(SOURCE_FILES
 	src/Bsp.h			src/Bsp.cpp
 	src/Entity.h		src/Entity.cpp
 	src/Keyvalue.h		src/Keyvalue.cpp
+	src/ProgressMeter.h	src/ProgressMeter.cpp
 	src/Wad.h			src/Wad.cpp
     src/remap.h			src/remap.cpp
     src/util.h			src/util.cpp

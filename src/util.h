@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include "ProgressMeter.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -14,6 +15,7 @@
 #define __WINDOWS__
 
 extern bool g_verbose;
+extern ProgressMeter g_progress;
 
 class BSPMIPTEX;
 
