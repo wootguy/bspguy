@@ -282,7 +282,7 @@ public:
 	void delete_model(int modelIdx);
 
 	// conditionally deletes hulls for entities that aren't using them
-	int delete_unused_hulls();
+	STRUCTCOUNT delete_unused_hulls();
 
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();

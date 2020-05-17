@@ -50,13 +50,45 @@ const char* version_string = "bspguy v2 WIP (May 2020)";
 
 bool g_verbose = false;
 
+void printIndent(int indent) {
+	for (int i = 0; i < indent; i++)
+		printf("    ");
+}
+
+void print_delete_stats(int indent, STRUCTCOUNT& stats) {
+	if (stats.models) { printIndent(indent); printf("Deleted %d models\n", stats.models); }
+	if (stats.planes) { printIndent(indent); printf("Deleted %d planes\n", stats.planes); }
+	if (stats.verts) { printIndent(indent); printf("Deleted %d vertexes\n", stats.verts); }
+	if (stats.nodes) { printIndent(indent); printf("Deleted %d nodes\n", stats.nodes); }
+	if (stats.texInfos) { printIndent(indent); printf("Deleted %d texinfos\n", stats.texInfos); }
+	if (stats.faces) { printIndent(indent); printf("Deleted %d faces\n", stats.faces); }
+	if (stats.clipnodes) { printIndent(indent); printf("Deleted %d clipnodes\n", stats.clipnodes); }
+	if (stats.leaves) { printIndent(indent); printf("Deleted %d leaves\n", stats.leaves); }
+	if (stats.markSurfs) { printIndent(indent); printf("Deleted %d marksurfaces\n", stats.markSurfs); }
+	if (stats.surfEdges) { printIndent(indent); printf("Deleted %d surfedges\n", stats.surfEdges); }
+	if (stats.edges) { printIndent(indent); printf("Deleted %d edges\n", stats.edges); }
+	if (stats.textures) { printIndent(indent); printf("Deleted %d textures\n", stats.textures); }
+	if (stats.lightdata) { printIndent(indent); printf("Deleted %.2f KB of lightmap data\n", stats.lightdata / 1024.0f); }
+	if (stats.visdata) { printIndent(indent); printf("Deleted %.2f KB of VIS data\n", stats.visdata / 1024.0f); }
+}
+
+// remove unused data before modifying anything to avoid misleading results
+void remove_unused_data(Bsp* map) {
+	STRUCTCOUNT removed = map->remove_unused_model_structures();
+
+	if (!removed.allZero()) {
+		printf("Deleting unused data:\n");
+		print_delete_stats(4, removed);
+		g_progress.clear();
+		printf("\n");
+	}
+}
+
 int test() {
 	/*
-	Bsp test("op4/of1a4.bsp");
-	test.validate();
-	//test.strip_clipping_hull(2);
-	test.remove_useless_clipnodes();
-	test.move(vec3(0, 64, 0));
+	Bsp test("merge1.bsp");
+	Bsp other("merge0.bsp");
+	test.add_model(&other, 0);
 	test.write("yabma_move.bsp");
 	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 	test.print_info(false, 0, 0);
@@ -77,25 +109,9 @@ int test() {
 	//maps.push_back(new Bsp("echoes/echoes01a.bsp"));
 	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
 
-	//maps.push_back(new Bsp("echoes03.bsp"));
-	//maps.push_back(new Bsp("echoes04.bsp"));
-	//maps.push_back(new Bsp("echoes05.bsp"));
-
-	//maps.push_back(new Bsp("echoes06.bsp"));
-	//maps.push_back(new Bsp("echoes07.bsp"));
-
-	//maps.push_back(new Bsp("echoes09.bsp"));
-	//maps.push_back(new Bsp("echoes09a.bsp"));
-
-	//maps.push_back(new Bsp("echoes09b.bsp"));
-	//maps.push_back(new Bsp("echoes10.bsp"));
-
-	//maps.push_back(new Bsp("echoes12.bsp"));
-	//maps.push_back(new Bsp("echoes13.bsp"));
-
-	//maps.push_back(new Bsp("merge1.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes14.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes14b.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes03.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes04.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes05.bsp"));
 
 	maps.push_back(new Bsp("merge0.bsp"));
 	maps.push_back(new Bsp("merge1.bsp"));
@@ -114,7 +130,9 @@ int test() {
 		}
 		maps[i]->delete_hull(2, 1);
 		maps[i]->delete_unused_hulls();
-		//maps[i]->remove_unused_model_structures();
+
+		if (!maps[i]->validate())
+			printf("");
 
 		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
@@ -147,34 +165,25 @@ int merge_maps(CommandLine& cli) {
 		maps.push_back(map);
 	}
 
-	bool shouldPreprocess = cli.hasOption("-nohull2") || !cli.hasOption("-safe");
+	for (int i = 0; i < maps.size(); i++) {
+		printf("Preprocessing %s:\n", maps[i]->name.c_str());
 
-	if (shouldPreprocess) {
-		printf("Pre-processing maps:\n");
-	}
+		printf("    Deleting unused data...\n");
+		STRUCTCOUNT removed = maps[i]->remove_unused_model_structures();
+		g_progress.clear();
+		print_delete_stats(2, removed);
 
-	if (cli.hasOption("-nohull2")) {
-		for (int i = 0; i < maps.size(); i++) {
+		if (cli.hasOption("-nohull2") || (cli.hasOption("-optimize") && !maps[i]->has_hull2_ents())) {
+			printf("    Deleting hull 2...\n");
 			maps[i]->delete_hull(2, 1);
-			int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
-			printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
+			print_delete_stats(2, maps[i]->remove_unused_model_structures() );
 		}
-		
-	}
 
-	if (!cli.hasOption("-safe")) {
-		for (int i = 0; i < maps.size(); i++) {
-			if (!cli.hasOption("-nohull2") && !maps[i]->has_hull2_ents()) {
-				maps[i]->delete_hull(2, 1);
-				int removedClipnodes = maps[i]->remove_unused_model_structures().clipnodes;
-				printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
-			}
-			int deletedHulls = maps[i]->delete_unused_hulls();
-			printf("    Deleted %d unused model hulls in %s\n", deletedHulls, maps[i]->name.c_str());
+		if (cli.hasOption("-optimize")) {
+			printf("    Optmizing...\n");
+			print_delete_stats(2, maps[i]->delete_unused_hulls() );
 		}
-	}
 
-	if (shouldPreprocess) {
 		printf("\n");
 	}
 	
@@ -234,34 +243,6 @@ int print_info(CommandLine& cli) {
 	delete map;
 
 	return 0;
-}
-
-void print_delete_stats(STRUCTCOUNT& stats) {
-	if (stats.models) printf("    Deleted %d models\n", stats.models);
-	if (stats.planes) printf("    Deleted %d planes\n", stats.planes);
-	if (stats.verts) printf("    Deleted %d vertexes\n", stats.verts);
-	if (stats.nodes) printf("    Deleted %d nodes\n", stats.nodes);
-	if (stats.texInfos) printf("    Deleted %d texinfos\n", stats.texInfos);
-	if (stats.faces) printf("    Deleted %d faces\n", stats.faces);
-	if (stats.clipnodes) printf("    Deleted %d clipnodes\n", stats.clipnodes);
-	if (stats.leaves) printf("    Deleted %d leaves\n", stats.leaves);
-	if (stats.markSurfs) printf("    Deleted %d marksurfaces\n", stats.markSurfs);
-	if (stats.surfEdges) printf("    Deleted %d surfedges\n", stats.surfEdges);
-	if (stats.edges) printf("    Deleted %d edges\n", stats.edges);
-	if (stats.textures) printf("    Deleted %d textures\n", stats.textures);
-	if (stats.lightdata) printf("    Deleted %.2f KB of lightmap data\n", stats.lightdata / 1024.0f);
-	if (stats.visdata) printf("    Deleted %.2f KB VIS data\n", stats.visdata / 1024.0f);
-}
-
-// remove unused data before modifying anything to avoid misleading results
-void remove_unused_data(Bsp* map) {
-	STRUCTCOUNT removed =  map->remove_unused_model_structures();
-
-	if (!removed.allZero()) {
-		printf("Deleting unused data:\n");
-		print_delete_stats(removed);
-		printf("\n");
-	}
 }
 
 int noclip(CommandLine& cli) {
@@ -354,7 +335,7 @@ int noclip(CommandLine& cli) {
 	STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 	if (!removed.allZero())
-		print_delete_stats(removed);
+		print_delete_stats(1, removed);
 	else if (redirect == 0)
 		printf("    Model hull(s) was previously deleted or redirected.");
 	printf("\n");
@@ -385,7 +366,7 @@ int deleteCmd(CommandLine& cli) {
 		STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 		if (!removed.allZero())
-			print_delete_stats(removed);
+			print_delete_stats(1, removed);
 		printf("\n");
 	}
 
@@ -434,10 +415,9 @@ void print_help(string command) {
 			"Example: bspguy merge merged.bsp -maps \"svencoop1, svencoop2\"\n"
 
 			"\n[Options]\n"
-			"  -safe        : By default, unused model hulls are removed before merging.\n"
+			"  -optimize    : Deletes unused model hulls before merging.\n"
 			"                 This can be risky and crash the game if assumptions about\n"
-			"                 entity visibility/solidity are wrong. This flag prevents\n"
-			"                 any unsafe hull removals.\n"
+			"                 entity visibility/solidity are wrong.\n"
 			"  -nohull2     : Forces redirection of hull 2 to hull 1 in each map before merging.\n"
 			"                 This reduces clipnodes at the expense of less accurate collision\n"
 			"                 for large monsters and pushables.\n"

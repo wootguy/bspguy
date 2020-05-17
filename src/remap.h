@@ -21,7 +21,7 @@ struct STRUCTCOUNT {
 	STRUCTCOUNT();
 	STRUCTCOUNT(Bsp* map);
 
-	STRUCTCOUNT add(const STRUCTCOUNT& other);
+	void add(const STRUCTCOUNT& other);
 	bool allZero();
 };
 

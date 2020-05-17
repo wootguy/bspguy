@@ -870,7 +870,7 @@ bool Bsp::has_hull2_ents() {
 	return false;
 }
 
-int Bsp::delete_unused_hulls() {
+STRUCTCOUNT Bsp::delete_unused_hulls() {
 	if (g_verbose)
 		g_progress.update("", 0);
 	else
@@ -1062,8 +1062,8 @@ int Bsp::delete_unused_hulls() {
 			// monsters use all hulls so can't do anything about this
 		}
 	}
-	
-	remove_unused_model_structures();
+
+	STRUCTCOUNT removed = remove_unused_model_structures();
 
 	update_ent_lump();
 
@@ -1071,7 +1071,7 @@ int Bsp::delete_unused_hulls() {
 		g_progress.clear();
 	}
 
-	return deletedHulls;
+	return removed;
 }
 
 void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY) {
