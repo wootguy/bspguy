@@ -11,9 +11,6 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift);
 void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	int iterationLeaves, int visDataLeafCount, int newNumLeaves);
 
-// decompress the given vis data into arrays of bits where each bit indicates if a leaf is visible or not
-void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, int leafCount, int iterLeafCount);
-
 void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_length, uint numLeaves);
 
 int CompressVis(const byte* const src, const unsigned int src_length, byte* dest, unsigned int dest_length);

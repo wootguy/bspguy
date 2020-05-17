@@ -19,6 +19,8 @@
 // - no hull2 if map has no large monsters or pushables
 // - no clipnodes if it's func_illusionary or marked as nonsolid
 // - no faces if ent is invisible (trigger_once). Maybe this breaks them tho? 
+// check if models with origins have any special bsp model values, maybe splitting isn't needed
+// delete all frames from unused animated textures
 
 // refactoring:
 // save data structure pointers+sizes in Bsp class instead of copy-pasting them everywhere
@@ -50,28 +52,34 @@
 
 const char* version_string = "bspguy v2 WIP (May 2020)";
 
+bool g_verbose = false;
+
 int test() {
 	/*
-	Bsp test("echoes14.bsp");
+	Bsp test("op4/of1a4.bsp");
+	test.validate();
 	//test.strip_clipping_hull(2);
-	test.move(vec3(64, 64, 64));
+	test.remove_useless_clipnodes();
+	test.move(vec3(0, 64, 0));
 	test.write("yabma_move.bsp");
 	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+	test.print_info(false, 0, 0);
 	return 0;
 	*/
 
 	vector<Bsp*> maps;
+	
 	/*
 	for (int i = 1; i < 22; i++) {
-		Bsp* map = new Bsp("saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
+		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
 		map->strip_clipping_hull(2);
 		maps.push_back(map);
 	}
 	*/
 
-	//maps.push_back(new Bsp("echoes01.bsp"));
-	//maps.push_back(new Bsp("echoes01a.bsp"));
-	//maps.push_back(new Bsp("echoes02.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes01.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes01a.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
 
 	//maps.push_back(new Bsp("echoes03.bsp"));
 	//maps.push_back(new Bsp("echoes04.bsp"));
@@ -89,40 +97,36 @@ int test() {
 	//maps.push_back(new Bsp("echoes12.bsp"));
 	//maps.push_back(new Bsp("echoes13.bsp"));
 
-	//maps.push_back(new Bsp("echoes/echoes01.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
+	//maps.push_back(new Bsp("merge1.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes14.bsp"));
+	//maps.push_back(new Bsp("echoes/echoes14b.bsp"));
 
-	maps.push_back(new Bsp("merge1.bsp"));
 	maps.push_back(new Bsp("merge0.bsp"));
 	maps.push_back(new Bsp("merge1.bsp"));
+
+	//maps.push_back(new Bsp("op4/of1a1.bsp"));
+	//maps.push_back(new Bsp("op4/of1a2.bsp"));
+	//maps.push_back(new Bsp("op4/of1a3.bsp"));
+	//maps.push_back(new Bsp("op4/of1a4.bsp"));
 
 	for (int i = 0; i < maps.size(); i++) {
 		if (!maps[i]->valid) {
 			return 1;
 		}
-		//maps[i]->strip_clipping_hull(2);
+		printf("Process %s\n", maps[i]->name.c_str());
+		if (!maps[i]->validate()) {
+			printf("");
+		}
+		maps[i]->strip_clipping_hull(2);
+		maps[i]->resize_hull2_ents();
+		maps[i]->delete_unused_hulls();
 		//maps[i]->remove_unused_model_structures();
-	}
 
-	if (true) {
-		STRUCTCOUNT deleted = maps[1]->delete_model_faces(1);
-		printf("Deleted %d planes\n", deleted.planes);
-		printf("Deleted %d nodes\n", deleted.nodes);
-		printf("Deleted %d clipnodes\n", deleted.clipnodes);
-		printf("Deleted %d leaves\n", deleted.leaves);
-		printf("Deleted %d faces\n", deleted.faces);
-		printf("Deleted %d markSurfs\n", deleted.markSurfs);
-		printf("Deleted %d surfEdges\n", deleted.surfEdges);
-		printf("Deleted %d texInfos\n", deleted.texInfos);
-		printf("Deleted %d textures\n", deleted.textures);
-		printf("Deleted %d edges\n", deleted.edges);
-		printf("Deleted %d verts\n", deleted.verts);
-		printf("Deleted %.2f KB of lightmap data\n", (float)deleted.lightdata / 1024.0f);
-		printf("Deleted %.2f KB of vis data\n", (float)deleted.visdata / 1024.0f);
+		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, vec3(0, 0, 0), false);
+	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false, true);
 	printf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
@@ -133,7 +137,6 @@ int test() {
 }
 
 int merge_maps(CommandLine& cli) {
-	
 	vector<string> input_maps = cli.getOptionList("-maps");
 
 	if (input_maps.size() < 2) {
@@ -150,22 +153,43 @@ int merge_maps(CommandLine& cli) {
 		maps.push_back(map);
 	}
 
+	bool shouldPreprocess = cli.hasOption("-nohull2") || !cli.hasOption("-safe");
+
+	if (shouldPreprocess) {
+		printf("Pre-processing maps:\n");
+	}
+
 	if (cli.hasOption("-nohull2")) {
-		printf("Stripping hull 2 from each input map...\n");
-		int removedClipnodes = 0;
-		int removedPlanes = 0;
 		for (int i = 0; i < maps.size(); i++) {
-			removedClipnodes += maps[i]->strip_clipping_hull(2);
-			removedPlanes += maps[i]->remove_unused_model_structures().planes;
+			int removedClipnodes = maps[i]->strip_clipping_hull(2);
+			int resizedEnts = maps[i]->resize_hull2_ents();
+			maps[i]->remove_unused_model_structures();
+			printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
+			if (resizedEnts)
+				printf("    Resized %d large monsters/pushables in %s\n", resizedEnts, maps[i]->name.c_str());
 		}
-		printf("Deleted %d clipnodes\n", removedClipnodes);
-		printf("Deleted %d planes\n\n", removedPlanes);
-	}	
+		
+	}
+
+	if (!cli.hasOption("-safe")) {
+		for (int i = 0; i < maps.size(); i++) {
+			if (!cli.hasOption("-nohull2") && !maps[i]->has_hull2_ents()) {
+				int removedClipnodes = maps[i]->strip_clipping_hull(2);
+				printf("    Deleted hull 2 (%d clipnodes) in %s\n", removedClipnodes, maps[i]->name.c_str());
+			}
+			int deletedHulls = maps[i]->delete_unused_hulls();
+			printf("    Deleted %d unused model hulls in %s\n", deletedHulls, maps[i]->name.c_str());
+		}
+	}
+
+	if (shouldPreprocess) {
+		printf("\n");
+	}
 	
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"));
+	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"), cli.hasOption("-nohull2"));
 
 	printf("\n");
 	if (result->isValid()) result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
@@ -320,12 +344,18 @@ void print_help(string command) {
 			"Example: bspguy merge merged.bsp -maps \"svencoop1, svencoop2\"\n"
 
 			"\n[Options]\n"
-			"  -nohull2     : Strip collision hull 2 from each map before merging.\n"
+			"  -safe        : By default, unused model hulls are removed before merging.\n"
+			"                 This can be risky and crash the game if assumptions about\n"
+			"                 entity visibility/solidity are wrong. This flag prevents\n"
+			"                 any unsafe hull removals.\n"
+			"  -nohull2     : Forces removal of hull 2 from each map before merging.\n"
+			"                 Large monsters and pushables will be resized if needed.\n"
 			"  -noripent    : By default, the input maps are assumed to be part of a series.\n"
 			"                 Level changes and other things are updated so that the merged\n"
 			"                 maps can be played one after another. This flag prevents any\n"
 			"                 entity edits from being made (except for origins).\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
+			"  -v           : Verbose console output.\n"
 			;
 	}
 	else if (command == "info") {
@@ -352,7 +382,7 @@ void print_help(string command) {
 			"  -model #  : Model to strip collision from. By default, all models are stripped.\n"
 			"  -hull #   : Collision hull to strip (1-3). By default, all hulls are stripped.\n"
 			"              1 = Human-sized monsters and standing players\n"
-			"              2 = Large monsters and func_pushable\n"
+			"              2 = Large monsters and pushables\n"
 			"              3 = Small monsters, crouching players, and melee attacks\n"
 			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
 			;
@@ -403,6 +433,10 @@ int main(int argc, char* argv[])
 
 	if (cli.bspfile.empty()) {
 		cout << "ERROR: no map specified\n"; return 1;
+	}
+
+	if (cli.hasOption("-v")) {
+		g_verbose = true;
 	}
 
 	if (cli.command == "info") {

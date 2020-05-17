@@ -13,6 +13,8 @@
 
 #define __WINDOWS__
 
+extern bool g_verbose;
+
 class BSPMIPTEX;
 
 bool fileExists(const string& fileName);

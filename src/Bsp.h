@@ -50,6 +50,12 @@
 #define PLANE_ANYY 4
 #define PLANE_ANYZ 5
 
+// maximum x/y hull extent a monster can have before it starts using hull 2
+#define MAX_HULL1_EXTENT_MONSTER 18
+
+// maximum x/y hull dimension a pushable can have before it starts using hull 2
+#define MAX_HULL1_SIZE_PUSHABLE 34.0f
+
 static char* g_lump_names[HEADER_LUMPS] = {
 	"ENTITIES",
 	"PLANES",
@@ -248,10 +254,13 @@ public:
 	void delete_model(int modelIdx);
 
 	// conditionally deletes hulls for entities that aren't using them
-	void delete_unused_hulls();
+	int delete_unused_hulls();
 
 	// resizes entities to work with hull 1 instead of hull 2
-	void resize_hull2_ents();
+	int resize_hull2_ents();
+
+	// returns true if the map has eny entities that make use of hull 2
+	bool has_hull2_ents();
 	
 	// check for bad indexes
 	bool validate();
