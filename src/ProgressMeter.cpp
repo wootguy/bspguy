@@ -33,7 +33,7 @@ void ProgressMeter::tick() {
 
 void ProgressMeter::clear() {
 	// 50 chars
-	for (int i = 0; i < 5; i++) printf("\b\b\b\b\b\b\b\b\b\b");
-	for (int i = 0; i < 5; i++) printf("          ");
-	for (int i = 0; i < 5; i++) printf("\b\b\b\b\b\b\b\b\b\b");
+	for (int i = 0; i < 6; i++) printf("\b\b\b\b\b\b\b\b\b\b");
+	for (int i = 0; i < 6; i++) printf("          ");
+	for (int i = 0; i < 6; i++) printf("\b\b\b\b\b\b\b\b\b\b");
 }

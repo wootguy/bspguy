@@ -953,7 +953,10 @@ int Bsp::resize_hull2_ents() {
 }
 
 int Bsp::delete_unused_hulls() {
-	g_progress.update("Deleting unused hulls", modelCount - 1);
+	if (g_verbose)
+		g_progress.update("", 0);
+	else
+		g_progress.update("Deleting unused hulls", modelCount - 1);
 
 	int deletedHulls = 0;
 
@@ -971,7 +974,7 @@ int Bsp::delete_unused_hulls() {
 				deletedHulls += models[i].iHeadnodes[k] >= 0;
 
 			delete_model(i);
-			modelCount--;
+			//modelCount--; automatically updated when lump is replaced
 			i--;
 			continue;
 		}

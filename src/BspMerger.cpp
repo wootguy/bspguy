@@ -1536,7 +1536,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 
 	mapA.replace_lump(LUMP_PLANES, newThisPlanes, (mapA.planeCount + 1) * sizeof(BSPPLANE));
 
-	int separationPlaneIdx = mapA.planeCount;
+	int separationPlaneIdx = mapA.planeCount-1;
 
 
 	// write new head node (visible BSP)

@@ -297,12 +297,11 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 				break;
 			}
 		}
+		g_progress.tick();
 	}
 
 	for (int i = 0; i < iterLeaves; i++)
 	{
-		g_progress.tick();
-
 		if (sharedRows[i] != i) {
 			leafs[i + 1].nVisOffset = leafs[sharedRows[i] + 1].nVisOffset;
 			continue;
