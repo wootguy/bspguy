@@ -72,7 +72,7 @@ void print_stat_mem(int indent, int bytes, const char* data) {
 }
 
 
-void print_delete_stats(int indent, STRUCTCOUNT& stats) {
+void print_delete_stats(int indent, STRUCTCOUNT stats) {
 	print_stat(indent, stats.models, "model");
 	print_stat(indent, stats.planes, "plane");
 	print_stat(indent, stats.verts, "vertex");

@@ -1,5 +1,6 @@
 #include "ProgressMeter.h"
 #include <string.h>
+#include <stdio.h> 
 
 ProgressMeter::ProgressMeter() {
 	progress_total = progress = 0;
