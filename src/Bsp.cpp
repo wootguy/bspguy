@@ -40,6 +40,15 @@ mapStringToVector defaultHullSize {
 	{"monster_blkop_apache", vec3(64, 64, 64) }, // origin at top
 };
 
+vec3 default_hull_extents[MAX_MAP_HULLS] = {
+	vec3(0,  0,  0),	// hull 0
+	vec3(16, 16, 36),	// hull 1
+	vec3(32, 32, 64),	// hull 2
+	vec3(16, 16, 18)	// hull 3
+};
+
+int g_sort_mode = SORT_CLIPNODES;
+
 Bsp::Bsp() {
 	lumps = new byte * [HEADER_LUMPS];
 
@@ -101,6 +110,46 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 
 	mins = thisWorld.nMins;
 	maxs = thisWorld.nMaxs;
+}
+
+void Bsp::get_face_vertex_bounds(int iFace, vec3& mins, vec3& maxs) {
+	BSPFACE& face = faces[iFace];
+
+	for (int e = 0; e < face.nEdges; e++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+		vec3& vert = verts[vertIdx];
+
+		if (vert.x > maxs.x) maxs.x = vert.x;
+		if (vert.y > maxs.y) maxs.y = vert.y;
+		if (vert.z > maxs.z) maxs.z = vert.z;
+
+		if (vert.x < mins.x) mins.x = vert.x;
+		if (vert.y < mins.y) mins.y = vert.y;
+		if (vert.z < mins.z) mins.z = vert.z;
+	}
+}
+
+void Bsp::get_node_vertex_bounds(int iNode, vec3& mins, vec3& maxs) {
+	BSPNODE& node = nodes[iNode];
+
+	for (int i = 0; i < node.nFaces; i++) {
+		get_face_vertex_bounds(node.firstFace + i, mins, maxs);
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			get_node_vertex_bounds(node.iChildren[i], mins, maxs);
+		}
+		else {
+			BSPLEAF& leaf = leaves[~node.iChildren[i]];
+			for (int i = 0; i < leaf.nMarkSurfaces; i++) {
+				get_face_vertex_bounds(marksurfs[leaf.iFirstMarkSurface + i], mins, maxs);
+			}
+		}
+	}
 }
 
 bool Bsp::move(vec3 offset) {
@@ -1431,8 +1480,6 @@ void Bsp::print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMe
 	printf("\n");
 }
 
-int g_sort_mode = SORT_CLIPNODES;
-
 bool sortModelInfos(const STRUCTUSAGE* a, const STRUCTUSAGE* b) {
 	switch (g_sort_mode) {
 	case SORT_VERTS:
@@ -2025,6 +2072,93 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	usage.compute_sum();
 
 	printf("");
+}
+
+void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
+	if (modelIdx < 0 || modelIdx >= modelCount) {
+		printf("Invalid model index %d. Must be 0-%d\n", modelIdx);
+		return;
+	}
+	if (hullIdx >= MAX_MAP_HULLS) {
+		printf("Invalid hull number. Valid hull numbers are 1-%d\n", MAX_MAP_HULLS);
+		return;
+	}
+
+	BSPMODEL& model = models[modelIdx];
+
+	if (model.iHeadnodes[1] < 0 && model.iHeadnodes[2] < 0 && model.iHeadnodes[3] < 0) {
+		printf("Model has no clipnode hulls left to simplify\n");
+		return;
+	}
+
+	if (hullIdx > 0 && model.iHeadnodes[hullIdx] < 0) {
+		printf("Hull %d has no clipnodes\n", hullIdx);
+		return;
+	}
+
+	if (model.iHeadnodes[0] < 0) {
+		printf("Hull 0 was deleted from this model. Can't simplify.\n");
+		// TODO: create verts from plane intersections
+		return;
+	}
+
+	vec3 vertMin(9e9, 9e9, 9e9);
+	vec3 vertMax(-9e9, -9e9, -9e9);
+	get_node_vertex_bounds(model.iHeadnodes[0], vertMin, vertMax);
+
+	vector<BSPPLANE> addPlanes;
+	vector<BSPCLIPNODE> addNodes;
+
+	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		if (model.iHeadnodes[i] < 0 || (hullIdx > 0 && i != hullIdx)) {
+			continue;
+		}
+		
+		vec3 min = vertMin - default_hull_extents[i];
+		vec3 max = vertMax + default_hull_extents[i];
+
+		int clipnodeIdx = clipnodeCount + addNodes.size();
+		int planeIdx = planeCount + addPlanes.size();
+
+		addPlanes.push_back({ vec3(1, 0, 0), min.x, PLANE_X }); // left
+		addPlanes.push_back({ vec3(1, 0, 0), max.x, PLANE_X }); // right
+		addPlanes.push_back({ vec3(0, 1, 0), min.y, PLANE_Y }); // front
+		addPlanes.push_back({ vec3(0, 1, 0), max.y, PLANE_Y }); // back
+		addPlanes.push_back({ vec3(0, 0, 1), min.z, PLANE_Z }); // bottom
+		addPlanes.push_back({ vec3(0, 0, 1), max.z, PLANE_Z }); // top
+
+		model.iHeadnodes[i] = clipnodeCount + addNodes.size();
+
+		for (int k = 0; k < 6; k++) {
+			BSPCLIPNODE node;
+			node.iPlane = planeIdx++;
+
+			clipnodeIdx++;
+			int insideContents = k == 5 ? CONTENTS_SOLID : clipnodeIdx;
+
+			// can't have negative normals on planes so children are swapped instead
+			if (k % 2 == 0) {
+				node.iChildren[0] = insideContents;
+				node.iChildren[1] = CONTENTS_EMPTY;
+			}
+			else {
+				node.iChildren[0] = CONTENTS_EMPTY;
+				node.iChildren[1] = insideContents;
+			}
+
+			addNodes.push_back(node);
+		}
+	}
+
+	BSPPLANE* newPlanes = new BSPPLANE[planeCount + addPlanes.size()];
+	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+	memcpy(newPlanes + planeCount, &addPlanes[0], addPlanes.size() * sizeof(BSPPLANE));
+	replace_lump(LUMP_PLANES, newPlanes, (planeCount + addPlanes.size()) * sizeof(BSPPLANE));
+
+	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[clipnodeCount + addNodes.size()];
+	memcpy(newClipnodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
+	memcpy(newClipnodes + clipnodeCount, &addNodes[0], addNodes.size() * sizeof(BSPCLIPNODE));
+	replace_lump(LUMP_CLIPNODES, newClipnodes, (clipnodeCount + addNodes.size()) * sizeof(BSPCLIPNODE));
 }
 
 void Bsp::dump_lightmap(int faceIdx, string outputPath) {

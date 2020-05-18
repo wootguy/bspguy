@@ -266,7 +266,12 @@ public:
 
 	void write_csg_outputs(string path);
 
+	// get the bounding box for the world
 	void get_bounding_box(vec3& mins, vec3& maxs);
+
+	// get the bounding box for all vertexes in a BSP tree
+	void get_face_vertex_bounds(int iFace, vec3& mins, vec3& maxs);
+	void get_node_vertex_bounds(int iNode, vec3& mins, vec3& maxs);
 
 	void load_ents();
 
@@ -296,6 +301,9 @@ public:
 	void replace_lump(int lumpIdx, void* newData, int newLength);
 
 	bool is_invisible_solid(Entity* ent);
+
+	// replace a model's clipnode hull with a axis-aligned bounding box
+	void simplify_model_collision(int modelIdx, int hullIdx);
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);

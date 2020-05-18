@@ -22,6 +22,7 @@ struct STRUCTCOUNT {
 	STRUCTCOUNT(Bsp* map);
 
 	void add(const STRUCTCOUNT& other);
+	void sub(const STRUCTCOUNT& other);
 	bool allZero();
 };
 

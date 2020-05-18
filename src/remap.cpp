@@ -38,6 +38,23 @@ void STRUCTCOUNT::add(const STRUCTCOUNT& other) {
 	visdata += other.visdata;
 }
 
+void STRUCTCOUNT::sub(const STRUCTCOUNT& other) {
+	planes -= other.planes;
+	texInfos -= other.texInfos;
+	leaves -= other.leaves;
+	nodes -= other.nodes;
+	clipnodes -= other.clipnodes;
+	verts -= other.verts;
+	faces -= other.faces;
+	textures -= other.textures;
+	markSurfs -= other.markSurfs;
+	surfEdges -= other.surfEdges;
+	edges -= other.edges;
+	models -= other.models;
+	lightdata -= other.lightdata;
+	visdata -= other.visdata;
+}
+
 bool STRUCTCOUNT::allZero() {
 	STRUCTCOUNT zeros;
 	memset(&zeros, 0, sizeof(zeros));

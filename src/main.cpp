@@ -6,28 +6,25 @@
 #include "CommandLine.h"
 #include "remap.h"
 
-// super todo:
-// game crashes randomly, usually a few minutes after not focused on the game (maybe from edit+restart?)
+// todo:
+// visual editor like BSP Viewer for adding custom brush ents and stuff
+// add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
+// merge redundant submodels and duplicate structures
 
 // minor todo:
 // trigger_changesky for series maps with different skies
 // warn about game_playerjoin and other special names
 // fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
-// use min lightmap size for faces with bad extents? Saves ~3kb per face
-// check if models with origins have any special bsp model values, maybe splitting isn't needed
 // delete all frames from unused animated textures
 // apaches not deleted sometimes
+// moving maps can cause bad surface extents which could cause lightmap seams?
 
 // refactoring:
 // stop mixing printf+cout
 // parse vertors in util, not Keyvalue
 
-
 // Ideas for commands:
-// optimize:
-//		- merges redundant submodels (copy-pasting a picard coin all over the map)
-//		- conditionally remove hull2 or func_illusionary clipnodes
 // copymodel:
 //		- copies a model from the source map into the target map (for adding new perfectly shaped brush ents)
 // addbox:
@@ -38,8 +35,6 @@
 //      - to RMF. Try creating brushes from convex face connections?
 // export:
 //      - export BSP models to MDL models.
-// clip:
-//		- replace the clipnodes of a model with a simple bounding box.
 
 // Notes:
 // Removing HULL 0 from any model crashes when shooting unless it's EF_NODRAW or renderamt=0
@@ -55,21 +50,43 @@ void printIndent(int indent) {
 		printf("    ");
 }
 
+void print_stat(int indent, int stat, const char* data) {
+	if (!stat)
+		return;
+	for (int i = 0; i < indent; i++)
+		printf("    ");
+	const char* plural = "s";
+	if (string(data) == "vertex") {
+		plural = "es";
+	}
+
+	printf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
+}
+
+void print_stat_mem(int indent, int bytes, const char* data) {
+	if (!bytes)
+		return;
+	for (int i = 0; i < indent; i++)
+		printf("    ");
+	printf("%s %.2f KB of %s\n", bytes > 0 ? "Deleted" : "Added", abs(bytes) / 1024.0f, data);
+}
+
+
 void print_delete_stats(int indent, STRUCTCOUNT& stats) {
-	if (stats.models) { printIndent(indent); printf("Deleted %d models\n", stats.models); }
-	if (stats.planes) { printIndent(indent); printf("Deleted %d planes\n", stats.planes); }
-	if (stats.verts) { printIndent(indent); printf("Deleted %d vertexes\n", stats.verts); }
-	if (stats.nodes) { printIndent(indent); printf("Deleted %d nodes\n", stats.nodes); }
-	if (stats.texInfos) { printIndent(indent); printf("Deleted %d texinfos\n", stats.texInfos); }
-	if (stats.faces) { printIndent(indent); printf("Deleted %d faces\n", stats.faces); }
-	if (stats.clipnodes) { printIndent(indent); printf("Deleted %d clipnodes\n", stats.clipnodes); }
-	if (stats.leaves) { printIndent(indent); printf("Deleted %d leaves\n", stats.leaves); }
-	if (stats.markSurfs) { printIndent(indent); printf("Deleted %d marksurfaces\n", stats.markSurfs); }
-	if (stats.surfEdges) { printIndent(indent); printf("Deleted %d surfedges\n", stats.surfEdges); }
-	if (stats.edges) { printIndent(indent); printf("Deleted %d edges\n", stats.edges); }
-	if (stats.textures) { printIndent(indent); printf("Deleted %d textures\n", stats.textures); }
-	if (stats.lightdata) { printIndent(indent); printf("Deleted %.2f KB of lightmap data\n", stats.lightdata / 1024.0f); }
-	if (stats.visdata) { printIndent(indent); printf("Deleted %.2f KB of VIS data\n", stats.visdata / 1024.0f); }
+	print_stat(indent, stats.models, "model");
+	print_stat(indent, stats.planes, "plane");
+	print_stat(indent, stats.verts, "vertex");
+	print_stat(indent, stats.nodes, "node");
+	print_stat(indent, stats.texInfos, "texinfo");
+	print_stat(indent, stats.faces, "face");
+	print_stat(indent, stats.clipnodes, "clipnode");
+	print_stat(indent, stats.leaves, "leave");
+	print_stat(indent, stats.markSurfs, "marksurface");
+	print_stat(indent, stats.surfEdges, "surfedge");
+	print_stat(indent, stats.edges, "edge");
+	print_stat(indent, stats.textures, "texture");
+	print_stat_mem(indent, stats.lightdata, "lightmap data");
+	print_stat_mem(indent, stats.visdata, "VIS data");
 }
 
 // remove unused data before modifying anything to avoid misleading results
@@ -78,7 +95,7 @@ void remove_unused_data(Bsp* map) {
 
 	if (!removed.allZero()) {
 		printf("Deleting unused data:\n");
-		print_delete_stats(4, removed);
+		print_delete_stats(1, removed);
 		g_progress.clear();
 		printf("\n");
 	}
@@ -287,14 +304,8 @@ int noclip(CommandLine& cli) {
 	if (cli.hasOption("-model")) {
 		model = cli.getOptionInt("-model");
 
-		int modelCount = map->header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL);
-
-		if (model < 0) {
-			cout << "ERROR: model number must be 0 or greater\n";
-			return 1;
-		}
-		if (model >= modelCount) {
-			printf("ERROR: there are only %d models in this map\n", modelCount);
+		if (model < 0 || model >= map->modelCount) {
+			cout << "ERROR: model number must be 0 - %d\n", map->modelCount;
 			return 1;
 		}
 
@@ -340,6 +351,69 @@ int noclip(CommandLine& cli) {
 		print_delete_stats(1, removed);
 	else if (redirect == 0)
 		printf("    Model hull(s) was previously deleted or redirected.");
+	printf("\n");
+
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	printf("\n");
+
+	map->print_info(false, 0, 0);
+
+	delete map;
+
+	return 0;
+}
+
+int simplify(CommandLine& cli) {
+	Bsp* map = new Bsp(cli.bspfile);
+	if (!map->valid)
+		return 1;
+
+	int hull = 0;
+
+	if (!cli.hasOption("-model")) {
+		printf("ERROR: -model is required\n");
+		return 1;
+	}
+
+	if (cli.hasOption("-hull")) {
+		hull = cli.getOptionInt("-hull");
+
+		if (hull < 1 || hull >= MAX_MAP_HULLS) {
+			cout << "ERROR: hull number must be 1-3\n";
+			return 1;
+		}
+	}
+
+	int modelIdx = cli.getOptionInt("-model");
+
+	remove_unused_data(map);
+
+	STRUCTCOUNT oldCounts(map);
+
+	if (modelIdx < 0 || modelIdx >= map->modelCount) {
+		cout << "ERROR: model number must be 0 - %d\n", map->modelCount;
+		return 1;
+	}
+
+	if (hull != 0) {
+		printf("Simplifying HULL %d in model %d:\n", hull, modelIdx);
+	}
+	else {
+		printf("Simplifying collision hulls in model %d:\n", modelIdx);
+	}
+
+	map->simplify_model_collision(modelIdx, hull);
+
+	map->remove_unused_model_structures();
+
+	STRUCTCOUNT newCounts(map);
+
+	STRUCTCOUNT change = oldCounts;
+	change.sub(newCounts);
+
+	if (!change.allZero())
+		print_delete_stats(1, change);
+
 	printf("\n");
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
@@ -465,6 +539,22 @@ void print_help(string command) {
 			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
 			;
 	}
+	else if (command == "simplify") {
+		cout <<
+			"simplify - Replaces model hulls with a simple bounding box\n\n"
+
+			"Usage:   bspguy simplify <mapname> [options]\n"
+			"Example: bspguy simplify svencoop1.bsp -model 3\n"
+
+			"\n[Options]\n"
+			"  -model #    : Model to simplify. Required.\n"
+			"  -hull #     : Collision hull to simplify. By default, all hulls are simplified.\n"
+			"                1 = Human-sized monsters and standing players\n"
+			"                2 = Large monsters and pushables\n"
+			"                3 = Small monsters, crouching players, and melee attacks\n"
+			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
+			;
+	}
 	else if (command == "delete") {
 		cout <<
 			"delete - Delete BSP models.\n\n"
@@ -500,6 +590,7 @@ void print_help(string command) {
 			"  merge     : Merges two or more maps together\n"
 			"  noclip    : Delete some clipnodes/nodes from the BSP\n"
 			"  delete    : Delete BSP models\n"
+			"  simplify  : Simplify BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
@@ -536,6 +627,9 @@ int main(int argc, char* argv[])
 	}
 	else if (cli.command == "noclip") {
 		return noclip(cli);
+	}
+	else if (cli.command == "simplify") {
+		return simplify(cli);
 	}
 	else if (cli.command == "delete") {
 		return deleteCmd(cli);
