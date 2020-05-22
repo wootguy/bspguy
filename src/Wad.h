@@ -10,10 +10,12 @@ typedef unsigned int uint;
 
 #define CLAMP(v, min, max) if (v < min) { v = min; } else if (v > max) { v = max; }
 
+#pragma pack(push, 1)
 struct COLOR3
 {
 	unsigned char r, g, b;
 };
+#pragma pack(pop)
 
 struct WADHEADER
 {

@@ -1,2 +1,6 @@
 test
 msvc
+/glew
+/glfw
+/msvc_xp
+/release

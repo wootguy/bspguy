@@ -69,3 +69,26 @@ vec2 operator/(vec2 v, float f);
 
 bool operator==(vec2 v1, vec2 v2);
 bool operator!=(vec2 v1, vec2 v2);
+
+struct vec4
+{
+	float x, y, z, w;
+
+	vec4() : x(0), y(0), z(0), w(0) {}
+	vec4(float x, float y, float z) : x(x), y(y), z(z), w(1) {}
+	vec4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+	vec4(vec3 v, float a) : x(v.x), y(v.y), z(v.z), w(a) {}
+};
+
+vec4 operator-(vec4 v1, vec4 v2);
+vec4 operator+(vec4 v1, vec4 v2);
+vec4 operator*(vec4 v1, vec4 v2);
+vec4 operator/(vec4 v1, vec4 v2);
+
+vec4 operator+(vec4 v, float f);
+vec4 operator-(vec4 v, float f);
+vec4 operator*(vec4 v, float f);
+vec4 operator/(vec4 v, float f);
+
+bool operator==(vec4 v1, vec4 v2);
+bool operator!=(vec4 v1, vec4 v2);

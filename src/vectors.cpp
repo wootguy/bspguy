@@ -305,3 +305,103 @@ void vec2::operator/=(float f)
 	x /= f;
 	y /= f;
 }
+
+
+
+bool operator==(vec4 v1, vec4 v2)
+{
+	vec4 v = v1 - v2;
+	if (fabs(v.x) >= EPSILON)
+		return false;
+	if (fabs(v.y) >= EPSILON)
+		return false;
+	if (fabs(v.z) >= EPSILON)
+		return false;
+	if (fabs(v.w) >= EPSILON)
+		return false;
+	return true;
+}
+
+
+bool operator!=(vec4 v1, vec4 v2)
+{
+	return v1.x != v2.x || v1.y != v2.y || v1.z != v2.z || v1.w != v2.w;
+}
+
+
+vec4 operator+(vec4 v1, vec4 v2)
+{
+	v1.x += v2.x;
+	v1.y += v2.y;
+	v1.z += v2.z;
+	v1.w += v2.w;
+	return v1;
+}
+
+vec4 operator+(vec4 v, float f)
+{
+	v.x += f;
+	v.y += f;
+	v.z += f;
+	v.w += f;
+	return v;
+}
+
+
+
+vec4 operator*(vec4 v1, vec4 v2)
+{
+	v1.x *= v2.x;
+	v1.y *= v2.y;
+	v1.z *= v2.z;
+	v1.w *= v2.w;
+	return v1;
+}
+
+vec4 operator*(vec4 v, float f)
+{
+	v.x *= f;
+	v.y *= f;
+	v.z *= f;
+	v.w *= f;
+	return v;
+}
+
+
+
+vec4 operator/(vec4 v1, vec4 v2)
+{
+	v1.x /= v2.x;
+	v1.y /= v2.y;
+	v1.z /= v2.z;
+	v1.w /= v2.w;
+	return v1;
+}
+
+vec4 operator/(vec4 v, float f)
+{
+	v.x /= f;
+	v.y /= f;
+	v.z /= f;
+	v.w /= f;
+	return v;
+}
+
+
+vec4 operator-(vec4 v1, vec4 v2)
+{
+	v1.x -= v2.x;
+	v1.y -= v2.y;
+	v1.z -= v2.z;
+	v1.w -= v2.w;
+	return v1;
+}
+
+vec4 operator-(vec4 v, float f)
+{
+	v.x -= f;
+	v.y -= f;
+	v.z -= f;
+	v.w -= f;
+	return v;
+}

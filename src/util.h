@@ -2,6 +2,7 @@
 #include "types.h"
 #include <string>
 #include <vector>
+#include "mat4x4.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -11,6 +12,8 @@
 #define PRINT_GREEN		2
 #define PRINT_RED		4
 #define PRINT_BRIGHT	8
+
+#define PI 3.141592f
 
 #define __WINDOWS__
 

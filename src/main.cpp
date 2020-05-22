@@ -5,6 +5,11 @@
 #include <iostream>
 #include "CommandLine.h"
 #include "remap.h"
+#include "Renderer.h"
+
+// super todo:
+// crash merging rl00
+// WARNING hull redirect spam
 
 // todo:
 // visual editor like BSP Viewer for adding custom brush ents and stuff
@@ -19,6 +24,7 @@
 // delete all frames from unused animated textures
 // apaches not deleted sometimes
 // moving maps can cause bad surface extents which could cause lightmap seams?
+// see if balancing the BSP tree is possible and if helps performance at all
 
 // refactoring:
 // stop mixing printf+cout
@@ -41,7 +47,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* version_string = "bspguy v2 (May 2020)";
+const char* version_string = "bspguy v3 WIP (May 2020)";
 
 bool g_verbose = false;
 
@@ -102,10 +108,14 @@ void remove_unused_data(Bsp* map) {
 }
 
 int test() {
+
+	Renderer renderer = Renderer();
+	renderer.renderLoop();
+	return 0;
+
 	/*
-	Bsp test("merge1.bsp");
-	Bsp other("merge0.bsp");
-	test.add_model(&other, 0);
+	Bsp test("merge0.bsp");
+	test.simplify_model_collision(2, 0);
 	test.write("yabma_move.bsp");
 	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 	test.print_info(false, 0, 0);
@@ -113,7 +123,6 @@ int test() {
 	*/
 
 	vector<Bsp*> maps;
-	
 	/*
 	for (int i = 1; i < 22; i++) {
 		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
@@ -125,13 +134,17 @@ int test() {
 	//maps.push_back(new Bsp("echoes/echoes01a.bsp"));
 	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
 
-	maps.push_back(new Bsp("merge0.bsp"));
-	maps.push_back(new Bsp("merge1.bsp"));
+	//maps.push_back(new Bsp("merge0.bsp"));
+	//maps.push_back(new Bsp("merge1.bsp"));
+	//maps.push_back(new Bsp("2nd/saving_the_2nd_amendment.bsp"));
 
 	//maps.push_back(new Bsp("op4/of1a1.bsp"));
 	//maps.push_back(new Bsp("op4/of1a2.bsp"));
 	//maps.push_back(new Bsp("op4/of1a3.bsp"));
 	//maps.push_back(new Bsp("op4/of1a4.bsp"));
+
+	maps.push_back(new Bsp("rl/rl00r.bsp"));
+	maps.push_back(new Bsp("rl/rl00s.bsp"));
 
 	STRUCTCOUNT removed;
 	memset(&removed, 0, sizeof(removed));
@@ -145,8 +158,9 @@ int test() {
 			printf("");
 		}
 		printf("Preprocess %s\n", maps[i]->name.c_str());
-		maps[i]->delete_hull(2, 1);
-		removed.add(maps[i]->delete_unused_hulls());
+		//maps[i]->delete_hull(2, 1);
+		//removed.add(maps[i]->delete_unused_hulls());
+		removed.add(maps[i]->remove_unused_model_structures());
 
 		if (!maps[i]->validate())
 			printf("");
