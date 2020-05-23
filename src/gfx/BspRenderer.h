@@ -5,6 +5,7 @@
 #include "ShaderProgram.h"
 #include "LightmapNode.h"
 #include "VertexBuffer.h"
+#include "primitives.h"
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
@@ -20,19 +21,33 @@ struct LightmapInfo {
 	float midPolyU, midPolyV;
 };
 
+struct RenderFace {
+	lightmapVert* verts;
+	int vertCount;
+	float lightmapScales[MAXLIGHTMAPS];
+	Texture* texture;
+	Texture* lightmapAtlas[MAXLIGHTMAPS];
+};
+
 class BspRenderer {
 public:
 	BspRenderer(Bsp* map, ShaderProgram* pipeline);
 	~BspRenderer();
 
 	void render();
-	void renderLightmapFace(Bsp* map, int faceIdx);
+	void renderLightmapFace(int faceIdx);
+	void loadTextures();
+	void loadLightmaps();
+
+	// calculate vertex positions and uv coordinates once for faster rendering
+	void preRenderFaces();
 
 private:
 	Bsp* map;
 	Texture** glTextures;
 	Texture** glLightmapTextures;
 	LightmapInfo* lightmaps;
+	RenderFace* renderFaces;
 	ShaderProgram* pipeline;
 	Texture* whiteTex;
 
