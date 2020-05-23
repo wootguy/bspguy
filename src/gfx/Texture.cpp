@@ -3,9 +3,18 @@
 #include "util.h"
 #include "Renderer.h"
 
-Texture::Texture( int width, int height, int format, void * data )
+Texture::Texture(int width, int height) {
+	this->width = width;
+	this->height = height;
+	this->nearFilter = GL_LINEAR;
+	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
+	this->data = new byte[width*height*sizeof(COLOR3)];
+}
+
+Texture::Texture( int width, int height, void * data )
 {
-	this->format = this->iformat = format;
+	this->width = width;
+	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
 	this->data = (byte*)data;
@@ -15,24 +24,22 @@ Texture::Texture( int width, int height, int format, void * data )
 Texture::~Texture()
 {
 	glDeleteTextures(1, &id);
-	delete [] data;
 }
 
 void Texture::upload()
 {
-	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, &id);
 
 	glBindTexture(GL_TEXTURE_2D, id); // Binds this texture handle so we can load the data into it
 
 	// Set up filters and wrap mode
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, farFilter);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, nearFilter);
-	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, iformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 }
 
 void Texture::bind()

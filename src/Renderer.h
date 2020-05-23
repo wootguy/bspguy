@@ -2,10 +2,11 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "gfx/ShaderProgram.h"
+#include "gfx/BspRenderer.h"
 
 class Renderer {
 public:
-	vector<Bsp*> maps;
+	vector<BspRenderer*> mapRenderers;
 
 	Renderer();
 	~Renderer();
@@ -24,11 +25,7 @@ private:
 	float frameTimeScale = 0.0f;
 	mat4x4 model, view, projection, modelView, modelViewProjection;
 
-	
-
 	vec2 lastMousePos;
-
-	void renderMap(Bsp* bsp);
 
 	vec3 getMoveDir();
 	void cameraControls();

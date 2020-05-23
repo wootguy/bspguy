@@ -35,6 +35,7 @@ vec3 operator/(vec3 v, float f);
 
 vec3 crossProduct(vec3 v1, vec3 v2);
 float dotProduct(vec3 v1, vec3 v2);
+void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up);
 
 bool operator==(vec3 v1, vec3 v2);
 bool operator!=(vec3 v1, vec3 v2);

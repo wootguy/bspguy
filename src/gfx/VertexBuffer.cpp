@@ -85,6 +85,28 @@ void VertexBuffer::addAttributes( int attFlags )
 	}
 }
 
+void VertexBuffer::addAttribute(int type, const char* varName) {
+
+	int idx = 0;
+	while (type >>= 1) // unroll for more speed...
+	{
+		idx++;
+	}
+
+	if (idx >= VBUF_FLAGBITS) {
+		printf("Invalid attribute type\n");
+		return;
+	}
+
+	VertexAttr attribute = commonAttr[idx];
+
+	attribute.handle = glGetAttribLocation(shaderProgram->ID, varName);
+	if (attribute.handle == -1) printf("Could not find vertex attribute: %s\n", varName);
+
+	attribs.push_back(attribute);
+	elementSize += attribute.size;
+}
+
 void VertexBuffer::setData( const void * data, int numVerts )
 {
 	this->data = (byte*)data;

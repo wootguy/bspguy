@@ -27,7 +27,7 @@ Renderer::Renderer() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-	window = glfwCreateWindow(640, 480, "bspguy", NULL, NULL);
+	window = glfwCreateWindow(1920, 1080, "bspguy", NULL, NULL);
 	if (!window)
 	{
 		printf("Window creation failed\n");
@@ -39,10 +39,9 @@ Renderer::Renderer() {
 
 	glewInit();
 
-	pipeline = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
+	pipeline = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
 	pipeline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	pipeline->setMatrixNames(NULL, "modelViewProjection");
-	pipeline->setVertexAttributeNames("vPosition", "vColor", NULL);
 	pipeline->bind();
 }
 
@@ -60,6 +59,7 @@ void Renderer::renderLoop() {
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
 
 	cameraOrigin.y = -50;
 
@@ -67,7 +67,7 @@ void Renderer::renderLoop() {
 	while (!glfwWindowShouldClose(window))
 	{
 		float frameDelta = glfwGetTime() - lastFrameTime;
-		frameTimeScale = 0.002f / frameDelta;
+		frameTimeScale = 0.05f / frameDelta;
 		lastFrameTime = glfwGetTime();
 
 		cameraControls();
@@ -81,8 +81,13 @@ void Renderer::renderLoop() {
 
 		setupView();
 		pipeline->updateMatrixes();
+		//buffer.draw(GL_TRIANGLES);
 
-		buffer.draw(GL_TRIANGLES);
+		for (int i = 0; i < mapRenderers.size(); i++) {
+			model.loadIdentity();
+			pipeline->updateMatrixes();
+			mapRenderers[i]->render();
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -117,33 +122,37 @@ void Renderer::cameraControls() {
 
 vec3 Renderer::getMoveDir()
 {
+	mat4x4 rotMat;
+	rotMat.loadIdentity();
+	rotMat.rotateX(PI * cameraAngles.x / 180.0f);
+	rotMat.rotateZ(PI * cameraAngles.z / 180.0f);
+
+	vec3 forward, right, up;
+	makeVectors(cameraAngles, forward, right, up);
+
+
 	vec3 wishdir(0, 0, 0);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
 	{
-		wishdir.x += (float)-cos(PI * (cameraAngles.z) / 180.0f);
-		wishdir.y += (float)sin(PI * (cameraAngles.z) / 180.0f);
+		wishdir -= right;
 	}
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 	{
-		wishdir.x -= (float)-cos(PI * (cameraAngles.z) / 180.0f);
-		wishdir.y -= (float)sin(PI * (cameraAngles.z) / 180.0f);
+		wishdir += right;
 	}
-
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 	{
-		wishdir.x += (float)-cos(PI * (cameraAngles.z + 90) / 180.0f);
-		wishdir.y += (float)sin(PI * (cameraAngles.z + 90) / 180.0f);
+		wishdir += forward;
 	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 	{
-		wishdir.x -= (float)-cos(PI * (cameraAngles.z + 90) / 180.0f);
-		wishdir.y -= (float)sin(PI * (cameraAngles.z + 90) / 180.0f);
+		wishdir -= forward;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		wishdir.z += 1;
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		wishdir *= 3.0f;
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		wishdir.z -= 1;
+		wishdir *= 0.333f;
 	return wishdir;
 }
 
@@ -155,7 +164,7 @@ void Renderer::setupView() {
 
 	glViewport(0, 0, width, height);
 
-	projection.perspective(fov, (float)width / (float)height, 1.0f, 4096.0f);
+	projection.perspective(fov, (float)width / (float)height, 1.0f, 65536.0f);
 
 	view.loadIdentity();
 	view.rotateX(PI * cameraAngles.x / 180.0f);
@@ -164,9 +173,8 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
-	
+	BspRenderer* mapRenderer = new BspRenderer(map, pipeline);
+
+	mapRenderers.push_back(mapRenderer);
 }
 
-void Renderer::renderMap(Bsp* bsp) {
-
-}

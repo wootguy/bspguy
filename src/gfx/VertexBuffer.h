@@ -62,6 +62,8 @@ public:
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
 
+	void addAttribute(int type, const char* varName);
+
 private:
 	byte * data;
 	ShaderProgram * shaderProgram; // for getting handles to vertex attributes

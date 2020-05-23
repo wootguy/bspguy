@@ -12,7 +12,8 @@ public:
 	uint format; // format of the data
 	uint iformat; // format of the data when uploaded to GL
 
-	Texture(int width, int height, int format, void * data); // creates an RGBA texture from a buffer in memory
+	Texture(int width, int height);
+	Texture(int width, int height, void * data);
 	~Texture();
 
 	// upload the texture with the specified settings

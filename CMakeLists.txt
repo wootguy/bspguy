@@ -34,6 +34,8 @@ set(SOURCE_FILES
 	src/gfx/ShaderProgram.h		src/gfx/ShaderProgram.cpp
 	src/gfx/VertexBuffer.h		src/gfx/VertexBuffer.cpp
 	src/gfx/Texture.h			src/gfx/Texture.cpp
+	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
+	src/gfx/LightmapNode.h		src/gfx/LightmapNode.cpp
 )
 
 add_subdirectory(glfw)
@@ -58,9 +60,11 @@ if(MSVC)
 	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
 	
 	source_group("Header Files\\gfx" FILES src/gfx/Shader.h src/gfx/ShaderProgram.h src/gfx/VertexBuffer.h 
-										   src/gfx/Texture.h src/gfx/primitives.h src/gfx/shaders.h)
+										   src/gfx/Texture.h src/gfx/primitives.h src/gfx/shaders.h
+										   src/gfx/BspRenderer.h src/gfx/LightmapNode.h)
 	source_group("Source Files\\gfx" FILES src/gfx/Shader.cpp src/gfx/ShaderProgram.cpp src/gfx/VertexBuffer.cpp 
-										   src/gfx/Texture.cpp src/gfx/primitives.cpp) 
+										   src/gfx/Texture.cpp src/gfx/primitives.cpp src/gfx/BspRenderer.cpp
+										   src/gfx/LightmapNode.cpp) 
   
 else()
     set(CMAKE_CXX_FLAGS "-Wall -std=c++11")

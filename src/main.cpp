@@ -614,7 +614,7 @@ void print_help(string command) {
 
 int main(int argc, char* argv[])
 {
-	// return test();
+	return test();
 
 	CommandLine cli(argc, argv);
 

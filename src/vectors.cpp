@@ -1,5 +1,7 @@
 #include "vectors.h"
 #include <cmath>
+#include "mat4x4.h"
+#include "util.h"
 
 #define EPSILON 0.001f
 
@@ -151,6 +153,22 @@ vec3 crossProduct( vec3 v1, vec3 v2 )
 float dotProduct( vec3 v1, vec3 v2 )
 {
 	return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+}
+
+void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up) {
+	mat4x4 rotMat;
+	rotMat.loadIdentity();
+	rotMat.rotateX(PI * angles.x / 180.0f);
+	rotMat.rotateY(PI * angles.y / 180.0f);
+	rotMat.rotateZ(PI * angles.z / 180.0f);
+
+	vec4 f = rotMat * vec4(0, 1, 0, 1);
+	vec4 r = rotMat * vec4(1, 0, 0, 1);
+	vec4 u = rotMat * vec4(0, 0, 1, 1);
+
+	forward = vec3(f.x, f.y, f.z);
+	right = vec3(r.x, r.y, r.z);
+	up = vec3(u.x, u.y, u.z);
 }
 
 vec3 vec3::normalize( float length )

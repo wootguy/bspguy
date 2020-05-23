@@ -2,6 +2,7 @@
 #include <vector>
 #include "vectors.h"
 #include "Wad.h"
+#include "bsplimits.h"
 
 #pragma pack(push, 1)
 struct tVert
@@ -15,6 +16,17 @@ struct tVert
 	tVert(vec3 p, vec2 uv) : u(uv.x), v(uv.y), x(p.x), y(p.y), z(p.z) {}
 
 	vec3 pos();
+};
+
+struct lightmapVert
+{
+	// texture coordinates
+	float u, v;
+
+	// lightmap texture coordinates
+	float luv[MAXLIGHTMAPS][2];
+
+	float x, y, z;
 };
 
 struct cVert

@@ -13,6 +13,8 @@ enum mat_types
 class ShaderProgram
 {
 public:
+	uint ID; // OpenGL program ID
+
 	Shader * vShader; // vertex shader
 	Shader * fShader; // fragment shader
 
@@ -53,8 +55,6 @@ public:
 	void popMatrix(int matType);
 
 private:
-	uint ID; // OpenGL program ID
-
 	// uniforms
 	uint modelViewID;
 	uint modelViewProjID;
