@@ -32,29 +32,102 @@ void BspRenderer::loadTextures() {
 	memset(whiteTex->data, 255, 16 * 16 * sizeof(COLOR3));
 	whiteTex->upload();
 
+	vector<Wad*> wads;
+	vector<string> wadNames;
+	for (int i = 0; i < map->ents.size(); i++) {
+		if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
+			wadNames = splitString(map->ents[i]->keyvalues["wad"], ";");
+
+			for (int k = 0; k < wadNames.size(); k++) {
+				wadNames[k] = basename(wadNames[k]);
+			}
+			break;
+		}
+	}
+
+	vector<string> tryPaths = {
+		g_game_path + "/svencoop/",
+		g_game_path + "/svencoop_addon/",
+		g_game_path + "/svencoop_downloads/",
+		g_game_path + "/svencoop_hd/"
+	};
+
+	
+	for (int i = 0; i < wadNames.size(); i++) {
+		string path;
+		for (int k = 0; k < tryPaths.size(); k++) {
+			string tryPath = tryPaths[k] + wadNames[i];
+			if (fileExists(tryPath)) {
+				path = tryPath;
+				break;
+			}
+		}
+
+		if (path.empty()) {
+			printf("Missing WAD: %s\n", wadNames[i].c_str());
+			continue;
+		}
+
+		printf("Loading WAD %s\n", path.c_str());
+		Wad* wad = new Wad(path);
+		wad->readInfo();
+		wads.push_back(wad);
+	}
+
 	glTextures = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
+		COLOR3* palette;
+		byte* src;
+		WADTEX* wadTex = NULL;
+
+		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
+
 		if (tex.nOffsets[0] <= 0) {
-			glTextures[i] = whiteTex;
-			continue;
+
+			bool foundInWad = false;
+			for (int k = 0; k < wads.size(); k++) {
+				if (wads[k]->hasTexture(tex.szName)) {
+					foundInWad = true;
+
+					wadTex = wads[k]->readTexture(tex.szName);
+					palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+					src = wadTex->data;
+
+					break;
+				}
+			}
+
+			if (!foundInWad) {
+				glTextures[i] = whiteTex;
+				continue;
+			}
+		}
+		else {
+			palette = (COLOR3*)(map->textures + texOffset + tex.nOffsets[3] + lastMipSize + 2);
+			src = map->textures + texOffset + tex.nOffsets[0];
 		}
 
 		COLOR3* imageData = new COLOR3[tex.nWidth * tex.nHeight];
 		int sz = tex.nWidth * tex.nHeight;
-		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
-		COLOR3* palette = (COLOR3*)(map->textures + texOffset + tex.nOffsets[3] + lastMipSize + 2);
 
 		for (int k = 0; k < sz; k++) {
-			byte paletteIdx = *(map->textures + texOffset + tex.nOffsets[0] + k);
-			imageData[k] = palette[paletteIdx];
+			imageData[k] = palette[src[k]];
+		}
+
+		if (wadTex) {
+			delete wadTex;
 		}
 
 		// map->textures + texOffset + tex.nOffsets[0]
 
 		glTextures[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
+	}
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
 	}
 }
 

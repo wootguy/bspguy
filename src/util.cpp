@@ -8,6 +8,7 @@
 #include "Wad.h"
 
 ProgressMeter g_progress;
+string g_game_path;
 
 bool fileExists(const string& fileName)
 {

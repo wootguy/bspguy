@@ -19,6 +19,7 @@
 
 extern bool g_verbose;
 extern ProgressMeter g_progress;
+extern string g_game_path;
 
 class BSPMIPTEX;
 

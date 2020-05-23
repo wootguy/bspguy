@@ -109,7 +109,9 @@ void remove_unused_data(Bsp* map) {
 
 int test() {
 
+	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
+	renderer.addMap(new Bsp("yabma.bsp"));
 	renderer.renderLoop();
 	return 0;
 
