@@ -24,7 +24,10 @@ struct lightmapVert
 	float u, v;
 
 	// lightmap texture coordinates
-	float luv[MAXLIGHTMAPS][2];
+	// last value scales the lightmap brightness
+	float luv[MAXLIGHTMAPS][3];
+
+	float opacity;
 
 	float x, y, z;
 };

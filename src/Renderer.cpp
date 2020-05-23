@@ -63,12 +63,28 @@ void Renderer::renderLoop() {
 
 	cameraOrigin.y = -50;
 
+	float frameTimes[8] = { 0 };
+	int frameTimeIdx = 0;
+
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
 		float frameDelta = glfwGetTime() - lastFrameTime;
 		frameTimeScale = 0.05f / frameDelta;
 		lastFrameTime = glfwGetTime();
+
+		frameTimes[frameTimeIdx++ % 8] = frameDelta;
+
+		float avg = 0;
+		for (int i = 0; i < 8; i++) {
+			avg += frameTimes[i];
+		}
+		avg /= 8;
+		float fps = 1.0f / avg;
+		if (frameTimeIdx % 20 == 0) {
+			printf("FPS: %.2f\n", fps);
+		}
+
 
 		cameraControls();
 

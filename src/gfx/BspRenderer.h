@@ -21,12 +21,23 @@ struct LightmapInfo {
 	float midPolyU, midPolyV;
 };
 
-struct RenderFace {
+struct RenderEnt {
+	mat4x4 modelMat;
+	int modelIdx;
+};
+
+struct RenderGroup {
 	lightmapVert* verts;
 	int vertCount;
-	float lightmapScales[MAXLIGHTMAPS];
 	Texture* texture;
 	Texture* lightmapAtlas[MAXLIGHTMAPS];
+	VertexBuffer* buffer;
+	bool transparent;
+};
+
+struct RenderModel {
+	RenderGroup* renderGroups;
+	int groupCount;
 };
 
 class BspRenderer {
@@ -35,24 +46,25 @@ public:
 	~BspRenderer();
 
 	void render();
-	void renderLightmapFace(int faceIdx);
 	void loadTextures();
 	void loadLightmaps();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
+	// also combines faces that share similar properties into a single buffer
 	void preRenderFaces();
+
+	void preRenderEnts();
+
+	void drawModel(int modelIdx, bool transparent);
 
 private:
 	Bsp* map;
 	Texture** glTextures;
 	Texture** glLightmapTextures;
 	LightmapInfo* lightmaps;
-	RenderFace* renderFaces;
+	RenderEnt* renderEnts;
 	ShaderProgram* pipeline;
 	Texture* whiteTex;
 
-	VertexBuffer* faceBuffer;
-	int sTexId;
-	int sLightmapTexIds[MAXLIGHTMAPS];
-	int lightmapScaleIds[MAXLIGHTMAPS];
+	RenderModel* renderModels;
 };

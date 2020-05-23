@@ -59,14 +59,18 @@ public:
 	//       Data will be deleted when the buffer is destroyed.
 	void setData(const void * data, int numVerts);
 
+	void upload();
+
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
 
+	void addAttribute(int numValues, int valueType, int normalized, const char* varName);
 	void addAttribute(int type, const char* varName);
 
 private:
 	byte * data;
 	ShaderProgram * shaderProgram; // for getting handles to vertex attributes
+	uint vboId;
 
 	// add attributes according to the attribute flags
 	void addAttributes(int attFlags);

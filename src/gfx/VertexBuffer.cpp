@@ -53,12 +53,14 @@ VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const v
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
 	setData(dat, numVerts);
+	vboId = -1;
 }
 
 VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags )
 {
 	numVerts = 0;
 	data = NULL;
+	vboId = -1;
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
 }
@@ -83,6 +85,16 @@ void VertexBuffer::addAttributes( int attFlags )
 			elementSize += commonAttr[i].size;
 		}
 	}
+}
+
+void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, const char* varName) {
+	VertexAttr attribute(numValues, valueType, -1, normalized);
+
+	attribute.handle = glGetAttribLocation(shaderProgram->ID, varName);
+	if (attribute.handle == -1) printf("Could not find vertex attribute: %s\n", varName);
+
+	attribs.push_back(attribute);
+	elementSize += attribute.size;
 }
 
 void VertexBuffer::addAttribute(int type, const char* varName) {
@@ -113,19 +125,46 @@ void VertexBuffer::setData( const void * data, int numVerts )
 	this->numVerts = numVerts;
 }
 
+void VertexBuffer::upload() {
+	glGenBuffers(1, &vboId);
+	glBindBuffer(GL_ARRAY_BUFFER, vboId);
+	glBufferData(GL_ARRAY_BUFFER, elementSize * numVerts, data, GL_STATIC_DRAW);
+
+	int offset = 0;
+	for (int i = 0; i < attribs.size(); i++)
+	{
+		VertexAttr& a = attribs[i];
+		void* ptr = ((char*)0) + offset;
+		glBindBuffer(GL_ARRAY_BUFFER, vboId);
+		glEnableVertexAttribArray(a.handle);
+		glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
+		offset += a.size;
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	//glDeleteBuffers(1, &vboId);
+}
+
 void VertexBuffer::drawRange( int primitive, int start, int end )
 {
 	shaderProgram->bind();
 
-	int offset = 0;
-	int enabledArrays = 0;
-	for (int i = 0; i < attribs.size(); i++)
+	char* offsetPtr = (char*)data;
+	if (vboId != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, vboId);
+		offsetPtr = NULL;
+	}
 	{
-		VertexAttr& a = attribs[i];
-		void * ptr = (char*)data + offset;
-		glEnableVertexAttribArray(a.handle);
-		glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
-		offset += a.size;
+		int offset = 0;
+		for (int i = 0; i < attribs.size(); i++)
+		{
+			VertexAttr& a = attribs[i];
+			void* ptr = offsetPtr + offset;
+			glEnableVertexAttribArray(a.handle);
+			glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
+			offset += a.size;
+		}
 	}
 
 	if (start < 0 || start > numVerts)
@@ -136,6 +175,10 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 		printf("Invalid draw range: %d -> %d\n", start, end);
 	else
 		glDrawArrays(primitive, start, end-start);
+
+	if (vboId != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
 
 	for (int i = 0; i < attribs.size(); i++)
 	{

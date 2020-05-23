@@ -3,6 +3,7 @@
 #include "primitives.h"
 #include "rad.h"
 #include "lodepng.h"
+#include <algorithm>
 
 BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
 	this->map = map;
@@ -11,24 +12,19 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
 	loadTextures();
 	loadLightmaps();
 	preRenderFaces();
+	preRenderEnts();
 
-	sTexId = glGetUniformLocation(pipeline->ID, "sTex");
+	uint sTexId = glGetUniformLocation(pipeline->ID, "sTex");
+	uint opacityId = glGetUniformLocation(pipeline->ID, "opacity");
+
+	glUniform1i(sTexId, 0);
 
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		sLightmapTexIds[s] = glGetUniformLocation(pipeline->ID, ("sLightmapTex" + to_string(s)).c_str());
-		lightmapScaleIds[s] = glGetUniformLocation(pipeline->ID, ("lightmapScale" + to_string(s)).c_str());
+		uint sLightmapTexIds = glGetUniformLocation(pipeline->ID, ("sLightmapTex" + to_string(s)).c_str());
 
 		// assign lightmap texture units (skips the normal texture unit)
-		glUniform1i(sLightmapTexIds[s], s + 1);
+		glUniform1i(sLightmapTexIds, s + 1);
 	}
-
-	faceBuffer = new VertexBuffer(pipeline, 0);
-	faceBuffer->addAttribute(TEX_2F, "vTex");
-	faceBuffer->addAttribute(TEX_2F, "vLightmapTex0");
-	faceBuffer->addAttribute(TEX_2F, "vLightmapTex1");
-	faceBuffer->addAttribute(TEX_2F, "vLightmapTex2");
-	faceBuffer->addAttribute(TEX_2F, "vLightmapTex3");
-	faceBuffer->addAttribute(POS_3F, "vPosition");
 }
 
 void BspRenderer::loadTextures() {
@@ -148,71 +144,180 @@ void BspRenderer::loadLightmaps() {
 }
 
 void BspRenderer::preRenderFaces() {
-	renderFaces = new RenderFace[map->faceCount];
+	renderModels = new RenderModel[map->modelCount];
 
-	for (int i = 0; i < map->faceCount; i++) {
-		BSPFACE& face = map->faces[i];
-		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-		int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
-		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-		LightmapInfo& lmap = lightmaps[i];
+	for (int m = 0; m < map->modelCount; m++) {
+		BSPMODEL& model = map->models[m];
+		RenderModel& renderModel = renderModels[m];
 
-		RenderFace& rface = renderFaces[i];
+		vector<RenderGroup> renderGroups;
+		vector<vector<lightmapVert>> renderGroupVerts;
 
-		rface.verts = new lightmapVert[face.nEdges];
-		rface.vertCount = face.nEdges;
+		for (int i = 0; i < model.nFaces; i++) {
+			int faceIdx = model.iFirstFace + i;
+			BSPFACE& face = map->faces[faceIdx];
+			BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+			int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+			LightmapInfo& lmap = lightmaps[faceIdx];
 
-		float tw = 1.0f / (float)tex.nWidth;
-		float th = 1.0f / (float)tex.nHeight;
+			lightmapVert* verts = new lightmapVert[face.nEdges];
+			int vertCount = face.nEdges;
+			Texture* texture = glTextures[texinfo.iMiptex];
+			Texture* lightmapAtlas[MAXLIGHTMAPS];
 
-		float lw = (float)lmap.w / (float)LIGHTMAP_ATLAS_SIZE;
-		float lh = (float)lmap.h / (float)LIGHTMAP_ATLAS_SIZE;
+			float tw = 1.0f / (float)tex.nWidth;
+			float th = 1.0f / (float)tex.nHeight;
 
-		rface.texture = glTextures[texinfo.iMiptex];
+			float lw = (float)lmap.w / (float)LIGHTMAP_ATLAS_SIZE;
+			float lh = (float)lmap.h / (float)LIGHTMAP_ATLAS_SIZE;
 
-		bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
-		bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			rface.lightmapScales[s] = (hasLighting && face.nStyles[s] != 255) ? 1.0f : 0.0f;
-			rface.lightmapAtlas[s] = glLightmapTextures[lmap.atlasId[s]];
-		}
+			bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
+			bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
+			for (int s = 0; s < MAXLIGHTMAPS; s++) {
+				lightmapAtlas[s] = glLightmapTextures[lmap.atlasId[s]];
+			}
 
-		if (isSpecial) {
-			rface.lightmapScales[0] = 1.0f;
-			rface.lightmapAtlas[0] = whiteTex;
-		}
+			if (isSpecial) {
+				lightmapAtlas[0] = whiteTex;
+			}
 
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
+			float opacity = isSpecial ? 0.5f : 1.0f;
 
-			vec3& vert = map->verts[vertIdx];
-			rface.verts[e].x = vert.x;
-			rface.verts[e].y = vert.z;
-			rface.verts[e].z = -vert.y;
+			for (int e = 0; e < face.nEdges; e++) {
+				int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+				BSPEDGE& edge = map->edges[abs(edgeIdx)];
+				int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
 
-			// texture coords
-			float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
-			float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
-			rface.verts[e].u = fU * tw;
-			rface.verts[e].v = fV * th;
+				vec3& vert = map->verts[vertIdx];
+				verts[e].x = vert.x;
+				verts[e].y = vert.z;
+				verts[e].z = -vert.y;
 
-			// lightmap texture coords
-			if (hasLighting) {
-				float fLightMapU = lmap.midTexU + (fU - lmap.midPolyU) / 16.0f;
-				float fLightMapV = lmap.midTexV + (fV - lmap.midPolyV) / 16.0f;
+				// texture coords
+				float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
+				float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
+				verts[e].u = fU * tw;
+				verts[e].v = fV * th;
+				verts[e].opacity = isSpecial ? 0.5f : 1.0f;
 
-				float uu = (fLightMapU / (float)lmap.w) * lw;
-				float vv = (fLightMapV / (float)lmap.h) * lh;
+				// lightmap texture coords
+				if (hasLighting) {
+					float fLightMapU = lmap.midTexU + (fU - lmap.midPolyU) / 16.0f;
+					float fLightMapV = lmap.midTexV + (fV - lmap.midPolyV) / 16.0f;
 
-				float pixelStep = 1.0f / (float)LIGHTMAP_ATLAS_SIZE;
+					float uu = (fLightMapU / (float)lmap.w) * lw;
+					float vv = (fLightMapV / (float)lmap.h) * lh;
 
+					float pixelStep = 1.0f / (float)LIGHTMAP_ATLAS_SIZE;
+
+					for (int s = 0; s < MAXLIGHTMAPS; s++) {
+						verts[e].luv[s][0] = uu + lmap.x[s] * pixelStep;
+						verts[e].luv[s][1] = vv + lmap.y[s] * pixelStep;
+					}
+				}
+				// set lightmap scales
 				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					rface.verts[e].luv[s][0] = uu + lmap.x[s] * pixelStep;
-					rface.verts[e].luv[s][1] = vv + lmap.y[s] * pixelStep;
+					verts[e].luv[s][2] = (hasLighting && face.nStyles[s] != 255) ? 1.0f : 0.0f;
+					if (isSpecial && s == 0) {
+						verts[e].luv[s][2] = 1.0f;
+					}
 				}
 			}
+
+
+			// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
+			int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
+			lightmapVert* newVerts = new lightmapVert[newCount];
+
+			int idx = 0;
+			for (int k = 2; k < face.nEdges; k++) {
+				newVerts[idx++] = verts[0];
+				newVerts[idx++] = verts[k - 1];
+				newVerts[idx++] = verts[k];
+			}
+
+			delete[] verts;
+			verts = newVerts;
+			vertCount = newCount;
+
+			// add face to a render group (faces that share that same textures and opacity flag)
+			{
+				bool isTransparent = opacity < 1.0f;
+				int groupIdx = -1;
+				for (int k = 0; k < renderGroups.size(); k++) {
+					if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
+						bool allMatch = true;
+						for (int s = 0; s < MAXLIGHTMAPS; s++) {
+							if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
+								allMatch = false;
+								break;
+							};
+						}
+						if (allMatch) {
+							groupIdx = k;
+							break;
+						}
+					}
+				}
+
+				if (groupIdx == -1) {
+					RenderGroup newGroup = RenderGroup();
+					newGroup.vertCount = 0;
+					newGroup.verts = NULL;
+					newGroup.transparent = isTransparent;
+					newGroup.texture = glTextures[texinfo.iMiptex];
+					for (int s = 0; s < MAXLIGHTMAPS; s++) {
+						newGroup.lightmapAtlas[s] = lightmapAtlas[s];
+					}
+					renderGroups.push_back(newGroup);
+					renderGroupVerts.push_back(vector<lightmapVert>());
+					groupIdx = renderGroups.size() - 1;
+				}
+
+				for (int k = 0; k < vertCount; k++)
+					renderGroupVerts[groupIdx].push_back(verts[k]);
+			}
+		}
+
+		renderModel.renderGroups = new RenderGroup[renderGroups.size()];
+		renderModel.groupCount = renderGroups.size();
+
+		for (int i = 0; i < renderGroups.size(); i++) {
+			renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
+			renderGroups[i].vertCount = renderGroupVerts[i].size();
+			memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
+
+			renderGroups[i].buffer = new VertexBuffer(pipeline, 0);
+			renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
+			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+			renderGroups[i].buffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+			renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
+			renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
+			renderGroups[i].buffer->upload();
+
+			renderModel.renderGroups[i] = renderGroups[i];
+		}
+
+		printf("Added %d render groups for model %d\n", renderModel.groupCount, m);
+	}
+}
+
+void BspRenderer::preRenderEnts() {
+	renderEnts = new RenderEnt[map->ents.size()];
+
+	for (int i = 0; i < map->ents.size(); i++) {
+		Entity* ent = map->ents[i];
+
+		renderEnts[i].modelIdx = ent->getBspModelIdx();
+		renderEnts[i].modelMat.loadIdentity();
+
+		if (ent->hasKey("origin")) {
+			vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
+			renderEnts[i].modelMat.translate(origin.x, origin.z, -origin.y);
 		}
 	}
 }
@@ -229,28 +334,50 @@ BspRenderer::~BspRenderer() {
 void BspRenderer::render() {
 	BSPMODEL& world = map->models[0];	
 
-	for (int i = 0; i < world.nFaces; i++) {
-		renderLightmapFace(i);
-	}
+	bool fastMode = true;
+
+	if (fastMode) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		for (int pass = 0; pass < 2; pass++) {
+			bool drawTransparentFaces = pass == 1;
+
+			drawModel(0, drawTransparentFaces);
+
+			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+				if (renderEnts[i].modelIdx >= 0) {
+					RenderGroup& rgroup = renderModels[renderEnts[i].modelIdx].renderGroups[i];
+
+					pipeline->pushMatrix(MAT_MODEL);
+					pipeline->modelMat = &renderEnts[i].modelMat;
+					pipeline->updateMatrixes();
+
+					drawModel(renderEnts[i].modelIdx, drawTransparentFaces);
+
+					pipeline->popMatrix(MAT_MODEL);
+				}
+			}
+		}
+	}	
 }
 
-void BspRenderer::renderLightmapFace(int faceIdx) {
-	RenderFace& rface = renderFaces[faceIdx];
 
-	glActiveTexture(GL_TEXTURE0);
-	rface.texture->bind();
-	glUniform1i(sTexId, 0);
+void BspRenderer::drawModel(int modelIdx, bool transparent) {
+	for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
+		RenderGroup& rgroup = renderModels[modelIdx].renderGroups[i];
 
-	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		// set unused lightmaps to black
-		glUniform1f(lightmapScaleIds[s], rface.lightmapScales[s]);
+		if (rgroup.transparent != transparent)
+			continue;
 
-		if (rface.lightmapScales[s] != 0.0f) {
+		glActiveTexture(GL_TEXTURE0);
+		rgroup.texture->bind();
+
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			glActiveTexture(GL_TEXTURE1 + s);
-			rface.lightmapAtlas[s]->bind();
+			rgroup.lightmapAtlas[s]->bind();
 		}
-	}
 
-	faceBuffer->setData(rface.verts, rface.vertCount);
-	faceBuffer->draw(GL_TRIANGLE_FAN);
+		rgroup.buffer->draw(GL_TRIANGLES);
+	}
 }
