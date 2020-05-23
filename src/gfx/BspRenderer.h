@@ -27,11 +27,14 @@ struct RenderEnt {
 };
 
 struct RenderGroup {
+	lightmapVert* wireframeVerts; // verts for rendering wireframe
 	lightmapVert* verts;
 	int vertCount;
+	int wireframeVertCount;
 	Texture* texture;
 	Texture* lightmapAtlas[MAXLIGHTMAPS];
 	VertexBuffer* buffer;
+	VertexBuffer* wireframeBuffer;
 	bool transparent;
 };
 

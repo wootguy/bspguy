@@ -90,8 +90,6 @@ const char* g_shader_multitexture_vertex =
 
 
 const char* g_shader_multitexture_fragment =
-"uniform float opacity;\n"
-
 "varying vec2 fTex;\n"
 "varying vec3 fLightmapTex0;\n"
 "varying vec3 fLightmapTex1;\n"
@@ -111,5 +109,10 @@ const char* g_shader_multitexture_fragment =
 "	lightmap += texture2D(sLightmapTex1, fLightmapTex1.xy).rgb * fLightmapTex1.z;\n"
 "	lightmap += texture2D(sLightmapTex2, fLightmapTex2.xy).rgb * fLightmapTex2.z;\n"
 "	lightmap += texture2D(sLightmapTex3, fLightmapTex3.xy).rgb * fLightmapTex3.z;\n"
-"	gl_FragColor = texture2D(sTex, fTex) * vec4(lightmap, fOpacity);\n"
+"	vec3 color = texture2D(sTex, fTex) * lightmap;\n"
+
+"	float gamma = 1.5;\n"
+"	color = pow(color, vec3(1.0/gamma));\n"
+
+"	gl_FragColor = vec4(color, fOpacity);\n"
 "}\n";

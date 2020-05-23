@@ -225,6 +225,7 @@ void BspRenderer::preRenderFaces() {
 
 		vector<RenderGroup> renderGroups;
 		vector<vector<lightmapVert>> renderGroupVerts;
+		vector<vector<lightmapVert>> renderGroupWireframeVerts;
 
 		for (int i = 0; i < model.nFaces; i++) {
 			int faceIdx = model.iFirstFace + i;
@@ -301,7 +302,9 @@ void BspRenderer::preRenderFaces() {
 
 			// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
 			int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
+			int wireframeVertCount = face.nEdges * 2;
 			lightmapVert* newVerts = new lightmapVert[newCount];
+			lightmapVert* wireframeVerts = new lightmapVert[wireframeVertCount];
 
 			int idx = 0;
 			for (int k = 2; k < face.nEdges; k++) {
@@ -310,47 +313,65 @@ void BspRenderer::preRenderFaces() {
 				newVerts[idx++] = verts[k];
 			}
 
+			idx = 0;
+			for (int k = 0; k < face.nEdges; k++) {
+				wireframeVerts[idx++] = verts[k];
+				wireframeVerts[idx++] = verts[(k+1) % face.nEdges];
+			}
+			for (int k = 0; k < wireframeVertCount; k++) {
+				wireframeVerts[k].luv[0][2] = 0.25f;
+				wireframeVerts[k].luv[1][2] = 0.0f;
+				wireframeVerts[k].luv[2][2] = 0.0f;
+				wireframeVerts[k].luv[3][2] = 0.0f;
+				wireframeVerts[k].opacity = 1.0f;
+			}
+
 			delete[] verts;
 			verts = newVerts;
 			vertCount = newCount;
 
 			// add face to a render group (faces that share that same textures and opacity flag)
-			{
-				bool isTransparent = opacity < 1.0f;
-				int groupIdx = -1;
-				for (int k = 0; k < renderGroups.size(); k++) {
-					if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
-						bool allMatch = true;
-						for (int s = 0; s < MAXLIGHTMAPS; s++) {
-							if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
-								allMatch = false;
-								break;
-							};
-						}
-						if (allMatch) {
-							groupIdx = k;
-							break;
-						}
-					}
-				}
-
-				if (groupIdx == -1) {
-					RenderGroup newGroup = RenderGroup();
-					newGroup.vertCount = 0;
-					newGroup.verts = NULL;
-					newGroup.transparent = isTransparent;
-					newGroup.texture = glTextures[texinfo.iMiptex];
+			bool isTransparent = opacity < 1.0f;
+			int groupIdx = -1;
+			for (int k = 0; k < renderGroups.size(); k++) {
+				if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
+					bool allMatch = true;
 					for (int s = 0; s < MAXLIGHTMAPS; s++) {
-						newGroup.lightmapAtlas[s] = lightmapAtlas[s];
+						if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
+							allMatch = false;
+							break;
+						};
 					}
-					renderGroups.push_back(newGroup);
-					renderGroupVerts.push_back(vector<lightmapVert>());
-					groupIdx = renderGroups.size() - 1;
+					if (allMatch) {
+						groupIdx = k;
+						break;
+					}
 				}
-
-				for (int k = 0; k < vertCount; k++)
-					renderGroupVerts[groupIdx].push_back(verts[k]);
 			}
+
+			if (groupIdx == -1) {
+				RenderGroup newGroup = RenderGroup();
+				newGroup.vertCount = 0;
+				newGroup.verts = NULL;
+				newGroup.transparent = isTransparent;
+				newGroup.texture = glTextures[texinfo.iMiptex];
+				for (int s = 0; s < MAXLIGHTMAPS; s++) {
+					newGroup.lightmapAtlas[s] = lightmapAtlas[s];
+				}
+				renderGroups.push_back(newGroup);
+				renderGroupVerts.push_back(vector<lightmapVert>());
+				renderGroupWireframeVerts.push_back(vector<lightmapVert>());
+				groupIdx = renderGroups.size() - 1;
+			}
+
+			for (int k = 0; k < vertCount; k++)
+				renderGroupVerts[groupIdx].push_back(verts[k]);
+			for (int k = 0; k < wireframeVertCount; k++) {
+				renderGroupWireframeVerts[groupIdx].push_back(wireframeVerts[k]);
+			}
+
+			delete[] verts;
+			delete[] wireframeVerts;
 		}
 
 		renderModel.renderGroups = new RenderGroup[renderGroups.size()];
@@ -360,6 +381,10 @@ void BspRenderer::preRenderFaces() {
 			renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
 			renderGroups[i].vertCount = renderGroupVerts[i].size();
 			memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
+
+			renderGroups[i].wireframeVerts = new lightmapVert[renderGroupWireframeVerts[i].size()];
+			renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
+			memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
 
 			renderGroups[i].buffer = new VertexBuffer(pipeline, 0);
 			renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
@@ -371,6 +396,17 @@ void BspRenderer::preRenderFaces() {
 			renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
 			renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 			renderGroups[i].buffer->upload();
+
+			renderGroups[i].wireframeBuffer = new VertexBuffer(pipeline, 0);
+			renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
+			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+			renderGroups[i].wireframeBuffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+			renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
+			renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
+			renderGroups[i].wireframeBuffer->upload();
 
 			renderModel.renderGroups[i] = renderGroups[i];
 		}
@@ -452,5 +488,12 @@ void BspRenderer::drawModel(int modelIdx, bool transparent) {
 		}
 
 		rgroup.buffer->draw(GL_TRIANGLES);
+
+		glActiveTexture(GL_TEXTURE0);
+		whiteTex->bind();
+		glActiveTexture(GL_TEXTURE1);
+		whiteTex->bind();
+
+		rgroup.wireframeBuffer->draw(GL_LINES);
 	}
 }
