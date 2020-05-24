@@ -22,7 +22,8 @@ const char* g_shader_cVert_fragment =
 
 "void main()\n"
 "{\n"
-"	gl_FragColor = fColor;\n"
+"	float gamma = 1.5;\n"
+"	gl_FragColor = vec4(pow(fColor.rgb, vec3(1.0/gamma)), fColor.a);\n"
 "}\n";
 
 

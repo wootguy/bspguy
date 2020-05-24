@@ -48,7 +48,8 @@ Renderer::Renderer() {
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 
-	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL | RENDER_ENTS | RENDER_SPECIAL_ENTS;
+	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL 
+		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS;
 	showDebugWidget = true;
 	showKeyvalueWidget = true;
 	pickInfo.valid = false;
@@ -187,7 +188,10 @@ void Renderer::drawGui() {
 			}
 			if (ImGui::MenuItem("Special Entities", NULL, g_render_flags & RENDER_SPECIAL_ENTS)) {
 				g_render_flags ^= RENDER_SPECIAL_ENTS;
-			}			
+			}
+			if (ImGui::MenuItem("Point Entities", NULL, g_render_flags & RENDER_POINT_ENTS)) {
+				g_render_flags ^= RENDER_POINT_ENTS;
+			}
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -343,15 +347,15 @@ void Renderer::cameraControls() {
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && oldLeftMouse != GLFW_PRESS) {
 		getPickRay(pickStart, pickDir);
 
-		float bestDist = 9e99;
 		memset(&pickInfo, 0, sizeof(PickInfo));
+		pickInfo.bestDist = 9e99;
 		for (int i = 0; i < mapRenderers.size(); i++) {
-			if (mapRenderers[i]->pickPoly(pickStart, pickDir, bestDist, pickInfo)) {
+			if (mapRenderers[i]->pickPoly(pickStart, pickDir, pickInfo)) {
 				pickInfo.mapIdx = i;
 			}
 		}
 
-		pickEnd = pickStart + pickDir*bestDist;
+		pickEnd = pickStart + pickDir*pickInfo.bestDist;
 	}
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -450,7 +454,7 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
-	BspRenderer* mapRenderer = new BspRenderer(map, bspShader);
+	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, colorShader);
 
 	mapRenderers.push_back(mapRenderer);
 }

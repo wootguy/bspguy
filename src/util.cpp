@@ -131,6 +131,14 @@ float clamp(float val, float min, float max) {
 	return val;
 }
 
+COLOR3 operator*(COLOR3 c, float scale)
+{
+	c.r *= scale;
+	c.g *= scale;
+	c.b *= scale;
+	return c;
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

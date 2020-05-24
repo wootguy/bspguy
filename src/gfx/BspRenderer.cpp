@@ -5,9 +5,10 @@
 #include "lodepng.h"
 #include <algorithm>
 
-BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
+BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader) {
 	this->map = map;
-	this->pipeline = pipeline;
+	this->bspShader = bspShader;
+	this->colorShader = colorShader;
 
 	loadTextures();
 	loadLightmaps();
@@ -15,14 +16,14 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
 	preRenderEnts();
 	calcFaceMaths();
 
-	pipeline->bind();
+	bspShader->bind();
 
-	uint sTexId = glGetUniformLocation(pipeline->ID, "sTex");
+	uint sTexId = glGetUniformLocation(bspShader->ID, "sTex");
 
 	glUniform1i(sTexId, 0);
 
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		uint sLightmapTexIds = glGetUniformLocation(pipeline->ID, ("sLightmapTex" + to_string(s)).c_str());
+		uint sLightmapTexIds = glGetUniformLocation(bspShader->ID, ("sLightmapTex" + to_string(s)).c_str());
 
 		// assign lightmap texture units (skips the normal texture unit)
 		glUniform1i(sLightmapTexIds, s + 1);
@@ -34,16 +35,19 @@ void BspRenderer::loadTextures() {
 	greyTex = new Texture(1, 1);
 	redTex = new Texture(1, 1);
 	yellowTex = new Texture(1, 1);
+	blackTex = new Texture(1, 1);
 	
 	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
 	*((COLOR3*)(redTex->data)) = { 128, 0, 0 };
 	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
 	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
+	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
 
 	whiteTex->upload();
 	redTex->upload();
 	yellowTex->upload();
 	greyTex->upload();
+	blackTex->upload();
 
 	vector<Wad*> wads;
 	vector<string> wadNames;
@@ -399,7 +403,7 @@ void BspRenderer::preRenderFaces() {
 			renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
 			memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
 
-			renderGroups[i].buffer = new VertexBuffer(pipeline, 0);
+			renderGroups[i].buffer = new VertexBuffer(bspShader, 0);
 			renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
 			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
@@ -410,7 +414,7 @@ void BspRenderer::preRenderFaces() {
 			renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 			renderGroups[i].buffer->upload();
 
-			renderGroups[i].wireframeBuffer = new VertexBuffer(pipeline, 0);
+			renderGroups[i].wireframeBuffer = new VertexBuffer(bspShader, 0);
 			renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
 			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
@@ -507,14 +511,16 @@ void BspRenderer::render(int highlightEnt) {
 
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
 	if (highlightEnt > 0) {
-		pipeline->pushMatrix(MAT_MODEL);
-		*pipeline->modelMat = renderEnts[highlightEnt].modelMat;
-		pipeline->updateMatrixes();
+		if (renderEnts[highlightEnt].modelIdx >= 0) {
+			bspShader->pushMatrix(MAT_MODEL);
+			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
+			bspShader->updateMatrixes();
 
-		drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
-		drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
+			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
+			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
 
-		pipeline->popMatrix(MAT_MODEL);
+			bspShader->popMatrix(MAT_MODEL);
+		}
 	}
 
 	for (int pass = 0; pass < 2; pass++) {
@@ -524,14 +530,20 @@ void BspRenderer::render(int highlightEnt) {
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0) {
-				pipeline->pushMatrix(MAT_MODEL);
-				*pipeline->modelMat = renderEnts[i].modelMat;
-				pipeline->updateMatrixes();
+				bspShader->pushMatrix(MAT_MODEL);
+				*bspShader->modelMat = renderEnts[i].modelMat;
+				bspShader->updateMatrixes();
 
 				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, i == highlightEnt, false);
 
-				pipeline->popMatrix(MAT_MODEL);
+				bspShader->popMatrix(MAT_MODEL);
 			}
+		}
+
+		if ((g_render_flags & RENDER_POINT_ENTS) && pass == 0) {
+			glCullFace(GL_BACK);
+			drawPointEntities(highlightEnt);
+			glCullFace(GL_FRONT);
 		}
 	}
 }
@@ -592,7 +604,12 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 				rgroup.lightmapAtlas[s]->bind();
 			}
 			else {
-				whiteTex->bind();
+				if (s == 0) {
+					whiteTex->bind();
+				}
+				else {
+					blackTex->bind();
+				}
 			}
 		}
 
@@ -612,13 +629,96 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 	}
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, float& bestDist, PickInfo& pickInfo) {
+void BspRenderer::drawPointEntities(int highlightEnt) {
+	COLOR3 baseColor = { 220, 0, 220 };
+	COLOR3 selectColor = { 220, 0, 0 };
+	cCube cube(vec3(-8, -8, -8), vec3(8, 8, 8), baseColor);
+
+	cCube selectCube(vec3(-8, -8, -8), vec3(8, 8, 8), {220, 0, 0});
+
+	// colors not where expected due to HL coordinate system
+	cube.setColor(baseColor * 0.05f);
+	cube.front.setColor(baseColor);
+	cube.bottom.setColor(baseColor);
+	cube.left.setColor(baseColor * 0.66f);
+	cube.right.setColor(baseColor * 0.93f);
+	cube.top.setColor(baseColor * 0.40f);
+	cube.back.setColor(baseColor * 0.53f);
+
+	selectCube.setColor(selectColor * 0.05f);
+	selectCube.front.setColor(selectColor);
+	selectCube.bottom.setColor(selectColor);
+	selectCube.left.setColor(selectColor * 0.66f);
+	selectCube.right.setColor(selectColor * 0.93f);
+	selectCube.top.setColor(selectColor * 0.40f);
+	selectCube.back.setColor(selectColor * 0.53f);
+
+	vec3 min = vec3(-8, -8, -8);
+	vec3 max = vec3(8, 8, 8);
+	COLOR3 yellow = {255, 255, 0};
+	vec3 vcube[8] = {
+		vec3(min.x, min.y, min.z), // front-left-bottom
+		vec3(max.x, min.y, min.z), // front-right-bottom
+		vec3(max.x, max.y, min.z), // back-right-bottom
+		vec3(min.x, max.y, min.z), // back-left-bottom
+
+		vec3(min.x, min.y, max.z), // front-left-top
+		vec3(max.x, min.y, max.z), // front-right-top
+		vec3(max.x, max.y, max.z), // back-right-top
+		vec3(min.x, max.y, max.z), // back-left-top
+	};
+
+	// edges
+	cVert selectWireframe[12*2] = {
+		cVert(vcube[0], yellow), cVert(vcube[1], yellow), // front-bottom
+		cVert(vcube[1], yellow), cVert(vcube[2], yellow), // right-bottom
+		cVert(vcube[2], yellow), cVert(vcube[3], yellow), // back-bottom
+		cVert(vcube[3], yellow), cVert(vcube[0], yellow), // left-bottom
+
+		cVert(vcube[4], yellow), cVert(vcube[5], yellow), // front-top
+		cVert(vcube[5], yellow), cVert(vcube[6], yellow), // right-top
+		cVert(vcube[6], yellow), cVert(vcube[7], yellow), // back-top
+		cVert(vcube[7], yellow), cVert(vcube[4], yellow), // left-top
+
+		cVert(vcube[0], yellow), cVert(vcube[4], yellow), // front-left-pillar
+		cVert(vcube[1], yellow), cVert(vcube[5], yellow), // front-right-pillar
+		cVert(vcube[2], yellow), cVert(vcube[6], yellow), // back-right-pillar
+		cVert(vcube[3], yellow), cVert(vcube[7], yellow) // back-left-pillar
+	};
+
+
+
+	VertexBuffer buffer(colorShader, COLOR_3B | POS_3F, &cube, 6*6);
+	VertexBuffer selectBuffer(colorShader, COLOR_3B | POS_3F, &selectCube, 6*6);
+	VertexBuffer selectWireframeBuffer(colorShader, COLOR_3B | POS_3F, &selectWireframe, 2*12);
+
+	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+		if (map->ents[i]->isBspModel())
+			continue;
+
+		bspShader->pushMatrix(MAT_MODEL);
+		*bspShader->modelMat = renderEnts[i].modelMat;
+		bspShader->updateMatrixes();
+
+		if (highlightEnt == i) {
+			selectBuffer.draw(GL_TRIANGLES);
+			selectWireframeBuffer.draw(GL_LINES);
+		}
+		else {
+			buffer.draw(GL_TRIANGLES);
+		}
+		
+
+		bspShader->popMatrix(MAT_MODEL);
+	}
+}
+
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 	bool foundBetterPick = false;
 
-	if (pickPoly(start, dir, vec3(0, 0, 0), 0, bestDist, pickInfo)) {
+	if (pickPoly(start, dir, vec3(0, 0, 0), 0, pickInfo)) {
 		pickInfo.entIdx = 0;
 		pickInfo.modelIdx = 0;
-		pickInfo.valid = true;
 		foundBetterPick = true;
 	}
 
@@ -639,19 +739,28 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, float& bestDist, PickInfo& pick
 				continue;
 			}
 
-			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, bestDist, pickInfo)) {
+			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, pickInfo)) {
 				pickInfo.entIdx = i;
 				pickInfo.modelIdx = renderEnts[i].modelIdx;
-				pickInfo.valid = true;
 				foundBetterPick = true;
 			}
+		}
+		else {
+			vec3 mins = renderEnts[i].offset - vec3(8, 8, 8);
+			vec3 maxs = renderEnts[i].offset + vec3(8, 8, 8);
+			if (pickAABB(start, dir, mins, maxs, pickInfo)) {
+				pickInfo.entIdx = i;
+				pickInfo.modelIdx = -1;
+				pickInfo.faceIdx = -1;
+				foundBetterPick = true;
+			};
 		}
 	}
 
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist, PickInfo& pickInfo) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo) {
 	BSPMODEL& model = map->models[modelIdx];
 
 	bool foundBetterPick = false;
@@ -723,12 +832,105 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, floa
 			continue;
 		}
 
-		if (t < bestDist) {
-			bestDist = t;
+		if (t < pickInfo.bestDist) {
 			foundBetterPick = true;
+			pickInfo.bestDist = t;
 			pickInfo.faceIdx = model.iFirstFace + k;
+			pickInfo.valid = true;
 		}
 	}
 
 	return foundBetterPick;
+}
+
+bool BspRenderer::pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, PickInfo& pickInfo) {
+	bool foundBetterPick = false;
+
+	/*
+	Fast Ray-Box Intersection
+	by Andrew Woo
+	from "Graphics Gems", Academic Press, 1990
+	https://web.archive.org/web/20090803054252/http://tog.acm.org/resources/GraphicsGems/gems/RayBox.c
+	*/
+
+	bool inside = true;
+	char quadrant[3];
+	register int i;
+	int whichPlane;
+	double maxT[3];
+	double candidatePlane[3];
+
+	float* origin = (float*)&start;
+	float* dir = (float*)&rayDir;
+	float* minB = (float*)&mins;
+	float* maxB = (float*)&maxs;
+	float coord[3];
+
+	const char RIGHT = 0;
+	const char LEFT = 1;
+	const char MIDDLE = 2;
+
+	/* Find candidate planes; this loop can be avoided if
+	rays cast all from the eye(assume perpsective view) */
+	for (i = 0; i < 3; i++) {
+		if (origin[i] < minB[i]) {
+			quadrant[i] = LEFT;
+			candidatePlane[i] = minB[i];
+			inside = false;
+		}
+		else if (origin[i] > maxB[i]) {
+			quadrant[i] = RIGHT;
+			candidatePlane[i] = maxB[i];
+			inside = false;
+		}
+		else {
+			quadrant[i] = MIDDLE;
+		}
+	}
+
+	/* Ray origin inside bounding box */
+	if (inside) {
+		return false;
+	}
+
+	/* Calculate T distances to candidate planes */
+	for (i = 0; i < 3; i++) {
+		if (quadrant[i] != MIDDLE && dir[i] != 0.0f)
+			maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+		else
+			maxT[i] = -1.0f;
+	}
+
+	/* Get largest of the maxT's for final choice of intersection */
+	whichPlane = 0;
+	for (i = 1; i < 3; i++) {
+		if (maxT[whichPlane] < maxT[i])
+			whichPlane = i;
+	}
+
+	/* Check final candidate actually inside box */
+	if (maxT[whichPlane] < 0.0f)
+		return false;
+	for (i = 0; i < 3; i++) {
+		if (whichPlane != i) {
+			coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+			if (coord[i] < minB[i] || coord[i] > maxB[i])
+				return false;
+		}
+		else {
+			coord[i] = candidatePlane[i];
+		}
+	}
+	/* ray hits box */
+
+	vec3 intersectPoint(coord[0], coord[1], coord[2]);
+	float dist = (intersectPoint - start).length();
+
+	if (dist < pickInfo.bestDist) {
+		pickInfo.bestDist = dist;
+		pickInfo.valid = true;
+		return true;
+	}
+
+	return false;
 }

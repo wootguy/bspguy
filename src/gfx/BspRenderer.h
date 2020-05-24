@@ -16,6 +16,7 @@ enum RenderFlags {
 	RENDER_ENTS = 8,
 	RENDER_SPECIAL = 16,
 	RENDER_SPECIAL_ENTS = 32,
+	RENDER_POINT_ENTS = 64,
 };
 
 struct LightmapInfo {
@@ -66,6 +67,7 @@ struct PickInfo {
 	int entIdx;
 	int modelIdx;
 	int faceIdx;
+	float bestDist;
 	bool valid;
 };
 
@@ -73,37 +75,41 @@ class BspRenderer {
 public:
 	Bsp* map;
 
-	BspRenderer(Bsp* map, ShaderProgram* pipeline);
+	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader);
 	~BspRenderer();
 
 	void render(int highlightEnt);
+
+	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
+	void drawPointEntities(int highlightEnt);
+
+	bool pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo);
+	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
+	bool pickAABB(vec3 start, vec3 dir, vec3 mins, vec3 maxs, PickInfo& pickInfo);
+
+private:
+	ShaderProgram* bspShader;
+	ShaderProgram* colorShader;
+
+	LightmapInfo* lightmaps;
+	RenderEnt* renderEnts;
+	RenderModel* renderModels;
+	FaceMath* faceMaths;
+
+	Texture** glTextures;
+	Texture** glLightmapTextures;
+	Texture* whiteTex;
+	Texture* redTex;
+	Texture* yellowTex;
+	Texture* greyTex;
+	Texture* blackTex;
+
 	void loadTextures();
 	void loadLightmaps();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer
 	void preRenderFaces();
-
 	void preRenderEnts();
-
 	void calcFaceMaths();
-
-	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
-
-	bool pickPoly(vec3 start, vec3 dir, float& bestDist, PickInfo& pickInfo);
-	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist, PickInfo& pickInfo);
-
-private:
-	Texture** glTextures;
-	Texture** glLightmapTextures;
-	LightmapInfo* lightmaps;
-	RenderEnt* renderEnts;
-	ShaderProgram* pipeline;
-	Texture* whiteTex;
-	Texture* redTex;
-	Texture* yellowTex;
-	Texture* greyTex;
-	FaceMath* faceMaths;
-
-	RenderModel* renderModels;
 };

@@ -14,8 +14,13 @@ typedef unsigned int uint;
 struct COLOR3
 {
 	unsigned char r, g, b;
+
+	COLOR3() {}
+	COLOR3(unsigned char r, unsigned char g, unsigned char b) : r(r), g(g), b(b) {}
 };
 #pragma pack(pop)
+
+COLOR3 operator*(COLOR3 v, float f);
 
 struct WADHEADER
 {
