@@ -24,7 +24,7 @@ Renderer::Renderer() {
 
 	glfwSetErrorCallback(error_callback);
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
 	window = glfwCreateWindow(1920, 1080, "bspguy", NULL, NULL);
@@ -47,6 +47,8 @@ Renderer::Renderer() {
 	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
+
+	renderFlags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL | RENDER_ENTS | RENDER_SPECIAL_ENTS;
 }
 
 Renderer::~Renderer() {
@@ -62,27 +64,38 @@ void Renderer::renderLoop() {
 
 	cameraOrigin.y = -50;
 
-	float frameTimes[8] = { 0 };
-	int frameTimeIdx = 0;
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	const char* glsl_version = "#version 130";
+	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	vsync = true;
+	io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 20.0f);
 
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+		glfwPollEvents();
+
 		float frameDelta = glfwGetTime() - lastFrameTime;
 		frameTimeScale = 0.05f / frameDelta;
+		float fps = 1.0f / frameDelta;
+		
+		frameTimeScale = 144.0f / fps;
+
 		lastFrameTime = glfwGetTime();
-
-		frameTimes[frameTimeIdx++ % 8] = frameDelta;
-
-		float avg = 0;
-		for (int i = 0; i < 8; i++) {
-			avg += frameTimes[i];
-		}
-		avg /= 8;
-		float fps = 1.0f / avg;
-		if (frameTimeIdx % 20 == 0) {
-			printf("FPS: %.2f\n", fps);
-		}
 
 		cameraControls();
 
@@ -101,7 +114,7 @@ void Renderer::renderLoop() {
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			model.loadIdentity();
 			bspShader->updateMatrixes();
-			mapRenderers[i]->render();
+			mapRenderers[i]->render(renderFlags);
 		}		
 
 		model.loadIdentity();
@@ -118,15 +131,87 @@ void Renderer::renderLoop() {
 		makeVectors(cameraAngles, forward, right, up);
 		//printf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
+		drawGui();
+
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
 
 	glfwTerminate();
 }
 
+void Renderer::drawGui() {
+	// Start the Dear ImGui frame
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	//ImGui::ShowDemoWindow();
+
+	{
+		ImGui::BeginMainMenuBar();
+
+		if (ImGui::BeginMenu("Render"))
+		{
+			if (ImGui::MenuItem("Textures", NULL, renderFlags & RENDER_TEXTURES)) {
+				renderFlags ^= RENDER_TEXTURES;
+			}
+			if (ImGui::MenuItem("Lightmaps", NULL, renderFlags & RENDER_LIGHTMAPS)) {
+				renderFlags ^= RENDER_LIGHTMAPS;
+			}
+			if (ImGui::MenuItem("Wireframe", NULL, renderFlags & RENDER_WIREFRAME)) {
+				renderFlags ^= RENDER_WIREFRAME;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Entities", NULL, renderFlags & RENDER_ENTS)) {
+				renderFlags ^= RENDER_ENTS;
+			}
+			if (ImGui::MenuItem("Special", NULL, renderFlags & RENDER_SPECIAL)) {
+				renderFlags ^= RENDER_SPECIAL;
+			}
+			if (ImGui::MenuItem("Special Entities", NULL, renderFlags & RENDER_SPECIAL_ENTS)) {
+				renderFlags ^= RENDER_SPECIAL_ENTS;
+			}			
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+
+	{
+		ImVec2 window_pos = ImVec2(10.0f, 35.0f);
+		ImVec2 window_pos_pivot = ImVec2(0.0f, 0.0f);
+		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+		if (ImGui::Begin("Overlay", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+		{
+			ImGui::Text("%.0f FPS", ImGui::GetIO().Framerate);
+			if (ImGui::BeginPopupContextWindow())
+			{
+				if (ImGui::MenuItem("VSync", NULL, vsync)) {
+					vsync = !vsync;
+					glfwSwapInterval(vsync ? 1 : 0);
+				}
+				ImGui::EndPopup();
+			}
+		}
+		ImGui::End();
+	}
+
+	// Rendering
+	ImGui::Render();
+	int display_w, display_h;
+	glfwGetFramebufferSize(window, &display_w, &display_h);
+	glViewport(0, 0, display_w, display_h);
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 void Renderer::cameraControls() {
-	cameraOrigin += getMoveDir() * frameTimeScale;
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+	if (!io.WantCaptureKeyboard)
+		cameraOrigin += getMoveDir() * frameTimeScale;
+
+	if (io.WantCaptureMouse)
+		return;
 
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
@@ -191,6 +276,8 @@ vec3 Renderer::getMoveDir()
 	{
 		wishdir -= forward;
 	}
+
+	wishdir *= moveSpeed;
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 		wishdir *= 4.0f;

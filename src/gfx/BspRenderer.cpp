@@ -488,7 +488,7 @@ BspRenderer::~BspRenderer() {
 	// TODO: more stuff to delete
 }
 
-void BspRenderer::render() {
+void BspRenderer::render(int renderFlags) {
 	BSPMODEL& world = map->models[0];	
 
 	glEnable(GL_BLEND);
@@ -497,7 +497,7 @@ void BspRenderer::render() {
 	for (int pass = 0; pass < 2; pass++) {
 		bool drawTransparentFaces = pass == 1;
 
-		drawModel(0, drawTransparentFaces);
+		drawModel(0, drawTransparentFaces, renderFlags);
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0) {
@@ -505,7 +505,7 @@ void BspRenderer::render() {
 				*pipeline->modelMat = renderEnts[i].modelMat;
 				pipeline->updateMatrixes();
 
-				drawModel(renderEnts[i].modelIdx, drawTransparentFaces);
+				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, renderFlags);
 
 				pipeline->popMatrix(MAT_MODEL);
 			}
@@ -513,29 +513,55 @@ void BspRenderer::render() {
 	}
 }
 
-void BspRenderer::drawModel(int modelIdx, bool transparent) {
+void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
 	for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
 		RenderGroup& rgroup = renderModels[modelIdx].renderGroups[i];
 
 		if (rgroup.transparent != transparent)
 			continue;
 
+		if (rgroup.transparent) {
+			if (modelIdx == 0 && !(renderFlags & RENDER_SPECIAL)) {
+				continue;
+			}
+			else if (modelIdx != 0 && !(renderFlags & RENDER_SPECIAL_ENTS)) {
+				continue;
+			}
+		}
+		else if (modelIdx != 0 && !(renderFlags & RENDER_ENTS)) {
+			continue;
+		}
+		
 		glActiveTexture(GL_TEXTURE0);
-		rgroup.texture->bind();
+		if (renderFlags & RENDER_TEXTURES) {
+			rgroup.texture->bind();
+		}
+		else {
+			whiteTex->bind();
+		}
+		
 
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			glActiveTexture(GL_TEXTURE1 + s);
-			rgroup.lightmapAtlas[s]->bind();
+
+			if (renderFlags & RENDER_LIGHTMAPS) {
+				rgroup.lightmapAtlas[s]->bind();
+			}
+			else {
+				whiteTex->bind();
+			}
 		}
 
 		rgroup.buffer->draw(GL_TRIANGLES);
 
-		glActiveTexture(GL_TEXTURE0);
-		whiteTex->bind();
-		glActiveTexture(GL_TEXTURE1);
-		whiteTex->bind();
+		if (renderFlags & RENDER_WIREFRAME) {
+			glActiveTexture(GL_TEXTURE0);
+			whiteTex->bind();
+			glActiveTexture(GL_TEXTURE1);
+			whiteTex->bind();
 
-		rgroup.wireframeBuffer->draw(GL_LINES);
+			rgroup.wireframeBuffer->draw(GL_LINES);
+		}
 	}
 }
 

@@ -36,11 +36,20 @@ set(SOURCE_FILES
 	src/gfx/Texture.h			src/gfx/Texture.cpp
 	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
 	src/gfx/LightmapNode.h		src/gfx/LightmapNode.cpp
+	
+	imgui/imgui.cpp
+	imgui/imgui_widgets.cpp
+	imgui/imgui_draw.cpp
+	imgui/imgui_demo.cpp
+	imgui/examples/imgui_impl_glfw.cpp
+	imgui/examples/imgui_impl_opengl3.cpp
 )
 
 add_subdirectory(glfw)
 
 include_directories(src)
+include_directories(imgui)
+include_directories(imgui/examples)
 include_directories(glew/include)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})

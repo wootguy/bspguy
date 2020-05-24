@@ -52,12 +52,21 @@ struct FaceMath {
 	int vertCount;
 };
 
+enum RenderFlags {
+	RENDER_TEXTURES = 1,
+	RENDER_LIGHTMAPS = 2,
+	RENDER_WIREFRAME = 4,
+	RENDER_ENTS = 8,
+	RENDER_SPECIAL = 16,
+	RENDER_SPECIAL_ENTS = 32,
+};
+
 class BspRenderer {
 public:
 	BspRenderer(Bsp* map, ShaderProgram* pipeline);
 	~BspRenderer();
 
-	void render();
+	void render(int renderFlags);
 	void loadTextures();
 	void loadLightmaps();
 
@@ -69,7 +78,7 @@ public:
 
 	void calcFaceMaths();
 
-	void drawModel(int modelIdx, bool transparent);
+	void drawModel(int modelIdx, bool transparent, int renderFlags);
 
 	float pickPoly(vec3 start, vec3 dir);
 	void pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist);
