@@ -39,10 +39,14 @@ Renderer::Renderer() {
 
 	glewInit();
 
-	pipeline = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
-	pipeline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	pipeline->setMatrixNames(NULL, "modelViewProjection");
-	pipeline->bind();
+	bspShader = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
+	bspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	bspShader->setMatrixNames(NULL, "modelViewProjection");
+
+	colorShader = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
+	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	colorShader->setMatrixNames(NULL, "modelViewProjection");
+	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 }
 
 Renderer::~Renderer() {
@@ -51,11 +55,6 @@ Renderer::~Renderer() {
 
 void Renderer::renderLoop() {
 	glfwSwapInterval(1);
-
-	cCube cube(vec3(-10, -10, -10), vec3(10, 10, 10), {0, 255, 0} );
-	cube.setColor({ 0,255,0 }, { 0,0,255 }, { 255,0,0 }, { 0,255,255 }, { 255,0,255 }, { 0,255,0 });
-	
-	VertexBuffer buffer(pipeline, COLOR_3B | POS_3F, &cube, 6*6);
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -85,7 +84,6 @@ void Renderer::renderLoop() {
 			printf("FPS: %.2f\n", fps);
 		}
 
-
 		cameraControls();
 
 		float spin = glfwGetTime() * 2;
@@ -96,14 +94,29 @@ void Renderer::renderLoop() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		setupView();
-		pipeline->updateMatrixes();
-		//buffer.draw(GL_TRIANGLES);
+		bspShader->bind();
+		glEnable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
 
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			model.loadIdentity();
-			pipeline->updateMatrixes();
+			bspShader->updateMatrixes();
 			mapRenderers[i]->render();
-		}
+		}		
+
+		model.loadIdentity();
+		colorShader->bind();
+
+		drawLine(pickStart, pickStart + pickDir * 64.0f, { 0, 0, 255 });
+		drawLine(pickStart, pickEnd, { 0, 255, 255 });
+
+		drawLine(pickEnd + vec3(-32, 0, 0), pickEnd + vec3(32,0,0), { 255, 0, 0 });
+		drawLine(pickEnd + vec3(0, -32, 0), pickEnd + vec3(0,32,0), { 255, 255, 0 });
+		drawLine(pickEnd + vec3(0, 0, -32), pickEnd + vec3(0,0,32), { 0, 255, 0 });
+
+		vec3 forward, right, up;
+		makeVectors(cameraAngles, forward, right, up);
+		//printf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -133,6 +146,20 @@ void Renderer::cameraControls() {
 	}
 	else {
 		cameraIsRotating = false;
+	}
+
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+		getPickRay(pickStart, pickDir);
+
+		float bestDist = 9e99;
+		for (int i = 0; i < mapRenderers.size(); i++) {
+			float dist = mapRenderers[i]->pickPoly(pickStart, pickDir);
+			if (dist < bestDist) {
+				bestDist = dist;
+			}
+		}
+
+		pickEnd = pickStart + pickDir*bestDist;
 	}
 }
 
@@ -166,21 +193,59 @@ vec3 Renderer::getMoveDir()
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-		wishdir *= 3.0f;
+		wishdir *= 4.0f;
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		wishdir *= 0.333f;
+		wishdir *= 0.25f;
 	return wishdir;
 }
 
+void Renderer::getPickRay(vec3& start, vec3& pickDir) {
+	double xpos, ypos;
+	int width, height;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	glfwGetFramebufferSize(window, &width, &height);
+
+	// invert ypos
+	ypos = height - ypos;
+
+	// translate mouse coordinates so that the origin lies in the center and is a scaler from +/-1.0
+	float mouseX = ((xpos / (double)width) * 2.0f) - 1.0f;
+	float mouseY = ((ypos / (double)height) * 2.0f) - 1.0f;
+
+	// http://schabby.de/picking-opengl-ray-tracing/
+	vec3 forward, right, up;
+	makeVectors(cameraAngles, forward, right, up);
+
+	vec3 view = forward.normalize(1.0f);
+	vec3 h = crossProduct(view, up).normalize(1.0f); // 3D float vector
+	vec3 v = crossProduct(h, view).normalize(1.0f); // 3D float vector
+
+	// convert fovy to radians 
+	float rad = fov * PI / 180.0f;
+	float vLength = tan(rad / 2.0f) * zNear;
+	float hLength = vLength * (width / (float)height);
+
+	v *= vLength;
+	h *= hLength;
+
+	// linear combination to compute intersection of picking ray with view port plane
+	start = cameraOrigin + view * zNear + h * mouseX + v * mouseY;
+
+	// compute direction of picking ray by subtracting intersection point with camera position
+	pickDir = (start - cameraOrigin).normalize(1.0f);
+}
+
 void Renderer::setupView() {
-	float fov = 75.0f;
+	fov = 75.0f;
+	zNear = 1.0f;
+	zFar = 262144.0f;
 	int width, height;
 
 	glfwGetFramebufferSize(window, &width, &height);
 
 	glViewport(0, 0, width, height);
 
-	projection.perspective(fov, (float)width / (float)height, 1.0f, 65536.0f);
+	projection.perspective(fov, (float)width / (float)height, zNear, zFar);
 
 	view.loadIdentity();
 	view.rotateX(PI * cameraAngles.x / 180.0f);
@@ -189,8 +254,24 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
-	BspRenderer* mapRenderer = new BspRenderer(map, pipeline);
+	BspRenderer* mapRenderer = new BspRenderer(map, bspShader);
 
 	mapRenderers.push_back(mapRenderer);
 }
 
+void Renderer::drawLine(vec3 start, vec3 end, COLOR3 color) {
+	cVert verts[2];
+
+	verts[0].x = start.x;
+	verts[0].y = start.z;
+	verts[0].z = -start.y;
+	verts[0].c = color;
+
+	verts[1].x = end.x;
+	verts[1].y = end.z;
+	verts[1].z = -end.y;
+	verts[1].c = color;
+
+	VertexBuffer buffer(colorShader, COLOR_3B | POS_3F, &verts[0], 2);
+	buffer.draw(GL_LINES);
+}

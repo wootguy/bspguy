@@ -423,3 +423,11 @@ vec4 operator-(vec4 v, float f)
 	v.w -= f;
 	return v;
 }
+
+vec3 vec4::xyz() { 
+	return vec3(x, y, z); 
+}
+
+vec2 vec4::xy() {
+	return vec2(x, y);
+}

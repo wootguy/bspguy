@@ -79,6 +79,8 @@ struct vec4
 	vec4(float x, float y, float z) : x(x), y(y), z(z), w(1) {}
 	vec4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 	vec4(vec3 v, float a) : x(v.x), y(v.y), z(v.z), w(a) {}
+	vec3 xyz();
+	vec2 xy();
 };
 
 vec4 operator-(vec4 v1, vec4 v2);

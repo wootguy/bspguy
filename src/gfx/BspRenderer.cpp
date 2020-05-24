@@ -13,9 +13,11 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
 	loadLightmaps();
 	preRenderFaces();
 	preRenderEnts();
+	calcFaceMaths();
+
+	pipeline->bind();
 
 	uint sTexId = glGetUniformLocation(pipeline->ID, "sTex");
-	uint opacityId = glGetUniformLocation(pipeline->ID, "opacity");
 
 	glUniform1i(sTexId, 0);
 
@@ -340,7 +342,7 @@ void BspRenderer::preRenderFaces() {
 						if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
 							allMatch = false;
 							break;
-						};
+						}
 					}
 					if (allMatch) {
 						groupIdx = k;
@@ -423,11 +425,57 @@ void BspRenderer::preRenderEnts() {
 
 		renderEnts[i].modelIdx = ent->getBspModelIdx();
 		renderEnts[i].modelMat.loadIdentity();
+		renderEnts[i].offset = vec3(0, 0, 0);
 
 		if (ent->hasKey("origin")) {
 			vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
 			renderEnts[i].modelMat.translate(origin.x, origin.z, -origin.y);
+			renderEnts[i].offset = origin;
 		}
+	}
+}
+
+void BspRenderer::calcFaceMaths() {
+	faceMaths = new FaceMath[map->faceCount];
+
+	vec3 world_x = vec3(1, 0, 0);
+	vec3 world_y = vec3(0, 1, 0);
+	vec3 world_z = vec3(0, 0, 1);
+
+	for (int i = 0; i < map->faceCount; i++) {
+		FaceMath& faceMath = faceMaths[i];
+		BSPFACE& face = map->faces[i];
+		BSPPLANE& plane = map->planes[face.iPlane];
+		vec3 planeNormal = face.nPlaneSide ? plane.vNormal * -1 : plane.vNormal;
+		float fDist = face.nPlaneSide ? -plane.fDist : plane.fDist;
+
+		faceMath.normal = planeNormal;
+		faceMath.fdist = fDist;
+
+		faceMath.verts = new vec3[face.nEdges];
+		faceMath.vertCount = face.nEdges;
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
+			faceMath.verts[e] = map->verts[vertIdx];
+		}
+
+		vec3 plane_x = (faceMath.verts[1] - faceMath.verts[0]).normalize(1.0f);
+		vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
+		vec3 plane_z = planeNormal;
+
+		faceMath.worldToLocal.loadIdentity();
+		faceMath.worldToLocal.m[0 * 4 + 0] = dotProduct(plane_x, world_x);
+		faceMath.worldToLocal.m[1 * 4 + 0] = dotProduct(plane_x, world_y);
+		faceMath.worldToLocal.m[2 * 4 + 0] = dotProduct(plane_x, world_z);
+		faceMath.worldToLocal.m[0 * 4 + 1] = dotProduct(plane_y, world_x);
+		faceMath.worldToLocal.m[1 * 4 + 1] = dotProduct(plane_y, world_y);
+		faceMath.worldToLocal.m[2 * 4 + 1] = dotProduct(plane_y, world_z);
+		faceMath.worldToLocal.m[0 * 4 + 2] = dotProduct(plane_z, world_x);
+		faceMath.worldToLocal.m[1 * 4 + 2] = dotProduct(plane_z, world_y);
+		faceMath.worldToLocal.m[2 * 4 + 2] = dotProduct(plane_z, world_z);
 	}
 }
 
@@ -443,34 +491,27 @@ BspRenderer::~BspRenderer() {
 void BspRenderer::render() {
 	BSPMODEL& world = map->models[0];	
 
-	bool fastMode = true;
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	if (fastMode) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	for (int pass = 0; pass < 2; pass++) {
+		bool drawTransparentFaces = pass == 1;
 
-		for (int pass = 0; pass < 2; pass++) {
-			bool drawTransparentFaces = pass == 1;
+		drawModel(0, drawTransparentFaces);
 
-			drawModel(0, drawTransparentFaces);
+		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+			if (renderEnts[i].modelIdx >= 0) {
+				pipeline->pushMatrix(MAT_MODEL);
+				*pipeline->modelMat = renderEnts[i].modelMat;
+				pipeline->updateMatrixes();
 
-			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-				if (renderEnts[i].modelIdx >= 0) {
-					RenderGroup& rgroup = renderModels[renderEnts[i].modelIdx].renderGroups[i];
+				drawModel(renderEnts[i].modelIdx, drawTransparentFaces);
 
-					pipeline->pushMatrix(MAT_MODEL);
-					pipeline->modelMat = &renderEnts[i].modelMat;
-					pipeline->updateMatrixes();
-
-					drawModel(renderEnts[i].modelIdx, drawTransparentFaces);
-
-					pipeline->popMatrix(MAT_MODEL);
-				}
+				pipeline->popMatrix(MAT_MODEL);
 			}
 		}
-	}	
+	}
 }
-
 
 void BspRenderer::drawModel(int modelIdx, bool transparent) {
 	for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
@@ -495,5 +536,88 @@ void BspRenderer::drawModel(int modelIdx, bool transparent) {
 		whiteTex->bind();
 
 		rgroup.wireframeBuffer->draw(GL_LINES);
+	}
+}
+
+float BspRenderer::pickPoly(vec3 start, vec3 dir) {
+
+	float bestDist = 9e99;
+
+	pickPoly(start, dir, vec3(0, 0, 0), 0, bestDist);
+
+	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+		if (renderEnts[i].modelIdx >= 0) {
+			pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, bestDist);
+		}
+	}
+
+	return bestDist;
+}
+
+void BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist) {
+	BSPMODEL& model = map->models[modelIdx];
+
+	for (int k = 0; k < model.nFaces; k++) {
+		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
+		BSPFACE& face = map->faces[model.iFirstFace + k];
+		BSPPLANE& plane = map->planes[face.iPlane];
+		vec3 planeNormal = faceMath.normal;
+		float fDist = faceMath.fdist;
+		
+		if (offset.x != 0 || offset.y != 0 || offset.z != 0) {
+			vec3 newPlaneOri = offset + (planeNormal * fDist);
+			fDist = dotProduct(planeNormal, newPlaneOri) / dotProduct(planeNormal, planeNormal);
+		}
+
+		float dot = dotProduct(dir, planeNormal);
+
+		// don't select backfaces or parallel faces
+		if (dot >= 0) {
+			continue;
+		}
+
+		float t = dotProduct((planeNormal * fDist) - start, planeNormal) / dot;
+
+		if (t < 0) {
+			continue; // intersection behind camera
+		}
+
+		vec3 intersection = start + dir * t; // point where ray intersects the plane
+
+		// transform to plane's coordinate system
+		vec2 localRayPoint = (faceMath.worldToLocal * vec4(intersection, 1)).xy();
+
+		static vec2 localVerts[128];
+		for (int e = 0; e < faceMath.vertCount; e++) {
+			localVerts[e] = (faceMath.worldToLocal * vec4(faceMath.verts[e] + offset, 1)).xy();
+		}
+
+		// check if point is inside the polygon using the plane's 2D coordinate system
+		// https://stackoverflow.com/a/34689268
+		bool inside = true;
+		for (int i = 0; i < faceMath.vertCount; i++)
+		{
+			vec2& v1 = localVerts[i];
+			vec2& v2 = localVerts[(i + 1) % faceMath.vertCount];
+
+			if (v1.x == localRayPoint.x && v1.y == localRayPoint.y) {
+				break; // on edge = inside
+			}
+			
+			float d = (localRayPoint.x - v1.x) * (v2.y - v1.y) - (localRayPoint.y - v1.y) * (v2.x - v1.x);
+
+			if (d < 0) {
+				// point is outside of this edge
+				inside = false;
+				break;
+			}
+		}
+		if (!inside) {
+			continue;
+		}
+
+		if (t < bestDist) {
+			bestDist = t;
+		}
 	}
 }

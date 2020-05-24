@@ -22,7 +22,8 @@ struct LightmapInfo {
 };
 
 struct RenderEnt {
-	mat4x4 modelMat;
+	mat4x4 modelMat; // model matrix for rendering
+	vec3 offset; // vertex transformations for picking
 	int modelIdx;
 };
 
@@ -43,6 +44,14 @@ struct RenderModel {
 	int groupCount;
 };
 
+struct FaceMath {
+	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
+	vec3 normal;
+	float fdist;
+	vec3* verts; // skips the edge lookups
+	int vertCount;
+};
+
 class BspRenderer {
 public:
 	BspRenderer(Bsp* map, ShaderProgram* pipeline);
@@ -58,7 +67,12 @@ public:
 
 	void preRenderEnts();
 
+	void calcFaceMaths();
+
 	void drawModel(int modelIdx, bool transparent);
+
+	float pickPoly(vec3 start, vec3 dir);
+	void pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist);
 
 private:
 	Bsp* map;
@@ -68,6 +82,7 @@ private:
 	RenderEnt* renderEnts;
 	ShaderProgram* pipeline;
 	Texture* whiteTex;
+	FaceMath* faceMaths;
 
 	RenderModel* renderModels;
 };

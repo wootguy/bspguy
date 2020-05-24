@@ -15,6 +15,8 @@
 
 #define PI 3.141592f
 
+#define EPSILON	(0.03125f) // 1/32 (to keep floating point happy -Carmack)
+
 #define __WINDOWS__
 
 extern bool g_verbose;
