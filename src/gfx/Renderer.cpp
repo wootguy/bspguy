@@ -48,12 +48,16 @@ Renderer::Renderer() {
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 
-	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL 
+	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS;
 	showDebugWidget = true;
 	showKeyvalueWidget = true;
 	pickInfo.valid = false;
 
+	fgd = new Fgd(g_game_path + "/svencoop/sven-coop.fgd");
+	fgd->parse();
+
+	pointEntRenderer = new PointEntRenderer(fgd, colorShader);
 }
 
 Renderer::~Renderer() {
@@ -127,6 +131,7 @@ void Renderer::renderLoop() {
 			mapRenderers[i]->render(highlightEnt);
 		}
 
+		/*
 		model.loadIdentity();
 		colorShader->bind();
 
@@ -137,6 +142,7 @@ void Renderer::renderLoop() {
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
 		//printf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
+		*/
 
 		drawGui();
 
@@ -454,7 +460,7 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
-	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, colorShader);
+	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);
 }

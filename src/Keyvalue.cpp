@@ -62,17 +62,5 @@ Keyvalue::~Keyvalue(void)
 
 vec3 Keyvalue::getVector()
 {
-	vec3 v;
-	vector<string> parts = splitString(value, " ");
-
-	if (parts.size() != 3) {
-		cout << "Not enough coordinates in vector '" << value << "'\n";
-		return v;
-	}
-
-	v.x = atof(parts[0].c_str());
-	v.y = atof(parts[1].c_str());
-	v.z = atof(parts[2].c_str());
-
-	return v;
+	return parseVector(value);
 }

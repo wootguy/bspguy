@@ -5,10 +5,11 @@
 #include "lodepng.h"
 #include <algorithm>
 
-BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader) {
+BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
 	this->bspShader = bspShader;
 	this->colorShader = colorShader;
+	this->pointEntRenderer = pointEntRenderer;
 
 	loadTextures();
 	loadLightmaps();
@@ -38,7 +39,7 @@ void BspRenderer::loadTextures() {
 	blackTex = new Texture(1, 1);
 	
 	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
-	*((COLOR3*)(redTex->data)) = { 128, 0, 0 };
+	*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
 	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
 	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
 	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
@@ -441,6 +442,7 @@ void BspRenderer::preRenderEnts() {
 		renderEnts[i].modelIdx = ent->getBspModelIdx();
 		renderEnts[i].modelMat.loadIdentity();
 		renderEnts[i].offset = vec3(0, 0, 0);
+		renderEnts[i].pointEntCube = pointEntRenderer->getEntCube(ent);
 
 		if (ent->hasKey("origin")) {
 			vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
@@ -541,9 +543,7 @@ void BspRenderer::render(int highlightEnt) {
 		}
 
 		if ((g_render_flags & RENDER_POINT_ENTS) && pass == 0) {
-			glCullFace(GL_BACK);
 			drawPointEntities(highlightEnt);
-			glCullFace(GL_FRONT);
 		}
 	}
 }
@@ -630,86 +630,27 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 }
 
 void BspRenderer::drawPointEntities(int highlightEnt) {
-	COLOR3 baseColor = { 220, 0, 220 };
-	COLOR3 selectColor = { 220, 0, 0 };
-	cCube cube(vec3(-8, -8, -8), vec3(8, 8, 8), baseColor);
 
-	cCube selectCube(vec3(-8, -8, -8), vec3(8, 8, 8), {220, 0, 0});
+	colorShader->bind();
 
-	// colors not where expected due to HL coordinate system
-	cube.setColor(baseColor * 0.05f);
-	cube.front.setColor(baseColor);
-	cube.bottom.setColor(baseColor);
-	cube.left.setColor(baseColor * 0.66f);
-	cube.right.setColor(baseColor * 0.93f);
-	cube.top.setColor(baseColor * 0.40f);
-	cube.back.setColor(baseColor * 0.53f);
-
-	selectCube.setColor(selectColor * 0.05f);
-	selectCube.front.setColor(selectColor);
-	selectCube.bottom.setColor(selectColor);
-	selectCube.left.setColor(selectColor * 0.66f);
-	selectCube.right.setColor(selectColor * 0.93f);
-	selectCube.top.setColor(selectColor * 0.40f);
-	selectCube.back.setColor(selectColor * 0.53f);
-
-	vec3 min = vec3(-8, -8, -8);
-	vec3 max = vec3(8, 8, 8);
-	COLOR3 yellow = {255, 255, 0};
-	vec3 vcube[8] = {
-		vec3(min.x, min.y, min.z), // front-left-bottom
-		vec3(max.x, min.y, min.z), // front-right-bottom
-		vec3(max.x, max.y, min.z), // back-right-bottom
-		vec3(min.x, max.y, min.z), // back-left-bottom
-
-		vec3(min.x, min.y, max.z), // front-left-top
-		vec3(max.x, min.y, max.z), // front-right-top
-		vec3(max.x, max.y, max.z), // back-right-top
-		vec3(min.x, max.y, max.z), // back-left-top
-	};
-
-	// edges
-	cVert selectWireframe[12*2] = {
-		cVert(vcube[0], yellow), cVert(vcube[1], yellow), // front-bottom
-		cVert(vcube[1], yellow), cVert(vcube[2], yellow), // right-bottom
-		cVert(vcube[2], yellow), cVert(vcube[3], yellow), // back-bottom
-		cVert(vcube[3], yellow), cVert(vcube[0], yellow), // left-bottom
-
-		cVert(vcube[4], yellow), cVert(vcube[5], yellow), // front-top
-		cVert(vcube[5], yellow), cVert(vcube[6], yellow), // right-top
-		cVert(vcube[6], yellow), cVert(vcube[7], yellow), // back-top
-		cVert(vcube[7], yellow), cVert(vcube[4], yellow), // left-top
-
-		cVert(vcube[0], yellow), cVert(vcube[4], yellow), // front-left-pillar
-		cVert(vcube[1], yellow), cVert(vcube[5], yellow), // front-right-pillar
-		cVert(vcube[2], yellow), cVert(vcube[6], yellow), // back-right-pillar
-		cVert(vcube[3], yellow), cVert(vcube[7], yellow) // back-left-pillar
-	};
-
-
-
-	VertexBuffer buffer(colorShader, COLOR_3B | POS_3F, &cube, 6*6);
-	VertexBuffer selectBuffer(colorShader, COLOR_3B | POS_3F, &selectCube, 6*6);
-	VertexBuffer selectWireframeBuffer(colorShader, COLOR_3B | POS_3F, &selectWireframe, 2*12);
-
-	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+	// skip worldspawn
+	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
 		if (map->ents[i]->isBspModel())
 			continue;
 
-		bspShader->pushMatrix(MAT_MODEL);
-		*bspShader->modelMat = renderEnts[i].modelMat;
-		bspShader->updateMatrixes();
+		colorShader->pushMatrix(MAT_MODEL);
+		*colorShader->modelMat = renderEnts[i].modelMat;
+		colorShader->updateMatrixes();
 
 		if (highlightEnt == i) {
-			selectBuffer.draw(GL_TRIANGLES);
-			selectWireframeBuffer.draw(GL_LINES);
+			renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
+			renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
 		}
 		else {
-			buffer.draw(GL_TRIANGLES);
+			renderEnts[i].pointEntCube->buffer->draw(GL_TRIANGLES);
 		}
 		
-
-		bspShader->popMatrix(MAT_MODEL);
+		colorShader->popMatrix(MAT_MODEL);
 	}
 }
 
@@ -746,8 +687,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 			}
 		}
 		else {
-			vec3 mins = renderEnts[i].offset - vec3(8, 8, 8);
-			vec3 maxs = renderEnts[i].offset + vec3(8, 8, 8);
+			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
+			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
 			if (pickAABB(start, dir, mins, maxs, pickInfo)) {
 				pickInfo.entIdx = i;
 				pickInfo.modelIdx = -1;

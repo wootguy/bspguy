@@ -6,6 +6,7 @@
 #include "LightmapNode.h"
 #include "VertexBuffer.h"
 #include "primitives.h"
+#include "PointEntRenderer.h"
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
@@ -35,6 +36,7 @@ struct RenderEnt {
 	mat4x4 modelMat; // model matrix for rendering
 	vec3 offset; // vertex transformations for picking
 	int modelIdx;
+	EntCube* pointEntCube;
 };
 
 struct RenderGroup {
@@ -75,7 +77,7 @@ class BspRenderer {
 public:
 	Bsp* map;
 
-	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader);
+	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
 	void render(int highlightEnt);
@@ -90,6 +92,7 @@ public:
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
+	PointEntRenderer* pointEntRenderer;
 
 	LightmapInfo* lightmaps;
 	RenderEnt* renderEnts;

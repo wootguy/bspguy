@@ -131,6 +131,22 @@ float clamp(float val, float min, float max) {
 	return val;
 }
 
+vec3 parseVector(string s) {
+	vec3 v;
+	vector<string> parts = splitString(s, " ");
+
+	if (parts.size() != 3) {
+		cout << "Not enough coordinates in vector '" << s << "'\n";
+		return v;
+	}
+
+	v.x = atof(parts[0].c_str());
+	v.y = atof(parts[1].c_str());
+	v.z = atof(parts[2].c_str());
+
+	return v;
+}
+
 COLOR3 operator*(COLOR3 c, float scale)
 {
 	c.r *= scale;

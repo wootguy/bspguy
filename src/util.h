@@ -48,3 +48,5 @@ string trimSpaces(string s);
 int getBspTextureSize(BSPMIPTEX* bspTexture);
 
 float clamp(float val, float min, float max);
+
+vec3 parseVector(string s);

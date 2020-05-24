@@ -20,6 +20,7 @@ set(SOURCE_FILES
     src/util.h			src/util.cpp
 	src/vectors.h		src/vectors.cpp
 	src/mat4x4.h		src/mat4x4.cpp
+	src/fgd.h			src/fgd.cpp
 	src/bsplimits.h
 	src/types.h
 	
@@ -30,9 +31,10 @@ set(SOURCE_FILES
 	src/gfx/ShaderProgram.h		src/gfx/ShaderProgram.cpp
 	src/gfx/VertexBuffer.h		src/gfx/VertexBuffer.cpp
 	src/gfx/Texture.h			src/gfx/Texture.cpp
-	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
 	src/gfx/LightmapNode.h		src/gfx/LightmapNode.cpp
 	src/gfx/Renderer.h			src/gfx/Renderer.cpp
+	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
+	src/gfx/PointEntRenderer.h	src/gfx/PointEntRenderer.cpp	
 	
 	# compiler code
 	src/qtools/rad.h			src/qtools/rad.cpp

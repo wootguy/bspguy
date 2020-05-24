@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include "ShaderProgram.h"
 #include "BspRenderer.h"
+#include "Fgd.h"
 
 class Renderer {
 public:
@@ -25,6 +26,9 @@ private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
+	PointEntRenderer* pointEntRenderer;
+
+	Fgd* fgd;
 
 	vec3 cameraOrigin;
 	vec3 cameraAngles;
