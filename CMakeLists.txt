@@ -9,7 +9,6 @@ project(bspguy)
 
 set(SOURCE_FILES 
     src/main.cpp
-	src/Renderer.h		src/Renderer.cpp
 	src/CommandLine.h	src/CommandLine.cpp
 	src/BspMerger.h		src/BspMerger.cpp
 	src/Bsp.h			src/Bsp.cpp
@@ -19,15 +18,12 @@ set(SOURCE_FILES
 	src/Wad.h			src/Wad.cpp
     src/remap.h			src/remap.cpp
     src/util.h			src/util.cpp
-	src/types.h
 	src/vectors.h		src/vectors.cpp
-	src/lodepng.h		src/lodepng.cpp
-	src/rad.h			src/rad.cpp
-	src/vis.h			src/vis.cpp
-	src/winding.h		src/winding.cpp
-	src/bsplimits.h
 	src/mat4x4.h		src/mat4x4.cpp
+	src/bsplimits.h
+	src/types.h
 	
+	# Rendering code
 	src/gfx/shaders.h
 	src/gfx/primitives.h		src/gfx/primitives.cpp
 	src/gfx/Shader.h			src/gfx/Shader.cpp
@@ -36,18 +32,29 @@ set(SOURCE_FILES
 	src/gfx/Texture.h			src/gfx/Texture.cpp
 	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
 	src/gfx/LightmapNode.h		src/gfx/LightmapNode.cpp
+	src/gfx/Renderer.h			src/gfx/Renderer.cpp
 	
+	# compiler code
+	src/qtools/rad.h			src/qtools/rad.cpp
+	src/qtools/vis.h			src/qtools/vis.cpp
+	src/qtools/winding.h		src/qtools/winding.cpp
+	
+	# library files
 	imgui/imgui.cpp
 	imgui/imgui_widgets.cpp
 	imgui/imgui_draw.cpp
 	imgui/imgui_demo.cpp
 	imgui/examples/imgui_impl_glfw.cpp
 	imgui/examples/imgui_impl_opengl3.cpp
+	src/lodepng.h
+	src/lodepng.cpp
 )
 
 add_subdirectory(glfw)
 
 include_directories(src)
+include_directories(src/gfx)
+include_directories(src/qtools)
 include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(glew/include)
@@ -68,12 +75,42 @@ if(MSVC)
 	
 	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
 	
-	source_group("Header Files\\gfx" FILES src/gfx/Shader.h src/gfx/ShaderProgram.h src/gfx/VertexBuffer.h 
-										   src/gfx/Texture.h src/gfx/primitives.h src/gfx/shaders.h
-										   src/gfx/BspRenderer.h src/gfx/LightmapNode.h)
-	source_group("Source Files\\gfx" FILES src/gfx/Shader.cpp src/gfx/ShaderProgram.cpp src/gfx/VertexBuffer.cpp 
-										   src/gfx/Texture.cpp src/gfx/primitives.cpp src/gfx/BspRenderer.cpp
-										   src/gfx/LightmapNode.cpp) 
+	source_group("Header Files\\gfx" FILES	src/gfx/Shader.h
+											src/gfx/ShaderProgram.h
+											src/gfx/VertexBuffer.h 
+											src/gfx/Texture.h
+											src/gfx/primitives.h
+											src/gfx/shaders.h
+											src/gfx/BspRenderer.h
+											src/gfx/LightmapNode.h
+											src/gfx/Renderer.h)
+											
+	source_group("Source Files\\gfx" FILES	src/gfx/Shader.cpp
+											src/gfx/ShaderProgram.cpp
+											src/gfx/VertexBuffer.cpp 
+											src/gfx/Texture.cpp 
+											src/gfx/primitives.cpp 
+											src/gfx/BspRenderer.cpp
+											src/gfx/LightmapNode.cpp 
+											src/gfx/Renderer.cpp) 
+											
+	source_group("Header Files\\lib" FILES	src/lodepng.h)
+	
+	source_group("Source Files\\lib" FILES	imgui/imgui.cpp
+											imgui/imgui_widgets.cpp
+											imgui/imgui_draw.cpp
+											imgui/imgui_demo.cpp
+											imgui/examples/imgui_impl_glfw.cpp
+											imgui/examples/imgui_impl_opengl3.cpp
+											src/lodepng.cpp) 
+											
+	source_group("Header Files\\qtools" FILES	src/qtools/rad.h
+												src/qtools/vis.h
+												src/qtools/winding.h)
+												
+	source_group("Source Files\\qtools" FILES	src/qtools/rad.cpp
+												src/qtools/vis.cpp
+												src/qtools/winding.cpp)
   
 else()
     set(CMAKE_CXX_FLAGS "-Wall -std=c++11")

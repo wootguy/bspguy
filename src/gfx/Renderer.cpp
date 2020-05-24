@@ -1,8 +1,8 @@
 #include "Renderer.h"
-#include "gfx/ShaderProgram.h"
-#include "gfx/primitives.h"
-#include "gfx/VertexBuffer.h"
-#include "gfx/shaders.h"
+#include "ShaderProgram.h"
+#include "primitives.h"
+#include "VertexBuffer.h"
+#include "shaders.h"
 
 void error_callback(int error, const char* description)
 {

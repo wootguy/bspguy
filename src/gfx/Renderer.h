@@ -5,8 +5,8 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include <GLFW/glfw3.h>
-#include "gfx/ShaderProgram.h"
-#include "gfx/BspRenderer.h"
+#include "ShaderProgram.h"
+#include "BspRenderer.h"
 
 class Renderer {
 public:

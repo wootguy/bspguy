@@ -111,7 +111,8 @@ int test() {
 
 	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp("yabma.bsp"));
+	//renderer.addMap(new Bsp("merge0.bsp"));
+	renderer.addMap(new Bsp("osprey.bsp"));
 	renderer.renderLoop();
 	return 0;
 
