@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_internal.h"
 #include <GLFW/glfw3.h>
 #include "gfx/ShaderProgram.h"
 #include "gfx/BspRenderer.h"
@@ -37,7 +38,12 @@ private:
 	vec3 pickStart, pickDir, pickEnd;
 
 	bool vsync;
-	int renderFlags;
+	bool showDebugWidget;
+	bool showKeyvalueWidget;
+
+	int oldLeftMouse;
+
+	PickInfo pickInfo;
 
 	vec3 getMoveDir();
 	void cameraControls();

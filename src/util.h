@@ -23,6 +23,8 @@ extern bool g_verbose;
 extern ProgressMeter g_progress;
 extern string g_game_path;
 
+extern int g_render_flags;
+
 class BSPMIPTEX;
 
 bool fileExists(const string& fileName);

@@ -30,9 +30,20 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* pipeline) {
 }
 
 void BspRenderer::loadTextures() {
-	whiteTex = new Texture(16, 16);
-	memset(whiteTex->data, 255, 16 * 16 * sizeof(COLOR3));
+	whiteTex = new Texture(1, 1);
+	greyTex = new Texture(1, 1);
+	redTex = new Texture(1, 1);
+	yellowTex = new Texture(1, 1);
+	
+	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
+	*((COLOR3*)(redTex->data)) = { 128, 0, 0 };
+	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
+	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
+
 	whiteTex->upload();
+	redTex->upload();
+	yellowTex->upload();
+	greyTex->upload();
 
 	vector<Wad*> wads;
 	vector<string> wadNames;
@@ -321,7 +332,7 @@ void BspRenderer::preRenderFaces() {
 				wireframeVerts[idx++] = verts[(k+1) % face.nEdges];
 			}
 			for (int k = 0; k < wireframeVertCount; k++) {
-				wireframeVerts[k].luv[0][2] = 0.25f;
+				wireframeVerts[k].luv[0][2] = 1.0f;
 				wireframeVerts[k].luv[1][2] = 0.0f;
 				wireframeVerts[k].luv[2][2] = 0.0f;
 				wireframeVerts[k].luv[3][2] = 0.0f;
@@ -488,16 +499,28 @@ BspRenderer::~BspRenderer() {
 	// TODO: more stuff to delete
 }
 
-void BspRenderer::render(int renderFlags) {
+void BspRenderer::render(int highlightEnt) {
 	BSPMODEL& world = map->models[0];	
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
+	if (highlightEnt > 0) {
+		pipeline->pushMatrix(MAT_MODEL);
+		*pipeline->modelMat = renderEnts[highlightEnt].modelMat;
+		pipeline->updateMatrixes();
+
+		drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
+		drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
+
+		pipeline->popMatrix(MAT_MODEL);
+	}
+
 	for (int pass = 0; pass < 2; pass++) {
 		bool drawTransparentFaces = pass == 1;
 
-		drawModel(0, drawTransparentFaces, renderFlags);
+		drawModel(0, drawTransparentFaces, false, false);
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0) {
@@ -505,7 +528,7 @@ void BspRenderer::render(int renderFlags) {
 				*pipeline->modelMat = renderEnts[i].modelMat;
 				pipeline->updateMatrixes();
 
-				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, renderFlags);
+				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, i == highlightEnt, false);
 
 				pipeline->popMatrix(MAT_MODEL);
 			}
@@ -513,7 +536,25 @@ void BspRenderer::render(int renderFlags) {
 	}
 }
 
-void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
+void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
+
+	if (edgesOnly) {
+		for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
+			RenderGroup& rgroup = renderModels[modelIdx].renderGroups[i];
+
+			glActiveTexture(GL_TEXTURE0);
+			if (highlight)
+				yellowTex->bind();
+			else
+				greyTex->bind();
+			glActiveTexture(GL_TEXTURE1);
+			whiteTex->bind();
+
+			rgroup.wireframeBuffer->draw(GL_LINES);
+		}
+		return;
+	}
+
 	for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
 		RenderGroup& rgroup = renderModels[modelIdx].renderGroups[i];
 
@@ -521,19 +562,19 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
 			continue;
 
 		if (rgroup.transparent) {
-			if (modelIdx == 0 && !(renderFlags & RENDER_SPECIAL)) {
+			if (modelIdx == 0 && !(g_render_flags & RENDER_SPECIAL)) {
 				continue;
 			}
-			else if (modelIdx != 0 && !(renderFlags & RENDER_SPECIAL_ENTS)) {
+			else if (modelIdx != 0 && !(g_render_flags & RENDER_SPECIAL_ENTS)) {
 				continue;
 			}
 		}
-		else if (modelIdx != 0 && !(renderFlags & RENDER_ENTS)) {
+		else if (modelIdx != 0 && !(g_render_flags & RENDER_ENTS)) {
 			continue;
 		}
 		
 		glActiveTexture(GL_TEXTURE0);
-		if (renderFlags & RENDER_TEXTURES) {
+		if (g_render_flags & RENDER_TEXTURES) {
 			rgroup.texture->bind();
 		}
 		else {
@@ -544,7 +585,10 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			glActiveTexture(GL_TEXTURE1 + s);
 
-			if (renderFlags & RENDER_LIGHTMAPS) {
+			if (highlight) {
+				redTex->bind();
+			}
+			else if (g_render_flags & RENDER_LIGHTMAPS) {
 				rgroup.lightmapAtlas[s]->bind();
 			}
 			else {
@@ -554,9 +598,12 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
 
 		rgroup.buffer->draw(GL_TRIANGLES);
 
-		if (renderFlags & RENDER_WIREFRAME) {
+		if (highlight || (g_render_flags & RENDER_WIREFRAME)) {
 			glActiveTexture(GL_TEXTURE0);
-			whiteTex->bind();
+			if (highlight)
+				yellowTex->bind();
+			else
+				greyTex->bind();
 			glActiveTexture(GL_TEXTURE1);
 			whiteTex->bind();
 
@@ -565,23 +612,50 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, int renderFlags) {
 	}
 }
 
-float BspRenderer::pickPoly(vec3 start, vec3 dir) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, float& bestDist, PickInfo& pickInfo) {
+	bool foundBetterPick = false;
 
-	float bestDist = 9e99;
-
-	pickPoly(start, dir, vec3(0, 0, 0), 0, bestDist);
+	if (pickPoly(start, dir, vec3(0, 0, 0), 0, bestDist, pickInfo)) {
+		pickInfo.entIdx = 0;
+		pickInfo.modelIdx = 0;
+		pickInfo.valid = true;
+		foundBetterPick = true;
+	}
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 		if (renderEnts[i].modelIdx >= 0) {
-			pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, bestDist);
+
+			bool isSpecial = false;
+			for (int k = 0; k < renderModels[renderEnts[i].modelIdx].groupCount; k++) {
+				if (renderModels[renderEnts[i].modelIdx].renderGroups[k].transparent) {
+					isSpecial = true;
+					break;
+				}
+			}
+
+			if (isSpecial && !(g_render_flags & RENDER_SPECIAL_ENTS)) {
+				continue;
+			} else if (!isSpecial && !(g_render_flags & RENDER_ENTS)) {
+				continue;
+			}
+
+			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, bestDist, pickInfo)) {
+				pickInfo.entIdx = i;
+				pickInfo.modelIdx = renderEnts[i].modelIdx;
+				pickInfo.valid = true;
+				foundBetterPick = true;
+			}
 		}
 	}
 
-	return bestDist;
+	return foundBetterPick;
 }
 
-void BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist, PickInfo& pickInfo) {
 	BSPMODEL& model = map->models[modelIdx];
+
+	bool foundBetterPick = false;
+	bool skipSpecial = !(g_render_flags & RENDER_SPECIAL);
 
 	for (int k = 0; k < model.nFaces; k++) {
 		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
@@ -589,6 +663,13 @@ void BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, floa
 		BSPPLANE& plane = map->planes[face.iPlane];
 		vec3 planeNormal = faceMath.normal;
 		float fDist = faceMath.fdist;
+		
+		if (skipSpecial && modelIdx == 0) {
+			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+			if (info.nFlags & TEX_SPECIAL) {
+				continue;
+			}
+		}
 		
 		if (offset.x != 0 || offset.y != 0 || offset.z != 0) {
 			vec3 newPlaneOri = offset + (planeNormal * fDist);
@@ -644,6 +725,10 @@ void BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, floa
 
 		if (t < bestDist) {
 			bestDist = t;
+			foundBetterPick = true;
+			pickInfo.faceIdx = model.iFirstFace + k;
 		}
 	}
+
+	return foundBetterPick;
 }

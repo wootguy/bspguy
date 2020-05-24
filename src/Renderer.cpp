@@ -48,7 +48,11 @@ Renderer::Renderer() {
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 
-	renderFlags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL | RENDER_ENTS | RENDER_SPECIAL_ENTS;
+	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME | RENDER_SPECIAL | RENDER_ENTS | RENDER_SPECIAL_ENTS;
+	showDebugWidget = true;
+	showKeyvalueWidget = true;
+	pickInfo.valid = false;
+
 }
 
 Renderer::~Renderer() {
@@ -114,14 +118,16 @@ void Renderer::renderLoop() {
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			model.loadIdentity();
 			bspShader->updateMatrixes();
-			mapRenderers[i]->render(renderFlags);
-		}		
+
+			int highlightEnt = -1;
+			if (pickInfo.valid && pickInfo.mapIdx == i) {
+				highlightEnt = pickInfo.entIdx;
+			}
+			mapRenderers[i]->render(highlightEnt);
+		}
 
 		model.loadIdentity();
 		colorShader->bind();
-
-		drawLine(pickStart, pickStart + pickDir * 64.0f, { 0, 0, 255 });
-		drawLine(pickStart, pickEnd, { 0, 255, 255 });
 
 		drawLine(pickEnd + vec3(-32, 0, 0), pickEnd + vec3(32,0,0), { 255, 0, 0 });
 		drawLine(pickEnd + vec3(0, -32, 0), pickEnd + vec3(0,32,0), { 255, 255, 0 });
@@ -145,31 +151,42 @@ void Renderer::drawGui() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
 	{
 		ImGui::BeginMainMenuBar();
 
+		if (ImGui::BeginMenu("Widgets"))
+		{
+			if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
+				showDebugWidget = !showDebugWidget;
+			}
+			if (ImGui::MenuItem("Keyvalue Editor", NULL, showKeyvalueWidget)) {
+				showKeyvalueWidget = !showKeyvalueWidget;
+			}
+			ImGui::EndMenu();
+		}
+
 		if (ImGui::BeginMenu("Render"))
 		{
-			if (ImGui::MenuItem("Textures", NULL, renderFlags & RENDER_TEXTURES)) {
-				renderFlags ^= RENDER_TEXTURES;
+			if (ImGui::MenuItem("Textures", NULL, g_render_flags & RENDER_TEXTURES)) {
+				g_render_flags ^= RENDER_TEXTURES;
 			}
-			if (ImGui::MenuItem("Lightmaps", NULL, renderFlags & RENDER_LIGHTMAPS)) {
-				renderFlags ^= RENDER_LIGHTMAPS;
+			if (ImGui::MenuItem("Lightmaps", NULL, g_render_flags & RENDER_LIGHTMAPS)) {
+				g_render_flags ^= RENDER_LIGHTMAPS;
 			}
-			if (ImGui::MenuItem("Wireframe", NULL, renderFlags & RENDER_WIREFRAME)) {
-				renderFlags ^= RENDER_WIREFRAME;
+			if (ImGui::MenuItem("Wireframe", NULL, g_render_flags & RENDER_WIREFRAME)) {
+				g_render_flags ^= RENDER_WIREFRAME;
 			}
 			ImGui::Separator();
-			if (ImGui::MenuItem("Entities", NULL, renderFlags & RENDER_ENTS)) {
-				renderFlags ^= RENDER_ENTS;
+			if (ImGui::MenuItem("Entities", NULL, g_render_flags & RENDER_ENTS)) {
+				g_render_flags ^= RENDER_ENTS;
 			}
-			if (ImGui::MenuItem("Special", NULL, renderFlags & RENDER_SPECIAL)) {
-				renderFlags ^= RENDER_SPECIAL;
+			if (ImGui::MenuItem("Special", NULL, g_render_flags & RENDER_SPECIAL)) {
+				g_render_flags ^= RENDER_SPECIAL;
 			}
-			if (ImGui::MenuItem("Special Entities", NULL, renderFlags & RENDER_SPECIAL_ENTS)) {
-				renderFlags ^= RENDER_SPECIAL_ENTS;
+			if (ImGui::MenuItem("Special Entities", NULL, g_render_flags & RENDER_SPECIAL_ENTS)) {
+				g_render_flags ^= RENDER_SPECIAL_ENTS;
 			}			
 			ImGui::EndMenu();
 		}
@@ -196,6 +213,92 @@ void Renderer::drawGui() {
 		ImGui::End();
 	}
 
+	if (showDebugWidget) {
+		ImGui::SetNextWindowBgAlpha(0.75f);
+		if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
+			if (pickInfo.valid) {
+				Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+				Entity* ent = map->ents[pickInfo.entIdx];
+				BSPMODEL& model = map->models[pickInfo.modelIdx];
+				BSPFACE& face = map->faces[pickInfo.faceIdx];
+
+				if (ImGui::TreeNodeEx("Map", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::Text("Name: %s", map->name.c_str());
+					ImGui::TreePop();
+				}
+				
+				ImGui::Separator();
+
+				if (ImGui::TreeNodeEx("Entity", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::TreePop();
+				}
+
+				
+				ImGui::Separator();
+
+				ImGui::Text("Face ID: %d", pickInfo.faceIdx);
+				ImGui::Text("Plane ID: %d", face.iPlane);
+			}
+			else {
+				ImGui::Text("Click on an object for debug info");
+			}
+			
+		}
+		ImGui::End();
+	}
+
+	if (showKeyvalueWidget) {
+		ImGui::SetNextWindowBgAlpha(0.75f);
+		string title = "Keyvalue Editor";
+
+		title += "###entwindow";
+
+		ImGui::SetNextWindowContentSize(ImVec2(400, 0.0f));
+		if (ImGui::Begin(title.c_str(), &showKeyvalueWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
+			if (pickInfo.valid) {
+				Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+				Entity* ent = map->ents[pickInfo.entIdx];
+				BSPMODEL& model = map->models[pickInfo.modelIdx];
+				BSPFACE& face = map->faces[pickInfo.faceIdx];
+
+				
+				ImGui::Columns(2, "mycolumns", false); // 4-ways, with border
+				ImGui::Text("Key"); ImGui::NextColumn();
+				ImGui::Text("Value"); ImGui::NextColumn();
+				
+				static char keyNames[128][64];
+				static char keyValues[128][64];
+
+				ImGuiStyle& style = ImGui::GetStyle();
+				float paddingx = style.WindowPadding.x + style.FramePadding.x;
+				float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
+
+				//ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
+				for (int i = 0; i < ent->keyOrder.size(); i++) {
+					string key = ent->keyOrder[i];
+					string value = ent->keyvalues[key];
+					strcpy(keyNames[i], key.c_str());
+					strcpy(keyValues[i], value.c_str());
+					
+					ImGui::SetNextItemWidth(inputWidth);
+					ImGui::InputText(("##key" + to_string(i)).c_str(), keyNames[i], 64); ImGui::NextColumn();
+
+					ImGui::SetNextItemWidth(inputWidth);
+					ImGui::InputText(("##val" + to_string(i)).c_str(), keyValues[i], 64); ImGui::NextColumn();
+				}
+
+				ImGui::Columns(1);
+			}
+			else {
+				ImGui::Text("Click on an entity to edit");
+			}
+
+		}
+		ImGui::End();
+	}
+
 	// Rendering
 	ImGui::Render();
 	int display_w, display_h;
@@ -213,6 +316,7 @@ void Renderer::cameraControls() {
 	if (io.WantCaptureMouse)
 		return;
 
+
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
 	vec2 mousePos(xpos, ypos);
@@ -228,24 +332,29 @@ void Renderer::cameraControls() {
 			cameraAngles.x += drag.y * 0.5f;
 			lastMousePos = mousePos;
 		}
+
+		ImGui::SetWindowFocus(NULL);
+		ImGui::ClearActiveID();
 	}
 	else {
 		cameraIsRotating = false;
 	}
 
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && oldLeftMouse != GLFW_PRESS) {
 		getPickRay(pickStart, pickDir);
 
 		float bestDist = 9e99;
+		memset(&pickInfo, 0, sizeof(PickInfo));
 		for (int i = 0; i < mapRenderers.size(); i++) {
-			float dist = mapRenderers[i]->pickPoly(pickStart, pickDir);
-			if (dist < bestDist) {
-				bestDist = dist;
+			if (mapRenderers[i]->pickPoly(pickStart, pickDir, bestDist, pickInfo)) {
+				pickInfo.mapIdx = i;
 			}
 		}
 
 		pickEnd = pickStart + pickDir*bestDist;
 	}
+
+	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 }
 
 vec3 Renderer::getMoveDir()

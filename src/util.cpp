@@ -9,6 +9,7 @@
 
 ProgressMeter g_progress;
 string g_game_path;
+int g_render_flags;
 
 bool fileExists(const string& fileName)
 {

@@ -9,6 +9,15 @@
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
+enum RenderFlags {
+	RENDER_TEXTURES = 1,
+	RENDER_LIGHTMAPS = 2,
+	RENDER_WIREFRAME = 4,
+	RENDER_ENTS = 8,
+	RENDER_SPECIAL = 16,
+	RENDER_SPECIAL_ENTS = 32,
+};
+
 struct LightmapInfo {
 	// each face can have 4 lightmaps, and those may be split across multiple atlases
 	int atlasId[MAXLIGHTMAPS];
@@ -52,21 +61,22 @@ struct FaceMath {
 	int vertCount;
 };
 
-enum RenderFlags {
-	RENDER_TEXTURES = 1,
-	RENDER_LIGHTMAPS = 2,
-	RENDER_WIREFRAME = 4,
-	RENDER_ENTS = 8,
-	RENDER_SPECIAL = 16,
-	RENDER_SPECIAL_ENTS = 32,
+struct PickInfo {
+	int mapIdx;
+	int entIdx;
+	int modelIdx;
+	int faceIdx;
+	bool valid;
 };
 
 class BspRenderer {
 public:
+	Bsp* map;
+
 	BspRenderer(Bsp* map, ShaderProgram* pipeline);
 	~BspRenderer();
 
-	void render(int renderFlags);
+	void render(int highlightEnt);
 	void loadTextures();
 	void loadLightmaps();
 
@@ -78,19 +88,21 @@ public:
 
 	void calcFaceMaths();
 
-	void drawModel(int modelIdx, bool transparent, int renderFlags);
+	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
 
-	float pickPoly(vec3 start, vec3 dir);
-	void pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist);
+	bool pickPoly(vec3 start, vec3 dir, float& bestDist, PickInfo& pickInfo);
+	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, float& bestDist, PickInfo& pickInfo);
 
 private:
-	Bsp* map;
 	Texture** glTextures;
 	Texture** glLightmapTextures;
 	LightmapInfo* lightmaps;
 	RenderEnt* renderEnts;
 	ShaderProgram* pipeline;
 	Texture* whiteTex;
+	Texture* redTex;
+	Texture* yellowTex;
+	Texture* greyTex;
 	FaceMath* faceMaths;
 
 	RenderModel* renderModels;
