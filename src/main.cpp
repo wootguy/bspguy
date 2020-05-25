@@ -10,11 +10,16 @@
 // super todo:
 // crash merging rl00
 // WARNING hull redirect spam
+// auto-scale text based on DPI
+// setup menu for game dir and font size and mb other stuff
+// imgui .ini load from specific dir?
 
 // todo:
 // visual editor like BSP Viewer for adding custom brush ents and stuff
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
 // merge redundant submodels and duplicate structures
+// no lightmap renders black faces if no lightmap data for face
+// select overlapping entities by holding mouse down
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -29,6 +34,7 @@
 // refactoring:
 // stop mixing printf+cout
 // parse vertors in util, not Keyvalue
+// add class destructors and delete everything that's new'd
 
 // Ideas for commands:
 // copymodel:
