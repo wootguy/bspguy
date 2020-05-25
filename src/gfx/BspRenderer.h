@@ -89,6 +89,8 @@ public:
 	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
 	bool pickAABB(vec3 start, vec3 dir, vec3 mins, vec3 maxs, PickInfo& pickInfo);
 
+	void refreshEnt(int entIdx);
+
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;

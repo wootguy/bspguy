@@ -437,18 +437,21 @@ void BspRenderer::preRenderEnts() {
 	renderEnts = new RenderEnt[map->ents.size()];
 
 	for (int i = 0; i < map->ents.size(); i++) {
-		Entity* ent = map->ents[i];
+		refreshEnt(i);
+	}
+}
 
-		renderEnts[i].modelIdx = ent->getBspModelIdx();
-		renderEnts[i].modelMat.loadIdentity();
-		renderEnts[i].offset = vec3(0, 0, 0);
-		renderEnts[i].pointEntCube = pointEntRenderer->getEntCube(ent);
+void BspRenderer::refreshEnt(int entIdx) {
+	Entity* ent = map->ents[entIdx];
+	renderEnts[entIdx].modelIdx = ent->getBspModelIdx();
+	renderEnts[entIdx].modelMat.loadIdentity();
+	renderEnts[entIdx].offset = vec3(0, 0, 0);
+	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
 
-		if (ent->hasKey("origin")) {
-			vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
-			renderEnts[i].modelMat.translate(origin.x, origin.z, -origin.y);
-			renderEnts[i].offset = origin;
-		}
+	if (ent->hasKey("origin")) {
+		vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
+		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
+		renderEnts[entIdx].offset = origin;
 	}
 }
 

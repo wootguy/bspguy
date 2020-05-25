@@ -64,6 +64,22 @@ void Entity::removeKeyvalue(const std::string& key) {
 	keyvalues.erase(key);
 }
 
+bool Entity::renameKey(int idx, string newName) {
+	if (idx < 0 || idx >= keyOrder.size() || newName.empty()) {
+		return false;
+	}
+	for (int i = 0; i < keyOrder.size(); i++) {
+		if (keyOrder[i] == newName) {
+			return false;
+		}
+	}
+
+	keyvalues[newName] = keyvalues[keyOrder[idx]];
+	keyvalues.erase(keyOrder[idx]);
+	keyOrder[idx] = newName;
+	return true;
+}
+
 void Entity::clearAllKeyvalues() {
 	keyOrder.clear();
 	keyvalues.clear();

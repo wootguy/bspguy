@@ -17,6 +17,7 @@ public:
 	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
+	bool renameKey(int idx, string newName);
 	void clearAllKeyvalues();
 	void clearEmptyKeyvalues();
 

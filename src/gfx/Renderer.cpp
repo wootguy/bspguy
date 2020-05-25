@@ -298,72 +298,19 @@ void Renderer::drawKeyvalueEditor() {
 			{
 				if (ImGui::BeginTabItem("Smart Edit")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawSmartEditEditor(ent);
+					drawKeyvalueEditor_SmartEditTab(ent);
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Flags")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
-					FgdClass* fgdClass = fgd->getFgdClass(ent->keyvalues["classname"]);
-
-					ImGui::Columns(2, "keyvalcols", true);
-
-					for (int i = 0; i < 32; i++) {
-						if (i == 16) {
-							ImGui::NextColumn();
-						}
-						string name;
-						if (fgdClass != NULL) {
-							name = fgdClass->spawnFlagNames[i];
-						}
-						//ImGui::Text(to_string(1U << i).c_str()); ImGui::SameLine();
-						ImGui::Checkbox((name + "##flag" + to_string(i)).c_str(), &showDebugWidget);
-					}
-
-					ImGui::Columns(1);
-
+					drawKeyvalueEditor_FlagsTab(ent);
 					ImGui::EndTabItem();
 				}
 
-				if (ImGui::BeginTabItem("Raw Values")) {
+				if (ImGui::BeginTabItem("Raw Edit")) {
 					ImGui::Dummy(ImVec2(0, 10));
-
-					ImGui::Columns(2, "keyvalcols", false);
-					ImGui::Text("  Key"); ImGui::NextColumn();
-					ImGui::Text("Value"); ImGui::NextColumn();
-
-					ImGui::Columns(1);
-					ImGui::BeginChild("RawValuesWindow");
-
-					ImGui::Columns(2, "keyvalcols2", false);
-
-					static char keyNames[128][64];
-					static char keyValues[128][64];
-
-					ImGuiStyle& style = ImGui::GetStyle();
-					float paddingx = style.WindowPadding.x + style.FramePadding.x;
-					float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
-
-					//ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
-					for (int i = 0; i < ent->keyOrder.size(); i++) {
-						string key = ent->keyOrder[i];
-						string value = ent->keyvalues[key];
-						strcpy(keyNames[i], key.c_str());
-						strcpy(keyValues[i], value.c_str());
-
-						ImGui::SetNextItemWidth(inputWidth);
-						ImGui::InputText(("##key" + to_string(i)).c_str(), keyNames[i], 64);
-						ImGui::NextColumn();
-
-						ImGui::SetNextItemWidth(inputWidth);
-						ImGui::InputText(("##val" + to_string(i)).c_str(), keyValues[i], 64);
-						ImGui::NextColumn();
-					}
-
-					ImGui::Columns(1);
-
-					ImGui::EndChild();
+					drawKeyvalueEditor_RawEditTab(ent);
 					ImGui::EndTabItem();
 				}
 			}
@@ -378,7 +325,7 @@ void Renderer::drawKeyvalueEditor() {
 	ImGui::End();
 }
 
-void Renderer::drawSmartEditEditor(Entity* ent) {
+void Renderer::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 	string cname = ent->keyvalues["classname"];
 	FgdClass* fgdClass = fgd->getFgdClass(cname);
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -415,7 +362,7 @@ void Renderer::drawSmartEditEditor(Entity* ent) {
 		ImGui::Separator();
 
 		vector<FgdGroup>* targetGroup = &fgd->pointEntGroups;
-		if (pickInfo.modelIdx != -1) {
+		if (ent->getBspModelIdx() != -1) {
 			targetGroup = &fgd->solidEntGroups;
 		}
 
@@ -531,6 +478,127 @@ void Renderer::drawSmartEditEditor(Entity* ent) {
 	ImGui::EndChild();
 }
 
+void Renderer::drawKeyvalueEditor_FlagsTab(Entity* ent) {
+	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+	FgdClass* fgdClass = fgd->getFgdClass(ent->keyvalues["classname"]);
+
+	ImGui::Columns(2, "keyvalcols", true);
+
+	for (int i = 0; i < 32; i++) {
+		if (i == 16) {
+			ImGui::NextColumn();
+		}
+		string name;
+		if (fgdClass != NULL) {
+			name = fgdClass->spawnFlagNames[i];
+		}
+		//ImGui::Text(to_string(1U << i).c_str()); ImGui::SameLine();
+		ImGui::Checkbox((name + "##flag" + to_string(i)).c_str(), &showDebugWidget);
+	}
+
+	ImGui::Columns(1);
+}
+
+void Renderer::drawKeyvalueEditor_RawEditTab(Entity* ent) {
+	ImGui::Columns(2, "keyvalcols", false);
+	ImGui::Text("  Key"); ImGui::NextColumn();
+	ImGui::Text("Value"); ImGui::NextColumn();
+
+	ImGui::Columns(1);
+	ImGui::BeginChild("RawValuesWindow");
+
+	ImGui::Columns(2, "keyvalcols2", false);
+
+	static char keyNames[128][64];
+	static char keyValues[128][64];
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	float paddingx = style.WindowPadding.x + style.FramePadding.x;
+	float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
+
+	struct kvInputState {
+		int idx;
+		Entity* entRef;
+		int entIdx;
+		BspRenderer* bspRenderer;
+	};
+
+	struct TextChangeCallback {
+		static int keyNameChanged(ImGuiInputTextCallbackData* data) {
+			kvInputState* keyId = (kvInputState*)data->UserData;
+			Entity* ent = keyId->entRef;
+
+			string key = ent->keyOrder[keyId->idx];
+			if (key != data->Buf) {
+				ent->renameKey(keyId->idx, data->Buf);
+				keyId->bspRenderer->refreshEnt(keyId->entIdx);
+			}
+			
+			return 1;
+		}
+
+		static int keyValueChanged(ImGuiInputTextCallbackData* data) {
+			kvInputState* keyId = (kvInputState*)data->UserData;
+			Entity* ent = keyId->entRef;
+			string key = ent->keyOrder[keyId->idx];
+			if (ent->keyvalues[key] != data->Buf) {
+				ent->keyvalues[key] = data->Buf;
+				keyId->bspRenderer->refreshEnt(keyId->entIdx);
+			}
+			
+			return 1;
+		}
+	};
+
+	static kvInputState keyIds[128];
+	static kvInputState valueIds[128];
+	static int lastPickCount = 0;
+
+	for (int i = 0; i < ent->keyOrder.size() && i < 128; i++) {
+		string key = ent->keyOrder[i];
+		string value = ent->keyvalues[key];
+
+		bool invalidKey = lastPickCount == pickCount && key != keyNames[i];
+
+		strcpy(keyNames[i], key.c_str());
+		strcpy(keyValues[i], value.c_str());
+
+		keyIds[i].idx = i;
+		keyIds[i].entIdx = pickInfo.entIdx;
+		keyIds[i].entRef = ent;
+		keyIds[i].bspRenderer = mapRenderers[pickInfo.mapIdx];
+		valueIds[i].idx = i;
+		valueIds[i].entIdx = pickInfo.entIdx;
+		valueIds[i].entRef = ent;
+		valueIds[i].bspRenderer = mapRenderers[pickInfo.mapIdx];
+
+		
+		if (invalidKey) {
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+		}
+
+		ImGui::SetNextItemWidth(inputWidth);
+		ImGui::InputText(("##key" + to_string(i) + "_" + to_string(pickCount)).c_str(), keyNames[i], 64, ImGuiInputTextFlags_CallbackAlways,
+			TextChangeCallback::keyNameChanged, &keyIds[i]);
+		ImGui::NextColumn();
+
+		if (invalidKey) {
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::SetNextItemWidth(inputWidth);
+		ImGui::InputText(("##val" + to_string(i) + to_string(pickCount)).c_str(), keyValues[i], 64, ImGuiInputTextFlags_CallbackAlways,
+			TextChangeCallback::keyValueChanged, &valueIds[i]);
+		ImGui::NextColumn();
+	}
+
+	lastPickCount = pickCount;
+
+	ImGui::Columns(1);
+
+	ImGui::EndChild();
+}
+
 void Renderer::cameraControls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
@@ -567,6 +635,7 @@ void Renderer::cameraControls() {
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && oldLeftMouse != GLFW_PRESS) {
 		getPickRay(pickStart, pickDir);
 
+		pickCount++;
 		memset(&pickInfo, 0, sizeof(PickInfo));
 		pickInfo.bestDist = 9e99;
 		for (int i = 0; i < mapRenderers.size(); i++) {

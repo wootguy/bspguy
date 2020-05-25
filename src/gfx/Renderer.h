@@ -54,6 +54,7 @@ private:
 	int oldLeftMouse;
 
 	PickInfo pickInfo;
+	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 
 	vec3 getMoveDir();
 	void cameraControls();
@@ -67,5 +68,7 @@ private:
 	void drawFpsOverlay();
 	void drawDebugWidget();
 	void drawKeyvalueEditor();
-	void drawSmartEditEditor(Entity* ent);
+	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
+	void drawKeyvalueEditor_FlagsTab(Entity* ent);
+	void drawKeyvalueEditor_RawEditTab(Entity* ent);
 };
