@@ -686,7 +686,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 				foundBetterPick = true;
 			}
 		}
-		else {
+		else if (g_render_flags & RENDER_POINT_ENTS) {
 			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
 			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
 			if (pickAABB(start, dir, mins, maxs, pickInfo)) {

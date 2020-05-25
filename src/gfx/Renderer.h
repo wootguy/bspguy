@@ -41,9 +41,15 @@ private:
 	vec2 lastMousePos;
 	vec3 pickStart, pickDir, pickEnd;
 
+	int windowWidth;
+	int windowHeight;
+
 	bool vsync;
 	bool showDebugWidget;
 	bool showKeyvalueWidget;
+	bool smartEdit;
+	ImFont* smallFont;
+	ImFont* largeFont;
 
 	int oldLeftMouse;
 
@@ -55,5 +61,11 @@ private:
 	void getPickRay(vec3& start, vec3& pickDir);
 
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
+
 	void drawGui();
+	void drawMenuBar();
+	void drawFpsOverlay();
+	void drawDebugWidget();
+	void drawKeyvalueEditor();
+	void drawSmartEditEditor(Entity* ent);
 };

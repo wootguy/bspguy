@@ -1,8 +1,28 @@
 #include "Fgd.h"
+#include <set>
+
+map<string, int> fgdKeyTypes{
+	{"integer", FGD_KEY_INTEGER},
+	{"choices", FGD_KEY_CHOICES},
+	{"flags", FGD_KEY_FLAGS},
+	{"color255", FGD_KEY_RGB},
+	{"studio", FGD_KEY_STUDIO},
+	{"sound", FGD_KEY_SOUND},
+	{"sprite", FGD_KEY_SPRITE},
+	{"target_source", FGD_KEY_TARGET_SRC},
+	{"target_destination", FGD_KEY_TARGET_DST}
+};
 
 Fgd::Fgd(string path) {
 	this->path = path;
 	this->name = stripExt(basename(path));
+}
+
+FgdClass* Fgd::getFgdClass(string cname) {
+	if (classMap.find(cname) == classMap.end()) {
+		return NULL;
+	}
+	return classMap[cname];
 }
 
 void Fgd::parse() {
@@ -74,6 +94,8 @@ void Fgd::parse() {
 	}
 
 	processClassInheritance();
+	createEntGroups();
+	setSpawnflagNames();
 }
 
 void Fgd::parseClassHeader(FgdClass& fgdClass) {
@@ -163,7 +185,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 		return;
 	}
 
-	vector<string> nameParts = splitString(headerParts[1], ":");
+	vector<string> nameParts = splitStringIgnoringQuotes(headerParts[1], ":");
 
 	if (nameParts.size() >= 2) {
 		fgdClass.description = getValueInQuotes(nameParts[1]);
@@ -176,12 +198,17 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 }
 
 void Fgd::parseKeyvalue(FgdClass& outClass) {
-	vector<string> keyParts = splitString(line, ":");
+	vector<string> keyParts = splitStringIgnoringQuotes(line, ":");
 
 	KeyvalueDef def;
 
 	def.name = keyParts[0].substr(0, keyParts[0].find("("));
 	def.valueType = toLowerCase(getValueInParens(keyParts[0]));
+
+	def.iType = FGD_KEY_STRING;
+	if (fgdKeyTypes.find(def.valueType) != fgdKeyTypes.end()) {
+		def.iType = fgdKeyTypes[def.valueType];
+	}
 
 	if (keyParts.size() > 1)
 		def.description = getValueInQuotes(keyParts[1]);
@@ -288,11 +315,18 @@ void Fgd::processClassInheritance() {
 	}
 
 	for (int i = 0; i < classes.size(); i++) {
+		if (classes[i]->classType == FGD_CLASS_BASE)
+			continue;
+
 		vector<FgdClass*> allBaseClasses;
 		classes[i]->getBaseClasses(this, allBaseClasses);
 
 		if (allBaseClasses.size() != 0)
 		{
+			vector<KeyvalueDef> newKeyvalues;
+			vector<KeyvalueChoice> newSpawnflags;
+			set<string> addedKeys;
+			set<string> addedSpawnflags;
 			//cout << classes[i]->name << " INHERITS FROM: ";
 			for (int k = allBaseClasses.size()-1; k >= 0; k--) {
 				if (!classes[i]->colorSet && allBaseClasses[k]->colorSet) {
@@ -302,8 +336,48 @@ void Fgd::processClassInheritance() {
 					classes[i]->mins = allBaseClasses[k]->mins;
 					classes[i]->maxs = allBaseClasses[k]->maxs;
 				}
+				for (int c = 0; c < allBaseClasses[k]->keyvalues.size(); c++) {
+					if (addedKeys.find(allBaseClasses[k]->keyvalues[c].name) == addedKeys.end()) {
+						newKeyvalues.push_back(allBaseClasses[k]->keyvalues[c]);
+						addedKeys.insert(allBaseClasses[k]->keyvalues[c].name);
+					}
+					if (allBaseClasses[k]->keyvalues[c].iType == FGD_KEY_FLAGS) {
+						for (int f = 0; f < allBaseClasses[k]->keyvalues[c].choices.size(); f++) {
+							KeyvalueChoice& spawnflagOption = allBaseClasses[k]->keyvalues[c].choices[f];
+							if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
+								newSpawnflags.push_back(spawnflagOption);
+								addedSpawnflags.insert(spawnflagOption.svalue);
+							}
+						}
+					}
+				}
 				//cout << allBaseClasses[k]->name << " ";
 			}
+
+			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
+				if (addedKeys.find(classes[i]->keyvalues[c].name) == addedKeys.end()) {
+					newKeyvalues.push_back(classes[i]->keyvalues[c]);
+					addedKeys.insert(classes[i]->keyvalues[c].name);
+				}
+				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
+					for (int f = 0; f < classes[i]->keyvalues[c].choices.size(); f++) {
+						KeyvalueChoice& spawnflagOption = classes[i]->keyvalues[c].choices[f];
+						if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
+							newSpawnflags.push_back(spawnflagOption);
+							addedSpawnflags.insert(spawnflagOption.svalue);
+						}
+					}
+				}
+			}
+
+			classes[i]->keyvalues = newKeyvalues;
+
+			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
+				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
+					classes[i]->keyvalues[c].choices = newSpawnflags;
+				}
+			}
+			
 			//cout << endl;
 		}
 		
@@ -317,11 +391,135 @@ void FgdClass::getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList) {
 			continue;
 		}
 		inheritanceList.push_back(fgd->classMap[baseClasses[i]]);
-	}
-	for (int i = baseClasses.size() - 1; i >= 0; i--) {
-		if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
-			continue;
-		}
 		fgd->classMap[baseClasses[i]]->getBaseClasses(fgd, inheritanceList);
 	}
+}
+
+void Fgd::createEntGroups() {
+	set<string> addedPointGroups;
+	set<string> addedSolidGroups;
+
+	for (int i = 0; i < classes.size(); i++) {
+		if (classes[i]->classType == FGD_CLASS_BASE || classes[i]->name == "worldspawn")
+			continue;
+		string cname = classes[i]->name;
+		string groupName = cname.substr(0, cname.find("_"));
+
+		bool isPointEnt = classes[i]->classType == FGD_CLASS_POINT;
+
+		set<string>* targetSet = isPointEnt ? &addedPointGroups : &addedSolidGroups;
+		vector<FgdGroup>* targetGroup = isPointEnt ? &pointEntGroups : &solidEntGroups;
+
+		if (targetSet->find(groupName) == targetSet->end()) {
+			FgdGroup newGroup;
+			newGroup.groupName = groupName;
+
+			targetGroup->push_back(newGroup);
+			targetSet->insert(groupName);
+		}
+
+		for (int k = 0; k < targetGroup->size(); k++) {
+			if (targetGroup->at(k).groupName == groupName) {
+				targetGroup->at(k).classes.push_back(classes[i]);
+				break;
+			}
+		}
+	}
+
+	FgdGroup otherPointEnts;
+	otherPointEnts.groupName = "other";
+	for (int i = 0; i < pointEntGroups.size(); i++) {
+		if (pointEntGroups[i].classes.size() == 1) {
+			otherPointEnts.classes.push_back(pointEntGroups[i].classes[0]);
+			pointEntGroups.erase(pointEntGroups.begin() + i);
+			i--;
+		}
+	}
+	pointEntGroups.push_back(otherPointEnts);
+
+	FgdGroup otherSolidEnts;
+	otherSolidEnts.groupName = "other";
+	for (int i = 0; i < solidEntGroups.size(); i++) {
+		if (solidEntGroups[i].classes.size() == 1) {
+			otherSolidEnts.classes.push_back(solidEntGroups[i].classes[0]);
+			solidEntGroups.erase(solidEntGroups.begin() + i);
+			i--;
+		}
+	}
+	solidEntGroups.push_back(otherSolidEnts);
+}
+
+void Fgd::setSpawnflagNames() {
+	for (int i = 0; i < classes.size(); i++) {
+		if (classes[i]->classType == FGD_CLASS_BASE)
+			continue;
+
+		for (int k = 0; k < classes[i]->keyvalues.size(); k++) {
+			if (classes[i]->keyvalues[k].name == "spawnflags") {
+				for (int c = 0; c < classes[i]->keyvalues[k].choices.size(); c++) {
+					KeyvalueChoice& choice = classes[i]->keyvalues[k].choices[c];
+
+					if (!choice.isInteger) {
+						printf("ERROR: Invalid spwanflag value %s\n", choice.svalue);
+						continue;
+					}
+
+					int val = choice.ivalue;
+					int bit = 0;
+					while (val >>= 1) {
+						bit++;
+					}
+
+					if (bit > 31) {
+						printf("ERROR: Invalid spawnflag value %s\n", choice.svalue);
+					}
+					else {
+						classes[i]->spawnFlagNames[bit] = choice.name;
+					}
+				}
+			}
+		}
+	}
+}
+
+vector<string> Fgd::splitStringIgnoringQuotes(string s, string delimitter) {
+	vector<string> split;
+	if (s.size() == 0 || delimitter.size() == 0)
+		return split;
+
+	size_t delimitLen = delimitter.length();
+	while (s.size()) {
+
+		bool foundUnquotedDelimitter = false;
+		int searchOffset = 0;
+		while (!foundUnquotedDelimitter && searchOffset < s.size()) {
+			size_t delimitPos = s.find(delimitter, searchOffset);
+
+			if (delimitPos == string::npos) {
+				split.push_back(s);
+				return split;
+			}
+
+			int quoteCount = 0;
+			for (int i = 0; i < delimitPos; i++) {
+				quoteCount += s[i] == '"';
+			}
+
+			if (quoteCount % 2 == 1) {
+				searchOffset = delimitPos + 1;
+				continue;
+			}
+
+			split.push_back(s.substr(0, delimitPos));
+			s = s.substr(delimitPos + delimitLen);
+			foundUnquotedDelimitter = true;
+		}
+
+		if (!foundUnquotedDelimitter) {
+			break;
+		}
+		
+	}
+
+	return split;
 }

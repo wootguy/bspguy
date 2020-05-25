@@ -12,7 +12,8 @@ enum FGD_CLASS_TYPES {
 enum FGD_KEY_TYPES {
 	FGD_KEY_INTEGER,
 	FGD_KEY_STRING,
-	FGD_KEY_ENUM,
+	FGD_KEY_CHOICES,
+	FGD_KEY_FLAGS,
 	FGD_KEY_RGB,
 	FGD_KEY_STUDIO,
 	FGD_KEY_SOUND,
@@ -32,6 +33,7 @@ struct KeyvalueChoice {
 struct KeyvalueDef {
 	string name;
 	string valueType;
+	int iType;
 	string description;
 	string defaultValue;
 	vector<KeyvalueChoice> choices;
@@ -45,6 +47,7 @@ struct FgdClass {
 	string description;
 	vector<KeyvalueDef> keyvalues;
 	vector<string> baseClasses;
+	string spawnFlagNames[32];
 	string model;
 	string sprite;
 	string iconSprite;
@@ -80,6 +83,11 @@ struct FgdClass {
 	void getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList);
 };
 
+struct FgdGroup {
+	vector<FgdClass*> classes;
+	string groupName;
+};
+
 class Fgd {
 public:
 	string path;
@@ -87,11 +95,14 @@ public:
 	vector<FgdClass*> classes;
 	map<string, FgdClass*> classMap;
 
+	vector<FgdGroup> pointEntGroups;
+	vector<FgdGroup> solidEntGroups;
+
 	Fgd(string path);
 
 	void parse();
 
-	
+	FgdClass* getFgdClass(string cname);
 
 private:
 	int lineNum;
@@ -102,6 +113,9 @@ private:
 	void parseChoicesOrFlags(KeyvalueDef& outKey);
 
 	void processClassInheritance();
+
+	void createEntGroups();
+	void setSpawnflagNames();
 
 	// true if value begins a group of strings separated by spaces
 	bool stringGroupStarts(string s);
@@ -116,4 +130,6 @@ private:
 	vector<string> groupParts(vector<string>& ungrouped);
 
 	string getValueInQuotes(string s);
+
+	vector<string> splitStringIgnoringQuotes(string s, string delimitter);
 };
