@@ -100,6 +100,7 @@ struct cCube
 	cQuad top, bottom;
 	cQuad front, back;
 
+	cCube() {}
 	cCube(vec3 mins, vec3 maxs, COLOR3 c);
 
 	void setColor(COLOR3 c); // set color for the entire cube

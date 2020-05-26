@@ -10,7 +10,7 @@ struct vec3
 	vec3 normalize(float length=1.0f);
 	float length();
 	vec3 invert();
-	std::string toKeyvalueString();
+	std::string toKeyvalueString(bool truncate = false);
 
 	void operator-=(vec3 v);
 	void operator+=(vec3 v);

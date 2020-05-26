@@ -188,11 +188,15 @@ float vec3::length()
 	return sqrt( (x*x) + (y*y) + (z*z) );
 }
 
-string vec3::toKeyvalueString() {
+string vec3::toKeyvalueString(bool truncate) {
 	string parts[3] = { to_string(x) , to_string(y), to_string(z) };
 
 	// remove trailing zeros to save some space
 	for (int i = 0; i < 3; i++) {
+		if (truncate) {
+			parts[i] = parts[i].substr(0, parts[i].find(".")+3);
+		}
+
 		parts[i].erase(parts[i].find_last_not_of('0') + 1, std::string::npos);
 
 		// strip dot if there's no fractional part
@@ -322,6 +326,11 @@ void vec2::operator/=(float f)
 {
 	x /= f;
 	y /= f;
+}
+
+float vec2::length()
+{
+	return sqrt((x * x) + (y * y));
 }
 
 

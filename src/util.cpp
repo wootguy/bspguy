@@ -155,6 +155,113 @@ COLOR3 operator*(COLOR3 c, float scale)
 	return c;
 }
 
+bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
+	bool foundBetterPick = false;
+
+	/*
+	Fast Ray-Box Intersection
+	by Andrew Woo
+	from "Graphics Gems", Academic Press, 1990
+	https://web.archive.org/web/20090803054252/http://tog.acm.org/resources/GraphicsGems/gems/RayBox.c
+	*/
+
+	bool inside = true;
+	char quadrant[3];
+	register int i;
+	int whichPlane;
+	double maxT[3];
+	double candidatePlane[3];
+
+	float* origin = (float*)&start;
+	float* dir = (float*)&rayDir;
+	float* minB = (float*)&mins;
+	float* maxB = (float*)&maxs;
+	float coord[3];
+
+	const char RIGHT = 0;
+	const char LEFT = 1;
+	const char MIDDLE = 2;
+
+	/* Find candidate planes; this loop can be avoided if
+	rays cast all from the eye(assume perpsective view) */
+	for (i = 0; i < 3; i++) {
+		if (origin[i] < minB[i]) {
+			quadrant[i] = LEFT;
+			candidatePlane[i] = minB[i];
+			inside = false;
+		}
+		else if (origin[i] > maxB[i]) {
+			quadrant[i] = RIGHT;
+			candidatePlane[i] = maxB[i];
+			inside = false;
+		}
+		else {
+			quadrant[i] = MIDDLE;
+		}
+	}
+
+	/* Ray origin inside bounding box */
+	if (inside) {
+		return false;
+	}
+
+	/* Calculate T distances to candidate planes */
+	for (i = 0; i < 3; i++) {
+		if (quadrant[i] != MIDDLE && dir[i] != 0.0f)
+			maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+		else
+			maxT[i] = -1.0f;
+	}
+
+	/* Get largest of the maxT's for final choice of intersection */
+	whichPlane = 0;
+	for (i = 1; i < 3; i++) {
+		if (maxT[whichPlane] < maxT[i])
+			whichPlane = i;
+	}
+
+	/* Check final candidate actually inside box */
+	if (maxT[whichPlane] < 0.0f)
+		return false;
+	for (i = 0; i < 3; i++) {
+		if (whichPlane != i) {
+			coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+			if (coord[i] < minB[i] || coord[i] > maxB[i])
+				return false;
+		}
+		else {
+			coord[i] = candidatePlane[i];
+		}
+	}
+	/* ray hits box */
+
+	vec3 intersectPoint(coord[0], coord[1], coord[2]);
+	float dist = (intersectPoint - start).length();
+
+	if (dist < bestDist) {
+		bestDist = dist;
+		return true;
+	}
+
+	return false;
+}
+
+bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectDist) {
+	float dot = dotProduct(dir, normal);
+
+	// don't select backfaces or parallel faces
+	if (dot == 0) {
+		return false;
+	}
+	intersectDist = dotProduct((normal * fdist) - start, normal) / dot;
+
+	if (intersectDist < 0) {
+		return false; // intersection behind ray
+	}
+
+	return true;
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

@@ -11,6 +11,8 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 	this->colorShader = colorShader;
 	this->pointEntRenderer = pointEntRenderer;
 
+	renderEnts = NULL;
+
 	loadTextures();
 	loadLightmaps();
 	preRenderFaces();
@@ -434,6 +436,8 @@ void BspRenderer::preRenderFaces() {
 }
 
 void BspRenderer::preRenderEnts() {
+	if (renderEnts != NULL)
+		delete[] renderEnts;
 	renderEnts = new RenderEnt[map->ents.size()];
 
 	for (int i = 0; i < map->ents.size(); i++) {
@@ -692,10 +696,11 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 		else if (i > 0 && g_render_flags & RENDER_POINT_ENTS) {
 			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
 			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
-			if (pickAABB(start, dir, mins, maxs, pickInfo)) {
+			if (pickAABB(start, dir, mins, maxs, pickInfo.bestDist)) {
 				pickInfo.entIdx = i;
 				pickInfo.modelIdx = -1;
 				pickInfo.faceIdx = -1;
+				pickInfo.valid = true;
 				foundBetterPick = true;
 			};
 		}
@@ -785,96 +790,4 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, Pick
 	}
 
 	return foundBetterPick;
-}
-
-bool BspRenderer::pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, PickInfo& pickInfo) {
-	bool foundBetterPick = false;
-
-	/*
-	Fast Ray-Box Intersection
-	by Andrew Woo
-	from "Graphics Gems", Academic Press, 1990
-	https://web.archive.org/web/20090803054252/http://tog.acm.org/resources/GraphicsGems/gems/RayBox.c
-	*/
-
-	bool inside = true;
-	char quadrant[3];
-	register int i;
-	int whichPlane;
-	double maxT[3];
-	double candidatePlane[3];
-
-	float* origin = (float*)&start;
-	float* dir = (float*)&rayDir;
-	float* minB = (float*)&mins;
-	float* maxB = (float*)&maxs;
-	float coord[3];
-
-	const char RIGHT = 0;
-	const char LEFT = 1;
-	const char MIDDLE = 2;
-
-	/* Find candidate planes; this loop can be avoided if
-	rays cast all from the eye(assume perpsective view) */
-	for (i = 0; i < 3; i++) {
-		if (origin[i] < minB[i]) {
-			quadrant[i] = LEFT;
-			candidatePlane[i] = minB[i];
-			inside = false;
-		}
-		else if (origin[i] > maxB[i]) {
-			quadrant[i] = RIGHT;
-			candidatePlane[i] = maxB[i];
-			inside = false;
-		}
-		else {
-			quadrant[i] = MIDDLE;
-		}
-	}
-
-	/* Ray origin inside bounding box */
-	if (inside) {
-		return false;
-	}
-
-	/* Calculate T distances to candidate planes */
-	for (i = 0; i < 3; i++) {
-		if (quadrant[i] != MIDDLE && dir[i] != 0.0f)
-			maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
-		else
-			maxT[i] = -1.0f;
-	}
-
-	/* Get largest of the maxT's for final choice of intersection */
-	whichPlane = 0;
-	for (i = 1; i < 3; i++) {
-		if (maxT[whichPlane] < maxT[i])
-			whichPlane = i;
-	}
-
-	/* Check final candidate actually inside box */
-	if (maxT[whichPlane] < 0.0f)
-		return false;
-	for (i = 0; i < 3; i++) {
-		if (whichPlane != i) {
-			coord[i] = origin[i] + maxT[whichPlane] * dir[i];
-			if (coord[i] < minB[i] || coord[i] > maxB[i])
-				return false;
-		}
-		else {
-			coord[i] = candidatePlane[i];
-		}
-	}
-	/* ray hits box */
-
-	vec3 intersectPoint(coord[0], coord[1], coord[2]);
-	float dist = (intersectPoint - start).length();
-
-	if (dist < pickInfo.bestDist) {
-		pickInfo.bestDist = dist;
-		pickInfo.valid = true;
-		return true;
-	}
-
-	return false;
 }

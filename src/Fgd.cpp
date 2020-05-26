@@ -212,6 +212,13 @@ void Fgd::parseKeyvalue(FgdClass& outClass) {
 
 	if (keyParts.size() > 1)
 		def.description = getValueInQuotes(keyParts[1]);
+	else {
+		def.description = def.name;
+		
+		// capitalize (infodecal)
+		if ((def.description[0] > 96) && (def.description[0] < 123)) 
+			def.description[0] = def.description[0] - 32;
+	}
 
 	if (keyParts.size() > 2) {
 		if (keyParts[2].find("=") != string::npos) { // choice

@@ -13,6 +13,8 @@
 // auto-scale text based on DPI
 // setup menu for game dir and font size and mb other stuff
 // imgui .ini load from specific dir?
+// clicking key editor when bspguy not focused does a 3D select instead of key editor select
+// undo history
 
 // todo:
 // visual editor like BSP Viewer for adding custom brush ents and stuff

@@ -87,9 +87,14 @@ public:
 
 	bool pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo);
 	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
-	bool pickAABB(vec3 start, vec3 dir, vec3 mins, vec3 maxs, PickInfo& pickInfo);
 
 	void refreshEnt(int entIdx);
+
+	// calculate vertex positions and uv coordinates once for faster rendering
+	// also combines faces that share similar properties into a single buffer
+	void preRenderFaces();
+	void preRenderEnts();
+	void calcFaceMaths();
 
 private:
 	ShaderProgram* bspShader;
@@ -111,10 +116,4 @@ private:
 
 	void loadTextures();
 	void loadLightmaps();
-
-	// calculate vertex positions and uv coordinates once for faster rendering
-	// also combines faces that share similar properties into a single buffer
-	void preRenderFaces();
-	void preRenderEnts();
-	void calcFaceMaths();
 };
