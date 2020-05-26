@@ -12,6 +12,8 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 	this->pointEntRenderer = pointEntRenderer;
 
 	renderEnts = NULL;
+	renderModels = NULL;
+	faceMaths = NULL;
 
 	loadTextures();
 	loadLightmaps();
@@ -158,6 +160,7 @@ void BspRenderer::loadLightmaps() {
 	atlasTextures.push_back(new Texture(LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE));
 	memset(atlasTextures[0]->data, 0, LIGHTMAP_ATLAS_SIZE * LIGHTMAP_ATLAS_SIZE * sizeof(COLOR3));
 
+	numRenderLightmapInfos = map->faceCount;
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
 
@@ -236,8 +239,50 @@ void BspRenderer::loadLightmaps() {
 	printf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
 }
 
+void BspRenderer::updateLightmapInfos() {
+
+	if (numRenderLightmapInfos == map->faceCount) {
+		return;
+	}
+	if (map->faceCount < numRenderLightmapInfos) {
+		printf("TODO: Recalculate lightmaps when faces deleted\n");
+		return;
+	}
+
+	// assumes new faces have no light data
+	int addedFaces = map->faceCount - numRenderLightmapInfos;
+
+	LightmapInfo* newLightmaps = new LightmapInfo[map->faceCount];
+	memcpy(newLightmaps, lightmaps, numRenderLightmapInfos * sizeof(LightmapInfo));
+	memset(newLightmaps + numRenderLightmapInfos, 0, addedFaces*sizeof(LightmapInfo));
+
+	printf("UPDATE FACE COUNT %d -> %d\n", numRenderLightmapInfos, map->faceCount);
+
+	delete[] lightmaps;
+	lightmaps = newLightmaps;
+	numRenderLightmapInfos = map->faceCount;
+}
+
 void BspRenderer::preRenderFaces() {
+	if (renderModels != NULL) {
+		for (int i = 0; i < numRenderModels; i++) {
+			for (int k = 0; k < renderModels[i].groupCount; k++) {
+				RenderGroup& group = renderModels[i].renderGroups[k];
+				delete[] group.verts;
+				delete[] group.wireframeVerts;
+				delete group.buffer;
+				delete group.wireframeBuffer;
+			}
+			delete[] renderModels[i].renderGroups;
+		}
+		delete[] renderModels;
+	}
+
 	renderModels = new RenderModel[map->modelCount];
+	numRenderModels = map->modelCount;
+
+	int worldRenderGroups = 0;
+	int modelRenderGroups = 0;
 
 	for (int m = 0; m < map->modelCount; m++) {
 		BSPMODEL& model = map->models[m];
@@ -430,9 +475,14 @@ void BspRenderer::preRenderFaces() {
 
 			renderModel.renderGroups[i] = renderGroups[i];
 		}
-
-		printf("Added %d render groups for model %d\n", renderModel.groupCount, m);
+		if (m == 0)
+			worldRenderGroups += renderModel.groupCount;
+		else
+			modelRenderGroups += renderModel.groupCount;
 	}
+
+	printf("Added %d world render groups\n", worldRenderGroups);
+	printf("Added %d submodel render groups\n", modelRenderGroups);
 }
 
 void BspRenderer::preRenderEnts() {
@@ -460,6 +510,14 @@ void BspRenderer::refreshEnt(int entIdx) {
 }
 
 void BspRenderer::calcFaceMaths() {
+	if (faceMaths != NULL) {
+		for (int i = 0; i < numFaceMaths; i++) {
+			delete[] faceMaths[i].verts;
+		}
+		delete[] faceMaths;
+	}
+
+	numFaceMaths = map->faceCount;
 	faceMaths = new FaceMath[map->faceCount];
 
 	vec3 world_x = vec3(1, 0, 0);

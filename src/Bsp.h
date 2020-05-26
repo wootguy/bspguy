@@ -166,6 +166,9 @@ struct BSPLEAF
 
 struct BSPEDGE {
 	uint16_t iVertex[2]; // Indices into vertex array
+
+	BSPEDGE() {}
+	BSPEDGE(uint16_t v1, uint16_t v2) { iVertex[0] = v1; iVertex[1] = v2; }
 };
 
 struct BSPMODEL
@@ -294,6 +297,13 @@ public:
 	
 	// check for bad indexes
 	bool validate();
+
+	// creates a solid cube
+	int create_solid(vec3 mins, vec3 maxs, int textureIdx);
+
+	int create_leaf(int contents);
+	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
+	void create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
 
 	// copies a model from the sourceMap into this one
 	void add_model(Bsp* sourceMap, int modelIdx);

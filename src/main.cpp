@@ -18,7 +18,6 @@
 // grid snapping not working with transform widgets
 
 // todo:
-// visual editor like BSP Viewer for adding custom brush ents and stuff
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
 // merge redundant submodels and duplicate structures
 // no lightmap renders black faces if no lightmap data for face
@@ -34,6 +33,7 @@
 // apaches not deleted sometimes
 // moving maps can cause bad surface extents which could cause lightmap seams?
 // see if balancing the BSP tree is possible and if helps performance at all
+// delete all submodel leaves to save space. They're unused and waste space, yet the compiler includes them...?
 
 // refactoring:
 // stop mixing printf+cout
@@ -121,8 +121,9 @@ int test() {
 
 	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
-	//renderer.addMap(new Bsp("merge0.bsp"));
-	renderer.addMap(new Bsp("osprey.bsp"));
+	//renderer.addMap(new Bsp("hl_c09.bsp"));
+	renderer.addMap(new Bsp("merge0.bsp"));
+	//renderer.addMap(new Bsp("osprey.bsp"));
 	renderer.renderLoop();
 	return 0;
 

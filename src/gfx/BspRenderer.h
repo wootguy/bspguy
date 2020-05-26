@@ -96,6 +96,8 @@ public:
 	void preRenderEnts();
 	void calcFaceMaths();
 
+	void updateLightmapInfos();
+
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
@@ -105,6 +107,10 @@ private:
 	RenderEnt* renderEnts;
 	RenderModel* renderModels;
 	FaceMath* faceMaths;
+
+	int numRenderModels;
+	int numRenderLightmapInfos;
+	int numFaceMaths;
 
 	Texture** glTextures;
 	Texture** glLightmapTextures;

@@ -34,7 +34,7 @@ set(SOURCE_FILES
 	src/gfx/LightmapNode.h		src/gfx/LightmapNode.cpp
 	src/gfx/Renderer.h			src/gfx/Renderer.cpp
 	src/gfx/BspRenderer.h		src/gfx/BspRenderer.cpp
-	src/gfx/PointEntRenderer.h	src/gfx/PointEntRenderer.cpp	
+	src/gfx/PointEntRenderer.h	src/gfx/PointEntRenderer.cpp
 	
 	# compiler code
 	src/qtools/rad.h			src/qtools/rad.cpp
@@ -84,7 +84,8 @@ if(MSVC)
 											src/gfx/shaders.h
 											src/gfx/BspRenderer.h
 											src/gfx/LightmapNode.h
-											src/gfx/Renderer.h)
+											src/gfx/Renderer.h
+											src/gfx/PointEntRenderer.h)
 											
 	source_group("Source Files\\gfx" FILES	src/gfx/Shader.cpp
 											src/gfx/ShaderProgram.cpp
@@ -93,7 +94,8 @@ if(MSVC)
 											src/gfx/primitives.cpp 
 											src/gfx/BspRenderer.cpp
 											src/gfx/LightmapNode.cpp 
-											src/gfx/Renderer.cpp) 
+											src/gfx/Renderer.cpp
+											src/gfx/PointEntRenderer.cpp) 
 											
 	source_group("Header Files\\lib" FILES	src/lodepng.h)
 	

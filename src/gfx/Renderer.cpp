@@ -114,8 +114,6 @@ void Renderer::renderLoop() {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 
-	cameraOrigin.y = -50;
-
 	{
 		axisDimColors[0] = { 110, 0, 160 };
 		axisDimColors[1] = { 0, 0, 220 };
@@ -303,6 +301,21 @@ void Renderer::draw3dContextMenus() {
 
 void Renderer::drawMenuBar() {
 	ImGui::BeginMainMenuBar();
+	
+	if (ImGui::BeginMenu("File"))
+	{
+		if (ImGui::MenuItem("Save", NULL)) {
+			Bsp* map = getMapContainingCamera()->map;
+			for (int i = 0; i < map->ents.size(); i++) {
+				if (map->ents[i]->keyvalues["classname"] == "info_node")
+					map->ents[i]->keyvalues["classname"] = "info_bode";
+			}
+			map->update_ent_lump();
+			map->write("yabma_move.bsp");
+			map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+		}
+		ImGui::EndMenu();
+	}
 
 	if (ImGui::BeginMenu("Widgets"))
 	{
@@ -355,9 +368,28 @@ void Renderer::drawMenuBar() {
 			destMap->map->ents.push_back(newEnt);
 			destMap->preRenderEnts();
 		}
+		
 		if (ImGui::MenuItem("BSP Model")) {
+			
 			BspRenderer* destMap = getMapContainingCamera();
+			
+			vec3 origin = cameraOrigin + cameraForward * 100;
+			vec3 mins = vec3(-16, -16, -16);
+			vec3 maxs = vec3(16, 16, 16);
 
+			int modelIdx = destMap->map->create_solid(mins, maxs, 2);
+
+			Entity* newEnt = new Entity();
+			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
+			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
+			newEnt->addKeyvalue("classname", "func_wall");
+			destMap->map->ents.push_back(newEnt);
+
+			destMap->updateLightmapInfos();
+			destMap->preRenderFaces();
+			destMap->preRenderEnts();
+			destMap->calcFaceMaths();
+			destMap->map->validate();
 		}
 		ImGui::EndMenu();
 	}

@@ -1806,7 +1806,10 @@ void Bsp::recurse_node(int16_t nodeIdx, int depth) {
 void Bsp::print_node(BSPNODE node) {
 	BSPPLANE& plane = planes[node.iPlane];
 
-	cout << "Plane (" << plane.vNormal.x << " " << plane.vNormal.y << " " << plane.vNormal.z << ") d: " << plane.fDist;
+	cout << "Plane (" << plane.vNormal.x << " " << plane.vNormal.y << " " << plane.vNormal.z 
+		<< ") d: " << plane.fDist << ", Faces: " << node.nFaces 
+		<< ", Min(" << node.nMins[0] << "," << node.nMins[1] << "," << node.nMins[2] << ")"
+		<< ", Max(" << node.nMaxs[0] << "," << node.nMaxs[1] << "," << node.nMaxs[2] << ")";
 }
 
 int Bsp::pointContents(int iNode, vec3 p) {
@@ -2063,6 +2066,25 @@ void Bsp::delete_model(int modelIdx) {
 	}
 }
 
+int Bsp::create_solid(vec3 mins, vec3 maxs, int textureIdx) {
+	BSPMODEL* newModels = new BSPMODEL[modelCount+1];
+	memcpy(newModels, models, modelCount * sizeof(BSPMODEL));
+
+	BSPMODEL& newModel = newModels[modelCount];
+	memset(&newModel, 0, sizeof(BSPMODEL));
+
+	create_node_box(mins, maxs, &newModel, textureIdx);
+	create_clipnode_box(mins, maxs, &newModel);
+
+	//remove_unused_model_structures(); // will also resize VIS data for new leaf count
+
+	int newModelIdx = modelCount;
+
+	replace_lump(LUMP_MODELS, newModels, (modelCount + 1) * sizeof(BSPMODEL));
+
+	return newModelIdx;
+}
+
 void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	STRUCTUSAGE usage(sourceMap);
 	sourceMap->mark_model_structures(modelIdx, &usage);
@@ -2072,6 +2094,318 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	usage.compute_sum();
 
 	printf("");
+}
+
+int Bsp::create_leaf(int contents) {
+	BSPLEAF* newLeaves = new BSPLEAF[leafCount + 1];
+	memcpy(newLeaves, leaves, leafCount * sizeof(BSPLEAF));
+
+	BSPLEAF& newLeaf = newLeaves[leafCount];
+	memset(&newLeaf, 0, sizeof(BSPLEAF));
+
+	newLeaf.nVisOffset = -1;
+	newLeaf.nContents = contents;
+
+	int newLeafIdx = leafCount;
+
+	replace_lump(LUMP_LEAVES, newLeaves, (leafCount+1) * sizeof(BSPLEAF));
+
+	return newLeafIdx;
+}
+
+void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int textureIdx) {
+
+	// add new verts (1 for each corner)
+	// TODO: subdivide faces to prevent max surface extents error
+	int startVert = vertCount;
+	{
+		vec3* newVerts = new vec3[vertCount + 8];
+		memcpy(newVerts, verts, vertCount * sizeof(vec3));
+
+		newVerts[vertCount + 0] = vec3(min.x, min.y, min.z); // front-left-bottom
+		newVerts[vertCount + 1] = vec3(max.x, min.y, min.z); // front-right-bottom
+		newVerts[vertCount + 2] = vec3(max.x, max.y, min.z); // back-right-bottom
+		newVerts[vertCount + 3] = vec3(min.x, max.y, min.z); // back-left-bottom
+
+		newVerts[vertCount + 4] = vec3(min.x, min.y, max.z); // front-left-top
+		newVerts[vertCount + 5] = vec3(max.x, min.y, max.z); // front-right-top
+		newVerts[vertCount + 6] = vec3(max.x, max.y, max.z); // back-right-top
+		newVerts[vertCount + 7] = vec3(min.x, max.y, max.z); // back-left-top
+
+		replace_lump(LUMP_VERTICES, newVerts, (vertCount + 8) * sizeof(vec3));
+	}
+
+	// add new edges (4 for each face)
+	// TODO: subdivide >512
+	int startEdge = edgeCount;
+	{
+		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 24];
+		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
+
+		// left
+		newEdges[startEdge + 0] = BSPEDGE(startVert + 3, startVert + 0);
+		newEdges[startEdge + 1] = BSPEDGE(startVert + 0, startVert + 4);
+		newEdges[startEdge + 2] = BSPEDGE(startVert + 4, startVert + 7);
+		newEdges[startEdge + 3] = BSPEDGE(startVert + 7, startVert + 3);
+
+		// right
+		newEdges[startEdge + 4] = BSPEDGE(startVert + 1, startVert + 2); // bottom edge
+		newEdges[startEdge + 5] = BSPEDGE(startVert + 2, startVert + 6); // top edge
+		newEdges[startEdge + 6] = BSPEDGE(startVert + 6, startVert + 5); // right edge
+		newEdges[startEdge + 7] = BSPEDGE(startVert + 5, startVert + 1); // bottom edge
+
+		// front
+		newEdges[startEdge + 8] = BSPEDGE(startVert + 0, startVert + 1); // bottom edge
+		newEdges[startEdge + 9] = BSPEDGE(startVert + 1, startVert + 5); // right edge
+		newEdges[startEdge + 10] = BSPEDGE(startVert + 5, startVert + 4); // top edge
+		newEdges[startEdge + 11] = BSPEDGE(startVert + 4, startVert + 0); // left edge
+
+		// back
+		newEdges[startEdge + 12] = BSPEDGE(startVert + 3, startVert + 7); // left edge
+		newEdges[startEdge + 13] = BSPEDGE(startVert + 7, startVert + 6); // top edge
+		newEdges[startEdge + 14] = BSPEDGE(startVert + 6, startVert + 2); // right edge
+		newEdges[startEdge + 15] = BSPEDGE(startVert + 2, startVert + 3); // bottom edge
+
+		// bottom
+		newEdges[startEdge + 16] = BSPEDGE(startVert + 3, startVert + 2);
+		newEdges[startEdge + 17] = BSPEDGE(startVert + 2, startVert + 1);
+		newEdges[startEdge + 18] = BSPEDGE(startVert + 1, startVert + 0);
+		newEdges[startEdge + 19] = BSPEDGE(startVert + 0, startVert + 3);
+
+		// top
+		newEdges[startEdge + 20] = BSPEDGE(startVert + 7, startVert + 4);
+		newEdges[startEdge + 21] = BSPEDGE(startVert + 4, startVert + 5);
+		newEdges[startEdge + 22] = BSPEDGE(startVert + 5, startVert + 6);
+		newEdges[startEdge + 23] = BSPEDGE(startVert + 6, startVert + 7);
+
+		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 24) * sizeof(BSPEDGE));
+	}
+
+	// add new surfedges (2 for each edge)
+	int startSurfedge = surfedgeCount;
+	{
+		int32_t* newSurfedges = new int32_t[surfedgeCount + 24];
+		memcpy(newSurfedges, surfedges, surfedgeCount * sizeof(int32_t));
+
+		// reverse cuz i fucked the edge order and I don't wanna redo
+		for (int i = 12-1; i >= 0; i--) {
+			int32_t edgeIdx = startEdge + i * 2;
+			newSurfedges[startSurfedge + (i*2)] = -edgeIdx;
+			newSurfedges[startSurfedge + (i*2) + 1] = edgeIdx; // negative = use second vertex in edge
+		}
+		
+		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + 24) * sizeof(int32_t));
+	}
+
+	// add new planes (1 for each face/node)
+	int startPlane = planeCount;
+	{
+		BSPPLANE* newPlanes = new BSPPLANE[planeCount + 6];
+		memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+
+		newPlanes[startPlane + 0] = { vec3(1, 0, 0), min.x, PLANE_X }; // left
+		newPlanes[startPlane + 1] = { vec3(1, 0, 0), max.x, PLANE_X }; // right
+		newPlanes[startPlane + 2] = { vec3(0, 1, 0), min.y, PLANE_Y }; // front
+		newPlanes[startPlane + 3] = { vec3(0, 1, 0), max.y, PLANE_Y }; // back
+		newPlanes[startPlane + 4] = { vec3(0, 0, 1), min.z, PLANE_Z }; // bottom
+		newPlanes[startPlane + 5] = { vec3(0, 0, 1), max.z, PLANE_Z }; // top
+
+		replace_lump(LUMP_PLANES, newPlanes, (planeCount + 6) * sizeof(BSPPLANE));
+	}
+
+	int startTexinfo = texinfoCount;
+	{
+		BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[texinfoCount + 6];
+		memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
+
+		vec3 up = vec3(0, 0, 1);
+		vec3 right = vec3(1, 0, 0);
+		vec3 forward = vec3(0, 1, 0);
+
+		vec3 faceNormals[6]{
+			vec3(-1, 0, 0),	// left
+			vec3(1, 0, 0), // right
+			vec3(0, 1, 0), // front
+			vec3(0, -1, 0), // back
+			vec3(0, 0, -1), // bottom
+			vec3(0, 0, 1) // top
+		};
+		vec3 faceUp[6] {
+			vec3(0, 0, 1),	// left
+			vec3(0, 0, 1), // right
+			vec3(0, 0, 1), // front
+			vec3(0, 0, 1), // back
+			vec3(0, -1, 0), // bottom
+			vec3(0, 1, 0) // top
+		};
+
+		for (int i = 0; i < 6; i++) {
+			BSPTEXTUREINFO& info = newTexinfos[startTexinfo + i];
+			info.iMiptex = textureIdx;
+			info.nFlags = 0;
+			info.shiftS = 0;
+			info.shiftT = 0;
+			info.vT = faceUp[i];
+			info.vS = crossProduct(faceUp[i], faceNormals[i]);
+			// TODO: fit texture to face
+		}
+
+		replace_lump(LUMP_TEXINFO, newTexinfos, (texinfoCount + 6) * sizeof(BSPTEXTUREINFO));
+	}
+
+	// add new faces
+	int startFace = faceCount;
+	{
+		BSPFACE* newFaces = new BSPFACE[faceCount + 6];
+		memcpy(newFaces, faces, faceCount * sizeof(BSPFACE));
+
+		for (int i = 0; i < 6; i++) {
+			BSPFACE& face = newFaces[faceCount + i];
+			face.iFirstEdge = startSurfedge + i * 4;
+			face.iPlane = startPlane + i;
+			face.nEdges = 4;
+			face.nPlaneSide = i % 2 == 0; // even-numbered planes are inverted
+			face.iTextureInfo = startTexinfo+i;
+			face.nLightmapOffset = 0; // TODO: Lighting
+			memset(face.nStyles, 0, 4);
+		}
+
+		replace_lump(LUMP_FACES, newFaces, (faceCount + 6) * sizeof(BSPFACE));
+	}
+
+	// Submodels don't use leaves like the world does. Everything except nContents is ignored.
+	// There's really no need to create leaves for submodels. Every map will have a shared
+	// SOLID leaf, and there should be at least one EMPTY leaf if the map isn't completely solid.
+	// So, just find an existing EMPTY leaf. Also, water brushes work just fine with SOLID nodes.
+	// The inner contents of a node is changed dynamically by entity properties.
+	int16 sharedSolidLeaf = 0;
+	int16 anyEmptyLeaf = 0;
+	for (int i = 0; i < leafCount; i++) {
+		if (leaves[i].nContents == CONTENTS_EMPTY) {
+			anyEmptyLeaf = i;
+			break;
+		}
+	}
+	// If emptyLeaf is still 0 (SOLID), it means the map is fully solid, so the contents wouldn't matter.
+	// Anyway, still setting this in case someone wants to copy the model to another map
+	if (anyEmptyLeaf == 0) {
+		anyEmptyLeaf = create_leaf(CONTENTS_EMPTY);
+		targetModel->nVisLeafs = 1;
+	}
+	else {
+		targetModel->nVisLeafs = 0;
+	}
+	
+	// add new nodes
+	int startNode = nodeCount;
+	{
+		BSPNODE* newNodes = new BSPNODE[nodeCount + 6];
+		memcpy(newNodes, nodes, nodeCount * sizeof(BSPNODE));
+
+		int16 nodeIdx = nodeCount;
+
+		for (int k = 0; k < 6; k++) {
+			BSPNODE& node = newNodes[nodeCount + k];
+			memset(&node, 0, sizeof(BSPNODE));
+
+			node.firstFace = startFace + k; // face required for decals
+			node.nFaces = 1;
+			node.iPlane = startPlane + k;
+			// node mins/maxs don't matter for submodels. Leave them at 0.
+
+			int16 insideContents = k == 5 ? ~sharedSolidLeaf : (int16)(nodeCount + k+1);
+			int16 outsideContents = ~anyEmptyLeaf;
+
+			// can't have negative normals on planes so children are swapped instead
+			if (k % 2 == 0) {
+				node.iChildren[0] = insideContents;
+				node.iChildren[1] = outsideContents;
+			}
+			else {
+				node.iChildren[0] = outsideContents;
+				node.iChildren[1] = insideContents;
+			}
+		}
+
+		replace_lump(LUMP_NODES, newNodes, (nodeCount + 6) * sizeof(BSPNODE));
+	}
+
+	targetModel->iHeadnodes[0] = startNode;
+	targetModel->iFirstFace = startFace;
+	targetModel->nFaces = 6;
+
+	targetModel->nMaxs = vec3(-9e99, -9e99, -9e99);
+	targetModel->nMins = vec3(9e99, 9e99, 9e99);
+	for (int i = 0; i < 8; i++) {
+		vec3 v = verts[startVert + i];
+
+		if (v.x > targetModel->nMaxs.x) targetModel->nMaxs.x = v.x;
+		if (v.y > targetModel->nMaxs.y) targetModel->nMaxs.y = v.y;
+		if (v.z > targetModel->nMaxs.z) targetModel->nMaxs.z = v.z;
+
+		if (v.x < targetModel->nMins.x) targetModel->nMins.x = v.x;
+		if (v.y < targetModel->nMins.y) targetModel->nMins.y = v.y;
+		if (v.z < targetModel->nMins.z) targetModel->nMins.z = v.z;
+	}
+}
+
+void Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
+	vector<BSPPLANE> addPlanes;
+	vector<BSPCLIPNODE> addNodes;
+
+	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		if (skipEmpty && targetModel->iHeadnodes[i] < 0) {
+			continue;
+		}
+		if (targetHull > 0 && i != targetHull) {
+			continue;
+		}
+
+		vec3 min = mins - default_hull_extents[i];
+		vec3 max = maxs + default_hull_extents[i];
+
+		int clipnodeIdx = clipnodeCount + addNodes.size();
+		int planeIdx = planeCount + addPlanes.size();
+
+		addPlanes.push_back({ vec3(1, 0, 0), min.x, PLANE_X }); // left
+		addPlanes.push_back({ vec3(1, 0, 0), max.x, PLANE_X }); // right
+		addPlanes.push_back({ vec3(0, 1, 0), min.y, PLANE_Y }); // front
+		addPlanes.push_back({ vec3(0, 1, 0), max.y, PLANE_Y }); // back
+		addPlanes.push_back({ vec3(0, 0, 1), min.z, PLANE_Z }); // bottom
+		addPlanes.push_back({ vec3(0, 0, 1), max.z, PLANE_Z }); // top
+
+		targetModel->iHeadnodes[i] = clipnodeCount + addNodes.size();
+
+		for (int k = 0; k < 6; k++) {
+			BSPCLIPNODE node;
+			node.iPlane = planeIdx++;
+
+			clipnodeIdx++;
+			int insideContents = k == 5 ? CONTENTS_WATER : clipnodeIdx;
+
+			// can't have negative normals on planes so children are swapped instead
+			if (k % 2 == 0) {
+				node.iChildren[0] = insideContents;
+				node.iChildren[1] = CONTENTS_EMPTY;
+			}
+			else {
+				node.iChildren[0] = CONTENTS_EMPTY;
+				node.iChildren[1] = insideContents;
+			}
+
+			addNodes.push_back(node);
+		}
+	}
+
+	BSPPLANE* newPlanes = new BSPPLANE[planeCount + addPlanes.size()];
+	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+	memcpy(newPlanes + planeCount, &addPlanes[0], addPlanes.size() * sizeof(BSPPLANE));
+	replace_lump(LUMP_PLANES, newPlanes, (planeCount + addPlanes.size()) * sizeof(BSPPLANE));
+
+	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[clipnodeCount + addNodes.size()];
+	memcpy(newClipnodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
+	memcpy(newClipnodes + clipnodeCount, &addNodes[0], addNodes.size() * sizeof(BSPCLIPNODE));
+	replace_lump(LUMP_CLIPNODES, newClipnodes, (clipnodeCount + addNodes.size()) * sizeof(BSPCLIPNODE));
 }
 
 void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
@@ -2106,59 +2440,7 @@ void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
 	vec3 vertMax(-9e9, -9e9, -9e9);
 	get_node_vertex_bounds(model.iHeadnodes[0], vertMin, vertMax);
 
-	vector<BSPPLANE> addPlanes;
-	vector<BSPCLIPNODE> addNodes;
-
-	for (int i = 1; i < MAX_MAP_HULLS; i++) {
-		if (model.iHeadnodes[i] < 0 || (hullIdx > 0 && i != hullIdx)) {
-			continue;
-		}
-		
-		vec3 min = vertMin - default_hull_extents[i];
-		vec3 max = vertMax + default_hull_extents[i];
-
-		int clipnodeIdx = clipnodeCount + addNodes.size();
-		int planeIdx = planeCount + addPlanes.size();
-
-		addPlanes.push_back({ vec3(1, 0, 0), min.x, PLANE_X }); // left
-		addPlanes.push_back({ vec3(1, 0, 0), max.x, PLANE_X }); // right
-		addPlanes.push_back({ vec3(0, 1, 0), min.y, PLANE_Y }); // front
-		addPlanes.push_back({ vec3(0, 1, 0), max.y, PLANE_Y }); // back
-		addPlanes.push_back({ vec3(0, 0, 1), min.z, PLANE_Z }); // bottom
-		addPlanes.push_back({ vec3(0, 0, 1), max.z, PLANE_Z }); // top
-
-		model.iHeadnodes[i] = clipnodeCount + addNodes.size();
-
-		for (int k = 0; k < 6; k++) {
-			BSPCLIPNODE node;
-			node.iPlane = planeIdx++;
-
-			clipnodeIdx++;
-			int insideContents = k == 5 ? CONTENTS_SOLID : clipnodeIdx;
-
-			// can't have negative normals on planes so children are swapped instead
-			if (k % 2 == 0) {
-				node.iChildren[0] = insideContents;
-				node.iChildren[1] = CONTENTS_EMPTY;
-			}
-			else {
-				node.iChildren[0] = CONTENTS_EMPTY;
-				node.iChildren[1] = insideContents;
-			}
-
-			addNodes.push_back(node);
-		}
-	}
-
-	BSPPLANE* newPlanes = new BSPPLANE[planeCount + addPlanes.size()];
-	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
-	memcpy(newPlanes + planeCount, &addPlanes[0], addPlanes.size() * sizeof(BSPPLANE));
-	replace_lump(LUMP_PLANES, newPlanes, (planeCount + addPlanes.size()) * sizeof(BSPPLANE));
-
-	BSPCLIPNODE* newClipnodes = new BSPCLIPNODE[clipnodeCount + addNodes.size()];
-	memcpy(newClipnodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
-	memcpy(newClipnodes + clipnodeCount, &addNodes[0], addNodes.size() * sizeof(BSPCLIPNODE));
-	replace_lump(LUMP_CLIPNODES, newClipnodes, (clipnodeCount + addNodes.size()) * sizeof(BSPCLIPNODE));
+	create_clipnode_box(vertMin, vertMax, &model, hullIdx, true);
 }
 
 void Bsp::dump_lightmap(int faceIdx, string outputPath) {
@@ -2404,7 +2686,9 @@ void Bsp::print_contents(int contents) {
 
 void Bsp::print_leaf(BSPLEAF leaf) {
 	print_contents(leaf.nContents);
-	cout << " " << leaf.nMarkSurfaces << " surfs";
+	cout << " " << leaf.nMarkSurfaces << " surfs"
+		<< ", Min(" << leaf.nMins[0] << "," << leaf.nMins[1] << "," << leaf.nMins[2] << ")"
+		<< ", Max(" << leaf.nMaxs[0] << "," << leaf.nMaxs[1] << "," << leaf.nMaxs[2] << ")";;
 }
 
 void Bsp::update_lump_pointers() {
