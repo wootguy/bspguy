@@ -15,6 +15,7 @@
 // imgui .ini load from specific dir?
 // clicking key editor when bspguy not focused does a 3D select instead of key editor select
 // undo history
+// grid snapping not working with transform widgets
 
 // todo:
 // visual editor like BSP Viewer for adding custom brush ents and stuff
@@ -22,6 +23,7 @@
 // merge redundant submodels and duplicate structures
 // no lightmap renders black faces if no lightmap data for face
 // select overlapping entities by holding mouse down
+// don't select drag axes on first ent click
 
 // minor todo:
 // trigger_changesky for series maps with different skies

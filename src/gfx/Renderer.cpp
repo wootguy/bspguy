@@ -236,6 +236,10 @@ void Renderer::drawGui() {
 		drawKeyvalueEditor();
 	}
 
+	if (showTransformWidget) {
+		drawTransformWidget();
+	}
+
 	if (contextMenuEnt != -1) {
 		ImGui::OpenPopup("ent_context");
 		contextMenuEnt = -1;
@@ -272,6 +276,9 @@ void Renderer::draw3dContextMenus() {
 			if (movingEnt)
 				grabEnt();
 		}
+		if (ImGui::MenuItem("Transform", "Ctrl+M")) {
+			showTransformWidget = !showTransformWidget;
+		}
 		ImGui::Separator();
 		if (ImGui::MenuItem("Properties", "Alt+Enter")) {
 			showKeyvalueWidget = !showKeyvalueWidget;
@@ -282,12 +289,13 @@ void Renderer::draw3dContextMenus() {
 
 	if (pickInfo.valid && ImGui::BeginPopup("empty_context"))
 	{
-		if (ImGui::MenuItem("Paste", "Ctrl+V")) {
+		if (ImGui::MenuItem("Paste", "Ctrl+V", false, copiedEnt != NULL)) {
 			pasteEnt(false);
 		}
-		if (ImGui::Selectable("Paste at original origin")) {
+		if (ImGui::MenuItem("Paste at original origin", 0, false, copiedEnt != NULL)) {
 			pasteEnt(true);
 		}
+		
 
 		ImGui::EndPopup();
 	}
@@ -301,8 +309,11 @@ void Renderer::drawMenuBar() {
 		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
 			showDebugWidget = !showDebugWidget;
 		}
-		if (ImGui::MenuItem("Keyvalue Editor", NULL, showKeyvalueWidget)) {
+		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
 			showKeyvalueWidget = !showKeyvalueWidget;
+		}
+		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
+			showTransformWidget = !showTransformWidget;
 		}
 		ImGui::EndMenu();
 	}
@@ -343,6 +354,9 @@ void Renderer::drawMenuBar() {
 			BspRenderer* destMap = getMapContainingCamera();
 			destMap->map->ents.push_back(newEnt);
 			destMap->preRenderEnts();
+		}
+		if (ImGui::MenuItem("BSP Model")) {
+			BspRenderer* destMap = getMapContainingCamera();
 
 		}
 		ImGui::EndMenu();
@@ -426,13 +440,10 @@ void Renderer::drawDebugWidget() {
 
 void Renderer::drawKeyvalueEditor() {
 	//ImGui::SetNextWindowBgAlpha(0.75f);
-	string title = "Entity Editor";
-
-	title += "###entwindow";
 
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
-	if (ImGui::Begin(title.c_str(), &showKeyvalueWidget, 0)) {
+	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
 		if (pickInfo.valid) {
 			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 			Entity* ent = map->ents[pickInfo.entIdx];
@@ -516,12 +527,6 @@ void Renderer::drawKeyvalueEditor() {
 					drawKeyvalueEditor_RawEditTab(ent);
 					ImGui::EndTabItem();
 				}
-
-				if (ImGui::BeginTabItem("Transform")) {
-					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_TransformTab(mapRenderers[pickInfo.mapIdx], ent);
-					ImGui::EndTabItem();
-				}
 			}
 			ImGui::EndTabBar();
 
@@ -532,94 +537,6 @@ void Renderer::drawKeyvalueEditor() {
 
 	}
 	ImGui::End();
-}
-
-void Renderer::drawKeyvalueEditor_TransformTab(BspRenderer* bspRenderer, Entity* ent) {
-	static int x, y, z;
-	static float fx, fy, fz;
-
-	static int lastPickCount = -1;
-
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	if (pickInfo.valid) {
-		if (lastPickCount != pickCount || draggingAxis != -1 || movingEnt) {
-			vec3 ori = parseVector(ent->keyvalues["origin"]);
-			x = fx = ori.x;
-			y = fy = ori.y;
-			z = fz = ori.z;
-		}
-
-		guiHoverAxis = -1;
-		ImGui::Text("Move");
-		ImGui::PushItemWidth((ImGui::GetWindowWidth() - (style.FramePadding.x * 2 + style.ScrollbarSize)) * 0.33f);
-		bool originChanged = false;
-
-		if (gridSnappingEnabled) {
-			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 0;
-			ImGui::SameLine();
-
-			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 1;
-			ImGui::SameLine();
-
-			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 2;
-			ImGui::PopItemWidth();
-		}
-		else {
-			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 0;
-			ImGui::SameLine();
-
-			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 1;
-			ImGui::SameLine();
-
-			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 2;
-			ImGui::PopItemWidth();
-		}
-
-
-		ImGui::Dummy(ImVec2(0, 10));
-		ImGui::Text("Options");
-
-		static bool showAxesToggle;
-		showAxesToggle = showDragAxes;
-		if (ImGui::Checkbox("3D Axes", &showAxesToggle)) {
-			showDragAxes = !showDragAxes;
-		}
-
-		static bool gridSnappingToggle;
-		gridSnappingToggle = gridSnappingEnabled;
-		if (ImGui::Checkbox("Snap to grid", &gridSnappingToggle)) {
-			gridSnappingEnabled = !gridSnappingEnabled;
-		}		
-
-		const int grid_snap_modes = 10;
-		const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
-		static int current_element = gridSnapLevel;
-		current_element = gridSnapLevel;
-		if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
-			gridSnapLevel = current_element;
-		}
-
-		if (originChanged) {
-			vec3 newOrigin = gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-			ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!gridSnappingEnabled));
-			bspRenderer->refreshEnt(pickInfo.entIdx);
-		}
-
-		lastPickCount = pickCount;
-	}
 }
 
 void Renderer::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
@@ -1032,6 +949,131 @@ void Renderer::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	ImGui::EndChild();
 }
 
+void Renderer::drawTransformWidget() {
+	bool transformingEnt = pickInfo.valid && pickInfo.entIdx > 0;
+
+	Entity* ent = NULL;
+	BspRenderer* bspRenderer = NULL;
+	if (transformingEnt) {
+		bspRenderer = mapRenderers[pickInfo.mapIdx];
+		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+		ent = map->ents[pickInfo.entIdx];
+	}
+
+	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, windowHeight - 40));
+	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
+		static int x, y, z;
+		static float fx, fy, fz;
+
+		static int lastPickCount = -1;
+		static int oldSnappingEnabled = gridSnappingEnabled;
+
+		ImGuiStyle& style = ImGui::GetStyle();
+
+		if (lastPickCount != pickCount || draggingAxis != -1 || movingEnt || oldSnappingEnabled != gridSnappingEnabled) {
+			if (transformingEnt) {
+				vec3 ori = parseVector(ent->keyvalues["origin"]);
+				x = fx = ori.x;
+				y = fy = ori.y;
+				z = fz = ori.z;
+			}
+			else {
+				x = fx = 0;
+				y = fy = 0;
+				z = fz = 0;
+			}
+		}
+
+		guiHoverAxis = -1;
+		ImGui::Text("Move");
+		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+		ImGui::PushItemWidth((ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f);
+		bool originChanged = false;
+
+		if (gridSnappingEnabled) {
+			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 0;
+			ImGui::SameLine();
+
+			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 1;
+			ImGui::SameLine();
+
+			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 2;
+		}
+		else {
+			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 0;
+			ImGui::SameLine();
+
+			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 1;
+			ImGui::SameLine();
+
+			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				guiHoverAxis = 2;
+		}
+
+		ImGui::PopItemWidth();
+
+		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Text("Options");
+
+		static bool showAxesToggle;
+		showAxesToggle = showDragAxes;
+		if (ImGui::Checkbox("3D Axes", &showAxesToggle)) {
+			showDragAxes = !showDragAxes;
+		}
+
+		static bool gridSnappingToggle;
+		gridSnappingToggle = gridSnappingEnabled;
+		if (ImGui::Checkbox("Snap to grid", &gridSnappingToggle)) {
+			gridSnappingEnabled = !gridSnappingEnabled;
+			originChanged = true;
+		}
+
+		const int grid_snap_modes = 10;
+		const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
+		static int current_element = gridSnapLevel;
+		current_element = gridSnapLevel;
+		if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
+			gridSnapLevel = current_element;
+			originChanged = true;
+		}
+
+		if (transformingEnt && originChanged) {
+			vec3 newOrigin = gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+			newOrigin = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
+
+			if (gridSnappingEnabled) {
+				fx = x;
+				fy = y;
+				fz = z;
+			}
+			else {
+				x = fx;
+				y = fy;
+				z = fz;
+			}
+			
+			ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!gridSnappingEnabled));
+			bspRenderer->refreshEnt(pickInfo.entIdx);
+		}
+
+		lastPickCount = pickCount;
+		oldSnappingEnabled = gridSnappingEnabled;
+		
+	}
+	ImGui::End();
+}
+
 void Renderer::cameraControls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
@@ -1238,6 +1280,9 @@ void Renderer::cameraControls() {
 	}
 	if (anyCtrlPressed && pressed[GLFW_KEY_V] && !oldPressed[GLFW_KEY_V]) {
 		pasteEnt(false);
+	}
+	if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
+		showTransformWidget = !showTransformWidget;
 	}
 	if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
 		showKeyvalueWidget = !showKeyvalueWidget;

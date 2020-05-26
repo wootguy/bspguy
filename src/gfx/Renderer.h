@@ -48,6 +48,7 @@ private:
 	bool vsync;
 	bool showDebugWidget;
 	bool showKeyvalueWidget;
+	bool showTransformWidget;
 	bool smartEdit;
 	ImFont* smallFont;
 	ImFont* largeFont;
@@ -106,10 +107,10 @@ private:
 	void drawFpsOverlay();
 	void drawDebugWidget();
 	void drawKeyvalueEditor();
-	void drawKeyvalueEditor_TransformTab(BspRenderer* bspRenderer, Entity* ent);
 	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
 	void drawKeyvalueEditor_FlagsTab(Entity* ent);
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
+	void drawTransformWidget();
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);
