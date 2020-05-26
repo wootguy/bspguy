@@ -97,7 +97,7 @@ Renderer::Renderer() {
 	gridSnapLevel = 0;
 	gridSnappingEnabled = true;
 
-	copyEnt = NULL;
+	copiedEnt = NULL;
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -254,76 +254,39 @@ void Renderer::drawGui() {
 }
 
 void Renderer::draw3dContextMenus() {
+
 	if (ImGui::BeginPopup("ent_context"))
 	{
-		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-		if (ImGui::Selectable("Cut")) {
-			if (copyEnt != NULL)
-				delete copyEnt;
-
-			copyEnt = new Entity();
-			*copyEnt = *map->ents[pickInfo.entIdx];
-			delete map->ents[pickInfo.entIdx];
-			map->ents.erase(map->ents.begin() + pickInfo.entIdx);
-			mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-			pickInfo.valid = false;
+		if (ImGui::MenuItem("Cut", "Ctrl+X")) {
+			cutEnt();
 		}
-		if (ImGui::Selectable("Copy")) {
-			if (copyEnt != NULL)
-				delete copyEnt;
-
-			copyEnt = new Entity();
-			*copyEnt = *map->ents[pickInfo.entIdx];
+		if (ImGui::MenuItem("Copy", "Ctrl+C")) {
+			copyEnt();
 		}
-		if (ImGui::Selectable("Delete")) {
-			map->ents.erase(map->ents.begin() + pickInfo.entIdx);
-			mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-			pickInfo.valid = false;
+		if (ImGui::MenuItem("Delete", "Del")) {
+			deleteEnt();
 		}
 		ImGui::Separator();
-		if (ImGui::Selectable(movingEnt ? "Ungrab" : "Grab")) {
+		if (ImGui::MenuItem(movingEnt ? "Ungrab" : "Grab", "E")) {
 			movingEnt = !movingEnt;
-			
-			grabDist = (getEntOrigin(map, map->ents[pickInfo.entIdx]) - cameraOrigin).length();
-			grabStartOrigin = cameraOrigin + cameraForward* grabDist;
-			gragStartEntOrigin = cameraOrigin + cameraForward * grabDist;
+			if (movingEnt)
+				grabEnt();
 		}
 		ImGui::Separator();
-		ImGui::Selectable("Properties");
+		if (ImGui::MenuItem("Properties", "Alt+Enter")) {
+			showKeyvalueWidget = !showKeyvalueWidget;
+		}
 
 		ImGui::EndPopup();
 	}
 
 	if (pickInfo.valid && ImGui::BeginPopup("empty_context"))
 	{
-		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-
-		if (ImGui::Selectable("Paste") && copyEnt != NULL) {
-			Entity* insertEnt = new Entity();
-			*insertEnt = *copyEnt;
-			
-			// can't just set camera origin directly because solid ents can have (0,0,0) origins
-			vec3 oldOrigin = getEntOrigin(map, insertEnt);
-			vec3 modelOffset = getEntOffset(map, insertEnt);
-			
-			vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
-			vec3 newOri = (oldOrigin + moveDist) - modelOffset;
-			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
-			insertEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
-
-			map->ents.push_back(insertEnt);
-
-			pickInfo.entIdx = map->ents.size() - 1;
-			pickInfo.valid = true;
-			mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+		if (ImGui::MenuItem("Paste", "Ctrl+V")) {
+			pasteEnt(false);
 		}
 		if (ImGui::Selectable("Paste at original origin")) {
-			Entity* insertEnt = new Entity();
-			*insertEnt = *copyEnt;
-			map->ents.push_back(insertEnt);
-
-			pickInfo.entIdx = map->ents.size() - 1;
-			mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+			pasteEnt(true);
 		}
 
 		ImGui::EndPopup();
@@ -1072,14 +1035,23 @@ void Renderer::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 void Renderer::cameraControls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
+		released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
+	}
+
+	anyCtrlPressed = pressed[GLFW_KEY_LEFT_CONTROL] || pressed[GLFW_KEY_RIGHT_CONTROL];
+	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
+	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
+
 	if (!io.WantCaptureKeyboard)
 		cameraOrigin += getMoveDir() * frameTimeScale;
 
 	// grabbing
 	if (pickInfo.valid && movingEnt) {
 		if (g_scroll != oldScroll) {
-			float moveScale = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 4.0f : 2.0f;
-			if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 4.0f : 2.0f;
+			if (pressed[GLFW_KEY_LEFT_CONTROL])
 				moveScale = 1.0f;
 			if (g_scroll < oldScroll)
 				moveScale *= -1;
@@ -1209,8 +1181,8 @@ void Renderer::cameraControls() {
 
 			vec3 dragPoint = getAxisDragPoint(axisDragEntOriginStart);
 			vec3 delta = dragPoint - axisDragStart;
-			float moveScale = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 2.0f : 1.0f;
-			if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 2.0f : 1.0f;
+			if (pressed[GLFW_KEY_LEFT_CONTROL] == GLFW_PRESS)
 				moveScale = 0.1f;
 			float maxDragDist = 8192; // don't throw ents out to infinity
 			for (int i = 0; i < 3; i++) {
@@ -1251,8 +1223,37 @@ void Renderer::cameraControls() {
 		draggingAxis = -1;
 	}
 
+	
+	// shortcuts
+	if (pressed[GLFW_KEY_E] == GLFW_PRESS && oldPressed[GLFW_KEY_E] != GLFW_PRESS) {
+		movingEnt = !movingEnt;
+		if (movingEnt)
+			grabEnt();
+	}
+	if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
+		copyEnt();
+	}
+	if (anyCtrlPressed && pressed[GLFW_KEY_X] && !oldPressed[GLFW_KEY_X]) {
+		cutEnt();
+	}
+	if (anyCtrlPressed && pressed[GLFW_KEY_V] && !oldPressed[GLFW_KEY_V]) {
+		pasteEnt(false);
+	}
+	if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
+		showKeyvalueWidget = !showKeyvalueWidget;
+	}
+	if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
+		deleteEnt();
+	}
+
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+	
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		oldPressed[i] = pressed[i];
+		oldReleased[i] = released[i];
+	}
+
 	oldScroll = g_scroll;
 }
 
@@ -1268,28 +1269,28 @@ vec3 Renderer::getMoveDir()
 
 
 	vec3 wishdir(0, 0, 0);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	if (pressed[GLFW_KEY_A])
 	{
 		wishdir -= right;
 	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	if (pressed[GLFW_KEY_D])
 	{
 		wishdir += right;
 	}
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	if (pressed[GLFW_KEY_W])
 	{
 		wishdir += forward;
 	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	if (pressed[GLFW_KEY_S])
 	{
 		wishdir -= forward;
 	}
 
 	wishdir *= moveSpeed;
 
-	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+	if (anyShiftPressed)
 		wishdir *= 4.0f;
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+	if (anyCtrlPressed)
 		wishdir *= 0.1f;
 	return wishdir;
 }
@@ -1486,4 +1487,78 @@ vec3 Renderer::snapToGrid(vec3 pos) {
 	int z = round((pos.z) / snapSize) * snapSize;
 
 	return vec3(x, y, z);
+}
+
+void Renderer::grabEnt() {
+	if (!pickInfo.valid || pickInfo.entIdx <= 0)
+		return;
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	grabDist = (getEntOrigin(map, map->ents[pickInfo.entIdx]) - cameraOrigin).length();
+	grabStartOrigin = cameraOrigin + cameraForward * grabDist;
+	gragStartEntOrigin = cameraOrigin + cameraForward * grabDist;
+}
+
+void Renderer::cutEnt() {
+	if (!pickInfo.valid || pickInfo.entIdx <= 0)
+		return;
+
+	if (copiedEnt != NULL)
+		delete copiedEnt;
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	copiedEnt = new Entity();
+	*copiedEnt = *map->ents[pickInfo.entIdx];
+	delete map->ents[pickInfo.entIdx];
+	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
+	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+	pickInfo.valid = false;
+}
+
+void Renderer::copyEnt() {
+	if (!pickInfo.valid || pickInfo.entIdx <= 0)
+		return;
+
+	if (copiedEnt != NULL)
+		delete copiedEnt;
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	copiedEnt = new Entity();
+	*copiedEnt = *map->ents[pickInfo.entIdx];
+}
+
+void Renderer::pasteEnt(bool noModifyOrigin) {
+	if (copiedEnt == NULL)
+		return;
+
+	Bsp* map = getMapContainingCamera()->map;
+
+	Entity* insertEnt = new Entity();
+	*insertEnt = *copiedEnt;
+
+	if (!noModifyOrigin) {
+		// can't just set camera origin directly because solid ents can have (0,0,0) origins
+		vec3 oldOrigin = getEntOrigin(map, insertEnt);
+		vec3 modelOffset = getEntOffset(map, insertEnt);
+
+		vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
+		vec3 newOri = (oldOrigin + moveDist) - modelOffset;
+		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
+		insertEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+	}
+
+	map->ents.push_back(insertEnt);
+
+	pickInfo.entIdx = map->ents.size() - 1;
+	pickInfo.valid = true;
+	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+}
+
+void Renderer::deleteEnt() {
+	if (!pickInfo.valid || pickInfo.entIdx <= 0)
+		return;
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
+	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+	pickInfo.valid = false;
 }

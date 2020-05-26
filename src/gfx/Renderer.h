@@ -74,11 +74,18 @@ private:
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
 
-	Entity* copyEnt;
+	Entity* copiedEnt;
 
 	int oldLeftMouse;
 	int oldRightMouse;
 	int oldScroll;
+	bool pressed[GLFW_KEY_LAST];
+	bool released[GLFW_KEY_LAST];
+	char oldPressed[GLFW_KEY_LAST];
+	char oldReleased[GLFW_KEY_LAST];
+	bool anyCtrlPressed;
+	bool anyAltPressed;
+	bool anyShiftPressed;
 
 	PickInfo pickInfo;
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
@@ -112,4 +119,10 @@ private:
 	void updateDragAxes();
 
 	vec3 snapToGrid(vec3 pos);
+
+	void grabEnt();
+	void cutEnt();
+	void copyEnt();
+	void pasteEnt(bool noModifyOrigin);
+	void deleteEnt();
 };
