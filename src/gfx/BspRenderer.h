@@ -89,6 +89,8 @@ public:
 	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
 
 	void refreshEnt(int entIdx);
+	int refreshModel(int modelIdx);
+	void refreshFace(int faceIdx);
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer

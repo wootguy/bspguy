@@ -54,3 +54,5 @@ vec3 parseVector(string s);
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 
 bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectPoint);
+
+float getDistAlongAxis(vec3 axis, vec3 p);

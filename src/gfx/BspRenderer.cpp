@@ -17,9 +17,10 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 
 	loadTextures();
 	loadLightmaps();
+	calcFaceMaths();
 	preRenderFaces();
 	preRenderEnts();
-	calcFaceMaths();
+	
 
 	bspShader->bind();
 
@@ -285,204 +286,213 @@ void BspRenderer::preRenderFaces() {
 	int modelRenderGroups = 0;
 
 	for (int m = 0; m < map->modelCount; m++) {
-		BSPMODEL& model = map->models[m];
-		RenderModel& renderModel = renderModels[m];
-
-		vector<RenderGroup> renderGroups;
-		vector<vector<lightmapVert>> renderGroupVerts;
-		vector<vector<lightmapVert>> renderGroupWireframeVerts;
-
-		for (int i = 0; i < model.nFaces; i++) {
-			int faceIdx = model.iFirstFace + i;
-			BSPFACE& face = map->faces[faceIdx];
-			BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-			int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
-			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-			LightmapInfo& lmap = lightmaps[faceIdx];
-
-			lightmapVert* verts = new lightmapVert[face.nEdges];
-			int vertCount = face.nEdges;
-			Texture* texture = glTextures[texinfo.iMiptex];
-			Texture* lightmapAtlas[MAXLIGHTMAPS];
-
-			float tw = 1.0f / (float)tex.nWidth;
-			float th = 1.0f / (float)tex.nHeight;
-
-			float lw = (float)lmap.w / (float)LIGHTMAP_ATLAS_SIZE;
-			float lh = (float)lmap.h / (float)LIGHTMAP_ATLAS_SIZE;
-
-			bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
-			bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
-			for (int s = 0; s < MAXLIGHTMAPS; s++) {
-				lightmapAtlas[s] = glLightmapTextures[lmap.atlasId[s]];
-			}
-
-			if (isSpecial) {
-				lightmapAtlas[0] = whiteTex;
-			}
-
-			float opacity = isSpecial ? 0.5f : 1.0f;
-
-			for (int e = 0; e < face.nEdges; e++) {
-				int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-				BSPEDGE& edge = map->edges[abs(edgeIdx)];
-				int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
-
-				vec3& vert = map->verts[vertIdx];
-				verts[e].x = vert.x;
-				verts[e].y = vert.z;
-				verts[e].z = -vert.y;
-
-				// texture coords
-				float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
-				float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
-				verts[e].u = fU * tw;
-				verts[e].v = fV * th;
-				verts[e].opacity = isSpecial ? 0.5f : 1.0f;
-
-				// lightmap texture coords
-				if (hasLighting) {
-					float fLightMapU = lmap.midTexU + (fU - lmap.midPolyU) / 16.0f;
-					float fLightMapV = lmap.midTexV + (fV - lmap.midPolyV) / 16.0f;
-
-					float uu = (fLightMapU / (float)lmap.w) * lw;
-					float vv = (fLightMapV / (float)lmap.h) * lh;
-
-					float pixelStep = 1.0f / (float)LIGHTMAP_ATLAS_SIZE;
-
-					for (int s = 0; s < MAXLIGHTMAPS; s++) {
-						verts[e].luv[s][0] = uu + lmap.x[s] * pixelStep;
-						verts[e].luv[s][1] = vv + lmap.y[s] * pixelStep;
-					}
-				}
-				// set lightmap scales
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					verts[e].luv[s][2] = (hasLighting && face.nStyles[s] != 255) ? 1.0f : 0.0f;
-					if (isSpecial && s == 0) {
-						verts[e].luv[s][2] = 1.0f;
-					}
-				}
-			}
-
-
-			// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
-			int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
-			int wireframeVertCount = face.nEdges * 2;
-			lightmapVert* newVerts = new lightmapVert[newCount];
-			lightmapVert* wireframeVerts = new lightmapVert[wireframeVertCount];
-
-			int idx = 0;
-			for (int k = 2; k < face.nEdges; k++) {
-				newVerts[idx++] = verts[0];
-				newVerts[idx++] = verts[k - 1];
-				newVerts[idx++] = verts[k];
-			}
-
-			idx = 0;
-			for (int k = 0; k < face.nEdges; k++) {
-				wireframeVerts[idx++] = verts[k];
-				wireframeVerts[idx++] = verts[(k+1) % face.nEdges];
-			}
-			for (int k = 0; k < wireframeVertCount; k++) {
-				wireframeVerts[k].luv[0][2] = 1.0f;
-				wireframeVerts[k].luv[1][2] = 0.0f;
-				wireframeVerts[k].luv[2][2] = 0.0f;
-				wireframeVerts[k].luv[3][2] = 0.0f;
-				wireframeVerts[k].opacity = 1.0f;
-			}
-
-			delete[] verts;
-			verts = newVerts;
-			vertCount = newCount;
-
-			// add face to a render group (faces that share that same textures and opacity flag)
-			bool isTransparent = opacity < 1.0f;
-			int groupIdx = -1;
-			for (int k = 0; k < renderGroups.size(); k++) {
-				if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
-					bool allMatch = true;
-					for (int s = 0; s < MAXLIGHTMAPS; s++) {
-						if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
-							allMatch = false;
-							break;
-						}
-					}
-					if (allMatch) {
-						groupIdx = k;
-						break;
-					}
-				}
-			}
-
-			if (groupIdx == -1) {
-				RenderGroup newGroup = RenderGroup();
-				newGroup.vertCount = 0;
-				newGroup.verts = NULL;
-				newGroup.transparent = isTransparent;
-				newGroup.texture = glTextures[texinfo.iMiptex];
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					newGroup.lightmapAtlas[s] = lightmapAtlas[s];
-				}
-				renderGroups.push_back(newGroup);
-				renderGroupVerts.push_back(vector<lightmapVert>());
-				renderGroupWireframeVerts.push_back(vector<lightmapVert>());
-				groupIdx = renderGroups.size() - 1;
-			}
-
-			for (int k = 0; k < vertCount; k++)
-				renderGroupVerts[groupIdx].push_back(verts[k]);
-			for (int k = 0; k < wireframeVertCount; k++) {
-				renderGroupWireframeVerts[groupIdx].push_back(wireframeVerts[k]);
-			}
-
-			delete[] verts;
-			delete[] wireframeVerts;
-		}
-
-		renderModel.renderGroups = new RenderGroup[renderGroups.size()];
-		renderModel.groupCount = renderGroups.size();
-
-		for (int i = 0; i < renderGroups.size(); i++) {
-			renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
-			renderGroups[i].vertCount = renderGroupVerts[i].size();
-			memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
-
-			renderGroups[i].wireframeVerts = new lightmapVert[renderGroupWireframeVerts[i].size()];
-			renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
-			memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
-
-			renderGroups[i].buffer = new VertexBuffer(bspShader, 0);
-			renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
-			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
-			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
-			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
-			renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-			renderGroups[i].buffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
-			renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
-			renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
-			renderGroups[i].buffer->upload();
-
-			renderGroups[i].wireframeBuffer = new VertexBuffer(bspShader, 0);
-			renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
-			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
-			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
-			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
-			renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-			renderGroups[i].wireframeBuffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
-			renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
-			renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
-			renderGroups[i].wireframeBuffer->upload();
-
-			renderModel.renderGroups[i] = renderGroups[i];
-		}
+		int groupCount = refreshModel(m);
 		if (m == 0)
-			worldRenderGroups += renderModel.groupCount;
+			worldRenderGroups += groupCount;
 		else
-			modelRenderGroups += renderModel.groupCount;
+			modelRenderGroups += groupCount;
 	}
 
 	printf("Added %d world render groups\n", worldRenderGroups);
 	printf("Added %d submodel render groups\n", modelRenderGroups);
+}
+
+int BspRenderer::refreshModel(int modelIdx) {
+	BSPMODEL& model = map->models[modelIdx];
+	RenderModel& renderModel = renderModels[modelIdx];
+
+	vector<RenderGroup> renderGroups;
+	vector<vector<lightmapVert>> renderGroupVerts;
+	vector<vector<lightmapVert>> renderGroupWireframeVerts;
+
+	for (int i = 0; i < model.nFaces; i++) {
+		int faceIdx = model.iFirstFace + i;
+		BSPFACE& face = map->faces[faceIdx];
+		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+		int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+		LightmapInfo& lmap = lightmaps[faceIdx];
+
+		lightmapVert* verts = new lightmapVert[face.nEdges];
+		int vertCount = face.nEdges;
+		Texture* texture = glTextures[texinfo.iMiptex];
+		Texture* lightmapAtlas[MAXLIGHTMAPS];
+
+		float tw = 1.0f / (float)tex.nWidth;
+		float th = 1.0f / (float)tex.nHeight;
+
+		float lw = (float)lmap.w / (float)LIGHTMAP_ATLAS_SIZE;
+		float lh = (float)lmap.h / (float)LIGHTMAP_ATLAS_SIZE;
+
+		bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
+		bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			lightmapAtlas[s] = glLightmapTextures[lmap.atlasId[s]];
+		}
+
+		if (isSpecial) {
+			lightmapAtlas[0] = whiteTex;
+		}
+
+		float opacity = isSpecial ? 0.5f : 1.0f;
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+			vec3& vert = map->verts[vertIdx];
+			verts[e].x = vert.x;
+			verts[e].y = vert.z;
+			verts[e].z = -vert.y;
+
+			// texture coords
+			float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
+			float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
+			verts[e].u = fU * tw;
+			verts[e].v = fV * th;
+			verts[e].opacity = isSpecial ? 0.5f : 1.0f;
+
+			// lightmap texture coords
+			if (hasLighting) {
+				float fLightMapU = lmap.midTexU + (fU - lmap.midPolyU) / 16.0f;
+				float fLightMapV = lmap.midTexV + (fV - lmap.midPolyV) / 16.0f;
+
+				float uu = (fLightMapU / (float)lmap.w) * lw;
+				float vv = (fLightMapV / (float)lmap.h) * lh;
+
+				float pixelStep = 1.0f / (float)LIGHTMAP_ATLAS_SIZE;
+
+				for (int s = 0; s < MAXLIGHTMAPS; s++) {
+					verts[e].luv[s][0] = uu + lmap.x[s] * pixelStep;
+					verts[e].luv[s][1] = vv + lmap.y[s] * pixelStep;
+				}
+			}
+			// set lightmap scales
+			for (int s = 0; s < MAXLIGHTMAPS; s++) {
+				verts[e].luv[s][2] = (hasLighting && face.nStyles[s] != 255) ? 1.0f : 0.0f;
+				if (isSpecial && s == 0) {
+					verts[e].luv[s][2] = 1.0f;
+				}
+			}
+		}
+
+
+		// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
+		int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
+		int wireframeVertCount = face.nEdges * 2;
+		lightmapVert* newVerts = new lightmapVert[newCount];
+		lightmapVert* wireframeVerts = new lightmapVert[wireframeVertCount];
+
+		int idx = 0;
+		for (int k = 2; k < face.nEdges; k++) {
+			newVerts[idx++] = verts[0];
+			newVerts[idx++] = verts[k - 1];
+			newVerts[idx++] = verts[k];
+		}
+
+		idx = 0;
+		for (int k = 0; k < face.nEdges; k++) {
+			wireframeVerts[idx++] = verts[k];
+			wireframeVerts[idx++] = verts[(k + 1) % face.nEdges];
+		}
+		for (int k = 0; k < wireframeVertCount; k++) {
+			wireframeVerts[k].luv[0][2] = 1.0f;
+			wireframeVerts[k].luv[1][2] = 0.0f;
+			wireframeVerts[k].luv[2][2] = 0.0f;
+			wireframeVerts[k].luv[3][2] = 0.0f;
+			wireframeVerts[k].opacity = 1.0f;
+		}
+
+		delete[] verts;
+		verts = newVerts;
+		vertCount = newCount;
+
+		// add face to a render group (faces that share that same textures and opacity flag)
+		bool isTransparent = opacity < 1.0f;
+		int groupIdx = -1;
+		for (int k = 0; k < renderGroups.size(); k++) {
+			if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
+				bool allMatch = true;
+				for (int s = 0; s < MAXLIGHTMAPS; s++) {
+					if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
+						allMatch = false;
+						break;
+					}
+				}
+				if (allMatch) {
+					groupIdx = k;
+					break;
+				}
+			}
+		}
+
+		if (groupIdx == -1) {
+			RenderGroup newGroup = RenderGroup();
+			newGroup.vertCount = 0;
+			newGroup.verts = NULL;
+			newGroup.transparent = isTransparent;
+			newGroup.texture = glTextures[texinfo.iMiptex];
+			for (int s = 0; s < MAXLIGHTMAPS; s++) {
+				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
+			}
+			renderGroups.push_back(newGroup);
+			renderGroupVerts.push_back(vector<lightmapVert>());
+			renderGroupWireframeVerts.push_back(vector<lightmapVert>());
+			groupIdx = renderGroups.size() - 1;
+		}
+
+		for (int k = 0; k < vertCount; k++)
+			renderGroupVerts[groupIdx].push_back(verts[k]);
+		for (int k = 0; k < wireframeVertCount; k++) {
+			renderGroupWireframeVerts[groupIdx].push_back(wireframeVerts[k]);
+		}
+
+		delete[] verts;
+		delete[] wireframeVerts;
+	}
+
+	renderModel.renderGroups = new RenderGroup[renderGroups.size()];
+	renderModel.groupCount = renderGroups.size();
+
+	for (int i = 0; i < renderGroups.size(); i++) {
+		renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
+		renderGroups[i].vertCount = renderGroupVerts[i].size();
+		memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
+
+		renderGroups[i].wireframeVerts = new lightmapVert[renderGroupWireframeVerts[i].size()];
+		renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
+		memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
+
+		renderGroups[i].buffer = new VertexBuffer(bspShader, 0);
+		renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
+		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+		renderGroups[i].buffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
+		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
+		renderGroups[i].buffer->upload();
+
+		renderGroups[i].wireframeBuffer = new VertexBuffer(bspShader, 0);
+		renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
+		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+		renderGroups[i].wireframeBuffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+		renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
+		renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
+		renderGroups[i].wireframeBuffer->upload();
+
+		renderModel.renderGroups[i] = renderGroups[i];
+	}
+
+	for (int i = 0; i < model.nFaces; i++) {
+		refreshFace(model.iFirstFace + i);
+	}
+	return renderModel.groupCount;
 }
 
 void BspRenderer::preRenderEnts() {
@@ -525,40 +535,48 @@ void BspRenderer::calcFaceMaths() {
 	vec3 world_z = vec3(0, 0, 1);
 
 	for (int i = 0; i < map->faceCount; i++) {
-		FaceMath& faceMath = faceMaths[i];
-		BSPFACE& face = map->faces[i];
-		BSPPLANE& plane = map->planes[face.iPlane];
-		vec3 planeNormal = face.nPlaneSide ? plane.vNormal * -1 : plane.vNormal;
-		float fDist = face.nPlaneSide ? -plane.fDist : plane.fDist;
-
-		faceMath.normal = planeNormal;
-		faceMath.fdist = fDist;
-
-		faceMath.verts = new vec3[face.nEdges];
-		faceMath.vertCount = face.nEdges;
-
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
-			faceMath.verts[e] = map->verts[vertIdx];
-		}
-
-		vec3 plane_x = (faceMath.verts[1] - faceMath.verts[0]).normalize(1.0f);
-		vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
-		vec3 plane_z = planeNormal;
-
-		faceMath.worldToLocal.loadIdentity();
-		faceMath.worldToLocal.m[0 * 4 + 0] = dotProduct(plane_x, world_x);
-		faceMath.worldToLocal.m[1 * 4 + 0] = dotProduct(plane_x, world_y);
-		faceMath.worldToLocal.m[2 * 4 + 0] = dotProduct(plane_x, world_z);
-		faceMath.worldToLocal.m[0 * 4 + 1] = dotProduct(plane_y, world_x);
-		faceMath.worldToLocal.m[1 * 4 + 1] = dotProduct(plane_y, world_y);
-		faceMath.worldToLocal.m[2 * 4 + 1] = dotProduct(plane_y, world_z);
-		faceMath.worldToLocal.m[0 * 4 + 2] = dotProduct(plane_z, world_x);
-		faceMath.worldToLocal.m[1 * 4 + 2] = dotProduct(plane_z, world_y);
-		faceMath.worldToLocal.m[2 * 4 + 2] = dotProduct(plane_z, world_z);
+		refreshFace(i);
 	}
+}
+
+void BspRenderer::refreshFace(int faceIdx) {
+	const vec3 world_x = vec3(1, 0, 0);
+	const vec3 world_y = vec3(0, 1, 0);
+	const vec3 world_z = vec3(0, 0, 1);
+
+	FaceMath& faceMath = faceMaths[faceIdx];
+	BSPFACE& face = map->faces[faceIdx];
+	BSPPLANE& plane = map->planes[face.iPlane];
+	vec3 planeNormal = face.nPlaneSide ? plane.vNormal * -1 : plane.vNormal;
+	float fDist = face.nPlaneSide ? -plane.fDist : plane.fDist;
+
+	faceMath.normal = planeNormal;
+	faceMath.fdist = fDist;
+
+	faceMath.verts = new vec3[face.nEdges];
+	faceMath.vertCount = face.nEdges;
+
+	for (int e = 0; e < face.nEdges; e++) {
+		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+		BSPEDGE& edge = map->edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
+		faceMath.verts[e] = map->verts[vertIdx];
+	}
+
+	vec3 plane_x = (faceMath.verts[1] - faceMath.verts[0]).normalize(1.0f);
+	vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
+	vec3 plane_z = planeNormal;
+
+	faceMath.worldToLocal.loadIdentity();
+	faceMath.worldToLocal.m[0 * 4 + 0] = dotProduct(plane_x, world_x);
+	faceMath.worldToLocal.m[1 * 4 + 0] = dotProduct(plane_x, world_y);
+	faceMath.worldToLocal.m[2 * 4 + 0] = dotProduct(plane_x, world_z);
+	faceMath.worldToLocal.m[0 * 4 + 1] = dotProduct(plane_y, world_x);
+	faceMath.worldToLocal.m[1 * 4 + 1] = dotProduct(plane_y, world_y);
+	faceMath.worldToLocal.m[2 * 4 + 1] = dotProduct(plane_y, world_z);
+	faceMath.worldToLocal.m[0 * 4 + 2] = dotProduct(plane_z, world_x);
+	faceMath.worldToLocal.m[1 * 4 + 2] = dotProduct(plane_z, world_y);
+	faceMath.worldToLocal.m[2 * 4 + 2] = dotProduct(plane_z, world_z);
 }
 
 BspRenderer::~BspRenderer() {

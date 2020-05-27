@@ -98,6 +98,8 @@ Renderer::Renderer() {
 	gridSnappingEnabled = true;
 
 	copiedEnt = NULL;
+	scaleVertsStart = NULL;
+	scaleVerts = NULL;
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -115,19 +117,45 @@ void Renderer::renderLoop() {
 	glCullFace(GL_FRONT);
 
 	{
-		axisDimColors[0] = { 110, 0, 160 };
-		axisDimColors[1] = { 0, 0, 220 };
-		axisDimColors[2] = { 0, 160, 0 };
-		axisDimColors[3] = { 160, 160, 160 };
+		moveAxes.dimColor[0] = { 110, 0, 160 };
+		moveAxes.dimColor[1] = { 0, 0, 220 };
+		moveAxes.dimColor[2] = { 0, 160, 0 };
+		moveAxes.dimColor[3] = { 160, 160, 160 };
 
-		axisHoverColors[0] = { 128, 64, 255 };
-		axisHoverColors[1] = { 64, 64, 255 };
-		axisHoverColors[2] = { 64, 255, 64 };
-		axisHoverColors[3] = { 255, 255, 255 };
+		moveAxes.hoverColor[0] = { 128, 64, 255 };
+		moveAxes.hoverColor[1] = { 64, 64, 255 };
+		moveAxes.hoverColor[2] = { 64, 255, 64 };
+		moveAxes.hoverColor[3] = { 255, 255, 255 };
 
 		// flipped for HL coords
-		axisModel = new cCube[4];
-		axisBuffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, axisModel, 6 * 6 * 4);
+		moveAxes.model = new cCube[4];
+		moveAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, moveAxes.model, 6 * 6 * 4);
+		moveAxes.numAxes = 4;
+
+		updateDragAxes();
+	}
+
+	{
+		scaleAxes.dimColor[0] = { 110, 0, 160 };
+		scaleAxes.dimColor[1] = { 0, 0, 220 };
+		scaleAxes.dimColor[2] = { 0, 160, 0 };
+
+		scaleAxes.dimColor[3] = { 110, 0, 160 };
+		scaleAxes.dimColor[4] = { 0, 0, 220 };
+		scaleAxes.dimColor[5] = { 0, 160, 0 };
+
+		scaleAxes.hoverColor[0] = { 128, 64, 255 };
+		scaleAxes.hoverColor[1] = { 64, 64, 255 };
+		scaleAxes.hoverColor[2] = { 64, 255, 64 };
+
+		scaleAxes.hoverColor[3] = { 128, 64, 255 };		
+		scaleAxes.hoverColor[4] = { 64, 64, 255 };
+		scaleAxes.hoverColor[5] = { 64, 255, 64 };
+
+		// flipped for HL coords
+		scaleAxes.model = new cCube[6];
+		scaleAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, scaleAxes.model, 6 * 6 * 6);
+		scaleAxes.numAxes = 6;
 
 		updateDragAxes();
 	}
@@ -174,25 +202,7 @@ void Renderer::renderLoop() {
 		colorShader->bind();
 
 		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
-			glClear(GL_DEPTH_BUFFER_BIT);
-			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-			Entity* ent = map->ents[pickInfo.entIdx];
-			vec3 ori = getEntOrigin(map, ent);
-
-			updateDragAxes();
-
-			/*
-			if (!ent->isBspModel()) {
-				EntCube* cube = pointEntRenderer->getEntCube(ent);
-				ori += cube->mins + (cube->maxs - cube->mins) * 0.5f;
-			}
-			*/
-			
-			model.translate(ori.x, ori.z, -ori.y);
-			colorShader->updateMatrixes();
-
-			glDisable(GL_CULL_FACE);
-			axisBuffer->draw(GL_TRIANGLES);
+			drawTransformAxes();
 		}
 
 		if (true) {
@@ -212,6 +222,29 @@ void Renderer::renderLoop() {
 	}
 
 	glfwTerminate();
+}
+
+void Renderer::drawTransformAxes() {
+	glClear(GL_DEPTH_BUFFER_BIT);
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	Entity* ent = map->ents[pickInfo.entIdx];
+
+	updateDragAxes();
+
+	glDisable(GL_CULL_FACE);
+
+	if (transformMode == TRANSFORM_SCALE) {
+		vec3 ori = scaleAxes.origin;
+		model.translate(ori.x, ori.z, -ori.y);
+		colorShader->updateMatrixes();
+		scaleAxes.buffer->draw(GL_TRIANGLES);
+	}
+	if (transformMode == TRANSFORM_MOVE) {
+		vec3 ori = moveAxes.origin;
+		model.translate(ori.x, ori.z, -ori.y);
+		colorShader->updateMatrixes();
+		moveAxes.buffer->draw(GL_TRIANGLES);
+	}
 }
 
 void Renderer::drawGui() {
@@ -269,7 +302,7 @@ void Renderer::draw3dContextMenus() {
 			deleteEnt();
 		}
 		ImGui::Separator();
-		if (ImGui::MenuItem(movingEnt ? "Ungrab" : "Grab", "E")) {
+		if (ImGui::MenuItem(movingEnt ? "Ungrab" : "Grab", "G")) {
 			movingEnt = !movingEnt;
 			if (movingEnt)
 				grabEnt();
@@ -377,7 +410,7 @@ void Renderer::drawMenuBar() {
 			vec3 mins = vec3(-16, -16, -16);
 			vec3 maxs = vec3(16, 16, 16);
 
-			int modelIdx = destMap->map->create_solid(mins, maxs, 2);
+			int modelIdx = destMap->map->create_solid(mins, maxs, 3);
 
 			Entity* newEnt = new Entity();
 			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
@@ -386,10 +419,12 @@ void Renderer::drawMenuBar() {
 			destMap->map->ents.push_back(newEnt);
 
 			destMap->updateLightmapInfos();
+			destMap->calcFaceMaths();
 			destMap->preRenderFaces();
 			destMap->preRenderEnts();
-			destMap->calcFaceMaths();
 			destMap->map->validate();
+
+			destMap->map->print_model_hull(modelIdx, 1);
 		}
 		ImGui::EndMenu();
 	}
@@ -459,6 +494,14 @@ void Renderer::drawDebugWidget() {
 					ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
 				}
 				
+			}
+
+			if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
+			{
+				ImGui::Text("DebugVec0 %4.0f %4.0f %4.0f", debugVec0.x, debugVec0.y, debugVec0.z);
+				ImGui::Text("DebugVec1 %4.0f %4.0f %4.0f", debugVec1.x, debugVec1.y, debugVec1.z);
+				ImGui::Text("DebugVec2 %4.0f %4.0f %4.0f", debugVec2.x, debugVec2.y, debugVec2.z);
+				ImGui::Text("DebugVec3 %4.0f %4.0f %4.0f", debugVec3.x, debugVec3.y, debugVec3.z);
 			}
 		}
 		else {
@@ -996,6 +1039,7 @@ void Renderer::drawTransformWidget() {
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
 		static int x, y, z;
 		static float fx, fy, fz;
+		static float sx, sy, sz;
 
 		static int lastPickCount = -1;
 		static int oldSnappingEnabled = gridSnappingEnabled;
@@ -1014,89 +1058,135 @@ void Renderer::drawTransformWidget() {
 				y = fy = 0;
 				z = fz = 0;
 			}
+			sx = sy = sz = 1;
 		}
 
-		guiHoverAxis = -1;
-		ImGui::Text("Move");
-		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-		ImGui::PushItemWidth((ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f);
+		bool scaled = false;
 		bool originChanged = false;
+		guiHoverAxis = -1;
 
-		if (gridSnappingEnabled) {
-			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 0;
-			ImGui::SameLine();
+		if (ImGui::BeginTabBar("##tabs"))
+		{
+			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
 
-			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 1;
-			ImGui::SameLine();
+			if (ImGui::BeginTabItem("Move")) {
+				transformMode = TRANSFORM_MOVE;
+				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
+				ImGui::PushItemWidth(inputWidth);
 
-			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 2;
-		}
-		else {
-			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 0;
-			ImGui::SameLine();
+				if (gridSnappingEnabled) {
+					if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 0;
+					ImGui::SameLine();
 
-			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 1;
-			ImGui::SameLine();
+					if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 1;
+					ImGui::SameLine();
 
-			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 2;
-		}
+					if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 2;
+				}
+				else {
+					if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 0;
+					ImGui::SameLine();
 
-		ImGui::PopItemWidth();
+					if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 1;
+					ImGui::SameLine();
 
-		ImGui::Dummy(ImVec2(0, 10));
-		ImGui::Text("Options");
+					if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
+					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+						guiHoverAxis = 2;
+				}
 
-		static bool showAxesToggle;
-		showAxesToggle = showDragAxes;
-		if (ImGui::Checkbox("3D Axes", &showAxesToggle)) {
-			showDragAxes = !showDragAxes;
-		}
-
-		static bool gridSnappingToggle;
-		gridSnappingToggle = gridSnappingEnabled;
-		if (ImGui::Checkbox("Snap to grid", &gridSnappingToggle)) {
-			gridSnappingEnabled = !gridSnappingEnabled;
-			originChanged = true;
-		}
-
-		const int grid_snap_modes = 10;
-		const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
-		static int current_element = gridSnapLevel;
-		current_element = gridSnapLevel;
-		if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
-			gridSnapLevel = current_element;
-			originChanged = true;
-		}
-
-		if (transformingEnt && originChanged) {
-			vec3 newOrigin = gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-			newOrigin = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
-
-			if (gridSnappingEnabled) {
-				fx = x;
-				fy = y;
-				fz = z;
+				ImGui::PopItemWidth();
+				ImGui::EndTabItem();
 			}
-			else {
-				x = fx;
-				y = fy;
-				z = fz;
+
+			if (ImGui::BeginTabItem("Scale")) {
+				transformMode = TRANSFORM_SCALE;
+				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
+				ImGui::PushItemWidth(inputWidth);
+
+				if (ImGui::DragFloat("##xscale", &sx, 0.01f, 0, 0, "X: %.2f")) { scaled = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 0;
+				ImGui::SameLine();
+
+				if (ImGui::DragFloat("##yscale", &sy, 0.01f, 0, 0, "Y: %.2f")) { scaled = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 1;
+				ImGui::SameLine();
+
+				if (ImGui::DragFloat("##zscale", &sz, 0.01f, 0, 0, "Z: %.2f")) { scaled = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 2;
+
+				ImGui::PopItemWidth();
+				ImGui::EndTabItem();
 			}
-			
-			ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!gridSnappingEnabled));
-			bspRenderer->refreshEnt(pickInfo.entIdx);
+
+			if (ImGui::BeginTabItem("Options")) {
+				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
+
+				static bool showAxesToggle;
+				showAxesToggle = showDragAxes;
+				if (ImGui::Checkbox("3D Axes", &showAxesToggle)) {
+					showDragAxes = !showDragAxes;
+				}
+
+				static bool gridSnappingToggle;
+				gridSnappingToggle = gridSnappingEnabled;
+				if (ImGui::Checkbox("Snap to grid", &gridSnappingToggle)) {
+					gridSnappingEnabled = !gridSnappingEnabled;
+					originChanged = true;
+				}
+
+				const int grid_snap_modes = 10;
+				const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
+				static int current_element = gridSnapLevel;
+				current_element = gridSnapLevel;
+				if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
+					gridSnapLevel = current_element;
+					originChanged = true;
+				}
+
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
+		}
+
+		if (transformingEnt) {
+			if (originChanged) {
+				vec3 newOrigin = gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+				newOrigin = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
+
+				if (gridSnappingEnabled) {
+					fx = x;
+					fy = y;
+					fz = z;
+				}
+				else {
+					x = fx;
+					y = fy;
+					z = fz;
+				}
+
+				ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!gridSnappingEnabled));
+				bspRenderer->refreshEnt(pickInfo.entIdx);
+			}
+			if (scaled && ent->isBspModel()) {
+				int modelIdx = ent->getBspModelIdx();
+				
+			}
 		}
 
 		lastPickCount = pickCount;
@@ -1211,6 +1301,7 @@ void Renderer::cameraControls() {
 	makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
 
 	// axis handle hovering
+	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 	hoverAxis = -1;
 	if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
 		vec3 pickStart, pickDir;
@@ -1221,18 +1312,21 @@ void Renderer::cameraControls() {
 
 		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 		Entity* ent = map->ents[pickInfo.entIdx];
-		vec3 origin = getEntOrigin(map, ent);
-
-		for (int i = 0; i < 3; i++) {
-			if (pickAABB(pickStart, pickDir, origin + axisModelMins[i], origin + axisModelMaxs[i], axisPick.bestDist)) {
+		vec3 origin = activeAxes.origin;
+			
+		int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
+		for (int i = 0; i < axisChecks; i++) {
+			if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[i], origin + activeAxes.maxs[i], axisPick.bestDist)) {
 				hoverAxis = i;
 			}
 		}
 
 		// center cube gets priority for selection (hard to select from some angles otherwise)
-		float bestDist = 9e99;
-		if (pickAABB(pickStart, pickDir, origin + axisModelMins[3], origin + axisModelMaxs[3], bestDist)) {
-			hoverAxis = 3;
+		if (transformMode == TRANSFORM_MOVE) {
+			float bestDist = 9e99;
+			if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[3], origin + activeAxes.maxs[3], bestDist)) {
+				hoverAxis = 3;
+			}
 		}
 	}
 
@@ -1248,30 +1342,54 @@ void Renderer::cameraControls() {
 			axisDragEntOriginStart = getEntOrigin(map, ent);
 			axisDragStart = getAxisDragPoint(axisDragEntOriginStart);
 		}
-		if (showDragAxes && !movingEnt && draggingAxis >= 0 && draggingAxis < 3) {
+		if (showDragAxes && !movingEnt && draggingAxis >= 0) {
 			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 			Entity* ent = map->ents[pickInfo.entIdx];
-			axisModel[draggingAxis].setColor(axisHoverColors[draggingAxis]);
+
+			activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
 
 			vec3 dragPoint = getAxisDragPoint(axisDragEntOriginStart);
 			vec3 delta = dragPoint - axisDragStart;
 			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 2.0f : 1.0f;
 			if (pressed[GLFW_KEY_LEFT_CONTROL] == GLFW_PRESS)
 				moveScale = 0.1f;
+
 			float maxDragDist = 8192; // don't throw ents out to infinity
 			for (int i = 0; i < 3; i++) {
-				if (i != draggingAxis)
+				if (i != draggingAxis % 3)
 					((float*)&delta)[i] = 0;
 				else 
 					((float*)&delta)[i] = clamp(((float*)&delta)[i] * moveScale, -maxDragDist, maxDragDist);
 			}
-			
-			vec3 offset = getEntOffset(map, ent);
-			vec3 newOrigin = (axisDragEntOriginStart + delta) - offset;
-			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
 
-			ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
-			mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+			if (transformMode == TRANSFORM_MOVE) {
+				vec3 offset = getEntOffset(map, ent);
+				vec3 newOrigin = (axisDragEntOriginStart + delta) - offset;
+				vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
+
+				ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+			}
+			else {
+				if (ent->isBspModel() && delta.length() != 0) {
+
+					vec3 scaleDirs[6]{
+						vec3(1, 0, 0),
+						vec3(0, 1, 0),
+						vec3(0, 0, 1),
+						vec3(-1, 0, 0),
+						vec3(0, -1, 0),
+						vec3(0, 0, -1),
+					};
+
+					scaleSelectedVerts(delta, scaleDirs[draggingAxis]);
+					mapRenderers[pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+
+					debugVec0 = delta;
+					debugVec1 = scaleDirs[draggingAxis];
+					debugVec2 = vec3(draggingAxis, hoverAxis, 0);
+				}
+			}
 		}
 		// object picking
 		else if (oldLeftMouse != GLFW_PRESS) {
@@ -1291,15 +1409,25 @@ void Renderer::cameraControls() {
 			if (movingEnt && oldEntIdx != pickInfo.entIdx) {
 				movingEnt = false;
 			}
+
+			updateScaleVerts(false);
 		}
 	}
 	else {
-		draggingAxis = -1;
+		if (draggingAxis != -1) {
+			draggingAxis = -1;
+			if (transformMode == TRANSFORM_SCALE) {
+				updateScaleVerts(true);
+				if (pickInfo.valid && pickInfo.modelIdx > 0) {
+					Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+					map->vertex_manipulation_sync(pickInfo.modelIdx);
+				}				
+			}
+		}
 	}
-
 	
 	// shortcuts
-	if (pressed[GLFW_KEY_E] == GLFW_PRESS && oldPressed[GLFW_KEY_E] != GLFW_PRESS) {
+	if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
 		movingEnt = !movingEnt;
 		if (movingEnt)
 			grabEnt();
@@ -1477,44 +1605,132 @@ vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
 void Renderer::updateDragAxes() {
 	float baseScale = 1.0f;
 
+	Bsp* map = NULL;
+	Entity* ent = NULL;
+
 	if (pickInfo.valid && pickInfo.entIdx > 0) {
-		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-		Entity* ent = map->ents[pickInfo.entIdx];
+		map = mapRenderers[pickInfo.mapIdx]->map;
+		ent = map->ents[pickInfo.entIdx];
 		baseScale = (getEntOrigin(map, ent) - cameraOrigin).length() * 0.005f;
 	}
+
+	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 
 	float s = baseScale;
 	float s2 = baseScale*2;
 	float d = baseScale*32;
 
-	// flipped for HL coords
-	axisModel[0] = cCube(vec3(0, -s, -s), vec3(d, s, s), axisDimColors[0]);
-	axisModel[2] = cCube(vec3(-s, 0, -s), vec3(s, d, s), axisDimColors[2]);
-	axisModel[1] = cCube(vec3(-s, -s, 0), vec3(s, s, -d), axisDimColors[1]);
-	axisModel[3] = cCube(vec3(-s2, -s2, -s2), vec3(s2, s2, s2), axisDimColors[3]);
+	if (transformMode == TRANSFORM_SCALE) {
+		vec3 entMin, entMax;
+		if (ent != NULL && ent->isBspModel()) {
+			map->get_model_vertex_bounds(ent->getBspModelIdx(), entMin, entMax);
+			vec3 modelOrigin = entMin + (entMax - entMin) * 0.5f;
 
-	// larger mins/maxs so you can be less precise when selecting them
-	s *= 4;
-	s2 *= 1.5f;
+			entMax -= modelOrigin;
+			entMin -= modelOrigin;
 
-	axisModelMins[0] = vec3(0, -s, -s);
-	axisModelMins[1] = vec3(-s, 0, -s);
-	axisModelMins[2] = vec3(-s, -s, 0);
-	axisModelMins[3] = vec3(-s2, -s2, -s2);
+			scaleAxes.origin = modelOrigin;
+			if (ent->hasKey("origin")) {
+				scaleAxes.origin += parseVector(ent->keyvalues["origin"]);
+			}
+		}
 
-	axisModelMaxs[0] = vec3(d, s, s);
-	axisModelMaxs[1] = vec3(s, d, s);
-	axisModelMaxs[2] = vec3(s, s, d);
-	axisModelMaxs[3] = vec3(s2, s2, s2);
+		vec3 axisMins[6] = {
+			vec3(0, -s, -s) + vec3(entMax.x,0,0), // x+
+			vec3(-s, 0, -s) + vec3(0,entMax.y,0), // y+
+			vec3(-s, -s, 0) + vec3(0,0,entMax.z), // z+
 
-	if (draggingAxis >= 0 && draggingAxis < 4) {
-		axisModel[draggingAxis].setColor(axisHoverColors[draggingAxis]);
+			vec3(-d, -s, -s) + vec3(entMin.x,0,0), // x-
+			vec3(-s, -d, -s) + vec3(0,entMin.y,0), // y-
+			vec3(-s, -s, -d) + vec3(0,0,entMin.z)  // z-
+		};
+		vec3 axisMaxs[6] = {
+			vec3(d, s, s) + vec3(entMax.x,0,0), // x+
+			vec3(s, d, s) + vec3(0,entMax.y,0), // y+
+			vec3(s, s, d) + vec3(0,0,entMax.z), // z+
+
+			vec3(0, s, s) + vec3(entMin.x,0,0), // x-
+			vec3(s, 0, s) + vec3(0,entMin.y,0), // y-
+			vec3(s, s, 0) + vec3(0,0,entMin.z)  // z-
+		};
+		
+		scaleAxes.model[0] = cCube(axisMins[0], axisMaxs[0], scaleAxes.dimColor[0]);
+		scaleAxes.model[1] = cCube(axisMins[1], axisMaxs[1], scaleAxes.dimColor[1]);
+		scaleAxes.model[2] = cCube(axisMins[2], axisMaxs[2], scaleAxes.dimColor[2]);
+
+		scaleAxes.model[3] = cCube(axisMins[3], axisMaxs[3], scaleAxes.dimColor[3]);
+		scaleAxes.model[4] = cCube(axisMins[4], axisMaxs[4], scaleAxes.dimColor[4]);
+		scaleAxes.model[5] = cCube(axisMins[5], axisMaxs[5], scaleAxes.dimColor[5]);
+
+		// flip to HL coords
+		cVert* verts = (cVert*)scaleAxes.model;
+		for (int i = 0; i < 6*6*6; i++) {
+			float tmp = verts[i].z;
+			verts[i].z = -verts[i].y;
+			verts[i].y = tmp;
+		}
+
+ 		// larger mins/maxs so you can be less precise when selecting them
+		s *= 4;
+		vec3 grabAxisMins[6] = {
+			vec3(0, -s, -s) + vec3(entMax.x,0,0), // x+
+			vec3(-s, 0, -s) + vec3(0,entMax.y,0), // y+
+			vec3(-s, -s, 0) + vec3(0,0,entMax.z), // z+
+
+			vec3(-d, -s, -s) + vec3(entMin.x,0,0), // x-
+			vec3(-s, -d, -s) + vec3(0,entMin.y,0), // y-
+			vec3(-s, -s, -d) + vec3(0,0,entMin.z)  // z-
+		};
+		vec3 grabAxisMaxs[6] = {
+			vec3(d, s, s) + vec3(entMax.x,0,0), // x+
+			vec3(s, d, s) + vec3(0,entMax.y,0), // y+
+			vec3(s, s, d) + vec3(0,0,entMax.z), // z+
+
+			vec3(0, s, s) + vec3(entMin.x,0,0), // x-
+			vec3(s, 0, s) + vec3(0,entMin.y,0), // y-
+			vec3(s, s, 0) + vec3(0,0,entMin.z)  // z-
+		};
+
+		for (int i = 0; i < 6; i++) {
+			scaleAxes.mins[i] = grabAxisMins[i];
+			scaleAxes.maxs[i] = grabAxisMaxs[i];
+		}
 	}
-	else if (hoverAxis >= 0 && hoverAxis < 4) {
-		axisModel[hoverAxis].setColor(axisHoverColors[hoverAxis]);
+	else {
+		if (ent != NULL) {
+			moveAxes.origin = getEntOrigin(map, ent);
+		}
+
+		// flipped for HL coords
+		moveAxes.model[0] = cCube(vec3(0, -s, -s), vec3(d, s, s), moveAxes.dimColor[0]);
+		moveAxes.model[2] = cCube(vec3(-s, 0, -s), vec3(s, d, s), moveAxes.dimColor[2]);
+		moveAxes.model[1] = cCube(vec3(-s, -s, 0), vec3(s, s, -d), moveAxes.dimColor[1]);
+		moveAxes.model[3] = cCube(vec3(-s2, -s2, -s2), vec3(s2, s2, s2), moveAxes.dimColor[3]);
+
+		// larger mins/maxs so you can be less precise when selecting them
+		s *= 4;
+		s2 *= 1.5f;
+
+		activeAxes.mins[0] = vec3(0, -s, -s);
+		activeAxes.mins[1] = vec3(-s, 0, -s);
+		activeAxes.mins[2] = vec3(-s, -s, 0);
+		activeAxes.mins[3] = vec3(-s2, -s2, -s2);
+
+		activeAxes.maxs[0] = vec3(d, s, s);
+		activeAxes.maxs[1] = vec3(s, d, s);
+		activeAxes.maxs[2] = vec3(s, s, d);
+		activeAxes.maxs[3] = vec3(s2, s2, s2);
 	}
-	else if (guiHoverAxis >= 0 && guiHoverAxis < 4) {
-		axisModel[guiHoverAxis].setColor(axisHoverColors[guiHoverAxis]);
+	
+
+	if (draggingAxis >= 0 && draggingAxis < activeAxes.numAxes) {
+		activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
+	}
+	else if (hoverAxis >= 0 && hoverAxis < activeAxes.numAxes) {
+		activeAxes.model[hoverAxis].setColor(activeAxes.hoverColor[hoverAxis]);
+	}
+	else if (guiHoverAxis >= 0 && guiHoverAxis < activeAxes.numAxes) {
+		activeAxes.model[guiHoverAxis].setColor(activeAxes.hoverColor[guiHoverAxis]);
 	}
 }
 
@@ -1537,7 +1753,7 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 	// best movement planee is most perpindicular to the camera direction
 	// and ignores the plane being moved
 	int bestMovementPlane = 0;
-	switch (draggingAxis) {
+	switch (draggingAxis % 3) {
 		case 0: bestMovementPlane = dots[1] > dots[2] ? 1 : 2; break;
 		case 1: bestMovementPlane = dots[0] > dots[2] ? 0 : 2; break;
 		case 2: bestMovementPlane = dots[1] > dots[0] ? 1 : 0; break;
@@ -1553,6 +1769,58 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 	}
 
 	return pickStart + pickDir * intersectDist;
+}
+
+void Renderer::updateScaleVerts(bool currentlyScaling) {
+	if (!pickInfo.valid || pickInfo.modelIdx <= 0)
+		return;
+
+	// persist scale change
+	if (currentlyScaling) {
+		for (int i = 0; i < numScaleVerts; i++) {
+			scaleVertsStart[i] = *scaleVerts[i];
+		}
+		return;
+	}
+
+	if (scaleVertsStart != NULL) {
+		delete[] scaleVertsStart;
+		delete[] scaleVerts;
+		delete[] scaleVertDists;
+	}
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+
+	scaleVerts = map->getModelVerts(map->ents[pickInfo.entIdx]->getBspModelIdx(), numScaleVerts);
+	scaleVertsStart = new vec3[numScaleVerts];
+	scaleVertDists = new float[numScaleVerts];
+	for (int i = 0; i < numScaleVerts; i++) {
+		scaleVertsStart[i] = *scaleVerts[i];
+	}
+}
+
+void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
+	vec3 n = fromDir.normalize(1.0f);
+
+	float minAxisDist = 9e99;
+	float maxAxisDist = -9e99;
+
+	for (int i = 0; i < numScaleVerts; i++) {
+		float dist = getDistAlongAxis(n, scaleVertsStart[i]);
+		if (dist > maxAxisDist) maxAxisDist = dist;
+		if (dist < minAxisDist) minAxisDist = dist;
+		scaleVertDists[i] = dist;
+	}
+
+	float distRange = maxAxisDist - minAxisDist;
+
+	for (int i = 0; i < numScaleVerts; i++) {
+		float stretchFactor = (scaleVertDists[i] - minAxisDist) / distRange;
+		*scaleVerts[i] = scaleVertsStart[i] + dir * stretchFactor;
+		if (gridSnappingEnabled) {
+			*scaleVerts[i] = snapToGrid(*scaleVerts[i]);
+		}
+	}
 }
 
 vec3 Renderer::snapToGrid(vec3 pos) {

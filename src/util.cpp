@@ -262,6 +262,11 @@ bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& in
 	return true;
 }
 
+float getDistAlongAxis(vec3 axis, vec3 p)
+{
+	return dotProduct(axis, p) / sqrt(dotProduct(axis, axis));
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

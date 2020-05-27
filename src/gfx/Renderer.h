@@ -9,6 +9,22 @@
 #include "BspRenderer.h"
 #include "Fgd.h"
 
+enum transform_modes {
+	TRANSFORM_MOVE,
+	TRANSFORM_SCALE
+};
+
+struct TransformAxes {
+	cCube* model;
+	VertexBuffer* buffer;
+	vec3 origin;
+	vec3 mins[6];
+	vec3 maxs[6];
+	COLOR3 dimColor[6];
+	COLOR3 hoverColor[6];
+	int numAxes;
+};
+
 class Renderer {
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -60,20 +76,21 @@ private:
 	vec3 gragStartEntOrigin;
 	float grabDist;
 
-	cCube* axisModel;
-	vec3 axisModelMins[4];
-	vec3 axisModelMaxs[4];
-	COLOR3 axisDimColors[4];
-	COLOR3 axisHoverColors[4];
-	VertexBuffer* axisBuffer;
+	TransformAxes moveAxes;
+	TransformAxes scaleAxes;
 	int hoverAxis; // axis being hovered
 	int guiHoverAxis; // axis being hovered in the transform menu
 	int draggingAxis; // axis currently being dragged by the mouse
 	bool gridSnappingEnabled;
 	int gridSnapLevel;
+	int transformMode;
 	bool showDragAxes;
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
+	vec3* scaleVertsStart; // original positions of the verts being scaled
+	vec3** scaleVerts; // pointers to verts in the BSP data for scaling
+	float* scaleVertDists;
+	int numScaleVerts;
 
 	Entity* copiedEnt;
 
@@ -92,6 +109,10 @@ private:
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 
 	vec3 debugPoint;
+	vec3 debugVec0;
+	vec3 debugVec1;
+	vec3 debugVec2;
+	vec3 debugVec3;
 
 	vec3 getMoveDir();
 	void cameraControls();
@@ -99,6 +120,7 @@ private:
 	void getPickRay(vec3& start, vec3& pickDir);
 	BspRenderer* getMapContainingCamera();
 
+	void drawTransformAxes();
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
 
 	void drawGui();
@@ -118,6 +140,7 @@ private:
 	vec3 getAxisDragPoint(vec3 origin);
 
 	void updateDragAxes();
+	void updateScaleVerts(bool currentlyScaling);
 
 	vec3 snapToGrid(vec3 pos);
 
@@ -126,4 +149,5 @@ private:
 	void copyEnt();
 	void pasteEnt(bool noModifyOrigin);
 	void deleteEnt();
+	void scaleSelectedVerts(vec3 dir, vec3 fromDir);
 };

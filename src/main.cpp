@@ -16,6 +16,7 @@
 // clicking key editor when bspguy not focused does a 3D select instead of key editor select
 // undo history
 // grid snapping not working with transform widgets
+// get rid of console window and add a console widget
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

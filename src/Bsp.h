@@ -273,8 +273,16 @@ public:
 	void get_bounding_box(vec3& mins, vec3& maxs);
 
 	// get the bounding box for all vertexes in a BSP tree
-	void get_face_vertex_bounds(int iFace, vec3& mins, vec3& maxs);
-	void get_node_vertex_bounds(int iNode, vec3& mins, vec3& maxs);
+	void get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs);
+
+	// get all verts used by this model
+	// TODO: split any verts shared with other models!
+	vec3** getModelVerts(int modelIdx, int& numVerts);
+
+	// fixes up the model planes/nodes after vertex posisions have been modified
+	// returns false if the model has non-planar faces
+	// TODO: split any planes shared with other models
+	bool vertex_manipulation_sync(int modelIdx);
 
 	void load_ents();
 

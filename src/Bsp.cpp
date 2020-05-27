@@ -112,44 +112,162 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 	maxs = thisWorld.nMaxs;
 }
 
-void Bsp::get_face_vertex_bounds(int iFace, vec3& mins, vec3& maxs) {
-	BSPFACE& face = faces[iFace];
+void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
+	mins = vec3(9e99, 9e99, 9e99);
+	maxs = vec3(-9e99, -9e99, -9e99);
 
-	for (int e = 0; e < face.nEdges; e++) {
-		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
-		BSPEDGE& edge = edges[abs(edgeIdx)];
-		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+	BSPMODEL& model = models[modelIdx];
 
-		vec3& vert = verts[vertIdx];
+	for (int i = 0; i < model.nFaces; i++) {
+		BSPFACE& face = faces[model.iFirstFace + i];
 
-		if (vert.x > maxs.x) maxs.x = vert.x;
-		if (vert.y > maxs.y) maxs.y = vert.y;
-		if (vert.z > maxs.z) maxs.z = vert.z;
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+			vec3 vert = verts[vertIdx];
 
-		if (vert.x < mins.x) mins.x = vert.x;
-		if (vert.y < mins.y) mins.y = vert.y;
-		if (vert.z < mins.z) mins.z = vert.z;
+			if (vert.x > maxs.x) maxs.x = vert.x;
+			if (vert.y > maxs.y) maxs.y = vert.y;
+			if (vert.z > maxs.z) maxs.z = vert.z;
+
+			if (vert.x < mins.x) mins.x = vert.x;
+			if (vert.y < mins.y) mins.y = vert.y;
+			if (vert.z < mins.z) mins.z = vert.z;
+		}
 	}
 }
 
-void Bsp::get_node_vertex_bounds(int iNode, vec3& mins, vec3& maxs) {
-	BSPNODE& node = nodes[iNode];
+vec3** Bsp::getModelVerts(int modelIdx, int& numVerts) {
+	vector<vec3*> allVerts;
+	set<int> visited;
 
-	for (int i = 0; i < node.nFaces; i++) {
-		get_face_vertex_bounds(node.firstFace + i, mins, maxs);
-	}
+	BSPMODEL& model = models[modelIdx];
 
-	for (int i = 0; i < 2; i++) {
-		if (node.iChildren[i] >= 0) {
-			get_node_vertex_bounds(node.iChildren[i], mins, maxs);
-		}
-		else {
-			BSPLEAF& leaf = leaves[~node.iChildren[i]];
-			for (int i = 0; i < leaf.nMarkSurfaces; i++) {
-				get_face_vertex_bounds(marksurfs[leaf.iFirstMarkSurface + i], mins, maxs);
+	for (int i = 0; i < model.nFaces; i++) {
+		BSPFACE& face = faces[model.iFirstFace + i];
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+			if (visited.find(vertIdx) == visited.end()) {
+				allVerts.push_back(&verts[vertIdx]);
+				visited.insert(vertIdx);
 			}
 		}
 	}
+
+	numVerts = allVerts.size();
+	vec3** modelVerts = new vec3 * [numVerts];
+	for (int i = 0; i < numVerts; i++) {
+		modelVerts[i] = allVerts[i];
+	}
+
+	return modelVerts;
+}
+
+bool Bsp::vertex_manipulation_sync(int modelIdx) {
+	BSPMODEL& model = models[modelIdx];
+
+	set<int> updatedPlanes;
+	for (int i = 0; i < model.nFaces; i++) {
+		BSPFACE& face = faces[model.iFirstFace + i];
+
+		if (updatedPlanes.find(face.iPlane) != updatedPlanes.end()) {
+			continue;
+		}
+		updatedPlanes.insert(face.iPlane);
+		
+		vector<vec3> faceVerts;
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+			faceVerts.push_back(verts[vertIdx]);
+		}
+
+		if (faceVerts.size() < 3) {
+			return false; // not sure this is even possible normally
+		}
+
+		const float tolerance = 0.01f; // normals more different than this = non-planar face
+		vec3 planeNormal;
+		int numVerts = faceVerts.size();
+		for (int i = 0; i < numVerts; i++) {
+			vec3 v0 = faceVerts[(i + 0) % numVerts];
+			vec3 v1 = faceVerts[(i + 1) % numVerts];
+			vec3 v2 = faceVerts[(i + 2) % numVerts];
+
+			vec3 ba = v1 - v0;
+			vec3 cb = v2 - v1;
+
+			vec3 normal = crossProduct(ba, cb).normalize(1.0f);
+
+			if (i == 0) {
+				planeNormal = normal;
+			}
+			else {
+				float dot = dotProduct(planeNormal, normal);
+				if (dot < 1.0f - tolerance) {
+					printf("");
+					return false; // non-planar face
+				}
+			}
+		}
+
+		float fdist = getDistAlongAxis(planeNormal, faceVerts[0]);
+
+		float fx = fabs(planeNormal.x);
+		float fy = fabs(planeNormal.y);
+		float fz = fabs(planeNormal.z);
+		int planeType = PLANE_ANYZ;
+		bool shouldFlip = false;
+		if (fx > 0.9999f) {
+			planeType = PLANE_X;
+			if (planeNormal.x < 0) shouldFlip = true;
+		}
+		else if (fy > 0.9999f) {
+			planeType = PLANE_Y;
+			if (planeNormal.y < 0) shouldFlip = true;
+		}
+		else if (fz > 0.9999f) {
+			planeType = PLANE_Z;
+			if (planeNormal.z < 0) shouldFlip = true;
+		}
+		else {
+			if (fx > fy&& fx > fz) {
+				planeType = PLANE_ANYX;
+				if (planeNormal.x < 0) shouldFlip = true;
+			}
+			else if (fy > fx && fy > fz) {
+				planeType = PLANE_ANYY;
+				if (planeNormal.y < 0) shouldFlip = true;
+			}
+			else {
+				planeType = PLANE_ANYZ;
+				if (planeNormal.z < 0) shouldFlip = true;
+			}
+		}
+
+		if (shouldFlip) {
+			planeNormal *= -1;
+			fdist = -fdist;
+		}
+
+		BSPPLANE& plane = planes[face.iPlane];
+		plane.fDist = fdist;
+		plane.vNormal = planeNormal;
+		plane.nType = planeType;
+	}
+
+	// TODO: rebuild clipnode trees, and use node plane intersections isntead of face verst
+	// because a model can have nodes without faces(?). Also consider manipulating plane intersection
+	// vertices instead of face vertices.
+	// TODO: what to do about node planes, if unique?
+
+	return true;
 }
 
 bool Bsp::move(vec3 offset) {
@@ -2381,7 +2499,7 @@ void Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int t
 			node.iPlane = planeIdx++;
 
 			clipnodeIdx++;
-			int insideContents = k == 5 ? CONTENTS_WATER : clipnodeIdx;
+			int insideContents = k == 5 ? CONTENTS_SOLID : clipnodeIdx;
 
 			// can't have negative normals on planes so children are swapped instead
 			if (k % 2 == 0) {
@@ -2438,7 +2556,7 @@ void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
 
 	vec3 vertMin(9e9, 9e9, 9e9);
 	vec3 vertMax(-9e9, -9e9, -9e9);
-	get_node_vertex_bounds(model.iHeadnodes[0], vertMin, vertMax);
+	get_model_vertex_bounds(modelIdx, vertMin, vertMax);
 
 	create_clipnode_box(vertMin, vertMax, &model, hullIdx, true);
 }
