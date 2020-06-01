@@ -24,6 +24,7 @@ struct STRUCTCOUNT {
 	void add(const STRUCTCOUNT& other);
 	void sub(const STRUCTCOUNT& other);
 	bool allZero();
+	void print_delete_stats(int indent);
 };
 
 // used to mark structures that are in use by a model

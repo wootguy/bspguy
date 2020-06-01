@@ -70,57 +70,13 @@ const char* version_string = "bspguy v3 WIP (May 2020)";
 
 bool g_verbose = false;
 
-void printIndent(int indent) {
-	for (int i = 0; i < indent; i++)
-		printf("    ");
-}
-
-void print_stat(int indent, int stat, const char* data) {
-	if (!stat)
-		return;
-	for (int i = 0; i < indent; i++)
-		printf("    ");
-	const char* plural = "s";
-	if (string(data) == "vertex") {
-		plural = "es";
-	}
-
-	printf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
-}
-
-void print_stat_mem(int indent, int bytes, const char* data) {
-	if (!bytes)
-		return;
-	for (int i = 0; i < indent; i++)
-		printf("    ");
-	printf("%s %.2f KB of %s\n", bytes > 0 ? "Deleted" : "Added", abs(bytes) / 1024.0f, data);
-}
-
-
-void print_delete_stats(int indent, STRUCTCOUNT stats) {
-	print_stat(indent, stats.models, "model");
-	print_stat(indent, stats.planes, "plane");
-	print_stat(indent, stats.verts, "vertex");
-	print_stat(indent, stats.nodes, "node");
-	print_stat(indent, stats.texInfos, "texinfo");
-	print_stat(indent, stats.faces, "face");
-	print_stat(indent, stats.clipnodes, "clipnode");
-	print_stat(indent, stats.leaves, "leave");
-	print_stat(indent, stats.markSurfs, "marksurface");
-	print_stat(indent, stats.surfEdges, "surfedge");
-	print_stat(indent, stats.edges, "edge");
-	print_stat(indent, stats.textures, "texture");
-	print_stat_mem(indent, stats.lightdata, "lightmap data");
-	print_stat_mem(indent, stats.visdata, "VIS data");
-}
-
 // remove unused data before modifying anything to avoid misleading results
 void remove_unused_data(Bsp* map) {
 	STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 	if (!removed.allZero()) {
 		printf("Deleting unused data:\n");
-		print_delete_stats(1, removed);
+		removed.print_delete_stats(1);
 		g_progress.clear();
 		printf("\n");
 	}
@@ -192,7 +148,7 @@ int test() {
 		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
 
-	print_delete_stats(1, removed);
+	removed.print_delete_stats(1);
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false);
@@ -228,17 +184,17 @@ int merge_maps(CommandLine& cli) {
 		printf("    Deleting unused data...\n");
 		STRUCTCOUNT removed = maps[i]->remove_unused_model_structures();
 		g_progress.clear();
-		print_delete_stats(2, removed);
+		removed.print_delete_stats(2);
 
 		if (cli.hasOption("-nohull2") || (cli.hasOption("-optimize") && !maps[i]->has_hull2_ents())) {
 			printf("    Deleting hull 2...\n");
 			maps[i]->delete_hull(2, 1);
-			print_delete_stats(2, maps[i]->remove_unused_model_structures() );
+			maps[i]->remove_unused_model_structures().print_delete_stats(2);
 		}
 
 		if (cli.hasOption("-optimize")) {
 			printf("    Optmizing...\n");
-			print_delete_stats(2, maps[i]->delete_unused_hulls() );
+			maps[i]->delete_unused_hulls().print_delete_stats(2);
 		}
 
 		printf("\n");
@@ -386,7 +342,7 @@ int noclip(CommandLine& cli) {
 	STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 	if (!removed.allZero())
-		print_delete_stats(1, removed);
+		removed.print_delete_stats(1);
 	else if (redirect == 0)
 		printf("    Model hull(s) was previously deleted or redirected.");
 	printf("\n");
@@ -450,7 +406,7 @@ int simplify(CommandLine& cli) {
 	change.sub(newCounts);
 
 	if (!change.allZero())
-		print_delete_stats(1, change);
+		change.print_delete_stats(1);
 
 	printf("\n");
 
@@ -480,7 +436,7 @@ int deleteCmd(CommandLine& cli) {
 		STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 		if (!removed.allZero())
-			print_delete_stats(1, removed);
+			removed.print_delete_stats(1);
 		printf("\n");
 	}
 

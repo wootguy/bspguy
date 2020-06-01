@@ -936,6 +936,7 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 		delete[] scaleVerts;
 		scalePlanes.clear();
 		scaleTexinfos.clear();
+		map->remove_unused_model_structures();
 	}
 	
 	scaleVerts = map->getModelVerts(modelIdx, numScaleVerts);

@@ -150,6 +150,19 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
+	if (ImGui::BeginMenu("Map"))
+	{
+		if (ImGui::MenuItem("Clean", NULL)) {
+			for (int i = 0; i < app->mapRenderers.size(); i++) {
+				Bsp* map = app->mapRenderers[i]->map;
+				printf("Cleaning %s\n", map->name.c_str());
+				app->pickInfo.valid = false;
+				map->remove_unused_model_structures().print_delete_stats(0);
+			}
+		}
+		ImGui::EndMenu();
+	}
+
 	if (ImGui::BeginMenu("Widgets"))
 	{
 		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {

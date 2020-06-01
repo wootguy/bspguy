@@ -62,6 +62,44 @@ bool STRUCTCOUNT::allZero() {
 	return memcmp(&zeros, this, sizeof(zeros)) == 0;
 }
 
+void print_stat(int indent, int stat, const char* data) {
+	if (!stat)
+		return;
+	for (int i = 0; i < indent; i++)
+		printf("    ");
+	const char* plural = "s";
+	if (string(data) == "vertex") {
+		plural = "es";
+	}
+
+	printf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
+}
+
+void print_stat_mem(int indent, int bytes, const char* data) {
+	if (!bytes)
+		return;
+	for (int i = 0; i < indent; i++)
+		printf("    ");
+	printf("%s %.2f KB of %s\n", bytes > 0 ? "Deleted" : "Added", abs(bytes) / 1024.0f, data);
+}
+
+void STRUCTCOUNT::print_delete_stats(int indent) {
+	print_stat(indent, models, "model");
+	print_stat(indent, planes, "plane");
+	print_stat(indent, verts, "vertex");
+	print_stat(indent, nodes, "node");
+	print_stat(indent, texInfos, "texinfo");
+	print_stat(indent, faces, "face");
+	print_stat(indent, clipnodes, "clipnode");
+	print_stat(indent, leaves, "leave");
+	print_stat(indent, markSurfs, "marksurface");
+	print_stat(indent, surfEdges, "surfedge");
+	print_stat(indent, edges, "edge");
+	print_stat(indent, textures, "texture");
+	print_stat_mem(indent, lightdata, "lightmap data");
+	print_stat_mem(indent, visdata, "VIS data");
+}
+
 STRUCTUSAGE::STRUCTUSAGE(Bsp* map) : count(map) {
 	nodes = new bool[count.nodes];
 	clipnodes = new bool[count.clipnodes];

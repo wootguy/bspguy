@@ -2408,46 +2408,34 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	// TODO: subdivide >512
 	int startEdge = edgeCount;
 	{
-		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 24];
+		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 12];
 		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
 
 		// left
 		newEdges[startEdge + 0] = BSPEDGE(startVert + 3, startVert + 0);
-		newEdges[startEdge + 1] = BSPEDGE(startVert + 0, startVert + 4);
-		newEdges[startEdge + 2] = BSPEDGE(startVert + 4, startVert + 7);
-		newEdges[startEdge + 3] = BSPEDGE(startVert + 7, startVert + 3);
+		newEdges[startEdge + 1] = BSPEDGE(startVert + 4, startVert + 7);
 
 		// right
-		newEdges[startEdge + 4] = BSPEDGE(startVert + 1, startVert + 2); // bottom edge
-		newEdges[startEdge + 5] = BSPEDGE(startVert + 2, startVert + 6); // top edge
-		newEdges[startEdge + 6] = BSPEDGE(startVert + 6, startVert + 5); // right edge
-		newEdges[startEdge + 7] = BSPEDGE(startVert + 5, startVert + 1); // bottom edge
+		newEdges[startEdge + 2] = BSPEDGE(startVert + 1, startVert + 2); // bottom edge
+		newEdges[startEdge + 3] = BSPEDGE(startVert + 6, startVert + 5); // right edge
 
 		// front
-		newEdges[startEdge + 8] = BSPEDGE(startVert + 0, startVert + 1); // bottom edge
-		newEdges[startEdge + 9] = BSPEDGE(startVert + 1, startVert + 5); // right edge
-		newEdges[startEdge + 10] = BSPEDGE(startVert + 5, startVert + 4); // top edge
-		newEdges[startEdge + 11] = BSPEDGE(startVert + 4, startVert + 0); // left edge
+		newEdges[startEdge + 4] = BSPEDGE(startVert + 0, startVert + 1); // bottom edge
+		newEdges[startEdge + 5] = BSPEDGE(startVert + 5, startVert + 4); // top edge
 
 		// back
-		newEdges[startEdge + 12] = BSPEDGE(startVert + 3, startVert + 7); // left edge
-		newEdges[startEdge + 13] = BSPEDGE(startVert + 7, startVert + 6); // top edge
-		newEdges[startEdge + 14] = BSPEDGE(startVert + 6, startVert + 2); // right edge
-		newEdges[startEdge + 15] = BSPEDGE(startVert + 2, startVert + 3); // bottom edge
+		newEdges[startEdge + 6] = BSPEDGE(startVert + 3, startVert + 7); // left edge
+		newEdges[startEdge + 7] = BSPEDGE(startVert + 6, startVert + 2); // right edge
 
 		// bottom
-		newEdges[startEdge + 16] = BSPEDGE(startVert + 3, startVert + 2);
-		newEdges[startEdge + 17] = BSPEDGE(startVert + 2, startVert + 1);
-		newEdges[startEdge + 18] = BSPEDGE(startVert + 1, startVert + 0);
-		newEdges[startEdge + 19] = BSPEDGE(startVert + 0, startVert + 3);
+		newEdges[startEdge + 8] = BSPEDGE(startVert + 3, startVert + 2);
+		newEdges[startEdge + 9] = BSPEDGE(startVert + 1, startVert + 0);
 
 		// top
-		newEdges[startEdge + 20] = BSPEDGE(startVert + 7, startVert + 4);
-		newEdges[startEdge + 21] = BSPEDGE(startVert + 4, startVert + 5);
-		newEdges[startEdge + 22] = BSPEDGE(startVert + 5, startVert + 6);
-		newEdges[startEdge + 23] = BSPEDGE(startVert + 6, startVert + 7);
+		newEdges[startEdge + 10] = BSPEDGE(startVert + 7, startVert + 4);
+		newEdges[startEdge + 11] = BSPEDGE(startVert + 5, startVert + 6);
 
-		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 24) * sizeof(BSPEDGE));
+		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 12) * sizeof(BSPEDGE));
 	}
 
 	// add new surfedges (2 for each edge)
@@ -2458,7 +2446,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 
 		// reverse cuz i fucked the edge order and I don't wanna redo
 		for (int i = 12-1; i >= 0; i--) {
-			int32_t edgeIdx = startEdge + i * 2;
+			int32_t edgeIdx = startEdge + i;
 			newSurfedges[startSurfedge + (i*2)] = -edgeIdx;
 			newSurfedges[startSurfedge + (i*2) + 1] = edgeIdx; // negative = use second vertex in edge
 		}
