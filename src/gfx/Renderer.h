@@ -83,7 +83,6 @@ private:
 	vec3** scaleVerts; // pointers to verts in the BSP data for scaling
 	vector<ScalablePlane> scalePlanes; // verts used to recalculate plane normals/origins after scaling
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
-	float* scaleVertDists;
 	int numScaleVerts;
 	bool textureLock;
 
@@ -140,5 +139,6 @@ private:
 	void copyEnt();
 	void pasteEnt(bool noModifyOrigin);
 	void deleteEnt();
+	void scaleSelectedVerts(float x, float y, float z);
 	void scaleSelectedVerts(vec3 dir, vec3 fromDir);
 };

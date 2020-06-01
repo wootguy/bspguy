@@ -44,6 +44,7 @@
 
 // refactoring:
 // stop mixing printf+cout
+// stop mixing camel case and underscores
 // parse vertors in util, not Keyvalue
 // add class destructors and delete everything that's new'd
 // render and bsp classes are way too big and doing too many things and render has too many state checks

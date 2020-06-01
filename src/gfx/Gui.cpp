@@ -916,17 +916,17 @@ void Gui::drawTransformWidget() {
 				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 				ImGui::PushItemWidth(inputWidth);
 
-				if (ImGui::DragFloat("##xscale", &sx, 0.01f, 0, 0, "X: %.2f")) { scaled = true; }
+				if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 0;
 				ImGui::SameLine();
 
-				if (ImGui::DragFloat("##yscale", &sy, 0.01f, 0, 0, "Y: %.2f")) { scaled = true; }
+				if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 1;
 				ImGui::SameLine();
 
-				if (ImGui::DragFloat("##zscale", &sz, 0.01f, 0, 0, "Z: %.2f")) { scaled = true; }
+				if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 2;
 
@@ -992,7 +992,8 @@ void Gui::drawTransformWidget() {
 			}
 			if (scaled && ent->isBspModel()) {
 				int modelIdx = ent->getBspModelIdx();
-
+				app->scaleSelectedVerts(sx, sy, sz);
+				app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
 			}
 		}
 

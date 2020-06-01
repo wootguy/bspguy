@@ -934,7 +934,6 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 	if (scaleVertsStart != NULL) {
 		delete[] scaleVertsStart;
 		delete[] scaleVerts;
-		delete[] scaleVertDists;
 		scalePlanes.clear();
 		scaleTexinfos.clear();
 	}
@@ -960,10 +959,36 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 	numScaleVerts = totalScaleVerts;
 
 	scaleVertsStart = new vec3[totalScaleVerts];
-	scaleVertDists = new float[totalScaleVerts];
 	for (int i = 0; i < totalScaleVerts; i++) {
 		scaleVertsStart[i] = *scaleVerts[i];
 	}
+}
+
+void Renderer::scaleSelectedVerts(float x, float y, float z) {
+	vec3 minDist;
+	vec3 maxDist;
+
+	int faceVertCount = numScaleVerts - scalePlanes.size() * 3;
+
+	for (int i = 0; i < faceVertCount; i++) {
+		vec3 v = scaleVertsStart[i];
+		if (v.x > maxDist.x) maxDist.x = v.x;
+		if (v.x < minDist.x) minDist.x = v.x;
+
+		if (v.y > maxDist.y) maxDist.y = v.y;
+		if (v.y < minDist.y) minDist.y = v.y;
+
+		if (v.z > maxDist.z) maxDist.z = v.z;
+		if (v.z < minDist.z) minDist.z = v.z;
+	}
+	vec3 distRange = maxDist - minDist;
+
+	vec3 dir;
+	dir.x = (distRange.x * x) - distRange.x;
+	dir.y = (distRange.y * y) - distRange.y;
+	dir.z = (distRange.z * z) - distRange.z;
+
+	scaleSelectedVerts(dir, vec3());
 }
 
 void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
@@ -972,60 +997,80 @@ void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
 
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 
-	vec3 n = fromDir.normalize(1.0f);
+	bool scaleFromOrigin = fromDir.x == 0 && fromDir.y == 0 && fromDir.z == 0;
 
-	float minAxisDist = 9e99;
-	float maxAxisDist = -9e99;
+	vec3 minDist = vec3(9e99, 9e99, 9e99);
+	vec3 maxDist = vec3(-9e99, -9e99, -9e99);
 
 	int faceVertCount = numScaleVerts - scalePlanes.size() * 3;
 
-	for (int i = 0; i < numScaleVerts; i++) {
-		float dist = getDistAlongAxis(n, scaleVertsStart[i]);
+	for (int i = 0; i < faceVertCount; i++) {
+		vec3 v = scaleVertsStart[i];
 
-		if (i < faceVertCount) {
-			if (dist > maxAxisDist) maxAxisDist = dist;
-			if (dist < minAxisDist) minAxisDist = dist;
-		}
-		scaleVertDists[i] = dist;
+		if (v.x > maxDist.x) maxDist.x = v.x;
+		if (v.x < minDist.x) minDist.x = v.x;
+
+		if (v.y > maxDist.y) maxDist.y = v.y;
+		if (v.y < minDist.y) minDist.y = v.y;
+
+		if (v.z > maxDist.z) maxDist.z = v.z;
+		if (v.z < minDist.z) minDist.z = v.z;
 	}
 
-	float distRange = maxAxisDist - minAxisDist;
+	vec3 distRange = maxDist - minDist;
+
+	vec3 scaleFromDist = minDist;
+	if (scaleFromOrigin) {
+		scaleFromDist = minDist + (maxDist - minDist) * 0.5f;
+	}
+	else {
+		if (fromDir.x < 0) {
+			scaleFromDist.x = maxDist.x;
+			dir.x = -dir.x;
+		}
+		if (fromDir.y < 0) {
+			scaleFromDist.y = maxDist.y;
+			dir.y = -dir.y;
+		}
+		if (fromDir.z < 0) {
+			scaleFromDist.z = maxDist.z;
+			dir.z = -dir.z;
+		}
+	}
 
 	for (int i = 0; i < numScaleVerts; i++) {
-		float stretchFactor = (scaleVertDists[i] - minAxisDist) / distRange;
+		vec3 stretchFactor = (scaleVertsStart[i] - scaleFromDist) / distRange;
 		*scaleVerts[i] = scaleVertsStart[i] + dir * stretchFactor;
 	}
 
 	//
-	// TODO: I have no idea what I'm doing but this code usually scales axis-aligned texture coord axes correctly.
+	// TODO: I have no idea what I'm doing but this code scales axis-aligned texture coord axes correctly.
+	//       Rewrite all of this after understanding texture axes.
 	//
 
 	if (!textureLock)
 		return;
 
-	minAxisDist = 9e99;
-	maxAxisDist = -9e99;
+	minDist = vec3(9e99, 9e99, 9e99);
+	maxDist = vec3(-9e99, -9e99, -9e99);
 	
 	for (int i = 0; i < faceVertCount; i++) {
-		float dist = getDistAlongAxis(n, *scaleVerts[i]);
-		if (dist > maxAxisDist) maxAxisDist = dist;
-		if (dist < minAxisDist) minAxisDist = dist;
+		vec3 v = *scaleVerts[i];
+		if (v.x > maxDist.x) maxDist.x = v.x;
+		if (v.x < minDist.x) minDist.x = v.x;
+
+		if (v.y > maxDist.y) maxDist.y = v.y;
+		if (v.y < minDist.y) minDist.y = v.y;
+
+		if (v.z > maxDist.z) maxDist.z = v.z;
+		if (v.z < minDist.z) minDist.z = v.z;
 	}
-	float newDistRange = maxAxisDist - minAxisDist;
-	float scaleFactor = distRange / newDistRange;
+	vec3 newDistRange = maxDist - minDist;
+	vec3 scaleFactor = distRange / newDistRange;
 
 	mat4x4 scaleMat;
 	scaleMat.loadIdentity();
-	vec3 asdf = dir.normalize();
-	if (fabs(asdf.x) > 0) {
-		scaleMat.scale(scaleFactor, 1, 1);
-	}
-	else if (fabs(asdf.z) > 0) {
-		scaleMat.scale(1, 1, scaleFactor);
-	}
-	else {
-		scaleMat.scale(1, scaleFactor, 1);
-	}
+	scaleMat.scale(scaleFactor.x, scaleFactor.y, scaleFactor.z);
 
 	for (int i = 0; i < scaleTexinfos.size(); i++) {
 		ScalableTexinfo& oldinfo = scaleTexinfos[i];
@@ -1035,17 +1080,56 @@ void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
 		info.vS = (scaleMat * vec4(oldinfo.oldS, 1)).xyz();
 		info.vT = (scaleMat * vec4(oldinfo.oldT, 1)).xyz();
 
-		float dotS = dotProduct(oldinfo.oldS.normalize(), dir.normalize());
-		float dotT = dotProduct(oldinfo.oldT.normalize(), dir.normalize());
+		float shiftS = oldinfo.oldShiftS;
+		float shiftT = oldinfo.oldShiftT;
 
-		float asdf = dotProduct(fromDir, info.vS) < 0 ? 1 : -1;
-		float asdf2 = dotProduct(fromDir, info.vT) < 0 ? 1 : -1;
+		// magic guess-and-check code that somehow works some of the time
+		// also its shit
+		for (int k = 0; k < 3; k++) {
+			vec3 stretchDir;
+			if (k == 0) stretchDir = vec3(dir.x, 0, 0).normalize();
+			if (k == 1) stretchDir = vec3(0, dir.y, 0).normalize();
+			if (k == 2) stretchDir = vec3(0, 0, dir.z).normalize();
 
-		float vsdiff = info.vS.length() - oldinfo.oldS.length();
-		float vtdiff = info.vT.length() - oldinfo.oldT.length();
+			float refDist = 0;
+			if (k == 0) refDist = scaleFromDist.x;
+			if (k == 1) refDist = scaleFromDist.y;
+			if (k == 2) refDist = scaleFromDist.z;
 
-		info.shiftS = oldinfo.oldShiftS + (minAxisDist * vsdiff * fabs(dotS)) * asdf;
-		info.shiftT = oldinfo.oldShiftT + (minAxisDist * vtdiff * fabs(dotT)) * asdf2;
+			vec3 texFromDir;
+			if (k == 0) texFromDir = dir * vec3(1,0,0);
+			if (k == 1) texFromDir = dir * vec3(0,1,0);
+			if (k == 2) texFromDir = dir * vec3(0,0,1);
+
+			float dotS = dotProduct(oldinfo.oldS.normalize(), stretchDir);
+			float dotT = dotProduct(oldinfo.oldT.normalize(), stretchDir);
+
+			float asdf = dotProduct(texFromDir, info.vS) < 0 ? 1 : -1;
+			float asdf2 = dotProduct(texFromDir, info.vT) < 0 ? 1 : -1;
+
+			// hurr dur oh god im fucking retarded huurr
+			if (k == 0 && dotProduct(texFromDir, fromDir) < 0 != fromDir.x < 0) {
+				asdf *= -1;
+				asdf2 *= -1;
+			}
+			if (k == 1 && dotProduct(texFromDir, fromDir) < 0 != fromDir.y < 0) {
+				asdf *= -1;
+				asdf2 *= -1;
+			}
+			if (k == 2 && dotProduct(texFromDir, fromDir) < 0 != fromDir.z < 0) {
+				asdf *= -1;
+				asdf2 *= -1;
+			}
+
+			float vsdiff = info.vS.length() - oldinfo.oldS.length();
+			float vtdiff = info.vT.length() - oldinfo.oldT.length();
+
+			shiftS += (refDist * vsdiff * fabs(dotS)) * asdf;
+			shiftT += (refDist * vtdiff * fabs(dotT)) * asdf2;
+		}
+
+		info.shiftS = shiftS;
+		info.shiftT = shiftT;
 	}
 }
 
