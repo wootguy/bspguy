@@ -1,7 +1,7 @@
 #pragma once
 
 #include "util.h"
-#include "bsplimits.h"
+#include "bsptypes.h"
 
 #define MAX_SINGLEMAP ((MAX_SURFACE_EXTENT+1)*(MAX_SURFACE_EXTENT+1))
 #define MAX_SURFACE_EXTENT  64 // if lightmap extent exceeds 16, the map will not be able to load in 'Software' renderer and HLDS.
@@ -83,6 +83,28 @@ typedef struct
 	BSPFACE* face;
 }
 lightinfo_t;
+
+typedef struct
+{
+	BSPPLANE planes[4];
+}
+samplefragrect_t;
+
+typedef struct samplefrag_s
+{
+	int facenum; // facenum
+	samplefragrect_t rect; // original rectangle that forms the boundary
+	Winding* mywinding; // relative to the texture coordinate on that face
+}
+samplefrag_t;
+
+// for a single face
+struct LIGHTMAP
+{
+	int width, height;
+	int layers; // for when multiple lights hit the same face (nStyles[0-3] != 255)
+	light_flag_t luxelFlags[MAX_SINGLEMAP];
+};
 
 extern BSPFACE* g_dfaces;
 extern BSPPLANE* g_dplanes;

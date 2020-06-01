@@ -1,3 +1,4 @@
+#pragma once
 #include "Bsp.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -71,6 +72,8 @@ struct PickInfo {
 	int faceIdx;
 	float bestDist;
 	bool valid;
+	Bsp* map;
+	Entity* ent;
 };
 
 class BspRenderer {

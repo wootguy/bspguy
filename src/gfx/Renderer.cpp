@@ -3,6 +3,7 @@
 #include "primitives.h"
 #include "VertexBuffer.h"
 #include "shaders.h"
+#include "Gui.h"
 
 void error_callback(int error, const char* description)
 {
@@ -47,27 +48,7 @@ Renderer::Renderer() {
 
 	glewInit();
 
-	// Setup Dear ImGui context
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsClassic();
-
-	// Setup Platform/Renderer bindings
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	const char* glsl_version = "#version 130";
-	ImGui_ImplOpenGL3_Init(glsl_version);
-
-	vsync = true;
-	smallFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 20.0f);
-	largeFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 24.0f);
-
-	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	gui = new Gui(this);
 
 	bspShader = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
 	bspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
@@ -80,8 +61,7 @@ Renderer::Renderer() {
 
 	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME;
-	showDebugWidget = true;
-	showKeyvalueWidget = true;
+	
 	pickInfo.valid = false;
 
 	fgd = new Fgd(g_game_path + "/svencoop/sven-coop.fgd");
@@ -89,13 +69,12 @@ Renderer::Renderer() {
 
 	pointEntRenderer = new PointEntRenderer(fgd, colorShader);
 
-	contextMenuEnt = -1;
-	emptyContextMenu = 0;
 	movingEnt = false;
 	draggingAxis = -1;
 	showDragAxes = true;
 	gridSnapLevel = 0;
 	gridSnappingEnabled = true;
+	textureLock = false;
 	transformMode = TRANSFORM_MOVE;
 
 	copiedEnt = NULL;
@@ -179,7 +158,7 @@ void Renderer::renderLoop() {
 
 		lastFrameTime = glfwGetTime();
 
-		cameraControls();
+		controls();
 
 		float spin = glfwGetTime() * 2;
 		model.loadIdentity();
@@ -254,7 +233,7 @@ void Renderer::renderLoop() {
 		makeVectors(cameraAngles, forward, right, up);
 		//printf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
-		drawGui();
+		gui->draw();
 
 		glfwSwapBuffers(window);
 	}
@@ -285,956 +264,7 @@ void Renderer::drawTransformAxes() {
 	}
 }
 
-void Renderer::drawGui() {
-	// Start the Dear ImGui frame
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
-
-	ImGui::ShowDemoWindow();
-
-	drawMenuBar();
-
-	drawFpsOverlay();
-
-	if (showDebugWidget) {
-		drawDebugWidget();
-	}
-
-	if (showKeyvalueWidget) {
-		drawKeyvalueEditor();
-	}
-
-	if (showTransformWidget) {
-		drawTransformWidget();
-	}
-
-	if (contextMenuEnt != -1) {
-		ImGui::OpenPopup("ent_context");
-		contextMenuEnt = -1;
-	}
-	if (emptyContextMenu) {
-		emptyContextMenu = 0;
-		ImGui::OpenPopup("empty_context");
-	}
-
-	draw3dContextMenus();
-
-	// Rendering
-	ImGui::Render();
-	glViewport(0, 0, windowWidth, windowHeight);
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void Renderer::draw3dContextMenus() {
-
-	if (ImGui::BeginPopup("ent_context"))
-	{
-		if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-			cutEnt();
-		}
-		if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-			copyEnt();
-		}
-		if (ImGui::MenuItem("Delete", "Del")) {
-			deleteEnt();
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem(movingEnt ? "Ungrab" : "Grab", "G")) {
-			movingEnt = !movingEnt;
-			if (movingEnt)
-				grabEnt();
-		}
-		if (ImGui::MenuItem("Transform", "Ctrl+M")) {
-			showTransformWidget = !showTransformWidget;
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Properties", "Alt+Enter")) {
-			showKeyvalueWidget = !showKeyvalueWidget;
-		}
-
-		ImGui::EndPopup();
-	}
-
-	if (pickInfo.valid && ImGui::BeginPopup("empty_context"))
-	{
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, copiedEnt != NULL)) {
-			pasteEnt(false);
-		}
-		if (ImGui::MenuItem("Paste at original origin", 0, false, copiedEnt != NULL)) {
-			pasteEnt(true);
-		}
-		
-
-		ImGui::EndPopup();
-	}
-}
-
-void Renderer::drawMenuBar() {
-	ImGui::BeginMainMenuBar();
-	
-	if (ImGui::BeginMenu("File"))
-	{
-		if (ImGui::MenuItem("Save", NULL)) {
-			Bsp* map = getMapContainingCamera()->map;
-			for (int i = 0; i < map->ents.size(); i++) {
-				if (map->ents[i]->keyvalues["classname"] == "info_node")
-					map->ents[i]->keyvalues["classname"] = "info_bode";
-			}
-			map->update_ent_lump();
-			map->write("yabma_move.bsp");
-			map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
-		}
-		ImGui::EndMenu();
-	}
-
-	if (ImGui::BeginMenu("Widgets"))
-	{
-		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
-			showDebugWidget = !showDebugWidget;
-		}
-		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
-			showKeyvalueWidget = !showKeyvalueWidget;
-		}
-		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
-			showTransformWidget = !showTransformWidget;
-		}
-		ImGui::EndMenu();
-	}
-
-	if (ImGui::BeginMenu("Render"))
-	{
-		if (ImGui::MenuItem("Textures", NULL, g_render_flags & RENDER_TEXTURES)) {
-			g_render_flags ^= RENDER_TEXTURES;
-		}
-		if (ImGui::MenuItem("Lightmaps", NULL, g_render_flags & RENDER_LIGHTMAPS)) {
-			g_render_flags ^= RENDER_LIGHTMAPS;
-		}
-		if (ImGui::MenuItem("Wireframe", NULL, g_render_flags & RENDER_WIREFRAME)) {
-			g_render_flags ^= RENDER_WIREFRAME;
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Entities", NULL, g_render_flags & RENDER_ENTS)) {
-			g_render_flags ^= RENDER_ENTS;
-		}
-		if (ImGui::MenuItem("Special", NULL, g_render_flags & RENDER_SPECIAL)) {
-			g_render_flags ^= RENDER_SPECIAL;
-		}
-		if (ImGui::MenuItem("Special Entities", NULL, g_render_flags & RENDER_SPECIAL_ENTS)) {
-			g_render_flags ^= RENDER_SPECIAL_ENTS;
-		}
-		if (ImGui::MenuItem("Point Entities", NULL, g_render_flags & RENDER_POINT_ENTS)) {
-			g_render_flags ^= RENDER_POINT_ENTS;
-		}
-		ImGui::EndMenu();
-	}
-
-	if (ImGui::BeginMenu("Create"))
-	{
-		if (ImGui::MenuItem("Entity")) {
-			Entity* newEnt = new Entity();
-			newEnt->addKeyvalue("origin", (cameraOrigin + cameraForward*100).toKeyvalueString());
-			newEnt->addKeyvalue("classname", "info_player_deathmatch");
-			BspRenderer* destMap = getMapContainingCamera();
-			destMap->map->ents.push_back(newEnt);
-			destMap->preRenderEnts();
-		}
-		
-		if (ImGui::MenuItem("BSP Model")) {
-			
-			BspRenderer* destMap = getMapContainingCamera();
-			
-			vec3 origin = cameraOrigin + cameraForward * 100;
-			vec3 mins = vec3(-16, -16, -16);
-			vec3 maxs = vec3(16, 16, 16);
-
-			int modelIdx = destMap->map->create_solid(mins, maxs, 3);
-
-			Entity* newEnt = new Entity();
-			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
-			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
-			newEnt->addKeyvalue("classname", "func_wall");
-			destMap->map->ents.push_back(newEnt);
-
-			destMap->updateLightmapInfos();
-			destMap->calcFaceMaths();
-			destMap->preRenderFaces();
-			destMap->preRenderEnts();
-			destMap->map->validate();
-
-			destMap->map->print_model_hull(modelIdx, 1);
-		}
-		ImGui::EndMenu();
-	}
-
-	ImGui::EndMainMenuBar();
-}
-
-void Renderer::drawFpsOverlay() {
-	ImVec2 window_pos = ImVec2(10.0f, 35.0f);
-	ImVec2 window_pos_pivot = ImVec2(0.0f, 0.0f);
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
-	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
-	if (ImGui::Begin("Overlay", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
-	{
-		ImGui::Text("%.0f FPS", ImGui::GetIO().Framerate);
-		if (ImGui::BeginPopupContextWindow())
-		{
-			if (ImGui::MenuItem("VSync", NULL, vsync)) {
-				vsync = !vsync;
-				glfwSwapInterval(vsync ? 1 : 0);
-			}
-			ImGui::EndPopup();
-		}
-	}
-	ImGui::End();
-}
-
-void Renderer::drawDebugWidget() {
-	ImGui::SetNextWindowBgAlpha(0.75f);
-
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, 800));
-	if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
-		
-		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			ImGui::Text("Origin: %d %d %d", (int)cameraOrigin.x, (int)cameraOrigin.y, (int)cameraOrigin.z);
-			ImGui::Text("Angles: %d %d %d", (int)cameraAngles.x, (int)cameraAngles.y, (int)cameraAngles.z);
-		}
-
-		if (pickInfo.valid) {
-			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-			Entity* ent = map->ents[pickInfo.entIdx];
-
-			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
-			{
-				ImGui::Text("Name: %s", map->name.c_str());
-			}
-
-			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
-			{
-				ImGui::Text("Entity ID: %d", pickInfo.entIdx);				
-
-				if (pickInfo.faceIdx != -1) {
-					BSPMODEL& model = map->models[pickInfo.modelIdx];
-					BSPFACE& face = map->faces[pickInfo.faceIdx];
-					BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-					int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
-					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-
-					ImGui::Text("Model ID: %d", pickInfo.modelIdx);
-					ImGui::Text("Model polies: %d", model.nFaces);
-
-					ImGui::Text("Face ID: %d", pickInfo.faceIdx);
-					ImGui::Text("Plane ID: %d", face.iPlane);
-					ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
-					ImGui::Text("Texture ID: %d", info.iMiptex);
-					ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
-				}
-				
-			}
-
-			if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
-			{
-				ImGui::Text("DebugVec0 %6.2f %6.2f %6.2f", debugVec0.x, debugVec0.y, debugVec0.z);
-				ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", debugVec1.x, debugVec1.y, debugVec1.z);
-				ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", debugVec2.x, debugVec2.y, debugVec2.z);
-				ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", debugVec3.x, debugVec3.y, debugVec3.z);
-			}
-		}
-		else {
-			ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen);
-			ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen);
-		}
-
-	}
-	ImGui::End();
-}
-
-void Renderer::drawKeyvalueEditor() {
-	//ImGui::SetNextWindowBgAlpha(0.75f);
-
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, windowHeight - 40));
-	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
-	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (pickInfo.valid) {
-			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-			Entity* ent = map->ents[pickInfo.entIdx];
-			BSPMODEL& model = map->models[pickInfo.modelIdx];
-			BSPFACE& face = map->faces[pickInfo.faceIdx];
-			string cname = ent->keyvalues["classname"];
-			FgdClass* fgdClass = fgd->getFgdClass(cname);
-
-			ImGui::PushFont(largeFont);
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text("Class:"); ImGui::SameLine();
-			if (cname != "worldspawn") {
-				if (ImGui::Button((" " + cname + " ").c_str()))
-					ImGui::OpenPopup("classname_popup");
-			}
-			else {
-				ImGui::Text(cname.c_str());
-			}
-			ImGui::PopFont();
-
-			if (fgdClass != NULL) {
-				ImGui::SameLine();
-				ImGui::TextDisabled("(?)");
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-					ImGui::TextUnformatted((fgdClass->description).c_str());
-					ImGui::PopTextWrapPos();
-					ImGui::EndTooltip();
-				}
-			}
-
-
-			if (ImGui::BeginPopup("classname_popup"))
-			{
-				ImGui::Text("Change Class");
-				ImGui::Separator();
-
-				vector<FgdGroup>* targetGroup = &fgd->pointEntGroups;
-				if (ent->getBspModelIdx() != -1) {
-					targetGroup = &fgd->solidEntGroups;
-				}
-
-				for (int i = 0; i < targetGroup->size(); i++) {
-					FgdGroup& group = targetGroup->at(i);
-
-					if (ImGui::BeginMenu(group.groupName.c_str())) {
-						for (int k = 0; k < group.classes.size(); k++) {
-							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
-								ent->keyvalues["classname"] = group.classes[k]->name;
-								mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-							}
-						}
-
-						ImGui::EndMenu();
-					}
-				}
-
-				ImGui::EndPopup();
-			}
-
-			ImGui::Dummy(ImVec2(0, 10));
-
-			if (ImGui::BeginTabBar("##tabs"))
-			{
-				if (ImGui::BeginTabItem("Attributes")) {
-					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_SmartEditTab(ent);
-					ImGui::EndTabItem();
-				}
-
-				if (ImGui::BeginTabItem("Flags")) {
-					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_FlagsTab(ent);
-					ImGui::EndTabItem();
-				}
-
-				if (ImGui::BeginTabItem("Raw Edit")) {
-					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_RawEditTab(ent);
-					ImGui::EndTabItem();
-				}
-			}
-			ImGui::EndTabBar();
-
-		}
-		else {
-			ImGui::Text("No entity selected");
-		}
-
-	}
-	ImGui::End();
-}
-
-void Renderer::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
-	string cname = ent->keyvalues["classname"];
-	FgdClass* fgdClass = fgd->getFgdClass(cname);
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	ImGui::BeginChild("SmartEditWindow");
-
-	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
-
-	static char keyNames[128][64];
-	static char keyValues[128][64];
-
-	float paddingx = style.WindowPadding.x + style.FramePadding.x;
-	float inputWidth = (ImGui::GetWindowWidth() - (paddingx * 2)) * 0.5f;
-
-	// needed if autoresize is true
-	if (ImGui::GetScrollMaxY() > 0)
-		inputWidth -= style.ScrollbarSize * 0.5f;
-
-	struct InputData {
-		string key;
-		Entity* entRef;
-		int entIdx;
-		BspRenderer* bspRenderer;
-	};
-
-	if (fgdClass != NULL) {
-
-		static InputData inputData[128];
-		static int lastPickCount = 0;
-
-		for (int i = 0; i < fgdClass->keyvalues.size() && i < 128; i++) {
-			KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
-			string key = keyvalue.name;
-			if (key == "spawnflags") {
-				continue;
-			}
-			string value = ent->keyvalues[key];
-			string niceName = keyvalue.description;
-
-			strcpy(keyNames[i], niceName.c_str());
-			strcpy(keyValues[i], value.c_str());
-
-			inputData[i].key = key;
-			inputData[i].entIdx = pickInfo.entIdx;
-			inputData[i].entRef = ent;
-			inputData[i].bspRenderer = mapRenderers[pickInfo.mapIdx];
-
-			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(keyNames[i]); ImGui::NextColumn();
-
-			ImGui::SetNextItemWidth(inputWidth);
-
-			if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
-				string selectedValue = keyvalue.choices[0].name;
-				int ikey = atoi(value.c_str());
-
-				for (int k = 0; k < keyvalue.choices.size(); k++) {
-					KeyvalueChoice& choice = keyvalue.choices[k];
-
-					if ((choice.isInteger && ikey == choice.ivalue) ||
-						(!choice.isInteger && value == choice.svalue)) {
-						selectedValue = choice.name;
-					}
-				}
-
-				if (ImGui::BeginCombo(("##val" + to_string(i)).c_str(), selectedValue.c_str()))
-				{
-					for (int k = 0; k < keyvalue.choices.size(); k++) {
-						KeyvalueChoice& choice = keyvalue.choices[k];
-						bool selected = choice.svalue == value || value.empty() && choice.svalue == keyvalue.defaultValue;
-
-						if (ImGui::Selectable(choice.name.c_str(), selected)) {
-							if (keyvalue.defaultValue == choice.svalue) {
-								ent->removeKeyvalue(key);
-							}
-							else {
-								ent->setOrAddKeyvalue(key, choice.svalue);
-							}
-							mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-						}
-					}
-
-					ImGui::EndCombo();
-				}
-			}
-			else {
-				struct InputChangeCallback {
-					static int keyValueChanged(ImGuiInputTextCallbackData* data) {
-						if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
-							if (data->EventChar < 256) {
-								if (strchr("-0123456789", (char)data->EventChar))
-									return 0;
-							}
-							return 1;
-						}
-
-						InputData* inputData = (InputData*)data->UserData;
-						Entity* ent = inputData->entRef;
-
-						string newVal = data->Buf;
-						if (newVal.empty()) {
-							ent->removeKeyvalue(inputData->key);
-						}
-						else {
-							ent->setOrAddKeyvalue(inputData->key, newVal);
-						}
-						inputData->bspRenderer->refreshEnt(inputData->entIdx);
-						return 1;
-					}
-				};
-
-				if (keyvalue.iType == FGD_KEY_INTEGER) {
-					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(pickCount)).c_str(), keyValues[i], 64, 
-						ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways, 
-						InputChangeCallback::keyValueChanged, &inputData[i]);
-				}
-				else {
-					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(pickCount)).c_str(), keyValues[i], 64,
-						ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[i]);
-				}
-
-
-			}
-
-			ImGui::NextColumn();
-		}
-
-		lastPickCount = pickCount;
-	}
-
-	ImGui::Columns(1);
-
-	ImGui::EndChild();
-}
-
-void Renderer::drawKeyvalueEditor_FlagsTab(Entity* ent) {
-	ImGui::BeginChild("FlagsWindow");
-
-	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
-	FgdClass* fgdClass = fgd->getFgdClass(ent->keyvalues["classname"]);
-
-	ImGui::Columns(2, "keyvalcols", true);
-
-	static bool checkboxEnabled[32];
-
-	for (int i = 0; i < 32; i++) {
-		if (i == 16) {
-			ImGui::NextColumn();
-		}
-		string name;
-		if (fgdClass != NULL) {
-			name = fgdClass->spawnFlagNames[i];
-		}
-
-		checkboxEnabled[i] = spawnflags & (1 << i);
-
-		if (ImGui::Checkbox((name + "##flag" + to_string(i)).c_str(), &checkboxEnabled[i])) {
-			if (!checkboxEnabled[i]) {
-				spawnflags &= ~(1U << i);
-			} else {
-				spawnflags |= (1U << i);
-			}
-			if (spawnflags != 0)
-				ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags));
-			else
-				ent->removeKeyvalue("spawnflags");
-		}
-	}
-
-	ImGui::Columns(1);
-
-	ImGui::EndChild();
-}
-
-void Renderer::drawKeyvalueEditor_RawEditTab(Entity* ent) {
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	ImGui::Columns(4, "keyvalcols", false);
-
-	float butColWidth = smallFont->CalcTextSizeA(GImGui->FontSize, 100, 100, " X ").x + style.FramePadding.x * 4;
-	float textColWidth = (ImGui::GetWindowWidth() - (butColWidth+style.FramePadding.x*2) * 2) * 0.5f;
-
-	ImGui::SetColumnWidth(0, butColWidth);
-	ImGui::SetColumnWidth(1, textColWidth);
-	ImGui::SetColumnWidth(2, textColWidth);
-	ImGui::SetColumnWidth(3, butColWidth);
-
-	ImGui::NextColumn();
-	ImGui::Text("  Key"); ImGui::NextColumn();
-	ImGui::Text("Value"); ImGui::NextColumn();
-	ImGui::NextColumn();
-
-	ImGui::Columns(1);
-	ImGui::BeginChild("RawValuesWindow");
-
-	ImGui::Columns(4, "keyvalcols2", false);
-
-	textColWidth -= style.ScrollbarSize; // double space to prevent accidental deletes
-	
-	ImGui::SetColumnWidth(0, butColWidth);
-	ImGui::SetColumnWidth(1, textColWidth);
-	ImGui::SetColumnWidth(2, textColWidth);
-	ImGui::SetColumnWidth(3, butColWidth);
-
-	static char keyNames[128][64];
-	static char keyValues[128][64];
-	
-	float paddingx = style.WindowPadding.x + style.FramePadding.x;
-	float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
-
-	struct InputData {
-		int idx;
-		Entity* entRef;
-		int entIdx;
-		BspRenderer* bspRenderer;
-	};
-
-	struct TextChangeCallback {
-		static int keyNameChanged(ImGuiInputTextCallbackData* data) {
-			InputData* inputData = (InputData*)data->UserData;
-			Entity* ent = inputData->entRef;
-
-			string key = ent->keyOrder[inputData->idx];
-			if (key != data->Buf) {
-				ent->renameKey(inputData->idx, data->Buf);
-				inputData->bspRenderer->refreshEnt(inputData->entIdx);
-			}
-			
-			return 1;
-		}
-
-		static int keyValueChanged(ImGuiInputTextCallbackData* data) {
-			InputData* inputData = (InputData*)data->UserData;
-			Entity* ent = inputData->entRef;
-			string key = ent->keyOrder[inputData->idx];
-
-			if (ent->keyvalues[key] != data->Buf) {
-				ent->keyvalues[key] = data->Buf;
-				inputData->bspRenderer->refreshEnt(inputData->entIdx);
-			}
-			
-			return 1;
-		}
-	};
-
-	static InputData keyIds[128];
-	static InputData valueIds[128];
-	static int lastPickCount = -1;
-	static string dragNames[128];
-	static const char* dragIds[128];
-
-	if (dragNames[0].empty()) {
-		for (int i = 0; i < 128; i++) {
-			string name = "::##drag" + to_string(i);
-			dragNames[i] = name;
-		}
-	}
-
-	if (lastPickCount != pickCount) {
-		for (int i = 0; i < 128; i++) {
-			dragIds[i] = dragNames[i].c_str();
-		}
-	}	
-
-	ImVec4 dragColor = style.Colors[ImGuiCol_FrameBg];
-	dragColor.x *= 2;
-	dragColor.y *= 2;
-	dragColor.z *= 2;
-
-	ImVec4 dragButColor = style.Colors[ImGuiCol_Header];
-
-	static bool hoveredDrag[128];
-	static int ignoreErrors = 0;
-
-	float startY = 0;
-	for (int i = 0; i < ent->keyOrder.size() && i < 128; i++) {
-		const char* item = dragIds[i];
-		
-		{
-			style.SelectableTextAlign.x = 0.5f;
-			ImGui::AlignTextToFramePadding();
-			ImGui::PushStyleColor(ImGuiCol_Header, hoveredDrag[i] ? dragColor : dragButColor);
-			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, dragColor);
-			ImGui::PushStyleColor(ImGuiCol_HeaderActive, dragColor);
-			ImGui::Selectable(item, true);
-			ImGui::PopStyleColor(3);
-			style.SelectableTextAlign.x = 0.0f;
-
-			hoveredDrag[i] = ImGui::IsItemActive();
-
-			if (i == 0) {
-				startY = ImGui::GetItemRectMin().y;
-			}
-
-			if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
-			{
-				int n_next = (ImGui::GetMousePos().y - startY) / (ImGui::GetItemRectSize().y + style.FramePadding.y*2);
-				if (n_next >= 0 && n_next < ent->keyOrder.size() && n_next < 128)
-				{
-					dragIds[i] = dragIds[n_next];
-					dragIds[n_next] = item;
-
-					string temp = ent->keyOrder[i];
-					ent->keyOrder[i] = ent->keyOrder[n_next];
-					ent->keyOrder[n_next] = temp;
-					
-					// fix false-positive error highlight
-					ignoreErrors = 2;
-
-					ImGui::ResetMouseDragDelta();
-				}
-			}
-
-			ImGui::NextColumn();
-		}
-
-		string key = ent->keyOrder[i];
-		string value = ent->keyvalues[key];
-
-		{
-			bool invalidKey = ignoreErrors == 0 && lastPickCount == pickCount && key != keyNames[i];
-
-			strcpy(keyNames[i], key.c_str());
-
-			keyIds[i].idx = i;
-			keyIds[i].entIdx = pickInfo.entIdx;
-			keyIds[i].entRef = ent;
-			keyIds[i].bspRenderer = mapRenderers[pickInfo.mapIdx];
-
-			if (invalidKey) {
-				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
-			}
-			else if (hoveredDrag[i]) {
-				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
-			}
-
-			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::InputText(("##key" + to_string(i) + "_" + to_string(pickCount)).c_str(), keyNames[i], 64, ImGuiInputTextFlags_CallbackAlways,
-				TextChangeCallback::keyNameChanged, &keyIds[i]);
-
-			if (invalidKey || hoveredDrag[i]) {
-				ImGui::PopStyleColor();
-			}
-
-			ImGui::NextColumn();
-		}
-		{
-			strcpy(keyValues[i], value.c_str());
-
-			valueIds[i].idx = i;
-			valueIds[i].entIdx = pickInfo.entIdx;
-			valueIds[i].entRef = ent;
-			valueIds[i].bspRenderer = mapRenderers[pickInfo.mapIdx];
-
-			if (hoveredDrag[i]) {
-				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
-			}
-			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::InputText(("##val" + to_string(i) + to_string(pickCount)).c_str(), keyValues[i], 64, ImGuiInputTextFlags_CallbackAlways,
-				TextChangeCallback::keyValueChanged, &valueIds[i]);
-			if (hoveredDrag[i]) {
-				ImGui::PopStyleColor();
-			}
-
-			ImGui::NextColumn();
-		}
-		{
-
-			ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-			if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
-				ent->removeKeyvalue(key);
-				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-				ignoreErrors = 2;
-			}
-			ImGui::PopStyleColor(3);
-			ImGui::NextColumn();
-		}
-	}
-
-	lastPickCount = pickCount;
-
-	ImGui::Columns(1);
-
-	ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-	ImGui::Dummy(ImVec2(butColWidth, 0)); ImGui::SameLine();
-	if (ImGui::Button(" Add ")) {
-		string baseKeyName = "NewKey";
-		string keyName = "NewKey";
-		for (int i = 0; i < 128; i++) {
-			if (!ent->hasKey(keyName)) {
-				break;
-			}
-			keyName = baseKeyName + "#" + to_string(i+2);
-		}
-		ent->addKeyvalue(keyName, "");
-		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-		ignoreErrors = 2;
-	}
-
-	if (ignoreErrors > 0) {
-		ignoreErrors--;
-	}
-
-	ImGui::EndChild();
-}
-
-void Renderer::drawTransformWidget() {
-	bool transformingEnt = pickInfo.valid && pickInfo.entIdx > 0;
-
-	Entity* ent = NULL;
-	BspRenderer* bspRenderer = NULL;
-	if (transformingEnt) {
-		bspRenderer = mapRenderers[pickInfo.mapIdx];
-		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-		ent = map->ents[pickInfo.entIdx];
-	}
-
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, windowHeight - 40));
-	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
-		static int x, y, z;
-		static float fx, fy, fz;
-		static float sx, sy, sz;
-
-		static int lastPickCount = -1;
-		static int oldSnappingEnabled = gridSnappingEnabled;
-
-		ImGuiStyle& style = ImGui::GetStyle();
-
-		if (lastPickCount != pickCount || draggingAxis != -1 || movingEnt || oldSnappingEnabled != gridSnappingEnabled) {
-			if (transformingEnt) {
-				vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-				x = fx = ori.x;
-				y = fy = ori.y;
-				z = fz = ori.z;
-			}
-			else {
-				x = fx = 0;
-				y = fy = 0;
-				z = fz = 0;
-			}
-			sx = sy = sz = 1;
-		}
-
-		bool scaled = false;
-		bool originChanged = false;
-		guiHoverAxis = -1;
-
-		if (ImGui::BeginTabBar("##tabs"))
-		{
-			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
-
-			if (ImGui::BeginTabItem("Move")) {
-				transformMode = TRANSFORM_MOVE;
-				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-				ImGui::PushItemWidth(inputWidth);
-
-				if (gridSnappingEnabled) {
-					if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 0;
-					ImGui::SameLine();
-
-					if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 1;
-					ImGui::SameLine();
-
-					if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 2;
-				}
-				else {
-					if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 0;
-					ImGui::SameLine();
-
-					if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 1;
-					ImGui::SameLine();
-
-					if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
-					if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-						guiHoverAxis = 2;
-				}
-
-				ImGui::PopItemWidth();
-				ImGui::EndTabItem();
-			}
-
-			if (ImGui::BeginTabItem("Scale")) {
-				transformMode = TRANSFORM_SCALE;
-				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-				ImGui::PushItemWidth(inputWidth);
-
-				if (ImGui::DragFloat("##xscale", &sx, 0.01f, 0, 0, "X: %.2f")) { scaled = true; }
-				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-					guiHoverAxis = 0;
-				ImGui::SameLine();
-
-				if (ImGui::DragFloat("##yscale", &sy, 0.01f, 0, 0, "Y: %.2f")) { scaled = true; }
-				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-					guiHoverAxis = 1;
-				ImGui::SameLine();
-
-				if (ImGui::DragFloat("##zscale", &sz, 0.01f, 0, 0, "Z: %.2f")) { scaled = true; }
-				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-					guiHoverAxis = 2;
-
-				ImGui::PopItemWidth();
-				ImGui::EndTabItem();
-			}
-
-			if (ImGui::BeginTabItem("Options")) {
-				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-
-				static bool showAxesToggle;
-				showAxesToggle = showDragAxes;
-				if (ImGui::Checkbox("3D Axes", &showAxesToggle)) {
-					showDragAxes = !showDragAxes;
-				}
-
-				static bool gridSnappingToggle;
-				gridSnappingToggle = gridSnappingEnabled;
-				if (ImGui::Checkbox("Snap to grid", &gridSnappingToggle)) {
-					gridSnappingEnabled = !gridSnappingEnabled;
-					originChanged = true;
-				}
-
-				const int grid_snap_modes = 10;
-				const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
-				static int current_element = gridSnapLevel;
-				current_element = gridSnapLevel;
-				if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
-					gridSnapLevel = current_element;
-					originChanged = true;
-				}
-
-				ImGui::EndTabItem();
-			}
-
-			ImGui::EndTabBar();
-		}
-
-		if (transformingEnt) {
-			if (originChanged) {
-				vec3 newOrigin = gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-				newOrigin = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
-
-				if (gridSnappingEnabled) {
-					fx = x;
-					fy = y;
-					fz = z;
-				}
-				else {
-					x = fx;
-					y = fy;
-					z = fz;
-				}
-
-				ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!gridSnappingEnabled));
-				bspRenderer->refreshEnt(pickInfo.entIdx);
-			}
-			if (scaled && ent->isBspModel()) {
-				int modelIdx = ent->getBspModelIdx();
-				
-			}
-		}
-
-		lastPickCount = pickCount;
-		oldSnappingEnabled = gridSnappingEnabled;
-		
-	}
-	ImGui::End();
-}
-
-void Renderer::cameraControls() {
+void Renderer::controls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
 	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
@@ -1249,30 +279,7 @@ void Renderer::cameraControls() {
 	if (!io.WantCaptureKeyboard)
 		cameraOrigin += getMoveDir() * frameTimeScale;
 
-	// grabbing
-	if (pickInfo.valid && movingEnt) {
-		if (g_scroll != oldScroll) {
-			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 4.0f : 2.0f;
-			if (pressed[GLFW_KEY_LEFT_CONTROL])
-				moveScale = 1.0f;
-			if (g_scroll < oldScroll)
-				moveScale *= -1;
-
-			grabDist += 16*moveScale;
-		}
-
-		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-		vec3 delta = (cameraOrigin + cameraForward* grabDist) - grabStartOrigin;
-		Entity* ent = map->ents[pickInfo.entIdx];
-		
-		vec3 oldOrigin = gragStartEntOrigin;
-		vec3 offset = getEntOffset(map, ent);
-		vec3 newOrigin = (oldOrigin + delta) - offset;
-		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
-
-		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
-		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-	}
+	moveGrabbedEnt();
 
 	if (io.WantCaptureMouse)
 		return;
@@ -1281,29 +288,51 @@ void Renderer::cameraControls() {
 	glfwGetCursorPos(window, &xpos, &ypos);
 	vec2 mousePos(xpos, ypos);
 
-	// context menus
-	bool wasTurning = cameraIsRotating && totalMouseDrag.length() >= 1;
-	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE && oldRightMouse != GLFW_RELEASE && !wasTurning) {
-		vec3 pickStart, pickDir;
-		getPickRay(pickStart, pickDir);
+	cameraContextMenus();
 
-		PickInfo tempPick;
-		memset(&tempPick, 0, sizeof(PickInfo));
-		tempPick.bestDist = 9e99;
-		for (int i = 0; i < mapRenderers.size(); i++) {
-			if (mapRenderers[i]->pickPoly(pickStart, pickDir, tempPick)) {
-				tempPick.mapIdx = i;
+	cameraRotationControls(mousePos);
+
+	makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
+
+	cameraObjectHovering();
+
+	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
+
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+		bool transformingAxes = transformAxisControls();
+		
+		// object picking
+		if (!transformingAxes && oldLeftMouse != GLFW_PRESS) {
+			pickObject();
+		}
+	}
+	else {
+		if (draggingAxis != -1) {
+			draggingAxis = -1;
+			if (transformMode == TRANSFORM_SCALE) {
+				updateScaleVerts(true);
+				if (pickInfo.valid && pickInfo.modelIdx > 0) {
+					Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+					map->vertex_manipulation_sync(pickInfo.modelIdx);
+				}				
 			}
-		}
-
-		if (tempPick.entIdx != 0 && tempPick.entIdx == pickInfo.entIdx) {
-			contextMenuEnt = pickInfo.entIdx;
-		}
-		else {
-			emptyContextMenu = 1;
 		}
 	}
 
+	shortcutControls();
+
+	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+	
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		oldPressed[i] = pressed[i];
+		oldReleased[i] = released[i];
+	}
+
+	oldScroll = g_scroll;
+}
+
+void Renderer::cameraRotationControls(vec2 mousePos) {
 	// camera rotation
 	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
 		if (!cameraIsRotating) {
@@ -1335,9 +364,9 @@ void Renderer::cameraControls() {
 		cameraIsRotating = false;
 		totalMouseDrag = vec2();
 	}
+}
 
-	makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
-
+void Renderer::cameraObjectHovering() {
 	// axis handle hovering
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 	hoverAxis = -1;
@@ -1351,7 +380,7 @@ void Renderer::cameraControls() {
 		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 		Entity* ent = map->ents[pickInfo.entIdx];
 		vec3 origin = activeAxes.origin;
-			
+
 		int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
 		for (int i = 0; i < axisChecks; i++) {
 			if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[i], origin + activeAxes.maxs[i], axisPick.bestDist)) {
@@ -1367,104 +396,61 @@ void Renderer::cameraControls() {
 			}
 		}
 	}
+}
 
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+void Renderer::cameraContextMenus() {
+	// context menus
+	bool wasTurning = cameraIsRotating && totalMouseDrag.length() >= 1;
+	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE && oldRightMouse != GLFW_RELEASE && !wasTurning) {
+		vec3 pickStart, pickDir;
+		getPickRay(pickStart, pickDir);
 
-		// axis handle dragging
-		if (showDragAxes && !movingEnt && hoverAxis != -1 && draggingAxis == -1) {
-			draggingAxis = hoverAxis;
-
-			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-			Entity* ent = map->ents[pickInfo.entIdx];
-
-			axisDragEntOriginStart = getEntOrigin(map, ent);
-			axisDragStart = getAxisDragPoint(axisDragEntOriginStart);
-		}
-		if (showDragAxes && !movingEnt && draggingAxis >= 0) {
-			Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-			Entity* ent = map->ents[pickInfo.entIdx];
-
-			activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
-
-			vec3 dragPoint = getAxisDragPoint(axisDragEntOriginStart);
-			if (gridSnappingEnabled) {
-				dragPoint = snapToGrid(dragPoint);
-			}
-			vec3 delta = dragPoint - axisDragStart;
-
-			
-			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 2.0f : 1.0f;
-			if (pressed[GLFW_KEY_LEFT_CONTROL] == GLFW_PRESS)
-				moveScale = 0.1f;
-
-			float maxDragDist = 8192; // don't throw ents out to infinity
-			for (int i = 0; i < 3; i++) {
-				if (i != draggingAxis % 3)
-					((float*)&delta)[i] = 0;
-				else 
-					((float*)&delta)[i] = clamp(((float*)&delta)[i] * moveScale, -maxDragDist, maxDragDist);
-			}
-
-			if (transformMode == TRANSFORM_MOVE) {
-				vec3 offset = getEntOffset(map, ent);
-				vec3 newOrigin = (axisDragEntOriginStart + delta) - offset;
-				vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
-
-				ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
-				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
-			}
-			else {
-				if (ent->isBspModel() && delta.length() != 0) {
-
-					vec3 scaleDirs[6]{
-						vec3(1, 0, 0),
-						vec3(0, 1, 0),
-						vec3(0, 0, 1),
-						vec3(-1, 0, 0),
-						vec3(0, -1, 0),
-						vec3(0, 0, -1),
-					};
-
-					scaleSelectedVerts(delta, scaleDirs[draggingAxis]);
-					mapRenderers[pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
-				}
+		PickInfo tempPick;
+		memset(&tempPick, 0, sizeof(PickInfo));
+		tempPick.bestDist = 9e99;
+		for (int i = 0; i < mapRenderers.size(); i++) {
+			if (mapRenderers[i]->pickPoly(pickStart, pickDir, tempPick)) {
+				tempPick.mapIdx = i;
 			}
 		}
-		// object picking
-		else if (oldLeftMouse != GLFW_PRESS) {
-			vec3 pickStart, pickDir;
-			getPickRay(pickStart, pickDir);
 
-			int oldEntIdx = pickInfo.entIdx;
-			pickCount++;
-			memset(&pickInfo, 0, sizeof(PickInfo));
-			pickInfo.bestDist = 9e99;
-			for (int i = 0; i < mapRenderers.size(); i++) {
-				if (mapRenderers[i]->pickPoly(pickStart, pickDir, pickInfo)) {
-					pickInfo.mapIdx = i;
-				}
-			}
-
-			if (movingEnt && oldEntIdx != pickInfo.entIdx) {
-				movingEnt = false;
-			}
-
-			updateScaleVerts(false);
+		if (tempPick.entIdx != 0 && tempPick.entIdx == pickInfo.entIdx) {
+			gui->openContextMenu(pickInfo.entIdx);
+		}
+		else {
+			gui->openContextMenu(-1);
 		}
 	}
-	else {
-		if (draggingAxis != -1) {
-			draggingAxis = -1;
-			if (transformMode == TRANSFORM_SCALE) {
-				updateScaleVerts(true);
-				if (pickInfo.valid && pickInfo.modelIdx > 0) {
-					Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-					map->vertex_manipulation_sync(pickInfo.modelIdx);
-				}				
-			}
+}
+
+void Renderer::moveGrabbedEnt() {
+	// grabbing
+	if (pickInfo.valid && movingEnt) {
+		if (g_scroll != oldScroll) {
+			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 4.0f : 2.0f;
+			if (pressed[GLFW_KEY_LEFT_CONTROL])
+				moveScale = 1.0f;
+			if (g_scroll < oldScroll)
+				moveScale *= -1;
+
+			grabDist += 16 * moveScale;
 		}
+
+		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+		vec3 delta = (cameraOrigin + cameraForward * grabDist) - grabStartOrigin;
+		Entity* ent = map->ents[pickInfo.entIdx];
+
+		vec3 oldOrigin = gragStartEntOrigin;
+		vec3 offset = getEntOffset(map, ent);
+		vec3 newOrigin = (oldOrigin + delta) - offset;
+		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
+
+		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
 	}
-	
+}
+
+void Renderer::shortcutControls() {
 	// shortcuts
 	if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
 		movingEnt = !movingEnt;
@@ -1481,24 +467,105 @@ void Renderer::cameraControls() {
 		pasteEnt(false);
 	}
 	if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
-		showTransformWidget = !showTransformWidget;
+		gui->showTransformWidget = !gui->showTransformWidget;
 	}
 	if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
-		showKeyvalueWidget = !showKeyvalueWidget;
+		gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
 	}
 	if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
 		deleteEnt();
 	}
+}
 
-	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-	
-	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
-		oldPressed[i] = pressed[i];
-		oldReleased[i] = released[i];
+void Renderer::pickObject() {
+	vec3 pickStart, pickDir;
+	getPickRay(pickStart, pickDir);
+
+	int oldEntIdx = pickInfo.entIdx;
+	pickCount++;
+	memset(&pickInfo, 0, sizeof(PickInfo));
+	pickInfo.bestDist = 9e99;
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		if (mapRenderers[i]->pickPoly(pickStart, pickDir, pickInfo)) {
+			pickInfo.mapIdx = i;
+		}
 	}
 
-	oldScroll = g_scroll;
+	if (movingEnt && oldEntIdx != pickInfo.entIdx) {
+		movingEnt = false;
+	}
+
+	updateScaleVerts(false);
+}
+
+bool Renderer::transformAxisControls() {
+	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
+
+	// axis handle dragging
+	if (showDragAxes && !movingEnt && hoverAxis != -1 && draggingAxis == -1) {
+		draggingAxis = hoverAxis;
+
+		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+		Entity* ent = map->ents[pickInfo.entIdx];
+
+		axisDragEntOriginStart = getEntOrigin(map, ent);
+		axisDragStart = getAxisDragPoint(axisDragEntOriginStart);
+	}
+
+	if (showDragAxes && !movingEnt && draggingAxis >= 0) {
+		Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+		Entity* ent = map->ents[pickInfo.entIdx];
+
+		activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
+
+		vec3 dragPoint = getAxisDragPoint(axisDragEntOriginStart);
+		if (gridSnappingEnabled) {
+			dragPoint = snapToGrid(dragPoint);
+		}
+		vec3 delta = dragPoint - axisDragStart;
+
+
+		float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 2.0f : 1.0f;
+		if (pressed[GLFW_KEY_LEFT_CONTROL] == GLFW_PRESS)
+			moveScale = 0.1f;
+
+		float maxDragDist = 8192; // don't throw ents out to infinity
+		for (int i = 0; i < 3; i++) {
+			if (i != draggingAxis % 3)
+				((float*)&delta)[i] = 0;
+			else
+				((float*)&delta)[i] = clamp(((float*)&delta)[i] * moveScale, -maxDragDist, maxDragDist);
+		}
+
+		if (transformMode == TRANSFORM_MOVE) {
+			vec3 offset = getEntOffset(map, ent);
+			vec3 newOrigin = (axisDragEntOriginStart + delta) - offset;
+			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
+
+			ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+			mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+		}
+		else {
+			if (ent->isBspModel() && delta.length() != 0) {
+
+				vec3 scaleDirs[6]{
+					vec3(1, 0, 0),
+					vec3(0, 1, 0),
+					vec3(0, 0, 1),
+					vec3(-1, 0, 0),
+					vec3(0, -1, 0),
+					vec3(0, 0, -1),
+				};
+
+				scaleSelectedVerts(delta, scaleDirs[draggingAxis]);
+				mapRenderers[pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 vec3 Renderer::getMoveDir()
@@ -1768,8 +835,8 @@ void Renderer::updateDragAxes() {
 	else if (hoverAxis >= 0 && hoverAxis < activeAxes.numAxes) {
 		activeAxes.model[hoverAxis].setColor(activeAxes.hoverColor[hoverAxis]);
 	}
-	else if (guiHoverAxis >= 0 && guiHoverAxis < activeAxes.numAxes) {
-		activeAxes.model[guiHoverAxis].setColor(activeAxes.hoverColor[guiHoverAxis]);
+	else if (gui->guiHoverAxis >= 0 && gui->guiHoverAxis < activeAxes.numAxes) {
+		activeAxes.model[gui->guiHoverAxis].setColor(activeAxes.hoverColor[gui->guiHoverAxis]);
 	}
 }
 
@@ -1932,6 +999,9 @@ void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
 	//
 	// TODO: I have no idea what I'm doing but this code usually scales axis-aligned texture coord axes correctly.
 	//
+
+	if (!textureLock)
+		return;
 
 	minAxisDist = 9e99;
 	maxAxisDist = -9e99;

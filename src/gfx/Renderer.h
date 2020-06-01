@@ -1,4 +1,3 @@
-#include "Bsp.h"
 #include <GL/glew.h>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -8,6 +7,8 @@
 #include "ShaderProgram.h"
 #include "BspRenderer.h"
 #include "Fgd.h"
+
+class Gui;
 
 enum transform_modes {
 	TRANSFORM_MOVE,
@@ -26,6 +27,8 @@ struct TransformAxes {
 };
 
 class Renderer {
+	friend class Gui;
+
 public:
 	vector<BspRenderer*> mapRenderers;
 
@@ -41,6 +44,7 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
 	PointEntRenderer* pointEntRenderer;
+	Gui* gui;
 
 	Fgd* fgd;
 
@@ -53,24 +57,13 @@ private:
 	float frameTimeScale = 0.0f;
 	float moveSpeed = 4.0f;
 	float fov, zNear, zFar;
+	int windowWidth;
+	int windowHeight;
 	mat4x4 model, view, projection, modelView, modelViewProjection;
 
 	vec2 lastMousePos;
 	vec2 totalMouseDrag;
 
-	int windowWidth;
-	int windowHeight;
-
-	bool vsync;
-	bool showDebugWidget;
-	bool showKeyvalueWidget;
-	bool showTransformWidget;
-	bool smartEdit;
-	ImFont* smallFont;
-	ImFont* largeFont;
-
-	int contextMenuEnt; // open entity context menu if >= 0
-	int emptyContextMenu; // open context menu for rightclicking world/void
 	bool movingEnt; // grab an ent and move it with the camera
 	vec3 grabStartOrigin;
 	vec3 gragStartEntOrigin;
@@ -79,7 +72,6 @@ private:
 	TransformAxes moveAxes;
 	TransformAxes scaleAxes;
 	int hoverAxis; // axis being hovered
-	int guiHoverAxis; // axis being hovered in the transform menu
 	int draggingAxis; // axis currently being dragged by the mouse
 	bool gridSnappingEnabled;
 	int gridSnapLevel;
@@ -93,6 +85,7 @@ private:
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	float* scaleVertDists;
 	int numScaleVerts;
+	bool textureLock;
 
 	Entity* copiedEnt;
 
@@ -117,24 +110,20 @@ private:
 	vec3 debugVec3;
 
 	vec3 getMoveDir();
-	void cameraControls();
+	void controls();
+	void cameraRotationControls(vec2 mousePos);
+	void cameraObjectHovering();
+	void cameraContextMenus(); // right clicking on ents and things
+	void moveGrabbedEnt(); // translates the grabbed ent
+	void shortcutControls(); // hotkeys for menus and things
+	void pickObject(); // select stuff with the mouse
+	bool transformAxisControls(); // true if grabbing axes
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
 	BspRenderer* getMapContainingCamera();
 
 	void drawTransformAxes();
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
-
-	void drawGui();
-	void draw3dContextMenus();
-	void drawMenuBar();
-	void drawFpsOverlay();
-	void drawDebugWidget();
-	void drawKeyvalueEditor();
-	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
-	void drawKeyvalueEditor_FlagsTab(Entity* ent);
-	void drawKeyvalueEditor_RawEditTab(Entity* ent);
-	void drawTransformWidget();
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);
