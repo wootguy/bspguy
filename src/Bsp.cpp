@@ -173,16 +173,14 @@ vector<vec3> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
 	// to get verts by creating convex hulls from each solid node in the tree.
 	// That can be done by recursively cutting a huge cube but there's probably
 	// a better way.
-	vector<vector<BSPPLANE>> perNodePlanes;
-	vector<BSPPLANE> planeStack;
+	vector<BSPPLANE> nodePlanes;
 	vector<vec3> nodeVerts;
 
 	BSPMODEL& model = models[modelIdx];
 
-	getNodePlanes(model.iHeadnodes[0], planeStack, perNodePlanes);
+	getNodePlanes(model.iHeadnodes[0], nodePlanes);
 
-	/*
-	TODO: undo per-node-planes stuff and just get all planes in the tree (for convex solids only)
+	// TODO: model center doesn't have to be inside all planes, even for convex objects(?)
 	vec3 modelCenter = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
 	for (int i = 0; i < nodePlanes.size(); i++) {
 		BSPPLANE& plane = nodePlanes[i];
@@ -193,77 +191,66 @@ vector<vec3> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
 			plane.fDist *= -1;
 		}
 	}
-	*/
 
 	int rootNode = model.iHeadnodes[0];
 
-	for (int s = 0; s < perNodePlanes.size(); s++) {
-		vector<BSPPLANE> nodePlanes = perNodePlanes[s];
-		// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
-		int numPlanes = nodePlanes.size();
-		for (int i = 0; i < numPlanes - 2; i++) {
-			for (int j = i + 1; j < numPlanes - 1; j++) {
-				for (int k = j + 1; k < numPlanes; k++) {
-					vec3& n0 = nodePlanes[i].vNormal;
-					vec3& n1 = nodePlanes[j].vNormal;
-					vec3& n2 = nodePlanes[k].vNormal;
-					float d0 = nodePlanes[i].fDist;
-					float d1 = nodePlanes[j].fDist;
-					float d2 = nodePlanes[k].fDist;
+	// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
+	int numPlanes = nodePlanes.size();
+	for (int i = 0; i < numPlanes - 2; i++) {
+		for (int j = i + 1; j < numPlanes - 1; j++) {
+			for (int k = j + 1; k < numPlanes; k++) {
+				vec3& n0 = nodePlanes[i].vNormal;
+				vec3& n1 = nodePlanes[j].vNormal;
+				vec3& n2 = nodePlanes[k].vNormal;
+				float d0 = nodePlanes[i].fDist;
+				float d1 = nodePlanes[j].fDist;
+				float d2 = nodePlanes[k].fDist;
 
-					float t = n0.x * (n1.y * n2.z - n1.z * n2.y) +
-						n0.y * (n1.z * n2.x - n1.x * n2.z) +
-						n0.z * (n1.x * n2.y - n1.y * n2.x);
+				float t = n0.x * (n1.y * n2.z - n1.z * n2.y) +
+					n0.y * (n1.z * n2.x - n1.x * n2.z) +
+					n0.z * (n1.x * n2.y - n1.y * n2.x);
 
-					if (fabs(t) < EPSILON) {
-						continue;
+				if (fabs(t) < EPSILON) {
+					continue;
+				}
+
+				// don't use crossProduct because it's less accurate
+				//vec3 v = crossProduct(n1, n2)*d0 + crossProduct(n0, n2)*d1 + crossProduct(n0, n1)*d2;
+				vec3 v(
+					(d0 * (n1.z * n2.y - n1.y * n2.z) + d1 * (n0.y * n2.z - n0.z * n2.y) + d2 * (n0.z * n1.y - n0.y * n1.z)) / -t,
+					(d0 * (n1.x * n2.z - n1.z * n2.x) + d1 * (n0.z * n2.x - n0.x * n2.z) + d2 * (n0.x * n1.z - n0.z * n1.x)) / -t,
+					(d0 * (n1.y * n2.x - n1.x * n2.y) + d1 * (n0.x * n2.y - n0.y * n2.x) + d2 * (n0.y * n1.x - n0.x * n1.y)) / -t
+				);
+
+				bool validVertex = true;
+
+				for (int m = 0; m < numPlanes; m++) {
+					BSPPLANE& pm = nodePlanes[m];
+					if (m != i && m != j && m != k && dotProduct(v, pm.vNormal) < pm.fDist + EPSILON) {
+						validVertex = false;
+						break;
 					}
+				}
 
-					// don't use crossProduct because it's less accurate
-					//vec3 v = crossProduct(n1, n2)*d0 + crossProduct(n0, n2)*d1 + crossProduct(n0, n1)*d2;
-					vec3 v(
-						(d0 * (n1.z * n2.y - n1.y * n2.z) + d1 * (n0.y * n2.z - n0.z * n2.y) + d2 * (n0.z * n1.y - n0.y * n1.z)) / -t,
-						(d0 * (n1.x * n2.z - n1.z * n2.x) + d1 * (n0.z * n2.x - n0.x * n2.z) + d2 * (n0.x * n1.z - n0.z * n1.x)) / -t,
-						(d0 * (n1.y * n2.x - n1.x * n2.y) + d1 * (n0.x * n2.y - n0.y * n2.x) + d2 * (n0.y * n1.x - n0.x * n1.y)) / -t
-					);
-
-					bool validVertex = true;
-
-					for (int m = 0; m < numPlanes; m++) {
-						BSPPLANE& pm = nodePlanes[m];
-						if (m != i && m != j && m != k && dotProduct(v, pm.vNormal) < pm.fDist + EPSILON) {
-							validVertex = false;
-							break;
-						}
-					}
-
-					if (validVertex) {
-						nodeVerts.push_back(v);
-					}
+				if (validVertex) {
+					nodeVerts.push_back(v);
 				}
 			}
 		}
 	}
 
-	// TODO: doesn't work with anything not convex
-
 	return nodeVerts;
 }
 
-void Bsp::getNodePlanes(int iNode, vector<BSPPLANE>& planeStack, vector<vector<BSPPLANE>>& nodePlanes) {
+void Bsp::getNodePlanes(int iNode, vector<BSPPLANE>& nodePlanes) {
 	BSPNODE& node = nodes[iNode];
-	planeStack.push_back(planes[node.iPlane]);
+	nodePlanes.push_back(planes[node.iPlane]);
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			getNodePlanes(node.iChildren[i], planeStack, nodePlanes);
-		}
-		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_EMPTY || true) {
-			nodePlanes.push_back(planeStack);
+			getNodePlanes(node.iChildren[i], nodePlanes);
 		}
 	}
-
-	planeStack.pop_back();
 }
 
 vector<ScalablePlane> Bsp::getScalablePlanes(int modelIdx) {
@@ -275,7 +262,7 @@ vector<ScalablePlane> Bsp::getScalablePlanes(int modelIdx) {
 		getScalableNodePlanes(model.iHeadnodes[0], scalablePlanes, visited);
 
 	// don't get clipnode planes because the hull offsets would be scaled as well.
-	// Clipnodes will need to be regenerated after scaling. Although may be possible
+	// Clipnodes will need to be regenerated after scaling. Although it may be possible
 	// to apply an offset to the plane before scaling, then undo the offset to prevent
 	// that. But then there's the problem of knowing which direction to extend the plane.
 
@@ -293,21 +280,6 @@ void Bsp::getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, se
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
 			getScalableNodePlanes(node.iChildren[i], nodePlanes, visited);
-		}
-	}
-}
-
-void Bsp::getScalableClipnodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited) {
-	BSPCLIPNODE& node = clipnodes[iNode];
-
-	if (visited.find(node.iPlane) == visited.end()) {
-		nodePlanes.push_back(getScalablePlane(node.iPlane));
-		visited.insert(node.iPlane);
-	}
-
-	for (int i = 0; i < 2; i++) {
-		if (node.iChildren[i] >= 0) {
-			getScalableClipnodePlanes(node.iChildren[i], nodePlanes, visited);
 		}
 	}
 }

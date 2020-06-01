@@ -276,7 +276,6 @@ public:
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
-	bool isTouchingLeaf(int iNode, vec3 p, int leafIdx);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0
@@ -303,14 +302,13 @@ public:
 
 	// gets verts formed by plane intersections with the nodes in this model
 	vector<vec3> getModelPlaneIntersectVerts(int modelIdx);
-	void getNodePlanes(int iNode, vector<BSPPLANE>& planeStack, vector<vector<BSPPLANE>>& nodePlanes);
+	void getNodePlanes(int iNode, vector<BSPPLANE>& nodePlanes);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
 	// Scaling/stretching really only needs 3 verts _anywhere_ on the plane to calculate new normals/origins.
 	vector<ScalablePlane> getScalablePlanes(int modelIdx);
 	void getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited);
-	void getScalableClipnodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited);
 	ScalablePlane getScalablePlane(int planeIdx);
 	vector<ScalableTexinfo> getScalableTexinfos(int modelIdx); // for scaling
 	int addTextureInfo(BSPTEXTUREINFO& copy);

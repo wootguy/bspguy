@@ -237,17 +237,6 @@ void Renderer::renderLoop() {
 				colorShader->updateMatrixes();
 				allBuff->draw(GL_TRIANGLES);
 			}
-			if (true) {
-				for (int i = 0; i < numScaleVerts; i++) {
-					vec3 asdf = *scaleVerts[i];
-					vec3 min = vec3(-s, -s, -s);
-					vec3 max = vec3(s, s, s);
-					model.loadIdentity();
-					model.translate(asdf.x, asdf.z, -asdf.y);
-					colorShader->updateMatrixes();
-					vertCubeBuffer.draw(GL_TRIANGLES);
-				}
-			}
 
 			colorShader->bind();
 			model.loadIdentity();
@@ -551,16 +540,6 @@ void Renderer::drawDebugWidget() {
 				ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", debugVec1.x, debugVec1.y, debugVec1.z);
 				ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", debugVec2.x, debugVec2.y, debugVec2.z);
 				ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", debugVec3.x, debugVec3.y, debugVec3.z);
-			}
-
-			if (ImGui::CollapsingHeader("Clipnodes", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
-			{
-				for (int i = 0; i < map->clipnodeCount; i++) {
-					BSPCLIPNODE& clipnode = map->clipnodes[i];
-					int c1 = clipnode.iChildren[0];
-					int c2 = clipnode.iChildren[1];
-					ImGui::Text("%6d %6d %6hd %6hd", i, clipnode.iPlane, c1, c2);
-				}
 			}
 		}
 		else {
@@ -1870,16 +1849,6 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 						node.iChildren[1] = node.iChildren[0];
 					}
 				}
-				/*
-				for (int i = 0; i < map->clipnodeCount; i++) {
-					BSPCLIPNODE& node = map->clipnodes[i];
-					if (node.iPlane == sp.planeIdx) {
-						int16 temp = node.iChildren[0];
-						node.iChildren[0] = node.iChildren[1];
-						node.iChildren[1] = node.iChildren[0];
-					}
-				}
-				*/
 			}
 		}
 		for (int i = 0; i < scaleTexinfos.size(); i++) {
@@ -1902,9 +1871,6 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 		scalePlanes.clear();
 		scaleTexinfos.clear();
 	}
-
-	//map->getModelPlaneIntersectVerts(modelIdx);
-
 	
 	scaleVerts = map->getModelVerts(modelIdx, numScaleVerts);
 	scalePlanes = map->getScalablePlanes(modelIdx);
