@@ -89,6 +89,8 @@ private:
 	vec3 axisDragEntOriginStart;
 	vec3* scaleVertsStart; // original positions of the verts being scaled
 	vec3** scaleVerts; // pointers to verts in the BSP data for scaling
+	vector<ScalablePlane> scalePlanes; // verts used to recalculate plane normals/origins after scaling
+	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	float* scaleVertDists;
 	int numScaleVerts;
 

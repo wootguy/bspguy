@@ -668,6 +668,19 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			continue;
 		}
 		
+		if (highlight || (g_render_flags & RENDER_WIREFRAME)) {
+			glActiveTexture(GL_TEXTURE0);
+			if (highlight)
+				yellowTex->bind();
+			else
+				greyTex->bind();
+			glActiveTexture(GL_TEXTURE1);
+			whiteTex->bind();
+
+			rgroup.wireframeBuffer->draw(GL_LINES);
+		}
+
+
 		glActiveTexture(GL_TEXTURE0);
 		if (g_render_flags & RENDER_TEXTURES) {
 			rgroup.texture->bind();
@@ -675,7 +688,6 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 		else {
 			whiteTex->bind();
 		}
-		
 
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			glActiveTexture(GL_TEXTURE1 + s);
@@ -697,18 +709,6 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 		}
 
 		rgroup.buffer->draw(GL_TRIANGLES);
-
-		if (highlight || (g_render_flags & RENDER_WIREFRAME)) {
-			glActiveTexture(GL_TEXTURE0);
-			if (highlight)
-				yellowTex->bind();
-			else
-				greyTex->bind();
-			glActiveTexture(GL_TEXTURE1);
-			whiteTex->bind();
-
-			rgroup.wireframeBuffer->draw(GL_LINES);
-		}
 	}
 }
 

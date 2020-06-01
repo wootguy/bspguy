@@ -79,7 +79,7 @@ Renderer::Renderer() {
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 
 	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
-		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS;
+		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME;
 	showDebugWidget = true;
 	showKeyvalueWidget = true;
 	pickInfo.valid = false;
@@ -96,6 +96,7 @@ Renderer::Renderer() {
 	showDragAxes = true;
 	gridSnapLevel = 0;
 	gridSnappingEnabled = true;
+	transformMode = TRANSFORM_MOVE;
 
 	copiedEnt = NULL;
 	scaleVertsStart = NULL;
@@ -103,6 +104,9 @@ Renderer::Renderer() {
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+
+	//cameraOrigin = vec3(-179, 181, 105);
+	//cameraAngles = vec3(38, 0, 89);
 }
 
 Renderer::~Renderer() {
@@ -131,8 +135,6 @@ void Renderer::renderLoop() {
 		moveAxes.model = new cCube[4];
 		moveAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, moveAxes.model, 6 * 6 * 4);
 		moveAxes.numAxes = 4;
-
-		updateDragAxes();
 	}
 
 	{
@@ -156,9 +158,13 @@ void Renderer::renderLoop() {
 		scaleAxes.model = new cCube[6];
 		scaleAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, scaleAxes.model, 6 * 6 * 6);
 		scaleAxes.numAxes = 6;
-
-		updateDragAxes();
 	}
+
+	updateDragAxes();
+
+	float s = 0.5f;
+	cCube vertCube(vec3(-s, -s, -s), vec3(s, s, s), { 0, 128, 255 });
+	VertexBuffer vertCubeBuffer(colorShader, COLOR_3B | POS_3F, &vertCube, 6 * 6);
 
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
@@ -201,15 +207,58 @@ void Renderer::renderLoop() {
 		model.loadIdentity();
 		colorShader->bind();
 
-		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
-			drawTransformAxes();
+		if (true) {
+			if (pickInfo.valid && pickInfo.modelIdx > 0 && false) {
+				//glDisable(GL_DEPTH_TEST);
+				glDisable(GL_CULL_FACE);
+				Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+				Entity* ent = map->ents[pickInfo.entIdx];
+
+				static vector<vec3> test;
+				static cCube* allVertCubes;
+				static VertexBuffer* allBuff;
+
+				if (test.empty()) {
+					test = map->getModelPlaneIntersectVerts(pickInfo.modelIdx);
+					allVertCubes = new cCube[test.size()];
+					for (int i = 0; i < test.size(); i++) {
+						vec3 asdf = test[i];
+						asdf = vec3(asdf.x, asdf.z, -asdf.y);
+						vec3 min = vec3(-s, -s, -s) + asdf;
+						vec3 max = vec3(s, s, s) + asdf;
+						allVertCubes[i] = cCube(min, max, {0, 128, 255});
+					}
+					allBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, allVertCubes, 6 * 6*test.size());
+					allBuff->upload();
+					printf("%d intersection points\n", test.size());
+				}
+
+				model.loadIdentity();
+				colorShader->updateMatrixes();
+				allBuff->draw(GL_TRIANGLES);
+			}
+			if (true) {
+				for (int i = 0; i < numScaleVerts; i++) {
+					vec3 asdf = *scaleVerts[i];
+					vec3 min = vec3(-s, -s, -s);
+					vec3 max = vec3(s, s, s);
+					model.loadIdentity();
+					model.translate(asdf.x, asdf.z, -asdf.y);
+					colorShader->updateMatrixes();
+					vertCubeBuffer.draw(GL_TRIANGLES);
+				}
+			}
+
+			colorShader->bind();
+			model.loadIdentity();
+			colorShader->updateMatrixes();
+			drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255 });
+			drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0 });
+			drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255 });
 		}
 
-		if (true) {
-			model.loadIdentity();
-			drawLine(debugPoint - vec3(-32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255 });
-			drawLine(debugPoint - vec3(0, -32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0 });
-			drawLine(debugPoint - vec3(0, 0, -32), debugPoint + vec3(0, 0, 32), { 0, 0, 255 });
+		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
+			drawTransformAxes();
 		}
 
 		vec3 forward, right, up;
@@ -455,7 +504,7 @@ void Renderer::drawFpsOverlay() {
 void Renderer::drawDebugWidget() {
 	ImGui::SetNextWindowBgAlpha(0.75f);
 
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, FLT_MAX));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, 800));
 	if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
 		
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
@@ -498,10 +547,20 @@ void Renderer::drawDebugWidget() {
 
 			if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
 			{
-				ImGui::Text("DebugVec0 %4.0f %4.0f %4.0f", debugVec0.x, debugVec0.y, debugVec0.z);
-				ImGui::Text("DebugVec1 %4.0f %4.0f %4.0f", debugVec1.x, debugVec1.y, debugVec1.z);
-				ImGui::Text("DebugVec2 %4.0f %4.0f %4.0f", debugVec2.x, debugVec2.y, debugVec2.z);
-				ImGui::Text("DebugVec3 %4.0f %4.0f %4.0f", debugVec3.x, debugVec3.y, debugVec3.z);
+				ImGui::Text("DebugVec0 %6.2f %6.2f %6.2f", debugVec0.x, debugVec0.y, debugVec0.z);
+				ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", debugVec1.x, debugVec1.y, debugVec1.z);
+				ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", debugVec2.x, debugVec2.y, debugVec2.z);
+				ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", debugVec3.x, debugVec3.y, debugVec3.z);
+			}
+
+			if (ImGui::CollapsingHeader("Clipnodes", ImGuiTreeNodeFlags_DefaultOpen) && pickInfo.valid)
+			{
+				for (int i = 0; i < map->clipnodeCount; i++) {
+					BSPCLIPNODE& clipnode = map->clipnodes[i];
+					int c1 = clipnode.iChildren[0];
+					int c2 = clipnode.iChildren[1];
+					ImGui::Text("%6d %6d %6hd %6hd", i, clipnode.iPlane, c1, c2);
+				}
 			}
 		}
 		else {
@@ -1048,7 +1107,7 @@ void Renderer::drawTransformWidget() {
 
 		if (lastPickCount != pickCount || draggingAxis != -1 || movingEnt || oldSnappingEnabled != gridSnappingEnabled) {
 			if (transformingEnt) {
-				vec3 ori = parseVector(ent->keyvalues["origin"]);
+				vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
 				x = fx = ori.x;
 				y = fy = ori.y;
 				z = fz = ori.z;
@@ -1349,7 +1408,12 @@ void Renderer::cameraControls() {
 			activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
 
 			vec3 dragPoint = getAxisDragPoint(axisDragEntOriginStart);
+			if (gridSnappingEnabled) {
+				dragPoint = snapToGrid(dragPoint);
+			}
 			vec3 delta = dragPoint - axisDragStart;
+
+			
 			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 2.0f : 1.0f;
 			if (pressed[GLFW_KEY_LEFT_CONTROL] == GLFW_PRESS)
 				moveScale = 0.1f;
@@ -1384,10 +1448,6 @@ void Renderer::cameraControls() {
 
 					scaleSelectedVerts(delta, scaleDirs[draggingAxis]);
 					mapRenderers[pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
-
-					debugVec0 = delta;
-					debugVec1 = scaleDirs[draggingAxis];
-					debugVec2 = vec3(draggingAxis, hoverAxis, 0);
 				}
 			}
 		}
@@ -1775,11 +1835,63 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 	if (!pickInfo.valid || pickInfo.modelIdx <= 0)
 		return;
 
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
+
 	// persist scale change
 	if (currentlyScaling) {
 		for (int i = 0; i < numScaleVerts; i++) {
 			scaleVertsStart[i] = *scaleVerts[i];
 		}
+		for (int i = 0; i < scalePlanes.size(); i++) {
+			ScalablePlane& sp = scalePlanes[i];
+			BSPPLANE& plane = map->planes[scalePlanes[i].planeIdx];
+
+			vec3 ba = sp.v1 - sp.origin;
+			vec3 va = sp.v2 - sp.origin;
+
+			vec3 newNormal = crossProduct(ba.normalize(), va.normalize()).normalize();
+			float newDist = getDistAlongAxis(newNormal, sp.origin);
+
+			bool flipped = plane.update(newNormal, newDist);
+
+			if (flipped) {
+				for (int i = 0; i < map->faceCount; i++) {
+					BSPFACE& face = map->faces[i];
+					if (face.iPlane == sp.planeIdx) {
+						face.nPlaneSide = !face.nPlaneSide;
+					}
+				}
+				for (int i = 0; i < map->nodeCount; i++) {
+					BSPNODE& node = map->nodes[i];
+					if (node.iPlane == sp.planeIdx) {
+						int16 temp = node.iChildren[0];
+						node.iChildren[0] = node.iChildren[1];
+						node.iChildren[1] = node.iChildren[0];
+					}
+				}
+				/*
+				for (int i = 0; i < map->clipnodeCount; i++) {
+					BSPCLIPNODE& node = map->clipnodes[i];
+					if (node.iPlane == sp.planeIdx) {
+						int16 temp = node.iChildren[0];
+						node.iChildren[0] = node.iChildren[1];
+						node.iChildren[1] = node.iChildren[0];
+					}
+				}
+				*/
+			}
+		}
+		for (int i = 0; i < scaleTexinfos.size(); i++) {
+			BSPTEXTUREINFO& info = map->texinfos[scaleTexinfos[i].texinfoIdx];
+			scaleTexinfos[i].oldShiftS = info.shiftS;
+			scaleTexinfos[i].oldShiftT = info.shiftT;
+			scaleTexinfos[i].oldS = info.vS;
+			scaleTexinfos[i].oldT = info.vT;
+		}
+		BSPMODEL& model = map->models[modelIdx];
+		map->get_model_vertex_bounds(modelIdx, model.nMins, model.nMaxs);
+		map->regenerate_clipnodes(modelIdx);
 		return;
 	}
 
@@ -1787,28 +1899,60 @@ void Renderer::updateScaleVerts(bool currentlyScaling) {
 		delete[] scaleVertsStart;
 		delete[] scaleVerts;
 		delete[] scaleVertDists;
+		scalePlanes.clear();
+		scaleTexinfos.clear();
 	}
 
-	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	//map->getModelPlaneIntersectVerts(modelIdx);
 
-	scaleVerts = map->getModelVerts(map->ents[pickInfo.entIdx]->getBspModelIdx(), numScaleVerts);
-	scaleVertsStart = new vec3[numScaleVerts];
-	scaleVertDists = new float[numScaleVerts];
-	for (int i = 0; i < numScaleVerts; i++) {
+	
+	scaleVerts = map->getModelVerts(modelIdx, numScaleVerts);
+	scalePlanes = map->getScalablePlanes(modelIdx);
+	scaleTexinfos = map->getScalableTexinfos(modelIdx);
+	int numScalePlaneVerts = scalePlanes.size() * 3;
+	int totalScaleVerts = numScaleVerts + numScalePlaneVerts;
+
+	vec3** newScaleVerts = new vec3 * [totalScaleVerts];
+	memcpy(newScaleVerts, scaleVerts, numScaleVerts*sizeof(vec3*));
+	delete[] scaleVerts;
+	scaleVerts = newScaleVerts;
+
+	for (int i = numScaleVerts, k = 0; i < totalScaleVerts; i += 3, k++) {
+		ScalablePlane& sp = scalePlanes[k];
+		scaleVerts[i + 0] = &sp.origin;
+		scaleVerts[i + 1] = &sp.v1;
+		scaleVerts[i + 2] = &sp.v2;
+	}
+
+	numScaleVerts = totalScaleVerts;
+
+	scaleVertsStart = new vec3[totalScaleVerts];
+	scaleVertDists = new float[totalScaleVerts];
+	for (int i = 0; i < totalScaleVerts; i++) {
 		scaleVertsStart[i] = *scaleVerts[i];
 	}
 }
 
 void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
+	if (!pickInfo.valid || pickInfo.modelIdx <= 0)
+		return;
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+
 	vec3 n = fromDir.normalize(1.0f);
 
 	float minAxisDist = 9e99;
 	float maxAxisDist = -9e99;
 
+	int faceVertCount = numScaleVerts - scalePlanes.size() * 3;
+
 	for (int i = 0; i < numScaleVerts; i++) {
 		float dist = getDistAlongAxis(n, scaleVertsStart[i]);
-		if (dist > maxAxisDist) maxAxisDist = dist;
-		if (dist < minAxisDist) minAxisDist = dist;
+
+		if (i < faceVertCount) {
+			if (dist > maxAxisDist) maxAxisDist = dist;
+			if (dist < minAxisDist) minAxisDist = dist;
+		}
 		scaleVertDists[i] = dist;
 	}
 
@@ -1817,9 +1961,55 @@ void Renderer::scaleSelectedVerts(vec3 dir, vec3 fromDir) {
 	for (int i = 0; i < numScaleVerts; i++) {
 		float stretchFactor = (scaleVertDists[i] - minAxisDist) / distRange;
 		*scaleVerts[i] = scaleVertsStart[i] + dir * stretchFactor;
-		if (gridSnappingEnabled) {
-			*scaleVerts[i] = snapToGrid(*scaleVerts[i]);
-		}
+	}
+
+	//
+	// TODO: I have no idea what I'm doing but this code usually scales axis-aligned texture coord axes correctly.
+	//
+
+	minAxisDist = 9e99;
+	maxAxisDist = -9e99;
+	
+	for (int i = 0; i < faceVertCount; i++) {
+		float dist = getDistAlongAxis(n, *scaleVerts[i]);
+		if (dist > maxAxisDist) maxAxisDist = dist;
+		if (dist < minAxisDist) minAxisDist = dist;
+	}
+	float newDistRange = maxAxisDist - minAxisDist;
+	float scaleFactor = distRange / newDistRange;
+
+	mat4x4 scaleMat;
+	scaleMat.loadIdentity();
+	vec3 asdf = dir.normalize();
+	if (fabs(asdf.x) > 0) {
+		scaleMat.scale(scaleFactor, 1, 1);
+	}
+	else if (fabs(asdf.z) > 0) {
+		scaleMat.scale(1, 1, scaleFactor);
+	}
+	else {
+		scaleMat.scale(1, scaleFactor, 1);
+	}
+
+	for (int i = 0; i < scaleTexinfos.size(); i++) {
+		ScalableTexinfo& oldinfo = scaleTexinfos[i];
+		BSPTEXTUREINFO& info = map->texinfos[scaleTexinfos[i].texinfoIdx];
+		BSPPLANE& plane = map->planes[scaleTexinfos[i].planeIdx];
+
+		info.vS = (scaleMat * vec4(oldinfo.oldS, 1)).xyz();
+		info.vT = (scaleMat * vec4(oldinfo.oldT, 1)).xyz();
+
+		float dotS = dotProduct(oldinfo.oldS.normalize(), dir.normalize());
+		float dotT = dotProduct(oldinfo.oldT.normalize(), dir.normalize());
+
+		float asdf = dotProduct(fromDir, info.vS) < 0 ? 1 : -1;
+		float asdf2 = dotProduct(fromDir, info.vT) < 0 ? 1 : -1;
+
+		float vsdiff = info.vS.length() - oldinfo.oldS.length();
+		float vtdiff = info.vT.length() - oldinfo.oldT.length();
+
+		info.shiftS = oldinfo.oldShiftS + (minAxisDist * vsdiff * fabs(dotS)) * asdf;
+		info.shiftT = oldinfo.oldShiftT + (minAxisDist * vtdiff * fabs(dotT)) * asdf2;
 	}
 }
 

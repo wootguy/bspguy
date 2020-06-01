@@ -7,6 +7,7 @@
 #include "rad.h"
 #include <string.h>
 #include "remap.h"
+#include <set>
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
@@ -97,6 +98,9 @@ struct BSPPLANE {
 	vec3 vNormal;
 	float fDist;
 	int32_t nType;
+
+	// returns true if the plane was flipped
+	bool update(vec3 newNormal, float fdist);
 };
 
 typedef struct
@@ -202,6 +206,22 @@ struct membuf : std::streambuf
 	}
 };
 
+struct ScalablePlane {
+	int planeIdx;
+	vec3 oldNormal;
+	float oldDist;
+	vec3 oldOrigin, origin;
+	vec3 v1, v2;
+};
+
+struct ScalableTexinfo {
+	int texinfoIdx;
+	vec3 oldS, oldT;
+	float oldShiftS, oldShiftT;
+	int planeIdx;
+	int faceIdx;
+};
+
 class Bsp
 {
 public:
@@ -248,6 +268,7 @@ public:
 	~Bsp();
 
 	bool move(vec3 offset);
+	void move_texinfo(int idx, vec3 offset);
 	void write(string path);
 
 	void print_info(bool perModelStats, int perModelLimit, int sortMode);
@@ -255,6 +276,7 @@ public:
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p);
+	bool isTouchingLeaf(int iNode, vec3 p, int leafIdx);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0
@@ -278,6 +300,20 @@ public:
 	// get all verts used by this model
 	// TODO: split any verts shared with other models!
 	vec3** getModelVerts(int modelIdx, int& numVerts);
+
+	// gets verts formed by plane intersections with the nodes in this model
+	vector<vec3> getModelPlaneIntersectVerts(int modelIdx);
+	void getNodePlanes(int iNode, vector<BSPPLANE>& planeStack, vector<vector<BSPPLANE>>& nodePlanes);
+
+	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
+	// intersection code working for nonconvex solids, but that's looking like a ton of work.
+	// Scaling/stretching really only needs 3 verts _anywhere_ on the plane to calculate new normals/origins.
+	vector<ScalablePlane> getScalablePlanes(int modelIdx);
+	void getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited);
+	void getScalableClipnodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited);
+	ScalablePlane getScalablePlane(int planeIdx);
+	vector<ScalableTexinfo> getScalableTexinfos(int modelIdx); // for scaling
+	int addTextureInfo(BSPTEXTUREINFO& copy);
 
 	// fixes up the model planes/nodes after vertex posisions have been modified
 	// returns false if the model has non-planar faces
@@ -322,6 +358,12 @@ public:
 
 	// replace a model's clipnode hull with a axis-aligned bounding box
 	void simplify_model_collision(int modelIdx, int hullIdx);
+
+	// for use after scaling a model
+	void regenerate_clipnodes(int modelIdx);
+	int16 regenerate_clipnodes(int iNode, int hullIdx);
+	int create_clipnode();
+	int create_plane();
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);

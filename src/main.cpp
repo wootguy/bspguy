@@ -17,6 +17,7 @@
 // undo history
 // grid snapping not working with transform widgets
 // get rid of console window and add a console widget
+// don't remove keyvalues that match the default value, also those values should appear in the editor
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -24,6 +25,8 @@
 // no lightmap renders black faces if no lightmap data for face
 // select overlapping entities by holding mouse down
 // don't select drag axes on first ent click
+// multi-select with ctrl
+// recalculate lightmaps when scaling objects
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -34,12 +37,16 @@
 // apaches not deleted sometimes
 // moving maps can cause bad surface extents which could cause lightmap seams?
 // see if balancing the BSP tree is possible and if helps performance at all
+// - https://www.researchgate.net/publication/238348725_A_Tutorial_on_Binary_Space_Partitioning_Trees
+// - "Balanced is optimal only when the geometry is uniformly distributed, which is rarely the case."
 // delete all submodel leaves to save space. They're unused and waste space, yet the compiler includes them...?
+// vertex editing + clipping (+ CSG?) for all BSP models. Basically reimplement all of Hammer... and hlbsp/vis/rad... kek
 
 // refactoring:
 // stop mixing printf+cout
 // parse vertors in util, not Keyvalue
 // add class destructors and delete everything that's new'd
+// render and bsp classes are way too big and doing too many things and render has too many state checks
 
 // Ideas for commands:
 // copymodel:
@@ -125,6 +132,7 @@ int test() {
 	//renderer.addMap(new Bsp("hl_c09.bsp"));
 	renderer.addMap(new Bsp("merge0.bsp"));
 	//renderer.addMap(new Bsp("osprey.bsp"));
+	//renderer.addMap(new Bsp("hl_c00.bsp"));
 	renderer.renderLoop();
 	return 0;
 

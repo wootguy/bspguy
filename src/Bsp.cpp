@@ -168,6 +168,262 @@ vec3** Bsp::getModelVerts(int modelIdx, int& numVerts) {
 	return modelVerts;
 }
 
+vector<vec3> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
+	// TODO: this only works for convex objects. A concave solid will need
+	// to get verts by creating convex hulls from each solid node in the tree.
+	// That can be done by recursively cutting a huge cube but there's probably
+	// a better way.
+	vector<vector<BSPPLANE>> perNodePlanes;
+	vector<BSPPLANE> planeStack;
+	vector<vec3> nodeVerts;
+
+	BSPMODEL& model = models[modelIdx];
+
+	getNodePlanes(model.iHeadnodes[0], planeStack, perNodePlanes);
+
+	/*
+	TODO: undo per-node-planes stuff and just get all planes in the tree (for convex solids only)
+	vec3 modelCenter = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+	for (int i = 0; i < nodePlanes.size(); i++) {
+		BSPPLANE& plane = nodePlanes[i];
+		vec3 planePoint = plane.vNormal * plane.fDist;
+		vec3 planeDir = (planePoint - modelCenter).normalize(1.0f);
+		if (dotProduct(planeDir, plane.vNormal) > 0) {
+			plane.vNormal *= -1;
+			plane.fDist *= -1;
+		}
+	}
+	*/
+
+	int rootNode = model.iHeadnodes[0];
+
+	for (int s = 0; s < perNodePlanes.size(); s++) {
+		vector<BSPPLANE> nodePlanes = perNodePlanes[s];
+		// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
+		int numPlanes = nodePlanes.size();
+		for (int i = 0; i < numPlanes - 2; i++) {
+			for (int j = i + 1; j < numPlanes - 1; j++) {
+				for (int k = j + 1; k < numPlanes; k++) {
+					vec3& n0 = nodePlanes[i].vNormal;
+					vec3& n1 = nodePlanes[j].vNormal;
+					vec3& n2 = nodePlanes[k].vNormal;
+					float d0 = nodePlanes[i].fDist;
+					float d1 = nodePlanes[j].fDist;
+					float d2 = nodePlanes[k].fDist;
+
+					float t = n0.x * (n1.y * n2.z - n1.z * n2.y) +
+						n0.y * (n1.z * n2.x - n1.x * n2.z) +
+						n0.z * (n1.x * n2.y - n1.y * n2.x);
+
+					if (fabs(t) < EPSILON) {
+						continue;
+					}
+
+					// don't use crossProduct because it's less accurate
+					//vec3 v = crossProduct(n1, n2)*d0 + crossProduct(n0, n2)*d1 + crossProduct(n0, n1)*d2;
+					vec3 v(
+						(d0 * (n1.z * n2.y - n1.y * n2.z) + d1 * (n0.y * n2.z - n0.z * n2.y) + d2 * (n0.z * n1.y - n0.y * n1.z)) / -t,
+						(d0 * (n1.x * n2.z - n1.z * n2.x) + d1 * (n0.z * n2.x - n0.x * n2.z) + d2 * (n0.x * n1.z - n0.z * n1.x)) / -t,
+						(d0 * (n1.y * n2.x - n1.x * n2.y) + d1 * (n0.x * n2.y - n0.y * n2.x) + d2 * (n0.y * n1.x - n0.x * n1.y)) / -t
+					);
+
+					bool validVertex = true;
+
+					for (int m = 0; m < numPlanes; m++) {
+						BSPPLANE& pm = nodePlanes[m];
+						if (m != i && m != j && m != k && dotProduct(v, pm.vNormal) < pm.fDist + EPSILON) {
+							validVertex = false;
+							break;
+						}
+					}
+
+					if (validVertex) {
+						nodeVerts.push_back(v);
+					}
+				}
+			}
+		}
+	}
+
+	// TODO: doesn't work with anything not convex
+
+	return nodeVerts;
+}
+
+void Bsp::getNodePlanes(int iNode, vector<BSPPLANE>& planeStack, vector<vector<BSPPLANE>>& nodePlanes) {
+	BSPNODE& node = nodes[iNode];
+	planeStack.push_back(planes[node.iPlane]);
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			getNodePlanes(node.iChildren[i], planeStack, nodePlanes);
+		}
+		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_EMPTY || true) {
+			nodePlanes.push_back(planeStack);
+		}
+	}
+
+	planeStack.pop_back();
+}
+
+vector<ScalablePlane> Bsp::getScalablePlanes(int modelIdx) {
+	BSPMODEL& model = models[modelIdx];
+	set<int> visited;
+	vector<ScalablePlane> scalablePlanes;
+
+	if (model.iHeadnodes[0] >= 0)
+		getScalableNodePlanes(model.iHeadnodes[0], scalablePlanes, visited);
+
+	// don't get clipnode planes because the hull offsets would be scaled as well.
+	// Clipnodes will need to be regenerated after scaling. Although may be possible
+	// to apply an offset to the plane before scaling, then undo the offset to prevent
+	// that. But then there's the problem of knowing which direction to extend the plane.
+
+	return scalablePlanes;
+}
+
+void Bsp::getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited) {
+	BSPNODE& node = nodes[iNode];
+
+	if (visited.find(node.iPlane) == visited.end()) {
+		nodePlanes.push_back(getScalablePlane(node.iPlane));
+		visited.insert(node.iPlane);
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			getScalableNodePlanes(node.iChildren[i], nodePlanes, visited);
+		}
+	}
+}
+
+void Bsp::getScalableClipnodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited) {
+	BSPCLIPNODE& node = clipnodes[iNode];
+
+	if (visited.find(node.iPlane) == visited.end()) {
+		nodePlanes.push_back(getScalablePlane(node.iPlane));
+		visited.insert(node.iPlane);
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			getScalableClipnodePlanes(node.iChildren[i], nodePlanes, visited);
+		}
+	}
+}
+
+ScalablePlane Bsp::getScalablePlane(int planeIdx) {
+	BSPPLANE& plane = planes[planeIdx];
+	ScalablePlane sp;
+	sp.origin = plane.vNormal * plane.fDist;
+	sp.oldOrigin = sp.origin;
+	sp.oldNormal = plane.vNormal;
+	sp.oldDist = plane.fDist;
+
+	vec3 dir1, dir2;
+	if (fabs(plane.vNormal.z) > 0.8f) {
+		dir1 = crossProduct(plane.vNormal, vec3(1, 0, 0));
+	}
+	else {
+		dir1 = crossProduct(plane.vNormal, vec3(0, 0, 1));
+	}
+
+	dir1 = dir1.normalize();
+	dir2 = crossProduct(plane.vNormal, dir1).normalize();
+
+	sp.v1 = sp.origin + dir1;
+	sp.v2 = sp.origin + dir2;
+	sp.planeIdx = planeIdx;
+	
+	return sp;
+}
+
+int Bsp::addTextureInfo(BSPTEXTUREINFO& copy) {
+	BSPTEXTUREINFO* newInfos = new BSPTEXTUREINFO[texinfoCount + 1];
+	memcpy(newInfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
+
+	int newIdx = texinfoCount;
+	newInfos[newIdx] = copy;
+
+	replace_lump(LUMP_TEXINFO, newInfos, (texinfoCount + 1) * sizeof(BSPTEXTUREINFO));
+
+	return newIdx;
+}
+
+vector<ScalableTexinfo> Bsp::getScalableTexinfos(int modelIdx) {
+	BSPMODEL& model = models[modelIdx];
+	vector<ScalableTexinfo> scalable;
+	set<int> visitedTexinfos;
+
+	for (int k = 0; k < model.nFaces; k++) {
+		BSPFACE& face = faces[model.iFirstFace + k];
+		int texinfoIdx = face.iTextureInfo;
+
+		if (visitedTexinfos.find(texinfoIdx) != visitedTexinfos.end()) {
+			continue;
+			//texinfoIdx = face.iTextureInfo = addTextureInfo(texinfos[texinfoIdx]);
+		}
+		visitedTexinfos.insert(texinfoIdx);
+
+		ScalableTexinfo st;
+		st.oldS = texinfos[texinfoIdx].vS;
+		st.oldT = texinfos[texinfoIdx].vT;
+		st.oldShiftS = texinfos[texinfoIdx].shiftS;
+		st.oldShiftT = texinfos[texinfoIdx].shiftT;
+		st.texinfoIdx = texinfoIdx;
+		st.planeIdx = face.iPlane;
+		st.faceIdx = model.iFirstFace + k;
+		scalable.push_back(st);
+	}
+
+	return scalable;
+}
+
+bool BSPPLANE::update(vec3 newNormal, float fdist) {
+	float fx = fabs(newNormal.x);
+	float fy = fabs(newNormal.y);
+	float fz = fabs(newNormal.z);
+	int planeType = PLANE_ANYZ;
+	bool shouldFlip = false;
+	if (fx > 0.9999f) {
+		planeType = PLANE_X;
+		if (newNormal.x < 0) shouldFlip = true;
+	}
+	else if (fy > 0.9999f) {
+		planeType = PLANE_Y;
+		if (newNormal.y < 0) shouldFlip = true;
+	}
+	else if (fz > 0.9999f) {
+		planeType = PLANE_Z;
+		if (newNormal.z < 0) shouldFlip = true;
+	}
+	else {
+		if (fx > fy && fx > fz) {
+			planeType = PLANE_ANYX;
+			//if (newNormal.x < 0) shouldFlip = true;
+		}
+		else if (fy > fx && fy > fz) {
+			planeType = PLANE_ANYY;
+			//if (newNormal.y < 0) shouldFlip = true;
+		}
+		else {
+			planeType = PLANE_ANYZ;
+			//if (newNormal.z < 0) shouldFlip = true;
+		}
+	}
+
+	if (shouldFlip) {
+		newNormal *= -1;
+		fdist = -fdist;
+	}
+
+	fDist = fdist;
+	vNormal = newNormal;
+	nType = planeType;
+
+	return shouldFlip;
+}
+
 bool Bsp::vertex_manipulation_sync(int modelIdx) {
 	BSPMODEL& model = models[modelIdx];
 
@@ -219,53 +475,16 @@ bool Bsp::vertex_manipulation_sync(int modelIdx) {
 
 		float fdist = getDistAlongAxis(planeNormal, faceVerts[0]);
 
-		float fx = fabs(planeNormal.x);
-		float fy = fabs(planeNormal.y);
-		float fz = fabs(planeNormal.z);
-		int planeType = PLANE_ANYZ;
-		bool shouldFlip = false;
-		if (fx > 0.9999f) {
-			planeType = PLANE_X;
-			if (planeNormal.x < 0) shouldFlip = true;
-		}
-		else if (fy > 0.9999f) {
-			planeType = PLANE_Y;
-			if (planeNormal.y < 0) shouldFlip = true;
-		}
-		else if (fz > 0.9999f) {
-			planeType = PLANE_Z;
-			if (planeNormal.z < 0) shouldFlip = true;
-		}
-		else {
-			if (fx > fy&& fx > fz) {
-				planeType = PLANE_ANYX;
-				if (planeNormal.x < 0) shouldFlip = true;
-			}
-			else if (fy > fx && fy > fz) {
-				planeType = PLANE_ANYY;
-				if (planeNormal.y < 0) shouldFlip = true;
-			}
-			else {
-				planeType = PLANE_ANYZ;
-				if (planeNormal.z < 0) shouldFlip = true;
-			}
-		}
-
-		if (shouldFlip) {
-			planeNormal *= -1;
-			fdist = -fdist;
-		}
-
 		BSPPLANE& plane = planes[face.iPlane];
-		plane.fDist = fdist;
-		plane.vNormal = planeNormal;
-		plane.nType = planeType;
+		plane.update(planeNormal, fdist);
 	}
 
 	// TODO: rebuild clipnode trees, and use node plane intersections isntead of face verst
 	// because a model can have nodes without faces(?). Also consider manipulating plane intersection
 	// vertices instead of face vertices.
 	// TODO: what to do about node planes, if unique?
+
+	printf("Updated %d planes\n", updatedPlanes.size());
 
 	return true;
 }
@@ -441,46 +660,13 @@ bool Bsp::move(vec3 offset) {
 
 	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
 	byte* textures = lumps[LUMP_TEXTURES];
-	vec3 offsetDir = offset.normalize();
-	float offsetLen = offset.length();
 
 	for (int i = 0; i < texinfoCount; i++) {
 		if (!shouldBeMoved.texInfo[i]) {
 			continue; // don't move submodels with origins
 		}
 
-		BSPTEXTUREINFO& info = texinfos[i];
-
-		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
-		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-
-		float scaleS = info.vS.length();
-		float scaleT = info.vT.length();
-		vec3 nS = info.vS.normalize();
-		vec3 nT = info.vT.normalize();
-
-		vec3 newOriS = offset + (nS * info.shiftS);
-		vec3 newOriT = offset + (nT * info.shiftT);
-
-		float shiftScaleS = dotProduct(offsetDir, nS);
-		float shiftScaleT = dotProduct(offsetDir, nT);
-
-		int olds = info.shiftS;
-		int oldt = info.shiftT;
-
-		float shiftAmountS = shiftScaleS * offsetLen * scaleS;
-		float shiftAmountT = shiftScaleT * offsetLen * scaleT;
-
-		info.shiftS -= shiftAmountS;
-		info.shiftT -= shiftAmountT;
-
-		// minimize shift values (just to be safe. floats can be p wacky and zany)
-		while (fabs(info.shiftS) > tex.nWidth) {
-			info.shiftS += (info.shiftS < 0) ? (int)tex.nWidth : -(int)(tex.nWidth);
-		}
-		while (fabs(info.shiftT) > tex.nHeight) {
-			info.shiftT += (info.shiftT < 0) ? (int)tex.nHeight : -(int)(tex.nHeight);
-		}
+		move_texinfo(i, offset);
 	}
 
 	if (hasLighting) {
@@ -493,6 +679,44 @@ bool Bsp::move(vec3 offset) {
 	g_progress.clear();
 
 	return true;
+}
+
+void Bsp::move_texinfo(int idx, vec3 offset) {
+	BSPTEXTUREINFO& info = texinfos[idx];
+
+	int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	vec3 offsetDir = offset.normalize();
+	float offsetLen = offset.length();
+
+	float scaleS = info.vS.length();
+	float scaleT = info.vT.length();
+	vec3 nS = info.vS.normalize();
+	vec3 nT = info.vT.normalize();
+
+	vec3 newOriS = offset + (nS * info.shiftS);
+	vec3 newOriT = offset + (nT * info.shiftT);
+
+	float shiftScaleS = dotProduct(offsetDir, nS);
+	float shiftScaleT = dotProduct(offsetDir, nT);
+
+	int olds = info.shiftS;
+	int oldt = info.shiftT;
+
+	float shiftAmountS = shiftScaleS * offsetLen * scaleS;
+	float shiftAmountT = shiftScaleT * offsetLen * scaleT;
+
+	info.shiftS -= shiftAmountS;
+	info.shiftT -= shiftAmountT;
+
+	// minimize shift values (just to be safe. floats can be p wacky and zany)
+	while (fabs(info.shiftS) > tex.nWidth) {
+		info.shiftS += (info.shiftS < 0) ? (int)tex.nWidth : -(int)(tex.nWidth);
+	}
+	while (fabs(info.shiftT) > tex.nHeight) {
+		info.shiftT += (info.shiftT < 0) ? (int)tex.nHeight : -(int)(tex.nHeight);
+	}
 }
 
 void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
@@ -1947,9 +2171,9 @@ int Bsp::pointContents(int iNode, vec3 p) {
 			iNode = node->iChildren[0];
 	}
 
-	cout << "Contents at " << p.x << " " << p.y << " " << p.z << " is ";
-	print_leaf(leaves[~iNode]);
-	cout << " (LEAF " << ~iNode << ")\n";
+	//cout << "Contents at " << p.x << " " << p.y << " " << p.z << " is ";
+	//print_leaf(leaves[~iNode]);
+	//cout << " (LEAF " << ~iNode << ")\n";
 
 	return leaves[~iNode].nContents;
 }
@@ -2559,6 +2783,87 @@ void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
 	get_model_vertex_bounds(modelIdx, vertMin, vertMax);
 
 	create_clipnode_box(vertMin, vertMax, &model, hullIdx, true);
+}
+
+int Bsp::create_clipnode() {
+	BSPCLIPNODE* newNodes = new BSPCLIPNODE[clipnodeCount + 1];
+	memcpy(newNodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
+
+	BSPCLIPNODE* newNode = &newNodes[clipnodeCount];
+	memset(newNode, 0, sizeof(BSPCLIPNODE));
+
+	replace_lump(LUMP_CLIPNODES, newNodes, (clipnodeCount + 1) * sizeof(BSPCLIPNODE));
+
+	return clipnodeCount-1;
+}
+
+int Bsp::create_plane() {
+	BSPPLANE* newPlanes = new BSPPLANE[planeCount + 1];
+	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+
+	BSPPLANE& newPlane = newPlanes[planeCount];
+	memset(&newPlane, 0, sizeof(BSPPLANE));
+
+	replace_lump(LUMP_PLANES, newPlanes, (planeCount + 1) * sizeof(BSPPLANE));
+
+	return planeCount - 1;
+}
+
+int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
+	BSPNODE& node = nodes[iNode];
+
+	int oldCount = clipnodeCount;
+	int newClipnodeIdx = create_clipnode();
+	clipnodes[newClipnodeIdx].iPlane = create_plane();
+
+	int solidChild = -1;
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			int childIdx = regenerate_clipnodes(node.iChildren[i], hullIdx);
+			clipnodes[newClipnodeIdx].iChildren[i] = childIdx;
+			solidChild = solidChild == -1 ? i : -1;			
+		}
+		else {
+			BSPLEAF& leaf = leaves[~node.iChildren[i]];
+			clipnodes[newClipnodeIdx].iChildren[i] = leaf.nContents;
+			if (leaf.nContents == CONTENTS_SOLID) {
+				solidChild = i;
+			}
+		}
+	}
+
+	BSPPLANE& nodePlane = planes[node.iPlane];
+	BSPPLANE& clipnodePlane = planes[clipnodes[newClipnodeIdx].iPlane];
+	clipnodePlane = nodePlane;
+
+	// TODO: pretty sure this isn't right. Angled stuff probably lerps between the hull dimensions
+	float extent = 0;
+	switch (clipnodePlane.nType) {
+	case PLANE_X: case PLANE_ANYX: extent = default_hull_extents[hullIdx].x; break;
+	case PLANE_Y: case PLANE_ANYY: extent = default_hull_extents[hullIdx].y; break;
+	case PLANE_Z: case PLANE_ANYZ: extent = default_hull_extents[hullIdx].z; break;
+	}
+
+	// TODO: this won't work for concave solids. The node's face could be used to determine which
+	// direction the plane should be extended but not all nodes will have faces. Also wouldn't be
+	// enough to "link" clipnode planes to node planes during scaling because BSP trees might not match.
+	if (solidChild != -1) {
+		BSPPLANE& p = planes[clipnodes[newClipnodeIdx].iPlane];
+		vec3 planePoint = p.vNormal * p.fDist;
+		float extend = solidChild == 0 ? -extent : extent;
+		vec3 newPlanePoint = planePoint + p.vNormal * (solidChild == 0 ? -extent : extent);
+		p.fDist = dotProduct(p.vNormal, newPlanePoint) / dotProduct(p.vNormal, p.vNormal);
+	}
+
+	return newClipnodeIdx;
+}
+
+void Bsp::regenerate_clipnodes(int modelIdx) {
+	BSPMODEL& model = models[modelIdx];	
+
+	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		model.iHeadnodes[i] = regenerate_clipnodes(model.iHeadnodes[0], i);
+	}
 }
 
 void Bsp::dump_lightmap(int faceIdx, string outputPath) {
