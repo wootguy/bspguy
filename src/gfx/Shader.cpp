@@ -1,6 +1,6 @@
+#include <GL/glew.h>
 #include "Shader.h"
 #include "util.h"
-#include "Renderer.h"
 
 using namespace std;
 

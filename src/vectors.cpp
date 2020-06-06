@@ -3,8 +3,6 @@
 #include "mat4x4.h"
 #include "util.h"
 
-#define EPSILON 0.001f
-
 bool operator==( vec3 v1, vec3 v2 )
 {
 	vec3 v = v1 - v2;
@@ -19,7 +17,14 @@ bool operator==( vec3 v1, vec3 v2 )
 
 bool operator!=( vec3 v1, vec3 v2 )
 {
-	return v1.x != v2.x || v1.y != v2.y || v1.z != v2.z;
+	vec3 v = v1 - v2;
+	if (fabs(v.x) >= EPSILON)
+		return true;
+	if (fabs(v.y) >= EPSILON)
+		return true;
+	if (fabs(v.z) >= EPSILON)
+		return true;
+	return false;
 }
 
 vec3 operator-( vec3 v1, vec3 v2 )
@@ -206,6 +211,10 @@ string vec3::toKeyvalueString(bool truncate) {
 	}
 
 	return parts[0] + " " + parts[1] + " " + parts[2];
+}
+
+vec3 vec3::flip() {
+	return vec3(x, z, -y);
 }
 
 

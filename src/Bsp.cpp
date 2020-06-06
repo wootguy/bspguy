@@ -168,21 +168,23 @@ vec3** Bsp::getModelVerts(int modelIdx, int& numVerts) {
 	return modelVerts;
 }
 
-vector<vec3> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
+vector<TransformVert> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
 	// TODO: this only works for convex objects. A concave solid will need
 	// to get verts by creating convex hulls from each solid node in the tree.
 	// That can be done by recursively cutting a huge cube but there's probably
 	// a better way.
+	vector<int> nodePlaneIndexes;
 	vector<BSPPLANE> nodePlanes;
-	vector<vec3> nodeVerts;
+	vector<TransformVert> nodeVerts;
 
 	BSPMODEL& model = models[modelIdx];
 
-	getNodePlanes(model.iHeadnodes[0], nodePlanes);
+	getNodePlanes(model.iHeadnodes[0], nodePlaneIndexes);
 
 	// TODO: model center doesn't have to be inside all planes, even for convex objects(?)
 	vec3 modelCenter = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
-	for (int i = 0; i < nodePlanes.size(); i++) {
+	for (int i = 0; i < nodePlaneIndexes.size(); i++) {
+		nodePlanes.push_back(planes[nodePlaneIndexes[i]]);
 		BSPPLANE& plane = nodePlanes[i];
 		vec3 planePoint = plane.vNormal * plane.fDist;
 		vec3 planeDir = (planePoint - modelCenter).normalize(1.0f);
@@ -233,18 +235,50 @@ vector<vec3> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
 				}
 
 				if (validVertex) {
-					nodeVerts.push_back(v);
+					TransformVert hullVert;
+					hullVert.pos = hullVert.undoPos = hullVert.startPos = v;
+					hullVert.ptr = NULL;
+					hullVert.selected = false;
+					nodeVerts.push_back(hullVert);
 				}
 			}
 		}
 	}
 
+	for (int k = 0; k < nodeVerts.size(); k++) {
+		vec3 v = nodeVerts[k].pos;
+
+		for (int i = 0; i < nodePlanes.size(); i++) {
+			BSPPLANE& p = nodePlanes[i];
+			if (fabs(dotProduct(v, p.vNormal) - p.fDist) < EPSILON) {
+				nodeVerts[k].iPlanes.push_back(nodePlaneIndexes[i]);
+			}
+		}
+
+		for (int i = 0; i < model.nFaces && !nodeVerts[k].ptr; i++) {
+			BSPFACE& face = faces[model.iFirstFace + i];
+
+			for (int e = 0; e < face.nEdges && !nodeVerts[k].ptr; e++) {
+				int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+				BSPEDGE& edge = edges[abs(edgeIdx)];
+				int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+				
+				if (verts[vertIdx] != v) {
+					continue;
+				}
+
+				nodeVerts[k].ptr = &verts[vertIdx];
+			}
+		}
+	}
+	
+
 	return nodeVerts;
 }
 
-void Bsp::getNodePlanes(int iNode, vector<BSPPLANE>& nodePlanes) {
+void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 	BSPNODE& node = nodes[iNode];
-	nodePlanes.push_back(planes[node.iPlane]);
+	nodePlanes.push_back(node.iPlane);
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
@@ -267,6 +301,29 @@ vector<ScalablePlane> Bsp::getScalablePlanes(int modelIdx) {
 	// that. But then there's the problem of knowing which direction to extend the plane.
 
 	return scalablePlanes;
+}
+
+bool Bsp::is_convex(int modelIdx) {
+	return is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
+}
+
+bool Bsp::is_node_hull_convex(int iNode) {
+	BSPNODE& node = nodes[iNode];
+
+	// convex models always have one node pointing to empty space
+	if (node.iChildren[0] >= 0 && node.iChildren[1] >= 0) {
+		return false;
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			if (!is_node_hull_convex(node.iChildren[i])) {
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 void Bsp::getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited) {
@@ -375,43 +432,130 @@ bool Bsp::vertex_manipulation_sync(int modelIdx) {
 			return false; // not sure this is even possible normally
 		}
 
-		const float tolerance = 0.01f; // normals more different than this = non-planar face
 		vec3 planeNormal;
-		int numVerts = faceVerts.size();
-		for (int i = 0; i < numVerts; i++) {
-			vec3 v0 = faceVerts[(i + 0) % numVerts];
-			vec3 v1 = faceVerts[(i + 1) % numVerts];
-			vec3 v2 = faceVerts[(i + 2) % numVerts];
-
-			vec3 ba = v1 - v0;
-			vec3 cb = v2 - v1;
-
-			vec3 normal = crossProduct(ba, cb).normalize(1.0f);
-
-			if (i == 0) {
-				planeNormal = normal;
-			}
-			else {
-				float dot = dotProduct(planeNormal, normal);
-				if (dot < 1.0f - tolerance) {
-					printf("");
-					return false; // non-planar face
-				}
-			}
+		float fdist;
+		if (!getPlaneFromVerts(faceVerts, planeNormal, fdist)) {
+			return false; // verts not planar
 		}
-
-		float fdist = getDistAlongAxis(planeNormal, faceVerts[0]);
 
 		BSPPLANE& plane = planes[face.iPlane];
 		plane.update(planeNormal, fdist);
 	}
 
-	// TODO: rebuild clipnode trees, and use node plane intersections isntead of face verst
+	// TODO: rebuild clipnode trees, and use node plane intersections isntead of face verts
 	// because a model can have nodes without faces(?). Also consider manipulating plane intersection
 	// vertices instead of face vertices.
 	// TODO: what to do about node planes, if unique?
 
 	printf("Updated %d planes\n", updatedPlanes.size());
+
+	return true;
+}
+
+bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly) {
+	set<int> affectedPlanes;
+
+	map<int, vector<vec3>> planeVerts;
+	vector<vec3> allVertPos;
+	
+	for (int i = 0; i < hullVerts.size(); i++) {
+		for (int k = 0; k < hullVerts[i].iPlanes.size(); k++) {
+			int iPlane = hullVerts[i].iPlanes[k];
+			affectedPlanes.insert(hullVerts[i].iPlanes[k]);
+			planeVerts[iPlane].push_back(hullVerts[i].pos);
+		}
+		allVertPos.push_back(hullVerts[i].pos);
+	}
+
+	int planeUpdates = 0;
+	map<int, BSPPLANE> newPlanes;
+	map<int, bool> shouldFlipChildren;
+	for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
+		int iPlane = it->first;
+		vector<vec3>& verts = it->second;
+
+		if (verts.size() < 3) {
+			printf("Face has less then 3 verts\n");
+			return false; // invalid solid
+		}
+
+		BSPPLANE newPlane;
+		if (!getPlaneFromVerts(verts, newPlane.vNormal, newPlane.fDist)) {
+			printf("Verts not planar\n");
+			return false; // verts not planar
+		}
+
+		vec3 oldNormal = planes[iPlane].vNormal;
+		if (dotProduct(oldNormal, newPlane.vNormal) < 0) {
+			newPlane.vNormal = newPlane.vNormal.invert(); // TODO: won't work for big changes
+			newPlane.fDist = -newPlane.fDist;
+		}
+
+		BSPPLANE testPlane;
+		bool expectedFlip = testPlane.update(planes[iPlane].vNormal, planes[iPlane].fDist);
+		bool flipped = newPlane.update(newPlane.vNormal, newPlane.fDist);
+		int frontChild = flipped ? 0 : 1;
+
+		testPlane = newPlane;
+
+		// check that all verts are on one side of the plane.
+		// plane inversions are ok according to hammer
+		int planeSide = 0;
+		for (int k = 0; k < allVertPos.size(); k++) {
+			float d = dotProduct(allVertPos[k], testPlane.vNormal) - testPlane.fDist;
+			if (d < -EPSILON) {
+				if (planeSide == 1) {
+					printf("Not convex\n");
+					return false;
+				}
+				planeSide = -1;
+			}
+			if (d > EPSILON) {
+				if (planeSide == -1) {
+					printf("Not convex\n");
+					return false;
+				}
+				planeSide = 1;
+			}
+		}
+		
+		newPlanes[iPlane] = newPlane;
+		shouldFlipChildren[iPlane] = flipped != expectedFlip;
+	}
+
+	if (convexCheckOnly)
+		return true;
+
+	for (auto it = newPlanes.begin(); it != newPlanes.end(); ++it) {
+		int iPlane = it->first;
+		BSPPLANE& newPlane = it->second;
+
+		planes[iPlane] = newPlane;
+		planeUpdates++;
+
+		if (shouldFlipChildren[iPlane]) {
+			for (int i = 0; i < faceCount; i++) {
+				BSPFACE& face = faces[i];
+				if (face.iPlane == iPlane) {
+					face.nPlaneSide = !face.nPlaneSide;
+				}
+			}
+			for (int i = 0; i < nodeCount; i++) {
+				BSPNODE& node = nodes[i];
+				if (node.iPlane == iPlane) {
+					int16 temp = node.iChildren[0];
+					node.iChildren[0] = node.iChildren[1];
+					node.iChildren[1] = node.iChildren[0];
+				}
+			}
+		}
+	}
+
+	printf("UPDATED %d planes\n", planeUpdates);
+
+	BSPMODEL& model = models[modelIdx];
+	getBoundingBox(allVertPos, model.nMins, model.nMaxs);
+	regenerate_clipnodes(modelIdx);
 
 	return true;
 }
@@ -2606,9 +2750,10 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	}
 }
 
-void Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
+int Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
 	vector<BSPPLANE> addPlanes;
 	vector<BSPCLIPNODE> addNodes;
+	int solidNodeIdx = 0;
 
 	for (int i = 1; i < MAX_MAP_HULLS; i++) {
 		if (skipEmpty && targetModel->iHeadnodes[i] < 0) {
@@ -2637,8 +2782,12 @@ void Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int t
 			BSPCLIPNODE node;
 			node.iPlane = planeIdx++;
 
+			int insideContents = k == 5 ? CONTENTS_SOLID : clipnodeIdx+1;
+
+			if (insideContents == CONTENTS_SOLID)
+				solidNodeIdx = clipnodeIdx;
+
 			clipnodeIdx++;
-			int insideContents = k == 5 ? CONTENTS_SOLID : clipnodeIdx;
 
 			// can't have negative normals on planes so children are swapped instead
 			if (k % 2 == 0) {
@@ -2663,6 +2812,8 @@ void Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int t
 	memcpy(newClipnodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
 	memcpy(newClipnodes + clipnodeCount, &addNodes[0], addNodes.size() * sizeof(BSPCLIPNODE));
 	replace_lump(LUMP_CLIPNODES, newClipnodes, (clipnodeCount + addNodes.size()) * sizeof(BSPCLIPNODE));
+
+	return solidNodeIdx;
 }
 
 void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
@@ -2727,6 +2878,33 @@ int Bsp::create_plane() {
 int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
 	BSPNODE& node = nodes[iNode];
 
+	switch (planes[node.iPlane].nType) {
+		case PLANE_X: case PLANE_Y: case PLANE_Z: {
+			// Skip this node. Bounding box clipnodes should have already been generated.
+			// Only works for convex models.
+			int childContents[2] = { 0, 0 };
+			for (int i = 0; i < 2; i++) {
+				if (node.iChildren[i] < 0) {
+					BSPLEAF& leaf = leaves[~node.iChildren[i]];
+					childContents[i] = leaf.nContents;
+				}
+			}
+
+			int solidChild = childContents[0] == CONTENTS_EMPTY ? node.iChildren[1] : node.iChildren[0];
+			int solidContents = childContents[0] == CONTENTS_EMPTY ? childContents[1] : childContents[0];
+
+			if (solidChild < 0) {
+				if (solidContents != CONTENTS_SOLID) {
+					printf("UNEXPECTED SOLID CONTENTS %d\n", solidContents);
+				}
+				return CONTENTS_SOLID; // solid leaf
+			}
+			return regenerate_clipnodes(solidChild, hullIdx);
+		}
+		default:
+			break;
+	}
+
 	int oldCount = clipnodeCount;
 	int newClipnodeIdx = create_clipnode();
 	clipnodes[newClipnodeIdx].iPlane = create_plane();
@@ -2765,7 +2943,6 @@ int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
 	if (solidChild != -1) {
 		BSPPLANE& p = planes[clipnodes[newClipnodeIdx].iPlane];
 		vec3 planePoint = p.vNormal * p.fDist;
-		float extend = solidChild == 0 ? -extent : extent;
 		vec3 newPlanePoint = planePoint + p.vNormal * (solidChild == 0 ? -extent : extent);
 		p.fDist = dotProduct(p.vNormal, newPlanePoint) / dotProduct(p.vNormal, p.vNormal);
 	}
@@ -2777,7 +2954,18 @@ void Bsp::regenerate_clipnodes(int modelIdx) {
 	BSPMODEL& model = models[modelIdx];	
 
 	for (int i = 1; i < MAX_MAP_HULLS; i++) {
-		model.iHeadnodes[i] = regenerate_clipnodes(model.iHeadnodes[0], i);
+		// first create a bounding box for the model. For some reason this is needed to prevent
+		// planes from extended farther than they should. All clip types do this.
+		int solidNodeIdx = create_clipnode_box(model.nMins, model.nMaxs, &model, i, false); // fills in the headnode
+		
+		for (int k = 0; k < 2; k++) {
+			if (clipnodes[solidNodeIdx].iChildren[k] == CONTENTS_SOLID) {
+				clipnodes[solidNodeIdx].iChildren[k] = regenerate_clipnodes(model.iHeadnodes[0], i);
+			}
+		}
+
+		// TODO: create clipnodes to "cap" edges that are 90+ degrees (most CSG clip types do this)
+		// that will fix broken collision around those edges (invisible solid areas)
 	}
 }
 

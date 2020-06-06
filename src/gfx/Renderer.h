@@ -15,6 +15,11 @@ enum transform_modes {
 	TRANSFORM_SCALE
 };
 
+enum transform_targets {
+	TRANSFORM_OBJECT,
+	TRANSFORM_VERTEX
+};
+
 struct TransformAxes {
 	cCube* model;
 	VertexBuffer* buffer;
@@ -76,6 +81,7 @@ private:
 	bool gridSnappingEnabled;
 	int gridSnapLevel;
 	int transformMode;
+	int transformTarget;
 	bool showDragAxes;
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
@@ -85,6 +91,15 @@ private:
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	int numScaleVerts;
 	bool textureLock;
+	bool invalidSolid = false;
+	bool isTransformableSolid = true;
+	bool canTransform = false;
+
+	vector<TransformVert> modelVerts;
+	cCube* modelVertCubes = NULL;
+	VertexBuffer* modelVertBuff = NULL;
+	int hoverVert = -1;
+	float vertExtentFactor = 0.01f;
 
 	Entity* copiedEnt;
 
@@ -101,12 +116,15 @@ private:
 
 	PickInfo pickInfo;
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
+	int vertPickCount = 0;
 
 	vec3 debugPoint;
 	vec3 debugVec0;
 	vec3 debugVec1;
 	vec3 debugVec2;
 	vec3 debugVec3;
+	int debugInt = 0;
+	int debugIntMax = 0;
 
 	vec3 getMoveDir();
 	void controls();
@@ -117,12 +135,16 @@ private:
 	void shortcutControls(); // hotkeys for menus and things
 	void pickObject(); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
+	void applyTransform();
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
 	BspRenderer* getMapContainingCamera();
 
+	void drawModelVerts();
 	void drawTransformAxes();
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
+	void drawPlane(BSPPLANE& plane, COLOR3 color);
+	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);
@@ -131,6 +153,7 @@ private:
 
 	void updateDragAxes();
 	void updateScaleVerts(bool currentlyScaling);
+	void moveSelectedVerts(vec3 delta);
 
 	vec3 snapToGrid(vec3 pos);
 
@@ -139,6 +162,7 @@ private:
 	void copyEnt();
 	void pasteEnt(bool noModifyOrigin);
 	void deleteEnt();
+	void scaleSelectedObject(float x, float y, float z);
+	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
-	void scaleSelectedVerts(vec3 dir, vec3 fromDir);
 };

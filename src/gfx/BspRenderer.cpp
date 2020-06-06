@@ -588,14 +588,14 @@ BspRenderer::~BspRenderer() {
 	// TODO: more stuff to delete
 }
 
-void BspRenderer::render(int highlightEnt) {
+void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 	BSPMODEL& world = map->models[0];	
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
-	if (highlightEnt > 0) {
+	if (highlightEnt > 0 && !highlightAlwaysOnTop) {
 		if (renderEnts[highlightEnt].modelIdx >= 0) {
 			bspShader->pushMatrix(MAT_MODEL);
 			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
@@ -627,6 +627,21 @@ void BspRenderer::render(int highlightEnt) {
 
 		if ((g_render_flags & RENDER_POINT_ENTS) && pass == 0) {
 			drawPointEntities(highlightEnt);
+		}
+	}
+
+	if (highlightEnt > 0 && highlightAlwaysOnTop) {
+		if (renderEnts[highlightEnt].modelIdx >= 0) {
+			bspShader->pushMatrix(MAT_MODEL);
+			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
+			bspShader->updateMatrixes();
+
+			glDisable(GL_DEPTH_TEST);
+			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
+			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
+			glEnable(GL_DEPTH_TEST);
+
+			bspShader->popMatrix(MAT_MODEL);
 		}
 	}
 }
@@ -842,6 +857,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, Pick
 		// check if point is inside the polygon using the plane's 2D coordinate system
 		// https://stackoverflow.com/a/34689268
 		bool inside = true;
+		float lastd = 0;
 		for (int i = 0; i < faceMath.vertCount; i++)
 		{
 			vec2& v1 = localVerts[i];
@@ -853,11 +869,12 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, Pick
 			
 			float d = (localRayPoint.x - v1.x) * (v2.y - v1.y) - (localRayPoint.y - v1.y) * (v2.x - v1.x);
 
-			if (d < 0) {
+			if ((d < 0 && lastd > 0) || (d > 0 && lastd < 0)) {
 				// point is outside of this edge
 				inside = false;
 				break;
 			}
+			lastd = d;
 		}
 		if (!inside) {
 			continue;

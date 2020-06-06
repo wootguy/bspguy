@@ -11,6 +11,7 @@ struct vec3
 	float length();
 	vec3 invert();
 	std::string toKeyvalueString(bool truncate = false);
+	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
 
 	void operator-=(vec3 v);
 	void operator+=(vec3 v);

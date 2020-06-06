@@ -18,6 +18,7 @@
 // grid snapping not working with transform widgets
 // get rid of console window and add a console widget
 // don't remove keyvalues that match the default value, also those values should appear in the editor
+// can't select things sometimes
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -27,6 +28,9 @@
 // don't select drag axes on first ent click
 // multi-select with ctrl
 // recalculate lightmaps when scaling objects
+// normalized clip type for clipnode regeneration (fixes broken collision around 90+ degree angle edges)
+// uniform scaling
+// fix flickering transform axes
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -41,6 +45,9 @@
 // - "Balanced is optimal only when the geometry is uniformly distributed, which is rarely the case."
 // delete all submodel leaves to save space. They're unused and waste space, yet the compiler includes them...?
 // vertex editing + clipping (+ CSG?) for all BSP models. Basically reimplement all of Hammer... and hlbsp/vis/rad... kek
+// delete embedded texture mipmaps to save space
+// vertex manipulation: face inversions should be invalid
+// vertex manipulation: max face extents should be invalid
 
 // refactoring:
 // stop mixing printf+cout

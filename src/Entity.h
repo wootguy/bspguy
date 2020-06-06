@@ -28,6 +28,8 @@ public:
 
 	bool isBspModel();
 
+	vec3 getOrigin();
+
 	bool hasKey(const std::string& key);
 
 	void renameTargetnameValues(string oldTargetname, string newTargetname);

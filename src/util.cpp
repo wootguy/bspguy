@@ -267,6 +267,53 @@ float getDistAlongAxis(vec3 axis, vec3 p)
 	return dotProduct(axis, p) / sqrt(dotProduct(axis, axis));
 }
 
+bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
+	const float tolerance = 0.00001f; // normals more different than this = non-planar face
+
+	int numVerts = verts.size();
+	for (int i = 0; i < numVerts; i++) {
+		vec3 v0 = verts[(i + 0) % numVerts];
+		vec3 v1 = verts[(i + 1) % numVerts];
+		vec3 v2 = verts[(i + 2) % numVerts];
+
+		vec3 ba = v1 - v0;
+		vec3 cb = v2 - v1;
+
+		vec3 normal = crossProduct(ba, cb).normalize(1.0f);
+
+		if (i == 0) {
+			outNormal = normal;
+		}
+		else {
+			float dot = dotProduct(outNormal, normal);
+			if (fabs(dot) < 1.0f - tolerance) {
+				//printf("DOT %f", dot);
+				return false; // non-planar face
+			}
+		}
+	}
+
+	outDist = getDistAlongAxis(outNormal, verts[0]);
+	return true;
+}
+
+void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
+	maxs = vec3(-9e99, -9e99, -9e99);
+	mins = vec3(9e99, 9e99, 9e99);
+
+	for (int i = 0; i < verts.size(); i++) {
+		vec3 v = verts[i];
+
+		if (v.x > maxs.x) maxs.x = v.x;
+		if (v.y > maxs.y) maxs.y = v.y;
+		if (v.z > maxs.z) maxs.z = v.z;
+
+		if (v.x < mins.x) mins.x = v.x;
+		if (v.y < mins.y) mins.y = v.y;
+		if (v.z < mins.z) mins.z = v.z;
+	}
+}
+
 #ifdef WIN32
 #include <Windows.h>
 void print_color(int colors)

@@ -83,7 +83,7 @@ public:
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
-	void render(int highlightEnt);
+	void render(int highlightEnt, bool highlightAlwaysOnTop);
 
 	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
 	void drawPointEntities(int highlightEnt);

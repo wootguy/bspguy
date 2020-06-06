@@ -121,6 +121,10 @@ bool Entity::isBspModel() {
 	return getBspModelIdx() >= 0;
 }
 
+vec3 Entity::getOrigin() {
+	return hasKey("origin") ? parseVector(keyvalues["origin"]) : vec3(0, 0, 0);
+}
+
 // TODO: maybe store this in a text file or something
 #define TOTAL_TARGETNAME_KEYS 134
 const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {

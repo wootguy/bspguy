@@ -56,3 +56,8 @@ bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectPoint);
 
 float getDistAlongAxis(vec3 axis, vec3 p);
+
+// returns false if verts are not planar
+bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist);
+
+void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs);

@@ -1,7 +1,7 @@
+#include <GL/glew.h>
 #include "ShaderProgram.h"
 #include "util.h"
 #include <string.h>
-#include "Renderer.h"
 
 static int g_active_shader_program;
 

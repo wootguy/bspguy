@@ -38,6 +38,7 @@ private:
 	void draw3dContextMenus();
 	void drawMenuBar();
 	void drawFpsOverlay();
+	void drawStatusMessage();
 	void drawDebugWidget();
 	void drawKeyvalueEditor();
 	void drawKeyvalueEditor_SmartEditTab(Entity* ent);

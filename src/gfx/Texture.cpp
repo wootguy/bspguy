@@ -1,7 +1,8 @@
+#include <GL/glew.h>
+#include "Wad.h"
 #include "Texture.h"
 #include "lodepng.h"
 #include "util.h"
-#include "Renderer.h"
 
 Texture::Texture(int width, int height) {
 	this->width = width;

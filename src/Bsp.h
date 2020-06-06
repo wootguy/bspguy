@@ -33,6 +33,15 @@ struct ScalableTexinfo {
 	int faceIdx;
 };
 
+struct TransformVert {
+	vec3 pos;
+	vec3* ptr; // face vertex to move with (null for invisible faces)
+	vector<int> iPlanes;
+	vec3 startPos; // for dragging
+	vec3 undoPos; // for undoing invalid solid stuff
+	bool selected;
+};
+
 class Bsp
 {
 public:
@@ -112,8 +121,10 @@ public:
 	vec3** getModelVerts(int modelIdx, int& numVerts);
 
 	// gets verts formed by plane intersections with the nodes in this model
-	vector<vec3> getModelPlaneIntersectVerts(int modelIdx);
-	void getNodePlanes(int iNode, vector<BSPPLANE>& nodePlanes);
+	vector<TransformVert> getModelPlaneIntersectVerts(int modelIdx);
+	void getNodePlanes(int iNode, vector<int>& nodePlanes);
+	bool is_convex(int modelIdx);
+	bool is_node_hull_convex(int iNode);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
@@ -128,6 +139,7 @@ public:
 	// returns false if the model has non-planar faces
 	// TODO: split any planes shared with other models
 	bool vertex_manipulation_sync(int modelIdx);
+	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly);
 
 	void load_ents();
 
@@ -156,7 +168,8 @@ public:
 
 	int create_leaf(int contents);
 	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
-	void create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
+	// returns index of the solid node
+	int create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
 
 	// copies a model from the sourceMap into this one
 	void add_model(Bsp* sourceMap, int modelIdx);
@@ -168,7 +181,8 @@ public:
 	// replace a model's clipnode hull with a axis-aligned bounding box
 	void simplify_model_collision(int modelIdx, int hullIdx);
 
-	// for use after scaling a model
+	// for use after scaling a model. Convex only.
+	// Skips axis-aligned planes (bounding box should have been generated beforehand)
 	void regenerate_clipnodes(int modelIdx);
 	int16 regenerate_clipnodes(int iNode, int hullIdx);
 	int create_clipnode();

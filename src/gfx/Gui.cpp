@@ -51,6 +51,7 @@ void Gui::draw() {
 	drawMenuBar();
 
 	drawFpsOverlay();
+	drawStatusMessage();
 
 	if (showDebugWidget) {
 		drawDebugWidget();
@@ -208,7 +209,10 @@ void Gui::drawMenuBar() {
 	{
 		if (ImGui::MenuItem("Entity")) {
 			Entity* newEnt = new Entity();
-			newEnt->addKeyvalue("origin", (app->cameraOrigin + app->cameraForward * 100).toKeyvalueString());
+			vec3 origin = (app->cameraOrigin + app->cameraForward * 100);
+			if (app->gridSnappingEnabled)
+				origin = app->snapToGrid(origin);
+			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "info_player_deathmatch");
 			BspRenderer* destMap = app->getMapContainingCamera();
 			destMap->map->ents.push_back(newEnt);
@@ -220,6 +224,8 @@ void Gui::drawMenuBar() {
 			BspRenderer* destMap = app->getMapContainingCamera();
 
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
+			if (app->gridSnappingEnabled)
+				origin = app->snapToGrid(origin);
 			vec3 mins = vec3(-16, -16, -16);
 			vec3 maxs = vec3(16, 16, 16);
 
@@ -265,6 +271,52 @@ void Gui::drawFpsOverlay() {
 	ImGui::End();
 }
 
+void Gui::drawStatusMessage() {
+	static int lastWindowWidth = 32;
+	static int windowWidth = 32;
+
+	bool showStatus = app->invalidSolid || !app->isTransformableSolid;
+	if (showStatus) {
+		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
+		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
+		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+		ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+
+		if (ImGui::Begin("status", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+		{
+			if (!app->isTransformableSolid) {
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "CONCAVE SOLID");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"Vertex manipulation doesn't work for concave solids yet\n";
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted(info);
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+			}
+			if (app->invalidSolid) {
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INVALID SOLID");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"The selected solid is not convex or has non-planar faces.\n\n"
+						"Transformations will be reverted unless you fix this.";
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted(info);
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+			}
+			windowWidth = ImGui::GetWindowWidth();
+		}
+		ImGui::End();
+	}
+}
+
 void Gui::drawDebugWidget() {
 	ImGui::SetNextWindowBgAlpha(0.75f);
 
@@ -290,21 +342,29 @@ void Gui::drawDebugWidget() {
 			{
 				ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
 
+				if (app->pickInfo.modelIdx > 0) {
+					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
+				}
+
 				if (app->pickInfo.faceIdx != -1) {
 					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
 					BSPFACE& face = map->faces[app->pickInfo.faceIdx];
-					BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-					int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
-					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 					ImGui::Text("Model ID: %d", app->pickInfo.modelIdx);
 					ImGui::Text("Model polies: %d", model.nFaces);
 
 					ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
 					ImGui::Text("Plane ID: %d", face.iPlane);
-					ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
-					ImGui::Text("Texture ID: %d", info.iMiptex);
-					ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
+
+					if (face.iTextureInfo < map->texinfoCount) {
+						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+						int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+						ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
+						ImGui::Text("Texture ID: %d", info.iMiptex);
+						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
+					}
+					
 				}
 
 			}
@@ -853,19 +913,39 @@ void Gui::drawTransformWidget() {
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
 		static int x, y, z;
 		static float fx, fy, fz;
+		static float last_fx, last_fy, last_fz;
 		static float sx, sy, sz;
 
 		static int lastPickCount = -1;
+		static int lastVertPickCount = -1;
 		static int oldSnappingEnabled = app->gridSnappingEnabled;
+		static int oldTransformTarget = -1;
 
 		ImGuiStyle& style = ImGui::GetStyle();
 
-		if (lastPickCount != app->pickCount || app->draggingAxis != -1 || app->movingEnt || oldSnappingEnabled != app->gridSnappingEnabled) {
+		bool shouldUpdateUi = lastPickCount != app->pickCount ||
+			app->draggingAxis != -1 ||
+			app->movingEnt ||
+			oldSnappingEnabled != app->gridSnappingEnabled ||
+			lastVertPickCount != app->vertPickCount ||
+			oldTransformTarget != app->transformTarget;
+
+		TransformAxes& activeAxes = *(app->transformMode == TRANSFORM_SCALE ? &app->scaleAxes : &app->moveAxes);
+
+		if (shouldUpdateUi) {
 			if (transformingEnt) {
-				vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-				x = fx = ori.x;
-				y = fy = ori.y;
-				z = fz = ori.z;
+				if (app->transformTarget == TRANSFORM_VERTEX) {
+					x = fx = last_fx = activeAxes.origin.x;
+					y = fy = last_fy = activeAxes.origin.y;
+					z = fz = last_fz = activeAxes.origin.z;
+				}
+				else {
+					vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+					x = fx = ori.x;
+					y = fy = ori.y;
+					z = fz = ori.z;
+				}
+				
 			}
 			else {
 				x = fx = 0;
@@ -874,6 +954,11 @@ void Gui::drawTransformWidget() {
 			}
 			sx = sy = sz = 1;
 		}
+
+		oldTransformTarget = app->transformTarget;
+		oldSnappingEnabled = app->gridSnappingEnabled;
+		lastVertPickCount = app->vertPickCount;
+		lastPickCount = app->pickCount;
 
 		bool scaled = false;
 		bool originChanged = false;
@@ -963,20 +1048,23 @@ void Gui::drawTransformWidget() {
 			if (ImGui::BeginTabItem("Options")) {
 				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 
-				ImGui::Checkbox("3D Axes", &app->showDragAxes);
+				static int e = 0;
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("Target: ");  ImGui::SameLine();
+				ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::SameLine();
+				ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX);
 
-				if (ImGui::Checkbox("Snap to grid", &app->gridSnappingEnabled)) {
-					originChanged = true;
-				}
-
-				const int grid_snap_modes = 10;
-				const char* element_names[grid_snap_modes] = { "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
+				const int grid_snap_modes = 11;
+				const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
 				static int current_element = app->gridSnapLevel;
-				current_element = app->gridSnapLevel;
-				if (ImGui::SliderInt("Grid size", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
-					app->gridSnapLevel = current_element;
+				current_element = app->gridSnapLevel+1;
+				if (ImGui::SliderInt("Grid snap", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
+					app->gridSnapLevel = current_element - 1;
+					app->gridSnappingEnabled = current_element != 0;
 					originChanged = true;
 				}
+
+				ImGui::Checkbox("3D Axes", &app->showDragAxes);
 
 				ImGui::EndTabItem();
 			}
@@ -986,33 +1074,59 @@ void Gui::drawTransformWidget() {
 
 		if (transformingEnt) {
 			if (originChanged) {
-				vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-				newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
+				if (app->transformTarget == TRANSFORM_VERTEX) {
+					vec3 delta;
+					if (app->gridSnappingEnabled) {
+						delta = vec3(x - last_fx, y - last_fy, z - last_fz);
+					}
+					else {
+						delta = vec3(fx - last_fx, fy - last_fy, fz - last_fz);
+					}
 
-				if (app->gridSnappingEnabled) {
-					fx = x;
-					fy = y;
-					fz = z;
+					app->moveSelectedVerts(delta);
+					app->applyTransform();
+
+					if (app->gridSnappingEnabled) {
+						fx = last_fx = x;
+						fy = last_fy = y;
+						fz = last_fz = z;
+					}
+					else {
+						x = last_fx = fx;
+						y = last_fy = fy;
+						z = last_fz = fz;
+					}
 				}
 				else {
-					x = fx;
-					y = fy;
-					z = fz;
-				}
+					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
 
-				ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
-				bspRenderer->refreshEnt(app->pickInfo.entIdx);
+					if (app->gridSnappingEnabled) {
+						fx = x;
+						fy = y;
+						fz = z;
+					}
+					else {
+						x = fx;
+						y = fy;
+						z = fz;
+					}
+
+					ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
+					bspRenderer->refreshEnt(app->pickInfo.entIdx);
+				}
 			}
 			if (scaled && ent->isBspModel()) {
-				int modelIdx = ent->getBspModelIdx();
-				app->scaleSelectedVerts(sx, sy, sz);
-				app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+				if (app->transformTarget == TRANSFORM_VERTEX) {
+					app->scaleSelectedVerts(sx, sy, sz);
+				}
+				else {
+					int modelIdx = ent->getBspModelIdx();
+					app->scaleSelectedObject(sx, sy, sz);
+					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+				}
 			}
 		}
-
-		lastPickCount = app->pickCount;
-		oldSnappingEnabled = app->gridSnappingEnabled;
-
 	}
 	ImGui::End();
 }
