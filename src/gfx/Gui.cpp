@@ -289,7 +289,7 @@ void Gui::drawStatusMessage() {
 				if (ImGui::IsItemHovered())
 				{
 					const char* info =
-						"Vertex manipulation doesn't work for concave solids yet\n";
+						"Scaling and vertex manipulation doesn't work on concave solids (mb in a future version)\n";
 					ImGui::BeginTooltip();
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
@@ -343,6 +343,7 @@ void Gui::drawDebugWidget() {
 				ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
 
 				if (app->pickInfo.modelIdx > 0) {
+					ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
 					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
 				}
 

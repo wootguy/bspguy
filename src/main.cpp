@@ -31,6 +31,7 @@
 // normalized clip type for clipnode regeneration (fixes broken collision around 90+ degree angle edges)
 // uniform scaling
 // fix flickering transform axes
+// highlight non-planar faces in vertex edit mode
 
 // minor todo:
 // trigger_changesky for series maps with different skies

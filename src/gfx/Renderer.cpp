@@ -81,8 +81,6 @@ Renderer::Renderer() {
 	transformTarget = TRANSFORM_VERTEX;
 
 	copiedEnt = NULL;
-	scaleVertsStart = NULL;
-	scaleVerts = NULL;
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -190,7 +188,7 @@ void Renderer::renderLoop() {
 		colorShader->bind();
 
 		if (true) {
-			if (false && pickInfo.valid && pickInfo.modelIdx > 0) {
+			if (debugClipnodes && pickInfo.valid && pickInfo.modelIdx > 0) {
 				BSPMODEL& pickModel = pickInfo.map->models[pickInfo.modelIdx];
 				glDisable(GL_CULL_FACE);
 				int currentPlane = 0;
@@ -231,25 +229,7 @@ void Renderer::drawModelVerts() {
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-	Entity* ent = map->ents[pickInfo.entIdx];
-
-	static int lastPick = -1;
-
-	if (modelVerts.empty() || lastPick != pickCount) {
-		lastPick = pickCount;
-
-		if (modelVertBuff) {
-			delete modelVertBuff;
-			delete[] modelVertCubes;
-			modelVerts.clear();
-		}
-
-		modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx);
-
-		modelVertCubes = new cCube[modelVerts.size()];
-		modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * modelVerts.size());
-		printf("%d intersection points\n", modelVerts.size());
-	}
+	Entity* ent = map->ents[pickInfo.entIdx];	
 
 	const COLOR3 dimColor = { 200, 200, 200 };
 	const COLOR3 hoverColor = { 255, 255, 255 };
@@ -340,18 +320,17 @@ void Renderer::controls() {
 
 	canTransform = true;
 	if (transformTarget == TRANSFORM_VERTEX) {
-		if (isTransformableSolid) {
-			canTransform = false;
-			for (int i = 0; i < modelVerts.size(); i++) {
-				if (modelVerts[i].selected) {
-					canTransform = true;
-					break;
-				}
+		canTransform = false;
+		for (int i = 0; i < modelVerts.size(); i++) {
+			if (modelVerts[i].selected) {
+				canTransform = true;
+				break;
 			}
 		}
-		else {
-			canTransform = false;
-		}
+	}
+
+	if (!isTransformableSolid) {
+		canTransform = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_MOVE;
 	}
 
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
@@ -412,7 +391,10 @@ void Renderer::controls() {
 
 void Renderer::applyTransform() {
 	if (pickInfo.valid && pickInfo.modelIdx > 0) {
-		if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
+		bool transformingVerts = transformTarget == TRANSFORM_VERTEX && isTransformableSolid;
+		bool scalingObject = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE;
+
+		if (transformingVerts || scalingObject) {
 			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
 			for (int i = 0; i < modelVerts.size(); i++) {
 				modelVerts[i].startPos = modelVerts[i].pos;
@@ -420,10 +402,16 @@ void Renderer::applyTransform() {
 					modelVerts[i].undoPos = modelVerts[i].pos;
 				}
 			}
-		}
-		if (transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE) {
-			updateScaleVerts(true);
-			invalidSolid = pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx);
+
+			if (scalingObject) {
+				for (int i = 0; i < scaleTexinfos.size(); i++) {
+					BSPTEXTUREINFO& info = pickInfo.map->texinfos[scaleTexinfos[i].texinfoIdx];
+					scaleTexinfos[i].oldShiftS = info.shiftS;
+					scaleTexinfos[i].oldShiftT = info.shiftT;
+					scaleTexinfos[i].oldS = info.vS;
+					scaleTexinfos[i].oldT = info.vT;
+				}
+			}
 		}
 	}
 }
@@ -613,7 +601,7 @@ void Renderer::pickObject() {
 	if (pickInfo.modelIdx > 0)
 		pickInfo.map->print_model_hull(pickInfo.modelIdx, 1);
 
-	updateScaleVerts(false);
+	updateModelVerts();
 
 	isTransformableSolid = true;
 	if (pickInfo.modelIdx > 0) {
@@ -1073,104 +1061,34 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 	return pickStart + pickDir * intersectDist;
 }
 
-void Renderer::updateScaleVerts(bool currentlyScaling) {
+void Renderer::updateModelVerts() {
 	if (!pickInfo.valid || pickInfo.modelIdx <= 0)
 		return;
 
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
 
-	// persist scale change
-	if (currentlyScaling) {
-		for (int i = 0; i < numScaleVerts; i++) {
-			scaleVertsStart[i] = *scaleVerts[i];
-		}
-		for (int i = 0; i < scalePlanes.size(); i++) {
-			ScalablePlane& sp = scalePlanes[i];
-			BSPPLANE& plane = map->planes[scalePlanes[i].planeIdx];
-
-			vec3 ba = sp.v1 - sp.origin;
-			vec3 va = sp.v2 - sp.origin;
-
-			vec3 newNormal = crossProduct(ba.normalize(), va.normalize()).normalize();
-			float newDist = getDistAlongAxis(newNormal, sp.origin);
-
-			bool flipped = plane.update(newNormal, newDist);
-
-			// TODO: may have already been flipped
-
-			if (flipped) {
-				for (int i = 0; i < map->faceCount; i++) {
-					BSPFACE& face = map->faces[i];
-					if (face.iPlane == sp.planeIdx) {
-						face.nPlaneSide = !face.nPlaneSide;
-					}
-				}
-				for (int i = 0; i < map->nodeCount; i++) {
-					BSPNODE& node = map->nodes[i];
-					if (node.iPlane == sp.planeIdx) {
-						int16 temp = node.iChildren[0];
-						node.iChildren[0] = node.iChildren[1];
-						node.iChildren[1] = node.iChildren[0];
-					}
-				}
-			}
-		}
-		for (int i = 0; i < scaleTexinfos.size(); i++) {
-			BSPTEXTUREINFO& info = map->texinfos[scaleTexinfos[i].texinfoIdx];
-			scaleTexinfos[i].oldShiftS = info.shiftS;
-			scaleTexinfos[i].oldShiftT = info.shiftT;
-			scaleTexinfos[i].oldS = info.vS;
-			scaleTexinfos[i].oldT = info.vT;
-		}
-		BSPMODEL& model = map->models[modelIdx];
-		map->get_model_vertex_bounds(modelIdx, model.nMins, model.nMaxs);
-		map->regenerate_clipnodes(modelIdx);
-		return;
-	}
-
-	if (scaleVertsStart != NULL) {
-		delete[] scaleVertsStart;
-		delete[] scaleVerts;
-		scalePlanes.clear();
+	if (modelVertBuff) {
+		delete modelVertBuff;
+		delete[] modelVertCubes;
 		scaleTexinfos.clear();
 		map->remove_unused_model_structures();
 	}
 	
-	scaleVerts = map->getModelVerts(modelIdx, numScaleVerts);
-	scalePlanes = map->getScalablePlanes(modelIdx);
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
-	int numScalePlaneVerts = scalePlanes.size() * 3;
-	int totalScaleVerts = numScaleVerts + numScalePlaneVerts;
+	modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx);
 
-	vec3** newScaleVerts = new vec3 * [totalScaleVerts];
-	memcpy(newScaleVerts, scaleVerts, numScaleVerts*sizeof(vec3*));
-	delete[] scaleVerts;
-	scaleVerts = newScaleVerts;
-
-	for (int i = numScaleVerts, k = 0; i < totalScaleVerts; i += 3, k++) {
-		ScalablePlane& sp = scalePlanes[k];
-		scaleVerts[i + 0] = &sp.origin;
-		scaleVerts[i + 1] = &sp.v1;
-		scaleVerts[i + 2] = &sp.v2;
-	}
-
-	numScaleVerts = totalScaleVerts;
-
-	scaleVertsStart = new vec3[totalScaleVerts];
-	for (int i = 0; i < totalScaleVerts; i++) {
-		scaleVertsStart[i] = *scaleVerts[i];
-	}
+	modelVertCubes = new cCube[modelVerts.size()];
+	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * modelVerts.size());
+	printf("%d intersection points\n", modelVerts.size());
 }
 
 void Renderer::scaleSelectedObject(float x, float y, float z) {
 	vec3 minDist;
 	vec3 maxDist;
 
-	int faceVertCount = numScaleVerts - scalePlanes.size() * 3;
-
-	for (int i = 0; i < faceVertCount; i++) {
-		vec3 v = scaleVertsStart[i];
+	for (int i = 0; i < modelVerts.size(); i++) {
+		vec3 v = modelVerts[i].pos;
 		if (v.x > maxDist.x) maxDist.x = v.x;
 		if (v.x < minDist.x) minDist.x = v.x;
 
@@ -1201,10 +1119,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	vec3 minDist = vec3(9e99, 9e99, 9e99);
 	vec3 maxDist = vec3(-9e99, -9e99, -9e99);
 
-	int faceVertCount = numScaleVerts - scalePlanes.size() * 3;
-
-	for (int i = 0; i < faceVertCount; i++) {
-		vec3 v = scaleVertsStart[i];
+	for (int i = 0; i < modelVerts.size(); i++) {
+		vec3 v = modelVerts[i].startPos;
 
 		if (v.x > maxDist.x) maxDist.x = v.x;
 		if (v.x < minDist.x) minDist.x = v.x;
@@ -1237,9 +1153,12 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 		}
 	}
 
-	for (int i = 0; i < numScaleVerts; i++) {
-		vec3 stretchFactor = (scaleVertsStart[i] - scaleFromDist) / distRange;
-		*scaleVerts[i] = scaleVertsStart[i] + dir * stretchFactor;
+	for (int i = 0; i < modelVerts.size(); i++) {
+		vec3 stretchFactor = (modelVerts[i].startPos - scaleFromDist) / distRange;
+		modelVerts[i].pos = modelVerts[i].startPos + dir * stretchFactor;
+		if (modelVerts[i].ptr) {
+			*modelVerts[i].ptr = modelVerts[i].pos;
+		}
 	}
 
 	//
@@ -1253,8 +1172,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	minDist = vec3(9e99, 9e99, 9e99);
 	maxDist = vec3(-9e99, -9e99, -9e99);
 	
-	for (int i = 0; i < faceVertCount; i++) {
-		vec3 v = *scaleVerts[i];
+	for (int i = 0; i < modelVerts.size(); i++) {
+		vec3 v = modelVerts[i].pos;
 		if (v.x > maxDist.x) maxDist.x = v.x;
 		if (v.x < minDist.x) minDist.x = v.x;
 
@@ -1351,7 +1270,6 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 	vec3 fromOrigin = activeAxes.origin;
-	
 
 	vec3 min(9e99, 9e99, 9e99);
 	vec3 max(-9e99, -9e99, -9e99);

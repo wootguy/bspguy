@@ -85,11 +85,7 @@ private:
 	bool showDragAxes;
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
-	vec3* scaleVertsStart; // original positions of the verts being scaled
-	vec3** scaleVerts; // pointers to verts in the BSP data for scaling
-	vector<ScalablePlane> scalePlanes; // verts used to recalculate plane normals/origins after scaling
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
-	int numScaleVerts;
 	bool textureLock;
 	bool invalidSolid = false;
 	bool isTransformableSolid = true;
@@ -125,6 +121,7 @@ private:
 	vec3 debugVec3;
 	int debugInt = 0;
 	int debugIntMax = 0;
+	bool debugClipnodes = false;
 
 	vec3 getMoveDir();
 	void controls();
@@ -152,7 +149,7 @@ private:
 	vec3 getAxisDragPoint(vec3 origin);
 
 	void updateDragAxes();
-	void updateScaleVerts(bool currentlyScaling);
+	void updateModelVerts();
 	void moveSelectedVerts(vec3 delta);
 
 	vec3 snapToGrid(vec3 pos);

@@ -287,22 +287,6 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 	}
 }
 
-vector<ScalablePlane> Bsp::getScalablePlanes(int modelIdx) {
-	BSPMODEL& model = models[modelIdx];
-	set<int> visited;
-	vector<ScalablePlane> scalablePlanes;
-
-	if (model.iHeadnodes[0] >= 0)
-		getScalableNodePlanes(model.iHeadnodes[0], scalablePlanes, visited);
-
-	// don't get clipnode planes because the hull offsets would be scaled as well.
-	// Clipnodes will need to be regenerated after scaling. Although it may be possible
-	// to apply an offset to the plane before scaling, then undo the offset to prevent
-	// that. But then there's the problem of knowing which direction to extend the plane.
-
-	return scalablePlanes;
-}
-
 bool Bsp::is_convex(int modelIdx) {
 	return is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
 }
@@ -324,47 +308,6 @@ bool Bsp::is_node_hull_convex(int iNode) {
 	}
 
 	return true;
-}
-
-void Bsp::getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited) {
-	BSPNODE& node = nodes[iNode];
-
-	if (visited.find(node.iPlane) == visited.end()) {
-		nodePlanes.push_back(getScalablePlane(node.iPlane));
-		visited.insert(node.iPlane);
-	}
-
-	for (int i = 0; i < 2; i++) {
-		if (node.iChildren[i] >= 0) {
-			getScalableNodePlanes(node.iChildren[i], nodePlanes, visited);
-		}
-	}
-}
-
-ScalablePlane Bsp::getScalablePlane(int planeIdx) {
-	BSPPLANE& plane = planes[planeIdx];
-	ScalablePlane sp;
-	sp.origin = plane.vNormal * plane.fDist;
-	sp.oldOrigin = sp.origin;
-	sp.oldNormal = plane.vNormal;
-	sp.oldDist = plane.fDist;
-
-	vec3 dir1, dir2;
-	if (fabs(plane.vNormal.z) > 0.8f) {
-		dir1 = crossProduct(plane.vNormal, vec3(1, 0, 0));
-	}
-	else {
-		dir1 = crossProduct(plane.vNormal, vec3(0, 0, 1));
-	}
-
-	dir1 = dir1.normalize();
-	dir2 = crossProduct(plane.vNormal, dir1).normalize();
-
-	sp.v1 = sp.origin + dir1;
-	sp.v2 = sp.origin + dir2;
-	sp.planeIdx = planeIdx;
-	
-	return sp;
 }
 
 int Bsp::addTextureInfo(BSPTEXTUREINFO& copy) {
@@ -406,50 +349,6 @@ vector<ScalableTexinfo> Bsp::getScalableTexinfos(int modelIdx) {
 	}
 
 	return scalable;
-}
-
-bool Bsp::vertex_manipulation_sync(int modelIdx) {
-	BSPMODEL& model = models[modelIdx];
-
-	set<int> updatedPlanes;
-	for (int i = 0; i < model.nFaces; i++) {
-		BSPFACE& face = faces[model.iFirstFace + i];
-
-		if (updatedPlanes.find(face.iPlane) != updatedPlanes.end()) {
-			continue;
-		}
-		updatedPlanes.insert(face.iPlane);
-		
-		vector<vec3> faceVerts;
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = edges[abs(edgeIdx)];
-			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-			faceVerts.push_back(verts[vertIdx]);
-		}
-
-		if (faceVerts.size() < 3) {
-			return false; // not sure this is even possible normally
-		}
-
-		vec3 planeNormal;
-		float fdist;
-		if (!getPlaneFromVerts(faceVerts, planeNormal, fdist)) {
-			return false; // verts not planar
-		}
-
-		BSPPLANE& plane = planes[face.iPlane];
-		plane.update(planeNormal, fdist);
-	}
-
-	// TODO: rebuild clipnode trees, and use node plane intersections isntead of face verts
-	// because a model can have nodes without faces(?). Also consider manipulating plane intersection
-	// vertices instead of face vertices.
-	// TODO: what to do about node planes, if unique?
-
-	printf("Updated %d planes\n", updatedPlanes.size());
-
-	return true;
 }
 
 bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly) {

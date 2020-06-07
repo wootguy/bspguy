@@ -17,14 +17,6 @@ struct membuf : std::streambuf
 	}
 };
 
-struct ScalablePlane {
-	int planeIdx;
-	vec3 oldNormal;
-	float oldDist;
-	vec3 oldOrigin, origin;
-	vec3 v1, v2;
-};
-
 struct ScalableTexinfo {
 	int texinfoIdx;
 	vec3 oldS, oldT;
@@ -129,16 +121,12 @@ public:
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
 	// Scaling/stretching really only needs 3 verts _anywhere_ on the plane to calculate new normals/origins.
-	vector<ScalablePlane> getScalablePlanes(int modelIdx);
-	void getScalableNodePlanes(int iNode, vector<ScalablePlane>& nodePlanes, set<int>& visited);
-	ScalablePlane getScalablePlane(int planeIdx);
 	vector<ScalableTexinfo> getScalableTexinfos(int modelIdx); // for scaling
 	int addTextureInfo(BSPTEXTUREINFO& copy);
 
 	// fixes up the model planes/nodes after vertex posisions have been modified
 	// returns false if the model has non-planar faces
 	// TODO: split any planes shared with other models
-	bool vertex_manipulation_sync(int modelIdx);
 	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly);
 
 	void load_ents();
