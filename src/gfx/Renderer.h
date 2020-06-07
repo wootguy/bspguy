@@ -31,6 +31,11 @@ struct TransformAxes {
 	int numAxes;
 };
 
+struct HullEdge {
+	int verts[2]; // index into modelVerts
+	bool selected;
+};
+
 class Renderer {
 	friend class Gui;
 
@@ -90,11 +95,15 @@ private:
 	bool invalidSolid = false;
 	bool isTransformableSolid = true;
 	bool canTransform = false;
+	bool anyEdgeSelected = false;
+	bool anyVertSelected = false;
 
 	vector<TransformVert> modelVerts;
+	vector<HullEdge> modelEdges;
 	cCube* modelVertCubes = NULL;
 	VertexBuffer* modelVertBuff = NULL;
 	int hoverVert = -1;
+	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
 
 	Entity* copiedEnt;
@@ -125,6 +134,7 @@ private:
 
 	vec3 getMoveDir();
 	void controls();
+	void cameraPickingControls();
 	void cameraRotationControls(vec2 mousePos);
 	void cameraObjectHovering();
 	void cameraContextMenus(); // right clicking on ents and things
@@ -162,4 +172,5 @@ private:
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
+	vec3 getEdgeControlPoint(int iEdge);
 };

@@ -342,6 +342,13 @@ float vec2::length()
 	return sqrt((x * x) + (y * y));
 }
 
+vec2 vec2::normalize(float length) {
+	if (x == 0 && y == 0)
+		return vec2(0, 0);
+	float d = length / sqrt((x * x) + (y * y));
+	return vec2(x * d, y * d);
+}
+
 
 
 bool operator==(vec4 v1, vec4 v2)

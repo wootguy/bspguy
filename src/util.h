@@ -61,3 +61,9 @@ float getDistAlongAxis(vec3 axis, vec3 p);
 bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist);
 
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs);
+
+vec2 getCenter(vector<vec2>& verts);
+
+void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs);
+
+void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs);

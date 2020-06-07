@@ -567,16 +567,7 @@ void BspRenderer::refreshFace(int faceIdx) {
 	vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
 	vec3 plane_z = planeNormal;
 
-	faceMath.worldToLocal.loadIdentity();
-	faceMath.worldToLocal.m[0 * 4 + 0] = dotProduct(plane_x, world_x);
-	faceMath.worldToLocal.m[1 * 4 + 0] = dotProduct(plane_x, world_y);
-	faceMath.worldToLocal.m[2 * 4 + 0] = dotProduct(plane_x, world_z);
-	faceMath.worldToLocal.m[0 * 4 + 1] = dotProduct(plane_y, world_x);
-	faceMath.worldToLocal.m[1 * 4 + 1] = dotProduct(plane_y, world_y);
-	faceMath.worldToLocal.m[2 * 4 + 1] = dotProduct(plane_y, world_z);
-	faceMath.worldToLocal.m[0 * 4 + 2] = dotProduct(plane_z, world_x);
-	faceMath.worldToLocal.m[1 * 4 + 2] = dotProduct(plane_z, world_y);
-	faceMath.worldToLocal.m[2 * 4 + 2] = dotProduct(plane_z, world_z);
+	faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 }
 
 BspRenderer::~BspRenderer() {

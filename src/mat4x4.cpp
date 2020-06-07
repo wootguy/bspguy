@@ -123,6 +123,27 @@ void mat4x4::rotateZ(float r)
 	mult(rmat);
 }
 
+mat4x4 worldToLocalTransform(vec3 local_x, vec3 local_y, vec3 local_z) {
+	const vec3 world_x(1, 0, 0);
+	const vec3 world_y(0, 1, 0);
+	const vec3 world_z(0, 0, 1);
+
+	mat4x4 worldToLocal;
+
+	worldToLocal.loadIdentity();
+	worldToLocal.m[0 * 4 + 0] = dotProduct(local_x, world_x);
+	worldToLocal.m[1 * 4 + 0] = dotProduct(local_x, world_y);
+	worldToLocal.m[2 * 4 + 0] = dotProduct(local_x, world_z);
+	worldToLocal.m[0 * 4 + 1] = dotProduct(local_y, world_x);
+	worldToLocal.m[1 * 4 + 1] = dotProduct(local_y, world_y);
+	worldToLocal.m[2 * 4 + 1] = dotProduct(local_y, world_z);
+	worldToLocal.m[0 * 4 + 2] = dotProduct(local_z, world_x);
+	worldToLocal.m[1 * 4 + 2] = dotProduct(local_z, world_y);
+	worldToLocal.m[2 * 4 + 2] = dotProduct(local_z, world_z);
+
+	return worldToLocal;
+}
+
 mat4x4 mat4x4::transpose()
 {
 	mat4x4 result;

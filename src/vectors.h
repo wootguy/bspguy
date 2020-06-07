@@ -46,6 +46,7 @@ struct vec2
 	float x, y;
 	vec2() : x(), y() {}
 	vec2(float x, float y) : x(x), y(y) {}
+	vec2 normalize(float length = 1.0f);
 	float length();
 
 	void operator-=(vec2 v);

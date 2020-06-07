@@ -297,21 +297,42 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 	return true;
 }
 
+vec2 getCenter(vector<vec2>& verts) {
+	vec2 maxs = vec2(-9e99, -9e99);
+	vec2 mins = vec2(9e99, 9e99);
+
+	for (int i = 0; i < verts.size(); i++) {
+		expandBoundingBox(verts[i], mins, maxs);
+	}
+
+	return mins + (maxs - mins) * 0.5f;
+}
+
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
 	maxs = vec3(-9e99, -9e99, -9e99);
 	mins = vec3(9e99, 9e99, 9e99);
 
 	for (int i = 0; i < verts.size(); i++) {
-		vec3 v = verts[i];
-
-		if (v.x > maxs.x) maxs.x = v.x;
-		if (v.y > maxs.y) maxs.y = v.y;
-		if (v.z > maxs.z) maxs.z = v.z;
-
-		if (v.x < mins.x) mins.x = v.x;
-		if (v.y < mins.y) mins.y = v.y;
-		if (v.z < mins.z) mins.z = v.z;
+		expandBoundingBox(verts[i], mins, maxs);
 	}
+}
+
+void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs) {
+	if (v.x > maxs.x) maxs.x = v.x;
+	if (v.y > maxs.y) maxs.y = v.y;
+	if (v.z > maxs.z) maxs.z = v.z;
+
+	if (v.x < mins.x) mins.x = v.x;
+	if (v.y < mins.y) mins.y = v.y;
+	if (v.z < mins.z) mins.z = v.z;
+}
+
+void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs) {
+	if (v.x > maxs.x) maxs.x = v.x;
+	if (v.y > maxs.y) maxs.y = v.y;
+
+	if (v.x < mins.x) mins.x = v.x;
+	if (v.y < mins.y) mins.y = v.y;
 }
 
 #ifdef WIN32
