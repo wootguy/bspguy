@@ -275,7 +275,7 @@ mat4x4 mat4x4::invert()
 
 	if (det == 0)
 	{
-		printf("Matrix inversion failed (determinant is zero)\n");
+		logf("Matrix inversion failed (determinant is zero)\n");
 		return out;
 	}
 

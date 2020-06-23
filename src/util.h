@@ -19,13 +19,18 @@
 
 #define __WINDOWS__
 
+
+
 extern bool g_verbose;
 extern ProgressMeter g_progress;
 extern string g_game_path;
+extern vector<string> g_log_buffer;
 
 extern int g_render_flags;
 
 class BSPMIPTEX;
+
+void logf(const char* format, ...);
 
 bool fileExists(const string& fileName);
 

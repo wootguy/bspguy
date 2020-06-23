@@ -30,6 +30,7 @@ void Gui::init() {
 	vsync = true;
 	smallFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 20.0f);
 	largeFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 24.0f);
+	consoleFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/consola.ttf", 16.0f);
 
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 
@@ -38,6 +39,8 @@ void Gui::init() {
 
 	contextMenuEnt = -1;
 	emptyContextMenu = 0;
+
+	clearLog();
 }
 
 void Gui::draw() {
@@ -63,6 +66,10 @@ void Gui::draw() {
 
 	if (showTransformWidget) {
 		drawTransformWidget();
+	}
+
+	if (showLogWidget) {
+		drawLog();
 	}
 
 	if (contextMenuEnt != -1) {
@@ -156,7 +163,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Clean", NULL)) {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
 				Bsp* map = app->mapRenderers[i]->map;
-				printf("Cleaning %s\n", map->name.c_str());
+				logf("Cleaning %s\n", map->name.c_str());
 				app->pickInfo.valid = false;
 				map->remove_unused_model_structures().print_delete_stats(0);
 			}
@@ -174,6 +181,9 @@ void Gui::drawMenuBar() {
 		}
 		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
 			showTransformWidget = !showTransformWidget;
+		}
+		if (ImGui::MenuItem("Log", "", showLogWidget)) {
+			showLogWidget = !showLogWidget;
 		}
 		ImGui::EndMenu();
 	}
@@ -1130,4 +1140,88 @@ void Gui::drawTransformWidget() {
 		}
 	}
 	ImGui::End();
+}
+
+void Gui::clearLog()
+{
+	Buf.clear();
+	LineOffsets.clear();
+	LineOffsets.push_back(0);
+}
+
+void Gui::addLog(const char* s)
+{
+	int old_size = Buf.size();
+	Buf.append(s);
+	for (int new_size = Buf.size(); old_size < new_size; old_size++)
+		if (Buf[old_size] == '\n')
+			LineOffsets.push_back(old_size + 1);
+}
+
+void Gui::drawLog() {
+
+	if (!ImGui::Begin("Log", &showLogWidget))
+	{
+		ImGui::End();
+		return;
+	}
+
+	for (int i = 0; i < g_log_buffer.size(); i++) {
+		addLog(g_log_buffer[i].c_str());
+	}
+	g_log_buffer.clear();
+
+	static int i = 0;
+
+	
+	if (ImGui::Button("Clear")) {
+		clearLog();
+	}
+
+	bool copy = false;
+	ImGui::SameLine();
+	if (ImGui::Button("Copy")) {
+		copy = true;
+	}
+
+	ImGui::SameLine();
+	bool toggledAutoScroll = false;
+	if (ImGui::Checkbox("Auto-scroll", &AutoScroll)) {
+		toggledAutoScroll = AutoScroll;
+	}
+
+	ImGui::Separator();
+	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+	ImGui::PushFont(consoleFont);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+	const char* buf = Buf.begin();
+	const char* buf_end = Buf.end();
+
+	if (copy) ImGui::LogBegin(ImGuiLogType_Clipboard, 0);
+
+	ImGuiListClipper clipper;
+	clipper.Begin(LineOffsets.Size);
+	while (clipper.Step())
+	{
+		for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+		{
+			const char* line_start = buf + LineOffsets[line_no];
+			const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+			ImGui::TextUnformatted(line_start, line_end);
+		}
+	}
+	clipper.End();
+
+	if (copy) ImGui::LogFinish();
+
+	ImGui::PopFont();
+	ImGui::PopStyleVar();
+
+	if (AutoScroll && (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() || toggledAutoScroll))
+		ImGui::SetScrollHereY(1.0f);
+
+	ImGui::EndChild();
+	ImGui::End();
+
 }

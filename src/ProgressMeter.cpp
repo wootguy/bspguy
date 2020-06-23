@@ -1,6 +1,7 @@
 #include "ProgressMeter.h"
 #include <string.h>
 #include <stdio.h> 
+#include "util.h"
 
 ProgressMeter::ProgressMeter() {
 	progress_total = progress = 0;
@@ -28,13 +29,13 @@ void ProgressMeter::tick() {
 
 	int percent = (progress / (float)progress_total) * 100;
 
-	for (int i = 0; i < 12; i++) printf("\b\b\b\b");
-	printf("        %-32s %2d%%", progress_title, percent);
+	for (int i = 0; i < 12; i++) logf("\b\b\b\b");
+	logf("        %-32s %2d%%", progress_title, percent);
 }
 
 void ProgressMeter::clear() {
 	// 50 chars
-	for (int i = 0; i < 6; i++) printf("\b\b\b\b\b\b\b\b\b\b");
-	for (int i = 0; i < 6; i++) printf("          ");
-	for (int i = 0; i < 6; i++) printf("\b\b\b\b\b\b\b\b\b\b");
+	for (int i = 0; i < 6; i++) logf("\b\b\b\b\b\b\b\b\b\b");
+	for (int i = 0; i < 6; i++) logf("          ");
+	for (int i = 0; i < 6; i++) logf("\b\b\b\b\b\b\b\b\b\b");
 }

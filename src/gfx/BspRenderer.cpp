@@ -87,11 +87,11 @@ void BspRenderer::loadTextures() {
 		}
 
 		if (path.empty()) {
-			printf("Missing WAD: %s\n", wadNames[i].c_str());
+			logf("Missing WAD: %s\n", wadNames[i].c_str());
 			continue;
 		}
 
-		printf("Loading WAD %s\n", path.c_str());
+		logf("Loading WAD %s\n", path.c_str());
 		Wad* wad = new Wad(path);
 		wad->readInfo();
 		wads.push_back(wad);
@@ -165,7 +165,7 @@ void BspRenderer::loadLightmaps() {
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
 
-	printf("Calculating lightmaps\n");
+	logf("Calculating lightmaps\n");
 	qrad_init_globals(map);
 
 	int lightmapCount = 0;
@@ -206,7 +206,7 @@ void BspRenderer::loadLightmaps() {
 				memset(atlasTextures[atlasId]->data, 0, LIGHTMAP_ATLAS_SIZE * LIGHTMAP_ATLAS_SIZE * sizeof(COLOR3));
 
 				if (!atlases[atlasId]->insert(info.w, info.h, info.x[s], info.y[s])) {
-					printf("Lightmap too big for atlas size!\n");
+					logf("Lightmap too big for atlas size!\n");
 					continue;
 				}
 			}
@@ -237,7 +237,7 @@ void BspRenderer::loadLightmaps() {
 	}
 
 	lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
-	printf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
+	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
 }
 
 void BspRenderer::updateLightmapInfos() {
@@ -246,7 +246,7 @@ void BspRenderer::updateLightmapInfos() {
 		return;
 	}
 	if (map->faceCount < numRenderLightmapInfos) {
-		printf("TODO: Recalculate lightmaps when faces deleted\n");
+		logf("TODO: Recalculate lightmaps when faces deleted\n");
 		return;
 	}
 
@@ -257,7 +257,7 @@ void BspRenderer::updateLightmapInfos() {
 	memcpy(newLightmaps, lightmaps, numRenderLightmapInfos * sizeof(LightmapInfo));
 	memset(newLightmaps + numRenderLightmapInfos, 0, addedFaces*sizeof(LightmapInfo));
 
-	printf("UPDATE FACE COUNT %d -> %d\n", numRenderLightmapInfos, map->faceCount);
+	logf("UPDATE FACE COUNT %d -> %d\n", numRenderLightmapInfos, map->faceCount);
 
 	delete[] lightmaps;
 	lightmaps = newLightmaps;
@@ -293,8 +293,8 @@ void BspRenderer::preRenderFaces() {
 			modelRenderGroups += groupCount;
 	}
 
-	printf("Added %d world render groups\n", worldRenderGroups);
-	printf("Added %d submodel render groups\n", modelRenderGroups);
+	logf("Added %d world render groups\n", worldRenderGroups);
+	logf("Added %d submodel render groups\n", modelRenderGroups);
 }
 
 int BspRenderer::refreshModel(int modelIdx) {

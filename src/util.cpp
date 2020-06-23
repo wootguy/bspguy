@@ -6,10 +6,24 @@
 #include <cctype>
 #include <string.h>
 #include "Wad.h"
+#include <stdarg.h>
 
 ProgressMeter g_progress;
 string g_game_path;
 int g_render_flags;
+vector<string> g_log_buffer;
+
+void logf(const char* format, ...) {
+	static char line[4096];
+
+	va_list vl;
+	va_start(vl, format);
+	vsprintf_s(line, 4096, format, vl);
+	va_end(vl);
+
+	printf(line);
+	g_log_buffer.push_back(line);
+}
 
 bool fileExists(const string& fileName)
 {
@@ -136,7 +150,7 @@ vec3 parseVector(string s) {
 	vector<string> parts = splitString(s, " ");
 
 	if (parts.size() != 3) {
-		cout << "Not enough coordinates in vector '" << s << "'\n";
+		logf("Not enough coordinates in vector %s\n", s.c_str());
 		return v;
 	}
 
@@ -287,7 +301,7 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 		else {
 			float dot = dotProduct(outNormal, normal);
 			if (fabs(dot) < 1.0f - tolerance) {
-				//printf("DOT %f", dot);
+				//logf("DOT %f", dot);
 				return false; // non-planar face
 			}
 		}
@@ -348,7 +362,7 @@ void print_color(int colors)
 {
 	if (!colors)
 	{
-		printf("\x1B[0m");
+		logf("\x1B[0m");
 		return;
 	}
 	const char* mode = colors & PRINT_BRIGHT ? "1" : "0";
@@ -363,6 +377,6 @@ void print_color(int colors)
 	case PRINT_GREEN | PRINT_BLUE:				color = "36"; break;
 	case PRINT_GREEN | PRINT_BLUE | PRINT_RED:	color = "36"; break;
 	}
-	printf("\x1B[%s;%sm", mode, color);
+	logf("\x1B[%s;%sm", mode, color);
 }
 #endif

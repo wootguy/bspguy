@@ -32,6 +32,7 @@
 // uniform scaling
 // fix flickering transform axes
 // highlight non-planar faces in vertex edit mode
+// subdivided faces can't be transformed in verte edit mode
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -49,9 +50,9 @@
 // delete embedded texture mipmaps to save space
 // vertex manipulation: face inversions should be invalid
 // vertex manipulation: max face extents should be invalid
+// vertex manipulation: colplanar node planes should be invalid
 
 // refactoring:
-// stop mixing printf+cout
 // stop mixing camel case and underscores
 // parse vertors in util, not Keyvalue
 // add class destructors and delete everything that's new'd
@@ -83,15 +84,25 @@ void remove_unused_data(Bsp* map) {
 	STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 	if (!removed.allZero()) {
-		printf("Deleting unused data:\n");
+		logf("Deleting unused data:\n");
 		removed.print_delete_stats(1);
 		g_progress.clear();
-		printf("\n");
+		logf("\n");
 	}
 }
 
-int test() {
+#ifdef WIN32
+#include <Windows.h>
+#endif
 
+void hideConsoleWindow() {
+#ifdef WIN32
+	::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+#endif
+}
+
+int test() {
+	hideConsoleWindow();
 	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
 	//renderer.addMap(new Bsp("hl_c09.bsp"));
@@ -143,15 +154,15 @@ int test() {
 			return 1;
 		}
 		if (!maps[i]->validate()) {
-			printf("");
+			logf("");
 		}
-		printf("Preprocess %s\n", maps[i]->name.c_str());
+		logf("Preprocess %s\n", maps[i]->name.c_str());
 		//maps[i]->delete_hull(2, 1);
 		//removed.add(maps[i]->delete_unused_hulls());
 		removed.add(maps[i]->remove_unused_model_structures());
 
 		if (!maps[i]->validate())
-			printf("");
+			logf("");
 
 		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
@@ -160,7 +171,7 @@ int test() {
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false);
-	printf("\n");
+	logf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
 		result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
@@ -173,7 +184,7 @@ int merge_maps(CommandLine& cli) {
 	vector<string> input_maps = cli.getOptionList("-maps");
 
 	if (input_maps.size() < 2) {
-		cout << "ERROR: at least 2 input maps are required\n";
+		logf("ERROR: at least 2 input maps are required\n");
 		return 1;
 	}
 
@@ -187,25 +198,25 @@ int merge_maps(CommandLine& cli) {
 	}
 
 	for (int i = 0; i < maps.size(); i++) {
-		printf("Preprocessing %s:\n", maps[i]->name.c_str());
+		logf("Preprocessing %s:\n", maps[i]->name.c_str());
 
-		printf("    Deleting unused data...\n");
+		logf("    Deleting unused data...\n");
 		STRUCTCOUNT removed = maps[i]->remove_unused_model_structures();
 		g_progress.clear();
 		removed.print_delete_stats(2);
 
 		if (cli.hasOption("-nohull2") || (cli.hasOption("-optimize") && !maps[i]->has_hull2_ents())) {
-			printf("    Deleting hull 2...\n");
+			logf("    Deleting hull 2...\n");
 			maps[i]->delete_hull(2, 1);
 			maps[i]->remove_unused_model_structures().print_delete_stats(2);
 		}
 
 		if (cli.hasOption("-optimize")) {
-			printf("    Optmizing...\n");
+			logf("    Optmizing...\n");
 			maps[i]->delete_unused_hulls().print_delete_stats(2);
 		}
 
-		printf("\n");
+		logf("\n");
 	}
 	
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
@@ -213,9 +224,9 @@ int merge_maps(CommandLine& cli) {
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"));
 
-	printf("\n");
+	logf("\n");
 	if (result->isValid()) result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
-	printf("\n");
+	logf("\n");
 	result->print_info(false, 0, 0);
 
 	for (int i = 0; i < maps.size(); i++) {
@@ -251,7 +262,7 @@ int print_info(CommandLine& cli) {
 			sortMode = SORT_VERTS;
 		}
 		else {
-			cout << "ERROR: invalid limit name: " << limitName << endl;
+			logf("ERROR: invalid limit name: %s\n", limitName.c_str());
 			return 0;
 		}
 	}
@@ -279,24 +290,24 @@ int noclip(CommandLine& cli) {
 		hull = cli.getOptionInt("-hull");
 
 		if (hull < 0 || hull >= MAX_MAP_HULLS) {
-			cout << "ERROR: hull number must be 0-3\n";
+			logf("ERROR: hull number must be 0-3\n");
 			return 1;
 		}
 	}
 
 	if (cli.hasOption("-redirect")) {
 		if (!cli.hasOption("-hull")) {
-			printf("ERROR: -redirect must be used with -hull\n");
+			logf("ERROR: -redirect must be used with -hull\n");
 			return 1;
 		}
 		redirect = cli.getOptionInt("-redirect");
 
 		if (redirect < 1 || redirect >= MAX_MAP_HULLS) {
-			cout << "ERROR: redirect hull number must be 1-3\n";
+			logf("ERROR: redirect hull number must be 1-3\n");
 			return 1;
 		}
 		if (redirect == hull) {
-			printf("ERROR: Can't redirect hull to itself\n");
+			logf("ERROR: Can't redirect hull to itself\n");
 			return 1;
 		}
 	}
@@ -307,20 +318,20 @@ int noclip(CommandLine& cli) {
 		model = cli.getOptionInt("-model");
 
 		if (model < 0 || model >= map->modelCount) {
-			cout << "ERROR: model number must be 0 - %d\n", map->modelCount;
+			logf("ERROR: model number must be 0 - %d\n", map->modelCount);
 			return 1;
 		}
 
 		if (hull != -1) {
 			if (redirect)
-				printf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
+				logf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
 			else
-				printf("Deleting HULL %d from model %d:\n", hull, model);
+				logf("Deleting HULL %d from model %d:\n", hull, model);
 			
 			map->delete_hull(hull, model, redirect);
 		}
 		else {
-			printf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
+			logf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				map->delete_hull(i, model, redirect);
 			}
@@ -328,19 +339,19 @@ int noclip(CommandLine& cli) {
 	}
 	else {
 		if (hull == 0) {
-			printf("HULL 0 can't be stripped globally. The entire map would be invisible!\n");
+			logf("HULL 0 can't be stripped globally. The entire map would be invisible!\n");
 			return 0;
 		}
 
 		if (hull != -1) {
 			if (redirect)
-				printf("Redirecting HULL %d to HULL %d:\n", hull, redirect);
+				logf("Redirecting HULL %d to HULL %d:\n", hull, redirect);
 			else
-				printf("Deleting HULL %d:\n", hull);
+				logf("Deleting HULL %d:\n", hull);
 			map->delete_hull(hull, redirect);
 		}
 		else {
-			printf("Deleting HULL 1, 2, and 3:\n", hull);
+			logf("Deleting HULL 1, 2, and 3:\n", hull);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				map->delete_hull(i, redirect);
 			}
@@ -352,11 +363,11 @@ int noclip(CommandLine& cli) {
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 	else if (redirect == 0)
-		printf("    Model hull(s) was previously deleted or redirected.");
-	printf("\n");
+		logf("    Model hull(s) was previously deleted or redirected.");
+	logf("\n");
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
-	printf("\n");
+	logf("\n");
 
 	map->print_info(false, 0, 0);
 
@@ -373,7 +384,7 @@ int simplify(CommandLine& cli) {
 	int hull = 0;
 
 	if (!cli.hasOption("-model")) {
-		printf("ERROR: -model is required\n");
+		logf("ERROR: -model is required\n");
 		return 1;
 	}
 
@@ -381,7 +392,7 @@ int simplify(CommandLine& cli) {
 		hull = cli.getOptionInt("-hull");
 
 		if (hull < 1 || hull >= MAX_MAP_HULLS) {
-			cout << "ERROR: hull number must be 1-3\n";
+			logf("ERROR: hull number must be 1-3\n");
 			return 1;
 		}
 	}
@@ -393,15 +404,15 @@ int simplify(CommandLine& cli) {
 	STRUCTCOUNT oldCounts(map);
 
 	if (modelIdx < 0 || modelIdx >= map->modelCount) {
-		cout << "ERROR: model number must be 0 - %d\n", map->modelCount;
+		logf("ERROR: model number must be 0 - %d\n", map->modelCount);
 		return 1;
 	}
 
 	if (hull != 0) {
-		printf("Simplifying HULL %d in model %d:\n", hull, modelIdx);
+		logf("Simplifying HULL %d in model %d:\n", hull, modelIdx);
 	}
 	else {
-		printf("Simplifying collision hulls in model %d:\n", modelIdx);
+		logf("Simplifying collision hulls in model %d:\n", modelIdx);
 	}
 
 	map->simplify_model_collision(modelIdx, hull);
@@ -416,10 +427,10 @@ int simplify(CommandLine& cli) {
 	if (!change.allZero())
 		change.print_delete_stats(1);
 
-	printf("\n");
+	logf("\n");
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
-	printf("\n");
+	logf("\n");
 
 	map->print_info(false, 0, 0);
 
@@ -438,18 +449,18 @@ int deleteCmd(CommandLine& cli) {
 	if (cli.hasOption("-model")) {
 		int modelIdx = cli.getOptionInt("-model");
 
-		printf("Deleting model %d:\n", modelIdx);
+		logf("Deleting model %d:\n", modelIdx);
 		map->delete_model(modelIdx);
 		map->update_ent_lump();
 		STRUCTCOUNT removed = map->remove_unused_model_structures();
 
 		if (!removed.allZero())
 			removed.print_delete_stats(1);
-		printf("\n");
+		logf("\n");
 	}
 
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
-	printf("\n");
+	logf("\n");
 
 	map->print_info(false, 0, 0);
 
@@ -466,18 +477,18 @@ int transform(CommandLine& cli) {
 	if (cli.hasOptionVector("-move")) {
 		move = cli.getOptionVector("-move");
 
-		printf("Applying offset (%.2f, %.2f, %.2f)\n",
+		logf("Applying offset (%.2f, %.2f, %.2f)\n",
 			move.x, move.y, move.z);
 
 		map->move(move);
 	}
 	else {
-		printf("ERROR: at least one transformation option is required\n");
+		logf("ERROR: at least one transformation option is required\n");
 		return 1;
 	}
 	
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
-	printf("\n");
+	logf("\n");
 
 	map->print_info(false, 0, 0);
 
@@ -486,7 +497,7 @@ int transform(CommandLine& cli) {
 
 void print_help(string command) {
 	if (command == "merge") {
-		cout <<
+		logf(
 			"merge - Merges two or more maps together\n\n"
 
 			"Usage:   bspguy merge <mapname> -maps \"map1, map2, ... mapN\" [options]\n"
@@ -505,10 +516,10 @@ void print_help(string command) {
 			"                 entity edits from being made (except for origins).\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
 			"  -v           : Verbose console output.\n"
-			;
+			);
 	}
 	else if (command == "info") {
-		cout <<
+		logf(
 			"info - Show BSP data summary\n\n"
 
 			"Usage:   bspguy info <mapname> [options]\n"
@@ -518,10 +529,10 @@ void print_help(string command) {
 			"  -limit <name> : List the models contributing most to the named limit.\n"
 			"                  <name> can be one of: [clipnodes, nodes, faces, vertexes]\n"
 			"  -all          : Show the full list of models when using -limit.\n"
-			;
+			);
 	}
 	else if (command == "noclip") {
-		cout <<
+		logf(
 			"noclip - Delete some clipnodes from the BSP\n\n"
 
 			"Usage:   bspguy noclip <mapname> [options]\n"
@@ -539,10 +550,10 @@ void print_help(string command) {
 			"                monsters to function normally instead of falling out of the world.\n"
 			"                Must be used with the -hull option.\n"
 			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
-			;
+			);
 	}
 	else if (command == "simplify") {
-		cout <<
+		logf(
 			"simplify - Replaces model hulls with a simple bounding box\n\n"
 
 			"Usage:   bspguy simplify <mapname> [options]\n"
@@ -555,10 +566,10 @@ void print_help(string command) {
 			"                2 = Large monsters and pushables\n"
 			"                3 = Small monsters, crouching players, and melee attacks\n"
 			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
-			;
+			);
 	}
 	else if (command == "delete") {
-		cout <<
+		logf(
 			"delete - Delete BSP models.\n\n"
 
 			"Usage:   bspguy delete <mapname> [options]\n"
@@ -568,10 +579,10 @@ void print_help(string command) {
 			"  -model #  : Model to delete. Entities that reference the deleted\n"
 			"              model will be updated to use error.mdl instead.\n"
 			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
-			;
+			);
 	}
 	else if (command == "transform") {
-		cout <<
+		logf(
 			"transform - Apply 3D transformations\n\n"
 
 			"Usage:   bspguy transform <mapname> [options]\n"
@@ -580,10 +591,11 @@ void print_help(string command) {
 			"\n[Options]\n"
 			"  -move \"X,Y,Z\" : Units to move the map on each axis.\n"
 			"  -o <file>     : Output file. By default, <mapname> is overwritten.\n"
-			;
+			);
 	}
 	else {
-		cout << version_string << endl << endl <<
+		logf("%s\n\n", version_string);
+		logf(
 			"This tool modifies Sven Co-op BSPs without having to decompile them.\n\n"
 			"Usage: bspguy <command> <mapname> [options]\n"
 
@@ -596,7 +608,7 @@ void print_help(string command) {
 			"  transform : Apply 3D transformations to the BSP\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
-			;
+			);
 	}
 }
 
@@ -612,12 +624,12 @@ int main(int argc, char* argv[])
 	}
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
-		printf(version_string);
+		logf(version_string);
 		return 0;
 	}
 
 	if (cli.bspfile.empty()) {
-		cout << "ERROR: no map specified\n"; return 1;
+		logf("ERROR: no map specified\n"); return 1;
 	}
 
 	if (cli.hasOption("-v")) {
@@ -643,7 +655,7 @@ int main(int argc, char* argv[])
 		return merge_maps(cli);
 	}
 	else {
-		cout << "unrecognized command: " << cli.command << endl;
+		logf("unrecognized command: %d\n", cli.command.c_str());
 	}
 
 	return 0;

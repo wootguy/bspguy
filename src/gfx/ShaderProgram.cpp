@@ -30,10 +30,10 @@ void ShaderProgram::link()
 		char * log = new char[1024];
 		int len;
 		glGetProgramInfoLog(ID, 1024, &len, log);
-		printf("Shader Program Link Failure:\n");
-		printf(log);
+		logf("Shader Program Link Failure:\n");
+		logf(log);
 		if (len > 1024)
-			printf("\nLog too big to fit!\n");
+			logf("\nLog too big to fit!\n");
 		delete [] log;
 	}
 }
@@ -89,13 +89,13 @@ void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * mode
 	{
 		modelViewID = glGetUniformLocation(ID, modelViewMat);
 		if (modelViewID == -1)
-			printf("Could not find modelView uniform: %s\n", modelViewMat);
+			logf("Could not find modelView uniform: %s\n", modelViewMat);
 	}
 	if (modelViewProjMat != NULL)
 	{
 		modelViewProjID = glGetUniformLocation(ID, modelViewProjMat);
 		if (modelViewProjID == -1)
-			printf("Could not find modelViewProjection uniform: %s\n", modelViewProjMat); 
+			logf("Could not find modelViewProjection uniform: %s\n", modelViewProjMat); 
 	}
 }
 
@@ -104,17 +104,17 @@ void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * c
 	if (posAtt != NULL)
 	{
 		vposID = glGetAttribLocation(ID, posAtt);
-		if (vposID == -1) printf("Could not find vposition attribute: %s\n", posAtt);
+		if (vposID == -1) logf("Could not find vposition attribute: %s\n", posAtt);
 	}
 	if (colorAtt != NULL)
 	{
 		vcolorID = glGetAttribLocation(ID, colorAtt);
-		if (vcolorID == -1) printf("Could not find vcolor attribute: %s\n", colorAtt);
+		if (vcolorID == -1) logf("Could not find vcolor attribute: %s\n", colorAtt);
 	}
 	if (texAtt != NULL)
 	{
 		vtexID = glGetAttribLocation(ID, texAtt);
-		if (vtexID == -1) printf("Could not find vtexture attribute: %s\n", texAtt); 
+		if (vtexID == -1) logf("Could not find vtexture attribute: %s\n", texAtt); 
 	}
 }
 
@@ -139,7 +139,7 @@ void ShaderProgram::popMatrix( int matType )
 				stack.pop_back();
 			}
 			else
-				printf("Can't pop matrix. Stack is empty.\n");
+				logf("Can't pop matrix. Stack is empty.\n");
 		}
 	}
 

@@ -10,13 +10,13 @@ BspMerger::BspMerger() {
 
 Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 	if (maps.size() < 1) {
-		printf("\nMore than 1 map is required for merging. Aborting merge.\n");
+		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
 	}
 
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
-	printf("\nArranging maps so that they don't overlap:\n");
+	logf("\nArranging maps so that they don't overlap:\n");
 
 	for (int z = 0; z < blocks.size(); z++) {
 		for (int y = 0; y < blocks[z].size(); y++) {
@@ -24,7 +24,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 				MAPBLOCK& block = blocks[z][y][x];
 
 				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
-					printf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n", 
+					logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n", 
 						block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
 					block.map->move(block.offset);
 				}
@@ -44,7 +44,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 	// TODO: Don't merge linearly. Merge gradually bigger chunks to minimize BSP tree depth.
 	//       Not worth it until more than 27 maps are merged together (merge cube bigger than 3x3x3)
 
-	printf("\nMerging %d maps:\n", maps.size());
+	logf("\nMerging %d maps:\n", maps.size());
 
 	// merge maps along X axis to form rows of maps
 	int rowId = 0;
@@ -56,7 +56,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 				MAPBLOCK& block = blocks[z][y][x];
 
 				if (x != 0) {
-					//printf("Merge %d,%d,%d -> %d,%d,%d\n", x, y, z, 0, y, z);
+					//logf("Merge %d,%d,%d -> %d,%d,%d\n", x, y, z, 0, y, z);
 					string merge_name = ++mergeCount < maps.size() ? "row_" + to_string(rowId) : "result";
 					merge(rowStart, block, merge_name);
 				}
@@ -73,7 +73,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 			MAPBLOCK& block = blocks[z][y][0];
 
 			if (y != 0) {
-				//printf("Merge %d,%d,%d -> %d,%d,%d\n", 0, y, z, 0, 0, z);
+				//logf("Merge %d,%d,%d -> %d,%d,%d\n", 0, y, z, 0, 0, z);
 				string merge_name = ++mergeCount < maps.size() ? "layer_" + to_string(colId) : "result";
 				merge(colStart, block, merge_name);
 			}
@@ -87,7 +87,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 		MAPBLOCK& block = blocks[z][0][0];
 
 		if (z != 0) {
-			//printf("Merge %d,%d,%d -> %d,%d,%d\n", 0, 0, z, 0, 0, 0);
+			//logf("Merge %d,%d,%d -> %d,%d,%d\n", 0, 0, z, 0, 0, 0);
 			merge(layerStart, block, "result");
 		}
 	}
@@ -101,7 +101,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent) {
 				for (int x = 0; x < blocks[z][y].size(); x++)
 					flattenedBlocks.push_back(blocks[z][y][x]);
 
-		printf("\nUpdating map series entity logic:\n");
+		logf("\nUpdating map series entity logic:\n");
 		update_map_series_entity_logic(output, flattenedBlocks, maps[0]->name);
 	}
 
@@ -112,7 +112,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
 	string thisName = dst.merge_name.size() ? dst.merge_name : dst.map->name;
 	string otherName = src.merge_name.size() ? src.merge_name : src.map->name;
 	dst.merge_name = resultType;
-	printf("    %-8s = %s + %s\n", dst.merge_name.c_str(), thisName.c_str(), otherName.c_str());
+	logf("    %-8s = %s + %s\n", dst.merge_name.c_str(), thisName.c_str(), otherName.c_str());
 
 	merge(*dst.map, *src.map);
 }
@@ -156,7 +156,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	}
 
 	if (noOverlap) {
-		printf("Maps do not overlap. They will be merged without moving.");
+		logf("Maps do not overlap. They will be merged without moving.");
 		return orderedBlocks;
 	}
 
@@ -173,7 +173,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	}
 
 	if (maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer < maps.size()) {
-		printf("Not enough space to merge all maps! Try moving them individually before merging.");
+		logf("Not enough space to merge all maps! Try moving them individually before merging.");
 		return orderedBlocks;
 	}
 
@@ -181,15 +181,15 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	vec3 mergedMapMin = mergedMapSize * -0.5f;
 	vec3 mergedMapMax = mergedMapMin + mergedMapSize;
 
-	printf("Max map size:      width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);
-	printf("Max maps per axis: x=%d y=%d z=%d  (total=%d)\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer, maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
+	logf("Max map size:      width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);
+	logf("Max maps per axis: x=%d y=%d z=%d  (total=%d)\n", maxMapsPerRow, maxMapsPerCol, maxMapsPerLayer, maxMapsPerRow * maxMapsPerCol * maxMapsPerLayer);
 
 	int actualWidth = min(idealMapsPerAxis, (int)maps.size());
 	int actualLength = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis)));
 	int actualHeight = min(idealMapsPerAxis, (int)ceil(maps.size() / (float)(idealMapsPerAxis * idealMapsPerAxis)));
-	printf("Merged map size:   %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
+	logf("Merged map size:   %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
 
-	printf("Merged map bounds: min=(%.0f, %.0f, %.0f)\n"
+	logf("Merged map bounds: min=(%.0f, %.0f, %.0f)\n"
 		 "                   max=(%.0f, %.0f, %.0f)\n",
 		mergedMapMin.x, mergedMapMin.y, mergedMapMin.z,
 		mergedMapMax.x, mergedMapMax.y, mergedMapMax.z);
@@ -206,8 +206,8 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 				MAPBLOCK& block = blocks[blockIdx];
 
 				block.offset = targetMins - block.mins;
-				//printf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
-				//printf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
+				//logf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
+				//logf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
 
 				row.push_back(block);
 
@@ -281,7 +281,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// re-enable when map is loading
 				if (load_map_triggers[source_map].find(tname) == load_map_triggers[source_map].end()) {
 					load_map_triggers[source_map].insert(tname);
-					//cout << "-   Disabling spawn points in " << source_map << endl;
+					//logf << "-   Disabling spawn points in " << source_map << endl;
 				}
 
 				updated_spawns++;
@@ -355,7 +355,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// re-enable when map is loading
 				if (load_map_triggers[source_map].find(spawn_name) == load_map_triggers[source_map].end()) {
 					load_map_triggers[source_map].insert(spawn_name);
-					//cout << "-   Disabling monster_* in " << source_map << endl;
+					//logf << "-   Disabling monster_* in " << source_map << endl;
 				}
 			}
 
@@ -381,7 +381,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			// TODO: keep_inventory flag?
 
 			if (spawnflags & 2 && tname.empty())
-				cout << "\nWarning: use-only trigger_changelevel has no targetname\n";
+				logf("\nWarning: use-only trigger_changelevel has no targetname\n");
 
 			if (!(spawnflags & 2)) {
 				string model = ent->keyvalues["model"];
@@ -592,10 +592,10 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 	g_progress.clear();
 
-	printf("    Replaced %d level transitions\n", replaced_changelevels);
-	printf("    Updated %d spawn points\n", updated_spawns);
-	printf("    Replaced %d monster_* ents with squadmakers\n", updated_monsters);
-	printf("    Renamed %d entities to prevent conflicts between map sections\n", updated_monsters);
+	logf("    Replaced %d level transitions\n", replaced_changelevels);
+	logf("    Updated %d spawn points\n", updated_spawns);
+	logf("    Replaced %d monster_* ents with squadmakers\n", updated_monsters);
+	logf("    Renamed %d entities to prevent conflicts between map sections\n", updated_monsters);
 
 	mergedMap->update_ent_lump();
 }
@@ -637,7 +637,7 @@ int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 			string oldName = *it2;
 			string newName = oldName + "_" + to_string(renameSuffix++);
 
-			//cout << "\nRenaming " << *it2 << " to " << newName << endl;
+			//logf << "\nRenaming " << *it2 << " to " << newName << endl;
 
 			for (int i = 0; i < mergedMap->ents.size(); i++) {
 				Entity* ent = mergedMap->ents[i];
@@ -659,7 +659,7 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 
 	BSPPLANE separationPlane = separate(mapA, mapB);
 	if (separationPlane.nType == -1) {
-		printf("No separating axis found. The maps overlap and can't be merged.\n");
+		logf("No separating axis found. The maps overlap and can't be merged.\n");
 		return false;
 	}
 
@@ -681,10 +681,10 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 		}
 
 		if (!mapA.lumps[i] && !mapB.lumps[i]) {
-			//cout << "Skipping " << g_lump_names[i] << " lump (missing from both maps)\n";
+			//logf << "Skipping " << g_lump_names[i] << " lump (missing from both maps)\n";
 		}
 		else if (!mapA.lumps[i]) {
-			cout << "Replacing " << g_lump_names[i] << " lump\n";
+			logf("Replacing %s lump\n", g_lump_names[i]);
 			mapA.header.lump[i].nLength = mapB.header.lump[i].nLength;
 			mapA.lumps[i] = new byte[mapB.header.lump[i].nLength];
 			memcpy(mapA.lumps[i], mapB.lumps[i], mapB.header.lump[i].nLength);
@@ -696,10 +696,10 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 			}
 		}
 		else if (!mapB.lumps[i]) {
-			cout << "Keeping " << g_lump_names[i] << " lump\n";
+			logf("Keeping %s lump\n", g_lump_names[i]);
 		}
 		else {
-			//cout << "Merging " << g_lump_names[i] << " lump\n";
+			//logf << "Merging " << g_lump_names[i] << " lump\n";
 
 			shouldMerge[i] = true;
 		}
@@ -799,12 +799,12 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 	else {
 		separationPlane.nType = -1; // no simple separating axis
 
-		printf("Bounding boxes for each map:\n");
-		printf("(%6.0f, %6.0f, %6.0f)", amin.x, amin.y, amin.z);
-		printf(" - (%6.0f, %6.0f, %6.0f) %s\n", amax.x, amax.y, amax.z, mapA.name.c_str());
+		logf("Bounding boxes for each map:\n");
+		logf("(%6.0f, %6.0f, %6.0f)", amin.x, amin.y, amin.z);
+		logf(" - (%6.0f, %6.0f, %6.0f) %s\n", amax.x, amax.y, amax.z, mapA.name.c_str());
 
-		printf("(%6.0f, %6.0f, %6.0f)", bmin.x, bmin.y, bmin.z);
-		printf(" - (%6.0f, %6.0f, %6.0f) %s\n", bmax.x, bmax.y, bmax.z, mapB.name.c_str());
+		logf("(%6.0f, %6.0f, %6.0f)", bmin.x, bmin.y, bmin.z);
+		logf(" - (%6.0f, %6.0f, %6.0f) %s\n", bmax.x, bmax.y, bmax.z, mapB.name.c_str());
 	}
 
 	return separationPlane;
@@ -925,7 +925,7 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 	int newLen = mergedPlanes.size() * sizeof(BSPPLANE);
 	int duplicates = (mapA.planeCount + mapB.planeCount) - mergedPlanes.size();
 
-	//printf("\nRemoved %d duplicate planes\n", duplicates);
+	//logf("\nRemoved %d duplicate planes\n", duplicates);
 
 	byte* newPlanes = new byte[newLen];
 	memcpy(newPlanes, &mergedPlanes[0], newLen);
@@ -1476,7 +1476,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 	if (swapNodeChildren)
 		separationPlane.vNormal = separationPlane.vNormal.invert();
 
-	//printf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
+	//logf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
 
 	// write separating plane
 
@@ -1520,7 +1520,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 
 		BSPCLIPNODE newHeadNodes[NEW_NODE_COUNT];
 		for (int i = 0; i < NEW_NODE_COUNT; i++) {
-			//printf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
+			//logf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
 			newHeadNodes[i] = {
 				separationPlaneIdx,	// plane idx
 				{	// child nodes

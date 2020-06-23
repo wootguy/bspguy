@@ -1549,7 +1549,7 @@ int main(int argc, char *argv[])
 
   error = lodepng_decode32_file(&image, &width, &height, filename);
 
-  if(error) printf("decoder error %u: %s\n", error, lodepng_error_text(error));
+  if(error) logf("decoder error %u: %s\n", error, lodepng_error_text(error));
 
   / * use image here * /
 

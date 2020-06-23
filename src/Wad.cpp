@@ -34,7 +34,7 @@ bool Wad::readInfo()
 
 	if (!fileExists(file))
 	{
-		cout << filename + " does not exist!\n";
+		logf("%s does not exist!\n", filename.c_str());
 		return false;
 	}
 
@@ -81,7 +81,7 @@ bool Wad::readInfo()
 	bool usableTextures = false;
 	for (int i = 0; i < numTex; i++)
 	{
-		if (fin.eof()) { cout << "Unexpected end of WAD\n"; return false; }
+		if (fin.eof()) { logf("Unexpected end of WAD\n"); return false; }
 		fin.read((char*)&dirEntries[i], sizeof(WADDIRENTRY)); 
 		if (dirEntries[i].nType == 0x43) usableTextures = true;
 	}
@@ -91,7 +91,7 @@ bool Wad::readInfo()
 	{
 		delete [] dirEntries;
 		dirEntries = NULL;
-		cout << filename + " contains no regular textures\n";
+		logf("%s contains no regular textures\n", filename.c_str());
 		return false; // we can't use these types of textures (see fonts.wad as an example)
 	}
 	
@@ -123,7 +123,7 @@ WADTEX * Wad::readTexture( int dirIndex )
 {
 	if (dirIndex < 0 || dirIndex >= numTex)
 	{
-		cout << "invalid wad directory index\n";
+		logf("invalid wad directory index\n");
 		return NULL;
 	}
 	//if (cache != NULL)
@@ -158,7 +158,7 @@ WADTEX * Wad::readTexture( const string& texname )
 	}
 	if (dirEntries[idx].bCompression)
 	{
-		cout << "OMG texture is compressed. I'm too scared to load it :<\n";
+		logf("OMG texture is compressed. I'm too scared to load it :<\n");
 		return NULL;
 	}
 	fin.seekg(dirEntries[idx].nFilePos);

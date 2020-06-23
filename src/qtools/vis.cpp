@@ -18,11 +18,11 @@ void printVisRow(byte* vis, int len, int offsetLeaf, int mask) {
 				else
 					print_color(PRINT_RED | PRINT_GREEN | PRINT_BLUE);
 			}
-			printf("%d", (bits >> b) & 1);
+			logf("%d", (bits >> b) & 1);
 		}
-		printf(" ");
+		logf(" ");
 	}
-	printf("\n");
+	logf("\n");
 }
 
 bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
@@ -53,14 +53,14 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 	}
 
 	if (g_debug_shift) {
-		printf("\nSHIFT\n");
+		logf("\nSHIFT\n");
 	}
 
 	int overflow = 0;
 	for (int k = 0; k < bitShifts; k++) {
 
 		if (g_debug_shift) {
-			printf("%2d = ", k);
+			logf("%2d = ", k);
 			printVisRow(vis, len, offsetLeaf, mask);
 		}
 
@@ -108,12 +108,12 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 		}
 
 		if (g_debug_shift && k == bitShifts-1) {
-			printf("%2d = ", k+1);
+			logf("%2d = ", k+1);
 			printVisRow(vis, len, offsetLeaf, mask);
 		}
 	}
 	if (overflow)
-		printf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
+		logf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
 
 
 	if (byteShifts > 0) {
@@ -322,7 +322,7 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 		if (vismap_p > output + bufferSize)
 		{
-			printf("Vismap expansion overflow\n");
+			logf("Vismap expansion overflow\n");
 		}
 
 		leafs[i + 1].nVisOffset = dest - output;            // leaf 0 is a common solid

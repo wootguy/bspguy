@@ -27,13 +27,19 @@ private:
 	bool showDebugWidget;
 	bool showKeyvalueWidget;
 	bool showTransformWidget;
+	bool showLogWidget;
 	bool smartEdit;
 	ImFont* smallFont;
 	ImFont* largeFont;
+	ImFont* consoleFont;
 
 	int guiHoverAxis; // axis being hovered in the transform menu
 	int contextMenuEnt; // open entity context menu if >= 0
 	int emptyContextMenu; // open context menu for rightclicking world/void
+
+	ImGuiTextBuffer Buf;
+	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
+	bool AutoScroll = true;  // Keep scrolling if already at the bottom
 
 	void draw3dContextMenus();
 	void drawMenuBar();
@@ -45,4 +51,8 @@ private:
 	void drawKeyvalueEditor_FlagsTab(Entity* ent);
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
 	void drawTransformWidget();
+	void drawLog();
+
+	void clearLog();
+	void addLog(const char* s);
 };

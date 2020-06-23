@@ -8,8 +8,8 @@
 #define TEXTURE_STEP        16 // this constant was previously defined in lightmap.cpp. --vluzacn
 #define TEX_SPECIAL     1    // sky or slime or null, no lightmap or 256 subdivision
 
-#define assume(exp, message) {if (!(exp)) {printf("\n***** ERROR *****\nAssume '%s' failed\n at %s:%d\n %s\n\n", #exp, __FILE__, __LINE__, message); }}
-#define hlassume(exp, message) {if (!(exp)) {printf("\n***** ERROR *****\nAssume '%s' failed\n at %s:%d\n %s\n\n", #exp, __FILE__, __LINE__, #message); }}
+#define assume(exp, message) {if (!(exp)) {logf("\n***** ERROR *****\nAssume '%s' failed\n at %s:%d\n %s\n\n", #exp, __FILE__, __LINE__, message); }}
+#define hlassume(exp, message) {if (!(exp)) {logf("\n***** ERROR *****\nAssume '%s' failed\n at %s:%d\n %s\n\n", #exp, __FILE__, __LINE__, #message); }}
 
 #define qmax(a,b)            (((a) > (b)) ? (a) : (b)) // changed 'max' to 'qmax'. --vluzacn
 #define qmin(a,b)            (((a) < (b)) ? (a) : (b)) // changed 'min' to 'qmin'. --vluzacn

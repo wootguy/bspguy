@@ -122,7 +122,7 @@ const BSPPLANE* getPlaneFromFace(const BSPFACE* const face)
 {
 	if (!face)
 	{
-		printf("getPlaneFromFace() face was NULL\n");
+		logf("getPlaneFromFace() face was NULL\n");
 	}
 
 	if (face->nPlaneSide)
@@ -286,7 +286,7 @@ void GetFaceLightmapSize(int facenum, int size[2]) {
 
 	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
 	{
-		//printf("Bad surface extents (%d x %d)\n", size[0], size[1]);
+		//logf("Bad surface extents (%d x %d)\n", size[0], size[1]);
 		size[0] = min(size[0], MAX_SURFACE_EXTENT);
 		size[1] = min(size[1], MAX_SURFACE_EXTENT);
 	}
@@ -428,7 +428,7 @@ void CalcFaceExtents(lightinfo_t* l)
 			|| l->texsize[0] < 0 || l->texsize[1] < 0 //--vluzacn
 			)
 		{
-			//printf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
+			//logf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
 			l->texsize[0] = min(l->texsize[0], MAX_SURFACE_EXTENT);
 			l->texsize[1] = min(l->texsize[1], MAX_SURFACE_EXTENT);
 		}

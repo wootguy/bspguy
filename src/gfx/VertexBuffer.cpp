@@ -40,7 +40,7 @@ VertexAttr::VertexAttr( int numValues, int valueType, int handle, int normalized
 		size = numValues * 4;
 		break;
 	default:
-		printf("Unknown attribute value type: %d", valueType);
+		logf("Unknown attribute value type: %d", valueType);
 		handle = -1;
 		size = 0;
 	}
@@ -79,7 +79,7 @@ void VertexBuffer::addAttributes( int attFlags )
 			else if (i >= VBUF_TEX_START)
 				commonAttr[i].handle = shaderProgram->vtexID;
 			else
-				printf("Unused vertex buffer flag bit %d", i);
+				logf("Unused vertex buffer flag bit %d", i);
 
 			attribs.push_back(commonAttr[i]);
 			elementSize += commonAttr[i].size;
@@ -91,7 +91,7 @@ void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, co
 	VertexAttr attribute(numValues, valueType, -1, normalized);
 
 	attribute.handle = glGetAttribLocation(shaderProgram->ID, varName);
-	if (attribute.handle == -1) printf("Could not find vertex attribute: %s\n", varName);
+	if (attribute.handle == -1) logf("Could not find vertex attribute: %s\n", varName);
 
 	attribs.push_back(attribute);
 	elementSize += attribute.size;
@@ -106,14 +106,14 @@ void VertexBuffer::addAttribute(int type, const char* varName) {
 	}
 
 	if (idx >= VBUF_FLAGBITS) {
-		printf("Invalid attribute type\n");
+		logf("Invalid attribute type\n");
 		return;
 	}
 
 	VertexAttr attribute = commonAttr[idx];
 
 	attribute.handle = glGetAttribLocation(shaderProgram->ID, varName);
-	if (attribute.handle == -1) printf("Could not find vertex attribute: %s\n", varName);
+	if (attribute.handle == -1) logf("Could not find vertex attribute: %s\n", varName);
 
 	attribs.push_back(attribute);
 	elementSize += attribute.size;
@@ -168,11 +168,11 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	}
 
 	if (start < 0 || start > numVerts)
-		printf("Invalid start index: %d\n", start);
+		logf("Invalid start index: %d\n", start);
 	else if (end > numVerts || end < 0)
-		printf("Invalid start index: %d\n", end);
+		logf("Invalid start index: %d\n", end);
 	else if (end - start <= 0)
-		printf("Invalid draw range: %d -> %d\n", start, end);
+		logf("Invalid draw range: %d -> %d\n", start, end);
 	else
 		glDrawArrays(primitive, start, end-start);
 

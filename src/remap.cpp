@@ -66,21 +66,21 @@ void print_stat(int indent, int stat, const char* data) {
 	if (!stat)
 		return;
 	for (int i = 0; i < indent; i++)
-		printf("    ");
+		logf("    ");
 	const char* plural = "s";
 	if (string(data) == "vertex") {
 		plural = "es";
 	}
 
-	printf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
+	logf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
 }
 
 void print_stat_mem(int indent, int bytes, const char* data) {
 	if (!bytes)
 		return;
 	for (int i = 0; i < indent; i++)
-		printf("    ");
-	printf("%s %.2f KB of %s\n", bytes > 0 ? "Deleted" : "Added", abs(bytes) / 1024.0f, data);
+		logf("    ");
+	logf("%s %.2f KB of %s\n", bytes > 0 ? "Deleted" : "Added", abs(bytes) / 1024.0f, data);
 }
 
 void STRUCTCOUNT::print_delete_stats(int indent) {

@@ -9,7 +9,7 @@
 
 void error_callback(int error, const char* description)
 {
-	printf("GLFW Error: %s\n", description);
+	logf("GLFW Error: %s\n", description);
 }
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -28,7 +28,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 Renderer::Renderer() {
 	if (!glfwInit())
 	{
-		printf("GLFW initialization failed\n");
+		logf("GLFW initialization failed\n");
 		return;
 	}
 
@@ -40,7 +40,7 @@ Renderer::Renderer() {
 	window = glfwCreateWindow(1920, 1080, "bspguy", NULL, NULL);
 	if (!window)
 	{
-		printf("Window creation failed\n");
+		logf("Window creation failed\n");
 		return;
 	}
 
@@ -216,7 +216,7 @@ void Renderer::renderLoop() {
 
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
-		//printf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
+		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
 		gui->draw();
 
@@ -398,7 +398,7 @@ void Renderer::vertexEditControls() {
 		}
 
 		if (selectedEdges.size() != 2) {
-			printf("Exactly 2 edges must be selected before splitting a face\n");
+			logf("Exactly 2 edges must be selected before splitting a face\n");
 		}
 
 		HullEdge& edge1 = modelEdges[selectedEdges[0]];
@@ -416,7 +416,7 @@ void Renderer::vertexEditControls() {
 		}
 
 		if (commonPlane == -1) {
-			printf("Can't split edges that don't share a plane\n");
+			logf("Can't split edges that don't share a plane\n");
 		}
 
 		BSPPLANE& splitPlane = pickInfo.map->planes[commonPlane];
@@ -1232,7 +1232,7 @@ void Renderer::updateModelVerts() {
 		vec3 plane_x = (modelVerts[verts[1]].pos - modelVerts[verts[0]].pos).normalize();
 		vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
 		if (fabs(dotProduct(plane_z, plane_x)) > 0.99f) {
-			printf("ZOMG CHANGE NORMAL\n");
+			logf("ZOMG CHANGE NORMAL\n");
 		}
 		mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 
@@ -1291,7 +1291,7 @@ void Renderer::updateModelVerts() {
 				}
 			}
 			if (planeCount != 2) {
-				printf("ERROR: Edge connected to %d planes!\n", planeCount);
+				logf("ERROR: Edge connected to %d planes!\n", planeCount);
 			}
 
 			modelEdges.push_back(edge);
@@ -1301,7 +1301,7 @@ void Renderer::updateModelVerts() {
 	int numCubes = modelVerts.size() + modelEdges.size();
 	modelVertCubes = new cCube[numCubes];
 	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
-	printf("%d intersection points\n", modelVerts.size());
+	logf("%d intersection points\n", modelVerts.size());
 }
 
 void Renderer::scaleSelectedObject(float x, float y, float z) {

@@ -28,11 +28,11 @@ FgdClass* Fgd::getFgdClass(string cname) {
 void Fgd::parse() {
 
 	if (!fileExists(path)) {
-		printf("Missing FGD: %s\n", path.c_str());
+		logf("Missing FGD: %s\n", path.c_str());
 		return;
 	}
 
-	printf("Parsing %s\n", path.c_str());
+	logf("Parsing %s\n", path.c_str());
 
 	ifstream in(path);
 
@@ -58,7 +58,7 @@ void Fgd::parse() {
 		
 		if (line[0] == '@') {
 			if (bracketNestLevel) {
-				printf("ERROR: New FGD class definition starts before previous one ends (line %d)\n", lineNum);
+				logf("ERROR: New FGD class definition starts before previous one ends (line %d)\n", lineNum);
 			}
 
 			parseClassHeader(*fgdClass);
@@ -85,7 +85,7 @@ void Fgd::parse() {
 
 		if (bracketNestLevel == 2) {
 			if (fgdClass->keyvalues.size() == 0) {
-				printf("ERROR: Choice values begin before any keyvalue are defined (line %d)\n", lineNum);
+				logf("ERROR: Choice values begin before any keyvalue are defined (line %d)\n", lineNum);
 				continue;
 			}
 			KeyvalueDef& lastKey = fgdClass->keyvalues[fgdClass->keyvalues.size()-1];
@@ -116,7 +116,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 		fgdClass.classType = FGD_CLASS_POINT;
 	}
 	else {
-		printf("ERROR: Unrecognized FGD class type '%s'\n", typeParts[0].c_str());
+		logf("ERROR: Unrecognized FGD class type '%s'\n", typeParts[0].c_str());
 	}
 	
 	// parse constructors/properties
@@ -143,7 +143,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 				fgdClass.maxs = parseVector(sizeList[1]);
 			}
 			else {
-				printf("ERROR: Expected 2 vectors in size() property (line %d)\n", lineNum);
+				logf("ERROR: Expected 2 vectors in size() property (line %d)\n", lineNum);
 			}
 
 			fgdClass.sizeSet = true;
@@ -155,7 +155,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 				fgdClass.color = { (byte)atoi(nums[0].c_str()), (byte)atoi(nums[1].c_str()), (byte)atoi(nums[2].c_str()) };
 			}
 			else {
-				printf("ERROR: Expected 3 components in color() property (line %d)\n", lineNum);
+				logf("ERROR: Expected 3 components in color() property (line %d)\n", lineNum);
 			}
 
 			fgdClass.colorSet = true;
@@ -176,12 +176,12 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 		}
 		else if (typeParts[i].find("(") != string::npos) {
 			string typeName = typeParts[i].substr(0, typeParts[i].find("("));
-			printf("WARNING: Unrecognized type %s (line %d)\n", typeName.c_str(), lineNum);
+			logf("WARNING: Unrecognized type %s (line %d)\n", typeName.c_str(), lineNum);
 		}
 	}
 
 	if (headerParts.size() == 0) {
-		printf("ERROR: Unexpected end of class header (line %d)\n", lineNum);
+		logf("ERROR: Unexpected end of class header (line %d)\n", lineNum);
 		return;
 	}
 
@@ -234,7 +234,7 @@ void Fgd::parseKeyvalue(FgdClass& outClass) {
 
 	outClass.keyvalues.push_back(def);
 
-	//cout << "ADD KEY " << def.name << "(" << def.valueType << ") : " << def.description << " : " << def.defaultValue << endl;
+	//logf << "ADD KEY " << def.name << "(" << def.valueType << ") : " << def.description << " : " << def.defaultValue << endl;
 }
 
 void Fgd::parseChoicesOrFlags(KeyvalueDef& outKey) {
@@ -258,7 +258,7 @@ void Fgd::parseChoicesOrFlags(KeyvalueDef& outKey) {
 
 	outKey.choices.push_back(def);
 
-	//cout << "ADD CHOICE LINE " << lineNum << " = " << def.svalue << " : " << def.name << endl;
+	//logf << "ADD CHOICE LINE " << lineNum << " = " << def.svalue << " : " << def.name << endl;
 }
 
 vector<string> Fgd::groupParts(vector<string>& ungrouped) {
@@ -318,7 +318,7 @@ string Fgd::getValueInQuotes(string s) {
 void Fgd::processClassInheritance() {
 	for (int i = 0; i < classes.size(); i++) {
 		classMap[classes[i]->name] = classes[i];
-		//printf("Got class %s\n", classes[i]->name.c_str());
+		//logf("Got class %s\n", classes[i]->name.c_str());
 	}
 
 	for (int i = 0; i < classes.size(); i++) {
@@ -334,7 +334,7 @@ void Fgd::processClassInheritance() {
 			vector<KeyvalueChoice> newSpawnflags;
 			set<string> addedKeys;
 			set<string> addedSpawnflags;
-			//cout << classes[i]->name << " INHERITS FROM: ";
+			//logf << classes[i]->name << " INHERITS FROM: ";
 			for (int k = allBaseClasses.size()-1; k >= 0; k--) {
 				if (!classes[i]->colorSet && allBaseClasses[k]->colorSet) {
 					classes[i]->color = allBaseClasses[k]->color;
@@ -358,7 +358,7 @@ void Fgd::processClassInheritance() {
 						}
 					}
 				}
-				//cout << allBaseClasses[k]->name << " ";
+				//logf << allBaseClasses[k]->name << " ";
 			}
 
 			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
@@ -385,7 +385,7 @@ void Fgd::processClassInheritance() {
 				}
 			}
 			
-			//cout << endl;
+			//logf << endl;
 		}
 		
 	}
@@ -394,7 +394,7 @@ void Fgd::processClassInheritance() {
 void FgdClass::getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList) {
 	for (int i = baseClasses.size()-1; i >= 0; i--) {
 		if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
-			printf("ERROR: Invalid base class %s\n", baseClasses[i].c_str());
+			logf("ERROR: Invalid base class %s\n", baseClasses[i].c_str());
 			continue;
 		}
 		inheritanceList.push_back(fgd->classMap[baseClasses[i]]);
@@ -467,7 +467,7 @@ void Fgd::setSpawnflagNames() {
 					KeyvalueChoice& choice = classes[i]->keyvalues[k].choices[c];
 
 					if (!choice.isInteger) {
-						printf("ERROR: Invalid spwanflag value %s\n", choice.svalue);
+						logf("ERROR: Invalid spwanflag value %s\n", choice.svalue);
 						continue;
 					}
 
@@ -478,7 +478,7 @@ void Fgd::setSpawnflagNames() {
 					}
 
 					if (bit > 31) {
-						printf("ERROR: Invalid spawnflag value %s\n", choice.svalue);
+						logf("ERROR: Invalid spawnflag value %s\n", choice.svalue);
 					}
 					else {
 						classes[i]->spawnFlagNames[bit] = choice.name;
