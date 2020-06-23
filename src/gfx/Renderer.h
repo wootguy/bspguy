@@ -37,6 +37,18 @@ struct HullEdge {
 	bool selected;
 };
 
+struct AppSettings {
+	int windowWidth = 640;
+	int windowHeight = 480;
+	int windowX = 0;
+	int windowY = 0;
+	int maximized = 0;
+	bool valid = false;
+
+	void load();
+	void save();
+};
+
 class Renderer {
 	friend class Gui;
 

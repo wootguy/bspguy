@@ -7,15 +7,91 @@
 #include <algorithm>
 #include <map>
 
+AppSettings g_settings;
+const char* g_settings_path = "bspguy.cfg";
+
 void error_callback(int error, const char* description)
 {
 	logf("GLFW Error: %s\n", description);
 }
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+void window_size_callback(GLFWwindow* window, int width, int height)
+{
+	if (g_settings.maximized) {
+		return; // ignore size change when maximized, or else iconifying doesn't change size at all
+	}
+	g_settings.windowWidth = width;
+	g_settings.windowHeight = height;
+}
+
+void window_pos_callback(GLFWwindow* window, int x, int y)
+{
+	g_settings.windowX = x;
+	g_settings.windowY = y;
+}
+
+void window_maximize_callback(GLFWwindow* window, int maximized)
+{
+	g_settings.maximized = maximized == GLFW_TRUE;
+}
+
+void window_close_callback(GLFWwindow* window)
+{
+	g_settings.save();
+	logf("adios\n");
+}
+
+void AppSettings::load() {
+	ifstream file(g_settings_path);
+	if (file.is_open()) {
+
+		string line = "";
+		while (getline(file, line)) {
+			if (line.empty())
+				continue;
+
+			size_t eq = line.find("=");
+			if (eq == string::npos) {
+				continue;
+			}
+
+			string key = trimSpaces(line.substr(0, eq));
+			string val = trimSpaces(line.substr(eq + 1));
+
+			if (key == "window_width") {
+				g_settings.windowWidth = atoi(val.c_str());
+			}
+			else if (key == "window_height") {
+				g_settings.windowHeight = atoi(val.c_str());
+			}
+			else if (key == "window_x") {
+				g_settings.windowX = atoi(val.c_str());
+			}
+			else if (key == "window_y") {
+				g_settings.windowY = atoi(val.c_str());
+			}
+			else if (key == "window_maximized") {
+				g_settings.maximized = atoi(val.c_str());
+			}
+		}
+		g_settings.valid = true;
+
+	}
+}
+
+void AppSettings::save() {
+	ofstream file(g_settings_path, ios::out | ios::trunc);
+	file << "window_width=" << g_settings.windowWidth << endl;
+	file << "window_height=" << g_settings.windowHeight << endl;
+	file << "window_x=" << g_settings.windowX << endl;
+	file << "window_y=" << g_settings.windowY << endl;
+	file << "window_maximized=" << g_settings.maximized << endl;
 }
 
 int g_scroll = 0;
@@ -26,6 +102,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 Renderer::Renderer() {
+	g_settings.load();
+
 	if (!glfwInit())
 	{
 		logf("GLFW initialization failed\n");
@@ -37,7 +115,19 @@ Renderer::Renderer() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-	window = glfwCreateWindow(1920, 1080, "bspguy", NULL, NULL);
+	window = glfwCreateWindow(g_settings.windowWidth, g_settings.windowHeight, "bspguy", NULL, NULL);
+	
+	if (g_settings.valid) {
+		glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
+		
+		// setting size again to fix issue where window is too small because it was
+		// moved to a monitor with a different DPI than the one it was created for
+		glfwSetWindowSize(window, g_settings.windowWidth, g_settings.windowHeight);
+		if (g_settings.maximized) {
+			glfwMaximizeWindow(window);
+		}
+	}
+
 	if (!window)
 	{
 		logf("Window creation failed\n");
@@ -47,6 +137,10 @@ Renderer::Renderer() {
 	glfwMakeContextCurrent(window);
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetWindowSizeCallback(window, window_size_callback);
+	glfwSetWindowPosCallback(window, window_pos_callback);
+	glfwSetWindowCloseCallback(window, window_close_callback);
+	glfwSetWindowMaximizeCallback(window, window_maximize_callback);
 
 	glewInit();
 
