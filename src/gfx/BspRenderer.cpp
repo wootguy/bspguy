@@ -174,7 +174,7 @@ void BspRenderer::loadLightmaps() {
 		BSPFACE& face = map->faces[i];
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 
-		if (face.nLightmapOffset < 0 || (texinfo.nFlags & TEX_SPECIAL))
+		if (face.nLightmapOffset < 0 || (texinfo.nFlags & TEX_SPECIAL) || face.nLightmapOffset >= map->header.lump[LUMP_LIGHTING].nLength)
 			continue;
 
 		int size[2];

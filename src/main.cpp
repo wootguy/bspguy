@@ -101,15 +101,16 @@ void hideConsoleWindow() {
 #endif
 }
 
-int test() {
-	hideConsoleWindow();
+void start_viewer(string map) {
 	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
-	//renderer.addMap(new Bsp("hl_c09.bsp"));
-	renderer.addMap(new Bsp("merge0.bsp"));
-	//renderer.addMap(new Bsp("osprey.bsp"));
-	//renderer.addMap(new Bsp("hl_c00.bsp"));
+	renderer.addMap(new Bsp(map));
+	hideConsoleWindow();
 	renderer.renderLoop();
+}
+
+int test() {
+	start_viewer("merge0.bsp");
 	return 0;
 
 	/*
@@ -608,13 +609,19 @@ void print_help(string command) {
 			"  transform : Apply 3D transformations to the BSP\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
+			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
+			"or run 'bspguy <mapname>'"
 			);
 	}
 }
 
 int main(int argc, char* argv[])
 {
-	return test();
+	//return test();
+
+	#ifdef WIN32
+		::ShowWindow(::GetConsoleWindow(), SW_SHOW);
+	#endif
 
 	CommandLine cli(argc, argv);
 
@@ -626,6 +633,10 @@ int main(int argc, char* argv[])
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
 		logf(version_string);
 		return 0;
+	}
+
+	if (argc == 2) {
+		start_viewer(argv[1]);
 	}
 
 	if (cli.bspfile.empty()) {

@@ -78,8 +78,8 @@ Renderer::Renderer() {
 	gridSnappingEnabled = true;
 	textureLock = false;
 	transformMode = TRANSFORM_MOVE;
-	//transformTarget = TRANSFORM_OBJECT;
-	transformTarget = TRANSFORM_VERTEX;
+	transformTarget = TRANSFORM_OBJECT;
+	//transformTarget = TRANSFORM_VERTEX;
 
 	copiedEnt = NULL;
 

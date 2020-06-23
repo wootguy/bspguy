@@ -1032,7 +1032,7 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 
-		if (usedFaces[i]) {
+		if (usedFaces[i] && ((int64)face.nLightmapOffset + lightmapSizes[i]) < (int64)lightDataLength) {
 			memcpy(newColorData + offset, lightdata + face.nLightmapOffset, lightmapSizes[i]);
 			face.nLightmapOffset = offset;
 			offset += lightmapSizes[i];
