@@ -263,7 +263,7 @@ void Renderer::drawModelVerts() {
 	}
 
 	for (int i = 0; i < modelEdges.size(); i++) {
-		vec3 ori = getEdgeControlPoint(i) + entOrigin;
+		vec3 ori = getEdgeControlPoint(modelEdges[i]) + entOrigin;
 		float s = (ori - cameraOrigin).length() * vertExtentFactor;
 		ori = ori.flip();
 
@@ -347,6 +347,24 @@ void Renderer::controls() {
 
 	cameraObjectHovering();
 
+	vertexEditControls();
+
+	cameraPickingControls();
+
+	shortcutControls();
+
+	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+	
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		oldPressed[i] = pressed[i];
+		oldReleased[i] = released[i];
+	}
+
+	oldScroll = g_scroll;
+}
+
+void Renderer::vertexEditControls() {
 	canTransform = true;
 	if (transformTarget == TRANSFORM_VERTEX) {
 		canTransform = false;
@@ -363,7 +381,6 @@ void Renderer::controls() {
 			if (modelEdges[i].selected) {
 				canTransform = true;
 				anyEdgeSelected = true;
-				break;
 			}
 		}
 	}
@@ -372,19 +389,53 @@ void Renderer::controls() {
 		canTransform = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_MOVE;
 	}
 
-	cameraPickingControls();
+	if (pressed[GLFW_KEY_F] && !oldPressed[GLFW_KEY_F]) {
+		vector<int> selectedEdges;
+		for (int i = 0; i < modelEdges.size(); i++) {
+			if (modelEdges[i].selected) {
+				selectedEdges.push_back(i);
+			}
+		}
 
-	shortcutControls();
+		if (selectedEdges.size() != 2) {
+			printf("Exactly 2 edges must be selected before splitting a face\n");
+		}
 
-	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-	
-	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
-		oldPressed[i] = pressed[i];
-		oldReleased[i] = released[i];
+		HullEdge& edge1 = modelEdges[selectedEdges[0]];
+		HullEdge& edge2 = modelEdges[selectedEdges[1]];
+		int commonPlane = -1;
+		for (int i = 0; i < 2 && commonPlane == -1; i++) {
+			int thisPlane = edge1.planes[i];
+			for (int k = 0; k < 2; k++) {
+				int otherPlane = edge2.planes[k];
+				if (thisPlane == otherPlane) {
+					commonPlane = thisPlane;
+					break;
+				}
+			}
+		}
+
+		if (commonPlane == -1) {
+			printf("Can't split edges that don't share a plane\n");
+		}
+
+		BSPPLANE& splitPlane = pickInfo.map->planes[commonPlane];
+		vec3 splitPoints[2] = {
+			getEdgeControlPoint(edge1),
+			getEdgeControlPoint(edge2)
+		};
+
+		for (int i = 0; i < modelVerts.size(); i++) {
+			modelVerts[i].selected = false;
+		}
+		for (int i = 0; i < modelEdges.size(); i++) {
+			modelEdges[i].selected = false;
+		}
+
+		// TODO: split the face
+		// - extrude split edge out a bit so the planes aren't coplanar and can be selected
+		// - use extruded split edge and 
 	}
-
-	oldScroll = g_scroll;
 }
 
 void Renderer::cameraPickingControls() {
@@ -526,7 +577,7 @@ void Renderer::cameraObjectHovering() {
 		hoverEdge = -1;
 		if (!(anyVertSelected && !anyEdgeSelected)) {
 			for (int i = 0; i < modelEdges.size(); i++) {
-				vec3 ori = getEdgeControlPoint(i) + entOrigin;
+				vec3 ori = getEdgeControlPoint(modelEdges[i]) + entOrigin;
 				float s = (ori - cameraOrigin).length() * vertExtentFactor * 2.0f;
 				vec3 min = vec3(-s, -s, -s) + ori;
 				vec3 max = vec3(s, s, s) + ori;
@@ -1227,6 +1278,22 @@ void Renderer::updateModelVerts() {
 			edge.verts[0] = orderedVerts[i];
 			edge.verts[1] = orderedVerts[(i + 1) % orderedVerts.size()];
 			edge.selected = false;
+
+
+			vec3 midPoint = getEdgeControlPoint(edge);
+			int planeCount = 0;
+			for (auto it2 = planeVerts.begin(); it2 != planeVerts.end(); ++it2) {
+				int iPlane = it2->first;
+				BSPPLANE& p = map->planes[iPlane];
+				if (fabs(dotProduct(midPoint, p.vNormal) - p.fDist) < EPSILON) {
+					edge.planes[planeCount % 2] = iPlane;
+					planeCount++;
+				}
+			}
+			if (planeCount != 2) {
+				printf("ERROR: Edge connected to %d planes!\n", planeCount);
+			}
+
 			modelEdges.push_back(edge);
 		}
 	}
@@ -1461,9 +1528,9 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 }
 
-vec3 Renderer::getEdgeControlPoint(int iEdge) {
-	vec3 v0 = modelVerts[ modelEdges[iEdge].verts[0] ].pos;
-	vec3 v1 = modelVerts[ modelEdges[iEdge].verts[1] ].pos;
+vec3 Renderer::getEdgeControlPoint(HullEdge& edge) {
+	vec3 v0 = modelVerts[edge.verts[0] ].pos;
+	vec3 v1 = modelVerts[edge.verts[1] ].pos;
 	return v0 + (v1 - v0) * 0.5f;
 }
 

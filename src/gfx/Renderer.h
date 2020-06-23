@@ -33,6 +33,7 @@ struct TransformAxes {
 
 struct HullEdge {
 	int verts[2]; // index into modelVerts
+	int planes[2]; // index into iPlanes
 	bool selected;
 };
 
@@ -135,6 +136,7 @@ private:
 	vec3 getMoveDir();
 	void controls();
 	void cameraPickingControls();
+	void vertexEditControls();
 	void cameraRotationControls(vec2 mousePos);
 	void cameraObjectHovering();
 	void cameraContextMenus(); // right clicking on ents and things
@@ -172,5 +174,5 @@ private:
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
-	vec3 getEdgeControlPoint(int iEdge);
+	vec3 getEdgeControlPoint(HullEdge& iEdge);
 };
