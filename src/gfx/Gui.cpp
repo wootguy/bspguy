@@ -4,6 +4,8 @@
 #include "VertexBuffer.h"
 #include "shaders.h"
 #include "Renderer.h"
+#include "fonts/robotomono.h"
+#include "fonts/robotomedium.h"
 
 Gui::Gui(Renderer* app) {
 	this->app = app;
@@ -28,9 +30,9 @@ void Gui::init() {
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
 	vsync = true;
-	smallFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 20.0f);
-	largeFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/Roboto-Medium.ttf", 24.0f);
-	consoleFont = io.Fonts->AddFontFromFileTTF("../imgui/misc/fonts/consola.ttf", 16.0f);
+	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 20.0f);
+	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 24.0f);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomono, sizeof(robotomono), 20.0f);
 
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 

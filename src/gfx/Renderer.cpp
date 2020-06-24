@@ -144,6 +144,10 @@ Renderer::Renderer() {
 
 	glewInit();
 
+	// init to black screen instead of white
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glfwSwapBuffers(window);
+
 	gui = new Gui(this);
 
 	bspShader = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
