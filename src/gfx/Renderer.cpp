@@ -130,7 +130,7 @@ Renderer::Renderer() {
 
 	if (!window)
 	{
-		logf("Window creation failed\n");
+		logf("Window creation failed. Maybe your PC doesn't support OpenGL 3.0\n");
 		return;
 	}
 

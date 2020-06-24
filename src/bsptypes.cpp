@@ -1,4 +1,6 @@
 #include "bsptypes.h"
+#include <math.h>
+#include <string.h>
 
 BSPEDGE::BSPEDGE() {}
 

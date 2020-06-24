@@ -20,7 +20,7 @@ set(SOURCE_FILES
     src/util.h			src/util.cpp
 	src/vectors.h		src/vectors.cpp
 	src/mat4x4.h		src/mat4x4.cpp
-	src/fgd.h			src/fgd.cpp
+	src/Fgd.h			src/Fgd.cpp
 	src/bsplimits.h
 	src/bsptypes.h		src/bsptypes.cpp
 	src/types.h
@@ -54,8 +54,6 @@ set(SOURCE_FILES
 	src/lodepng.cpp
 )
 
-add_subdirectory(glfw)
-
 include_directories(src)
 include_directories(src/gfx)
 include_directories(src/qtools)
@@ -69,6 +67,8 @@ target_link_libraries(${PROJECT_NAME} glfw)
 add_definitions(-DGLEW_STATIC)
 
 if(MSVC)
+	add_subdirectory(glfw)
+	
     # compile using the static runtime
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /wd4244 /wd4018")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /wd4244 /wd4018 /W0")
@@ -121,6 +121,7 @@ if(MSVC)
 												src/qtools/winding.cpp)
   
 else()
+	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW)
     set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
     set(CMAKE_CXX_FLAGS_RELEASE "-Os -fno-exceptions -w -Wfatal-errors")

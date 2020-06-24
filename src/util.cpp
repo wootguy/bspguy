@@ -18,7 +18,7 @@ void logf(const char* format, ...) {
 
 	va_list vl;
 	va_start(vl, format);
-	vsprintf_s(line, 4096, format, vl);
+	vsnprintf(line, 4096, format, vl);
 	va_end(vl);
 
 	printf(line);

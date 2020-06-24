@@ -102,7 +102,8 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 	vector<string> headerParts = splitString(line, "=");
 
 	// group parts enclosed in parens or quotes
-	vector<string> typeParts = groupParts(splitString(trimSpaces(headerParts[0]), " "));
+	vector<string> typeParts = splitString(trimSpaces(headerParts[0]), " ");
+	typeParts = groupParts(typeParts);
 
 	string classType = toLowerCase(typeParts[0]);
 
