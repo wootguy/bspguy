@@ -8,7 +8,8 @@
 #include <map>
 
 AppSettings g_settings;
-const char* g_settings_path = "bspguy.cfg";
+string g_config_dir = getConfigDir();
+string g_settings_path = g_config_dir + "bspguy.cfg";
 
 void error_callback(int error, const char* description)
 {
@@ -83,9 +84,16 @@ void AppSettings::load() {
 		g_settings.valid = true;
 
 	}
+	else {
+		logf("Failed to open user config: %s\n", g_settings_path.c_str());
+	}
 }
 
 void AppSettings::save() {
+	if (!dirExists(g_config_dir)) {
+		createDir(g_config_dir);
+	}
+
 	ofstream file(g_settings_path, ios::out | ios::trunc);
 	file << "window_width=" << g_settings.windowWidth << endl;
 	file << "window_height=" << g_settings.windowHeight << endl;

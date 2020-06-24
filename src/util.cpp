@@ -351,13 +351,47 @@ void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs) {
 
 #ifdef WIN32
 #include <Windows.h>
+#include <Shlobj.h>
+
 void print_color(int colors)
 {
 	HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 	colors = colors ? colors : (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 	SetConsoleTextAttribute(console, (WORD)colors);
 }
+
+string getConfigDir()
+{
+	char path[MAX_PATH];
+	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
+	return string(path) + "\\AppData\\Roaming\\bspguy\\";
+}
+
+bool dirExists(const string& dirName_in)
+{
+	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;  //something is wrong with your path!
+
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;   // this is a directory!
+
+	return false;    // this is not a directory!
+}
+
+bool createDir(const string& dirName)
+{
+	int ret = CreateDirectory(dirName.c_str(), NULL);
+	if (ret == ERROR_PATH_NOT_FOUND)
+	{
+		logf("Could not create directory: %s", dirName.c_str());
+		return false;
+	}
+	return true;
+}
+
 #else
+
 void print_color(int colors)
 {
 	if (!colors)
@@ -378,5 +412,30 @@ void print_color(int colors)
 	case PRINT_GREEN | PRINT_BLUE | PRINT_RED:	color = "36"; break;
 	}
 	logf("\x1B[%s;%sm", mode, color);
+}
+
+String getConfigDir()
+{
+	return string("") + getenv("HOME") + "/.config/bspguy/";
+}
+
+bool dirExists(const string& dirName)
+{
+	struct stat sb;
+	return stat(dirName.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode);
+}
+
+bool createDir(const string& dirName)
+{
+	if (dirExists(dirName))
+		return true;
+
+	int ret = mkdir(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	if (ret != 0)
+	{
+		logf("Could not create directory: %s", dirName.c_str());
+		return false;
+	}
+	return true;
 }
 #endif

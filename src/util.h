@@ -46,6 +46,12 @@ bool isNumeric(const std::string& s);
 
 void print_color(int colors);
 
+string getConfigDir();
+
+bool dirExists(const string& dirName_in);
+
+bool createDir(const string& dirName);
+
 string toLowerCase(string str);
 
 string trimSpaces(string s);

@@ -7,6 +7,8 @@
 #include "fonts/robotomono.h"
 #include "fonts/robotomedium.h"
 
+string iniPath = getConfigDir() + "imgui.ini";
+
 Gui::Gui(Renderer* app) {
 	this->app = app;
 	init();
@@ -19,6 +21,8 @@ void Gui::init() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	
+	io.IniFilename = iniPath.c_str();
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
@@ -51,7 +55,9 @@ void Gui::draw() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
+#ifdef NDEBUG
 	ImGui::ShowDemoWindow();
+#endif
 
 	drawMenuBar();
 

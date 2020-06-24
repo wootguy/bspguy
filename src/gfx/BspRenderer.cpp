@@ -236,7 +236,7 @@ void BspRenderer::loadLightmaps() {
 		glLightmapTextures[i]->upload();
 	}
 
-	lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
+	//lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
 	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
 }
 
