@@ -99,8 +99,10 @@ public:
 	vector<FgdGroup> solidEntGroups;
 
 	Fgd(string path);
+	~Fgd();
 
 	void parse();
+	void merge(Fgd* other);
 
 	FgdClass* getFgdClass(string cname);
 

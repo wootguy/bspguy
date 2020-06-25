@@ -38,16 +38,30 @@ struct HullEdge {
 };
 
 struct AppSettings {
-	int windowWidth = 640;
-	int windowHeight = 480;
+	int windowWidth = 800;
+	int windowHeight = 600;
 	int windowX = 0;
 	int windowY = 0;
 	int maximized = 0;
+	string gamedir;
 	bool valid = false;
+
+	bool debug_open = false;
+	bool keyvalue_open = false;
+	bool transform_open = false;
+	bool log_open = false;
+	bool settings_open = false;
+
+	vector<string> fgdPaths;
 
 	void load();
 	void save();
 };
+
+class Renderer;
+
+extern AppSettings g_settings;
+extern Renderer* g_app;
 
 class Renderer {
 	friend class Gui;
@@ -61,6 +75,9 @@ public:
 	void addMap(Bsp* map);
 
 	void renderLoop();
+	void reload();
+	void saveSettings();
+	void loadSettings();
 
 private:
 	GLFWwindow* window;
@@ -69,7 +86,7 @@ private:
 	PointEntRenderer* pointEntRenderer;
 	Gui* gui;
 
-	Fgd* fgd;
+	Fgd* fgd = NULL;
 
 	vec3 cameraOrigin;
 	vec3 cameraAngles;
@@ -87,7 +104,7 @@ private:
 	vec2 lastMousePos;
 	vec2 totalMouseDrag;
 
-	bool movingEnt; // grab an ent and move it with the camera
+	bool movingEnt = false; // grab an ent and move it with the camera
 	vec3 grabStartOrigin;
 	vec3 gragStartEntOrigin;
 	float grabDist;
@@ -96,15 +113,15 @@ private:
 	TransformAxes scaleAxes;
 	int hoverAxis; // axis being hovered
 	int draggingAxis; // axis currently being dragged by the mouse
-	bool gridSnappingEnabled;
-	int gridSnapLevel;
-	int transformMode;
-	int transformTarget;
-	bool showDragAxes;
+	bool gridSnappingEnabled = true;
+	int gridSnapLevel = 0;
+	int transformMode = TRANSFORM_MOVE;
+	int transformTarget = TRANSFORM_OBJECT;
+	bool showDragAxes = false;
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
-	bool textureLock;
+	bool textureLock = false;
 	bool invalidSolid = false;
 	bool isTransformableSolid = true;
 	bool canTransform = false;
@@ -119,7 +136,7 @@ private:
 	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
 
-	Entity* copiedEnt;
+	Entity* copiedEnt = NULL;
 
 	int oldLeftMouse;
 	int oldRightMouse;
@@ -187,4 +204,6 @@ private:
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
 	vec3 getEdgeControlPoint(HullEdge& iEdge);
+
+	void loadFgds();
 };

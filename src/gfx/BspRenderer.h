@@ -79,6 +79,7 @@ struct PickInfo {
 class BspRenderer {
 public:
 	Bsp* map;
+	PointEntRenderer* pointEntRenderer;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
@@ -101,12 +102,12 @@ public:
 	void preRenderEnts();
 	void calcFaceMaths();
 
+	void loadTextures(); // will reload them if already loaded
 	void updateLightmapInfos();
 
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
-	PointEntRenderer* pointEntRenderer;
 
 	LightmapInfo* lightmaps;
 	RenderEnt* renderEnts;
@@ -117,14 +118,13 @@ private:
 	int numRenderLightmapInfos;
 	int numFaceMaths;
 
-	Texture** glTextures;
-	Texture** glLightmapTextures;
-	Texture* whiteTex;
-	Texture* redTex;
-	Texture* yellowTex;
-	Texture* greyTex;
-	Texture* blackTex;
+	Texture** glTextures = NULL;
+	Texture** glLightmapTextures = NULL;
+	Texture* whiteTex = NULL;
+	Texture* redTex = NULL;
+	Texture* yellowTex = NULL;
+	Texture* greyTex = NULL;
+	Texture* blackTex = NULL;
 
-	void loadTextures();
 	void loadLightmaps();
 };

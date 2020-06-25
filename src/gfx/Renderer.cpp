@@ -10,6 +10,7 @@
 AppSettings g_settings;
 string g_config_dir = getConfigDir();
 string g_settings_path = g_config_dir + "bspguy.cfg";
+Renderer* g_app = NULL;
 
 void error_callback(int error, const char* description)
 {
@@ -50,6 +51,9 @@ void window_close_callback(GLFWwindow* window)
 
 void AppSettings::load() {
 	ifstream file(g_settings_path);
+
+	fgdPaths.clear();
+
 	if (file.is_open()) {
 
 		string line = "";
@@ -65,21 +69,18 @@ void AppSettings::load() {
 			string key = trimSpaces(line.substr(0, eq));
 			string val = trimSpaces(line.substr(eq + 1));
 
-			if (key == "window_width") {
-				g_settings.windowWidth = atoi(val.c_str());
-			}
-			else if (key == "window_height") {
-				g_settings.windowHeight = atoi(val.c_str());
-			}
-			else if (key == "window_x") {
-				g_settings.windowX = atoi(val.c_str());
-			}
-			else if (key == "window_y") {
-				g_settings.windowY = atoi(val.c_str());
-			}
-			else if (key == "window_maximized") {
-				g_settings.maximized = atoi(val.c_str());
-			}
+			if (key == "window_width") { g_settings.windowWidth = atoi(val.c_str()); }
+			else if (key == "window_height") { g_settings.windowHeight = atoi(val.c_str()); }
+			else if (key == "window_x") { g_settings.windowX = atoi(val.c_str()); }
+			else if (key == "window_y") { g_settings.windowY = atoi(val.c_str()); }
+			else if (key == "window_maximized") { g_settings.maximized = atoi(val.c_str()); }
+			else if (key == "debug_open") { g_settings.debug_open = atoi(val.c_str()) != 0; }
+			else if (key == "keyvalue_open") { g_settings.keyvalue_open = atoi(val.c_str()) != 0; }
+			else if (key == "transform_open") { g_settings.transform_open = atoi(val.c_str()) != 0; }
+			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
+			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
+			else if (key == "gamedir") { g_settings.gamedir = val; }
+			else if (key == "fgd") { fgdPaths.push_back(val);  }
 		}
 		g_settings.valid = true;
 
@@ -94,12 +95,25 @@ void AppSettings::save() {
 		createDir(g_config_dir);
 	}
 
+	g_app->saveSettings();
+
 	ofstream file(g_settings_path, ios::out | ios::trunc);
 	file << "window_width=" << g_settings.windowWidth << endl;
 	file << "window_height=" << g_settings.windowHeight << endl;
 	file << "window_x=" << g_settings.windowX << endl;
 	file << "window_y=" << g_settings.windowY << endl;
 	file << "window_maximized=" << g_settings.maximized << endl;
+
+	file << "debug_open=" << g_settings.debug_open << endl;
+	file << "keyvalue_open=" << g_settings.keyvalue_open << endl;
+	file << "transform_open=" << g_settings.transform_open << endl;
+	file << "log_open=" << g_settings.log_open << endl;
+	file << "settings_open=" << g_settings.settings_open << endl;
+	file << "gamedir=" << g_settings.gamedir << endl;
+
+	for (int i = 0; i < fgdPaths.size(); i++) {
+		file << "fgd=" << g_settings.fgdPaths[i] << endl;
+	}
 }
 
 int g_scroll = 0;
@@ -172,28 +186,19 @@ Renderer::Renderer() {
 	
 	pickInfo.valid = false;
 
-	fgd = new Fgd(g_game_path + "/svencoop/sven-coop.fgd");
-	fgd->parse();
-
-	pointEntRenderer = new PointEntRenderer(fgd, colorShader);
-
-	movingEnt = false;
 	draggingAxis = -1;
-	showDragAxes = true;
-	gridSnapLevel = 0;
-	gridSnappingEnabled = true;
-	textureLock = false;
-	transformMode = TRANSFORM_MOVE;
-	transformTarget = TRANSFORM_OBJECT;
 	//transformTarget = TRANSFORM_VERTEX;
-
-	copiedEnt = NULL;
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
 
-	cameraOrigin = vec3(-70, 343, 19);
-	cameraAngles = vec3(22, 0, 90);
+	//cameraOrigin = vec3(-70, 343, 19);
+	//cameraAngles = vec3(22, 0, 90);
+
+	g_app = this;
+
+	loadSettings();
+	loadFgds();
 }
 
 Renderer::~Renderer() {
@@ -330,6 +335,59 @@ void Renderer::renderLoop() {
 	}
 
 	glfwTerminate();
+}
+
+void Renderer::reload() {
+	loadFgds();
+
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		mapRenderers[i]->pointEntRenderer = pointEntRenderer;
+		mapRenderers[i]->loadTextures();
+		mapRenderers[i]->preRenderFaces();
+		mapRenderers[i]->preRenderEnts();
+	}
+}
+
+void Renderer::saveSettings() {
+	g_settings.debug_open = gui->showDebugWidget;
+	g_settings.keyvalue_open = gui->showKeyvalueWidget;
+	g_settings.transform_open = gui->showTransformWidget;
+	g_settings.log_open = gui->showLogWidget;
+	g_settings.settings_open = gui->showSettingsWidget;
+}
+
+void Renderer::loadSettings() {
+	gui->showDebugWidget = g_settings.debug_open;
+	gui->showKeyvalueWidget = g_settings.keyvalue_open;
+	gui->showTransformWidget = g_settings.transform_open;
+	gui->showLogWidget = g_settings.log_open;
+	gui->showSettingsWidget = g_settings.settings_open;
+}
+
+void Renderer::loadFgds() {
+	if (fgd != NULL) {
+		delete fgd;
+		delete pointEntRenderer;
+	}
+
+	if (g_settings.fgdPaths.size() == 0) {
+		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
+	}
+
+	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
+		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
+		tmp->parse();
+
+		if (i == 0) {
+			fgd = tmp;
+		}
+		else {
+			fgd->merge(tmp);
+			delete tmp;
+		}
+	}
+
+	pointEntRenderer = new PointEntRenderer(fgd, colorShader);
 }
 
 void Renderer::drawModelVerts() {	
@@ -839,6 +897,10 @@ void Renderer::pickObject() {
 
 	if (pickInfo.modelIdx > 0)
 		pickInfo.map->print_model_hull(pickInfo.modelIdx, 1);
+	else {
+		transformMode = TRANSFORM_MOVE;
+		transformTarget = TRANSFORM_OBJECT;
+	}
 
 	updateModelVerts();
 

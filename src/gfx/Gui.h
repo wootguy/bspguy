@@ -23,19 +23,21 @@ public:
 	void openContextMenu(int entIdx);
 
 private:
-	bool vsync;
-	bool showDebugWidget;
-	bool showKeyvalueWidget;
-	bool showTransformWidget;
-	bool showLogWidget;
-	bool smartEdit;
+	bool vsync = true;
+	bool showDebugWidget = false;
+	bool showKeyvalueWidget = false;
+	bool showTransformWidget = false;
+	bool showLogWidget = false;
+	bool showSettingsWidget = false;
+	bool reloadSettings = true;
+	int settingsTab = 0;
 	ImFont* smallFont;
 	ImFont* largeFont;
 	ImFont* consoleFont;
 
 	int guiHoverAxis; // axis being hovered in the transform menu
-	int contextMenuEnt; // open entity context menu if >= 0
-	int emptyContextMenu; // open context menu for rightclicking world/void
+	int contextMenuEnt = -1; // open entity context menu if >= 0
+	int emptyContextMenu = 0; // open context menu for rightclicking world/void
 
 	ImGuiTextBuffer Buf;
 	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
@@ -52,6 +54,7 @@ private:
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
 	void drawTransformWidget();
 	void drawLog();
+	void drawSettings();
 
 	void clearLog();
 	void addLog(const char* s);

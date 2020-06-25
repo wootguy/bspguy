@@ -65,6 +65,10 @@ VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags )
 	addAttributes(attFlags);
 }
 
+VertexBuffer::~VertexBuffer() {
+	deleteBuffer();
+}
+
 void VertexBuffer::addAttributes( int attFlags )
 {
 	elementSize = 0;
@@ -142,8 +146,12 @@ void VertexBuffer::upload() {
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
-	//glDeleteBuffers(1, &vboId);
+void VertexBuffer::deleteBuffer() {
+	if (vboId != -1)
+		glDeleteBuffers(1, &vboId);
+	vboId = -1;
 }
 
 void VertexBuffer::drawRange( int primitive, int start, int end )

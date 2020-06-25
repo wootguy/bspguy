@@ -12,13 +12,13 @@
 // WARNING hull redirect spam
 // auto-scale text based on DPI
 // setup menu for game dir and font size and mb other stuff
-// imgui .ini load from specific dir?
 // clicking key editor when bspguy not focused does a 3D select instead of key editor select
 // undo history
 // grid snapping not working with transform widgets
 // get rid of console window and add a console widget
 // don't remove keyvalues that match the default value, also those values should appear in the editor
 // can't select things sometimes
+// scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -102,7 +102,6 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	g_game_path = "D:/Steam/steamapps/common/Sven Co-op";
 	Renderer renderer = Renderer();
 	renderer.addMap(new Bsp(map));
 	hideConsoleWindow();

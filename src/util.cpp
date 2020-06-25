@@ -9,7 +9,6 @@
 #include <stdarg.h>
 
 ProgressMeter g_progress;
-string g_game_path;
 int g_render_flags;
 vector<string> g_log_buffer;
 

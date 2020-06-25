@@ -16,6 +16,7 @@ struct EntCube {
 class PointEntRenderer {
 public:
 	PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader);
+	~PointEntRenderer();
 
 	EntCube* getEntCube(Entity* ent);
 
@@ -27,6 +28,6 @@ private:
 	vector<EntCube*> entCubes;
 
 	void genPointEntCubes();
-	EntCube* getCubeMacthingProps(EntCube* cube);
+	EntCube* getCubeMatchingProps(EntCube* cube);
 	void genCubeBuffers(EntCube* cube);
 };

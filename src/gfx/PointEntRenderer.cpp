@@ -9,6 +9,14 @@ PointEntRenderer::PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader) {
 	genPointEntCubes();
 }
 
+PointEntRenderer::~PointEntRenderer() {
+	for (int i = 0; i < entCubes.size(); i++) {
+		delete entCubes[i]->buffer;
+		delete entCubes[i]->selectBuffer;
+		delete entCubes[i]->wireframeBuffer;
+	}
+}
+
 EntCube* PointEntRenderer::getEntCube(Entity* ent) {
 	string cname = ent->keyvalues["classname"];
 
@@ -36,7 +44,7 @@ void PointEntRenderer::genPointEntCubes() {
 			cube->maxs = fgdClass->maxs;
 			cube->color = fgdClass->color;
 
-			EntCube* matchingCube = getCubeMacthingProps(cube);
+			EntCube* matchingCube = getCubeMatchingProps(cube);
 
 			if (matchingCube == NULL) {
 				genCubeBuffers(cube);
@@ -51,7 +59,7 @@ void PointEntRenderer::genPointEntCubes() {
 	}
 }
 
-EntCube* PointEntRenderer::getCubeMacthingProps(EntCube* cube) {
+EntCube* PointEntRenderer::getCubeMatchingProps(EntCube* cube) {
 	for (int i = 0; i < entCubes.size(); i++) {
 		if (memcmp(cube, entCubes[i], sizeof(EntCube) - sizeof(VertexBuffer*)*3) == 0) {
 			return entCubes[i];

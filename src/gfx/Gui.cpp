@@ -33,18 +33,11 @@ void Gui::init() {
 	const char* glsl_version = "#version 130";
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	vsync = true;
 	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 20.0f);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 24.0f);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomono, sizeof(robotomono), 20.0f);
 
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
-
-	showDebugWidget = true;
-	showKeyvalueWidget = true;
-
-	contextMenuEnt = -1;
-	emptyContextMenu = 0;
 
 	clearLog();
 }
@@ -55,7 +48,7 @@ void Gui::draw() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-#ifdef NDEBUG
+#ifndef NDEBUG
 	ImGui::ShowDemoWindow();
 #endif
 
@@ -78,6 +71,10 @@ void Gui::draw() {
 
 	if (showLogWidget) {
 		drawLog();
+	}
+
+	if (showSettingsWidget) {
+		drawSettings();
 	}
 
 	if (contextMenuEnt != -1) {
@@ -160,8 +157,16 @@ void Gui::drawMenuBar() {
 					map->ents[i]->keyvalues["classname"] = "info_bode";
 			}
 			map->update_ent_lump();
-			map->write("yabma_move.bsp");
-			map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+			//map->write("yabma_move.bsp");
+			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
+			map->write(map->path);
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Settings", NULL)) {
+			if (!showSettingsWidget) {
+				reloadSettings = true;
+			}
+			showSettingsWidget = true;
 		}
 		ImGui::EndMenu();
 	}
@@ -1232,4 +1237,119 @@ void Gui::drawLog() {
 	ImGui::EndChild();
 	ImGui::End();
 
+}
+
+void Gui::drawSettings() {
+
+	ImGui::SetNextWindowSize(ImVec2(800, 480), ImGuiCond_FirstUseEver);
+	if (ImGui::Begin("Settings", &showSettingsWidget))
+	{
+		static const char* tab_titles[] = {
+			"General",
+			"FGDs"
+		};
+
+		// left
+		ImGui::BeginChild("left pane", ImVec2(150, 0), true);
+		
+		for (int i = 0; i < 2; i++) {
+			if (ImGui::Selectable(tab_titles[i], settingsTab == i))
+				settingsTab = i;
+		}
+
+		ImGui::EndChild();
+		ImGui::SameLine();
+
+		// right
+		
+		ImGui::BeginGroup();
+		ImGui::BeginChild("item view", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + 4))); // Leave room for 1 line below us
+		ImGui::Text(tab_titles[settingsTab]);
+		ImGui::Separator();
+		
+		static char gamedir[256];
+		static char fgdPaths[64][256];
+		static int numFgds = 0;
+
+		if (reloadSettings) {
+			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
+
+			numFgds = g_settings.fgdPaths.size();
+			if (numFgds > 64) numFgds = 64;
+			for (int i = 0; i < 64; i++) {
+				if (i < numFgds)
+					strncpy(fgdPaths[i], g_settings.fgdPaths[i].c_str(), 256);
+				else
+					strncpy(fgdPaths[i], "", 256);
+			}
+
+			reloadSettings = false;
+		}
+
+		ImGui::BeginChild("right pane content");
+		if (settingsTab == 0) {
+			ImGui::InputText("Game Directory", gamedir, 256);
+		}
+		else if (settingsTab == 1) {
+			int pathWidth = ImGui::GetWindowWidth() - 60;
+			int delWidth = 50;
+			for (int i = 0; i < numFgds; i++) {
+				ImGui::SetNextItemWidth(pathWidth);
+				ImGui::InputText(("##fgd" + to_string(i)).c_str(), fgdPaths[i], 256);
+				ImGui::SameLine();
+
+				ImGui::SetNextItemWidth(delWidth);
+				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+				if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
+					strncpy(fgdPaths[i], "", 256);
+					for (int k = i; k < numFgds-1; k++) {
+						memcpy(fgdPaths[k], fgdPaths[k + 1], 256);
+					}
+					numFgds--;
+				}
+				ImGui::PopStyleColor(3);
+
+			}
+
+			if (ImGui::Button("Add")) {
+				numFgds++;
+				if (numFgds > 64) {
+					numFgds = 64;
+				}
+			}
+		}
+		ImGui::EndChild();
+
+		ImGui::EndChild();
+
+		ImGui::Separator();
+		bool saveSettings = false;
+		if (ImGui::Button("Apply")) {
+			saveSettings = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Save")) {
+			showSettingsWidget = false;
+			saveSettings = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Close")) {
+			showSettingsWidget = false;
+		}
+
+		ImGui::EndGroup();
+
+		if (saveSettings) {
+			g_settings.gamedir = string(gamedir);
+
+			g_settings.fgdPaths.clear();
+			for (int i = 0; i < numFgds; i++) {
+				g_settings.fgdPaths.push_back(fgdPaths[i]);
+			}
+			app->reload();
+		}
+	}
+	ImGui::End();
 }

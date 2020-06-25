@@ -18,11 +18,35 @@ Fgd::Fgd(string path) {
 	this->name = stripExt(basename(path));
 }
 
+Fgd::~Fgd() {
+	for (int i = 0; i < classes.size(); i++) {
+		delete classes[i];
+	}
+}
+
 FgdClass* Fgd::getFgdClass(string cname) {
 	if (classMap.find(cname) == classMap.end()) {
 		return NULL;
 	}
 	return classMap[cname];
+}
+
+void Fgd::merge(Fgd* other) {
+	for (auto it = other->classMap.begin(); it != other->classMap.end(); ++it) {
+		string className = it->first;
+		FgdClass* fgdClass = it->second;
+
+		if (classMap.find(className) != classMap.end()) {
+			logf("Skipping duplicate definition for %s in FGD %s\n", className.c_str(), other->name.c_str());
+			continue;
+		}
+
+		FgdClass* newClass = new FgdClass();
+		*newClass = *fgdClass;
+
+		classes.push_back(newClass);
+		classMap[className] = newClass;
+	}
 }
 
 void Fgd::parse() {

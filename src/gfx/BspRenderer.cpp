@@ -4,6 +4,7 @@
 #include "rad.h"
 #include "lodepng.h"
 #include <algorithm>
+#include "Renderer.h"
 
 BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
@@ -37,23 +38,36 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 }
 
 void BspRenderer::loadTextures() {
-	whiteTex = new Texture(1, 1);
-	greyTex = new Texture(1, 1);
-	redTex = new Texture(1, 1);
-	yellowTex = new Texture(1, 1);
-	blackTex = new Texture(1, 1);
-	
-	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
-	*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
-	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
-	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
-	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
 
-	whiteTex->upload();
-	redTex->upload();
-	yellowTex->upload();
-	greyTex->upload();
-	blackTex->upload();
+	if (whiteTex == NULL) { // only need to load these once
+		whiteTex = new Texture(1, 1);
+		greyTex = new Texture(1, 1);
+		redTex = new Texture(1, 1);
+		yellowTex = new Texture(1, 1);
+		blackTex = new Texture(1, 1);
+
+		*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
+		*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
+		*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
+		*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
+		*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
+
+		whiteTex->upload();
+		redTex->upload();
+		yellowTex->upload();
+		greyTex->upload();
+		blackTex->upload();
+	}
+
+	if (glTextures != NULL) {
+		logf("Reloading textures\n");
+
+		for (int i = 0; i < map->textureCount; i++) {
+			if (glTextures[i] != whiteTex)
+				delete glTextures[i];
+		}
+		delete[] glTextures;
+	}
 
 	vector<Wad*> wads;
 	vector<string> wadNames;
@@ -69,10 +83,11 @@ void BspRenderer::loadTextures() {
 	}
 
 	vector<string> tryPaths = {
-		g_game_path + "/svencoop/",
-		g_game_path + "/svencoop_addon/",
-		g_game_path + "/svencoop_downloads/",
-		g_game_path + "/svencoop_hd/"
+		"./",
+		g_settings.gamedir + "/svencoop/",
+		g_settings.gamedir + "/svencoop_addon/",
+		g_settings.gamedir + "/svencoop_downloads/",
+		g_settings.gamedir + "/svencoop_hd/",
 	};
 
 	
@@ -97,6 +112,10 @@ void BspRenderer::loadTextures() {
 		wads.push_back(wad);
 	}
 
+	int wadTexCount = 0;
+	int missingCount = 0;
+	int embedCount = 0;
+
 	glTextures = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
@@ -119,18 +138,21 @@ void BspRenderer::loadTextures() {
 					palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
 					src = wadTex->data;
 
+					wadTexCount++;
 					break;
 				}
 			}
 
 			if (!foundInWad) {
 				glTextures[i] = whiteTex;
+				missingCount++;
 				continue;
 			}
 		}
 		else {
 			palette = (COLOR3*)(map->textures + texOffset + tex.nOffsets[3] + lastMipSize + 2);
 			src = map->textures + texOffset + tex.nOffsets[0];
+			embedCount++;
 		}
 
 		COLOR3* imageData = new COLOR3[tex.nWidth * tex.nHeight];
@@ -152,6 +174,13 @@ void BspRenderer::loadTextures() {
 	for (int i = 0; i < wads.size(); i++) {
 		delete wads[i];
 	}
+
+	if (wadTexCount)
+		logf("Loaded %d wad textures\n", wadTexCount);
+	if (embedCount)
+		logf("Loaded %d embedded textures\n", embedCount);
+	if (missingCount)
+		logf("%d missing textures\n", missingCount);
 }
 
 void BspRenderer::loadLightmaps() {

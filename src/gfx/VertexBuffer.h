@@ -54,12 +54,14 @@ public:
 	// shader program. If passing data, note that data is not copied, but referenced
 	VertexBuffer(ShaderProgram * shaderProgram, int attFlags);
 	VertexBuffer(ShaderProgram * shaderProgram, int attFlags, const void * dat, int numVerts);
+	~VertexBuffer();
 
 	// Note: Data is not copied into the class - don't delete your data.
 	//       Data will be deleted when the buffer is destroyed.
 	void setData(const void * data, int numVerts);
 
 	void upload();
+	void deleteBuffer();
 
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
