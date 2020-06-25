@@ -79,6 +79,8 @@ void AppSettings::load() {
 			else if (key == "transform_open") { g_settings.transform_open = atoi(val.c_str()) != 0; }
 			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
+			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
+			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 		}
@@ -109,11 +111,14 @@ void AppSettings::save() {
 	file << "transform_open=" << g_settings.transform_open << endl;
 	file << "log_open=" << g_settings.log_open << endl;
 	file << "settings_open=" << g_settings.settings_open << endl;
-	file << "gamedir=" << g_settings.gamedir << endl;
 
+	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
 	}
+
+	file << "fov=" << g_settings.fov << endl;
+	file << "zfar=" << g_settings.zfar << endl;
 }
 
 int g_scroll = 0;
@@ -354,14 +359,24 @@ void Renderer::saveSettings() {
 	g_settings.transform_open = gui->showTransformWidget;
 	g_settings.log_open = gui->showLogWidget;
 	g_settings.settings_open = gui->showSettingsWidget;
+
+	g_settings.zfar = zFar;
+	g_settings.fov = fov;
 }
 
 void Renderer::loadSettings() {
+	if (!g_settings.valid) {
+		return;
+	}
+
 	gui->showDebugWidget = g_settings.debug_open;
 	gui->showKeyvalueWidget = g_settings.keyvalue_open;
 	gui->showTransformWidget = g_settings.transform_open;
 	gui->showLogWidget = g_settings.log_open;
 	gui->showSettingsWidget = g_settings.settings_open;
+
+	zFar = g_settings.zfar;
+	fov = g_settings.fov;
 }
 
 void Renderer::loadFgds() {
@@ -1079,10 +1094,6 @@ BspRenderer* Renderer::getMapContainingCamera() {
 }
 
 void Renderer::setupView() {
-	fov = 75.0f;
-	zNear = 1.0f;
-	zFar = 262144.0f;
-
 	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 	glViewport(0, 0, windowWidth, windowHeight);

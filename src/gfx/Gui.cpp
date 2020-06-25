@@ -201,33 +201,6 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	if (ImGui::BeginMenu("Render"))
-	{
-		if (ImGui::MenuItem("Textures", NULL, g_render_flags & RENDER_TEXTURES)) {
-			g_render_flags ^= RENDER_TEXTURES;
-		}
-		if (ImGui::MenuItem("Lightmaps", NULL, g_render_flags & RENDER_LIGHTMAPS)) {
-			g_render_flags ^= RENDER_LIGHTMAPS;
-		}
-		if (ImGui::MenuItem("Wireframe", NULL, g_render_flags & RENDER_WIREFRAME)) {
-			g_render_flags ^= RENDER_WIREFRAME;
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Entities", NULL, g_render_flags & RENDER_ENTS)) {
-			g_render_flags ^= RENDER_ENTS;
-		}
-		if (ImGui::MenuItem("Special", NULL, g_render_flags & RENDER_SPECIAL)) {
-			g_render_flags ^= RENDER_SPECIAL;
-		}
-		if (ImGui::MenuItem("Special Entities", NULL, g_render_flags & RENDER_SPECIAL_ENTS)) {
-			g_render_flags ^= RENDER_SPECIAL_ENTS;
-		}
-		if (ImGui::MenuItem("Point Entities", NULL, g_render_flags & RENDER_POINT_ENTS)) {
-			g_render_flags ^= RENDER_POINT_ENTS;
-		}
-		ImGui::EndMenu();
-	}
-
 	if (ImGui::BeginMenu("Create"))
 	{
 		if (ImGui::MenuItem("Entity")) {
@@ -1244,15 +1217,17 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(800, 480), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
-		static const char* tab_titles[] = {
+		const int settings_tabs = 3;
+		static const char* tab_titles[settings_tabs] = {
 			"General",
-			"FGDs"
+			"FGDs",
+			"Rendering"
 		};
 
 		// left
 		ImGui::BeginChild("left pane", ImVec2(150, 0), true);
 		
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < settings_tabs; i++) {
 			if (ImGui::Selectable(tab_titles[i], settingsTab == i))
 				settingsTab = i;
 		}
@@ -1263,7 +1238,8 @@ void Gui::drawSettings() {
 		// right
 		
 		ImGui::BeginGroup();
-		ImGui::BeginChild("item view", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + 4))); // Leave room for 1 line below us
+		int footerHeight = settingsTab <= 1 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
+		ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
 		ImGui::Text(tab_titles[settingsTab]);
 		ImGui::Separator();
 		
@@ -1320,36 +1296,70 @@ void Gui::drawSettings() {
 				}
 			}
 		}
+		else if (settingsTab == 2) {
+			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
+			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, 0, 0, "%.0f", 100.0f);
+			ImGui::Separator();
+
+			bool renderTextures = g_render_flags & RENDER_TEXTURES;
+			bool renderLightmaps = g_render_flags & RENDER_LIGHTMAPS;
+			bool renderWireframe = g_render_flags & RENDER_WIREFRAME;
+			bool renderEntities = g_render_flags & RENDER_ENTS;
+			bool renderSpecial = g_render_flags & RENDER_SPECIAL;
+			bool renderSpecialEnts = g_render_flags & RENDER_SPECIAL_ENTS;
+			bool renderPointEnts = g_render_flags & RENDER_POINT_ENTS;
+
+			ImGui::Columns(2, 0, false);
+
+			if (ImGui::Checkbox("Textures", &renderTextures)) {
+				g_render_flags ^= RENDER_TEXTURES;
+			}
+			if (ImGui::Checkbox("Lightmaps", &renderLightmaps)) {
+				g_render_flags ^= RENDER_LIGHTMAPS;
+			}
+			if (ImGui::Checkbox("Wireframe", &renderWireframe)) {
+				g_render_flags ^= RENDER_WIREFRAME;
+			}
+			if (ImGui::Checkbox("Vsync", &vsync)) {
+				glfwSwapInterval(vsync ? 1 : 0);
+			}
+
+			ImGui::NextColumn();
+
+			if (ImGui::Checkbox("Point Entities", &renderPointEnts)) {
+				g_render_flags ^= RENDER_POINT_ENTS;
+			}
+			if (ImGui::Checkbox("Normal Solid Entities", &renderEntities)) {
+				g_render_flags ^= RENDER_ENTS;
+			}
+			if (ImGui::Checkbox("Special Solid Entities", &renderSpecialEnts)) {
+				g_render_flags ^= RENDER_SPECIAL_ENTS;
+			}
+			if (ImGui::Checkbox("Special World Faces", &renderSpecial)) {
+				g_render_flags ^= RENDER_SPECIAL;
+			}
+
+			ImGui::Columns(1);	
+		}
 		ImGui::EndChild();
 
 		ImGui::EndChild();
 
-		ImGui::Separator();
-		bool saveSettings = false;
-		if (ImGui::Button("Apply")) {
-			saveSettings = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Save")) {
-			showSettingsWidget = false;
-			saveSettings = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Close")) {
-			showSettingsWidget = false;
+		if (settingsTab <= 1) {
+			ImGui::Separator();
+
+			if (ImGui::Button("Apply Changes")) {
+				g_settings.gamedir = string(gamedir);
+
+				g_settings.fgdPaths.clear();
+				for (int i = 0; i < numFgds; i++) {
+					g_settings.fgdPaths.push_back(fgdPaths[i]);
+				}
+				app->reload();
+			}
 		}
 
 		ImGui::EndGroup();
-
-		if (saveSettings) {
-			g_settings.gamedir = string(gamedir);
-
-			g_settings.fgdPaths.clear();
-			for (int i = 0; i < numFgds; i++) {
-				g_settings.fgdPaths.push_back(fgdPaths[i]);
-			}
-			app->reload();
-		}
 	}
 	ImGui::End();
 }

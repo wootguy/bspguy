@@ -52,6 +52,9 @@ struct AppSettings {
 	bool log_open = false;
 	bool settings_open = false;
 
+	float fov;
+	float zfar;
+
 	vector<string> fgdPaths;
 
 	void load();
@@ -96,7 +99,9 @@ private:
 	bool cameraIsRotating;
 	float frameTimeScale = 0.0f;
 	float moveSpeed = 4.0f;
-	float fov, zNear, zFar;
+	float fov = 75.0f;
+	float zNear = 1.0f;
+	float zFar = 262144.0f;
 	int windowWidth;
 	int windowHeight;
 	mat4x4 model, view, projection, modelView, modelViewProjection;
