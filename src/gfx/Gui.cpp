@@ -33,9 +33,7 @@ void Gui::init() {
 	const char* glsl_version = "#version 130";
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 20.0f);
-	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomedium, sizeof(robotomedium), 24.0f);
-	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)robotomono, sizeof(robotomono), 20.0f);
+	loadFonts();
 
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 
@@ -92,6 +90,19 @@ void Gui::draw() {
 	ImGui::Render();
 	glViewport(0, 0, app->windowWidth, app->windowHeight);
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	if (shouldReloadFonts) {
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		shouldReloadFonts = false;
+
+		ImGui_ImplOpenGL3_DestroyFontsTexture();
+		io.Fonts->Clear();
+
+		loadFonts();
+
+		io.Fonts->Build();
+		ImGui_ImplOpenGL3_CreateFontsTexture();
+	}
 }
 
 void Gui::openContextMenu(int entIdx) {
@@ -386,6 +397,7 @@ void Gui::drawDebugWidget() {
 void Gui::drawKeyvalueEditor() {
 	//ImGui::SetNextWindowBgAlpha(0.75f);
 
+	ImGui::SetNextWindowSize(ImVec2(610, 610), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
@@ -906,6 +918,7 @@ void Gui::drawTransformWidget() {
 		ent = app->pickInfo.ent;
 	}
 
+	ImGui::SetNextWindowSize(ImVec2(370, 170), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
 		static int x, y, z;
@@ -1144,8 +1157,25 @@ void Gui::addLog(const char* s)
 			LineOffsets.push_back(old_size + 1);
 }
 
+void Gui::loadFonts() {
+	// data copied to new array so that ImGui doesn't delete static data
+	byte* smallFontData = new byte[sizeof(robotomedium)];
+	byte* largeFontData = new byte[sizeof(robotomedium)];
+	byte* consoleFontData = new byte[sizeof(robotomono)];
+	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
+	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
+	memcpy(consoleFontData, robotomono, sizeof(robotomono));
+
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, sizeof(robotomedium), fontSize);
+	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, sizeof(robotomedium), fontSize * 1.1f);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, sizeof(robotomono), fontSize);
+}
+
 void Gui::drawLog() {
 
+	ImGui::SetNextWindowSize(ImVec2(750, 300), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	if (!ImGui::Begin("Log", &showLogWidget))
 	{
 		ImGui::End();
@@ -1159,25 +1189,23 @@ void Gui::drawLog() {
 
 	static int i = 0;
 
-	
-	if (ImGui::Button("Clear")) {
-		clearLog();
-	}
+	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
 	bool copy = false;
-	ImGui::SameLine();
-	if (ImGui::Button("Copy")) {
-		copy = true;
-	}
-
-	ImGui::SameLine();
 	bool toggledAutoScroll = false;
-	if (ImGui::Checkbox("Auto-scroll", &AutoScroll)) {
-		toggledAutoScroll = AutoScroll;
+	if (ImGui::BeginPopupContextWindow())
+	{
+		if (ImGui::MenuItem("Copy")) {
+			copy = true;
+		}
+		if (ImGui::MenuItem("Clear")) {
+			clearLog();
+		}
+		if (ImGui::MenuItem("Auto-scroll", NULL, &AutoScroll)) {
+			toggledAutoScroll = true;
+		}
+		ImGui::EndPopup();
 	}
-
-	ImGui::Separator();
-	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
 	ImGui::PushFont(consoleFont);
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
@@ -1214,7 +1242,7 @@ void Gui::drawLog() {
 
 void Gui::drawSettings() {
 
-	ImGui::SetNextWindowSize(ImVec2(800, 480), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
 		const int settings_tabs = 3;
@@ -1264,6 +1292,12 @@ void Gui::drawSettings() {
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
+
+			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
+				shouldReloadFonts = true;
+				ImGuiIO& io = ImGui::GetIO(); (void)io;
+				//io.FontGlobalScale = fontScale;
+			}
 			ImGui::InputText("Game Directory", gamedir, 256);
 		}
 		else if (settingsTab == 1) {

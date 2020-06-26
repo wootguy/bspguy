@@ -43,6 +43,7 @@ struct AppSettings {
 	int windowX = 0;
 	int windowY = 0;
 	int maximized = 0;
+	int fontSize = 22;
 	string gamedir;
 	bool valid = false;
 
@@ -54,6 +55,7 @@ struct AppSettings {
 
 	float fov;
 	float zfar;
+	int render_flags;
 
 	vector<string> fgdPaths;
 

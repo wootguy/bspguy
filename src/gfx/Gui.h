@@ -34,6 +34,8 @@ private:
 	ImFont* smallFont;
 	ImFont* largeFont;
 	ImFont* consoleFont;
+	int fontSize = 22;
+	bool shouldReloadFonts = false;
 
 	int guiHoverAxis; // axis being hovered in the transform menu
 	int contextMenuEnt = -1; // open entity context menu if >= 0
@@ -58,4 +60,5 @@ private:
 
 	void clearLog();
 	void addLog(const char* s);
+	void loadFonts();
 };

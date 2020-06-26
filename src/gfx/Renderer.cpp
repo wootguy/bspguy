@@ -81,6 +81,8 @@ void AppSettings::load() {
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
+			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
+			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 		}
@@ -119,6 +121,8 @@ void AppSettings::save() {
 
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
+	file << "render_flags=" << g_settings.render_flags << endl;
+	file << "font_size=" << g_settings.fontSize << endl;
 }
 
 int g_scroll = 0;
@@ -362,6 +366,8 @@ void Renderer::saveSettings() {
 
 	g_settings.zfar = zFar;
 	g_settings.fov = fov;
+	g_settings.render_flags = g_render_flags;
+	g_settings.fontSize = gui->fontSize;
 }
 
 void Renderer::loadSettings() {
@@ -377,6 +383,10 @@ void Renderer::loadSettings() {
 
 	zFar = g_settings.zfar;
 	fov = g_settings.fov;
+	g_render_flags = g_settings.render_flags;
+	gui->fontSize = g_settings.fontSize;
+
+	gui->shouldReloadFonts = true;
 }
 
 void Renderer::loadFgds() {
