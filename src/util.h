@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <thread>
+#include <future>
 #include "ProgressMeter.h"
 
 #define PRINT_BLUE		1

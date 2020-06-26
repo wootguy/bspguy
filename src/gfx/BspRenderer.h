@@ -95,8 +95,10 @@ public:
 	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
 
 	void refreshEnt(int entIdx);
-	int refreshModel(int modelIdx);
+	int refreshModel(int modelIdx, RenderModel* renderModel=NULL);
 	void refreshFace(int faceIdx);
+
+	void reloadTextures();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer
@@ -106,6 +108,7 @@ public:
 
 	void loadTextures(); // will reload them if already loaded
 	void updateLightmapInfos();
+	bool isFinishedLoading();
 
 private:
 	ShaderProgram* bspShader;
@@ -116,6 +119,12 @@ private:
 	RenderModel* renderModels;
 	FaceMath* faceMaths;
 
+	// models loaded in a separate thread
+	RenderModel* renderModelsSwap;
+	int numRenderModelsSwap;
+	Texture** glTexturesSwap;
+
+	int numLightmapAtlases;
 	int numRenderModels;
 	int numRenderLightmapInfos;
 	int numFaceMaths;
@@ -128,5 +137,16 @@ private:
 	Texture* greyTex = NULL;
 	Texture* blackTex = NULL;
 
+	bool lightmapsGenerated = false;
+	bool lightmapsUploaded = false;
+	future<void> lightmapFuture;
+
+	bool texturesLoaded = false;
+	future<void> texturesFuture;
+
 	void loadLightmaps();
+	RenderModel* genRenderFaces(int& renderModelCount);
+	void deleteRenderFaces();
+	void deleteTextures();
+	void delayLoadData();
 };

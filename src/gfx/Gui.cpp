@@ -295,7 +295,7 @@ void Gui::drawStatusMessage() {
 	static int lastWindowWidth = 32;
 	static int windowWidth = 32;
 
-	bool showStatus = app->invalidSolid || !app->isTransformableSolid;
+	bool showStatus = app->invalidSolid || !app->isTransformableSolid || app->isLoading;
 	if (showStatus) {
 		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
@@ -330,6 +330,30 @@ void Gui::drawStatusMessage() {
 					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}
+			}
+			if (app->isLoading) {
+				static float lastTick = clock();
+				static int loadTick = 0;
+
+				if (float(clock() - lastTick) / (float)CLOCKS_PER_SEC > 0.05f) {
+					loadTick = (loadTick + 1) % 8;
+					lastTick = clock();
+				}
+
+				ImGui::PushFont(consoleFont);
+				switch (loadTick) {
+					default:
+					case 0: ImGui::Text("Loading |"); break;
+					case 1: ImGui::Text("Loading /"); break;
+					case 2: ImGui::Text("Loading -"); break;
+					case 3: ImGui::Text("Loading \\"); break;
+					case 4: ImGui::Text("Loading |"); break;
+					case 5: ImGui::Text("Loading /"); break;
+					case 6: ImGui::Text("Loading -"); break;
+					case 7: ImGui::Text("Loading \\"); break;
+				}
+				ImGui::PopFont();
+				
 			}
 			windowWidth = ImGui::GetWindowWidth();
 		}

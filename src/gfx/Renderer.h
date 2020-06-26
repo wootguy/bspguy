@@ -7,6 +7,8 @@
 #include "ShaderProgram.h"
 #include "BspRenderer.h"
 #include "Fgd.h"
+#include <thread>
+#include <future>
 
 class Gui;
 
@@ -77,6 +79,7 @@ public:
 	vector<BspRenderer*> mapRenderers;
 
 	Renderer();
+	Renderer(Renderer& renderer);
 	~Renderer();
 
 	void addMap(Bsp* map);
@@ -91,7 +94,13 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* colorShader;
 	PointEntRenderer* pointEntRenderer;
+	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
+
+	future<void> fgdFuture;
+	bool reloading = false;
+	bool reloadingGameDir = false;
+	bool isLoading = false;
 
 	Fgd* fgd = NULL;
 

@@ -11,6 +11,7 @@ public:
 	int farFilter;
 	uint format; // format of the data
 	uint iformat; // format of the data when uploaded to GL
+	bool uploaded = false;
 
 	Texture(int width, int height);
 	Texture(int width, int height, void * data);

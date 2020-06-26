@@ -210,8 +210,12 @@ Renderer::Renderer() {
 
 	g_app = this;
 
+	pointEntRenderer = new PointEntRenderer(NULL, colorShader);
+
 	loadSettings();
-	loadFgds();
+
+	reloading = true;
+	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 }
 
 Renderer::~Renderer() {
@@ -298,6 +302,7 @@ void Renderer::renderLoop() {
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
+		isLoading = reloading;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			model.loadIdentity();
 			bspShader->updateMatrixes();
@@ -307,6 +312,10 @@ void Renderer::renderLoop() {
 				highlightEnt = pickInfo.entIdx;
 			}
 			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX);
+
+			if (!mapRenderers[i]->isFinishedLoading()) {
+				isLoading = true;
+			}
 		}
 
 		model.loadIdentity();
@@ -347,20 +356,37 @@ void Renderer::renderLoop() {
 		gui->draw();
 
 		glfwSwapBuffers(window);
+
+		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+			delete pointEntRenderer;
+			delete fgd;
+			
+			pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
+			fgd = pointEntRenderer->fgd;
+
+			for (int i = 0; i < mapRenderers.size(); i++) {
+				mapRenderers[i]->pointEntRenderer = pointEntRenderer;
+				mapRenderers[i]->preRenderEnts();
+				if (reloadingGameDir) {
+					mapRenderers[i]->reloadTextures();
+				}
+			}
+
+			reloading = reloadingGameDir = false;
+			swapPointEntRenderer = NULL;
+		}
 	}
 
 	glfwTerminate();
 }
 
 void Renderer::reload() {
-	loadFgds();
-
-	for (int i = 0; i < mapRenderers.size(); i++) {
-		mapRenderers[i]->pointEntRenderer = pointEntRenderer;
-		mapRenderers[i]->loadTextures();
-		mapRenderers[i]->preRenderFaces();
-		mapRenderers[i]->preRenderEnts();
+	if (reloading) {
+		logf("Previous reload not finished. Aborting reload.");
+		return;
 	}
+	reloading = reloadingGameDir = true;
+	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 }
 
 void Renderer::saveSettings() {
@@ -400,29 +426,25 @@ void Renderer::loadSettings() {
 }
 
 void Renderer::loadFgds() {
-	if (fgd != NULL) {
-		delete fgd;
-		delete pointEntRenderer;
-	}
-
 	if (g_settings.fgdPaths.size() == 0) {
 		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
 	}
 
+	Fgd* mergedFgd = NULL;
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
 		tmp->parse();
 
 		if (i == 0) {
-			fgd = tmp;
+			mergedFgd = tmp;
 		}
 		else {
-			fgd->merge(tmp);
+			mergedFgd->merge(tmp);
 			delete tmp;
 		}
 	}
 
-	pointEntRenderer = new PointEntRenderer(fgd, colorShader);
+	swapPointEntRenderer = new PointEntRenderer(mergedFgd, colorShader);
 }
 
 void Renderer::drawModelVerts() {	

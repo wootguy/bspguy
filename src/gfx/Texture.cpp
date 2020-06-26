@@ -19,16 +19,19 @@ Texture::Texture( int width, int height, void * data )
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
 	this->data = (byte*)data;
-	upload();
 }
 
 Texture::~Texture()
 {
-	glDeleteTextures(1, &id);
+	if (uploaded)
+		glDeleteTextures(1, &id);
 }
 
 void Texture::upload()
 {
+	if (uploaded) {
+		glDeleteTextures(1, &id);
+	}
 	glGenTextures(1, &id);
 
 	glBindTexture(GL_TEXTURE_2D, id); // Binds this texture handle so we can load the data into it
@@ -43,6 +46,8 @@ void Texture::upload()
 	// TODO: load mipmaps from BSP/WAD
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+	uploaded = true;
 }
 
 void Texture::bind()

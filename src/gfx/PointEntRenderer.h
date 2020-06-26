@@ -15,15 +15,15 @@ struct EntCube {
 
 class PointEntRenderer {
 public:
+	Fgd* fgd;
+
 	PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader);
 	~PointEntRenderer();
 
 	EntCube* getEntCube(Entity* ent);
 
 private:
-	Fgd* fgd;
 	ShaderProgram* colorShader;
-	VertexBuffer* pointEntCubes;
 	map<string, EntCube*> cubeMap;
 	vector<EntCube*> entCubes;
 

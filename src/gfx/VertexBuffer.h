@@ -37,10 +37,11 @@ struct VertexAttr
 	int handle;     // location in shader program (-1 indicates invalid attribute)
 	int size;       // size of the attribute in bytes
 	int normalized; // GL_TRUE/GL_FALSE Ex: byte color values are normalized (0-255 = 0.0-1.0)
+	const char* varName;
 
 	VertexAttr() : handle(-1) {}
 
-	VertexAttr(int numValues, int valueType, int handle, int normalized);
+	VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName);
 };
 
 class VertexBuffer
@@ -49,6 +50,7 @@ public:
 	std::vector<VertexAttr> attribs;
 	int elementSize;
 	int numVerts;
+	bool ownData = false; // set to true if buffer should delete data on destruction
 
 	// Specify which common attributes to use. They will be located in the
 	// shader program. If passing data, note that data is not copied, but referenced
@@ -68,11 +70,13 @@ public:
 
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName);
 	void addAttribute(int type, const char* varName);
+	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 
 private:
-	byte * data;
-	ShaderProgram * shaderProgram; // for getting handles to vertex attributes
-	uint vboId;
+	byte * data = NULL;
+	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes
+	uint vboId = -1;
+	bool attributesBound = false;
 
 	// add attributes according to the attribute flags
 	void addAttributes(int attFlags);

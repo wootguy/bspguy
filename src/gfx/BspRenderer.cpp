@@ -16,12 +16,29 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 	renderModels = NULL;
 	faceMaths = NULL;
 
-	loadTextures();
-	loadLightmaps();
+	whiteTex = new Texture(1, 1);
+	greyTex = new Texture(1, 1);
+	redTex = new Texture(1, 1);
+	yellowTex = new Texture(1, 1);
+	blackTex = new Texture(1, 1);
+
+	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
+	*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
+	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
+	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
+	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
+
+	whiteTex->upload();
+	redTex->upload();
+	yellowTex->upload();
+	greyTex->upload();
+	blackTex->upload();
+
+	//loadTextures();
+	//loadLightmaps();
 	calcFaceMaths();
 	preRenderFaces();
 	preRenderEnts();
-	
 
 	bspShader->bind();
 
@@ -35,39 +52,13 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 		// assign lightmap texture units (skips the normal texture unit)
 		glUniform1i(sLightmapTexIds, s + 1);
 	}
+
+	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
+	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
 }
 
 void BspRenderer::loadTextures() {
-
-	if (whiteTex == NULL) { // only need to load these once
-		whiteTex = new Texture(1, 1);
-		greyTex = new Texture(1, 1);
-		redTex = new Texture(1, 1);
-		yellowTex = new Texture(1, 1);
-		blackTex = new Texture(1, 1);
-
-		*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
-		*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
-		*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
-		*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
-		*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
-
-		whiteTex->upload();
-		redTex->upload();
-		yellowTex->upload();
-		greyTex->upload();
-		blackTex->upload();
-	}
-
-	if (glTextures != NULL) {
-		logf("Reloading textures\n");
-
-		for (int i = 0; i < map->textureCount; i++) {
-			if (glTextures[i] != whiteTex)
-				delete glTextures[i];
-		}
-		delete[] glTextures;
-	}
+	deleteTextures();
 
 	vector<Wad*> wads;
 	vector<string> wadNames;
@@ -116,7 +107,7 @@ void BspRenderer::loadTextures() {
 	int missingCount = 0;
 	int embedCount = 0;
 
-	glTextures = new Texture * [map->textureCount];
+	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
@@ -144,7 +135,7 @@ void BspRenderer::loadTextures() {
 			}
 
 			if (!foundInWad) {
-				glTextures[i] = whiteTex;
+				glTexturesSwap[i] = whiteTex;
 				missingCount++;
 				continue;
 			}
@@ -168,7 +159,7 @@ void BspRenderer::loadTextures() {
 
 		// map->textures + texOffset + tex.nOffsets[0]
 
-		glTextures[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
+		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
 	}
 
 	for (int i = 0; i < wads.size(); i++) {
@@ -181,6 +172,11 @@ void BspRenderer::loadTextures() {
 		logf("Loaded %d embedded textures\n", embedCount);
 	if (missingCount)
 		logf("%d missing textures\n", missingCount);
+}
+
+void BspRenderer::reloadTextures() {
+	texturesLoaded = false;
+	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
 }
 
 void BspRenderer::loadLightmaps() {
@@ -262,11 +258,15 @@ void BspRenderer::loadLightmaps() {
 	for (int i = 0; i < atlasTextures.size(); i++) {
 		delete atlases[i];
 		glLightmapTextures[i] = atlasTextures[i];
-		glLightmapTextures[i]->upload();
 	}
+
+	numLightmapAtlases = atlasTextures.size();
 
 	//lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
 	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
+
+	lightmapsGenerated = true;
+	renderModelsSwap = genRenderFaces(numRenderModelsSwap);
 }
 
 void BspRenderer::updateLightmapInfos() {
@@ -294,6 +294,41 @@ void BspRenderer::updateLightmapInfos() {
 }
 
 void BspRenderer::preRenderFaces() {
+	deleteRenderFaces();
+
+	renderModels = genRenderFaces(numRenderModels);
+
+	for (int i = 0; i < numRenderModels; i++) {
+		RenderModel& model = renderModels[i];
+		for (int k = 0; k < model.groupCount; k++) {
+			model.renderGroups[k].buffer->upload();
+			model.renderGroups[k].wireframeBuffer->upload();
+		}
+	}
+}
+
+RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
+	RenderModel* newRenderModels = new RenderModel[map->modelCount];
+	renderModelCount = map->modelCount;
+
+	int worldRenderGroups = 0;
+	int modelRenderGroups = 0;
+
+	for (int m = 0; m < map->modelCount; m++) {
+		int groupCount = refreshModel(m, &newRenderModels[m]);
+		if (m == 0)
+			worldRenderGroups += groupCount;
+		else
+			modelRenderGroups += groupCount;
+	}
+
+	logf("Added %d world render groups\n", worldRenderGroups);
+	logf("Added %d submodel render groups\n", modelRenderGroups);
+
+	return newRenderModels;
+}
+
+void BspRenderer::deleteRenderFaces() {
 	if (renderModels != NULL) {
 		for (int i = 0; i < numRenderModels; i++) {
 			for (int k = 0; k < renderModels[i].groupCount; k++) {
@@ -308,27 +343,26 @@ void BspRenderer::preRenderFaces() {
 		delete[] renderModels;
 	}
 
-	renderModels = new RenderModel[map->modelCount];
-	numRenderModels = map->modelCount;
-
-	int worldRenderGroups = 0;
-	int modelRenderGroups = 0;
-
-	for (int m = 0; m < map->modelCount; m++) {
-		int groupCount = refreshModel(m);
-		if (m == 0)
-			worldRenderGroups += groupCount;
-		else
-			modelRenderGroups += groupCount;
-	}
-
-	logf("Added %d world render groups\n", worldRenderGroups);
-	logf("Added %d submodel render groups\n", modelRenderGroups);
+	renderModels = NULL;
 }
 
-int BspRenderer::refreshModel(int modelIdx) {
+void BspRenderer::deleteTextures() {
+	if (glTextures != NULL) {
+		for (int i = 0; i < map->textureCount; i++) {
+			if (glTextures[i] != whiteTex)
+				delete glTextures[i];
+		}
+		delete[] glTextures;
+	}
+
+	glTextures = NULL;
+}
+
+int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 	BSPMODEL& model = map->models[modelIdx];
-	RenderModel& renderModel = renderModels[modelIdx];
+	if (renderModel == NULL) {
+		renderModel = &renderModels[modelIdx];
+	}
 
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
@@ -340,23 +374,27 @@ int BspRenderer::refreshModel(int modelIdx) {
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 		int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-		LightmapInfo& lmap = lightmaps[faceIdx];
+
+		LightmapInfo* lmap = lightmapsGenerated ? &lightmaps[faceIdx] : NULL;
 
 		lightmapVert* verts = new lightmapVert[face.nEdges];
 		int vertCount = face.nEdges;
-		Texture* texture = glTextures[texinfo.iMiptex];
 		Texture* lightmapAtlas[MAXLIGHTMAPS];
 
 		float tw = 1.0f / (float)tex.nWidth;
 		float th = 1.0f / (float)tex.nHeight;
 
-		float lw = (float)lmap.w / (float)LIGHTMAP_ATLAS_SIZE;
-		float lh = (float)lmap.h / (float)LIGHTMAP_ATLAS_SIZE;
+		float lw = 0;
+		float lh = 0;
+		if (lightmapsGenerated) {
+			lw = (float)lmap->w / (float)LIGHTMAP_ATLAS_SIZE;
+			lh = (float)lmap->h / (float)LIGHTMAP_ATLAS_SIZE;
+		}
 
 		bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
 		bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			lightmapAtlas[s] = glLightmapTextures[lmap.atlasId[s]];
+			lightmapAtlas[s] = lightmapsGenerated ? glLightmapTextures[lmap->atlasId[s]] : NULL;
 		}
 
 		if (isSpecial) {
@@ -383,18 +421,18 @@ int BspRenderer::refreshModel(int modelIdx) {
 			verts[e].opacity = isSpecial ? 0.5f : 1.0f;
 
 			// lightmap texture coords
-			if (hasLighting) {
-				float fLightMapU = lmap.midTexU + (fU - lmap.midPolyU) / 16.0f;
-				float fLightMapV = lmap.midTexV + (fV - lmap.midPolyV) / 16.0f;
+			if (hasLighting && lightmapsGenerated) {
+				float fLightMapU = lmap->midTexU + (fU - lmap->midPolyU) / 16.0f;
+				float fLightMapV = lmap->midTexV + (fV - lmap->midPolyV) / 16.0f;
 
-				float uu = (fLightMapU / (float)lmap.w) * lw;
-				float vv = (fLightMapV / (float)lmap.h) * lh;
+				float uu = (fLightMapU / (float)lmap->w) * lw;
+				float vv = (fLightMapV / (float)lmap->h) * lh;
 
 				float pixelStep = 1.0f / (float)LIGHTMAP_ATLAS_SIZE;
 
 				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					verts[e].luv[s][0] = uu + lmap.x[s] * pixelStep;
-					verts[e].luv[s][1] = vv + lmap.y[s] * pixelStep;
+					verts[e].luv[s][0] = uu + lmap->x[s] * pixelStep;
+					verts[e].luv[s][1] = vv + lmap->y[s] * pixelStep;
 				}
 			}
 			// set lightmap scales
@@ -441,7 +479,8 @@ int BspRenderer::refreshModel(int modelIdx) {
 		bool isTransparent = opacity < 1.0f;
 		int groupIdx = -1;
 		for (int k = 0; k < renderGroups.size(); k++) {
-			if (renderGroups[k].texture == glTextures[texinfo.iMiptex] && renderGroups[k].transparent == isTransparent) {
+			bool textureMatch = !texturesLoaded || renderGroups[k].texture == glTextures[texinfo.iMiptex];
+			if (textureMatch && renderGroups[k].transparent == isTransparent) {
 				bool allMatch = true;
 				for (int s = 0; s < MAXLIGHTMAPS; s++) {
 					if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
@@ -461,7 +500,7 @@ int BspRenderer::refreshModel(int modelIdx) {
 			newGroup.vertCount = 0;
 			newGroup.verts = NULL;
 			newGroup.transparent = isTransparent;
-			newGroup.texture = glTextures[texinfo.iMiptex];
+			newGroup.texture = texturesLoaded ? glTextures[texinfo.iMiptex] : greyTex;
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
 				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
 			}
@@ -481,8 +520,8 @@ int BspRenderer::refreshModel(int modelIdx) {
 		delete[] wireframeVerts;
 	}
 
-	renderModel.renderGroups = new RenderGroup[renderGroups.size()];
-	renderModel.groupCount = renderGroups.size();
+	renderModel->renderGroups = new RenderGroup[renderGroups.size()];
+	renderModel->groupCount = renderGroups.size();
 
 	for (int i = 0; i < renderGroups.size(); i++) {
 		renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
@@ -502,7 +541,6 @@ int BspRenderer::refreshModel(int modelIdx) {
 		renderGroups[i].buffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
 		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
-		renderGroups[i].buffer->upload();
 
 		renderGroups[i].wireframeBuffer = new VertexBuffer(bspShader, 0);
 		renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
@@ -513,15 +551,14 @@ int BspRenderer::refreshModel(int modelIdx) {
 		renderGroups[i].wireframeBuffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
 		renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
-		renderGroups[i].wireframeBuffer->upload();
 
-		renderModel.renderGroups[i] = renderGroups[i];
+		renderModel->renderGroups[i] = renderGroups[i];
 	}
 
 	for (int i = 0; i < model.nFaces; i++) {
 		refreshFace(model.iFirstFace + i);
 	}
-	return renderModel.groupCount;
+	return renderModel->groupCount;
 }
 
 void BspRenderer::preRenderEnts() {
@@ -608,6 +645,49 @@ BspRenderer::~BspRenderer() {
 	// TODO: more stuff to delete
 }
 
+void BspRenderer::delayLoadData() {
+	if (!lightmapsUploaded && lightmapFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+
+		for (int i = 0; i < numLightmapAtlases; i++) {
+			glLightmapTextures[i]->upload();
+		}
+
+		deleteRenderFaces();
+
+		renderModels = renderModelsSwap;
+		numRenderModels = numRenderModelsSwap;
+
+		for (int i = 0; i < numRenderModels; i++) {
+			RenderModel& model = renderModels[i];
+			for (int k = 0; k < model.groupCount; k++) {
+				model.renderGroups[k].buffer->upload();
+				model.renderGroups[k].wireframeBuffer->upload();
+			}
+		}
+
+		lightmapsUploaded = true;
+	}
+
+	if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+		deleteTextures();
+		
+		glTextures = glTexturesSwap;
+
+		for (int i = 0; i < map->textureCount; i++) {
+			if (!glTextures[i]->uploaded)
+				glTextures[i]->upload();
+		}
+
+		texturesLoaded = true;
+
+		preRenderFaces();
+	}
+}
+
+bool BspRenderer::isFinishedLoading() {
+	return lightmapsUploaded && texturesLoaded;
+}
+
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 	BSPMODEL& world = map->models[0];	
 
@@ -664,6 +744,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 			bspShader->popMatrix(MAT_MODEL);
 		}
 	}
+
+	delayLoadData();
 }
 
 void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
@@ -730,7 +812,7 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			if (highlight) {
 				redTex->bind();
 			}
-			else if (g_render_flags & RENDER_LIGHTMAPS) {
+			else if (lightmapsUploaded && g_render_flags & RENDER_LIGHTMAPS) {
 				rgroup.lightmapAtlas[s]->bind();
 			}
 			else {
