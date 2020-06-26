@@ -1245,11 +1245,12 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
-		const int settings_tabs = 3;
+		const int settings_tabs = 4;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
 			"FGDs",
-			"Rendering"
+			"Rendering",
+			"Controls"
 		};
 
 		// left
@@ -1295,8 +1296,6 @@ void Gui::drawSettings() {
 
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
-				ImGuiIO& io = ImGui::GetIO(); (void)io;
-				//io.FontGlobalScale = fontScale;
 			}
 			ImGui::InputText("Game Directory", gamedir, 256);
 		}
@@ -1375,6 +1374,12 @@ void Gui::drawSettings() {
 
 			ImGui::Columns(1);	
 		}
+		else if (settingsTab == 3) {
+			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
+			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
+		}
+
+
 		ImGui::EndChild();
 
 		ImGui::EndChild();

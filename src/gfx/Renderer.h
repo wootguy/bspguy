@@ -55,6 +55,8 @@ struct AppSettings {
 
 	float fov;
 	float zfar;
+	float moveSpeed;
+	float rotSpeed;
 	int render_flags;
 
 	vector<string> fgdPaths;
@@ -104,6 +106,7 @@ private:
 	float fov = 75.0f;
 	float zNear = 1.0f;
 	float zFar = 262144.0f;
+	float rotationSpeed = 5.0f;
 	int windowWidth;
 	int windowHeight;
 	mat4x4 model, view, projection, modelView, modelViewProjection;

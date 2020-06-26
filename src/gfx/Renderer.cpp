@@ -81,6 +81,8 @@ void AppSettings::load() {
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
+			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
+			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
@@ -121,6 +123,8 @@ void AppSettings::save() {
 
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
+	file << "move_speed=" << g_settings.moveSpeed << endl;
+	file << "rot_speed=" << g_settings.rotSpeed << endl;
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << g_settings.fontSize << endl;
 }
@@ -368,6 +372,8 @@ void Renderer::saveSettings() {
 	g_settings.fov = fov;
 	g_settings.render_flags = g_render_flags;
 	g_settings.fontSize = gui->fontSize;
+	g_settings.moveSpeed = moveSpeed;
+	g_settings.rotSpeed = rotationSpeed;
 }
 
 void Renderer::loadSettings() {
@@ -385,6 +391,8 @@ void Renderer::loadSettings() {
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;
 	gui->fontSize = g_settings.fontSize;
+	rotationSpeed = g_settings.rotSpeed;
+	moveSpeed = g_settings.moveSpeed;
 
 	gui->shouldReloadFonts = true;
 }
@@ -729,8 +737,8 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 		}
 		else {
 			vec2 drag = mousePos - lastMousePos;
-			cameraAngles.z += drag.x * 0.5f;
-			cameraAngles.x += drag.y * 0.5f;
+			cameraAngles.z += drag.x * rotationSpeed*0.1f;
+			cameraAngles.x += drag.y * rotationSpeed*0.1f;
 
 			totalMouseDrag += vec2(fabs(drag.x), fabs(drag.y));
 
