@@ -75,7 +75,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* version_string = "bspguy v3 WIP (May 2020)";
+const char* g_version_string = "bspguy v3 WIP (June 2020)";
 
 bool g_verbose = false;
 
@@ -594,7 +594,7 @@ void print_help(string command) {
 			);
 	}
 	else {
-		logf("%s\n\n", version_string);
+		logf("%s\n\n", g_version_string);
 		logf(
 			"This tool modifies Sven Co-op BSPs without having to decompile them.\n\n"
 			"Usage: bspguy <command> <mapname> [options]\n"
@@ -630,7 +630,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
-		logf(version_string);
+		logf(g_version_string);
 		return 0;
 	}
 

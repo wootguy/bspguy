@@ -58,21 +58,23 @@ void Gui::draw() {
 	if (showDebugWidget) {
 		drawDebugWidget();
 	}
-
 	if (showKeyvalueWidget) {
 		drawKeyvalueEditor();
 	}
-
 	if (showTransformWidget) {
 		drawTransformWidget();
 	}
-
 	if (showLogWidget) {
 		drawLog();
 	}
-
 	if (showSettingsWidget) {
 		drawSettings();
+	}
+	if (showHelpWidget) {
+		drawHelp();
+	}
+	if (showAboutWidget) {
+		drawAbout();
 	}
 
 	if (contextMenuEnt != -1) {
@@ -195,23 +197,6 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	if (ImGui::BeginMenu("Widgets"))
-	{
-		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
-			showDebugWidget = !showDebugWidget;
-		}
-		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
-			showKeyvalueWidget = !showKeyvalueWidget;
-		}
-		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
-			showTransformWidget = !showTransformWidget;
-		}
-		if (ImGui::MenuItem("Log", "", showLogWidget)) {
-			showLogWidget = !showLogWidget;
-		}
-		ImGui::EndMenu();
-	}
-
 	if (ImGui::BeginMenu("Create"))
 	{
 		if (ImGui::MenuItem("Entity")) {
@@ -251,6 +236,34 @@ void Gui::drawMenuBar() {
 			destMap->map->validate();
 
 			destMap->map->print_model_hull(modelIdx, 1);
+		}
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Widgets"))
+	{
+		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
+			showDebugWidget = !showDebugWidget;
+		}
+		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
+			showKeyvalueWidget = !showKeyvalueWidget;
+		}
+		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
+			showTransformWidget = !showTransformWidget;
+		}
+		if (ImGui::MenuItem("Log", "", showLogWidget)) {
+			showLogWidget = !showLogWidget;
+		}
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Help"))
+	{
+		if (ImGui::MenuItem("View help")) {
+			showHelpWidget = true;
+		}
+		if (ImGui::MenuItem("About")) {
+			showAboutWidget = true;
 		}
 		ImGui::EndMenu();
 	}
@@ -1330,6 +1343,9 @@ void Gui::drawSettings() {
 			}
 		}
 		else if (settingsTab == 2) {
+			if (ImGui::Checkbox("VSync", &vsync)) {
+				glfwSwapInterval(vsync ? 1 : 0);
+			}
 			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, 0, 0, "%.0f", 100.0f);
 			ImGui::Separator();
@@ -1341,6 +1357,7 @@ void Gui::drawSettings() {
 			bool renderSpecial = g_render_flags & RENDER_SPECIAL;
 			bool renderSpecialEnts = g_render_flags & RENDER_SPECIAL_ENTS;
 			bool renderPointEnts = g_render_flags & RENDER_POINT_ENTS;
+			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
 
 			ImGui::Columns(2, 0, false);
 
@@ -1353,8 +1370,8 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("Wireframe", &renderWireframe)) {
 				g_render_flags ^= RENDER_WIREFRAME;
 			}
-			if (ImGui::Checkbox("Vsync", &vsync)) {
-				glfwSwapInterval(vsync ? 1 : 0);
+			if (ImGui::Checkbox("Origin", &renderOrigin)) {
+				g_render_flags ^= RENDER_ORIGIN;
 			}
 
 			ImGui::NextColumn();
@@ -1400,5 +1417,74 @@ void Gui::drawSettings() {
 
 		ImGui::EndGroup();
 	}
+	ImGui::End();
+}
+
+void Gui::drawHelp() {
+	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+	if (ImGui::Begin("Help", &showHelpWidget)) {
+
+		if (ImGui::BeginTabBar("##tabs"))
+		{
+			if (ImGui::BeginTabItem("UI Controls")) {
+				ImGui::Dummy(ImVec2(0, 10));
+				
+				// user guide from the demo
+				ImGuiIO& io = ImGui::GetIO();
+				ImGui::BulletText("Click and drag on lower corner to resize window\n(double-click to auto fit window to its contents).");
+				ImGui::BulletText("While adjusting numeric inputs:\n");
+				ImGui::Indent();
+				ImGui::BulletText("Hold SHIFT/ALT for faster/slower edit.");
+				ImGui::BulletText("Double-click or CTRL+click to input value.");
+				ImGui::Unindent();
+				ImGui::BulletText("While inputing text:\n");
+				ImGui::Indent();
+				ImGui::BulletText("CTRL+A or double-click to select all.");
+				ImGui::BulletText("CTRL+X/C/V to use clipboard cut/copy/paste.");
+				ImGui::BulletText("CTRL+Z,CTRL+Y to undo/redo.");
+				ImGui::BulletText("You can apply arithmetic operators +,*,/ on numerical values.\nUse +- to subtract.");
+				ImGui::Unindent();
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("3D Controls")) {
+				ImGui::Dummy(ImVec2(0, 10));
+
+				// user guide from the demo
+				ImGuiIO& io = ImGui::GetIO();
+				ImGui::BulletText("WASD to move (hold SHIFT/CTRL for faster/slower movement).");
+				ImGui::BulletText("Hold right mouse button to rotate view.");
+				ImGui::BulletText("Left click to select objects/entities. Right click for options.");
+				ImGui::BulletText("While grabbing an entity:\n");
+				ImGui::Indent();
+				ImGui::BulletText("Mouse wheel to push/pull (hold SHIFT/CTRL for faster/slower).");
+				ImGui::BulletText("Click outside of the entity or press G to let go.");
+				ImGui::Unindent();
+				ImGui::BulletText("While grabbing 3D transform axes:\n");
+				ImGui::Indent();
+				ImGui::BulletText("Hold SHIFT/CTRL for faster/slower adjustments");
+				ImGui::Unindent();
+
+				ImGui::EndTabItem();
+			}
+		}
+		ImGui::EndTabBar();		
+	}
+	ImGui::End();
+}
+
+void Gui::drawAbout() {
+	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
+	if (ImGui::Begin("About", &showAboutWidget)) {
+		ImGui::InputText("Version", (char*)g_version_string, strlen(g_version_string), ImGuiInputTextFlags_ReadOnly);
+
+		static char* author = "w00tguy";
+		ImGui::InputText("Author", author, strlen(author), ImGuiInputTextFlags_ReadOnly);
+
+		static char* url = "https://github.com/wootguy/bspguy";
+		ImGui::InputText("Contact", url, strlen(url), ImGuiInputTextFlags_ReadOnly);
+	}
+
 	ImGui::End();
 }

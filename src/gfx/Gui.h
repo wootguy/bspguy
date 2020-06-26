@@ -29,6 +29,8 @@ private:
 	bool showTransformWidget = false;
 	bool showLogWidget = false;
 	bool showSettingsWidget = false;
+	bool showHelpWidget = false;
+	bool showAboutWidget = false;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	ImFont* smallFont;
@@ -57,6 +59,8 @@ private:
 	void drawTransformWidget();
 	void drawLog();
 	void drawSettings();
+	void drawHelp();
+	void drawAbout();
 
 	void clearLog();
 	void addLog(const char* s);

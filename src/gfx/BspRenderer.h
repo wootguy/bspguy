@@ -19,6 +19,8 @@ enum RenderFlags {
 	RENDER_SPECIAL = 16,
 	RENDER_SPECIAL_ENTS = 32,
 	RENDER_POINT_ENTS = 64,
+
+	RENDER_ORIGIN = 128
 };
 
 struct LightmapInfo {

@@ -322,12 +322,14 @@ void Renderer::renderLoop() {
 				glEnable(GL_CULL_FACE);
 			}
 
-			colorShader->bind();
-			model.loadIdentity();
-			colorShader->updateMatrixes();
-			drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255 });
-			drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0 });
-			drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255 });
+			if (g_render_flags & RENDER_ORIGIN) {
+				colorShader->bind();
+				model.loadIdentity();
+				colorShader->updateMatrixes();
+				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255 });
+				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0 });
+				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255 });
+			}
 		}
 
 		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
