@@ -177,6 +177,14 @@ void BspRenderer::loadTextures() {
 		logf("%d missing textures\n", missingCount);
 }
 
+void BspRenderer::reload() {
+	calcFaceMaths();
+	preRenderFaces();
+	preRenderEnts();
+	reloadTextures();
+	reloadLightmaps();
+}
+
 void BspRenderer::reloadTextures() {
 	texturesLoaded = false;
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);

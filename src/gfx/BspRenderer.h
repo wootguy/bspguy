@@ -99,6 +99,7 @@ public:
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
 
+	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();
 	void reloadLightmaps();
 

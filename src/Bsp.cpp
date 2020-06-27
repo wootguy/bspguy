@@ -1251,16 +1251,18 @@ bool Bsp::has_hull2_ents() {
 	return false;
 }
 
-STRUCTCOUNT Bsp::delete_unused_hulls() {
-	if (g_verbose)
-		g_progress.update("", 0);
-	else
-		g_progress.update("Deleting unused hulls", modelCount - 1);
+STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
+	if (!noProgress) {
+		if (g_verbose)
+			g_progress.update("", 0);
+		else
+			g_progress.update("Deleting unused hulls", modelCount - 1);
+	}
 
 	int deletedHulls = 0;
 
 	for (int i = 1; i < modelCount; i++) {
-		if (!g_verbose)
+		if (!g_verbose && !noProgress)
 			g_progress.tick();
 
 		vector<Entity*> usageEnts = get_model_ents(i);
@@ -1401,7 +1403,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 		BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[i];
 
 		if (!needsVisibleHull) {
-			if (g_verbose)
+			if (g_verbose && models[i].iHeadnodes[0] >= 0)
 				logf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
 
 			deletedHulls += models[i].iHeadnodes[0] >= 0;
@@ -1412,18 +1414,24 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 			model.iFirstFace = 0;
 		}
 		if (!needsPlayerHulls && !needsMonsterHulls) {
-			if (g_verbose)
-				logf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
-			
-			for (int k = 1; k < MAX_MAP_HULLS; k++)
+			bool deletedAnyHulls = false;
+			for (int k = 1; k < MAX_MAP_HULLS; k++) {
 				deletedHulls += models[i].iHeadnodes[k] >= 0;
+				if (models[i].iHeadnodes[k] >= 0) {
+					deletedHulls++;
+					deletedAnyHulls = true;
+				}
+			}
+
+			if (g_verbose && deletedAnyHulls)
+				logf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
 
 			model.iHeadnodes[1] = -1;
 			model.iHeadnodes[2] = -1;
 			model.iHeadnodes[3] = -1;
 		}
 		else if (!needsMonsterHulls) {
-			if (g_verbose)
+			if (g_verbose && models[i].iHeadnodes[2] >= 0)
 				logf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
 
 			deletedHulls += models[i].iHeadnodes[2] >= 0;
@@ -1439,7 +1447,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls() {
 
 	update_ent_lump();
 
-	if (!g_verbose) {
+	if (!g_verbose && !noProgress) {
 		g_progress.clear();
 	}
 
@@ -2367,10 +2375,10 @@ void Bsp::delete_hull(int hull_number, int modelIdx, int redirect) {
 	}
 	else if (redirect > 0) {
 		if (model.iHeadnodes[hull_number] > 0 && model.iHeadnodes[redirect] < 0) {
-			logf("WARNING: HULL %d is empty\n", redirect);
+			//logf("WARNING: HULL %d is empty\n", redirect);
 		}
 		else if (model.iHeadnodes[hull_number] == model.iHeadnodes[redirect]) {
-			logf("WARNING: HULL %d and %d are already sharing clipnodes\n", hull_number, redirect);
+			//logf("WARNING: HULL %d and %d are already sharing clipnodes\n", hull_number, redirect);
 		}
 		model.iHeadnodes[hull_number] = model.iHeadnodes[redirect];
 	}

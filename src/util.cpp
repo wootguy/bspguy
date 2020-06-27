@@ -11,9 +11,12 @@
 ProgressMeter g_progress;
 int g_render_flags;
 vector<string> g_log_buffer;
+mutex g_log_mutex;
 
 void logf(const char* format, ...) {
 	static char line[4096];
+
+	g_log_mutex.lock();
 
 	va_list vl;
 	va_start(vl, format);
@@ -22,6 +25,8 @@ void logf(const char* format, ...) {
 
 	printf(line);
 	g_log_buffer.push_back(line);
+
+	g_log_mutex.unlock();
 }
 
 bool fileExists(const string& fileName)

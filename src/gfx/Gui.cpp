@@ -256,6 +256,10 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Map"))
 	{
+		if (ImGui::MenuItem("Limits", NULL)) {
+			showLimitsWidget = true;
+		}
+
 		if (ImGui::MenuItem("Clean", NULL)) {
 			if (app->isLoading) {
 				logf("Map not finished loading. Unable to clean");
@@ -264,16 +268,33 @@ void Gui::drawMenuBar() {
 				for (int i = 0; i < app->mapRenderers.size(); i++) {
 					Bsp* map = app->mapRenderers[i]->map;
 					logf("Cleaning %s\n", map->name.c_str());
-					app->deselectObject();
 					map->remove_unused_model_structures().print_delete_stats(0);
+					app->mapRenderers[i]->reload();
+					app->deselectObject();
 					reloadLimits();
-					app->mapRenderers[i]->calcFaceMaths();
-					app->mapRenderers[i]->preRenderFaces();
-					app->mapRenderers[i]->preRenderEnts();
-					app->mapRenderers[i]->reloadTextures();
-					app->mapRenderers[i]->reloadLightmaps();
 					checkValidHulls();
 				}
+			}
+		}
+
+		if (ImGui::MenuItem("Optimize", NULL)) {
+			for (int k = 0; k < app->mapRenderers.size(); k++) {
+				Bsp* map = app->mapRenderers[k]->map;
+				
+				logf("Optimizing %s\n", map->name.c_str());
+				if (!map->has_hull2_ents()) {
+					logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
+					map->delete_hull(2, 1);
+				}
+
+				g_verbose = true;
+				map->delete_unused_hulls(true).print_delete_stats(0);
+				g_verbose = false;
+
+				app->mapRenderers[k]->reload();
+				app->deselectObject();
+				reloadLimits();
+				checkValidHulls();
 			}
 		}
 
@@ -313,9 +334,7 @@ void Gui::drawMenuBar() {
 			}
 			ImGui::EndMenu();
 		}
-		if (ImGui::MenuItem("Limits", NULL)) {
-			showLimitsWidget = true;
-		}
+		
 		ImGui::EndMenu();
 	}
 
@@ -1359,10 +1378,12 @@ void Gui::drawLog() {
 		return;
 	}
 
+	g_log_mutex.lock();
 	for (int i = 0; i < g_log_buffer.size(); i++) {
 		addLog(g_log_buffer[i].c_str());
 	}
 	g_log_buffer.clear();
+	g_log_mutex.unlock();
 
 	static int i = 0;
 

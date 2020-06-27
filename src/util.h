@@ -27,6 +27,7 @@ extern bool g_verbose;
 extern ProgressMeter g_progress;
 extern vector<string> g_log_buffer;
 extern const char* g_version_string;
+extern mutex g_log_mutex;
 
 extern int g_render_flags;
 
