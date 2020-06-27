@@ -47,6 +47,7 @@ struct VertexAttr
 class VertexBuffer
 {
 public:
+	byte* data = NULL;
 	std::vector<VertexAttr> attribs;
 	int elementSize;
 	int numVerts;
@@ -73,7 +74,6 @@ public:
 	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 
 private:
-	byte * data = NULL;
 	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes
 	uint vboId = -1;
 	bool attributesBound = false;

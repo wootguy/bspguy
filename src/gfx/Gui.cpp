@@ -292,10 +292,11 @@ void Gui::drawFpsOverlay() {
 }
 
 void Gui::drawStatusMessage() {
-	static int lastWindowWidth = 32;
 	static int windowWidth = 32;
+	static int loadingWindowWidth = 32;
+	static int loadingWindowHeight = 32;
 
-	bool showStatus = app->invalidSolid || !app->isTransformableSolid || app->isLoading;
+	bool showStatus = app->invalidSolid || !app->isTransformableSolid;
 	if (showStatus) {
 		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
@@ -331,32 +332,44 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (app->isLoading) {
-				static float lastTick = clock();
-				static int loadTick = 0;
-
-				if (float(clock() - lastTick) / (float)CLOCKS_PER_SEC > 0.05f) {
-					loadTick = (loadTick + 1) % 8;
-					lastTick = clock();
-				}
-
-				ImGui::PushFont(consoleFont);
-				switch (loadTick) {
-					default:
-					case 0: ImGui::Text("Loading |"); break;
-					case 1: ImGui::Text("Loading /"); break;
-					case 2: ImGui::Text("Loading -"); break;
-					case 3: ImGui::Text("Loading \\"); break;
-					case 4: ImGui::Text("Loading |"); break;
-					case 5: ImGui::Text("Loading /"); break;
-					case 6: ImGui::Text("Loading -"); break;
-					case 7: ImGui::Text("Loading \\"); break;
-				}
-				ImGui::PopFont();
-				
-			}
 			windowWidth = ImGui::GetWindowWidth();
 		}
+		ImGui::End();
+	}
+
+	if (app->isLoading) {
+		ImVec2 window_pos = ImVec2((app->windowWidth - loadingWindowWidth) / 2, 
+			(app->windowHeight - loadingWindowHeight) / 2);
+		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
+
+		if (ImGui::Begin("loader", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+		{
+			static float lastTick = clock();
+			static int loadTick = 0;
+
+			if (float(clock() - lastTick) / (float)CLOCKS_PER_SEC > 0.05f) {
+				loadTick = (loadTick + 1) % 8;
+				lastTick = clock();
+			}
+
+			ImGui::PushFont(consoleFontLarge);
+			switch (loadTick) {
+			default:
+			case 0: ImGui::Text("Loading |"); break;
+			case 1: ImGui::Text("Loading /"); break;
+			case 2: ImGui::Text("Loading -"); break;
+			case 3: ImGui::Text("Loading \\"); break;
+			case 4: ImGui::Text("Loading |"); break;
+			case 5: ImGui::Text("Loading /"); break;
+			case 6: ImGui::Text("Loading -"); break;
+			case 7: ImGui::Text("Loading \\"); break;
+			}
+			ImGui::PopFont();
+
+		}
+		loadingWindowWidth = ImGui::GetWindowWidth();
+		loadingWindowHeight = ImGui::GetWindowHeight();
+
 		ImGui::End();
 	}
 }
@@ -1199,14 +1212,17 @@ void Gui::loadFonts() {
 	byte* smallFontData = new byte[sizeof(robotomedium)];
 	byte* largeFontData = new byte[sizeof(robotomedium)];
 	byte* consoleFontData = new byte[sizeof(robotomono)];
+	byte* consoleFontLargeData = new byte[sizeof(robotomono)];
 	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
 	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
 	memcpy(consoleFontData, robotomono, sizeof(robotomono));
+	memcpy(consoleFontLargeData, robotomono, sizeof(robotomono));
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, sizeof(robotomedium), fontSize);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, sizeof(robotomedium), fontSize * 1.1f);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, sizeof(robotomono), fontSize);
+	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize*1.2f);
 }
 
 void Gui::drawLog() {

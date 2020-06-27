@@ -38,7 +38,7 @@ struct LightmapInfo {
 struct RenderEnt {
 	mat4x4 modelMat; // model matrix for rendering
 	vec3 offset; // vertex transformations for picking
-	int modelIdx;
+	int modelIdx; // -1 = point entity
 	EntCube* pointEntCube;
 };
 
@@ -97,6 +97,7 @@ public:
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, RenderModel* renderModel=NULL);
 	void refreshFace(int faceIdx);
+	void refreshPointEnt(int entIdx);
 
 	void reloadTextures();
 
@@ -118,6 +119,7 @@ private:
 	RenderEnt* renderEnts;
 	RenderModel* renderModels;
 	FaceMath* faceMaths;
+	VertexBuffer* pointEnts = NULL;
 
 	// models loaded in a separate thread
 	RenderModel* renderModelsSwap;
@@ -128,6 +130,7 @@ private:
 	int numRenderModels;
 	int numRenderLightmapInfos;
 	int numFaceMaths;
+	int numPointEnts;
 
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;

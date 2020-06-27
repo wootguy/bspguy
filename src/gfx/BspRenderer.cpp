@@ -322,8 +322,10 @@ RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
 			modelRenderGroups += groupCount;
 	}
 
-	logf("Added %d world render groups\n", worldRenderGroups);
-	logf("Added %d submodel render groups\n", modelRenderGroups);
+	logf("Created %d solid render groups (%d world, %d entity)\n", 
+		worldRenderGroups + modelRenderGroups,
+		worldRenderGroups,
+		modelRenderGroups);
 
 	return newRenderModels;
 }
@@ -562,13 +564,77 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 }
 
 void BspRenderer::preRenderEnts() {
-	if (renderEnts != NULL)
+	if (renderEnts != NULL) {
 		delete[] renderEnts;
+		delete pointEnts;
+	}
 	renderEnts = new RenderEnt[map->ents.size()];
 
-	for (int i = 0; i < map->ents.size(); i++) {
-		refreshEnt(i);
+	numPointEnts = 0;
+	for (int i = 1; i < map->ents.size(); i++) {
+		numPointEnts += !map->ents[i]->isBspModel();
 	}
+
+	cCube* entCubes = new cCube[numPointEnts];
+	int pointEntIdx = 0;
+
+	for (int i = 1; i < map->ents.size(); i++) {
+		refreshEnt(i);
+
+		if (!map->ents[i]->isBspModel()) {
+			memcpy(entCubes + pointEntIdx, renderEnts[i].pointEntCube->buffer->data, sizeof(cCube));
+			cVert* verts = (cVert*)(entCubes + pointEntIdx);
+			vec3 offset = renderEnts[i].offset.flip();
+			for (int k = 0; k < 6 * 6; k++) {
+				verts[k].x += offset.x;
+				verts[k].y += offset.y;
+				verts[k].z += offset.z;
+			}
+			pointEntIdx++;
+		}
+	}
+
+	pointEnts = new VertexBuffer(colorShader, COLOR_3B | POS_3F, entCubes, numPointEnts * 6 * 6);
+	pointEnts->ownData = true;
+	pointEnts->upload();
+}
+
+void BspRenderer::refreshPointEnt(int entIdx) {
+	int skipIdx = 0;
+
+	if (entIdx == 0)
+		return;
+
+	// skip worldspawn
+	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
+		if (renderEnts[i].modelIdx >= 0)
+			continue;
+
+		if (i == entIdx) {
+			break;
+		}
+
+		skipIdx++;
+	}
+
+	if (skipIdx >= numPointEnts) {
+		logf("Failed to update point ent\n");
+		return;
+	}
+
+	cCube* entCubes = (cCube*)pointEnts->data;
+
+	memcpy(entCubes + skipIdx, renderEnts[entIdx].pointEntCube->buffer->data, sizeof(cCube));
+	cVert* verts = (cVert*)(entCubes + skipIdx);
+	vec3 offset = renderEnts[entIdx].offset.flip();
+	for (int k = 0; k < 6 * 6; k++) {
+		verts[k].x += offset.x;
+		verts[k].y += offset.y;
+		verts[k].z += offset.z;
+	}
+
+	pointEnts->deleteBuffer();
+	pointEnts->upload();
 }
 
 void BspRenderer::refreshEnt(int entIdx) {
@@ -579,7 +645,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
 
 	if (ent->hasKey("origin")) {
-		vec3 origin = Keyvalue("", ent->keyvalues["origin"]).getVector();
+		vec3 origin = parseVector(ent->keyvalues["origin"]);
 		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
 		renderEnts[entIdx].offset = origin;
 	}
@@ -833,25 +899,39 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 
 	colorShader->bind();
 
+	if (highlightEnt <= 0 || highlightEnt >= map->ents.size()) {
+		pointEnts->draw(GL_TRIANGLES);
+		return;
+	}
+
+	int skipIdx = 0;
+
 	// skip worldspawn
 	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
-		if (map->ents[i]->isBspModel())
+		if (renderEnts[i].modelIdx >= 0)
 			continue;
 
-		colorShader->pushMatrix(MAT_MODEL);
-		*colorShader->modelMat = renderEnts[i].modelMat;
-		colorShader->updateMatrixes();
-
 		if (highlightEnt == i) {
+			colorShader->pushMatrix(MAT_MODEL);
+			*colorShader->modelMat = renderEnts[i].modelMat;
+			colorShader->updateMatrixes();
+
 			renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
 			renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
+
+			colorShader->popMatrix(MAT_MODEL);
+
+			break;
 		}
-		else {
-			renderEnts[i].pointEntCube->buffer->draw(GL_TRIANGLES);
-		}
-		
-		colorShader->popMatrix(MAT_MODEL);
+
+		skipIdx++;
 	}
+
+	const int cubeVerts = 6 * 6;
+	if (skipIdx > 0)
+		pointEnts->drawRange(GL_TRIANGLES, 0, cubeVerts * skipIdx);
+	if (skipIdx+1 < numPointEnts)
+		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * (skipIdx + 1), cubeVerts * numPointEnts);
 }
 
 bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {

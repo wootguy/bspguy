@@ -60,6 +60,7 @@ struct AppSettings {
 	float moveSpeed;
 	float rotSpeed;
 	int render_flags;
+	bool vsync;
 
 	vector<string> fgdPaths;
 

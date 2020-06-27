@@ -36,6 +36,7 @@ private:
 	ImFont* smallFont;
 	ImFont* largeFont;
 	ImFont* consoleFont;
+	ImFont* consoleFontLarge;
 	int fontSize = 22;
 	bool shouldReloadFonts = false;
 

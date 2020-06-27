@@ -79,6 +79,7 @@ void AppSettings::load() {
 			else if (key == "transform_open") { g_settings.transform_open = atoi(val.c_str()) != 0; }
 			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
+			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
@@ -121,6 +122,7 @@ void AppSettings::save() {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
 	}
 
+	file << "vsync=" << g_settings.vsync << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "move_speed=" << g_settings.moveSpeed << endl;
@@ -182,6 +184,7 @@ Renderer::Renderer() {
 	// init to black screen instead of white
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glfwSwapBuffers(window);
+	glfwSwapInterval(1);
 
 	gui = new Gui(this);
 
@@ -223,8 +226,6 @@ Renderer::~Renderer() {
 }
 
 void Renderer::renderLoop() {
-	glfwSwapInterval(1);
-
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
@@ -396,6 +397,7 @@ void Renderer::saveSettings() {
 	g_settings.log_open = gui->showLogWidget;
 	g_settings.settings_open = gui->showSettingsWidget;
 
+	g_settings.vsync = gui->vsync;
 	g_settings.zfar = zFar;
 	g_settings.fov = fov;
 	g_settings.render_flags = g_render_flags;
@@ -415,6 +417,7 @@ void Renderer::loadSettings() {
 	gui->showLogWidget = g_settings.log_open;
 	gui->showSettingsWidget = g_settings.settings_open;
 
+	gui->vsync = g_settings.vsync;
 	zFar = g_settings.zfar;
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;
@@ -423,6 +426,8 @@ void Renderer::loadSettings() {
 	moveSpeed = g_settings.moveSpeed;
 
 	gui->shouldReloadFonts = true;
+
+	glfwSwapInterval(gui->vsync ? 1 : 0);
 }
 
 void Renderer::loadFgds() {
@@ -936,6 +941,9 @@ void Renderer::shortcutControls() {
 }
 
 void Renderer::pickObject() {
+	bool pointEntWasSelected = pickInfo.valid && pickInfo.ent && !pickInfo.ent->isBspModel();
+	int oldSelectedPointEntIdx = pickInfo.entIdx;
+
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
@@ -964,6 +972,12 @@ void Renderer::pickObject() {
 	isTransformableSolid = true;
 	if (pickInfo.modelIdx > 0) {
 		isTransformableSolid = pickInfo.map->is_convex(pickInfo.modelIdx);
+	}
+
+	if (pointEntWasSelected) {
+		for (int i = 0; i < mapRenderers.size(); i++) {
+			mapRenderers[i]->refreshPointEnt(oldSelectedPointEntIdx);
+		}
 	}
 }
 
