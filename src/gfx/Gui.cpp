@@ -190,12 +190,24 @@ void Gui::drawMenuBar() {
 	if (ImGui::BeginMenu("Map"))
 	{
 		if (ImGui::MenuItem("Clean", NULL)) {
-			for (int i = 0; i < app->mapRenderers.size(); i++) {
-				Bsp* map = app->mapRenderers[i]->map;
-				logf("Cleaning %s\n", map->name.c_str());
-				app->pickInfo.valid = false;
-				map->remove_unused_model_structures().print_delete_stats(0);
+			if (app->isLoading) {
+				logf("Map not finished loading. Unable to clean");
 			}
+			else {
+				for (int i = 0; i < app->mapRenderers.size(); i++) {
+					Bsp* map = app->mapRenderers[i]->map;
+					logf("Cleaning %s\n", map->name.c_str());
+					app->deselectObject();
+					map->remove_unused_model_structures().print_delete_stats(0);
+					reloadLimits();
+					app->mapRenderers[i]->calcFaceMaths();
+					app->mapRenderers[i]->preRenderFaces();
+					app->mapRenderers[i]->preRenderEnts();
+					app->mapRenderers[i]->reloadTextures();
+					app->mapRenderers[i]->reloadLightmaps();
+				}
+			}
+			
 		}
 		if (ImGui::MenuItem("Limits", NULL)) {
 			showLimitsWidget = true;
@@ -215,6 +227,7 @@ void Gui::drawMenuBar() {
 			BspRenderer* destMap = app->getMapContainingCamera();
 			destMap->map->ents.push_back(newEnt);
 			destMap->preRenderEnts();
+			reloadLimits();
 		}
 
 		if (ImGui::MenuItem("BSP Model")) {
@@ -241,7 +254,8 @@ void Gui::drawMenuBar() {
 			destMap->preRenderEnts();
 			destMap->map->validate();
 
-			destMap->map->print_model_hull(modelIdx, 1);
+			//destMap->map->print_model_hull(modelIdx, 1);
+			reloadLimits();
 		}
 		ImGui::EndMenu();
 	}
@@ -457,7 +471,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.valid) {
+		if (app->pickInfo.ent) {
 			Bsp* map = app->pickInfo.map;
 			Entity* ent = app->pickInfo.ent;
 			BSPMODEL& model = map->models[app->pickInfo.modelIdx];
@@ -1552,6 +1566,7 @@ void Gui::drawLimits() {
 				if (ImGui::BeginTabItem("Summary")) {
 
 					if (!loadedStats) {
+						stats.clear();
 						stats.push_back(calcStat("models", map->modelCount, MAX_MAP_MODELS, false));
 						stats.push_back(calcStat("planes", map->planeCount, MAX_MAP_PLANES, false));
 						stats.push_back(calcStat("vertexes", map->vertCount, MAX_MAP_VERTS, false));
@@ -1801,7 +1816,6 @@ StatInfo Gui::calcStat(string name, uint val, uint max, bool isMem) {
 	return stat;
 }
 
-
 ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem) {
 	ModelInfo stat;
 
@@ -1842,4 +1856,11 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 	}
 
 	return stat;
+}
+
+void Gui::reloadLimits() {
+	for (int i = 0; i < SORT_MODES; i++) {
+		loadedLimit[i] = false;
+	}
+	loadedStats = false;
 }

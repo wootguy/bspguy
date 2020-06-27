@@ -53,12 +53,12 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 }
 
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
+	cachedModelIdx = -2;
 	if (hasKey(key)) {
 		keyvalues[key] = value;
 		return;
 	}
 	addKeyvalue(key, value);
-	cachedModelIdx = -2;
 }
 
 void Entity::removeKeyvalue(const std::string& key) {

@@ -1449,7 +1449,6 @@ void Renderer::updateModelVerts() {
 		modelVertCubes = NULL;
 		scaleTexinfos.clear();
 		modelEdges.clear();
-		map->remove_unused_model_structures();
 	}
 	if (!map->is_convex(modelIdx)) {
 		return;
@@ -1816,7 +1815,8 @@ void Renderer::cutEnt() {
 	delete map->ents[pickInfo.entIdx];
 	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	pickInfo.valid = false;
+	deselectObject();
+	gui->reloadLimits();
 }
 
 void Renderer::copyEnt() {
@@ -1865,5 +1865,14 @@ void Renderer::deleteEnt() {
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	pickInfo.valid = false;
+	deselectObject();
+	gui->reloadLimits();
+}
+
+void Renderer::deselectObject() {
+	pickInfo.ent = NULL;
+	pickInfo.entIdx = -1;
+	pickInfo.faceIdx = -1;
+	pickInfo.modelIdx = -1;
+	isTransformableSolid = true;
 }

@@ -74,8 +74,8 @@ struct PickInfo {
 	int faceIdx;
 	float bestDist;
 	bool valid;
-	Bsp* map;
-	Entity* ent;
+	Bsp* map = NULL;
+	Entity* ent = NULL;
 };
 
 class BspRenderer {
@@ -100,6 +100,7 @@ public:
 	void refreshPointEnt(int entIdx);
 
 	void reloadTextures();
+	void reloadLightmaps();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer

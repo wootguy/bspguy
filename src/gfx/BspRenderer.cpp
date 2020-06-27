@@ -182,6 +182,12 @@ void BspRenderer::reloadTextures() {
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
 }
 
+void BspRenderer::reloadLightmaps() {
+	lightmapsGenerated = false;
+	lightmapsUploaded = false;
+	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
+}
+
 void BspRenderer::loadLightmaps() {
 	vector<LightmapNode*> atlases;
 	vector<Texture*> atlasTextures;
@@ -765,7 +771,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
 	if (highlightEnt > 0 && !highlightAlwaysOnTop) {
-		if (renderEnts[highlightEnt].modelIdx >= 0) {
+		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			bspShader->pushMatrix(MAT_MODEL);
 			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
 			bspShader->updateMatrixes();
@@ -783,7 +789,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 		drawModel(0, drawTransparentFaces, false, false);
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-			if (renderEnts[i].modelIdx >= 0) {
+			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 				bspShader->pushMatrix(MAT_MODEL);
 				*bspShader->modelMat = renderEnts[i].modelMat;
 				bspShader->updateMatrixes();
@@ -800,7 +806,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 	}
 
 	if (highlightEnt > 0 && highlightAlwaysOnTop) {
-		if (renderEnts[highlightEnt].modelIdx >= 0) {
+		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			bspShader->pushMatrix(MAT_MODEL);
 			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
 			bspShader->updateMatrixes();
@@ -890,7 +896,10 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			}
 			else {
 				if (s == 0) {
-					whiteTex->bind();
+					if (lightmapsUploaded)
+						whiteTex->bind();
+					else
+						greyTex->bind();
 				}
 				else {
 					blackTex->bind();
@@ -953,7 +962,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 	}
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-		if (renderEnts[i].modelIdx >= 0) {
+		if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 
 			bool isSpecial = false;
 			for (int k = 0; k < renderModels[renderEnts[i].modelIdx].groupCount; k++) {

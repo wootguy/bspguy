@@ -1098,9 +1098,27 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
 
-	for (int i = 0; i < modelCount; i++) {
-		mark_model_structures(i, &usedStructures);
+	bool* usedModels = new bool[modelCount];
+	memset(usedModels, 0, sizeof(bool) * modelCount);
+	usedModels[0] = true; // never delete worldspawn
+	for (int i = 0; i < ents.size(); i++) {
+		int modelIdx = ents[i]->getBspModelIdx();
+		if (modelIdx >= 0 && modelIdx < modelCount) {
+			usedModels[modelIdx] = true;
+		}
 	}
+
+	// reversed so models can be deleted without shifting the next delete index
+ 	for (int i = modelCount-1; i >= 0; i--) { 
+		if (!usedModels[i]) {
+			delete_model(i);
+		}
+		else {
+			mark_model_structures(i, &usedStructures);
+		}
+	}
+
+	delete[] usedModels;
 
 	STRUCTREMAP remap(this);
 	STRUCTCOUNT removeCount;
@@ -2378,10 +2396,10 @@ void Bsp::delete_model(int modelIdx) {
 	for (int i = 0; i < ents.size(); i++) {
 		int entModel = ents[i]->getBspModelIdx();
 		if (entModel == modelIdx) {
-			ents[i]->keyvalues["model"] = "error.mdl";
+			ents[i]->setOrAddKeyvalue("model", "error.mdl");
 		}
 		else if (entModel > modelIdx) {
-			ents[i]->keyvalues["model"] = "*" + to_string(entModel-1);
+			ents[i]->setOrAddKeyvalue("model", "*" + to_string(entModel - 1));
 		}
 	}
 }

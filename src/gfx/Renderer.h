@@ -225,6 +225,7 @@ private:
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
 	vec3 getEdgeControlPoint(HullEdge& iEdge);
+	void deselectObject(); // keep map selected but unselect all objects
 
 	void loadFgds();
 };

@@ -92,6 +92,7 @@ private:
 	void drawLimitTab(Bsp* map, int sortMode);
 	StatInfo calcStat(string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
+	void reloadLimits();
 
 	void clearLog();
 	void addLog(const char* s);
