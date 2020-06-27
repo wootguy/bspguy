@@ -21,18 +21,21 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 	redTex = new Texture(1, 1);
 	yellowTex = new Texture(1, 1);
 	blackTex = new Texture(1, 1);
+	blueTex = new Texture(1, 1);
 
 	*((COLOR3*)(whiteTex->data)) = { 255, 255, 255 };
 	*((COLOR3*)(redTex->data)) = { 110, 0, 0 };
 	*((COLOR3*)(yellowTex->data)) = { 255, 255, 0 };
 	*((COLOR3*)(greyTex->data)) = { 64, 64, 64 };
 	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
+	*((COLOR3*)(blueTex->data)) = { 0, 0, 200 };
 
 	whiteTex->upload();
 	redTex->upload();
 	yellowTex->upload();
 	greyTex->upload();
 	blackTex->upload();
+	blueTex->upload();
 
 	//loadTextures();
 	//loadLightmaps();
@@ -855,8 +858,12 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			glActiveTexture(GL_TEXTURE0);
 			if (highlight)
 				yellowTex->bind();
-			else
-				greyTex->bind();
+			else {
+				if (modelIdx > 0)
+					blueTex->bind();
+				else
+					greyTex->bind();
+			}
 			glActiveTexture(GL_TEXTURE1);
 			whiteTex->bind();
 

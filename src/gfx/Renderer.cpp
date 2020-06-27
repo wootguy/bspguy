@@ -408,6 +408,11 @@ void Renderer::saveSettings() {
 
 void Renderer::loadSettings() {
 	if (!g_settings.valid) {
+
+		if (g_settings.fgdPaths.size() == 0) {
+			g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
+		}
+
 		return;
 	}
 
@@ -431,10 +436,6 @@ void Renderer::loadSettings() {
 }
 
 void Renderer::loadFgds() {
-	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
-	}
-
 	Fgd* mergedFgd = NULL;
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
@@ -960,8 +961,9 @@ void Renderer::pickObject() {
 		movingEnt = false;
 	}
 
-	if (pickInfo.modelIdx > 0)
-		pickInfo.map->print_model_hull(pickInfo.modelIdx, 1);
+	if (pickInfo.modelIdx > 0) {
+		//pickInfo.map->print_model_hull(pickInfo.modelIdx, 1);
+	}
 	else {
 		transformMode = TRANSFORM_MOVE;
 		transformTarget = TRANSFORM_OBJECT;

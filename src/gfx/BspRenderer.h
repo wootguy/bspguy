@@ -139,6 +139,7 @@ private:
 	Texture* yellowTex = NULL;
 	Texture* greyTex = NULL;
 	Texture* blackTex = NULL;
+	Texture* blueTex = NULL;
 
 	bool lightmapsGenerated = false;
 	bool lightmapsUploaded = false;
