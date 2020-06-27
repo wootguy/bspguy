@@ -10,10 +10,9 @@
 // super todo:
 // crash merging rl00
 // WARNING hull redirect spam
-// clicking key editor when bspguy not focused does a 3D select instead of key editor select
 // undo history
 // grid snapping not working with transform widgets
-// can't select things sometimes
+// can't select things sometimes (caused by not cleaning after creating solids?)
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 // face splitting for perfect sized relative teleports
 

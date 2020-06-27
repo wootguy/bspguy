@@ -244,6 +244,14 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
+		if (ImGui::MenuItem("Reload", NULL)) {
+			if (app->isLoading) {
+				logf("Map not finished loading. Unable to reload.");
+			} else {
+				app->reloadMaps();
+			}
+			
+		}
 		ImGui::Separator();
 		if (ImGui::MenuItem("Settings", NULL)) {
 			if (!showSettingsWidget) {
@@ -278,23 +286,28 @@ void Gui::drawMenuBar() {
 		}
 
 		if (ImGui::MenuItem("Optimize", NULL)) {
-			for (int k = 0; k < app->mapRenderers.size(); k++) {
-				Bsp* map = app->mapRenderers[k]->map;
-				
-				logf("Optimizing %s\n", map->name.c_str());
-				if (!map->has_hull2_ents()) {
-					logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
-					map->delete_hull(2, 1);
+			if (app->isLoading) {
+				logf("Map not finished loading. Unable to optimize");
+			}
+			else {
+				for (int k = 0; k < app->mapRenderers.size(); k++) {
+					Bsp* map = app->mapRenderers[k]->map;
+
+					logf("Optimizing %s\n", map->name.c_str());
+					if (!map->has_hull2_ents()) {
+						logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
+						map->delete_hull(2, 1);
+					}
+
+					g_verbose = true;
+					map->delete_unused_hulls(true).print_delete_stats(0);
+					g_verbose = false;
+
+					app->mapRenderers[k]->reload();
+					app->deselectObject();
+					reloadLimits();
+					checkValidHulls();
 				}
-
-				g_verbose = true;
-				map->delete_unused_hulls(true).print_delete_stats(0);
-				g_verbose = false;
-
-				app->mapRenderers[k]->reload();
-				app->deselectObject();
-				reloadLimits();
-				checkValidHulls();
 			}
 		}
 
@@ -594,7 +607,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.ent) {
+		if (app->pickInfo.valid && app->pickInfo.ent) {
 			Bsp* map = app->pickInfo.map;
 			Entity* ent = app->pickInfo.ent;
 			BSPMODEL& model = map->models[app->pickInfo.modelIdx];
@@ -1605,7 +1618,7 @@ void Gui::drawSettings() {
 				for (int i = 0; i < numFgds; i++) {
 					g_settings.fgdPaths.push_back(fgdPaths[i]);
 				}
-				app->reload();
+				app->reloadFgdsAndTextures();
 			}
 		}
 

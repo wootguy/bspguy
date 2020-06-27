@@ -25,6 +25,7 @@ Texture::~Texture()
 {
 	if (uploaded)
 		glDeleteTextures(1, &id);
+	delete[] data;
 }
 
 void Texture::upload()

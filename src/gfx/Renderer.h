@@ -88,7 +88,8 @@ public:
 	void addMap(Bsp* map);
 
 	void renderLoop();
-	void reload();
+	void reloadFgdsAndTextures();
+	void reloadMaps();
 	void saveSettings();
 	void loadSettings();
 

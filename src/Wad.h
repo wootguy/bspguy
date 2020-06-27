@@ -61,15 +61,12 @@ public:
 	std::string filename;
 	WADHEADER header;
 	WADDIRENTRY * dirEntries;
-	BSPMIPTEX * miptex;
-	WADTEX ** cache;
 	int numTex;
 
 	Wad(const std::string& file);
 	Wad(void);
 	~Wad(void);
 
-	void loadCache();
 	bool readInfo();
 	bool hasTexture(std::string name);
 

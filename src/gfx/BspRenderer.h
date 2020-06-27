@@ -63,7 +63,7 @@ struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
 	vec3 normal;
 	float fdist;
-	vec3* verts; // skips the edge lookups
+	vec3* verts = NULL; // skips the edge lookups
 	int vertCount;
 };
 
@@ -119,10 +119,10 @@ private:
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
 
-	LightmapInfo* lightmaps;
-	RenderEnt* renderEnts;
-	RenderModel* renderModels;
-	FaceMath* faceMaths;
+	LightmapInfo* lightmaps = NULL;
+	RenderEnt* renderEnts = NULL;
+	RenderModel* renderModels = NULL;
+	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
 
 	// models loaded in a separate thread
@@ -156,5 +156,8 @@ private:
 	RenderModel* genRenderFaces(int& renderModelCount);
 	void deleteRenderFaces();
 	void deleteTextures();
+	void deleteLightmapTextures();
+	void deleteFaceMaths();
 	void delayLoadData();
+	
 };

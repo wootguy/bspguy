@@ -65,8 +65,6 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 }
 
 void BspRenderer::loadTextures() {
-	deleteTextures();
-
 	vector<Wad*> wads;
 	vector<string> wadNames;
 	for (int i = 0; i < map->ents.size(); i++) {
@@ -161,6 +159,7 @@ void BspRenderer::loadTextures() {
 		}
 
 		if (wadTex) {
+			delete[] wadTex->data;
 			delete wadTex;
 		}
 
@@ -197,6 +196,10 @@ void BspRenderer::reloadTextures() {
 void BspRenderer::reloadLightmaps() {
 	lightmapsGenerated = false;
 	lightmapsUploaded = false;
+	deleteLightmapTextures();
+	if (lightmaps != NULL) {
+		delete[] lightmaps;
+	}
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 }
 
@@ -393,6 +396,29 @@ void BspRenderer::deleteTextures() {
 	}
 
 	glTextures = NULL;
+}
+
+void BspRenderer::deleteLightmapTextures() {
+	if (glLightmapTextures != NULL) {
+		for (int i = 0; i < numLightmapAtlases; i++) {
+			if (glLightmapTextures[i])
+				delete glLightmapTextures[i];
+		}
+		delete[] glLightmapTextures;
+	}
+
+	glLightmapTextures = NULL;
+}
+
+void BspRenderer::deleteFaceMaths() {
+	if (faceMaths != NULL) {
+		for (int i = 0; i < numFaceMaths; i++) {
+			delete[] faceMaths[i].verts;
+		}
+		delete[] faceMaths;
+	}
+
+	faceMaths = NULL;
 }
 
 int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
@@ -597,6 +623,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 	for (int i = 0; i < model.nFaces; i++) {
 		refreshFace(model.iFirstFace + i);
 	}
+
 	return renderModel->groupCount;
 }
 
@@ -689,12 +716,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 }
 
 void BspRenderer::calcFaceMaths() {
-	if (faceMaths != NULL) {
-		for (int i = 0; i < numFaceMaths; i++) {
-			delete[] faceMaths[i].verts;
-		}
-		delete[] faceMaths;
-	}
+	deleteFaceMaths();
 
 	numFaceMaths = map->faceCount;
 	faceMaths = new FaceMath[map->faceCount];
@@ -722,6 +744,8 @@ void BspRenderer::refreshFace(int faceIdx) {
 	faceMath.normal = planeNormal;
 	faceMath.fdist = fDist;
 
+	if (faceMath.verts)
+		delete[] faceMath.verts;
 	faceMath.verts = new vec3[face.nEdges];
 	faceMath.vertCount = face.nEdges;
 
@@ -740,17 +764,39 @@ void BspRenderer::refreshFace(int faceIdx) {
 }
 
 BspRenderer::~BspRenderer() {
-	for (int i = 0; i < map->textureCount; i++) {
-		delete glTextures[i];
+	if (lightmapFuture.wait_for(chrono::milliseconds(0)) != future_status::ready ||
+		texturesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready) {
+		logf("ERROR: Deleted bsp renderer while it was loading\n");
 	}
-	delete[] glTextures;
 
-	// TODO: more stuff to delete
+	if (lightmaps != NULL) {
+		delete[] lightmaps;
+	}
+	if (renderEnts != NULL) {
+		delete[] renderEnts;
+	}
+	if (pointEnts != NULL) {
+		delete pointEnts;
+	}
+
+	deleteTextures();
+	deleteLightmapTextures();
+	deleteRenderFaces();
+	deleteFaceMaths();
+
+	// TODO: share these with all renderers
+	delete whiteTex;
+	delete redTex;
+	delete yellowTex;
+	delete greyTex;
+	delete blackTex;
+	delete blueTex;
+
+	delete map;
 }
 
 void BspRenderer::delayLoadData() {
 	if (!lightmapsUploaded && lightmapFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
-
 		for (int i = 0; i < numLightmapAtlases; i++) {
 			glLightmapTextures[i]->upload();
 		}

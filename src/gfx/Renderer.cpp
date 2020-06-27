@@ -298,8 +298,6 @@ void Renderer::renderLoop() {
 
 		lastFrameTime = glfwGetTime();
 
-		controls();
-
 		float spin = glfwGetTime() * 2;
 		model.loadIdentity();
 		model.rotateZ(spin);
@@ -360,6 +358,7 @@ void Renderer::renderLoop() {
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
 		gui->draw();
+		controls();
 
 		glfwSwapBuffers(window);
 
@@ -386,13 +385,27 @@ void Renderer::renderLoop() {
 	glfwTerminate();
 }
 
-void Renderer::reload() {
+void Renderer::reloadFgdsAndTextures() {
 	if (reloading) {
 		logf("Previous reload not finished. Aborting reload.");
 		return;
 	}
 	reloading = reloadingGameDir = true;
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+}
+
+void Renderer::reloadMaps() {
+	vector<string> reloadPaths;
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		reloadPaths.push_back(mapRenderers[i]->map->path);
+		delete mapRenderers[i];
+	}
+	mapRenderers.clear();
+	pickInfo.valid = false;
+	for (int i = 0; i < reloadPaths.size(); i++) {
+		addMap(new Bsp(reloadPaths[i]));
+	}
+	logf("Reloaded maps\n");
 }
 
 void Renderer::saveSettings() {

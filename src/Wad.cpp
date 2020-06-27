@@ -10,7 +10,6 @@
 
 Wad::Wad(void)
 {
-	cache = NULL;
 	dirEntries = NULL;
 }
 
@@ -18,14 +17,13 @@ Wad::Wad( const string& file )
 {
 	this->filename = file;
 	numTex = -1;
-	cache = NULL;
 	dirEntries = NULL;
 }
 
 Wad::~Wad(void)
 {
-	//if (dirEntries)
-	//	delete [] dirEntries;
+	if (dirEntries)
+		delete [] dirEntries;
 }
 
 bool Wad::readInfo()
@@ -97,18 +95,6 @@ bool Wad::readInfo()
 	
 
 	return true;
-}
-
-void Wad::loadCache()
-{
-	cache = new WADTEX*[numTex];
-	for (int i = 0; i < numTex; i++)
-	{
-		if (dirEntries[i].nType == 0x43)
-			cache[i] = readTexture(string(dirEntries[i].szName));
-		else
-			cache[i] = NULL;
-	}
 }
 
 bool Wad::hasTexture(string name)
