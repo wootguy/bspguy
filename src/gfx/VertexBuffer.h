@@ -65,13 +65,14 @@ public:
 
 	void upload();
 	void deleteBuffer();
+	void setShader(ShaderProgram* program, bool hideErrors=false);
 
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
 
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName);
 	void addAttribute(int type, const char* varName);
-	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
+	void bindAttributes(bool hideErrors = false); // find handles for all vertex attributes (call from main thread only)
 
 private:
 	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes

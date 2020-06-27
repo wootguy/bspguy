@@ -55,6 +55,7 @@ struct AppSettings {
 	bool log_open = false;
 	bool settings_open = false;
 	bool limits_open = false;
+	int settings_tab = 0;
 
 	float fov;
 	float zfar;
@@ -94,6 +95,7 @@ public:
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
+	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;

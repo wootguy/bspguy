@@ -122,7 +122,24 @@ void VertexBuffer::addAttribute(int type, const char* varName) {
 	elementSize += attribute.size;
 }
 
-void VertexBuffer::bindAttributes() {
+void VertexBuffer::setShader(ShaderProgram* program, bool hideErrors) {
+	shaderProgram = program;
+	attributesBound = false;
+	for (int i = 0; i < attribs.size(); i++)
+	{
+		if (strlen(attribs[i].varName) > 0) {
+			attribs[i].handle = -1;
+		}
+	}
+
+	bindAttributes(hideErrors);
+	if (vboId != -1) {
+		deleteBuffer();
+		upload();
+	}
+}
+
+void VertexBuffer::bindAttributes(bool hideErrors) {
 	if (attributesBound)
 		return;
 
@@ -133,7 +150,7 @@ void VertexBuffer::bindAttributes() {
 
 		attribs[i].handle = glGetAttribLocation(shaderProgram->ID, attribs[i].varName);
 
-		if (attribs[i].handle == -1)
+		if (!hideErrors && attribs[i].handle == -1)
 			logf("Could not find vertex attribute: %s\n", attribs[i].varName);
 	}
 
@@ -190,9 +207,11 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 		{
 			VertexAttr& a = attribs[i];
 			void* ptr = offsetPtr + offset;
+			offset += a.size;
+			if (a.handle == -1)
+				continue;
 			glEnableVertexAttribArray(a.handle);
 			glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
-			offset += a.size;
 		}
 	}
 
@@ -212,6 +231,8 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	for (int i = 0; i < attribs.size(); i++)
 	{
 		VertexAttr& a = attribs[i];
+		if (a.handle == -1)
+			continue;
 		glDisableVertexAttribArray(a.handle);
 	}
 }

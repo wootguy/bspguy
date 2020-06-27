@@ -118,3 +118,36 @@ const char* g_shader_multitexture_fragment =
 
 "	gl_FragColor = vec4(color, fOpacity);\n"
 "}\n";
+
+const char* g_shader_fullbright_vertex =
+// object variables
+"uniform mat4 modelViewProjection;\n"
+
+// vertex variables
+"attribute vec3 vPosition;\n"
+"attribute vec2 vTex;\n"
+"attribute float vOpacity;\n"
+
+// fragment variables
+"varying vec2 fTex;\n"
+"varying float fOpacity;\n"
+
+"void main()\n"
+"{\n"
+"	gl_Position = modelViewProjection * vec4(vPosition, 1);\n"
+"	fTex = vTex;\n"
+"	fOpacity = vOpacity;\n"
+"}\n";
+
+const char* g_shader_fullbright_fragment =
+"varying vec2 fTex;\n"
+"varying float fOpacity;\n"
+
+"uniform sampler2D sTex;\n"
+
+"void main()\n"
+"{\n"
+"	vec3 color = texture2D(sTex, fTex);\n"
+
+"	gl_FragColor = vec4(color, fOpacity);\n"
+"}\n";

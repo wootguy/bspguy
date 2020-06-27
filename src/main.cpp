@@ -10,14 +10,12 @@
 // super todo:
 // crash merging rl00
 // WARNING hull redirect spam
-// auto-scale text based on DPI
-// setup menu for game dir and font size and mb other stuff
 // clicking key editor when bspguy not focused does a 3D select instead of key editor select
 // undo history
 // grid snapping not working with transform widgets
-// get rid of console window and add a console widget
 // can't select things sometimes
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
+// face splitting for perfect sized relative teleports
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

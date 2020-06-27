@@ -6,9 +6,10 @@
 #include <algorithm>
 #include "Renderer.h"
 
-BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
+BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
 	this->bspShader = bspShader;
+	this->fullBrightBspShader = fullBrightBspShader;
 	this->colorShader = colorShader;
 	this->pointEntRenderer = pointEntRenderer;
 
@@ -46,15 +47,18 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colo
 	bspShader->bind();
 
 	uint sTexId = glGetUniformLocation(bspShader->ID, "sTex");
-
 	glUniform1i(sTexId, 0);
-
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
 		uint sLightmapTexIds = glGetUniformLocation(bspShader->ID, ("sLightmapTex" + to_string(s)).c_str());
-
+		
 		// assign lightmap texture units (skips the normal texture unit)
 		glUniform1i(sLightmapTexIds, s + 1);
 	}
+
+	fullBrightBspShader->bind();
+
+	uint sTexId2 = glGetUniformLocation(fullBrightBspShader->ID, "sTex");
+	glUniform1i(sTexId2, 0);
 
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
@@ -196,6 +200,18 @@ void BspRenderer::reloadLightmaps() {
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 }
 
+void BspRenderer::updateModelShaders() {
+	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
+
+	for (int i = 0; i < numRenderModels; i++) {
+		RenderModel& model = renderModels[i];
+		for (int k = 0; k < model.groupCount; k++) {
+			model.renderGroups[k].buffer->setShader(activeShader, true);
+			model.renderGroups[k].wireframeBuffer->setShader(activeShader, true);
+		}
+	}
+}
+
 void BspRenderer::loadLightmaps() {
 	vector<LightmapNode*> atlases;
 	vector<Texture*> atlasTextures;
@@ -318,6 +334,8 @@ void BspRenderer::preRenderFaces() {
 	for (int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
 		for (int k = 0; k < model.groupCount; k++) {
+			model.renderGroups[k].buffer->bindAttributes(true);
+			model.renderGroups[k].wireframeBuffer->bindAttributes(true);
 			model.renderGroups[k].buffer->upload();
 			model.renderGroups[k].wireframeBuffer->upload();
 		}
@@ -386,6 +404,8 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
 	vector<vector<lightmapVert>> renderGroupWireframeVerts;
+
+	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
 
 	for (int i = 0; i < model.nFaces; i++) {
 		int faceIdx = model.iFirstFace + i;
@@ -551,7 +571,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
 		memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
 
-		renderGroups[i].buffer = new VertexBuffer(bspShader, 0);
+		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
 		renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
@@ -561,7 +581,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 
-		renderGroups[i].wireframeBuffer = new VertexBuffer(bspShader, 0);
+		renderGroups[i].wireframeBuffer = new VertexBuffer(activeShader, 0);
 		renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
 		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
@@ -743,6 +763,8 @@ void BspRenderer::delayLoadData() {
 		for (int i = 0; i < numRenderModels; i++) {
 			RenderModel& model = renderModels[i];
 			for (int k = 0; k < model.groupCount; k++) {
+				model.renderGroups[k].buffer->bindAttributes(true);
+				model.renderGroups[k].wireframeBuffer->bindAttributes(true);
 				model.renderGroups[k].buffer->upload();
 				model.renderGroups[k].wireframeBuffer->upload();
 			}
@@ -750,8 +772,7 @@ void BspRenderer::delayLoadData() {
 
 		lightmapsUploaded = true;
 	}
-
-	if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+	else if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 		deleteTextures();
 		
 		glTextures = glTexturesSwap;
@@ -772,7 +793,13 @@ bool BspRenderer::isFinishedLoading() {
 }
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
-	BSPMODEL& world = map->models[0];	
+	BSPMODEL& world = map->models[0];
+
+	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
+
+	activeShader->bind();
+	activeShader->modelMat->loadIdentity();
+	activeShader->updateMatrixes();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -780,14 +807,14 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
 	if (highlightEnt > 0 && !highlightAlwaysOnTop) {
 		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
-			bspShader->pushMatrix(MAT_MODEL);
-			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
-			bspShader->updateMatrixes();
+			activeShader->pushMatrix(MAT_MODEL);
+			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
+			activeShader->updateMatrixes();
 
 			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
 			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
 
-			bspShader->popMatrix(MAT_MODEL);
+			activeShader->popMatrix(MAT_MODEL);
 		}
 	}
 
@@ -798,13 +825,13 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
-				bspShader->pushMatrix(MAT_MODEL);
-				*bspShader->modelMat = renderEnts[i].modelMat;
-				bspShader->updateMatrixes();
+				activeShader->pushMatrix(MAT_MODEL);
+				*activeShader->modelMat = renderEnts[i].modelMat;
+				activeShader->updateMatrixes();
 
 				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, i == highlightEnt, false);
 
-				bspShader->popMatrix(MAT_MODEL);
+				activeShader->popMatrix(MAT_MODEL);
 			}
 		}
 
@@ -815,16 +842,16 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 
 	if (highlightEnt > 0 && highlightAlwaysOnTop) {
 		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
-			bspShader->pushMatrix(MAT_MODEL);
-			*bspShader->modelMat = renderEnts[highlightEnt].modelMat;
-			bspShader->updateMatrixes();
+			activeShader->pushMatrix(MAT_MODEL);
+			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
+			activeShader->updateMatrixes();
 
 			glDisable(GL_DEPTH_TEST);
 			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
 			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
 			glEnable(GL_DEPTH_TEST);
 
-			bspShader->popMatrix(MAT_MODEL);
+			activeShader->popMatrix(MAT_MODEL);
 		}
 	}
 
@@ -893,24 +920,26 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			whiteTex->bind();
 		}
 
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			glActiveTexture(GL_TEXTURE1 + s);
+		if (g_render_flags & RENDER_LIGHTMAPS) {
+			for (int s = 0; s < MAXLIGHTMAPS; s++) {
+				glActiveTexture(GL_TEXTURE1 + s);
 
-			if (highlight) {
-				redTex->bind();
-			}
-			else if (lightmapsUploaded && g_render_flags & RENDER_LIGHTMAPS) {
-				rgroup.lightmapAtlas[s]->bind();
-			}
-			else {
-				if (s == 0) {
-					if (lightmapsUploaded)
-						whiteTex->bind();
-					else
-						greyTex->bind();
+				if (highlight) {
+					redTex->bind();
+				}
+				else if (lightmapsUploaded) {
+					rgroup.lightmapAtlas[s]->bind();
 				}
 				else {
-					blackTex->bind();
+					if (s == 0) {
+						if (lightmapsUploaded)
+							whiteTex->bind();
+						else
+							greyTex->bind();
+					}
+					else {
+						blackTex->bind();
+					}
 				}
 			}
 		}

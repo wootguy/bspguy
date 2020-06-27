@@ -1558,6 +1558,8 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::Checkbox("Lightmaps", &renderLightmaps)) {
 				g_render_flags ^= RENDER_LIGHTMAPS;
+				for (int i = 0; i < app->mapRenderers.size(); i++)
+					app->mapRenderers[i]->updateModelShaders();
 			}
 			if (ImGui::Checkbox("Wireframe", &renderWireframe)) {
 				g_render_flags ^= RENDER_WIREFRAME;

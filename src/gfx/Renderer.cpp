@@ -80,6 +80,7 @@ void AppSettings::load() {
 			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "limits_open") { g_settings.limits_open = atoi(val.c_str()) != 0; }
+			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
@@ -118,6 +119,8 @@ void AppSettings::save() {
 	file << "log_open=" << g_settings.log_open << endl;
 	file << "settings_open=" << g_settings.settings_open << endl;
 	file << "limits_open=" << g_settings.limits_open << endl;
+
+	file << "settings_tab=" << g_settings.settings_tab << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
@@ -193,6 +196,10 @@ Renderer::Renderer() {
 	bspShader = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
 	bspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	bspShader->setMatrixNames(NULL, "modelViewProjection");
+
+	fullBrightBspShader = new ShaderProgram(g_shader_fullbright_vertex, g_shader_fullbright_fragment);
+	fullBrightBspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	fullBrightBspShader->setMatrixNames(NULL, "modelViewProjection");
 
 	colorShader = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
 	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
@@ -301,15 +308,11 @@ void Renderer::renderLoop() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		setupView();
-		bspShader->bind();
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
 		isLoading = reloading;
 		for (int i = 0; i < mapRenderers.size(); i++) {
-			model.loadIdentity();
-			bspShader->updateMatrixes();
-
 			int highlightEnt = -1;
 			if (pickInfo.valid && pickInfo.mapIdx == i) {
 				highlightEnt = pickInfo.entIdx;
@@ -400,6 +403,8 @@ void Renderer::saveSettings() {
 	g_settings.settings_open = gui->showSettingsWidget;
 	g_settings.limits_open = gui->showLimitsWidget;
 
+	g_settings.settings_tab = gui->settingsTab;
+
 	g_settings.vsync = gui->vsync;
 	g_settings.zfar = zFar;
 	g_settings.fov = fov;
@@ -425,6 +430,8 @@ void Renderer::loadSettings() {
 	gui->showLogWidget = g_settings.log_open;
 	gui->showSettingsWidget = g_settings.settings_open;
 	gui->showLimitsWidget = g_settings.limits_open;
+
+	gui->settingsTab = g_settings.settings_tab;
 
 	gui->vsync = g_settings.vsync;
 	zFar = g_settings.zfar;
@@ -1169,7 +1176,7 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
-	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, colorShader, pointEntRenderer);
+	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);
 

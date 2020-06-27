@@ -83,7 +83,7 @@ public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
 
-	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
+	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
 	void render(int highlightEnt, bool highlightAlwaysOnTop);
@@ -102,6 +102,7 @@ public:
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();
 	void reloadLightmaps();
+	void updateModelShaders();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer
@@ -115,6 +116,7 @@ public:
 
 private:
 	ShaderProgram* bspShader;
+	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
 
 	LightmapInfo* lightmaps;
