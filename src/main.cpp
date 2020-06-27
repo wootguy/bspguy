@@ -16,7 +16,6 @@
 // undo history
 // grid snapping not working with transform widgets
 // get rid of console window and add a console widget
-// don't remove keyvalues that match the default value, also those values should appear in the editor
 // can't select things sometimes
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 

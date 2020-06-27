@@ -256,7 +256,7 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Map"))
 	{
-		if (ImGui::MenuItem("Limits", NULL)) {
+		if (ImGui::MenuItem("Show Limits", NULL)) {
 			showLimitsWidget = true;
 		}
 
@@ -710,6 +710,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 	struct InputData {
 		string key;
+		string defaultValue;
 		Entity* entRef;
 		int entIdx;
 		BspRenderer* bspRenderer;
@@ -729,10 +730,15 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			string value = ent->keyvalues[key];
 			string niceName = keyvalue.description;
 
+			if (value.empty() && keyvalue.defaultValue.length()) {
+				value = keyvalue.defaultValue;
+			}
+
 			strcpy(keyNames[i], niceName.c_str());
 			strcpy(keyValues[i], value.c_str());
 
 			inputData[i].key = key;
+			inputData[i].defaultValue = keyvalue.defaultValue;
 			inputData[i].entIdx = app->pickInfo.entIdx;
 			inputData[i].entRef = ent;
 			inputData[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
@@ -763,12 +769,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 						bool selected = choice.svalue == value || value.empty() && choice.svalue == keyvalue.defaultValue;
 
 						if (ImGui::Selectable(choice.name.c_str(), selected)) {
-							if (keyvalue.defaultValue == choice.svalue) {
-								ent->removeKeyvalue(key);
-							}
-							else {
-								ent->setOrAddKeyvalue(key, choice.svalue);
-							}
+							ent->setOrAddKeyvalue(key, choice.svalue);
 							app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
 						}
 					}
@@ -792,7 +793,13 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						string newVal = data->Buf;
 						if (newVal.empty()) {
-							ent->removeKeyvalue(inputData->key);
+							if (inputData->defaultValue.length()) {
+								ent->setOrAddKeyvalue(inputData->key, inputData->defaultValue);
+							}
+							else {
+								ent->removeKeyvalue(inputData->key);
+							}
+							
 						}
 						else {
 							ent->setOrAddKeyvalue(inputData->key, newVal);
