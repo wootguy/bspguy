@@ -1172,6 +1172,8 @@ void Renderer::addMap(Bsp* map) {
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);
+
+	gui->checkValidHulls();
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR3 color) {

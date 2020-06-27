@@ -66,6 +66,8 @@ private:
 	bool loadedStats = false;
 	vector<StatInfo> stats;
 
+	bool anyHullValid[MAX_MAP_HULLS] = { false };
+
 	int guiHoverAxis; // axis being hovered in the transform menu
 	int contextMenuEnt = -1; // open entity context menu if >= 0
 	int emptyContextMenu = 0; // open context menu for rightclicking world/void
@@ -93,6 +95,7 @@ private:
 	StatInfo calcStat(string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void reloadLimits();
+	void checkValidHulls();
 
 	void clearLog();
 	void addLog(const char* s);

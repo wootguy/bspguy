@@ -130,6 +130,73 @@ void Gui::draw3dContextMenus() {
 		if (ImGui::MenuItem("Delete", "Del")) {
 			app->deleteEnt();
 		}
+		if (app->pickInfo.modelIdx > 0) {
+			Bsp* map = app->pickInfo.map;
+			BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
+
+			if (ImGui::BeginMenu("Delete Hull")) {
+				if (ImGui::MenuItem("All Hulls")) {
+					map->delete_hull(0, app->pickInfo.modelIdx, -1);
+					map->delete_hull(1, app->pickInfo.modelIdx, -1);
+					map->delete_hull(2, app->pickInfo.modelIdx, -1);
+					map->delete_hull(3, app->pickInfo.modelIdx, -1);
+					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+					checkValidHulls();
+					logf("Deleted all hulls on model %d\n", app->pickInfo.modelIdx);
+				}
+				if (ImGui::MenuItem("Clipnodes")) {
+					map->delete_hull(1, app->pickInfo.modelIdx, -1);
+					map->delete_hull(2, app->pickInfo.modelIdx, -1);
+					map->delete_hull(3, app->pickInfo.modelIdx, -1);
+					checkValidHulls();
+					logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
+				}
+
+				ImGui::Separator();
+
+				for (int i = 0; i < MAX_MAP_HULLS; i++) {
+					bool isHullValid = model.iHeadnodes[i] >= 0;
+
+					if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
+						map->delete_hull(i, app->pickInfo.modelIdx, -1);
+						checkValidHulls();
+						if (i == 0)
+							app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+						logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
+					}
+				}
+
+				ImGui::Separator();
+
+				ImGui::EndMenu();
+			}
+
+			bool canRedirect = model.iHeadnodes[1] != model.iHeadnodes[2] || model.iHeadnodes[1] != model.iHeadnodes[3];
+
+			if (ImGui::BeginMenu("Redirect Hull", canRedirect)) {
+				for (int i = 1; i < MAX_MAP_HULLS; i++) {
+					if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
+
+						for (int k = 1; k < MAX_MAP_HULLS; k++) {
+							if (i == k)
+								continue;
+
+							bool isHullValid = model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] != model.iHeadnodes[i];
+
+							if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
+								model.iHeadnodes[i] = model.iHeadnodes[k];
+								checkValidHulls();
+								logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
+							}
+						}
+
+						ImGui::EndMenu();
+					}
+				}
+
+				ImGui::EndMenu();
+			}
+		}
 		ImGui::Separator();
 		if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
 			app->movingEnt = !app->movingEnt;
@@ -205,9 +272,46 @@ void Gui::drawMenuBar() {
 					app->mapRenderers[i]->preRenderEnts();
 					app->mapRenderers[i]->reloadTextures();
 					app->mapRenderers[i]->reloadLightmaps();
+					checkValidHulls();
 				}
 			}
-			
+		}
+
+		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
+
+		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision)) {
+			for (int i = 1; i < MAX_MAP_HULLS; i++) {
+				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
+					for (int k = 0; k < app->mapRenderers.size(); k++) {
+						Bsp* map = app->mapRenderers[k]->map;
+						map->delete_hull(i, -1);
+						logf("Deleted hull %d in map %s\n", i, map->name.c_str());
+					}
+					checkValidHulls();
+				}
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Redirect Hull", hasAnyCollision)) {
+			for (int i = 1; i < MAX_MAP_HULLS; i++) {
+				if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
+					for (int k = 1; k < MAX_MAP_HULLS; k++) {
+						if (i == k)
+							continue;
+						if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), "", false, anyHullValid[k])) {
+							for (int j = 0; j < app->mapRenderers.size(); j++) {
+								Bsp* map = app->mapRenderers[j]->map;
+								map->delete_hull(i, k);
+								logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
+							}
+							checkValidHulls();
+						}
+					}
+					ImGui::EndMenu();
+				}
+			}
+			ImGui::EndMenu();
 		}
 		if (ImGui::MenuItem("Limits", NULL)) {
 			showLimitsWidget = true;
@@ -1863,4 +1967,20 @@ void Gui::reloadLimits() {
 		loadedLimit[i] = false;
 	}
 	loadedStats = false;
+}
+
+void Gui::checkValidHulls() {
+	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		anyHullValid[i] = false;
+		for (int k = 0; k < app->mapRenderers.size() && !anyHullValid[i]; k++) {
+			Bsp* map = app->mapRenderers[k]->map;
+
+			for (int m = 0; m < map->modelCount; m++) {
+				if (map->models[m].iHeadnodes[i] >= 0) {
+					anyHullValid[i] = true;
+					break;
+				}
+			}
+		}
+	}
 }
