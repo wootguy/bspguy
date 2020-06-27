@@ -79,6 +79,7 @@ void AppSettings::load() {
 			else if (key == "transform_open") { g_settings.transform_open = atoi(val.c_str()) != 0; }
 			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
+			else if (key == "limits_open") { g_settings.limits_open = atoi(val.c_str()) != 0; }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
@@ -116,6 +117,7 @@ void AppSettings::save() {
 	file << "transform_open=" << g_settings.transform_open << endl;
 	file << "log_open=" << g_settings.log_open << endl;
 	file << "settings_open=" << g_settings.settings_open << endl;
+	file << "limits_open=" << g_settings.limits_open << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
@@ -396,6 +398,7 @@ void Renderer::saveSettings() {
 	g_settings.transform_open = gui->showTransformWidget;
 	g_settings.log_open = gui->showLogWidget;
 	g_settings.settings_open = gui->showSettingsWidget;
+	g_settings.limits_open = gui->showLimitsWidget;
 
 	g_settings.vsync = gui->vsync;
 	g_settings.zfar = zFar;
@@ -421,6 +424,7 @@ void Renderer::loadSettings() {
 	gui->showTransformWidget = g_settings.transform_open;
 	gui->showLogWidget = g_settings.log_open;
 	gui->showSettingsWidget = g_settings.settings_open;
+	gui->showLimitsWidget = g_settings.limits_open;
 
 	gui->vsync = g_settings.vsync;
 	zFar = g_settings.zfar;
@@ -1441,11 +1445,15 @@ void Renderer::updateModelVerts() {
 	if (modelVertBuff) {
 		delete modelVertBuff;
 		delete[] modelVertCubes;
+		modelVertBuff = NULL;
+		modelVertCubes = NULL;
 		scaleTexinfos.clear();
 		modelEdges.clear();
 		map->remove_unused_model_structures();
 	}
-	
+	if (!map->is_convex(modelIdx)) {
+		return;
+	}
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
 	modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx);
 
@@ -1464,6 +1472,10 @@ void Renderer::updateModelVerts() {
 		int iPlane = it->first;
 		vector<int> verts = it->second;
 		BSPPLANE& plane = map->planes[iPlane];
+		if (verts.size() < 2) {
+			logf("Plane with less than 2 verts!?\n"); // hl_c00 pipe in green water place
+			continue;
+		}
 
 		vec3 plane_z = plane.vNormal;
 		vec3 plane_x = (modelVerts[verts[1]].pos - modelVerts[verts[0]].pos).normalize();

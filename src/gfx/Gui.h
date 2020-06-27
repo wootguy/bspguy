@@ -5,6 +5,26 @@
 #include "imgui_internal.h"
 #include <GLFW/glfw3.h>
 #include "Entity.h"
+#include "remap.h"
+#include "bsptypes.h"
+
+struct ModelInfo {
+	string classname;
+	string targetname;
+	string model;
+	string val;
+	string usage;
+	int entIdx;
+};
+
+struct StatInfo {
+	string name;
+	string val;
+	string max;
+	string fullness;
+	float progress;
+	ImVec4 color;
+};
 
 class Renderer;
 
@@ -31,6 +51,7 @@ private:
 	bool showSettingsWidget = false;
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
+	bool showLimitsWidget = true;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	ImFont* smallFont;
@@ -39,6 +60,11 @@ private:
 	ImFont* consoleFontLarge;
 	int fontSize = 22;
 	bool shouldReloadFonts = false;
+
+	bool loadedLimit[SORT_MODES] = { false };
+	vector<ModelInfo> limitModels[SORT_MODES];
+	bool loadedStats = false;
+	vector<StatInfo> stats;
 
 	int guiHoverAxis; // axis being hovered in the transform menu
 	int contextMenuEnt = -1; // open entity context menu if >= 0
@@ -62,6 +88,10 @@ private:
 	void drawSettings();
 	void drawHelp();
 	void drawAbout();
+	void drawLimits();
+	void drawLimitTab(Bsp* map, int sortMode);
+	StatInfo calcStat(string name, uint val, uint max, bool isMem);
+	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 
 	void clearLog();
 	void addLog(const char* s);

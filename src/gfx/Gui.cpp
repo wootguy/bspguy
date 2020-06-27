@@ -76,6 +76,9 @@ void Gui::draw() {
 	if (showAboutWidget) {
 		drawAbout();
 	}
+	if (showLimitsWidget) {
+		drawLimits();
+	}
 
 	if (contextMenuEnt != -1) {
 		ImGui::OpenPopup("ent_context");
@@ -193,6 +196,9 @@ void Gui::drawMenuBar() {
 				app->pickInfo.valid = false;
 				map->remove_unused_model_structures().print_delete_stats(0);
 			}
+		}
+		if (ImGui::MenuItem("Limits", NULL)) {
+			showLimitsWidget = true;
 		}
 		ImGui::EndMenu();
 	}
@@ -1222,7 +1228,7 @@ void Gui::loadFonts() {
 	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, sizeof(robotomedium), fontSize);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, sizeof(robotomedium), fontSize * 1.1f);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, sizeof(robotomono), fontSize);
-	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize*1.2f);
+	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize*1.1f);
 }
 
 void Gui::drawLog() {
@@ -1527,4 +1533,313 @@ void Gui::drawAbout() {
 	}
 
 	ImGui::End();
+}
+
+void Gui::drawLimits() {
+	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+
+	Bsp* map = app->pickInfo.valid ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+	string title = map ? "Limits - " + map->name : "Limits";
+
+	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
+
+		if (map == NULL) {
+			ImGui::Text("No map selected");
+		}
+		else {
+			if (ImGui::BeginTabBar("##tabs"))
+			{
+				if (ImGui::BeginTabItem("Summary")) {
+
+					if (!loadedStats) {
+						stats.push_back(calcStat("models", map->modelCount, MAX_MAP_MODELS, false));
+						stats.push_back(calcStat("planes", map->planeCount, MAX_MAP_PLANES, false));
+						stats.push_back(calcStat("vertexes", map->vertCount, MAX_MAP_VERTS, false));
+						stats.push_back(calcStat("nodes", map->nodeCount, MAX_MAP_NODES, false));
+						stats.push_back(calcStat("texinfos", map->texinfoCount, MAX_MAP_TEXINFOS, false));
+						stats.push_back(calcStat("faces", map->faceCount, MAX_MAP_FACES, false));
+						stats.push_back(calcStat("clipnodes", map->clipnodeCount, MAX_MAP_CLIPNODES, false));
+						stats.push_back(calcStat("leaves", map->leafCount, MAX_MAP_LEAVES, false));
+						stats.push_back(calcStat("marksurfaces", map->marksurfCount, MAX_MAP_MARKSURFS, false));
+						stats.push_back(calcStat("surfedges", map->surfedgeCount, MAX_MAP_SURFEDGES, false));
+						stats.push_back(calcStat("edges", map->edgeCount, MAX_MAP_SURFEDGES, false));
+						stats.push_back(calcStat("textures", map->textureCount, MAX_MAP_TEXTURES, false));
+						stats.push_back(calcStat("lightdata", map->lightDataLength, MAX_MAP_LIGHTDATA, true));
+						stats.push_back(calcStat("visdata", map->visDataLength, MAX_MAP_VISDATA, true));
+						stats.push_back(calcStat("entities", map->ents.size(), MAX_MAP_ENTS, false));
+						loadedStats = true;
+					}
+
+					ImGui::BeginChild("content");
+					ImGui::Dummy(ImVec2(0, 10));
+					ImGui::PushFont(consoleFontLarge);
+
+					int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
+					int otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
+					ImGui::Columns(3);
+					ImGui::SetColumnWidth(0, otherWidth);
+					ImGui::SetColumnWidth(1, midWidth);
+					ImGui::SetColumnWidth(2, otherWidth);
+
+					ImGui::Text("Data Type"); ImGui::NextColumn();
+					ImGui::Text(" Current / Max"); ImGui::NextColumn();
+					ImGui::Text("Fullness"); ImGui::NextColumn();
+
+					ImGui::Columns(1);
+					ImGui::Separator();
+					ImGui::BeginChild("chart");
+					ImGui::Columns(3);
+					ImGui::SetColumnWidth(0, otherWidth);
+					ImGui::SetColumnWidth(1, midWidth);
+					ImGui::SetColumnWidth(2, otherWidth);
+
+					for (int i = 0; i < stats.size(); i++) {
+						ImGui::TextColored(stats[i].color, stats[i].name.c_str()); ImGui::NextColumn();
+
+						string val = stats[i].val + " / " + stats[i].max;
+						ImGui::TextColored(stats[i].color, val.c_str());
+						ImGui::NextColumn();
+
+						ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
+						ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
+						ImGui::PopStyleColor(1);
+						ImGui::NextColumn();
+					}
+
+					ImGui::Columns(1);
+					ImGui::EndChild();
+					ImGui::PopFont();
+					ImGui::EndChild();
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Clipnodes")) {
+					drawLimitTab(map, SORT_CLIPNODES);
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Nodes")) {
+					drawLimitTab(map, SORT_NODES);
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Faces")) {
+					drawLimitTab(map, SORT_FACES);
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Vertices")) {
+					drawLimitTab(map, SORT_VERTS);
+					ImGui::EndTabItem();
+				}
+			}
+
+			ImGui::EndTabBar();
+		}
+	}
+
+	ImGui::End();
+}
+
+void Gui::drawLimitTab(Bsp* map, int sortMode) {
+
+	int maxCount;
+	const char* countName;
+	switch (sortMode) {
+	case SORT_VERTS:		maxCount = map->vertCount; countName = "Vertexes";  break;
+	case SORT_NODES:		maxCount = map->nodeCount; countName = "Nodes";  break;
+	case SORT_CLIPNODES:	maxCount = map->clipnodeCount; countName = "Clipnodes";  break;
+	case SORT_FACES:		maxCount = map->faceCount; countName = "Faces";  break;
+	}
+
+	if (!loadedLimit[sortMode]) {
+		vector<STRUCTUSAGE*> modelInfos = map->get_sorted_model_infos(sortMode);
+
+		limitModels[sortMode].clear();
+		for (int i = 0; i < modelInfos.size(); i++) {
+
+			int val;
+			switch (sortMode) {
+			case SORT_VERTS:		val = modelInfos[i]->sum.verts; break;
+			case SORT_NODES:		val = modelInfos[i]->sum.nodes; break;
+			case SORT_CLIPNODES:	val = modelInfos[i]->sum.clipnodes; break;
+			case SORT_FACES:		val = modelInfos[i]->sum.faces; break;
+			}
+
+			ModelInfo stat = calcModelStat(map, modelInfos[i], val, maxCount, false);
+			limitModels[sortMode].push_back(stat);
+			delete modelInfos[i];
+		}
+		loadedLimit[sortMode] = true;
+	}
+	vector<ModelInfo>& modelInfos = limitModels[sortMode];
+
+	ImGui::BeginChild("content");
+	ImGui::Dummy(ImVec2(0, 10));
+	ImGui::PushFont(consoleFontLarge);
+
+	int valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
+	int usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
+	int modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
+	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
+	ImGui::Columns(4);
+	ImGui::SetColumnWidth(0, bigWidth);
+	ImGui::SetColumnWidth(1, modelWidth);
+	ImGui::SetColumnWidth(2, valWidth);
+	ImGui::SetColumnWidth(3, usageWidth);
+
+	ImGui::Text("Classname"); ImGui::NextColumn();
+	ImGui::Text("Model"); ImGui::NextColumn();
+	ImGui::Text(countName); ImGui::NextColumn();
+	ImGui::Text("Usage"); ImGui::NextColumn();
+
+	ImGui::Columns(1);
+	ImGui::Separator();
+	ImGui::BeginChild("chart");
+	ImGui::Columns(4);
+	ImGui::SetColumnWidth(0, bigWidth);
+	ImGui::SetColumnWidth(1, modelWidth);
+	ImGui::SetColumnWidth(2, valWidth);
+	ImGui::SetColumnWidth(3, usageWidth);
+
+	int selected = app->pickInfo.valid ? app->pickInfo.entIdx : -1;
+
+	for (int i = 0; i < limitModels[sortMode].size(); i++) {
+		string cname = modelInfos[i].classname + "##" + "select" + to_string(i);
+		int flags = ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns;
+		if (ImGui::Selectable(cname.c_str(), selected == modelInfos[i].entIdx, flags)) {
+			selected = i;
+			int entIdx = modelInfos[i].entIdx;
+			if (entIdx < map->ents.size()) {
+				Entity* ent = map->ents[entIdx];
+				app->pickInfo.ent = ent;
+				app->pickInfo.entIdx = entIdx;
+				app->pickInfo.modelIdx = map->ents[entIdx]->getBspModelIdx();
+				app->pickInfo.valid = true;
+				// map should already be valid if limits are showing
+
+				if (ImGui::IsMouseDoubleClicked(0)) {
+					BSPMODEL& model = map->models[ent->getBspModelIdx()];
+					vec3 size = (model.nMaxs - model.nMins) * 0.5f;
+
+					app->cameraOrigin = app->getEntOrigin(map, ent) - app->cameraForward * (size.length() + 64.0f);
+				}
+			}
+		}
+		ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(modelInfos[i].model.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(modelInfos[i].model.c_str()); ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(modelInfos[i].val.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(modelInfos[i].val.c_str()); ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(modelInfos[i].usage.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(modelInfos[i].usage.c_str()); ImGui::NextColumn();
+	}
+
+
+	ImGui::Columns(1);
+	ImGui::EndChild();
+
+	ImGui::PopFont();
+	ImGui::EndChild();
+}
+
+StatInfo Gui::calcStat(string name, uint val, uint max, bool isMem) {
+	StatInfo stat;
+	const float meg = 1024 * 1024;
+	float percent = (val / (float)max) * 100;
+
+	ImVec4 color;
+
+	if (val > max) {
+		color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+	}
+	else if (percent >= 90) {
+		color = ImVec4(1.0f, 0.5f, 0.0f, 1.0f);
+	}
+	else if (percent >= 75) {
+		color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+	}
+	else {
+		color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	static char tmp[256];
+
+	string out;
+
+	stat.name = name;
+
+	if (isMem) {
+		sprintf(tmp, "%8.2f", val / meg);
+		stat.val = string(tmp);
+
+		sprintf(tmp, "%-5.2f MB", max / meg);
+		stat.max = string(tmp);
+	}
+	else {
+		sprintf(tmp, "%8u", val);
+		stat.val = string(tmp);
+
+		sprintf(tmp, "%-8u", max);
+		stat.max = string(tmp);
+	}
+	sprintf(tmp, "%3.1f%%", percent);
+	stat.fullness = string(tmp);
+	stat.color = color;
+	
+	stat.progress = (float)val / (float)max;
+
+	return stat;
+}
+
+
+ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem) {
+	ModelInfo stat;
+
+	string classname = modelInfo->modelIdx == 0 ? "worldspawn" : "???";
+	string targetname = modelInfo->modelIdx == 0 ? "" : "???";
+	for (int k = 0; k < map->ents.size(); k++) {
+		if (map->ents[k]->getBspModelIdx() == modelInfo->modelIdx) {
+			targetname = map->ents[k]->keyvalues["targetname"];
+			classname = map->ents[k]->keyvalues["classname"];
+			stat.entIdx = k;
+		}
+	}
+
+	stat.classname = classname;
+	stat.targetname = targetname;
+
+	static char tmp[256];
+
+	const float meg = 1024 * 1024;
+	float percent = (val / (float)max) * 100;
+
+	string out;
+
+	if (isMem) {
+		sprintf(tmp, "%8.1f", val / meg);
+		stat.val = val;
+
+		sprintf(tmp, "%-5.1f MB", max / meg);
+		stat.usage = tmp;
+	}
+	else {
+		stat.model = "*" + to_string(modelInfo->modelIdx);
+		stat.val = to_string(val);
+	}
+	if (percent >= 0.1f) {
+		sprintf(tmp, "%6.1f%%%%", percent);
+		stat.usage = string(tmp);
+	}
+
+	return stat;
 }

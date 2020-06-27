@@ -176,6 +176,8 @@ public:
 	int create_clipnode();
 	int create_plane();
 
+	vector<STRUCTUSAGE*> get_sorted_model_infos(int sortMode);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves

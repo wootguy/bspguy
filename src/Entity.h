@@ -10,6 +10,8 @@ public:
 	hashmap keyvalues;
 	vector<string> keyOrder;
 
+	int cachedModelIdx = -2; // -2 = not cached
+
 	Entity(void);
 	Entity(const std::string& classname);
 	~Entity(void);

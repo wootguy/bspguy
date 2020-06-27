@@ -1950,6 +1950,23 @@ bool Bsp::validate() {
 	return isValid;
 }
 
+vector<STRUCTUSAGE*> Bsp::get_sorted_model_infos(int sortMode) {
+	vector<STRUCTUSAGE*> modelStructs;
+	modelStructs.resize(modelCount);
+
+	for (int i = 0; i < modelCount; i++) {
+		modelStructs[i] = new STRUCTUSAGE(this);
+		modelStructs[i]->modelIdx = i;
+		mark_model_structures(i, modelStructs[i]);
+		modelStructs[i]->compute_sum();
+	}
+
+	g_sort_mode = sortMode;
+	sort(modelStructs.begin(), modelStructs.end(), sortModelInfos);
+
+	return modelStructs;
+}
+
 void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	int entCount = ents.size();
 
@@ -1966,15 +1983,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 			return;
 		}
 
-		vector<STRUCTUSAGE*> modelStructs;
-		modelStructs.resize(modelCount);
-		
-		for (int i = 0; i < modelCount; i++) {
-			modelStructs[i] = new STRUCTUSAGE(this);
-			modelStructs[i]->modelIdx = i;
-			mark_model_structures(i, modelStructs[i]);
-			modelStructs[i]->compute_sum();
-		}
+		vector<STRUCTUSAGE*> modelStructs = get_sorted_model_infos(sortMode);
 
 		int maxCount;
 		char* countName;
@@ -1986,7 +1995,6 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		case SORT_FACES:		maxCount = faceCount; countName = "  Faces";  break;
 		}
 
-		sort(modelStructs.begin(), modelStructs.end(), sortModelInfos);
 		logf("       Classname                  Targetname          Model  %-10s  Usage\n", countName);
 		logf("-------------------------  -------------------------  -----  ----------  --------\n");
 

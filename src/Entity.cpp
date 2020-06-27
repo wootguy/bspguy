@@ -40,6 +40,8 @@ void Entity::addKeyvalue( Keyvalue& k )
 			dup++;
 		}
 	}
+
+	cachedModelIdx = -2;
 }
 
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
@@ -47,6 +49,7 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 	keyvalues[key] = value;
 
 	keyOrder.push_back(key);
+	cachedModelIdx = -2;
 }
 
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
@@ -55,6 +58,7 @@ void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) 
 		return;
 	}
 	addKeyvalue(key, value);
+	cachedModelIdx = -2;
 }
 
 void Entity::removeKeyvalue(const std::string& key) {
@@ -62,6 +66,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 		return;
 	keyOrder.erase(find(keyOrder.begin(), keyOrder.end(), key));
 	keyvalues.erase(key);
+	cachedModelIdx = -2;
 }
 
 bool Entity::renameKey(int idx, string newName) {
@@ -77,12 +82,14 @@ bool Entity::renameKey(int idx, string newName) {
 	keyvalues[newName] = keyvalues[keyOrder[idx]];
 	keyvalues.erase(keyOrder[idx]);
 	keyOrder[idx] = newName;
+	cachedModelIdx = -2;
 	return true;
 }
 
 void Entity::clearAllKeyvalues() {
 	keyOrder.clear();
 	keyvalues.clear();
+	cachedModelIdx = -2;
 }
 
 void Entity::clearEmptyKeyvalues() {
@@ -93,6 +100,7 @@ void Entity::clearEmptyKeyvalues() {
 		}
 	}
 	keyOrder = newKeyOrder;
+	cachedModelIdx = -2;
 }
 
 bool Entity::hasKey(const std::string& key)
@@ -101,20 +109,28 @@ bool Entity::hasKey(const std::string& key)
 }
 
 int Entity::getBspModelIdx() {
-	if (!hasKey("model"))
+	if (cachedModelIdx != -2) {
+		return cachedModelIdx;
+	}
+
+	if (!hasKey("model")) {
+		cachedModelIdx = -1;
 		return -1;
+	}
 
 	string model = keyvalues["model"];
 	if (model.size() <= 1 || model[0] != '*') {
+		cachedModelIdx = -1;
 		return -1;
 	}
 
 	string modelIdxStr = model.substr(1);
 	if (!isNumeric(modelIdxStr)) {
+		cachedModelIdx = -1;
 		return -1;
 	}
-
-	return atoi(modelIdxStr.c_str());
+	cachedModelIdx = atoi(modelIdxStr.c_str());
+	return cachedModelIdx;
 }
 
 bool Entity::isBspModel() {
