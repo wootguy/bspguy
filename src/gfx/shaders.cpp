@@ -111,7 +111,7 @@ const char* g_shader_multitexture_fragment =
 "	lightmap += texture2D(sLightmapTex1, fLightmapTex1.xy).rgb * fLightmapTex1.z;\n"
 "	lightmap += texture2D(sLightmapTex2, fLightmapTex2.xy).rgb * fLightmapTex2.z;\n"
 "	lightmap += texture2D(sLightmapTex3, fLightmapTex3.xy).rgb * fLightmapTex3.z;\n"
-"	vec3 color = texture2D(sTex, fTex) * lightmap;\n"
+"	vec3 color = texture2D(sTex, fTex) * vec4(lightmap, 1);\n"
 
 "	float gamma = 1.5;\n"
 "	color = pow(color, vec3(1.0/gamma));\n"
