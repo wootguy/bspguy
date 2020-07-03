@@ -244,13 +244,8 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
-		if (ImGui::MenuItem("Reload", NULL)) {
-			if (app->isLoading) {
-				logf("Map not finished loading. Unable to reload.");
-			} else {
-				app->reloadMaps();
-			}
-			
+		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
+			app->reloadMaps();
 		}
 		ImGui::Separator();
 		if (ImGui::MenuItem("Settings", NULL)) {
@@ -268,46 +263,38 @@ void Gui::drawMenuBar() {
 			showLimitsWidget = true;
 		}
 
-		if (ImGui::MenuItem("Clean", NULL)) {
-			if (app->isLoading) {
-				logf("Map not finished loading. Unable to clean");
-			}
-			else {
-				for (int i = 0; i < app->mapRenderers.size(); i++) {
-					Bsp* map = app->mapRenderers[i]->map;
-					logf("Cleaning %s\n", map->name.c_str());
-					map->remove_unused_model_structures().print_delete_stats(0);
-					app->mapRenderers[i]->reload();
-					app->deselectObject();
-					reloadLimits();
-					checkValidHulls();
-				}
+		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
+			for (int i = 0; i < app->mapRenderers.size(); i++) {
+				Bsp* map = app->mapRenderers[i]->map;
+				logf("Cleaning %s\n", map->name.c_str());
+				map->remove_unused_model_structures().print_delete_stats(0);
+				app->mapRenderers[i]->reload();
+				app->deselectObject();
+				reloadLimits();
+				checkValidHulls();
 			}
 		}
 
-		if (ImGui::MenuItem("Optimize", NULL)) {
+		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading)) {
 			if (app->isLoading) {
-				logf("Map not finished loading. Unable to optimize");
 			}
-			else {
-				for (int k = 0; k < app->mapRenderers.size(); k++) {
-					Bsp* map = app->mapRenderers[k]->map;
+			for (int k = 0; k < app->mapRenderers.size(); k++) {
+				Bsp* map = app->mapRenderers[k]->map;
 
-					logf("Optimizing %s\n", map->name.c_str());
-					if (!map->has_hull2_ents()) {
-						logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
-						map->delete_hull(2, 1);
-					}
-
-					g_verbose = true;
-					map->delete_unused_hulls(true).print_delete_stats(0);
-					g_verbose = false;
-
-					app->mapRenderers[k]->reload();
-					app->deselectObject();
-					reloadLimits();
-					checkValidHulls();
+				logf("Optimizing %s\n", map->name.c_str());
+				if (!map->has_hull2_ents()) {
+					logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
+					map->delete_hull(2, 1);
 				}
+
+				g_verbose = true;
+				map->delete_unused_hulls(true).print_delete_stats(0);
+				g_verbose = false;
+
+				app->mapRenderers[k]->reload();
+				app->deselectObject();
+				reloadLimits();
+				checkValidHulls();
 			}
 		}
 
@@ -366,8 +353,7 @@ void Gui::drawMenuBar() {
 			reloadLimits();
 		}
 
-		if (ImGui::MenuItem("BSP Model")) {
-
+		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
 			BspRenderer* destMap = app->getMapContainingCamera();
 
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
@@ -391,7 +377,7 @@ void Gui::drawMenuBar() {
 			destMap->map->validate();
 
 			//destMap->map->print_model_hull(modelIdx, 1);
-			reloadLimits();
+			reloadLimits();		
 		}
 		ImGui::EndMenu();
 	}

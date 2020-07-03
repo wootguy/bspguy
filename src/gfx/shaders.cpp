@@ -1,5 +1,9 @@
 #include "shaders.h"
 
+// IMPORTANT: 
+// if you have an Nvidia GPU, compile shader code in GPU ShaderAnalyzer to be sure it works for AMD too.
+// AMD has a stricter GLSL compiler than Nvidia does.
+
 const char* g_shader_cVert_vertex =
 // object variables
 "uniform mat4 modelViewProjection;\n"
