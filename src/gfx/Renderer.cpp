@@ -967,7 +967,7 @@ void Renderer::shortcutControls() {
 
 void Renderer::pickObject() {
 	bool pointEntWasSelected = pickInfo.valid && pickInfo.ent && !pickInfo.ent->isBspModel();
-	int oldSelectedPointEntIdx = pickInfo.entIdx;
+	int oldSelectedEntIdx = pickInfo.entIdx;
 
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
@@ -1002,9 +1002,10 @@ void Renderer::pickObject() {
 
 	if (pointEntWasSelected) {
 		for (int i = 0; i < mapRenderers.size(); i++) {
-			mapRenderers[i]->refreshPointEnt(oldSelectedPointEntIdx);
+			mapRenderers[i]->refreshPointEnt(oldSelectedEntIdx);
 		}
 	}
+
 }
 
 bool Renderer::transformAxisControls() {
@@ -1651,6 +1652,9 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 			*modelVerts[i].ptr = modelVerts[i].pos;
 		}
 	}
+
+	// update planes for picking
+	pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
 
 	//
 	// TODO: I have no idea what I'm doing but this code scales axis-aligned texture coord axes correctly.

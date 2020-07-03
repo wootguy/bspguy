@@ -15,6 +15,8 @@
 // can't select things sometimes (caused by not cleaning after creating solids?)
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 // face splitting for perfect sized relative teleports
+// polygon soup sometimes (bm_sts first load)
+// loading sometimes crashes
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -105,7 +107,7 @@ void start_viewer(string map) {
 }
 
 int test() {
-	start_viewer("merge0.bsp");
+	start_viewer("hl_c00.bsp");
 	return 0;
 
 	/*

@@ -450,7 +450,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 		}
 	}
 
-	logf("UPDATED %d planes\n", planeUpdates);
+	//logf("UPDATED %d planes\n", planeUpdates);
 
 	BSPMODEL& model = models[modelIdx];
 	getBoundingBox(allVertPos, model.nMins, model.nMaxs);
