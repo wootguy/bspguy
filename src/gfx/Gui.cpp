@@ -1192,7 +1192,8 @@ void Gui::drawTransformWidget() {
 			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
 
-			if (ImGui::BeginTabItem("Move")) {
+			if (ImGui::BeginTabItem("Move", 0, (openSavedTabs && transformTab == 0) ? ImGuiTabItemFlags_SetSelected : 0)) {
+				if (!openSavedTabs) transformTab = 0;
 				app->transformMode = TRANSFORM_MOVE;
 				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 				ImGui::PushItemWidth(inputWidth);
@@ -1232,7 +1233,8 @@ void Gui::drawTransformWidget() {
 				ImGui::EndTabItem();
 			}
 
-			if (ImGui::BeginTabItem("Scale")) {
+			if (ImGui::BeginTabItem("Scale", 0, (openSavedTabs && transformTab == 1) ? ImGuiTabItemFlags_SetSelected : 0)) {
+				if (!openSavedTabs) transformTab = 1;
 				app->transformMode = TRANSFORM_SCALE;
 				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 				ImGui::PushItemWidth(inputWidth);
@@ -1268,7 +1270,8 @@ void Gui::drawTransformWidget() {
 				ImGui::EndTabItem();
 			}
 
-			if (ImGui::BeginTabItem("Options")) {
+			if (ImGui::BeginTabItem("Options", 0, (openSavedTabs && transformTab == 2) ? ImGuiTabItemFlags_SetSelected : 0)) {
+				if (!openSavedTabs) transformTab = 2;
 				ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 
 				static int e = 0;
@@ -1293,6 +1296,7 @@ void Gui::drawTransformWidget() {
 			}
 
 			ImGui::EndTabBar();
+			openSavedTabs = false;
 		}
 
 		if (transformingEnt) {

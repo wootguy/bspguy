@@ -54,6 +54,8 @@ private:
 	bool showLimitsWidget = true;
 	bool reloadSettings = true;
 	int settingsTab = 0;
+	int transformTab = 0;
+	bool openSavedTabs = false;
 	ImFont* smallFont;
 	ImFont* largeFont;
 	ImFont* consoleFont;

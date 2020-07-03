@@ -56,6 +56,7 @@ struct AppSettings {
 	bool settings_open = false;
 	bool limits_open = false;
 	int settings_tab = 0;
+	int transform_tab = 0;
 
 	float fov;
 	float zfar;
