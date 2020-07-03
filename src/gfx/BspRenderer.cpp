@@ -642,10 +642,10 @@ void BspRenderer::preRenderEnts() {
 	cCube* entCubes = new cCube[numPointEnts];
 	int pointEntIdx = 0;
 
-	for (int i = 1; i < map->ents.size(); i++) {
+	for (int i = 0; i < map->ents.size(); i++) {
 		refreshEnt(i);
 
-		if (!map->ents[i]->isBspModel()) {
+		if (i != 0 && !map->ents[i]->isBspModel()) {
 			memcpy(entCubes + pointEntIdx, renderEnts[i].pointEntCube->buffer->data, sizeof(cCube));
 			cVert* verts = (cVert*)(entCubes + pointEntIdx);
 			vec3 offset = renderEnts[i].offset.flip();

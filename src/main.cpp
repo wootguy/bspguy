@@ -15,7 +15,6 @@
 // can't select things sometimes (caused by not cleaning after creating solids?)
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 // face splitting for perfect sized relative teleports
-// polygon soup sometimes (bm_sts first load)
 // loading sometimes crashes
 
 // todo:

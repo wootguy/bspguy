@@ -382,6 +382,11 @@ void Renderer::renderLoop() {
 			reloading = reloadingGameDir = false;
 			swapPointEntRenderer = NULL;
 		}
+
+		int glerror = glGetError();
+		if (glerror != GL_NO_ERROR) {
+			logf("Got OpenGL Error: %d\n", glerror);
+		}
 	}
 
 	glfwTerminate();
