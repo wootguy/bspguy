@@ -138,8 +138,8 @@ void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
 	}
 }
 
-vec3** Bsp::getModelVerts(int modelIdx, int& numVerts) {
-	vector<vec3*> allVerts;
+vector<TransformVert> Bsp::getModelVerts(int modelIdx) {
+	vector<TransformVert> allVerts;
 	set<int> visited;
 
 	BSPMODEL& model = models[modelIdx];
@@ -153,19 +153,18 @@ vec3** Bsp::getModelVerts(int modelIdx, int& numVerts) {
 			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
 
 			if (visited.find(vertIdx) == visited.end()) {
-				allVerts.push_back(&verts[vertIdx]);
+				TransformVert vert;
+				memset(&vert, 0, sizeof(TransformVert));
+				vert.startPos = vert.undoPos = vert.pos = verts[vertIdx];
+				vert.ptr = &verts[vertIdx];
+
+				allVerts.push_back(vert);
 				visited.insert(vertIdx);
 			}
 		}
 	}
 
-	numVerts = allVerts.size();
-	vec3** modelVerts = new vec3 * [numVerts];
-	for (int i = 0; i < numVerts; i++) {
-		modelVerts[i] = allVerts[i];
-	}
-
-	return modelVerts;
+	return allVerts;
 }
 
 vector<TransformVert> Bsp::getModelPlaneIntersectVerts(int modelIdx) {

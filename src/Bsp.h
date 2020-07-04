@@ -110,7 +110,7 @@ public:
 
 	// get all verts used by this model
 	// TODO: split any verts shared with other models!
-	vec3** getModelVerts(int modelIdx, int& numVerts);
+	vector<TransformVert> getModelVerts(int modelIdx);
 
 	// gets verts formed by plane intersections with the nodes in this model
 	vector<TransformVert> getModelPlaneIntersectVerts(int modelIdx);

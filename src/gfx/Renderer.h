@@ -153,7 +153,8 @@ private:
 	bool anyEdgeSelected = false;
 	bool anyVertSelected = false;
 
-	vector<TransformVert> modelVerts;
+	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
+	vector<TransformVert> modelFaceVerts; // control points for visible face verts
 	vector<HullEdge> modelEdges;
 	cCube* modelVertCubes = NULL;
 	VertexBuffer* modelVertBuff = NULL;

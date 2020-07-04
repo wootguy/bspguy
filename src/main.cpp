@@ -16,6 +16,7 @@
 // scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
 // face splitting for perfect sized relative teleports
 // loading sometimes crashes
+// red highlight not working with lightmaps disabled
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

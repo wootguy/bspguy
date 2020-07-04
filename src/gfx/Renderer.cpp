@@ -1487,7 +1487,8 @@ void Renderer::updateModelVerts() {
 		return;
 	}
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
-	modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx);
+	modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx); // for vertex manipulation + scaling
+	modelFaceVerts = map->getModelVerts(pickInfo.modelIdx); // for scaling only
 
 	// get verts for each plane
 	std::map<int, vector<int>> planeVerts;
@@ -1622,16 +1623,10 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	vec3 maxDist = vec3(-9e99, -9e99, -9e99);
 
 	for (int i = 0; i < modelVerts.size(); i++) {
-		vec3 v = modelVerts[i].startPos;
-
-		if (v.x > maxDist.x) maxDist.x = v.x;
-		if (v.x < minDist.x) minDist.x = v.x;
-
-		if (v.y > maxDist.y) maxDist.y = v.y;
-		if (v.y < minDist.y) minDist.y = v.y;
-
-		if (v.z > maxDist.z) maxDist.z = v.z;
-		if (v.z < minDist.z) minDist.z = v.z;
+		expandBoundingBox(modelVerts[i].startPos, minDist, maxDist);
+	}
+	for (int i = 0; i < modelFaceVerts.size(); i++) {
+		expandBoundingBox(modelFaceVerts[i].startPos, minDist, maxDist);
 	}
 
 	vec3 distRange = maxDist - minDist;
@@ -1655,11 +1650,18 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 		}
 	}
 
+	// scale planes
 	for (int i = 0; i < modelVerts.size(); i++) {
 		vec3 stretchFactor = (modelVerts[i].startPos - scaleFromDist) / distRange;
 		modelVerts[i].pos = modelVerts[i].startPos + dir * stretchFactor;
-		if (modelVerts[i].ptr) {
-			*modelVerts[i].ptr = modelVerts[i].pos;
+	}
+
+	// scale visible faces
+	for (int i = 0; i < modelFaceVerts.size(); i++) {
+		vec3 stretchFactor = (modelFaceVerts[i].startPos - scaleFromDist) / distRange;
+		modelFaceVerts[i].pos = modelFaceVerts[i].startPos + dir * stretchFactor;
+		if (modelFaceVerts[i].ptr) {
+			*modelFaceVerts[i].ptr = modelFaceVerts[i].pos;
 		}
 	}
 
@@ -1677,16 +1679,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	minDist = vec3(9e99, 9e99, 9e99);
 	maxDist = vec3(-9e99, -9e99, -9e99);
 	
-	for (int i = 0; i < modelVerts.size(); i++) {
-		vec3 v = modelVerts[i].pos;
-		if (v.x > maxDist.x) maxDist.x = v.x;
-		if (v.x < minDist.x) minDist.x = v.x;
-
-		if (v.y > maxDist.y) maxDist.y = v.y;
-		if (v.y < minDist.y) minDist.y = v.y;
-
-		if (v.z > maxDist.z) maxDist.z = v.z;
-		if (v.z < minDist.z) minDist.z = v.z;
+	for (int i = 0; i < modelFaceVerts.size(); i++) {
+		expandBoundingBox(modelFaceVerts[i].pos, minDist, maxDist);
 	}
 	vec3 newDistRange = maxDist - minDist;
 	vec3 scaleFactor = distRange / newDistRange;
