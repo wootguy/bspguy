@@ -302,7 +302,6 @@ void BspRenderer::loadLightmaps() {
 	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
 
 	lightmapsGenerated = true;
-	renderModelsSwap = genRenderFaces(numRenderModelsSwap);
 }
 
 void BspRenderer::updateLightmapInfos() {
@@ -560,6 +559,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			}
 		}
 
+		// add the verts to a new group if no existing one share the same properties
 		if (groupIdx == -1) {
 			RenderGroup newGroup = RenderGroup();
 			newGroup.vertCount = 0;
@@ -575,11 +575,8 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			groupIdx = renderGroups.size() - 1;
 		}
 
-		for (int k = 0; k < vertCount; k++)
-			renderGroupVerts[groupIdx].push_back(verts[k]);
-		for (int k = 0; k < wireframeVertCount; k++) {
-			renderGroupWireframeVerts[groupIdx].push_back(wireframeVerts[k]);
-		}
+		renderGroupVerts[groupIdx].insert(renderGroupVerts[groupIdx].end(), verts, verts + vertCount);
+		renderGroupWireframeVerts[groupIdx].insert(renderGroupWireframeVerts[groupIdx].end(), wireframeVerts, wireframeVerts + wireframeVertCount);
 
 		delete[] verts;
 		delete[] wireframeVerts;
@@ -801,20 +798,7 @@ void BspRenderer::delayLoadData() {
 			glLightmapTextures[i]->upload();
 		}
 
-		deleteRenderFaces();
-
-		renderModels = renderModelsSwap;
-		numRenderModels = numRenderModelsSwap;
-
-		for (int i = 0; i < numRenderModels; i++) {
-			RenderModel& model = renderModels[i];
-			for (int k = 0; k < model.groupCount; k++) {
-				model.renderGroups[k].buffer->bindAttributes(true);
-				model.renderGroups[k].wireframeBuffer->bindAttributes(true);
-				model.renderGroups[k].buffer->upload();
-				model.renderGroups[k].wireframeBuffer->upload();
-			}
-		}
+		preRenderFaces();
 
 		lightmapsUploaded = true;
 	}

@@ -125,9 +125,7 @@ private:
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
 
-	// models loaded in a separate thread
-	RenderModel* renderModelsSwap;
-	int numRenderModelsSwap;
+	// textures loaded in a separate thread
 	Texture** glTexturesSwap;
 
 	int numLightmapAtlases;

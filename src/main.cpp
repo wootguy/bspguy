@@ -94,7 +94,9 @@ void remove_unused_data(Bsp* map) {
 
 void hideConsoleWindow() {
 #ifdef WIN32
+#ifndef NDEBUG
 	::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+#endif
 #endif
 }
 
@@ -613,11 +615,11 @@ void print_help(string command) {
 
 int main(int argc, char* argv[])
 {
-	//return test();
-
 	#ifdef WIN32
 		::ShowWindow(::GetConsoleWindow(), SW_SHOW);
 	#endif
+
+	//return test();
 
 	CommandLine cli(argc, argv);
 
