@@ -167,18 +167,22 @@ vector<TransformVert> Bsp::getModelVerts(int modelIdx) {
 	return allVerts;
 }
 
-vector<TransformVert> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
+bool Bsp::getModelPlaneIntersectVerts(int modelIdx, vector<TransformVert>& outVerts) {
+	vector<int> nodePlaneIndexes;
+	BSPMODEL& model = models[modelIdx];
+	getNodePlanes(model.iHeadnodes[0], nodePlaneIndexes);
+
+	return getModelPlaneIntersectVerts(modelIdx, nodePlaneIndexes, outVerts);
+}
+
+bool Bsp::getModelPlaneIntersectVerts(int modelIdx, const vector<int>& nodePlaneIndexes, vector<TransformVert>& outVerts) {
 	// TODO: this only works for convex objects. A concave solid will need
 	// to get verts by creating convex hulls from each solid node in the tree.
 	// That can be done by recursively cutting a huge cube but there's probably
 	// a better way.
-	vector<int> nodePlaneIndexes;
 	vector<BSPPLANE> nodePlanes;
-	vector<TransformVert> nodeVerts;
 
 	BSPMODEL& model = models[modelIdx];
-
-	getNodePlanes(model.iHeadnodes[0], nodePlaneIndexes);
 
 	// TODO: model center doesn't have to be inside all planes, even for convex objects(?)
 	vec3 modelCenter = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
@@ -193,86 +197,67 @@ vector<TransformVert> Bsp::getModelPlaneIntersectVerts(int modelIdx) {
 		}
 	}
 
-	int rootNode = model.iHeadnodes[0];
+	vector<vec3> nodeVerts = getPlaneIntersectVerts(nodePlanes);
 
-	// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
-	int numPlanes = nodePlanes.size();
-	for (int i = 0; i < numPlanes - 2; i++) {
-		for (int j = i + 1; j < numPlanes - 1; j++) {
-			for (int k = j + 1; k < numPlanes; k++) {
-				vec3& n0 = nodePlanes[i].vNormal;
-				vec3& n1 = nodePlanes[j].vNormal;
-				vec3& n2 = nodePlanes[k].vNormal;
-				float d0 = nodePlanes[i].fDist;
-				float d1 = nodePlanes[j].fDist;
-				float d2 = nodePlanes[k].fDist;
+	if (nodeVerts.size() < 4) {
+		return false; // solid is either 2D or there were no intersections (not convex)
+	}
 
-				float t = n0.x * (n1.y * n2.z - n1.z * n2.y) +
-					n0.y * (n1.z * n2.x - n1.x * n2.z) +
-					n0.z * (n1.x * n2.y - n1.y * n2.x);
+	// coplanar test
+	for (int i = 0; i < nodePlanes.size(); i++) {
+		for (int k = 0; k < nodePlanes.size(); k++) {
+			if (i == k)
+				continue;
 
-				if (fabs(t) < EPSILON) {
-					continue;
-				}
-
-				// don't use crossProduct because it's less accurate
-				//vec3 v = crossProduct(n1, n2)*d0 + crossProduct(n0, n2)*d1 + crossProduct(n0, n1)*d2;
-				vec3 v(
-					(d0 * (n1.z * n2.y - n1.y * n2.z) + d1 * (n0.y * n2.z - n0.z * n2.y) + d2 * (n0.z * n1.y - n0.y * n1.z)) / -t,
-					(d0 * (n1.x * n2.z - n1.z * n2.x) + d1 * (n0.z * n2.x - n0.x * n2.z) + d2 * (n0.x * n1.z - n0.z * n1.x)) / -t,
-					(d0 * (n1.y * n2.x - n1.x * n2.y) + d1 * (n0.x * n2.y - n0.y * n2.x) + d2 * (n0.y * n1.x - n0.x * n1.y)) / -t
-				);
-
-				bool validVertex = true;
-
-				for (int m = 0; m < numPlanes; m++) {
-					BSPPLANE& pm = nodePlanes[m];
-					if (m != i && m != j && m != k && dotProduct(v, pm.vNormal) < pm.fDist + EPSILON) {
-						validVertex = false;
-						break;
-					}
-				}
-
-				if (validVertex) {
-					TransformVert hullVert;
-					hullVert.pos = hullVert.undoPos = hullVert.startPos = v;
-					hullVert.ptr = NULL;
-					hullVert.selected = false;
-					nodeVerts.push_back(hullVert);
-				}
+			if (nodePlanes[i].vNormal == nodePlanes[k].vNormal && nodePlanes[i].fDist - nodePlanes[k].fDist < EPSILON) {
+				return false;
 			}
 		}
 	}
 
+	// convex test
+	for (int k = 0; k < nodePlanes.size(); k++) {
+		if (!vertsAllOnOneSide(nodeVerts, nodePlanes[k])) {
+			return false;
+		}
+	}
+
+	outVerts.clear();
 	for (int k = 0; k < nodeVerts.size(); k++) {
-		vec3 v = nodeVerts[k].pos;
+		vec3 v = nodeVerts[k];
+
+		TransformVert hullVert;
+		hullVert.pos = hullVert.undoPos = hullVert.startPos = v;
+		hullVert.ptr = NULL;
+		hullVert.selected = false;
 
 		for (int i = 0; i < nodePlanes.size(); i++) {
 			BSPPLANE& p = nodePlanes[i];
 			if (fabs(dotProduct(v, p.vNormal) - p.fDist) < EPSILON) {
-				nodeVerts[k].iPlanes.push_back(nodePlaneIndexes[i]);
+				hullVert.iPlanes.push_back(nodePlaneIndexes[i]);
 			}
 		}
 
-		for (int i = 0; i < model.nFaces && !nodeVerts[k].ptr; i++) {
+		for (int i = 0; i < model.nFaces && !hullVert.ptr; i++) {
 			BSPFACE& face = faces[model.iFirstFace + i];
 
-			for (int e = 0; e < face.nEdges && !nodeVerts[k].ptr; e++) {
+			for (int e = 0; e < face.nEdges && !hullVert.ptr; e++) {
 				int32_t edgeIdx = surfedges[face.iFirstEdge + e];
 				BSPEDGE& edge = edges[abs(edgeIdx)];
 				int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-				
+
 				if (verts[vertIdx] != v) {
 					continue;
 				}
 
-				nodeVerts[k].ptr = &verts[vertIdx];
+				hullVert.ptr = &verts[vertIdx];
 			}
 		}
-	}
-	
 
-	return nodeVerts;
+		outVerts.push_back(hullVert);
+	}
+
+	return true;
 }
 
 void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
@@ -373,7 +358,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 		vector<vec3>& verts = it->second;
 
 		if (verts.size() < 3) {
-			logf("Face has less then 3 verts\n");
+			logf("Face has less than 3 verts\n");
 			return false; // invalid solid
 		}
 
@@ -398,23 +383,8 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 
 		// check that all verts are on one side of the plane.
 		// plane inversions are ok according to hammer
-		int planeSide = 0;
-		for (int k = 0; k < allVertPos.size(); k++) {
-			float d = dotProduct(allVertPos[k], testPlane.vNormal) - testPlane.fDist;
-			if (d < -EPSILON) {
-				if (planeSide == 1) {
-					logf("Not convex\n");
-					return false;
-				}
-				planeSide = -1;
-			}
-			if (d > EPSILON) {
-				if (planeSide == -1) {
-					logf("Not convex\n");
-					return false;
-				}
-				planeSide = 1;
-			}
+		if (!vertsAllOnOneSide(allVertPos, testPlane)) {
+			return false;
 		}
 		
 		newPlanes[iPlane] = newPlane;
@@ -2412,22 +2382,25 @@ void Bsp::delete_model(int modelIdx) {
 }
 
 int Bsp::create_solid(vec3 mins, vec3 maxs, int textureIdx) {
-	BSPMODEL* newModels = new BSPMODEL[modelCount+1];
-	memcpy(newModels, models, modelCount * sizeof(BSPMODEL));
-
-	BSPMODEL& newModel = newModels[modelCount];
-	memset(&newModel, 0, sizeof(BSPMODEL));
+	int newModelIdx = create_model();
+	BSPMODEL& newModel = models[newModelIdx];
 
 	create_node_box(mins, maxs, &newModel, textureIdx);
 	create_clipnode_box(mins, maxs, &newModel);
 
 	//remove_unused_model_structures(); // will also resize VIS data for new leaf count
 
-	int newModelIdx = modelCount;
-
-	replace_lump(LUMP_MODELS, newModels, (modelCount + 1) * sizeof(BSPMODEL));
-
 	return newModelIdx;
+}
+
+int Bsp::create_solid(Solid& solid, int targetModelIdx) {
+	int modelIdx = targetModelIdx >= 0 ? targetModelIdx : create_model();
+	BSPMODEL& newModel = models[modelIdx];
+
+	create_nodes(solid, &newModel);
+	regenerate_clipnodes(modelIdx);
+
+	return modelIdx;
 }
 
 void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
@@ -2682,6 +2655,204 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	}
 }
 
+void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
+
+	vector<int> newVertIndexes;
+	int startVert = vertCount;
+	{
+		vec3* newVerts = new vec3[vertCount + solid.hullVerts.size()];
+		memcpy(newVerts, verts, vertCount * sizeof(vec3));
+
+		for (int i = 0; i < solid.hullVerts.size(); i++) {
+			newVerts[vertCount + i] = solid.hullVerts[i].pos;
+			newVertIndexes.push_back(vertCount + i);
+		}
+
+		replace_lump(LUMP_VERTICES, newVerts, (vertCount + solid.hullVerts.size()) * sizeof(vec3));
+	}
+
+	// add new edges (4 for each face)
+	// TODO: subdivide >512
+	int startEdge = edgeCount;
+	int addEdges = 0;
+	{
+		for (int i = 0; i < solid.faces.size(); i++) {
+			addEdges += solid.faces[i].verts.size();
+		}
+
+		BSPEDGE* newEdges = new BSPEDGE[edgeCount + addEdges];
+		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
+
+		// TODO: only half of these edges are needed
+		int idx = 0;
+		for (int i = 0; i < solid.faces.size(); i++) {
+			Face& face = solid.faces[i];
+			for (int k = 0; k < face.verts.size(); k++) {
+				int v0 = newVertIndexes[face.verts[k]];
+				int v1 = newVertIndexes[face.verts[(k+1) % face.verts.size()]];
+				newEdges[startEdge + idx++] = BSPEDGE(v0, v1);
+			}
+		}
+		/*
+		for (int i = 0; i < solid.hullEdges.size(); i++) {
+			int v0 = newVertIndexes[solid.hullEdges[i].verts[0]];
+			int v1 = newVertIndexes[solid.hullEdges[i].verts[1]];
+			newEdges[startEdge + i] = BSPEDGE(v0, v1);
+		}
+		*/
+		replace_lump(LUMP_EDGES, newEdges, (edgeCount + addEdges) * sizeof(BSPEDGE));
+	}
+
+	// add new surfedges (2 for each edge)
+	int startSurfedge = surfedgeCount;
+	{
+		int32_t* newSurfedges = new int32_t[surfedgeCount + addEdges];
+		memcpy(newSurfedges, surfedges, surfedgeCount * sizeof(int32_t));
+
+		for (int i = 0; i < addEdges; i++) {
+			int32_t edgeIdx = startEdge + i;
+			newSurfedges[startSurfedge + i] = edgeIdx;
+		}
+
+		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + addEdges) * sizeof(int32_t));
+	}
+
+	// add new planes (1 for each face/node)
+	// TODO: reuse existing planes
+	int startPlane = planeCount;
+	{
+		BSPPLANE* newPlanes = new BSPPLANE[planeCount + solid.faces.size()];
+		memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+
+		for (int i = 0; i < solid.faces.size(); i++) {
+			newPlanes[startPlane + i] = solid.faces[i].plane;
+		}
+
+		replace_lump(LUMP_PLANES, newPlanes, (planeCount + solid.faces.size()) * sizeof(BSPPLANE));
+	}
+
+	/*
+	int startTexinfo = texinfoCount;
+	{
+		BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[texinfoCount + solid.faces.size()];
+		memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
+
+		for (int i = 0; i < solid.faces.size(); i++) {
+			BSPTEXTUREINFO& info = newTexinfos[startTexinfo + i];
+			info.iMiptex = solid.faces[i].iTextureInfo;
+			info.nFlags = 0;
+			info.shiftS = 0;
+			info.shiftT = 0;
+
+			vec3 v0 = solid.hullVerts[solid.faces[i].verts[0]].pos;
+			vec3 v1 = solid.hullVerts[solid.faces[i].verts[1]].pos;
+			vec3 axisT = (v1 - v0).normalize();
+
+			info.vT = axisT;
+			info.vS = crossProduct(axisT, solid.faces[i].plane.vNormal);
+		}
+
+		replace_lump(LUMP_TEXINFO, newTexinfos, (texinfoCount + solid.faces.size()) * sizeof(BSPTEXTUREINFO));
+	}
+	*/
+
+	// add new faces
+	int startFace = faceCount;
+	{
+		BSPFACE* newFaces = new BSPFACE[faceCount + solid.faces.size()];
+		memcpy(newFaces, faces, faceCount * sizeof(BSPFACE));
+
+		int surfedgeOffset = 0;
+		for (int i = 0; i < solid.faces.size(); i++) {
+			BSPFACE& face = newFaces[faceCount + i];
+			face.iFirstEdge = startSurfedge + surfedgeOffset;
+			face.iPlane = startPlane + i;
+			face.nEdges = solid.faces[i].verts.size();
+			face.nPlaneSide = solid.faces[i].planeSide;
+			//face.iTextureInfo = startTexinfo + i;
+			face.iTextureInfo = solid.faces[i].iTextureInfo;
+			face.nLightmapOffset = 0; // TODO: Lighting
+			memset(face.nStyles, 0, 4);
+
+			surfedgeOffset += face.nEdges;
+		}
+
+		replace_lump(LUMP_FACES, newFaces, (faceCount + solid.faces.size()) * sizeof(BSPFACE));
+	}
+
+	//TODO: move to common function
+	int16 sharedSolidLeaf = 0;
+	int16 anyEmptyLeaf = 0;
+	for (int i = 0; i < leafCount; i++) {
+		if (leaves[i].nContents == CONTENTS_EMPTY) {
+			anyEmptyLeaf = i;
+			break;
+		}
+	}
+	if (anyEmptyLeaf == 0) {
+		anyEmptyLeaf = create_leaf(CONTENTS_EMPTY);
+		targetModel->nVisLeafs = 1;
+	}
+	else {
+		targetModel->nVisLeafs = 0;
+	}
+
+	// add new nodes
+	int startNode = nodeCount;
+	{
+		BSPNODE* newNodes = new BSPNODE[nodeCount + solid.faces.size()];
+		memcpy(newNodes, nodes, nodeCount * sizeof(BSPNODE));
+
+		int16 nodeIdx = nodeCount;
+
+		for (int k = 0; k < solid.faces.size(); k++) {
+			BSPNODE& node = newNodes[nodeCount + k];
+			memset(&node, 0, sizeof(BSPNODE));
+
+			node.firstFace = startFace + k; // face required for decals
+			node.nFaces = 1;
+			node.iPlane = startPlane + k;
+			// node mins/maxs don't matter for submodels. Leave them at 0.
+
+			int16 insideContents = k == solid.faces.size()-1 ? ~sharedSolidLeaf : (int16)(nodeCount + k + 1);
+			int16 outsideContents = ~anyEmptyLeaf;
+
+			// can't have negative normals on planes so children are swapped instead
+			if (solid.faces[k].planeSide) {
+				node.iChildren[0] = insideContents;
+				node.iChildren[1] = outsideContents;
+			}
+			else {
+				node.iChildren[0] = outsideContents;
+				node.iChildren[1] = insideContents;
+			}
+		}
+
+		replace_lump(LUMP_NODES, newNodes, (nodeCount + solid.faces.size()) * sizeof(BSPNODE));
+	}
+
+	targetModel->iHeadnodes[0] = startNode;
+	targetModel->iHeadnodes[1] = CONTENTS_EMPTY;
+	targetModel->iHeadnodes[2] = CONTENTS_EMPTY;
+	targetModel->iHeadnodes[3] = CONTENTS_EMPTY;
+	targetModel->iFirstFace = startFace;
+	targetModel->nFaces = solid.faces.size();
+
+	targetModel->nMaxs = vec3(-9e99, -9e99, -9e99);
+	targetModel->nMins = vec3(9e99, 9e99, 9e99);
+	for (int i = 0; i < solid.hullVerts.size(); i++) {
+		vec3 v = verts[startVert + i];
+
+		if (v.x > targetModel->nMaxs.x) targetModel->nMaxs.x = v.x;
+		if (v.y > targetModel->nMaxs.y) targetModel->nMaxs.y = v.y;
+		if (v.z > targetModel->nMaxs.z) targetModel->nMaxs.z = v.z;
+
+		if (v.x < targetModel->nMins.x) targetModel->nMins.x = v.x;
+		if (v.y < targetModel->nMins.y) targetModel->nMins.y = v.y;
+		if (v.z < targetModel->nMins.z) targetModel->nMins.z = v.z;
+	}
+}
+
 int Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
 	vector<BSPPLANE> addPlanes;
 	vector<BSPCLIPNODE> addNodes;
@@ -2805,6 +2976,19 @@ int Bsp::create_plane() {
 	replace_lump(LUMP_PLANES, newPlanes, (planeCount + 1) * sizeof(BSPPLANE));
 
 	return planeCount - 1;
+}
+
+int Bsp::create_model() {
+	BSPMODEL* newModels = new BSPMODEL[modelCount + 1];
+	memcpy(newModels, models, modelCount * sizeof(BSPMODEL));
+
+	BSPMODEL& newModel = newModels[modelCount];
+	memset(&newModel, 0, sizeof(BSPMODEL));
+
+	int newModelIdx = modelCount;
+	replace_lump(LUMP_MODELS, newModels, (modelCount + 1) * sizeof(BSPMODEL));
+
+	return newModelIdx;
 }
 
 int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {

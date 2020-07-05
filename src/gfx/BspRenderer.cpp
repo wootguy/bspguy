@@ -181,6 +181,7 @@ void BspRenderer::loadTextures() {
 }
 
 void BspRenderer::reload() {
+	updateLightmapInfos();
 	calcFaceMaths();
 	preRenderFaces();
 	preRenderEnts();
@@ -300,8 +301,6 @@ void BspRenderer::loadLightmaps() {
 
 	//lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
 	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
-
-	lightmapsGenerated = true;
 }
 
 void BspRenderer::updateLightmapInfos() {
@@ -320,8 +319,6 @@ void BspRenderer::updateLightmapInfos() {
 	LightmapInfo* newLightmaps = new LightmapInfo[map->faceCount];
 	memcpy(newLightmaps, lightmaps, numRenderLightmapInfos * sizeof(LightmapInfo));
 	memset(newLightmaps + numRenderLightmapInfos, 0, addedFaces*sizeof(LightmapInfo));
-
-	logf("UPDATE FACE COUNT %d -> %d\n", numRenderLightmapInfos, map->faceCount);
 
 	delete[] lightmaps;
 	lightmaps = newLightmaps;
@@ -797,6 +794,8 @@ void BspRenderer::delayLoadData() {
 		for (int i = 0; i < numLightmapAtlases; i++) {
 			glLightmapTextures[i]->upload();
 		}
+
+		lightmapsGenerated = true;
 
 		preRenderFaces();
 

@@ -33,12 +33,6 @@ struct TransformAxes {
 	int numAxes;
 };
 
-struct HullEdge {
-	int verts[2]; // index into modelVerts
-	int planes[2]; // index into iPlanes
-	bool selected;
-};
-
 struct AppSettings {
 	int windowWidth = 800;
 	int windowHeight = 600;
@@ -217,7 +211,9 @@ private:
 
 	void updateDragAxes();
 	void updateModelVerts();
+	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
+	void splitFace();
 
 	vec3 snapToGrid(vec3 pos);
 
@@ -229,7 +225,8 @@ private:
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
-	vec3 getEdgeControlPoint(HullEdge& iEdge);
+	vec3 getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& iEdge);
+	vec3 getCentroid(vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
 
 	void loadFgds();

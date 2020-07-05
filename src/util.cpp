@@ -353,6 +353,79 @@ void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs) {
 	if (v.y < mins.y) mins.y = v.y;
 }
 
+vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes) {
+	vector<vec3> intersectVerts;
+
+	// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
+	int numPlanes = planes.size();
+	for (int i = 0; i < numPlanes - 2; i++) {
+		for (int j = i + 1; j < numPlanes - 1; j++) {
+			for (int k = j + 1; k < numPlanes; k++) {
+				vec3& n0 = planes[i].vNormal;
+				vec3& n1 = planes[j].vNormal;
+				vec3& n2 = planes[k].vNormal;
+				float d0 = planes[i].fDist;
+				float d1 = planes[j].fDist;
+				float d2 = planes[k].fDist;
+
+				float t = n0.x * (n1.y * n2.z - n1.z * n2.y) +
+					n0.y * (n1.z * n2.x - n1.x * n2.z) +
+					n0.z * (n1.x * n2.y - n1.y * n2.x);
+
+				if (fabs(t) < EPSILON) {
+					continue;
+				}
+
+				// don't use crossProduct because it's less accurate
+				//vec3 v = crossProduct(n1, n2)*d0 + crossProduct(n0, n2)*d1 + crossProduct(n0, n1)*d2;
+				vec3 v(
+					(d0 * (n1.z * n2.y - n1.y * n2.z) + d1 * (n0.y * n2.z - n0.z * n2.y) + d2 * (n0.z * n1.y - n0.y * n1.z)) / -t,
+					(d0 * (n1.x * n2.z - n1.z * n2.x) + d1 * (n0.z * n2.x - n0.x * n2.z) + d2 * (n0.x * n1.z - n0.z * n1.x)) / -t,
+					(d0 * (n1.y * n2.x - n1.x * n2.y) + d1 * (n0.x * n2.y - n0.y * n2.x) + d2 * (n0.y * n1.x - n0.x * n1.y)) / -t
+				);
+
+				bool validVertex = true;
+
+				for (int m = 0; m < numPlanes; m++) {
+					BSPPLANE& pm = planes[m];
+					if (m != i && m != j && m != k && dotProduct(v, pm.vNormal) < pm.fDist + EPSILON) {
+						validVertex = false;
+						break;
+					}
+				}
+
+				if (validVertex) {
+					intersectVerts.push_back(v);
+				}
+			}
+		}
+	}
+
+	return intersectVerts;
+}
+
+bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane) {
+	// check that all verts are on one side of the plane.
+	int planeSide = 0;
+	for (int k = 0; k < verts.size(); k++) {
+		float d = dotProduct(verts[k], plane.vNormal) - plane.fDist;
+		if (d < -EPSILON) {
+			if (planeSide == 1) {
+				return false;
+			}
+			planeSide = -1;
+		}
+		if (d > EPSILON) {
+			if (planeSide == -1) {
+				return false;
+			}
+			planeSide = 1;
+		}
+	}
+
+	return true;
+}
+
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>

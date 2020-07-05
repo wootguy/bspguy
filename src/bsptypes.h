@@ -1,5 +1,5 @@
-#include "types.h"
 #pragma once
+#include "types.h"
 #include "bsplimits.h"
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes

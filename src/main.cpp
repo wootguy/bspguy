@@ -12,11 +12,8 @@
 // WARNING hull redirect spam
 // undo history
 // grid snapping not working with transform widgets
-// can't select things sometimes (caused by not cleaning after creating solids?)
-// scaling completely broken (wrong verts, can't scale subdivided faces, and changing textures???)
-// face splitting for perfect sized relative teleports
-// loading sometimes crashes
 // red highlight not working with lightmaps disabled
+// invalid solid log spam
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -27,10 +24,12 @@
 // multi-select with ctrl
 // recalculate lightmaps when scaling objects
 // normalized clip type for clipnode regeneration (fixes broken collision around 90+ degree angle edges)
+// lerp plane distance in regenerated clipnodes between bbox height and width
 // uniform scaling
 // fix flickering transform axes
 // highlight non-planar faces in vertex edit mode
 // subdivided faces can't be transformed in verte edit mode
+// auto-clean after a while? Unused data will pile up after a lot of face splitting
 
 // minor todo:
 // trigger_changesky for series maps with different skies

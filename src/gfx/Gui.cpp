@@ -374,7 +374,6 @@ void Gui::drawMenuBar() {
 			destMap->calcFaceMaths();
 			destMap->preRenderFaces();
 			destMap->preRenderEnts();
-			destMap->map->validate();
 
 			//destMap->map->print_model_hull(modelIdx, 1);
 			reloadLimits();		
@@ -593,7 +592,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.valid && app->pickInfo.ent) {
+		if (app->pickInfo.valid && app->pickInfo.ent && app->fgd) {
 			Bsp* map = app->pickInfo.map;
 			Entity* ent = app->pickInfo.ent;
 			BSPMODEL& model = map->models[app->pickInfo.modelIdx];

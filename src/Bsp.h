@@ -34,6 +34,26 @@ struct TransformVert {
 	bool selected;
 };
 
+struct HullEdge {
+	int verts[2]; // index into modelVerts/hullVerts
+	int planes[2]; // index into iPlanes
+	bool selected;
+};
+
+struct Face {
+	vector<int> verts; // index into hullVerts
+	BSPPLANE plane;
+	int planeSide;
+	int iTextureInfo;
+};
+
+struct Solid {
+	vector<Face> faces;
+
+	vector<TransformVert> hullVerts; // control points for hull 0
+	vector<HullEdge> hullEdges; // for vertex manipulation (holds indexes into hullVerts)
+};
+
 class Bsp
 {
 public:
@@ -113,7 +133,8 @@ public:
 	vector<TransformVert> getModelVerts(int modelIdx);
 
 	// gets verts formed by plane intersections with the nodes in this model
-	vector<TransformVert> getModelPlaneIntersectVerts(int modelIdx);
+	bool getModelPlaneIntersectVerts(int modelIdx, vector<TransformVert>& outVerts);
+	bool getModelPlaneIntersectVerts(int modelIdx, const vector<int>& planes, vector<TransformVert>& outVerts);
 	void getNodePlanes(int iNode, vector<int>& nodePlanes);
 	bool is_convex(int modelIdx);
 	bool is_node_hull_convex(int iNode);
@@ -154,8 +175,12 @@ public:
 	// creates a solid cube
 	int create_solid(vec3 mins, vec3 maxs, int textureIdx);
 
+	// creates a new solid from the given solid definition (must be convex).
+	int create_solid(Solid& solid, int targetModelIdx=-1);
+
 	int create_leaf(int contents);
 	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
+	void create_nodes(Solid& solid, BSPMODEL* targetModel);
 	// returns index of the solid node
 	int create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
 
@@ -173,8 +198,10 @@ public:
 	// Skips axis-aligned planes (bounding box should have been generated beforehand)
 	void regenerate_clipnodes(int modelIdx);
 	int16 regenerate_clipnodes(int iNode, int hullIdx);
+
 	int create_clipnode();
 	int create_plane();
+	int create_model();
 
 	vector<STRUCTUSAGE*> get_sorted_model_infos(int sortMode);
 

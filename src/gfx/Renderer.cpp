@@ -219,9 +219,6 @@ Renderer::Renderer() {
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
 
-	//cameraOrigin = vec3(-70, 343, 19);
-	//cameraAngles = vec3(22, 0, 90);
-
 	g_app = this;
 
 	pointEntRenderer = new PointEntRenderer(NULL, colorShader);
@@ -230,6 +227,9 @@ Renderer::Renderer() {
 
 	reloading = true;
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+
+	//cameraOrigin = vec3(-32, 275, 9);
+	//cameraAngles = vec3(21, 0, 106);
 }
 
 Renderer::~Renderer() {
@@ -524,7 +524,7 @@ void Renderer::drawModelVerts() {
 	}
 
 	for (int i = 0; i < modelEdges.size(); i++) {
-		vec3 ori = getEdgeControlPoint(modelEdges[i]) + entOrigin;
+		vec3 ori = getEdgeControlPoint(modelVerts, modelEdges[i]) + entOrigin;
 		float s = (ori - cameraOrigin).length() * vertExtentFactor;
 		ori = ori.flip();
 
@@ -651,51 +651,7 @@ void Renderer::vertexEditControls() {
 	}
 
 	if (pressed[GLFW_KEY_F] && !oldPressed[GLFW_KEY_F]) {
-		vector<int> selectedEdges;
-		for (int i = 0; i < modelEdges.size(); i++) {
-			if (modelEdges[i].selected) {
-				selectedEdges.push_back(i);
-			}
-		}
-
-		if (selectedEdges.size() != 2) {
-			logf("Exactly 2 edges must be selected before splitting a face\n");
-		}
-
-		HullEdge& edge1 = modelEdges[selectedEdges[0]];
-		HullEdge& edge2 = modelEdges[selectedEdges[1]];
-		int commonPlane = -1;
-		for (int i = 0; i < 2 && commonPlane == -1; i++) {
-			int thisPlane = edge1.planes[i];
-			for (int k = 0; k < 2; k++) {
-				int otherPlane = edge2.planes[k];
-				if (thisPlane == otherPlane) {
-					commonPlane = thisPlane;
-					break;
-				}
-			}
-		}
-
-		if (commonPlane == -1) {
-			logf("Can't split edges that don't share a plane\n");
-		}
-
-		BSPPLANE& splitPlane = pickInfo.map->planes[commonPlane];
-		vec3 splitPoints[2] = {
-			getEdgeControlPoint(edge1),
-			getEdgeControlPoint(edge2)
-		};
-
-		for (int i = 0; i < modelVerts.size(); i++) {
-			modelVerts[i].selected = false;
-		}
-		for (int i = 0; i < modelEdges.size(); i++) {
-			modelEdges[i].selected = false;
-		}
-
-		// TODO: split the face
-		// - extrude split edge out a bit so the planes aren't coplanar and can be selected
-		// - use extruded split edge and 
+		splitFace();
 	}
 }
 
@@ -749,7 +705,8 @@ void Renderer::cameraPickingControls() {
 					}
 				}
 				invalidSolid = false;
-				mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
+				if (pickInfo.ent)
+					mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 			}
 			
 			pickObject();
@@ -838,7 +795,7 @@ void Renderer::cameraObjectHovering() {
 		hoverEdge = -1;
 		if (!(anyVertSelected && !anyEdgeSelected)) {
 			for (int i = 0; i < modelEdges.size(); i++) {
-				vec3 ori = getEdgeControlPoint(modelEdges[i]) + entOrigin;
+				vec3 ori = getEdgeControlPoint(modelVerts, modelEdges[i]) + entOrigin;
 				float s = (ori - cameraOrigin).length() * vertExtentFactor * 2.0f;
 				vec3 min = vec3(-s, -s, -s) + ori;
 				vec3 max = vec3(s, s, s) + ori;
@@ -995,8 +952,8 @@ void Renderer::pickObject() {
 		movingEnt = false;
 	}
 
-	if (pickInfo.modelIdx > 0) {
-		//pickInfo.map->print_model_hull(pickInfo.modelIdx, 1);
+	if (pickInfo.modelIdx >= 0) {
+		//pickInfo.map->print_model_hull(pickInfo.modelIdx, 0);
 	}
 	else {
 		transformMode = TRANSFORM_MOVE;
@@ -1487,31 +1444,53 @@ void Renderer::updateModelVerts() {
 		return;
 	}
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
-	modelVerts = map->getModelPlaneIntersectVerts(pickInfo.modelIdx); // for vertex manipulation + scaling
+	map->getModelPlaneIntersectVerts(pickInfo.modelIdx, modelVerts); // for vertex manipulation + scaling
 	modelFaceVerts = map->getModelVerts(pickInfo.modelIdx); // for scaling only
+
+	Solid modelSolid;
+	if (!getModelSolid(modelVerts, map, modelSolid)) {
+		modelVerts.clear();
+		modelFaceVerts.clear();
+		scaleTexinfos.clear();
+		return;
+	};
+	modelEdges = modelSolid.hullEdges;
+
+	int numCubes = modelVerts.size() + modelEdges.size();
+	modelVertCubes = new cCube[numCubes];
+	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
+	//logf("%d intersection points\n", modelVerts.size());
+}
+
+bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
+	outSolid.faces.clear();
+	outSolid.hullEdges.clear();
+	outSolid.hullVerts.clear();
+	outSolid.hullVerts = hullVerts;
 
 	// get verts for each plane
 	std::map<int, vector<int>> planeVerts;
-	for (int i = 0; i < modelVerts.size(); i++) {
-		for (int k = 0; k < modelVerts[i].iPlanes.size(); k++) {
-			int iPlane = modelVerts[i].iPlanes[k];
+	for (int i = 0; i < hullVerts.size(); i++) {
+		for (int k = 0; k < hullVerts[i].iPlanes.size(); k++) {
+			int iPlane = hullVerts[i].iPlanes[k];
 			planeVerts[iPlane].push_back(i);
 		}
 	}
 
+	vec3 centroid = getCentroid(hullVerts);
+
 	// sort verts CCW on each plane to get edges
-	// TODO: reverse edges if the plane normal points inside the solid
 	for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
 		int iPlane = it->first;
 		vector<int> verts = it->second;
 		BSPPLANE& plane = map->planes[iPlane];
 		if (verts.size() < 2) {
 			logf("Plane with less than 2 verts!?\n"); // hl_c00 pipe in green water place
-			continue;
+			return false;
 		}
 
 		vec3 plane_z = plane.vNormal;
-		vec3 plane_x = (modelVerts[verts[1]].pos - modelVerts[verts[0]].pos).normalize();
+		vec3 plane_x = (hullVerts[verts[1]].pos - hullVerts[verts[0]].pos).normalize();
 		vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
 		if (fabs(dotProduct(plane_z, plane_x)) > 0.99f) {
 			logf("ZOMG CHANGE NORMAL\n");
@@ -1520,7 +1499,7 @@ void Renderer::updateModelVerts() {
 
 		vector<vec2> localVerts;
 		for (int e = 0; e < verts.size(); e++) {
-			vec2 localVert = (worldToLocal * vec4(modelVerts[verts[e]].pos, 1)).xy();
+			vec2 localVert = (worldToLocal * vec4(hullVerts[verts[e]].pos, 1)).xy();
 			localVerts.push_back(localVert);
 		}
 
@@ -1555,35 +1534,65 @@ void Renderer::updateModelVerts() {
 			localVerts.erase(localVerts.begin() + bestIdx);
 		}
 
+		Face face;
+		face.plane = plane;
+
+		// get normal of ordered verts
+		vec3 v0 = hullVerts[orderedVerts[0]].pos;
+		vec3 v1 = hullVerts[orderedVerts[1]].pos;
+		vec3 v2 = hullVerts[orderedVerts[orderedVerts.size()-1]].pos;
+		vec3 e1 = (v1 - v0).normalize();
+		vec3 e2 = (v2 - v0).normalize();
+		vec3 orderedVertsNormal = crossProduct(e1, e2).normalize();
+
+		// get plane normal, flipping if it points inside the solid
+		vec3 faceNormal = plane.vNormal;
+		vec3 planeDir = ((plane.vNormal * plane.fDist) - centroid).normalize();
+		face.planeSide = 1;
+		if (dotProduct(planeDir, plane.vNormal) > 0) {
+			faceNormal = faceNormal.invert();
+			face.planeSide = 0;
+		}
+
+		// reverse vert order if not CCW when viewed from outside the solid
+		if (dotProduct(orderedVertsNormal, faceNormal) < 0) {
+			reverse(orderedVerts.begin(), orderedVerts.end());
+		}
+
+		for (int i = 0; i < orderedVerts.size(); i++) {
+			face.verts.push_back(orderedVerts[i]);
+		}
+		face.iTextureInfo = 1; // TODO
+		outSolid.faces.push_back(face);
+
 		for (int i = 0; i < orderedVerts.size(); i++) {
 			HullEdge edge;
 			edge.verts[0] = orderedVerts[i];
 			edge.verts[1] = orderedVerts[(i + 1) % orderedVerts.size()];
 			edge.selected = false;
 
-
-			vec3 midPoint = getEdgeControlPoint(edge);
+			// find the planes that this edge joins
+			vec3 midPoint = getEdgeControlPoint(hullVerts, edge);
 			int planeCount = 0;
 			for (auto it2 = planeVerts.begin(); it2 != planeVerts.end(); ++it2) {
 				int iPlane = it2->first;
 				BSPPLANE& p = map->planes[iPlane];
-				if (fabs(dotProduct(midPoint, p.vNormal) - p.fDist) < EPSILON) {
+				float dist = dotProduct(midPoint, p.vNormal) - p.fDist;
+				if (fabs(dist) < EPSILON) {
 					edge.planes[planeCount % 2] = iPlane;
 					planeCount++;
 				}
 			}
 			if (planeCount != 2) {
 				logf("ERROR: Edge connected to %d planes!\n", planeCount);
+				return false;
 			}
 
-			modelEdges.push_back(edge);
+			outSolid.hullEdges.push_back(edge);
 		}
 	}
 
-	int numCubes = modelVerts.size() + modelEdges.size();
-	modelVertCubes = new cCube[numCubes];
-	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
-	logf("%d intersection points\n", modelVerts.size());
+	return true;
 }
 
 void Renderer::scaleSelectedObject(float x, float y, float z) {
@@ -1765,6 +1774,190 @@ void Renderer::moveSelectedVerts(vec3 delta) {
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 }
 
+void Renderer::splitFace() {
+	BspRenderer* mapRenderer = mapRenderers[pickInfo.mapIdx];
+	Bsp* map = pickInfo.map;
+
+	// find the pseudo-edge to split with
+	vector<int> selectedEdges;
+	for (int i = 0; i < modelEdges.size(); i++) {
+		if (modelEdges[i].selected) {
+			selectedEdges.push_back(i);
+		}
+	}
+
+	if (selectedEdges.size() != 2) {
+		logf("Exactly 2 edges must be selected before splitting a face\n");
+		return;
+	}
+
+	HullEdge& edge1 = modelEdges[selectedEdges[0]];
+	HullEdge& edge2 = modelEdges[selectedEdges[1]];
+	int commonPlane = -1;
+	for (int i = 0; i < 2 && commonPlane == -1; i++) {
+		int thisPlane = edge1.planes[i];
+		for (int k = 0; k < 2; k++) {
+			int otherPlane = edge2.planes[k];
+			if (thisPlane == otherPlane) {
+				commonPlane = thisPlane;
+				break;
+			}
+		}
+	}
+
+	if (commonPlane == -1) {
+		logf("Can't split edges that don't share a plane\n");
+		return;
+	}
+
+	BSPPLANE& splitPlane = pickInfo.map->planes[commonPlane];
+	vec3 splitPoints[2] = {
+		getEdgeControlPoint(modelVerts, edge1),
+		getEdgeControlPoint(modelVerts, edge2)
+	};
+
+	vector<int> modelPlanes;
+	BSPMODEL& model = map->models[pickInfo.ent->getBspModelIdx()];
+	pickInfo.map->getNodePlanes(model.iHeadnodes[0], modelPlanes);
+
+	// find the plane being split
+	int commonPlaneIdx = -1;
+	for (int i = 0; i < modelPlanes.size(); i++) {
+		if (modelPlanes[i] == commonPlane) {
+			commonPlaneIdx = i;
+			break;
+		}
+	}
+	if (commonPlaneIdx == -1) {
+		logf("Failed to find splitting plane");
+		return;
+	}
+
+	// extrude split points so that the new planes aren't coplanar
+	{
+		int i0 = edge1.verts[0];
+		int i1 = edge1.verts[1];
+		int i2 = edge2.verts[0];
+		if (i2 == i1 || i2 == i0)
+			i2 = edge2.verts[1];
+
+		vec3 v0 = modelVerts[i0].pos;
+		vec3 v1 = modelVerts[i1].pos;
+		vec3 v2 = modelVerts[i2].pos;
+
+		vec3 e1 = (v1 - v0).normalize();
+		vec3 e2 = (v2 - v0).normalize();
+		vec3 normal = crossProduct(e1, e2).normalize();
+
+		vec3 centroid = getCentroid(modelVerts);
+		vec3 faceDir = (centroid - v0).normalize();
+		if (dotProduct(faceDir, normal) > 0) {
+			normal *= -1;
+		}
+
+		for (int i = 0; i < 2; i++)
+			splitPoints[i] += normal*4;
+	}
+
+	// replace split plane with 2 new slightly-angled planes
+	{
+		vec3 planeVerts[2][3] = {
+			{
+				splitPoints[0],
+				modelVerts[edge1.verts[1]].pos,
+				splitPoints[1]
+			},
+			{
+				splitPoints[0],
+				splitPoints[1],
+				modelVerts[edge1.verts[0]].pos
+			}
+		};
+
+		modelPlanes.erase(modelPlanes.begin() + commonPlaneIdx);
+		for (int i = 0; i < 2; i++) {
+			vec3 e1 = (planeVerts[i][1] - planeVerts[i][0]).normalize();
+			vec3 e2 = (planeVerts[i][2] - planeVerts[i][0]).normalize();
+			vec3 normal = crossProduct(e1, e2).normalize();
+
+			int newPlaneIdx = map->create_plane();
+			BSPPLANE& plane = map->planes[newPlaneIdx];
+			plane.update(normal, getDistAlongAxis(normal, planeVerts[i][0]));
+			modelPlanes.push_back(newPlaneIdx);
+		}
+	}
+
+	// create a new model from the new set of planes
+	vector<TransformVert> newHullVerts;
+	if (!map->getModelPlaneIntersectVerts(pickInfo.ent->getBspModelIdx(), modelPlanes, newHullVerts)) {
+		logf("Can't split here because the model would not be convex\n");
+		return;
+	}
+
+	Solid newSolid;
+	if (!getModelSolid(newHullVerts, pickInfo.map, newSolid)) {
+		logf("Splitting here would invalidate the solid\n");
+		return;
+	}
+
+	// test that all planes have at least 3 verts
+	{
+		std::map<int, vector<vec3>> planeVerts;
+		for (int i = 0; i < newHullVerts.size(); i++) {
+			for (int k = 0; k < newHullVerts[i].iPlanes.size(); k++) {
+				int iPlane = newHullVerts[i].iPlanes[k];
+				planeVerts[iPlane].push_back(newHullVerts[i].pos);
+			}
+		}
+		for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
+			vector<vec3>& verts = it->second;
+
+			if (verts.size() < 3) {
+				logf("Can't split here because a face with less than 3 verts would be created\n");
+				return;
+			}
+		}
+	}
+
+	// copy textures/UVs from the old model
+	{
+		BSPMODEL& oldModel = map->models[pickInfo.ent->getBspModelIdx()];
+		for (int i = 0; i < newSolid.faces.size(); i++) {
+			Face& solidFace = newSolid.faces[i];
+			BSPFACE* bestMatch = NULL;
+			float bestdot = -9e99;
+			for (int k = 0; k < oldModel.nFaces; k++) {
+				BSPFACE& bspface = map->faces[oldModel.iFirstFace + k];
+				BSPPLANE& plane = map->planes[bspface.iPlane];
+				vec3 bspFaceNormal = bspface.nPlaneSide ? plane.vNormal.invert() : plane.vNormal;
+				vec3 solidFaceNormal = solidFace.planeSide ? solidFace.plane.vNormal.invert() : solidFace.plane.vNormal;
+				float dot = dotProduct(bspFaceNormal, solidFaceNormal);
+				if (dot > bestdot) {
+					bestdot = dot;
+					bestMatch = &bspface;
+				}
+			}
+			if (bestMatch != NULL) {
+				solidFace.iTextureInfo = bestMatch->iTextureInfo;
+			}
+		}
+	}
+
+	int modelIdx = map->create_solid(newSolid, pickInfo.ent->getBspModelIdx());
+
+	for (int i = 0; i < modelVerts.size(); i++) {
+		modelVerts[i].selected = false;
+	}
+	for (int i = 0; i < modelEdges.size(); i++) {
+		modelEdges[i].selected = false;
+	}
+
+	mapRenderer->updateLightmapInfos();
+	mapRenderer->calcFaceMaths();
+	mapRenderer->refreshModel(modelIdx);
+	updateModelVerts();
+}
+
 void Renderer::scaleSelectedVerts(float x, float y, float z) {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
@@ -1806,10 +1999,18 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 }
 
-vec3 Renderer::getEdgeControlPoint(HullEdge& edge) {
-	vec3 v0 = modelVerts[edge.verts[0] ].pos;
-	vec3 v1 = modelVerts[edge.verts[1] ].pos;
+vec3 Renderer::getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& edge) {
+	vec3 v0 = hullVerts[edge.verts[0]].pos;
+	vec3 v1 = hullVerts[edge.verts[1]].pos;
 	return v0 + (v1 - v0) * 0.5f;
+}
+
+vec3 Renderer::getCentroid(vector<TransformVert>& hullVerts) {
+	vec3 centroid;
+	for (int i = 0; i < hullVerts.size(); i++) {
+		centroid += hullVerts[i].pos;
+	}
+	return centroid / (float)hullVerts.size();
 }
 
 vec3 Renderer::snapToGrid(vec3 pos) {
@@ -1905,4 +2106,7 @@ void Renderer::deselectObject() {
 	pickInfo.faceIdx = -1;
 	pickInfo.modelIdx = -1;
 	isTransformableSolid = true;
+	hoverVert = -1;
+	hoverEdge = -1;
+	hoverAxis = -1;
 }

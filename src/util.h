@@ -9,6 +9,7 @@
 #include <thread>
 #include <future>
 #include "ProgressMeter.h"
+#include "bsptypes.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -81,3 +82,7 @@ vec2 getCenter(vector<vec2>& verts);
 void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs);
 
 void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs);
+
+vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes);
+
+bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane);
