@@ -10,36 +10,6 @@
 
 typedef map< string, vec3 > mapStringToVector;
 
-// monsters that use hull 2 by default
-set<string> largeMonsters {
-	"monster_alien_grunt",
-	"monster_alien_tor",
-	"monster_alien_voltigore",
-	"monster_babygarg",
-	"monster_bigmomma",
-	"monster_bullchicken",
-	"monster_gargantua",
-	"monster_ichthyosaur",
-	"monster_kingpin",
-	"monster_apache",
-	"monster_blkop_apache"
-	// osprey, nihilanth, and tentacle are huge but are basically nonsolid (no brush collision or triggers)
-};
-
-mapStringToVector defaultHullSize {
-	{"monster_alien_grunt", vec3(48, 48, 88) },
-	{"monster_alien_tor", vec3(48, 48, 88) },
-	{"monster_alien_voltigore", vec3(96, 96, 90) },
-	{"monster_babygarg", vec3(64, 64, 96) },
-	{"monster_bigmomma", vec3(64, 64, 170) },
-	{"monster_bullchicken", vec3(64, 64, 40) },
-	{"monster_gargantua", vec3(64, 64, 214) },
-	{"monster_ichthyosaur", vec3(64, 64, 64) }, // origin at center
-	{"monster_kingpin", vec3(24, 24, 112) },
-	{"monster_apache", vec3(64, 64, 64) }, // origin at top
-	{"monster_blkop_apache", vec3(64, 64, 64) }, // origin at top
-};
-
 vec3 default_hull_extents[MAX_MAP_HULLS] = {
 	vec3(0,  0,  0),	// hull 0
 	vec3(16, 16, 36),	// hull 1
@@ -1180,6 +1150,22 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 }
 
 bool Bsp::has_hull2_ents() {
+	// monsters that use hull 2 by default
+	static set<string> largeMonsters{
+		"monster_alien_grunt",
+		"monster_alien_tor",
+		"monster_alien_voltigore",
+		"monster_babygarg",
+		"monster_bigmomma",
+		"monster_bullchicken",
+		"monster_gargantua",
+		"monster_ichthyosaur",
+		"monster_kingpin",
+		"monster_apache",
+		"monster_blkop_apache"
+		// osprey, nihilanth, and tentacle are huge but are basically nonsolid (no brush collision or triggers)
+	};
+
 	for (int i = 0; i < ents.size(); i++) {
 		string cname = ents[i]->keyvalues["classname"];
 		string tname = ents[i]->keyvalues["targetname"];
@@ -2671,54 +2657,55 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 		replace_lump(LUMP_VERTICES, newVerts, (vertCount + solid.hullVerts.size()) * sizeof(vec3));
 	}
 
-	// add new edges (4 for each face)
+	// add new edges (not actually edges - just an indirection layer for the verts)
 	// TODO: subdivide >512
 	int startEdge = edgeCount;
-	int addEdges = 0;
+	map<int, int32_t> vertToSurfedge;
 	{
-		for (int i = 0; i < solid.faces.size(); i++) {
-			addEdges += solid.faces[i].verts.size();
-		}
+		int addEdges = (solid.hullVerts.size() + 1) / 2;
 
 		BSPEDGE* newEdges = new BSPEDGE[edgeCount + addEdges];
 		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
 
-		// TODO: only half of these edges are needed
 		int idx = 0;
-		for (int i = 0; i < solid.faces.size(); i++) {
-			Face& face = solid.faces[i];
-			for (int k = 0; k < face.verts.size(); k++) {
-				int v0 = newVertIndexes[face.verts[k]];
-				int v1 = newVertIndexes[face.verts[(k+1) % face.verts.size()]];
-				newEdges[startEdge + idx++] = BSPEDGE(v0, v1);
+		for (int i = 0; i < solid.hullVerts.size(); i += 2) {
+			int v0 = i;
+			int v1 = (i+1) % solid.hullVerts.size();
+			newEdges[startEdge + idx] = BSPEDGE(newVertIndexes[v0], newVertIndexes[v1]);
+
+			vertToSurfedge[v0] = startEdge + idx;
+			if (v1 > 0) {
+				vertToSurfedge[v1] = -(startEdge + idx); // negative = use second vert
 			}
+
+			idx++;
 		}
-		/*
-		for (int i = 0; i < solid.hullEdges.size(); i++) {
-			int v0 = newVertIndexes[solid.hullEdges[i].verts[0]];
-			int v1 = newVertIndexes[solid.hullEdges[i].verts[1]];
-			newEdges[startEdge + i] = BSPEDGE(v0, v1);
-		}
-		*/
 		replace_lump(LUMP_EDGES, newEdges, (edgeCount + addEdges) * sizeof(BSPEDGE));
 	}
 
 	// add new surfedges (2 for each edge)
 	int startSurfedge = surfedgeCount;
 	{
-		int32_t* newSurfedges = new int32_t[surfedgeCount + addEdges];
-		memcpy(newSurfedges, surfedges, surfedgeCount * sizeof(int32_t));
-
-		for (int i = 0; i < addEdges; i++) {
-			int32_t edgeIdx = startEdge + i;
-			newSurfedges[startSurfedge + i] = edgeIdx;
+		int addSurfedges = 0;
+		for (int i = 0; i < solid.faces.size(); i++) {
+			addSurfedges += solid.faces[i].verts.size();
 		}
 
-		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + addEdges) * sizeof(int32_t));
+		int32_t* newSurfedges = new int32_t[surfedgeCount + addSurfedges];
+		memcpy(newSurfedges, surfedges, surfedgeCount * sizeof(int32_t));
+
+		int idx = 0;
+		for (int i = 0; i < solid.faces.size(); i++) {
+			for (int k = 0; k < solid.faces[i].verts.size(); k++) {
+				newSurfedges[startSurfedge + idx++] = vertToSurfedge[solid.faces[i].verts[k]];
+			}
+		}
+
+		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + addSurfedges) * sizeof(int32_t));
 	}
 
 	// add new planes (1 for each face/node)
-	// TODO: reuse existing planes
+	// TODO: reuse existing planes (maybe not until shared stuff can be split when editing solids)
 	int startPlane = planeCount;
 	{
 		BSPPLANE* newPlanes = new BSPPLANE[planeCount + solid.faces.size()];
@@ -2730,31 +2717,6 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 
 		replace_lump(LUMP_PLANES, newPlanes, (planeCount + solid.faces.size()) * sizeof(BSPPLANE));
 	}
-
-	/*
-	int startTexinfo = texinfoCount;
-	{
-		BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[texinfoCount + solid.faces.size()];
-		memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
-
-		for (int i = 0; i < solid.faces.size(); i++) {
-			BSPTEXTUREINFO& info = newTexinfos[startTexinfo + i];
-			info.iMiptex = solid.faces[i].iTextureInfo;
-			info.nFlags = 0;
-			info.shiftS = 0;
-			info.shiftT = 0;
-
-			vec3 v0 = solid.hullVerts[solid.faces[i].verts[0]].pos;
-			vec3 v1 = solid.hullVerts[solid.faces[i].verts[1]].pos;
-			vec3 axisT = (v1 - v0).normalize();
-
-			info.vT = axisT;
-			info.vS = crossProduct(axisT, solid.faces[i].plane.vNormal);
-		}
-
-		replace_lump(LUMP_TEXINFO, newTexinfos, (texinfoCount + solid.faces.size()) * sizeof(BSPTEXTUREINFO));
-	}
-	*/
 
 	// add new faces
 	int startFace = faceCount;
