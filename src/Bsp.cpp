@@ -641,7 +641,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 
 		g_progress.tick();
 
-		if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)
+		if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL || face.nLightmapOffset > lightDataLength)
 			continue;
 
 		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
@@ -681,7 +681,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 
 			g_progress.tick();
 
-			if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL) // no lighting
+			if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL || face.nLightmapOffset > lightDataLength) // no lighting
 				continue;
 
 			LIGHTMAP& oldLight = oldLightmaps[i];
