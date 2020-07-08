@@ -89,6 +89,7 @@ bool Wad::readInfo()
 	{
 		delete [] dirEntries;
 		dirEntries = NULL;
+		header.nDir = 0;
 		logf("%s contains no regular textures\n", filename.c_str());
 		return false; // we can't use these types of textures (see fonts.wad as an example)
 	}
