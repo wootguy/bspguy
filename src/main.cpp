@@ -14,6 +14,8 @@
 // grid snapping not working with transform widgets
 // red highlight not working with lightmaps disabled
 // invalid solid log spam
+// can't select faces sometimes
+// model scaling completely broken. barely usable
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

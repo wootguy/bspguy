@@ -186,6 +186,10 @@ public:
 
 	// copies a model from the sourceMap into this one
 	void add_model(Bsp* sourceMap, int modelIdx);
+	
+	// create a new texture from raw RGB data, and embeds into the bsp. 
+	// Returns -1 on failure, else the new texture index
+	int add_texture(const char* name, byte* data, int width, int height);
 
 	void replace_lump(int lumpIdx, void* newData, int newLength);
 

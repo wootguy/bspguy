@@ -11,6 +11,7 @@
 #include "fonts/robotomedium.h"
 #include "icons/object.h"
 #include "icons/face.h"
+#include "icons/aaatrigger.h"
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
@@ -427,6 +428,7 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
 			BspRenderer* destMap = app->getMapContainingCamera();
+			Bsp* map = destMap->map;
 
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
 			if (app->gridSnappingEnabled)
@@ -434,7 +436,31 @@ void Gui::drawMenuBar() {
 			vec3 mins = vec3(-16, -16, -16);
 			vec3 maxs = vec3(16, 16, 16);
 
-			int modelIdx = destMap->map->create_solid(mins, maxs, 3);
+			// add the aaatrigger texture if it doesn't already exist
+			int32_t totalTextures = ((int32_t*)map->textures)[0];
+			int aaatriggerIdx = -1;
+			for (uint i = 0; i < totalTextures; i++) {
+				int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+				if (strcmp(tex.szName, "aaatrigger") == 0) {
+					aaatriggerIdx = i;
+					break;
+				}
+			}
+			if (aaatriggerIdx == -1) {
+				byte* tex_dat = NULL;
+				uint w, h;
+
+				lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
+				aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
+				destMap->reloadTextures();
+
+				lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
+				delete[] tex_dat;
+			}
+			
+
+			int modelIdx = destMap->map->create_solid(mins, maxs, aaatriggerIdx);
 
 			Entity* newEnt = new Entity();
 			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
@@ -2080,13 +2106,14 @@ void Gui::drawTextureTool() {
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
 	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
 		static float scaleX, scaleY, shiftX, shiftY;
+		static bool isSpecial;
 		static int width, height;
 		static ImTextureID textureId = NULL; // OpenGL ID
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
 
-		BspRenderer* mapRenderer = app->selectMapIdx != -1 ? app->mapRenderers[app->selectMapIdx] : NULL;
+		BspRenderer* mapRenderer = app->selectMapIdx >= 0 ? app->mapRenderers[app->selectMapIdx] : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 
 		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
@@ -2102,6 +2129,7 @@ void Gui::drawTextureTool() {
 				scaleY = 1.0f / texinfo.vT.length();
 				shiftX = texinfo.shiftS;
 				shiftY = texinfo.shiftT;
+				isSpecial = texinfo.nFlags & TEX_SPECIAL;
 				width = tex.nWidth;
 				height = tex.nHeight;
 				strncpy(textureName, tex.szName, MAXTEXTURENAME);
@@ -2118,6 +2146,7 @@ void Gui::drawTextureTool() {
 					if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
 					if (shiftX != texinfo2.shiftS) shiftX = 0;
 					if (shiftY != texinfo2.shiftT) shiftY = 0;
+					if (isSpecial != texinfo2.nFlags & TEX_SPECIAL) isSpecial = false;
 					if (texinfo2.iMiptex != miptex) {
 						validTexture = false;
 						textureId = NULL;
@@ -2147,6 +2176,7 @@ void Gui::drawTextureTool() {
 		bool shiftedX = false;
 		bool shiftedY = false;
 		bool textureChanged = false;
+		bool toggledFlags = false;
 
 		ImGui::PushItemWidth(inputWidth);
 		ImGui::Text("Scale");
@@ -2194,6 +2224,18 @@ void Gui::drawTextureTool() {
 		}
 		ImGui::PopItemWidth();
 
+		ImGui::Text("Flags");
+		if (ImGui::Checkbox("Special", &isSpecial)) {
+			toggledFlags = true;
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted("Used with invisible faces to bypass the surface extent limit."
+								   "\nLightmaps may break in strange ways if this is used on a normal face.");
+			ImGui::EndTooltip();
+		}
+
 		ImGui::Dummy(ImVec2(0, 8));
 
 		ImGui::Text("Texture");
@@ -2217,7 +2259,7 @@ void Gui::drawTextureTool() {
 		ImGui::SameLine();
 		ImGui::Text("%dx%d", width, height);
 
-		if (map && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces)) {
+		if (map && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
 			uint32_t newMiptex = 0;
 			if (textureChanged) {
 				validTexture = false;
@@ -2251,13 +2293,17 @@ void Gui::drawTextureTool() {
 				if (shiftedY) {
 					texinfo->shiftT = shiftY;
 				}
-				if (textureChanged && validTexture) {
-					texinfo->iMiptex = newMiptex;
+				if (toggledFlags) {
+					texinfo->nFlags = isSpecial ? TEX_SPECIAL : 0;
+				}
+				if ((textureChanged || toggledFlags) && validTexture) {
+					if (textureChanged)
+						texinfo->iMiptex = newMiptex;
 					modelRefreshes.insert(map->get_model_from_face(faceIdx));
 				}
 				mapRenderer->updateFaceUVs(faceIdx);
 			}
-			if (textureChanged) {
+			if (textureChanged || toggledFlags) {
 				textureId = (void*)mapRenderer->getFaceTextureId(app->selectedFaces[0]);
 				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
 					mapRenderer->refreshModel(*it);

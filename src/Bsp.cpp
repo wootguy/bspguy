@@ -2408,6 +2408,125 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	logf("");
 }
 
+int Bsp::add_texture(const char* name, byte* data, int width, int height) {
+	if (width % 16 != 0 || height % 16 != 0) {
+		logf("Dimensions not divisible by 16");
+		return -1;
+	}
+	if (width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION) {
+		logf("Width/height too large");
+		return -1;
+	}
+
+	COLOR3 palette[256];
+	memset(&palette, 0, sizeof(COLOR3) * 256);
+	int colorCount = 0;
+
+	// create pallete and full-rez mipmap
+	byte* mip[MIPLEVELS];
+	mip[0] = new byte[width * height];
+	COLOR3* src = (COLOR3*)data;
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			int paletteIdx = -1;
+			for (int k = 0; k < colorCount; k++) {
+				if (*src == palette[k]) {
+					paletteIdx = k;
+					break;
+				}
+			}
+			if (paletteIdx == -1) {
+				if (colorCount >= 256) {
+					logf("Too many colors");
+					delete[] mip[0];
+					return -1;
+				}
+				palette[colorCount] = *src;
+				paletteIdx = colorCount;
+				colorCount++;
+			}
+
+			mip[0][y*width + x] = paletteIdx;
+			src++;
+		}
+	}
+	
+	int texDataSize = width * height + sizeof(COLOR3) * 256 + 4; // 4 = padding
+
+	// generate mipmaps
+	for (int i = 1; i < MIPLEVELS; i++) {
+		int div = 1 << i;
+		int mipWidth = width / div;
+		int mipHeight = height / div;
+		texDataSize += mipWidth * height;
+		mip[i] = new byte[mipWidth * mipHeight];
+
+		src = (COLOR3*)data;
+		for (int y = 0; y < mipHeight; y++) {
+			for (int x = 0; x < mipWidth; x++) {
+
+				int paletteIdx = -1;
+				for (int k = 0; k < colorCount; k++) {
+					if (*src == palette[k]) {
+						paletteIdx = k;
+						break;
+					}
+				}
+
+				mip[i][y * mipWidth + x] = paletteIdx;
+				src += div;
+			}
+		}
+	}
+
+	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
+	byte* newTexData = new byte[newTexLumpSize];
+	memset(newTexData, 0, sizeof(newTexLumpSize));
+
+	// create new texture lump header
+	int32_t* newLumpHeader = (int32_t*)newTexData;
+	int32_t* oldLumpHeader = (int32_t*)lumps[LUMP_TEXTURES];
+	*newLumpHeader = textureCount + 1;
+
+	for (int i = 0; i < textureCount; i++) {
+		*(newLumpHeader + i + 1) = *(oldLumpHeader + i + 1) + sizeof(int32_t); // make room for the new offset
+	}
+
+	// copy old texture data
+	int oldTexHeaderSize = (textureCount + 1) * sizeof(int32_t);
+	int newTexHeaderSize = oldTexHeaderSize + sizeof(int32_t);
+	int oldTexDatSize = header.lump[LUMP_TEXTURES].nLength - (textureCount+1)*sizeof(int32_t);
+	memcpy(newTexData + newTexHeaderSize, lumps[LUMP_TEXTURES] + oldTexHeaderSize, oldTexDatSize);
+
+	// add new texture to the end of the lump
+	int newTexOffset = newTexHeaderSize + oldTexDatSize;
+	newLumpHeader[textureCount + 1] = newTexOffset;
+	BSPMIPTEX* newMipTex = (BSPMIPTEX*)(newTexData + newTexOffset);
+	newMipTex->nWidth = width;
+	newMipTex->nHeight = height;
+	strncpy(newMipTex->szName, name, MAXTEXTURENAME);
+	
+	newMipTex->nOffsets[0] = sizeof(BSPMIPTEX);
+	newMipTex->nOffsets[1] = newMipTex->nOffsets[0] + width*height;
+	newMipTex->nOffsets[2] = newMipTex->nOffsets[1] + (width >> 1)*(height >> 1);
+	newMipTex->nOffsets[3] = newMipTex->nOffsets[2] + (width >> 2)*(height >> 2);
+	int palleteOffset = newMipTex->nOffsets[3] + (width >> 3) * (height >> 3) + 2;
+
+	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[0], mip[0], width*height);
+	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
+	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
+	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
+	memcpy(newTexData + newTexOffset + palleteOffset, palette, sizeof(COLOR3)*256);
+
+	for (int i = 0; i < MIPLEVELS; i++) {
+		delete[] mip[i];
+	}
+
+	replace_lump(LUMP_TEXTURES, newTexData, newTexLumpSize);
+
+	return textureCount-1;
+}
+
 int Bsp::create_leaf(int contents) {
 	BSPLEAF* newLeaves = new BSPLEAF[leafCount + 1];
 	memcpy(newLeaves, leaves, leafCount * sizeof(BSPLEAF));
@@ -2542,7 +2661,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		for (int i = 0; i < 6; i++) {
 			BSPTEXTUREINFO& info = newTexinfos[startTexinfo + i];
 			info.iMiptex = textureIdx;
-			info.nFlags = 0;
+			info.nFlags = TEX_SPECIAL;
 			info.shiftS = 0;
 			info.shiftT = 0;
 			info.vT = faceUp[i];

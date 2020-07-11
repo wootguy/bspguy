@@ -173,6 +173,10 @@ COLOR3 operator*(COLOR3 c, float scale)
 	return c;
 }
 
+bool operator==(COLOR3 c1, COLOR3 c2) {
+	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b;
+}
+
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
 	bool foundBetterPick = false;
 

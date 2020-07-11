@@ -1,11 +1,10 @@
 #pragma once
 #include <string>
+#include "bsplimits.h"
 
 typedef unsigned char byte;
 typedef unsigned int uint;
 
-#define MAXTEXTURENAME 16
-#define MIPLEVELS 4
 #define MAXTEXELS 262144
 
 #define CLAMP(v, min, max) if (v < min) { v = min; } else if (v > max) { v = max; }
@@ -21,6 +20,7 @@ struct COLOR3
 #pragma pack(pop)
 
 COLOR3 operator*(COLOR3 v, float f);
+bool operator==(COLOR3 c1, COLOR3 c2);
 
 struct WADHEADER
 {
@@ -38,13 +38,6 @@ struct WADDIRENTRY
 	bool bCompression;           // 0 if none
 	int16_t nDummy;				 // not used
 	char szName[MAXTEXTURENAME]; // must be null terminated
-};
-
-struct BSPMIPTEX
-{
-	char szName[MAXTEXTURENAME];  // Name of texture
-	uint32_t nWidth, nHeight;		  // Extends of the texture
-	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps BSPMIPTEX;
 };
 
 struct WADTEX

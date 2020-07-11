@@ -394,7 +394,7 @@ void BspRenderer::deleteRenderFaces() {
 
 void BspRenderer::deleteTextures() {
 	if (glTextures != NULL) {
-		for (int i = 0; i < map->textureCount; i++) {
+		for (int i = 0; i < numLoadedTextures; i++) {
 			if (glTextures[i] != whiteTex)
 				delete glTextures[i];
 		}
@@ -834,6 +834,7 @@ void BspRenderer::delayLoadData() {
 			if (!glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGB);
 		}
+		numLoadedTextures = map->textureCount;
 
 		texturesLoaded = true;
 

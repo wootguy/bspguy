@@ -113,6 +113,13 @@ struct BSPTEXTUREINFO {
 	uint32_t nFlags;
 };
 
+struct BSPMIPTEX
+{
+	char szName[MAXTEXTURENAME];  // Name of texture
+	uint32_t nWidth, nHeight;		  // Extends of the texture
+	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps, relative to the start of this structure
+};
+
 struct BSPFACE {
 	uint16_t iPlane;          // Plane the face is parallel to
 	uint16_t nPlaneSide;      // Set if different normals orientation

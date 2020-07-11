@@ -145,6 +145,7 @@ private:
 	int numRenderLightmapInfos;
 	int numFaceMaths;
 	int numPointEnts;
+	int numLoadedTextures = 0;
 
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;
