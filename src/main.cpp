@@ -94,7 +94,7 @@ void remove_unused_data(Bsp* map) {
 
 void hideConsoleWindow() {
 #ifdef WIN32
-#ifndef NDEBUG
+#ifdef NDEBUG
 	::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 #endif

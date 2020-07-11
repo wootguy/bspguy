@@ -28,7 +28,7 @@ Texture::~Texture()
 	delete[] data;
 }
 
-void Texture::upload()
+void Texture::upload(int format)
 {
 	if (uploaded) {
 		glDeleteTextures(1, &id);
@@ -46,7 +46,7 @@ void Texture::upload()
 
 	// TODO: load mipmaps from BSP/WAD
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
 	uploaded = true;
 }

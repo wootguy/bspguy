@@ -1918,6 +1918,14 @@ bool Bsp::validate() {
 				isValid = false;
 			}
 		}
+		if (models[i].nMins.x > models[i].nMaxs.x ||
+			models[i].nMins.y > models[i].nMaxs.y ||
+			models[i].nMins.z > models[i].nMaxs.z) {
+			logf("Backwards mins/maxs in model %d. Mins: (%f, %f, %f) Maxs: (%f %f %f)\n", i,
+				models[i].nMins.x, models[i].nMins.y, models[i].nMins.z,
+				models[i].nMaxs.x, models[i].nMaxs.y, models[i].nMaxs.z);
+			isValid = false;
+		}
 	}
 	if (totalVisLeaves != leafCount) {
 		logf("Bad model vis leaf sum: %d / %d\n", totalVisLeaves, leafCount);
@@ -2804,14 +2812,7 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 	targetModel->nMins = vec3(9e99, 9e99, 9e99);
 	for (int i = 0; i < solid.hullVerts.size(); i++) {
 		vec3 v = verts[startVert + i];
-
-		if (v.x > targetModel->nMaxs.x) targetModel->nMaxs.x = v.x;
-		if (v.y > targetModel->nMaxs.y) targetModel->nMaxs.y = v.y;
-		if (v.z > targetModel->nMaxs.z) targetModel->nMaxs.z = v.z;
-
-		if (v.x < targetModel->nMins.x) targetModel->nMins.x = v.x;
-		if (v.y < targetModel->nMins.y) targetModel->nMins.y = v.y;
-		if (v.z < targetModel->nMins.z) targetModel->nMins.z = v.z;
+		expandBoundingBox(v, targetModel->nMins, targetModel->nMaxs);
 	}
 }
 
@@ -2951,6 +2952,46 @@ int Bsp::create_model() {
 	replace_lump(LUMP_MODELS, newModels, (modelCount + 1) * sizeof(BSPMODEL));
 
 	return newModelIdx;
+}
+
+int Bsp::create_texinfo() {
+	BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[texinfoCount + 1];
+	memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
+
+	BSPTEXTUREINFO& newTexinfo = newTexinfos[texinfoCount];
+	memset(&newTexinfo, 0, sizeof(BSPTEXTUREINFO));
+
+	replace_lump(LUMP_TEXINFO, newTexinfos, (texinfoCount + 1) * sizeof(BSPTEXTUREINFO));
+
+	return texinfoCount - 1;
+}
+
+BSPTEXTUREINFO* Bsp::get_unique_texinfo(int faceIdx) {
+	BSPFACE& targetFace = faces[faceIdx];
+	int targetInfo = targetFace.iTextureInfo;
+
+	for (int i = 0; i < faceCount; i++) {
+		if (i != faceIdx && faces[i].iTextureInfo == targetFace.iTextureInfo) {
+			int newInfo = create_texinfo();
+			texinfos[newInfo] = texinfos[targetInfo];
+			targetInfo = newInfo;
+			targetFace.iTextureInfo = newInfo;
+			logf("Create new texinfo\n");
+			break;
+		}
+	}
+
+	return &texinfos[targetInfo];
+}
+
+int Bsp::get_model_from_face(int faceIdx) {
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+		if (faceIdx >= model.iFirstFace && faceIdx < model.iFirstFace + model.nFaces) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {

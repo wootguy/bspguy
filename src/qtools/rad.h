@@ -5,6 +5,7 @@
 
 #define MAX_SINGLEMAP ((MAX_SURFACE_EXTENT+1)*(MAX_SURFACE_EXTENT+1))
 #define MAX_SURFACE_EXTENT  64 // if lightmap extent exceeds 16, the map will not be able to load in 'Software' renderer and HLDS.
+#define MAX_LUXELS 1600 // max pixels in a single lightmap
 #define TEXTURE_STEP        16 // this constant was previously defined in lightmap.cpp. --vluzacn
 #define TEX_SPECIAL     1    // sky or slime or null, no lightmap or 256 subdivision
 
@@ -124,7 +125,7 @@ void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, light_flag_t* luxelFlagsOut)
 
 const BSPPLANE* getPlaneFromFace(const BSPFACE* const face);
 
-void GetFaceLightmapSize(int facenum, int size[2]);
+bool GetFaceLightmapSize(int facenum, int size[2]);
 int GetFaceLightmapSizeBytes(int facenum);
 void GetFaceExtents(int facenum, int mins_out[2], int extents_out[2]);
 void CalcFaceExtents(lightinfo_t* l);

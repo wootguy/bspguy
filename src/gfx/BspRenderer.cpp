@@ -6,7 +6,8 @@
 #include <algorithm>
 #include "Renderer.h"
 
-BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
+BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, 
+	ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
 	this->bspShader = bspShader;
 	this->fullBrightBspShader = fullBrightBspShader;
@@ -31,12 +32,12 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	*((COLOR3*)(blackTex->data)) = { 0, 0, 0 };
 	*((COLOR3*)(blueTex->data)) = { 0, 0, 200 };
 
-	whiteTex->upload();
-	redTex->upload();
-	yellowTex->upload();
-	greyTex->upload();
-	blackTex->upload();
-	blueTex->upload();
+	whiteTex->upload(GL_RGB);
+	redTex->upload(GL_RGB);
+	yellowTex->upload(GL_RGB);
+	greyTex->upload(GL_RGB);
+	blackTex->upload(GL_RGB);
+	blueTex->upload(GL_RGB);
 
 	//loadTextures();
 	//loadLightmaps();
@@ -343,6 +344,7 @@ void BspRenderer::preRenderFaces() {
 
 RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
 	RenderModel* newRenderModels = new RenderModel[map->modelCount];
+	memset(newRenderModels, 0, sizeof(RenderModel) * map->modelCount);
 	renderModelCount = map->modelCount;
 
 	int worldRenderGroups = 0;
@@ -364,17 +366,25 @@ RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
 	return newRenderModels;
 }
 
+void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
+	if (renderModel == NULL || renderModel->renderGroups == NULL || renderModel->renderFaces == NULL) {
+		return;
+	}
+	for (int k = 0; k < renderModel->groupCount; k++) {
+		RenderGroup& group = renderModel->renderGroups[k];
+		delete[] group.verts;
+		delete[] group.wireframeVerts;
+		delete group.buffer;
+		delete group.wireframeBuffer;
+	}
+	delete[] renderModel->renderGroups;
+	delete[] renderModel->renderFaces;
+}
+
 void BspRenderer::deleteRenderFaces() {
 	if (renderModels != NULL) {
 		for (int i = 0; i < numRenderModels; i++) {
-			for (int k = 0; k < renderModels[i].groupCount; k++) {
-				RenderGroup& group = renderModels[i].renderGroups[k];
-				delete[] group.verts;
-				delete[] group.wireframeVerts;
-				delete group.buffer;
-				delete group.wireframeBuffer;
-			}
-			delete[] renderModels[i].renderGroups;
+			deleteRenderModel(&renderModels[i]);
 		}
 		delete[] renderModels;
 	}
@@ -423,6 +433,10 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		renderModel = &renderModels[modelIdx];
 	}
 
+	deleteRenderModel(renderModel);
+
+	renderModel->renderFaces = new RenderFace[model.nFaces];
+
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
 	vector<vector<lightmapVert>> renderGroupWireframeVerts;
@@ -441,9 +455,6 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		lightmapVert* verts = new lightmapVert[face.nEdges];
 		int vertCount = face.nEdges;
 		Texture* lightmapAtlas[MAXLIGHTMAPS];
-
-		float tw = 1.0f / (float)tex.nWidth;
-		float th = 1.0f / (float)tex.nHeight;
 
 		float lw = 0;
 		float lh = 0;
@@ -474,12 +485,18 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			verts[e].y = vert.z;
 			verts[e].z = -vert.y;
 
+			verts[e].r = 1.0f;
+			verts[e].g = 1.0f;
+			verts[e].b = 1.0f;
+			verts[e].a = isSpecial ? 0.5f : 1.0f;
+
 			// texture coords
+			float tw = 1.0f / (float)tex.nWidth;
+			float th = 1.0f / (float)tex.nHeight;
 			float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
 			float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
 			verts[e].u = fU * tw;
 			verts[e].v = fV * th;
-			verts[e].opacity = isSpecial ? 0.5f : 1.0f;
 
 			// lightmap texture coords
 			if (hasLighting && lightmapsGenerated) {
@@ -529,7 +546,10 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			wireframeVerts[k].luv[1][2] = 0.0f;
 			wireframeVerts[k].luv[2][2] = 0.0f;
 			wireframeVerts[k].luv[3][2] = 0.0f;
-			wireframeVerts[k].opacity = 1.0f;
+			wireframeVerts[k].r = 1.0f;
+			wireframeVerts[k].g = 1.0f;
+			wireframeVerts[k].b = 1.0f;
+			wireframeVerts[k].a = 1.0f;
 		}
 
 		delete[] verts;
@@ -572,6 +592,10 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			groupIdx = renderGroups.size() - 1;
 		}
 
+		renderModel->renderFaces[i].group = groupIdx;
+		renderModel->renderFaces[i].vertOffset = renderGroupVerts[groupIdx].size();
+		renderModel->renderFaces[i].vertCount = vertCount;
+
 		renderGroupVerts[groupIdx].insert(renderGroupVerts[groupIdx].end(), verts, verts + vertCount);
 		renderGroupWireframeVerts[groupIdx].insert(renderGroupWireframeVerts[groupIdx].end(), wireframeVerts, wireframeVerts + wireframeVertCount);
 
@@ -597,7 +621,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-		renderGroups[i].buffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vColor");
 		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 
@@ -607,7 +631,7 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
 		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
 		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-		renderGroups[i].wireframeBuffer->addAttribute(1, GL_FLOAT, 0, "vOpacity");
+		renderGroups[i].wireframeBuffer->addAttribute(4, GL_FLOAT, 0, "vColor");
 		renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
 
@@ -792,7 +816,7 @@ BspRenderer::~BspRenderer() {
 void BspRenderer::delayLoadData() {
 	if (!lightmapsUploaded && lightmapFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 		for (int i = 0; i < numLightmapAtlases; i++) {
-			glLightmapTextures[i]->upload();
+			glLightmapTextures[i]->upload(GL_RGB);
 		}
 
 		lightmapsGenerated = true;
@@ -808,7 +832,7 @@ void BspRenderer::delayLoadData() {
 
 		for (int i = 0; i < map->textureCount; i++) {
 			if (!glTextures[i]->uploaded)
-				glTextures[i]->upload();
+				glTextures[i]->upload(GL_RGB);
 		}
 
 		texturesLoaded = true;
@@ -819,6 +843,82 @@ void BspRenderer::delayLoadData() {
 
 bool BspRenderer::isFinishedLoading() {
 	return lightmapsUploaded && texturesLoaded;
+}
+
+void BspRenderer::highlightFace(int faceIdx, bool highlight) {
+	RenderFace* rface;
+	RenderGroup* rgroup;
+	if (!getRenderPointers(faceIdx, &rface, &rgroup)) {
+		logf("Bad face index\n");
+		return;
+	}
+
+	float r, g, b;
+	r = g = b = 1.0f;
+
+	if (highlight) {
+		r = 0.86f;
+		g = 0;
+		b = 0;
+	}
+
+	for (int i = 0; i < rface->vertCount; i++) {
+		rgroup->verts[rface->vertOffset + i].r = r;
+		rgroup->verts[rface->vertOffset + i].g = g;
+		rgroup->verts[rface->vertOffset + i].b = b;
+	}
+
+	rgroup->buffer->deleteBuffer();
+	rgroup->buffer->upload();
+}
+
+void BspRenderer::updateFaceUVs(int faceIdx) {
+	RenderFace* rface;
+	RenderGroup* rgroup;
+	if (!getRenderPointers(faceIdx, &rface, &rgroup)) {
+		logf("Bad face index\n");
+		return;
+	}
+
+	BSPFACE& face = map->faces[faceIdx];
+	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+	int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+
+	for (int i = 0; i < rface->vertCount; i++) {
+		lightmapVert& vert = rgroup->verts[rface->vertOffset + i];
+		vec3 pos = vec3(vert.x, -vert.z, vert.y);
+
+		float tw = 1.0f / (float)tex.nWidth;
+		float th = 1.0f / (float)tex.nHeight;
+		float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
+		float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
+		vert.u = fU * tw;
+		vert.v = fV * th;
+	}
+
+	rgroup->buffer->deleteBuffer();
+	rgroup->buffer->upload();
+}
+
+bool BspRenderer::getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup) {
+	int modelIdx = map->get_model_from_face(faceIdx);
+
+	if (modelIdx == -1) {
+		return false;
+	}
+
+	int relativeFaceIdx = faceIdx - map->models[modelIdx].iFirstFace;
+	*renderFace = &renderModels[modelIdx].renderFaces[relativeFaceIdx];
+	*renderGroup = &renderModels[modelIdx].renderGroups[(*renderFace)->group];
+
+	return true;
+}
+
+uint BspRenderer::getFaceTextureId(int faceIdx) {
+	BSPFACE& face = map->faces[faceIdx];
+	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+	return glTextures[texinfo.iMiptex]->id;
 }
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {

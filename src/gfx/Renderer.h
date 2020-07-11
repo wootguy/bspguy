@@ -22,6 +22,11 @@ enum transform_targets {
 	TRANSFORM_VERTEX
 };
 
+enum pick_modes {
+	PICK_OBJECT,
+	PICK_FACE
+};
+
 struct TransformAxes {
 	cCube* model;
 	VertexBuffer* buffer;
@@ -136,6 +141,7 @@ private:
 	int gridSnapLevel = 0;
 	int transformMode = TRANSFORM_MOVE;
 	int transformTarget = TRANSFORM_OBJECT;
+	int pickMode = PICK_OBJECT;
 	bool showDragAxes = false;
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
@@ -146,6 +152,9 @@ private:
 	bool canTransform = false;
 	bool anyEdgeSelected = false;
 	bool anyVertSelected = false;
+
+	vector<int> selectedFaces;
+	int selectMapIdx = -1;
 
 	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts
@@ -228,6 +237,7 @@ private:
 	vec3 getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& iEdge);
 	vec3 getCentroid(vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
+	void deselectFaces();
 
 	void loadFgds();
 };

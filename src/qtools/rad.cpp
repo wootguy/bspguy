@@ -275,7 +275,7 @@ float CalculatePointVecsProduct(const volatile float* point, const volatile floa
 	return (float)val;
 }
 
-void GetFaceLightmapSize(int facenum, int size[2]) {
+bool GetFaceLightmapSize(int facenum, int size[2]) {
 	int mins[2];
 	int maxs[2];
 
@@ -284,15 +284,19 @@ void GetFaceLightmapSize(int facenum, int size[2]) {
 	size[0] = (maxs[0] - mins[0]);
 	size[1] = (maxs[1] - mins[1]);
 
+	bool badSurfaceExtents = false;
 	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
 	{
 		//logf("Bad surface extents (%d x %d)\n", size[0], size[1]);
 		size[0] = min(size[0], MAX_SURFACE_EXTENT);
 		size[1] = min(size[1], MAX_SURFACE_EXTENT);
+		badSurfaceExtents = true;
 	}
 
 	size[0] += 1;
 	size[1] += 1;
+
+	return !badSurfaceExtents;
 }
 
 int GetFaceLightmapSizeBytes(int facenum) {

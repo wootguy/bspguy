@@ -4,8 +4,15 @@
 #include "VertexBuffer.h"
 #include "shaders.h"
 #include "Renderer.h"
+#include <lodepng.h>
+
+// embedded binary data
 #include "fonts/robotomono.h"
 #include "fonts/robotomedium.h"
+#include "icons/object.h"
+#include "icons/face.h"
+
+float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 string iniPath = getConfigDir() + "imgui.ini";
 
@@ -38,6 +45,18 @@ void Gui::init() {
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 
 	clearLog();
+
+	// load icons
+	byte* icon_data = NULL;
+	uint w, h;
+
+	lodepng_decode32(&icon_data, &w, &h, object_icon, sizeof(object_icon));
+	objectIconTexture = new Texture(w, h, icon_data);
+	objectIconTexture->upload(GL_RGBA);
+
+	lodepng_decode32(&icon_data, &w, &h, face_icon, sizeof(face_icon));
+	faceIconTexture = new Texture(w, h, icon_data);
+	faceIconTexture->upload(GL_RGBA);
 }
 
 void Gui::draw() {
@@ -53,6 +72,7 @@ void Gui::draw() {
 	drawMenuBar();
 
 	drawFpsOverlay();
+	drawToolbar();
 	drawStatusMessage();
 
 	if (showDebugWidget) {
@@ -79,15 +99,28 @@ void Gui::draw() {
 	if (showLimitsWidget) {
 		drawLimits();
 	}
+	if (showTextureWidget) {
+		drawTextureTool();
+	}
 
-	if (contextMenuEnt != -1) {
-		ImGui::OpenPopup("ent_context");
-		contextMenuEnt = -1;
+	if (app->pickMode == PICK_OBJECT) {
+		if (contextMenuEnt != -1) {
+			ImGui::OpenPopup("ent_context");
+			contextMenuEnt = -1;
+		}
+		if (emptyContextMenu) {
+			emptyContextMenu = 0;
+			ImGui::OpenPopup("empty_context");
+		}
 	}
-	if (emptyContextMenu) {
-		emptyContextMenu = 0;
-		ImGui::OpenPopup("empty_context");
+	else {
+		if (contextMenuEnt != -1 || emptyContextMenu) {
+			emptyContextMenu = 0;
+			contextMenuEnt = -1;
+			ImGui::OpenPopup("face_context");
+		}
 	}
+	
 
 	draw3dContextMenus();
 
@@ -117,115 +150,147 @@ void Gui::openContextMenu(int entIdx) {
 	contextMenuEnt = entIdx;
 }
 
+void Gui::copyTexture() {
+	if (!app->pickInfo.valid) {
+		return;
+	}
+	Bsp* map = app->pickInfo.map;
+	BSPTEXTUREINFO& texinfo = map->texinfos[map->faces[app->pickInfo.faceIdx].iTextureInfo];
+	copiedMiptex = texinfo.iMiptex;
+}
+
+void Gui::pasteTexture() {
+	refreshSelectedFaces = true;
+}
+
 void Gui::draw3dContextMenus() {
 
-	if (ImGui::BeginPopup("ent_context"))
-	{
-		if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-			app->cutEnt();
-		}
-		if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-			app->copyEnt();
-		}
-		if (ImGui::MenuItem("Delete", "Del")) {
-			app->deleteEnt();
-		}
-		if (app->pickInfo.modelIdx > 0) {
-			Bsp* map = app->pickInfo.map;
-			BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
+	if (app->pickMode == PICK_OBJECT) {
+		if (ImGui::BeginPopup("ent_context"))
+		{
+			if (ImGui::MenuItem("Cut", "Ctrl+X")) {
+				app->cutEnt();
+			}
+			if (ImGui::MenuItem("Copy", "Ctrl+C")) {
+				app->copyEnt();
+			}
+			if (ImGui::MenuItem("Delete", "Del")) {
+				app->deleteEnt();
+			}
+			if (app->pickInfo.modelIdx > 0) {
+				Bsp* map = app->pickInfo.map;
+				BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
 
-			if (ImGui::BeginMenu("Delete Hull")) {
-				if (ImGui::MenuItem("All Hulls")) {
-					map->delete_hull(0, app->pickInfo.modelIdx, -1);
-					map->delete_hull(1, app->pickInfo.modelIdx, -1);
-					map->delete_hull(2, app->pickInfo.modelIdx, -1);
-					map->delete_hull(3, app->pickInfo.modelIdx, -1);
-					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
-					checkValidHulls();
-					logf("Deleted all hulls on model %d\n", app->pickInfo.modelIdx);
-				}
-				if (ImGui::MenuItem("Clipnodes")) {
-					map->delete_hull(1, app->pickInfo.modelIdx, -1);
-					map->delete_hull(2, app->pickInfo.modelIdx, -1);
-					map->delete_hull(3, app->pickInfo.modelIdx, -1);
-					checkValidHulls();
-					logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
-				}
-
-				ImGui::Separator();
-
-				for (int i = 0; i < MAX_MAP_HULLS; i++) {
-					bool isHullValid = model.iHeadnodes[i] >= 0;
-
-					if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
-						map->delete_hull(i, app->pickInfo.modelIdx, -1);
+				if (ImGui::BeginMenu("Delete Hull")) {
+					if (ImGui::MenuItem("All Hulls")) {
+						map->delete_hull(0, app->pickInfo.modelIdx, -1);
+						map->delete_hull(1, app->pickInfo.modelIdx, -1);
+						map->delete_hull(2, app->pickInfo.modelIdx, -1);
+						map->delete_hull(3, app->pickInfo.modelIdx, -1);
+						app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
 						checkValidHulls();
-						if (i == 0)
-							app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
-						logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
+						logf("Deleted all hulls on model %d\n", app->pickInfo.modelIdx);
 					}
-				}
+					if (ImGui::MenuItem("Clipnodes")) {
+						map->delete_hull(1, app->pickInfo.modelIdx, -1);
+						map->delete_hull(2, app->pickInfo.modelIdx, -1);
+						map->delete_hull(3, app->pickInfo.modelIdx, -1);
+						checkValidHulls();
+						logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
+					}
 
-				ImGui::Separator();
+					ImGui::Separator();
 
-				ImGui::EndMenu();
-			}
+					for (int i = 0; i < MAX_MAP_HULLS; i++) {
+						bool isHullValid = model.iHeadnodes[i] >= 0;
 
-			bool canRedirect = model.iHeadnodes[1] != model.iHeadnodes[2] || model.iHeadnodes[1] != model.iHeadnodes[3];
-
-			if (ImGui::BeginMenu("Redirect Hull", canRedirect)) {
-				for (int i = 1; i < MAX_MAP_HULLS; i++) {
-					if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
-
-						for (int k = 1; k < MAX_MAP_HULLS; k++) {
-							if (i == k)
-								continue;
-
-							bool isHullValid = model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] != model.iHeadnodes[i];
-
-							if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
-								model.iHeadnodes[i] = model.iHeadnodes[k];
-								checkValidHulls();
-								logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
-							}
+						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
+							map->delete_hull(i, app->pickInfo.modelIdx, -1);
+							checkValidHulls();
+							if (i == 0)
+								app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+							logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
 						}
-
-						ImGui::EndMenu();
 					}
+
+					ImGui::Separator();
+
+					ImGui::EndMenu();
 				}
 
-				ImGui::EndMenu();
+				bool canRedirect = model.iHeadnodes[1] != model.iHeadnodes[2] || model.iHeadnodes[1] != model.iHeadnodes[3];
+
+				if (ImGui::BeginMenu("Redirect Hull", canRedirect)) {
+					for (int i = 1; i < MAX_MAP_HULLS; i++) {
+						if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
+
+							for (int k = 1; k < MAX_MAP_HULLS; k++) {
+								if (i == k)
+									continue;
+
+								bool isHullValid = model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] != model.iHeadnodes[i];
+
+								if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
+									model.iHeadnodes[i] = model.iHeadnodes[k];
+									checkValidHulls();
+									logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
+								}
+							}
+
+							ImGui::EndMenu();
+						}
+					}
+
+					ImGui::EndMenu();
+				}
 			}
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
-			app->movingEnt = !app->movingEnt;
-			if (app->movingEnt)
-				app->grabEnt();
-		}
-		if (ImGui::MenuItem("Transform", "Ctrl+M")) {
-			showTransformWidget = !showTransformWidget;
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Properties", "Alt+Enter")) {
-			showKeyvalueWidget = !showKeyvalueWidget;
+			ImGui::Separator();
+			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
+				app->movingEnt = !app->movingEnt;
+				if (app->movingEnt)
+					app->grabEnt();
+			}
+			if (ImGui::MenuItem("Transform", "Ctrl+M")) {
+				showTransformWidget = !showTransformWidget;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Properties", "Alt+Enter")) {
+				showKeyvalueWidget = !showKeyvalueWidget;
+			}
+
+
+			ImGui::EndPopup();
 		}
 
-		ImGui::EndPopup();
+		if (app->pickInfo.valid && ImGui::BeginPopup("empty_context"))
+		{
+			if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnt != NULL)) {
+				app->pasteEnt(false);
+			}
+			if (ImGui::MenuItem("Paste at original origin", 0, false, app->copiedEnt != NULL)) {
+				app->pasteEnt(true);
+			}
+
+			ImGui::EndPopup();
+		}
+	}
+	else if (app->pickMode == PICK_FACE && app->pickInfo.valid) {
+		Bsp* map = app->pickInfo.map;
+
+		if (ImGui::BeginPopup("face_context"))
+		{
+			if (ImGui::MenuItem("Copy texture", "Ctrl+C")) {
+				copyTexture();
+			}
+			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && copiedMiptex < map->textureCount)) {
+				pasteTexture();
+			}
+
+			ImGui::EndPopup();
+		}
 	}
 
-	if (app->pickInfo.valid && ImGui::BeginPopup("empty_context"))
-	{
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnt != NULL)) {
-			app->pasteEnt(false);
-		}
-		if (ImGui::MenuItem("Paste at original origin", 0, false, app->copiedEnt != NULL)) {
-			app->pasteEnt(true);
-		}
-
-
-		ImGui::EndPopup();
-	}
+	
 }
 
 void Gui::drawMenuBar() {
@@ -246,6 +311,13 @@ void Gui::drawMenuBar() {
 		}
 		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
 			app->reloadMaps();
+		}
+		if (ImGui::MenuItem("Validate")) {
+			for (int i = 0; i < app->mapRenderers.size(); i++) {
+				Bsp* map = app->mapRenderers[i]->map;
+				logf("Validating %s\n", map->name.c_str());
+				map->validate();
+			}
 		}
 		ImGui::Separator();
 		if (ImGui::MenuItem("Settings", NULL)) {
@@ -392,6 +464,9 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
 			showTransformWidget = !showTransformWidget;
 		}
+		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
+			showTextureWidget = !showTextureWidget;
+		}
 		if (ImGui::MenuItem("Log", "", showLogWidget)) {
 			showLogWidget = !showLogWidget;
 		}
@@ -412,10 +487,79 @@ void Gui::drawMenuBar() {
 	ImGui::EndMainMenuBar();
 }
 
-void Gui::drawFpsOverlay() {
+void Gui::drawToolbar() {
 	ImVec2 window_pos = ImVec2(10.0f, 35.0f);
 	ImVec2 window_pos_pivot = ImVec2(0.0f, 0.0f);
 	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
+	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+	if (ImGui::Begin("toolbar", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+	{
+		ImGuiStyle& style = ImGui::GetStyle();
+		ImGuiContext& g = *GImGui;
+		ImVec4 dimColor = style.Colors[ImGuiCol_FrameBg];
+		ImVec4 selectColor = style.Colors[ImGuiCol_FrameBgActive];
+		float iconWidth = (fontSize / 22.0f) * 32;
+		ImVec2 iconSize = ImVec2(iconWidth, iconWidth);
+		ImVec4 testColor = ImVec4(1, 0, 0, 1);
+		selectColor.x *= selectColor.w;
+		selectColor.y *= selectColor.w;
+		selectColor.z *= selectColor.w;
+		selectColor.w = 1;
+
+		dimColor.x *= dimColor.w;
+		dimColor.y *= dimColor.w;
+		dimColor.z *= dimColor.w;
+		dimColor.w = 1;
+
+		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_OBJECT ? selectColor : dimColor);
+		if (ImGui::ImageButton((void*)objectIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
+			app->deselectFaces();
+			app->deselectObject();
+			app->pickMode = PICK_OBJECT;
+			showTextureWidget = false;
+		}
+		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted("Object selection mode");
+			ImGui::EndTooltip();
+		}
+
+		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_FACE ? selectColor : dimColor);
+		ImGui::SameLine();
+		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
+			if (app->pickInfo.valid && app->pickInfo.modelIdx >= 0) {
+				Bsp* map = app->pickInfo.map;
+				BspRenderer* mapRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+				BSPMODEL& model = map->models[app->pickInfo.modelIdx];
+				for (int i = 0; i < model.nFaces; i++) {
+					int faceIdx = model.iFirstFace + i;
+					mapRenderer->highlightFace(faceIdx, true);
+					app->selectedFaces.push_back(faceIdx);
+				}
+			}
+			
+			app->selectMapIdx = app->pickInfo.mapIdx;
+			app->deselectObject();
+			app->pickMode = PICK_FACE;
+			app->pickCount++; // force texture tool refresh
+			showTextureWidget = true;
+		}
+		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted("Face selection mode");
+			ImGui::EndTooltip();
+		}
+	}
+	ImGui::End();
+}
+
+void Gui::drawFpsOverlay() {
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec2 window_pos = ImVec2(io.DisplaySize.x - 10.0f, 35.0f);
+	ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
+	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
 	if (ImGui::Begin("Overlay", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 	{
@@ -437,7 +581,7 @@ void Gui::drawStatusMessage() {
 	static int loadingWindowWidth = 32;
 	static int loadingWindowHeight = 32;
 
-	bool showStatus = app->invalidSolid || !app->isTransformableSolid;
+	bool showStatus = app->invalidSolid || !app->isTransformableSolid || badSurfaceExtents || lightmapTooLarge;
 	if (showStatus) {
 		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
@@ -466,6 +610,34 @@ void Gui::drawStatusMessage() {
 					const char* info =
 						"The selected solid is not convex or has non-planar faces.\n\n"
 						"Transformations will be reverted unless you fix this.";
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted(info);
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+			}
+			if (badSurfaceExtents) {
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "BAD SURFACE EXTENTS");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"One or more of the selected faces contain too many texture pixels on some axis.\n\n"
+						"This will crash the game. Increase texture scale to fix.";
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted(info);
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+			}
+			if (lightmapTooLarge) {
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "LIGHTMAP TOO LARGE");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"One or more of the selected faces contain too many texture pixels.\n\n"
+						"This will crash the game. Increase texture scale to fix.";
 					ImGui::BeginTooltip();
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
@@ -1903,6 +2075,226 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	ImGui::EndChild();
 }
 
+void Gui::drawTextureTool() {
+	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+	//ImGui::SetNextWindowSize(ImVec2(400, 600));
+	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
+		static float scaleX, scaleY, shiftX, shiftY;
+		static int width, height;
+		static ImTextureID textureId = NULL; // OpenGL ID
+		static char textureName[16];
+		static int lastPickCount = -1;
+		static bool validTexture = true;
+
+		BspRenderer* mapRenderer = app->selectMapIdx != -1 ? app->mapRenderers[app->selectMapIdx] : NULL;
+		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
+
+		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
+			if (app->selectedFaces.size() && app->pickInfo.valid && mapRenderer != NULL) {
+				int faceIdx = app->selectedFaces[0];
+				BSPFACE& face = map->faces[faceIdx];
+				BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+				int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+				int miptex = texinfo.iMiptex;
+
+				scaleX = 1.0f / texinfo.vS.length();
+				scaleY = 1.0f / texinfo.vT.length();
+				shiftX = texinfo.shiftS;
+				shiftY = texinfo.shiftT;
+				width = tex.nWidth;
+				height = tex.nHeight;
+				strncpy(textureName, tex.szName, MAXTEXTURENAME);
+				textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
+				validTexture = true;
+				
+				// show default values if not all faces share the same values
+				for (int i = 1; i < app->selectedFaces.size(); i++) {
+					int faceIdx2 = app->selectedFaces[i];
+					BSPFACE& face2 = map->faces[faceIdx2];
+					BSPTEXTUREINFO& texinfo2 = map->texinfos[face2.iTextureInfo];
+
+					if (scaleX != 1.0f / texinfo2.vS.length()) scaleX = 1.0f;
+					if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
+					if (shiftX != texinfo2.shiftS) shiftX = 0;
+					if (shiftY != texinfo2.shiftT) shiftY = 0;
+					if (texinfo2.iMiptex != miptex) {
+						validTexture = false;
+						textureId = NULL;
+						width = 0;
+						height = 0;
+						textureName[0] = '\0';
+					}
+				}
+			}
+			else {
+				scaleX = scaleY = shiftX = shiftY = width = height = 0;
+				textureId = NULL;
+				textureName[0] = '\0';
+			}
+
+			checkFaceErrors();
+		}
+
+		lastPickCount = app->pickCount;
+		
+		ImGuiStyle& style = ImGui::GetStyle();
+		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
+
+		bool scaledX = false;
+		bool scaledY = false;
+		bool shiftedX = false;
+		bool shiftedY = false;
+		bool textureChanged = false;
+
+		ImGui::PushItemWidth(inputWidth);
+		ImGui::Text("Scale");
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("(WIP)");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted("Almost always breaks lightmaps if changed.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+
+		if (ImGui::DragFloat("##scalex", &scaleX, 0.001f, 0, 0, "X: %.3f") && scaleX != 0) {
+			scaledX = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::DragFloat("##scaley", &scaleY, 0.001f, 0, 0, "Y: %.3f") && scaleY != 0) {
+			scaledY = true;
+		}
+
+		ImGui::Dummy(ImVec2(0, 8));
+
+		ImGui::Text("Shift");
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("(WIP)");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted("Sometimes breaks lightmaps if changed.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+
+		if (ImGui::DragFloat("##shiftx", &shiftX, 0.1f, 0, 0, "X: %.3f")) {
+			shiftedX = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::DragFloat("##shifty", &shiftY, 0.1f, 0, 0, "Y: %.3f")) {
+			shiftedY = true;
+		}
+		ImGui::PopItemWidth();
+
+		ImGui::Dummy(ImVec2(0, 8));
+
+		ImGui::Text("Texture");
+		ImGui::SetNextItemWidth(inputWidth);
+		if (!validTexture) {
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+		}
+		if (ImGui::InputText("##texname", textureName, MAXTEXTURENAME)) {
+			textureChanged = true;
+		}
+		if (refreshSelectedFaces) {
+			textureChanged = true;
+			refreshSelectedFaces = false;
+			int32_t texOffset = ((int32_t*)map->textures)[copiedMiptex + 1];
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+			strncpy(textureName, tex.szName, MAXTEXTURENAME);
+		}
+		if (!validTexture) {
+			ImGui::PopStyleColor();
+		}
+		ImGui::SameLine();
+		ImGui::Text("%dx%d", width, height);
+
+		if (map && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces)) {
+			uint32_t newMiptex = 0;
+			if (textureChanged) {
+				validTexture = false;
+
+				int32_t totalTextures = ((int32_t*)map->textures)[0];
+
+				for (uint i = 0; i < totalTextures; i++) {
+					int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+					if (strcmp(tex.szName, textureName) == 0) {
+						validTexture = true;
+						newMiptex = i;
+						break;
+					}
+				}
+			}
+			set<int> modelRefreshes;
+			for (int i = 0; i < app->selectedFaces.size(); i++) {
+				int faceIdx = app->selectedFaces[i];
+				BSPTEXTUREINFO* texinfo = map->get_unique_texinfo(faceIdx);
+
+				if (scaledX) {
+					texinfo->vS = texinfo->vS.normalize(1.0f / scaleX);
+				}
+				if (scaledY) {
+					texinfo->vT = texinfo->vT.normalize(1.0f / scaleY);
+				}
+				if (shiftedX) {
+					texinfo->shiftS = shiftX;
+				}
+				if (shiftedY) {
+					texinfo->shiftT = shiftY;
+				}
+				if (textureChanged && validTexture) {
+					texinfo->iMiptex = newMiptex;
+					modelRefreshes.insert(map->get_model_from_face(faceIdx));
+				}
+				mapRenderer->updateFaceUVs(faceIdx);
+			}
+			if (textureChanged) {
+				textureId = (void*)mapRenderer->getFaceTextureId(app->selectedFaces[0]);
+				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
+					mapRenderer->refreshModel(*it);
+				}
+				for (int i = 0; i < app->selectedFaces.size(); i++) {
+					mapRenderer->highlightFace(app->selectedFaces[i], true);
+				}
+			}
+
+			checkFaceErrors();
+		}
+
+		refreshSelectedFaces = false;
+
+		ImVec2 imgSize = ImVec2(inputWidth*2 - 2, inputWidth*2 - 2);
+		if (ImGui::ImageButton(textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1), 1)) {
+			logf("Open browser!\n");
+
+			ImGui::OpenPopup("Not Implemented");
+		}
+
+		if (ImGui::BeginPopupModal("Not Implemented", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			ImGui::Text("TODO: Texture browser\n\n");
+			ImGui::Separator();
+
+			if (ImGui::Button("OK", ImVec2(120, 0))) {
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SetItemDefaultFocus();
+			ImGui::EndPopup();
+		}
+	}
+
+	ImGui::End();
+}
+
 StatInfo Gui::calcStat(string name, uint val, uint max, bool isMem) {
 	StatInfo stat;
 	const float meg = 1024 * 1024;
@@ -2013,6 +2405,26 @@ void Gui::checkValidHulls() {
 					break;
 				}
 			}
+		}
+	}
+}
+
+void Gui::checkFaceErrors() {
+	lightmapTooLarge = badSurfaceExtents = false;
+
+	if (!app->pickInfo.valid)
+		return;
+
+	Bsp* map = app->pickInfo.map;
+
+	qrad_init_globals(map);
+	for (int i = 0; i < app->selectedFaces.size(); i++) {
+		int size[2];
+		if (!GetFaceLightmapSize(app->selectedFaces[i], size)) {
+			badSurfaceExtents = true;
+		}
+		if (size[0] * size[1] > MAX_LUXELS) {
+			lightmapTooLarge = true;
 		}
 	}
 }

@@ -73,7 +73,7 @@ const char* g_shader_multitexture_vertex =
 "attribute vec3 vLightmapTex1;\n"
 "attribute vec3 vLightmapTex2;\n"
 "attribute vec3 vLightmapTex3;\n"
-"attribute float vOpacity;\n"
+"attribute vec4 vColor;\n"
 
 // fragment variables
 "varying vec2 fTex;\n"
@@ -81,7 +81,7 @@ const char* g_shader_multitexture_vertex =
 "varying vec3 fLightmapTex1;\n"
 "varying vec3 fLightmapTex2;\n"
 "varying vec3 fLightmapTex3;\n"
-"varying float fOpacity;\n"
+"varying vec4 fColor;\n"
 
 "void main()\n"
 "{\n"
@@ -91,7 +91,7 @@ const char* g_shader_multitexture_vertex =
 "	fLightmapTex1 = vLightmapTex1;\n"
 "	fLightmapTex2 = vLightmapTex2;\n"
 "	fLightmapTex3 = vLightmapTex3;\n"
-"	fOpacity = vOpacity;\n"
+"	fColor = vColor;\n"
 "}\n";
 
 
@@ -101,7 +101,7 @@ const char* g_shader_multitexture_fragment =
 "varying vec3 fLightmapTex1;\n"
 "varying vec3 fLightmapTex2;\n"
 "varying vec3 fLightmapTex3;\n"
-"varying float fOpacity;\n"
+"varying vec4 fColor;\n"
 
 "uniform sampler2D sTex;\n"
 "uniform sampler2D sLightmapTex0;\n"
@@ -115,12 +115,10 @@ const char* g_shader_multitexture_fragment =
 "	lightmap += texture2D(sLightmapTex1, fLightmapTex1.xy).rgb * fLightmapTex1.z;\n"
 "	lightmap += texture2D(sLightmapTex2, fLightmapTex2.xy).rgb * fLightmapTex2.z;\n"
 "	lightmap += texture2D(sLightmapTex3, fLightmapTex3.xy).rgb * fLightmapTex3.z;\n"
-"	vec3 color = texture2D(sTex, fTex) * vec4(lightmap, 1);\n"
+"	vec3 color = texture2D(sTex, fTex).rgb * lightmap * fColor.rgb;\n"
 
 "	float gamma = 1.5;\n"
-"	color = pow(color, vec3(1.0/gamma));\n"
-
-"	gl_FragColor = vec4(color, fOpacity);\n"
+"	gl_FragColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a);\n"
 "}\n";
 
 const char* g_shader_fullbright_vertex =
@@ -130,28 +128,28 @@ const char* g_shader_fullbright_vertex =
 // vertex variables
 "attribute vec3 vPosition;\n"
 "attribute vec2 vTex;\n"
-"attribute float vOpacity;\n"
+"attribute vec4 vColor;\n"
 
 // fragment variables
 "varying vec2 fTex;\n"
-"varying float fOpacity;\n"
+"varying vec4 fColor;\n"
 
 "void main()\n"
 "{\n"
 "	gl_Position = modelViewProjection * vec4(vPosition, 1);\n"
 "	fTex = vTex;\n"
-"	fOpacity = vOpacity;\n"
+"	fColor = vColor;\n"
 "}\n";
+
+// vec4(0.86f, 0, 0, 1.0f); //highlight color (texture color*2)
 
 const char* g_shader_fullbright_fragment =
 "varying vec2 fTex;\n"
-"varying float fOpacity;\n"
+"varying vec4 fColor;\n"
 
 "uniform sampler2D sTex;\n"
 
 "void main()\n"
 "{\n"
-"	vec3 color = texture2D(sTex, fTex);\n"
-
-"	gl_FragColor = vec4(color, fOpacity);\n"
+"	gl_FragColor = texture2D(sTex, fTex) * fColor;\n"
 "}\n";

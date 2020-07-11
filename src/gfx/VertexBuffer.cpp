@@ -176,10 +176,13 @@ void VertexBuffer::upload() {
 	{
 		VertexAttr& a = attribs[i];
 		void* ptr = ((char*)0) + offset;
+		offset += a.size;
+		if (a.handle == -1) {
+			continue;
+		}
 		glBindBuffer(GL_ARRAY_BUFFER, vboId);
 		glEnableVertexAttribArray(a.handle);
 		glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
-		offset += a.size;
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);

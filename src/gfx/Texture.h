@@ -18,7 +18,7 @@ public:
 	~Texture();
 
 	// upload the texture with the specified settings
-	void upload();
+	void upload(int format);
 
 	// use this texture for rendering
 	void bind();

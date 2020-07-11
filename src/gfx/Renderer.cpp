@@ -314,7 +314,7 @@ void Renderer::renderLoop() {
 		isLoading = reloading;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
-			if (pickInfo.valid && pickInfo.mapIdx == i) {
+			if (pickInfo.valid && pickInfo.mapIdx == i && pickMode == PICK_OBJECT) {
 				highlightEnt = pickInfo.entIdx;
 			}
 			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX);
@@ -351,7 +351,7 @@ void Renderer::renderLoop() {
 			drawTransformAxes();
 		}
 
-		if (pickInfo.valid && pickInfo.modelIdx > 0 && transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
+		if (pickInfo.valid && pickInfo.modelIdx > 0 && transformTarget == TRANSFORM_VERTEX && isTransformableSolid && pickMode == PICK_OBJECT) {
 			drawModelVerts();
 		}
 
@@ -487,7 +487,9 @@ void Renderer::loadFgds() {
 	swapPointEntRenderer = new PointEntRenderer(mergedFgd, colorShader);
 }
 
-void Renderer::drawModelVerts() {	
+void Renderer::drawModelVerts() {
+	if (modelVertBuff == NULL)
+		return;
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
@@ -722,7 +724,7 @@ void Renderer::cameraPickingControls() {
 }
 
 void Renderer::applyTransform() {
-	if (pickInfo.valid && pickInfo.modelIdx > 0) {
+	if (pickInfo.valid && pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
 		bool transformingVerts = transformTarget == TRANSFORM_VERTEX && isTransformableSolid;
 		bool scalingObject = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE;
 
@@ -906,29 +908,38 @@ void Renderer::moveGrabbedEnt() {
 }
 
 void Renderer::shortcutControls() {
-	// shortcuts
-	if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
-		movingEnt = !movingEnt;
-		if (movingEnt)
-			grabEnt();
+	if (pickMode == PICK_OBJECT) {
+		if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
+			movingEnt = !movingEnt;
+			if (movingEnt)
+				grabEnt();
+		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
+			copyEnt();
+		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_X] && !oldPressed[GLFW_KEY_X]) {
+			cutEnt();
+		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_V] && !oldPressed[GLFW_KEY_V]) {
+			pasteEnt(false);
+		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
+			gui->showTransformWidget = !gui->showTransformWidget;
+		}
+		if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
+			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
+		}
+		if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
+			deleteEnt();
+		}
 	}
-	if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
-		copyEnt();
-	}
-	if (anyCtrlPressed && pressed[GLFW_KEY_X] && !oldPressed[GLFW_KEY_X]) {
-		cutEnt();
-	}
-	if (anyCtrlPressed && pressed[GLFW_KEY_V] && !oldPressed[GLFW_KEY_V]) {
-		pasteEnt(false);
-	}
-	if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
-		gui->showTransformWidget = !gui->showTransformWidget;
-	}
-	if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
-		gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
-	}
-	if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
-		deleteEnt();
+	else if (pickMode == PICK_FACE) {
+		if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
+			gui->copyTexture();
+		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_V] && !oldPressed[GLFW_KEY_V]) {
+			gui->pasteTexture();
+		}
 	}
 }
 
@@ -960,11 +971,44 @@ void Renderer::pickObject() {
 		transformTarget = TRANSFORM_OBJECT;
 	}
 
-	updateModelVerts();
+	if ((pickMode == PICK_OBJECT || !anyCtrlPressed) && selectMapIdx != -1) {
+		for (int i = 0; i < selectedFaces.size(); i++) {
+			mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
+		}
+		selectedFaces.clear();
+	}
 
-	isTransformableSolid = true;
-	if (pickInfo.modelIdx > 0) {
-		isTransformableSolid = pickInfo.map->is_convex(pickInfo.modelIdx);
+	if (pickMode == PICK_OBJECT) {
+		updateModelVerts();
+
+		isTransformableSolid = true;
+		if (pickInfo.modelIdx > 0) {
+			isTransformableSolid = pickInfo.map->is_convex(pickInfo.modelIdx);
+		}
+	}
+	else if (pickMode == PICK_FACE) {
+		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {			
+			if (selectedFaces.size() && selectMapIdx != pickInfo.mapIdx) {
+				logf("Can't select faces across multiple maps\n");
+			}
+			else {
+				selectMapIdx = pickInfo.mapIdx;
+
+				bool select = true;
+				for (int i = 0; i < selectedFaces.size(); i++) {
+					if (selectedFaces[i] == pickInfo.faceIdx) {
+						select = false;
+						selectedFaces.erase(selectedFaces.begin() + i);
+						break;
+					}
+				}
+
+				mapRenderers[pickInfo.mapIdx]->highlightFace(pickInfo.faceIdx, select);
+
+				if (select)
+					selectedFaces.push_back(pickInfo.faceIdx);
+			}
+		}
 	}
 
 	if (pointEntWasSelected) {
@@ -1956,6 +2000,8 @@ void Renderer::splitFace() {
 	mapRenderer->calcFaceMaths();
 	mapRenderer->refreshModel(modelIdx);
 	updateModelVerts();
+
+	gui->reloadLimits();
 }
 
 void Renderer::scaleSelectedVerts(float x, float y, float z) {
@@ -2109,4 +2155,11 @@ void Renderer::deselectObject() {
 	hoverVert = -1;
 	hoverEdge = -1;
 	hoverAxis = -1;
+}
+
+void Renderer::deselectFaces() {
+	for (int i = 0; i < selectedFaces.size(); i++) {
+		mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
+	}
+	selectedFaces.clear();
 }

@@ -54,9 +54,17 @@ struct RenderGroup {
 	bool transparent;
 };
 
+struct RenderFace {
+	int group;
+	int vertOffset;
+	int vertCount;
+};
+
 struct RenderModel {
 	RenderGroup* renderGroups;
 	int groupCount;
+	RenderFace* renderFaces;
+	int renderFaceCount;
 };
 
 struct FaceMath {
@@ -114,6 +122,10 @@ public:
 	void updateLightmapInfos();
 	bool isFinishedLoading();
 
+	void highlightFace(int faceIdx, bool highlight);
+	void updateFaceUVs(int faceIdx);
+	uint getFaceTextureId(int faceIdx);
+
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -152,10 +164,11 @@ private:
 
 	void loadLightmaps();
 	RenderModel* genRenderFaces(int& renderModelCount);
+	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderFaces();
 	void deleteTextures();
 	void deleteLightmapTextures();
 	void deleteFaceMaths();
 	void delayLoadData();
-	
+	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 };
