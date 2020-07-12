@@ -213,8 +213,6 @@ Renderer::Renderer() {
 	
 	pickInfo.valid = false;
 
-	draggingAxis = -1;
-	//transformTarget = TRANSFORM_VERTEX;
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -347,7 +345,8 @@ void Renderer::renderLoop() {
 			}
 		}
 
-		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0) {
+		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
+		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0 && (isTransformableSolid || !isScalingObject)) {
 			drawTransformAxes();
 		}
 
@@ -697,7 +696,6 @@ void Renderer::cameraPickingControls() {
 
 		// object picking
 		if (!transforming && oldLeftMouse != GLFW_PRESS) {
-
 			applyTransform();
 
 			if (invalidSolid) {
@@ -715,7 +713,7 @@ void Renderer::cameraPickingControls() {
 			pickCount++;
 		}
 	}
-	else {
+	else { // left mouse not pressed
 		if (draggingAxis != -1) {
 			draggingAxis = -1;
 			applyTransform();
@@ -734,6 +732,12 @@ void Renderer::applyTransform() {
 				modelVerts[i].startPos = modelVerts[i].pos;
 				if (!invalidSolid) {
 					modelVerts[i].undoPos = modelVerts[i].pos;
+				}
+			}
+			for (int i = 0; i < modelFaceVerts.size(); i++) {
+				modelFaceVerts[i].startPos = modelFaceVerts[i].pos;
+				if (!invalidSolid) {
+					modelFaceVerts[i].undoPos = modelFaceVerts[i].pos;
 				}
 			}
 
@@ -987,6 +991,9 @@ void Renderer::pickObject() {
 		}
 	}
 	else if (pickMode == PICK_FACE) {
+		pickInfo.ent = NULL;
+		pickInfo.entIdx = -1;
+
 		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {			
 			if (selectedFaces.size() && selectMapIdx != pickInfo.mapIdx) {
 				logf("Can't select faces across multiple maps\n");

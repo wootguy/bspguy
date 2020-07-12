@@ -621,7 +621,7 @@ void Gui::drawStatusMessage() {
 				if (ImGui::IsItemHovered())
 				{
 					const char* info =
-						"Scaling and vertex manipulation doesn't work on concave solids (mb in a future version)\n";
+						"Scaling and vertex manipulation don't work with concave solids yet\n";
 					ImGui::BeginTooltip();
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
@@ -1526,7 +1526,7 @@ void Gui::drawTransformWidget() {
 					bspRenderer->refreshEnt(app->pickInfo.entIdx);
 				}
 			}
-			if (scaled && ent->isBspModel()) {
+			if (scaled && ent->isBspModel() && app->isTransformableSolid) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {
 					app->scaleSelectedVerts(sx, sy, sz);
 				}
