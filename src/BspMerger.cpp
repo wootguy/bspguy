@@ -1069,16 +1069,38 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 
 void BspMerger::merge_faces(Bsp& mapA, Bsp& mapB) {
 	thisFaceCount = mapA.faceCount;
+	otherFaceCount = mapB.faceCount;
+	thisWorldFaceCount = mapA.models[0].nFaces;
 	int totalFaceCount = thisFaceCount + mapB.faceCount;
 
-	g_progress.update("Merging faces", totalFaceCount + 1);
+	g_progress.update("Merging faces", mapB.faceCount + 1);
 	g_progress.tick();
 
 	BSPFACE* newFaces = new BSPFACE[totalFaceCount];
-	memcpy(newFaces, mapA.faces, thisFaceCount * sizeof(BSPFACE));
-	memcpy(newFaces + thisFaceCount, mapB.faces, mapB.faceCount * sizeof(BSPFACE));
 
-	for (int i = thisFaceCount; i < totalFaceCount; i++) {
+	// world model faces come first so they can be merged into one group (model.nFaces is used to render models)
+	// assumes world model faces always come first
+	int appendOffset = 0;
+	// copy world faces
+	int worldFaceCountA = thisWorldFaceCount;
+	int worldFaceCountB = mapB.models[0].nFaces;
+	memcpy(newFaces + appendOffset, mapA.faces, worldFaceCountA * sizeof(BSPFACE));
+	appendOffset += worldFaceCountA;
+	memcpy(newFaces + appendOffset, mapB.faces, worldFaceCountB * sizeof(BSPFACE));
+	appendOffset += worldFaceCountB;
+
+	// copy B's submodel faces followed by A's
+	int submodelFaceCountA = mapA.faceCount - worldFaceCountA;
+	int submodelFaceCountB = mapB.faceCount - worldFaceCountB;
+	memcpy(newFaces + appendOffset, mapB.faces + worldFaceCountB, submodelFaceCountB * sizeof(BSPFACE));
+	appendOffset += submodelFaceCountB;
+	memcpy(newFaces + appendOffset, mapA.faces + worldFaceCountA, submodelFaceCountA * sizeof(BSPFACE));
+
+	for (int i = 0; i < totalFaceCount; i++) {
+		// only update B's faces
+		if (i < worldFaceCountA || i >= worldFaceCountA + mapB.faceCount)
+			continue;
+
 		BSPFACE& face = newFaces[i];
 		face.iPlane = planeRemap[face.iPlane];
 		face.iFirstEdge = face.iFirstEdge + thisSurfEdgeCount;
@@ -1146,16 +1168,24 @@ void BspMerger::merge_marksurfs(Bsp& mapA, Bsp& mapB) {
 	thisMarkSurfCount = mapA.marksurfCount;
 	int totalSurfCount = thisMarkSurfCount + mapB.marksurfCount;
 
-	g_progress.update("Merging marksurfaces", mapB.marksurfCount + 1);
+	g_progress.update("Merging marksurfaces", totalSurfCount + 1);
 	g_progress.tick();
 
 	uint16* newSurfs = new uint16[totalSurfCount];
 	memcpy(newSurfs, mapA.marksurfs, thisMarkSurfCount * sizeof(uint16));
 	memcpy(newSurfs + thisMarkSurfCount, mapB.marksurfs, mapB.marksurfCount * sizeof(uint16));
 
+	for (int i = 0; i < thisMarkSurfCount; i++) {
+		uint16& mark = newSurfs[i];
+		if (mark >= thisWorldFaceCount) {
+			mark = mark + otherFaceCount;
+		}
+		g_progress.tick();
+	}
+
 	for (int i = thisMarkSurfCount; i < totalSurfCount; i++) {
 		uint16& mark = newSurfs[i];
-		mark = mark + thisFaceCount;
+		mark = mark + thisWorldFaceCount;
 		g_progress.tick();
 	}
 
@@ -1224,6 +1254,9 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 				}
 			}
 		}
+		if (node.nFaces && node.firstFace >= thisWorldFaceCount) {
+			node.firstFace += otherFaceCount;
+		}
 
 		mergedNodes.push_back(node);
 		g_progress.tick();
@@ -1242,7 +1275,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 		}
 		node.iPlane = planeRemap[node.iPlane];
 		if (node.nFaces) {
-			node.firstFace = node.firstFace + thisFaceCount;
+			node.firstFace += thisWorldFaceCount;
 		}
 
 		mergedNodes.push_back(node);
@@ -1317,7 +1350,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 			if (model.iHeadnodes[k] >= 0)
 				model.iHeadnodes[k] += thisClipnodeCount;
 		}
-		model.iFirstFace = model.iFirstFace + thisFaceCount;
+		model.iFirstFace = model.iFirstFace + thisWorldFaceCount;
 		mergedModels.push_back(model);
 		g_progress.tick();
 	}
@@ -1330,6 +1363,9 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (model.iHeadnodes[k] >= 0)
 				model.iHeadnodes[k] += (MAX_MAP_HULLS - 1); // adjust for new head nodes
+		}
+		if (model.iFirstFace >= thisWorldFaceCount) {
+			model.iFirstFace += otherFaceCount;
 		}
 		mergedModels.push_back(model);
 		g_progress.tick();
@@ -1428,7 +1464,10 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 		memset(thisRad, 255, sz);
 
-		for (int i = 0; i < thisFaceCount; i++) {
+		for (int i = 0; i < thisWorldFaceCount; i++) {
+			mapA.faces[i].nLightmapOffset = 0;
+		}
+		for (int i = thisWorldFaceCount + otherFaceCount; i < totalFaceCount; i++) {
 			mapA.faces[i].nLightmapOffset = 0;
 		}
 	}
@@ -1439,7 +1478,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 		memset(otherRad, 255, otherColorCount * sizeof(COLOR3));
 
-		for (int i = thisFaceCount; i < totalFaceCount; i++) {
+		for (int i = thisWorldFaceCount; i < thisWorldFaceCount + otherFaceCount; i++) {
 			mapA.faces[i].nLightmapOffset = 0;
 		}
 	}
@@ -1456,7 +1495,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	g_progress.tick();
 	mapA.replace_lump(LUMP_LIGHTING, newRad, totalColorCount * sizeof(COLOR3));
 
-	for (int i = thisFaceCount; i < totalFaceCount; i++) {
+	for (int i = thisWorldFaceCount; i < thisWorldFaceCount + otherFaceCount; i++) {
 		mapA.faces[i].nLightmapOffset += thisColorCount * sizeof(COLOR3);
 		g_progress.tick();
 	}

@@ -77,6 +77,8 @@ private:
 	int thisLeafCount;
 	int otherLeafCount;
 	int thisFaceCount;
+	int thisWorldFaceCount;
+	int otherFaceCount;
 	int thisNodeCount;
 	int thisClipnodeCount;
 	int thisWorldLeafCount; // excludes solid leaf 0
