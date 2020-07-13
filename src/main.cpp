@@ -9,20 +9,13 @@
 
 // super todo:
 // crash merging rl00
-// WARNING hull redirect spam
-// undo history
-// grid snapping not working with transform widgets
-// red highlight not working with lightmaps disabled
-// invalid solid log spam
-// can't select faces sometimes
-// model scaling completely broken. barely usable
+// sometimes things aren't moved when merging maps (aomdc_1intro + aomdc_1nightmare)
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
 // merge redundant submodels and duplicate structures
 // no lightmap renders black faces if no lightmap data for face
 // select overlapping entities by holding mouse down
-// don't select drag axes on first ent click
 // multi-select with ctrl
 // recalculate lightmaps when scaling objects
 // normalized clip type for clipnode regeneration (fixes broken collision around 90+ degree angle edges)
@@ -32,6 +25,13 @@
 // highlight non-planar faces in vertex edit mode
 // subdivided faces can't be transformed in verte edit mode
 // auto-clean after a while? Unused data will pile up after a lot of face splitting
+// scale fps overlay + toolbar offset with font size
+// reference aaatrigger from wad instead of embedding it if it doesnt exist
+// red highlight not working with lightmaps disabled
+// undo history
+// invalid solid log spam
+// scaling allowing concave solids (merge0.bsp angled wedge)
+// can't select faces sometimes
 
 // minor todo:
 // trigger_changesky for series maps with different skies

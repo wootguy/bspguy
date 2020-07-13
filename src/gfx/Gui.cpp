@@ -433,8 +433,12 @@ void Gui::drawMenuBar() {
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
 			if (app->gridSnappingEnabled)
 				origin = app->snapToGrid(origin);
-			vec3 mins = vec3(-16, -16, -16);
-			vec3 maxs = vec3(16, 16, 16);
+			float snapSize = pow(2.0, app->gridSnapLevel);
+			if (snapSize < 16) {
+				snapSize = 16;
+			}
+			vec3 mins = vec3(-snapSize, -snapSize, -snapSize);
+			vec3 maxs = vec3(snapSize, snapSize, snapSize);
 
 			// add the aaatrigger texture if it doesn't already exist
 			int32_t totalTextures = ((int32_t*)map->textures)[0];

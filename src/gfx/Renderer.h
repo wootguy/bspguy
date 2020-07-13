@@ -63,6 +63,7 @@ struct AppSettings {
 	float rotSpeed;
 	int render_flags;
 	bool vsync;
+	bool show_transform_axes;
 
 	vector<string> fgdPaths;
 
@@ -136,13 +137,14 @@ private:
 	TransformAxes moveAxes;
 	TransformAxes scaleAxes;
 	int hoverAxis; // axis being hovered
-	int draggingAxis; // axis currently being dragged by the mouse
+	int draggingAxis = -1; // axis currently being dragged by the mouse
 	bool gridSnappingEnabled = true;
 	int gridSnapLevel = 0;
 	int transformMode = TRANSFORM_MOVE;
 	int transformTarget = TRANSFORM_OBJECT;
 	int pickMode = PICK_OBJECT;
 	bool showDragAxes = false;
+	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale

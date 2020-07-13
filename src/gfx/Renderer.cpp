@@ -83,6 +83,7 @@ void AppSettings::load() {
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "transform_tab") { g_settings.transform_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
+			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
@@ -130,6 +131,7 @@ void AppSettings::save() {
 	}
 
 	file << "vsync=" << g_settings.vsync << endl;
+	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "move_speed=" << g_settings.moveSpeed << endl;
@@ -426,6 +428,7 @@ void Renderer::saveSettings() {
 	g_settings.transform_tab = gui->transformTab;
 
 	g_settings.vsync = gui->vsync;
+	g_settings.show_transform_axes = showDragAxes;
 	g_settings.zfar = zFar;
 	g_settings.fov = fov;
 	g_settings.render_flags = g_render_flags;
@@ -456,6 +459,7 @@ void Renderer::loadSettings() {
 	gui->openSavedTabs = true;
 
 	gui->vsync = g_settings.vsync;
+	showDragAxes = g_settings.show_transform_axes;
 	zFar = g_settings.zfar;
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;
@@ -699,14 +703,21 @@ void Renderer::cameraPickingControls() {
 			applyTransform();
 
 			if (invalidSolid) {
+				logf("Reverting invalid solid changes\n");
 				for (int i = 0; i < modelVerts.size(); i++) {
-					if (modelVerts[i].ptr) {
-						*modelVerts[i].ptr = modelVerts[i].undoPos;
+					modelVerts[i].pos = modelVerts[i].startPos = modelVerts[i].undoPos;
+				}
+				for (int i = 0; i < modelFaceVerts.size(); i++) {
+					modelFaceVerts[i].pos = modelFaceVerts[i].startPos = modelFaceVerts[i].undoPos;
+					if (modelFaceVerts[i].ptr) {
+						*modelFaceVerts[i].ptr = modelFaceVerts[i].pos;
 					}
 				}
-				invalidSolid = false;
-				if (pickInfo.ent)
-					mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
+				invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
+
+				int modelIdx = pickInfo.ent->getBspModelIdx();
+				if (pickInfo.modelIdx >= 0)
+					mapRenderers[pickInfo.mapIdx]->refreshModel(modelIdx);
 			}
 			
 			pickObject();
@@ -714,6 +725,7 @@ void Renderer::cameraPickingControls() {
 		}
 	}
 	else { // left mouse not pressed
+		pickClickHeld = false;
 		if (draggingAxis != -1) {
 			draggingAxis = -1;
 			applyTransform();
@@ -1024,13 +1036,14 @@ void Renderer::pickObject() {
 		}
 	}
 
+	pickClickHeld = true;
 }
 
 bool Renderer::transformAxisControls() {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 
-	if (!canTransform) {
+	if (!canTransform || pickClickHeld) {
 		return false;
 	}
 
@@ -1714,19 +1727,25 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	for (int i = 0; i < modelVerts.size(); i++) {
 		vec3 stretchFactor = (modelVerts[i].startPos - scaleFromDist) / distRange;
 		modelVerts[i].pos = modelVerts[i].startPos + dir * stretchFactor;
+		if (gridSnappingEnabled) {
+			modelVerts[i].pos = snapToGrid(modelVerts[i].pos);
+		}
 	}
 
 	// scale visible faces
 	for (int i = 0; i < modelFaceVerts.size(); i++) {
 		vec3 stretchFactor = (modelFaceVerts[i].startPos - scaleFromDist) / distRange;
 		modelFaceVerts[i].pos = modelFaceVerts[i].startPos + dir * stretchFactor;
+		if (gridSnappingEnabled) {
+			modelFaceVerts[i].pos = snapToGrid(modelFaceVerts[i].pos);
+		}
 		if (modelFaceVerts[i].ptr) {
 			*modelFaceVerts[i].ptr = modelFaceVerts[i].pos;
 		}
 	}
 
 	// update planes for picking
-	pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
+	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
 
 	//
 	// TODO: I have no idea what I'm doing but this code scales axis-aligned texture coord axes correctly.
