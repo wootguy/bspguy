@@ -9,7 +9,6 @@
 
 // super todo:
 // crash merging rl00
-// sometimes things aren't moved when merging maps (aomdc_1intro + aomdc_1nightmare)
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

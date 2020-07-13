@@ -440,25 +440,39 @@ bool Bsp::move(vec3 offset) {
 		}
 	}
 	
-	g_progress.update("Moving structures", ents.size() + modelCount);
+	g_progress.update("Moving structures", ents.size()*2 + modelCount);
 
-	bool* modelHasOrigin = new bool[modelCount];
-	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
+	int* modelShouldBeMoved = new int[modelCount];
+	memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
 
 	for (int i = 0; i < ents.size(); i++) {
+		g_progress.tick();
+
 		if (!ents[i]->hasKey("origin")) {
+			if (ents[i]->isBspModel()) {
+				modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
+			}
 			continue;
 		}
 		if (ents[i]->isBspModel()) {
-			modelHasOrigin[ents[i]->getBspModelIdx()] = true;
+			// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
+			if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2) 
+				modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
 		}
+	}
+
+	for (int i = 0; i < ents.size(); i++) {
+		g_progress.tick();
+
+		if (!ents[i]->hasKey("origin"))
+			continue;
+		if (ents[i]->isBspModel() && modelShouldBeMoved[ents[i]->getBspModelIdx()])
+			continue;
 
 		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
 		vec3 ori = keyvalue.getVector() + offset;
 
 		ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
-
-		g_progress.tick();
 	}
 
 	update_ent_lump();
@@ -466,7 +480,7 @@ bool Bsp::move(vec3 offset) {
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
 
-		if (!modelHasOrigin[i]) {
+		if (modelShouldBeMoved[i]) {
 			model.nMins += offset;
 			model.nMaxs += offset;
 
@@ -483,7 +497,7 @@ bool Bsp::move(vec3 offset) {
 
 	STRUCTUSAGE shouldBeMoved(this);
 	for (int i = 0; i < modelCount; i++) {
-		if (!modelHasOrigin[i])
+		if (modelShouldBeMoved[i])
 			mark_model_structures(i, &shouldBeMoved);
 		g_progress.tick();
 	}
@@ -850,8 +864,8 @@ void Bsp::split_shared_model_structures() {
 		g_progress.tick();
 	}
 
-	//if (duplicateCount)
-	//	logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicateCount);
+	//if (duplicatePlanes)
+	//	logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicatePlanes);
 
 	delete[] modelHasOrigin;
 }
