@@ -932,7 +932,12 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 				continue;
 			}
 
-			removeSize += getBspTextureSize(tex) + sizeof(int32_t);
+			if (offset == -1) {
+				removeSize += sizeof(int32_t);
+			}
+			else {
+				removeSize += getBspTextureSize(tex) + sizeof(int32_t);
+			}
 			removeCount++;
 		}
 	}
@@ -949,13 +954,20 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 			continue;
 		}
 		int32_t oldOffset = ((int32_t*)textures)[i + 1];
-		BSPMIPTEX* tex = (BSPMIPTEX*)(textures + oldOffset);
-		int sz = getBspTextureSize(tex);
 
-		memcpy(newTexData + newOffset, textures + oldOffset, sz);
-		texHeader[k+1] = newOffset;
+		if (oldOffset == -1) {
+			texHeader[k + 1] = -1;
+		}
+		else {
+			BSPMIPTEX* tex = (BSPMIPTEX*)(textures + oldOffset);
+			int sz = getBspTextureSize(tex);
+
+			memcpy(newTexData + newOffset, textures + oldOffset, sz);
+			texHeader[k + 1] = newOffset;
+			newOffset += sz;
+		}
+
 		remappedIndexes[i] = k;
-		newOffset += sz;
 		k++;
 	}
 

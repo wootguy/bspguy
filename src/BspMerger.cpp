@@ -947,47 +947,63 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 	g_progress.update("Merging textures", mapA.textureCount + mapB.textureCount);
 
-	uint thisMergeSz = (mapA.textureCount + 1) * 4;
+	uint thisMergeSz = (mapA.textureCount + 1) * sizeof(int32_t);
 	for (int i = 0; i < mapA.textureCount; i++) {
 		int32_t offset = ((int32_t*)mapA.textures)[i + 1];
-		BSPMIPTEX* tex = (BSPMIPTEX*)(mapA.textures + offset);
 
-		int sz = getBspTextureSize(tex);
-		//memset(tex->nOffsets, 0, sizeof(uint32) * 4);
+		if (offset == -1) {
+			mipTexOffsets[newTexCount] = -1;
+		}
+		else {
+			BSPMIPTEX* tex = (BSPMIPTEX*)(mapA.textures + offset);
+			int sz = getBspTextureSize(tex);
+			//memset(tex->nOffsets, 0, sizeof(uint32) * 4);
 
-		mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
-		memcpy(mipTexWritePtr, tex, sz);
-		mipTexWritePtr += sz;
+			mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
+			memcpy(mipTexWritePtr, tex, sz);
+			mipTexWritePtr += sz;
+			thisMergeSz += sz;
+		}
 		newTexCount++;
-		thisMergeSz += sz;
+		
 
 		g_progress.tick();
 	}
 
-	uint otherMergeSz = (mapB.textureCount + 1) * 4;
+	uint otherMergeSz = (mapB.textureCount + 1) * sizeof(int32_t);
 	for (int i = 0; i < mapB.textureCount; i++) {
 		int32_t offset = ((int32_t*)mapB.textures)[i + 1];
-		BSPMIPTEX* tex = (BSPMIPTEX*)(mapB.textures + offset);
+		
+		if (offset != -1) {
+			bool isUnique = true;
+			BSPMIPTEX* tex = (BSPMIPTEX*)(mapB.textures + offset);
+			int sz = getBspTextureSize(tex);
 
-		int sz = getBspTextureSize(tex);
+			for (int k = 0; k < mapA.textureCount; k++) {
+				if (mipTexOffsets[k] == -1) {
+					continue;
+				}
+				BSPMIPTEX* thisTex = (BSPMIPTEX*)(newMipTexData + mipTexOffsets[k]);
+				if (memcmp(tex, thisTex, sz) == 0) {
+					isUnique = false;
+					texRemap.push_back(k);
+					break;
+				}
+			}
 
-		bool isUnique = true;
-		for (int k = 0; k < mapA.textureCount; k++) {
-			BSPMIPTEX* thisTex = (BSPMIPTEX*)(newMipTexData + mipTexOffsets[k]);
-			if (memcmp(tex, thisTex, sz) == 0) {
-				isUnique = false;
-				texRemap.push_back(k);
-				break;
+			if (isUnique) {
+				mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
+				texRemap.push_back(newTexCount);
+				memcpy(mipTexWritePtr, tex, sz); // Note: won't work if pixel data isn't immediately after struct
+				mipTexWritePtr += sz;
+				newTexCount++;
+				otherMergeSz += sz;
 			}
 		}
-
-		if (isUnique) {
-			mipTexOffsets[newTexCount] = (mipTexWritePtr - newMipTexData);
+		else {
+			mipTexOffsets[newTexCount] = -1;
 			texRemap.push_back(newTexCount);
-			memcpy(mipTexWritePtr, tex, sz); // Note: won't work if pixel data isn't immediately after struct
-			mipTexWritePtr += sz;
 			newTexCount++;
-			otherMergeSz += sz;
 		}
 
 		g_progress.tick();
