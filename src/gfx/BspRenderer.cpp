@@ -790,15 +790,21 @@ void BspRenderer::refreshFace(int faceIdx) {
 		delete[] faceMath.verts;
 	faceMath.verts = new vec3[face.nEdges];
 	faceMath.vertCount = face.nEdges;
-
+	
+	vec3 v1;
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
 		int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
 		faceMath.verts[e] = map->verts[vertIdx];
+
+		// 2 verts can share the same position on a face, so need to find one that isn't shared (aomdc_1intro)
+		if (e > 0 && faceMath.verts[e] != faceMath.verts[0]) {
+			v1 = faceMath.verts[e];
+		}
 	}
 
-	vec3 plane_x = (faceMath.verts[1] - faceMath.verts[0]).normalize(1.0f);
+	vec3 plane_x = (v1 - faceMath.verts[0]).normalize(1.0f);
 	vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
 	vec3 plane_z = planeNormal;
 
