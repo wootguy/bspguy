@@ -2126,7 +2126,17 @@ void Gui::drawTextureTool() {
 				BSPFACE& face = map->faces[faceIdx];
 				BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 				int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
-				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+
+				width = height = 0;
+				if (texOffset != -1) {
+					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+					width = tex.nWidth;
+					height = tex.nHeight;
+					strncpy(textureName, tex.szName, MAXTEXTURENAME);
+				} else {
+					textureName[0] = '\0';
+				}
+				
 				int miptex = texinfo.iMiptex;
 
 				scaleX = 1.0f / texinfo.vS.length();
@@ -2134,9 +2144,7 @@ void Gui::drawTextureTool() {
 				shiftX = texinfo.shiftS;
 				shiftY = texinfo.shiftT;
 				isSpecial = texinfo.nFlags & TEX_SPECIAL;
-				width = tex.nWidth;
-				height = tex.nHeight;
-				strncpy(textureName, tex.szName, MAXTEXTURENAME);
+				
 				textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
 				validTexture = true;
 				

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "Renderer.h"
 
+#include "icons/missing.h"
+
 BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, 
 	ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
@@ -38,6 +40,12 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	greyTex->upload(GL_RGB);
 	blackTex->upload(GL_RGB);
 	blueTex->upload(GL_RGB);
+
+	byte* img_dat = NULL;
+	uint w, h;
+	lodepng_decode24(&img_dat, &w, &h, missing_dat, sizeof(missing_dat));
+	missingTex = new Texture(w, h, img_dat);
+	missingTex->upload(GL_RGB);
 
 	//loadTextures();
 	//loadLightmaps();
@@ -116,6 +124,10 @@ void BspRenderer::loadTextures() {
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+		if (texOffset == -1) {
+			glTexturesSwap[i] = missingTex;
+			continue;
+		}
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 		COLOR3* palette;
@@ -141,7 +153,7 @@ void BspRenderer::loadTextures() {
 			}
 
 			if (!foundInWad) {
-				glTexturesSwap[i] = whiteTex;
+				glTexturesSwap[i] = missingTex;
 				missingCount++;
 				continue;
 			}
@@ -395,7 +407,7 @@ void BspRenderer::deleteRenderFaces() {
 void BspRenderer::deleteTextures() {
 	if (glTextures != NULL) {
 		for (int i = 0; i < numLoadedTextures; i++) {
-			if (glTextures[i] != whiteTex)
+			if (glTextures[i] != missingTex)
 				delete glTextures[i];
 		}
 		delete[] glTextures;
@@ -448,7 +460,19 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		BSPFACE& face = map->faces[faceIdx];
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 		int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
-		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+
+		int texWidth, texHeight;
+		if (texOffset != -1) {
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+			texWidth = tex.nWidth;
+			texHeight = tex.nHeight;
+		}
+		else {
+			// missing texture
+			texWidth = 16;
+			texHeight = 16;
+		}
+		
 
 		LightmapInfo* lmap = lightmapsGenerated ? &lightmaps[faceIdx] : NULL;
 
@@ -491,8 +515,8 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 			verts[e].a = isSpecial ? 0.5f : 1.0f;
 
 			// texture coords
-			float tw = 1.0f / (float)tex.nWidth;
-			float th = 1.0f / (float)tex.nHeight;
+			float tw = 1.0f / (float)texWidth;
+			float th = 1.0f / (float)texHeight;
 			float fU = dotProduct(texinfo.vS, vert) + texinfo.shiftS;
 			float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
 			verts[e].u = fU * tw;
@@ -809,6 +833,7 @@ BspRenderer::~BspRenderer() {
 	delete greyTex;
 	delete blackTex;
 	delete blueTex;
+	delete missingTex;
 
 	delete map;
 }
