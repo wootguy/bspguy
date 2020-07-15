@@ -21,7 +21,8 @@ public:
 
 	// merges all maps into one
 	// noripent - don't change any entity logic
-	Bsp* merge(vector<Bsp*> maps, vec3 gap, bool noripent);
+	// noscript - don't add support for the bspguy map script (worse performance + buggy, but simpler)
+	Bsp* merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool noscript);
 
 private:
 	int merge_ops = 0;
@@ -39,7 +40,7 @@ private:
 	// - monsters should spawn only when the current map is active
 	// - entities might need map name prefixes
 	// - entities in previous levels should be cleaned up
-	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName);
+	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName, bool noscript);
 
 	// renames any entity that shares a name with an entity in another map
 	int force_unique_ent_names_per_map(Bsp* mergedMap);

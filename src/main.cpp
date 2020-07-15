@@ -28,6 +28,7 @@
 // invalid solid log spam
 // scaling allowing concave solids (merge0.bsp angled wedge)
 // can't select faces sometimes
+// make all commands available in the 3d editor
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -106,41 +107,20 @@ void start_viewer(string map) {
 }
 
 int test() {
-	start_viewer("hl_c00.bsp");
-	return 0;
-
-	/*
-	Bsp test("merge0.bsp");
-	test.simplify_model_collision(2, 0);
-	test.write("yabma_move.bsp");
-	test.write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
-	test.print_info(false, 0, 0);
-	return 0;
-	*/
+	//start_viewer("hl_c09.bsp");
+	//return 0;
 
 	vector<Bsp*> maps;
-	/*
+	
 	for (int i = 1; i < 22; i++) {
 		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
 		maps.push_back(map);
 	}
-	*/
-
-	//maps.push_back(new Bsp("echoes/echoes01.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes01a.bsp"));
-	//maps.push_back(new Bsp("echoes/echoes02.bsp"));
-
-	//maps.push_back(new Bsp("merge0.bsp"));
-	//maps.push_back(new Bsp("merge1.bsp"));
-	//maps.push_back(new Bsp("2nd/saving_the_2nd_amendment.bsp"));
 
 	//maps.push_back(new Bsp("op4/of1a1.bsp"));
 	//maps.push_back(new Bsp("op4/of1a2.bsp"));
 	//maps.push_back(new Bsp("op4/of1a3.bsp"));
 	//maps.push_back(new Bsp("op4/of1a4.bsp"));
-
-	maps.push_back(new Bsp("rl/rl00r.bsp"));
-	maps.push_back(new Bsp("rl/rl00s.bsp"));
 
 	STRUCTCOUNT removed;
 	memset(&removed, 0, sizeof(removed));
@@ -154,26 +134,27 @@ int test() {
 			logf("");
 		}
 		logf("Preprocess %s\n", maps[i]->name.c_str());
-		//maps[i]->delete_hull(2, 1);
+		maps[i]->delete_hull(2, 1);
 		//removed.add(maps[i]->delete_unused_hulls());
 		removed.add(maps[i]->remove_unused_model_structures());
 
 		if (!maps[i]->validate())
 			logf("");
-
-		//maps[i]->print_info(true, 10, SORT_CLIPNODES);
 	}
 
 	removed.print_delete_stats(1);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false);
+	Bsp* result = merger.merge(maps, vec3(1, 1, 1), false, false);
 	logf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
 		result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 		result->print_info(false, 0, false);
 	}
+
+	start_viewer("yabma_move.bsp");
+
 	return 0;
 }
 
@@ -219,7 +200,7 @@ int merge_maps(CommandLine& cli) {
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"));
+	Bsp* result = merger.merge(maps, gap, cli.hasOption("-noripent"), cli.hasOption("-noscript"));
 
 	logf("\n");
 	if (result->isValid()) result->write(cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile);
@@ -511,6 +492,12 @@ void print_help(string command) {
 			"                 Level changes and other things are updated so that the merged\n"
 			"                 maps can be played one after another. This flag prevents any\n"
 			"                 entity edits from being made (except for origins).\n"
+			"  -noscript    : By default, the output map is expected to run with the bspguy\n"
+			"                 map script loaded, which ensures only entities for the current\n"
+			"                 map section are active. This flag replaces that script with less\n"
+			"                 effective entity logic. This may cause lag in maps with lots of\n"
+			"                 entities, and some ents might not spawn properly. The benefit\n"
+			"                 to this flag is that you don't have deal with script setup.\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
 			"  -v           : Verbose console output.\n"
 			);
