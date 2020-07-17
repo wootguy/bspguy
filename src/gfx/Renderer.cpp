@@ -81,7 +81,6 @@ void AppSettings::load() {
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "limits_open") { g_settings.limits_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
-			else if (key == "transform_tab") { g_settings.transform_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
@@ -123,7 +122,6 @@ void AppSettings::save() {
 	file << "limits_open=" << g_settings.limits_open << endl;
 
 	file << "settings_tab=" << g_settings.settings_tab << endl;
-	file << "transform_tab=" << g_settings.transform_tab << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
@@ -434,7 +432,6 @@ void Renderer::saveSettings() {
 	g_settings.limits_open = gui->showLimitsWidget;
 
 	g_settings.settings_tab = gui->settingsTab;
-	g_settings.transform_tab = gui->transformTab;
 
 	g_settings.vsync = gui->vsync;
 	g_settings.show_transform_axes = showDragAxes;
@@ -464,7 +461,6 @@ void Renderer::loadSettings() {
 	gui->showLimitsWidget = g_settings.limits_open;
 
 	gui->settingsTab = g_settings.settings_tab;
-	gui->transformTab = g_settings.transform_tab;
 	gui->openSavedTabs = true;
 
 	gui->vsync = g_settings.vsync;

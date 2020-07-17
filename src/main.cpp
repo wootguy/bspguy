@@ -7,6 +7,10 @@
 #include "remap.h"
 #include "Renderer.h"
 
+// super todo:
+// gui scale number not accurate at all
+// invalid solid undo not reverting plane vertex positions sometimes
+
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
 // merge redundant submodels and duplicate structures
