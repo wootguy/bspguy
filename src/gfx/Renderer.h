@@ -19,7 +19,8 @@ enum transform_modes {
 
 enum transform_targets {
 	TRANSFORM_OBJECT,
-	TRANSFORM_VERTEX
+	TRANSFORM_VERTEX,
+	TRANSFORM_ORIGIN
 };
 
 enum pick_modes {
@@ -162,7 +163,13 @@ private:
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts
 	vector<HullEdge> modelEdges;
 	cCube* modelVertCubes = NULL;
+	cCube modelOriginCube;
 	VertexBuffer* modelVertBuff = NULL;
+	VertexBuffer* modelOriginBuff = NULL;
+	bool originSelected = false;
+	bool originHovered = false;
+	vec3 oldOrigin;
+	vec3 transformedOrigin;
 	int hoverVert = -1;
 	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
@@ -210,6 +217,7 @@ private:
 	BspRenderer* getMapContainingCamera();
 
 	void drawModelVerts();
+	void drawModelOrigin();
 	void drawTransformAxes();
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
 	void drawPlane(BSPPLANE& plane, COLOR3 color);

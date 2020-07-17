@@ -221,6 +221,8 @@ Renderer::Renderer() {
 
 	g_app = this;
 
+	g_progress.simpleMode = true;
+
 	pointEntRenderer = new PointEntRenderer(NULL, colorShader);
 
 	loadSettings();
@@ -228,8 +230,8 @@ Renderer::Renderer() {
 	reloading = true;
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 
-	//cameraOrigin = vec3(-32, 275, 9);
-	//cameraAngles = vec3(21, 0, 106);
+	//cameraOrigin = vec3(51, 427, 234);
+	//cameraAngles = vec3(41, 0, -170);
 }
 
 Renderer::~Renderer() {
@@ -348,12 +350,19 @@ void Renderer::renderLoop() {
 		}
 
 		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
-		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0 && (isTransformableSolid || !isScalingObject)) {
+		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
+		bool isTransformingValid = (isTransformableSolid || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0 && (isTransformingValid || isMovingOrigin)) {
 			drawTransformAxes();
 		}
 
-		if (pickInfo.valid && pickInfo.modelIdx > 0 && transformTarget == TRANSFORM_VERTEX && isTransformableSolid && pickMode == PICK_OBJECT) {
-			drawModelVerts();
+		if (pickInfo.valid && pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
+			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
+				drawModelVerts();
+			}
+			if (transformTarget == TRANSFORM_ORIGIN) {
+				drawModelOrigin();
+			}
 		}
 
 		vec3 forward, right, up;
@@ -554,6 +563,40 @@ void Renderer::drawModelVerts() {
 	modelVertBuff->draw(GL_TRIANGLES);
 }
 
+void Renderer::drawModelOrigin() {
+	if (modelOriginBuff == NULL)
+		return;
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	Entity* ent = map->ents[pickInfo.entIdx];
+
+	const COLOR3 vertDimColor = { 0, 200, 0 };
+	const COLOR3 vertHoverColor = { 128, 255, 128 };
+	const COLOR3 selectColor = { 0, 128, 255 };
+	const COLOR3 hoverSelectColor = { 96, 200, 255 };
+
+	vec3 ori = transformedOrigin;
+	float s = (ori - cameraOrigin).length() * vertExtentFactor;
+	ori = ori.flip();
+
+	vec3 min = vec3(-s, -s, -s) + ori;
+	vec3 max = vec3(s, s, s) + ori;
+	COLOR3 color;
+	if (originSelected) {
+		color = originHovered ? hoverSelectColor : selectColor;
+	}
+	else {
+		color = originHovered ? vertHoverColor : vertDimColor;
+	}
+	modelOriginCube = cCube(min, max, color);
+
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+	modelOriginBuff->draw(GL_TRIANGLES);
+}
+
 void Renderer::drawTransformAxes() {
 	if (!canTransform) {
 		return;
@@ -652,7 +695,7 @@ void Renderer::vertexEditControls() {
 	}
 
 	if (!isTransformableSolid) {
-		canTransform = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_MOVE;
+		canTransform = (transformTarget == TRANSFORM_OBJECT || transformTarget == TRANSFORM_ORIGIN) && transformMode == TRANSFORM_MOVE;
 	}
 
 	if (pressed[GLFW_KEY_F] && !oldPressed[GLFW_KEY_F]) {
@@ -665,7 +708,7 @@ void Renderer::cameraPickingControls() {
 		bool transforming = transformAxisControls();
 
 		bool anyHover = hoverVert != -1 || hoverEdge != -1;
-		if (isTransformableSolid && anyHover) {
+		if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid && anyHover) {
 			if (oldLeftMouse != GLFW_PRESS) {
 				if (!anyCtrlPressed) {
 					for (int i = 0; i < modelEdges.size(); i++) {
@@ -693,6 +736,14 @@ void Renderer::cameraPickingControls() {
 
 				vertPickCount++;
 				applyTransform();
+			}
+
+			transforming = true;
+		}
+
+		if (transformTarget == TRANSFORM_ORIGIN && originHovered) {
+			if (oldLeftMouse != GLFW_PRESS) {
+				originSelected = !originSelected;
 			}
 
 			transforming = true;
@@ -737,6 +788,7 @@ void Renderer::applyTransform() {
 	if (pickInfo.valid && pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
 		bool transformingVerts = transformTarget == TRANSFORM_VERTEX && isTransformableSolid;
 		bool scalingObject = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE;
+		bool movingOrigin = transformTarget == TRANSFORM_ORIGIN && transformMode == TRANSFORM_MOVE;
 
 		if (transformingVerts || scalingObject) {
 			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
@@ -761,6 +813,22 @@ void Renderer::applyTransform() {
 					scaleTexinfos[i].oldS = info.vS;
 					scaleTexinfos[i].oldT = info.vT;
 				}
+			}
+		}
+
+		if (movingOrigin && pickInfo.valid && pickInfo.modelIdx >= 0) {
+			if (oldOrigin != transformedOrigin) {
+				vec3 delta = transformedOrigin - oldOrigin;
+
+				g_progress.hide = true;
+				pickInfo.map->move(delta*-1, pickInfo.modelIdx);
+				g_progress.hide = false;
+
+				pickInfo.ent->setOrAddKeyvalue("origin", (pickInfo.ent->getOrigin() + delta).toKeyvalueString());
+				oldOrigin = transformedOrigin;
+				mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.modelIdx);
+				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+				//mapRenderers[pickInfo.mapIdx]->reloadLightmaps();
 			}
 		}
 	}
@@ -801,6 +869,8 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 }
 
 void Renderer::cameraObjectHovering() {
+	originHovered = false;
+
 	if (transformTarget == TRANSFORM_VERTEX && pickInfo.valid && pickInfo.entIdx > 0) {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
@@ -835,6 +905,20 @@ void Renderer::cameraObjectHovering() {
 				}
 			}
 		}
+	}
+
+	if (transformTarget == TRANSFORM_ORIGIN && pickInfo.valid && pickInfo.modelIdx > 0) {
+		vec3 pickStart, pickDir;
+		getPickRay(pickStart, pickDir);
+		PickInfo vertPick;
+		memset(&vertPick, 0, sizeof(PickInfo));
+		vertPick.bestDist = 9e99;
+
+		vec3 ori = transformedOrigin;
+		float s = (ori - cameraOrigin).length() * vertExtentFactor * 2.0f;
+		vec3 min = vec3(-s, -s, -s) + ori;
+		vec3 max = vec3(s, s, s) + ori;
+		originHovered = pickAABB(pickStart, pickDir, min, max, vertPick.bestDist);
 	}
 
 	if (transformTarget == TRANSFORM_VERTEX && transformMode == TRANSFORM_SCALE)
@@ -1087,13 +1171,19 @@ bool Renderer::transformAxisControls() {
 			if (transformTarget == TRANSFORM_VERTEX) {
 				moveSelectedVerts(delta);
 			}
-			else {
+			else if (transformTarget == TRANSFORM_OBJECT) {
 				vec3 offset = getEntOffset(map, ent);
 				vec3 newOrigin = (axisDragEntOriginStart + delta) - offset;
 				vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
 
 				ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+			}
+			else if (transformTarget == TRANSFORM_ORIGIN) {
+				transformedOrigin = (oldOrigin + delta);
+				transformedOrigin = gridSnappingEnabled ? snapToGrid(transformedOrigin) : transformedOrigin;
+
+				//mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
 			}
 			
 		}
@@ -1323,7 +1413,13 @@ void Renderer::updateDragAxes() {
 	}
 	else {
 		if (ent != NULL) {
-			moveAxes.origin = getEntOrigin(map, ent);
+			if (transformTarget == TRANSFORM_ORIGIN) {
+				moveAxes.origin = transformedOrigin;
+				debugVec0 = transformedOrigin;
+			}
+			else {
+				moveAxes.origin = getEntOrigin(map, ent);
+			}
 		}
 
 		if (transformTarget == TRANSFORM_VERTEX) {
@@ -1501,9 +1597,22 @@ void Renderer::updateModelVerts() {
 		delete[] modelVertCubes;
 		modelVertBuff = NULL;
 		modelVertCubes = NULL;
+		modelOriginBuff = NULL;
 		scaleTexinfos.clear();
 		modelEdges.clear();
 	}
+
+	if (modelOriginBuff) {
+		delete modelOriginBuff;
+	}
+
+	if (pickInfo.ent) {
+		transformedOrigin = oldOrigin = pickInfo.ent->getOrigin();
+	}
+	
+	originSelected = false;
+	modelOriginBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, &modelOriginCube, 6 * 6);
+
 	if (!map->is_convex(modelIdx)) {
 		return;
 	}

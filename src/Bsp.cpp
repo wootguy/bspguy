@@ -398,8 +398,11 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 	return true;
 }
 
-bool Bsp::move(vec3 offset) {
-	split_shared_model_structures();
+bool Bsp::move(vec3 offset, int modelIdx) {
+	BSPMODEL* target = modelIdx >= 0 ? &models[modelIdx] : NULL;
+
+	if (!target)
+		split_shared_model_structures();
 
 	bool hasLighting = lightDataLength > 0;
 
@@ -423,18 +426,25 @@ bool Bsp::move(vec3 offset) {
 			GetFaceLightmapSize(i, size);
 
 			int lightmapSz = size[0] * size[1];
-
 			int lightmapCount = 0;
 			for (int k = 0; k < 4; k++) {
 				lightmapCount += face.nStyles[k] != 255;
 			}
+			oldLightmaps[i].layers = lightmapCount;
 			lightmapSz *= lightmapCount;
 
 			oldLightmaps[i].width = size[0];
 			oldLightmaps[i].height = size[1];
-			oldLightmaps[i].layers = lightmapCount;
 
-			qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
+			bool skipResize = target && (i < target->iFirstFace || i >= target->iFirstFace + target->nFaces);
+
+			if (!skipResize) {
+				oldLightmaps[i].luxelFlags = new byte[size[0] * size[1]];
+				qrad_get_lightmap_flags(this, i, (light_flag_t*)oldLightmaps[i].luxelFlags);
+			}
+			else {
+				oldLightmaps[i].luxelFlags = NULL;
+			}
 
 			g_progress.tick();
 		}
@@ -443,39 +453,48 @@ bool Bsp::move(vec3 offset) {
 	g_progress.update("Moving structures", ents.size()*2 + modelCount);
 
 	int* modelShouldBeMoved = new int[modelCount];
-	memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
+	
 
-	for (int i = 0; i < ents.size(); i++) {
-		g_progress.tick();
+	if (target) {
+		// only one model should be moved
+		memset(modelShouldBeMoved, 0, modelCount * sizeof(int));
+		modelShouldBeMoved[modelIdx] = 1;
+	}
+	else {
+		memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
 
-		if (!ents[i]->hasKey("origin")) {
-			if (ents[i]->isBspModel()) {
-				modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
+		for (int i = 0; i < ents.size(); i++) {
+			g_progress.tick();
+
+			if (!ents[i]->hasKey("origin")) {
+				if (ents[i]->isBspModel()) {
+					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
+				}
+				continue;
 			}
-			continue;
+			if (ents[i]->isBspModel()) {
+				// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
+				if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2)
+					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
+			}
 		}
-		if (ents[i]->isBspModel()) {
-			// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
-			if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2) 
-				modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
+
+		for (int i = 0; i < ents.size(); i++) {
+			g_progress.tick();
+
+			if (!ents[i]->hasKey("origin"))
+				continue;
+			if (ents[i]->isBspModel() && modelShouldBeMoved[ents[i]->getBspModelIdx()])
+				continue;
+
+			Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
+			vec3 ori = keyvalue.getVector() + offset;
+
+			ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
 		}
+
+		update_ent_lump();
 	}
-
-	for (int i = 0; i < ents.size(); i++) {
-		g_progress.tick();
-
-		if (!ents[i]->hasKey("origin"))
-			continue;
-		if (ents[i]->isBspModel() && modelShouldBeMoved[ents[i]->getBspModelIdx()])
-			continue;
-
-		Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
-		vec3 ori = keyvalue.getVector() + offset;
-
-		ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
-	}
-
-	update_ent_lump();
 	
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
@@ -593,11 +612,19 @@ bool Bsp::move(vec3 offset) {
 	}
 
 	if (hasLighting) {
-		resize_lightmaps(oldLightmaps, newLightmaps);
-	}
+		resize_lightmaps(oldLightmaps, newLightmaps, target);
 
-	delete[] oldLightmaps;
-	delete[] newLightmaps;
+		for (int i = 0; i < faceCount; i++) {
+			if (oldLightmaps->luxelFlags) {
+				delete[] oldLightmaps->luxelFlags;
+			}
+			if (newLightmaps->luxelFlags) {
+				delete[] newLightmaps->luxelFlags;
+			}
+		}
+		delete[] oldLightmaps;
+		delete[] newLightmaps;
+	}
 
 	g_progress.clear();
 
@@ -642,7 +669,7 @@ void Bsp::move_texinfo(int idx, vec3 offset) {
 	}
 }
 
-void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
+void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMODEL* target) {
 	g_progress.update("Recalculate lightmaps", faceCount);
 
 	// calculate new lightmap sizes
@@ -680,7 +707,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	}
 
 	if (lightmapsResizeCount > 0) {
-		//logf(" %d lightmap(s) to resize", lightmapsResizeCount, totalLightmaps);
+		//logf("%d lightmap(s) to resize\n", lightmapsResizeCount);
 
 		g_progress.update("Resize lightmaps", faceCount);
 
@@ -709,9 +736,11 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 
 			if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
 				memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+				newLight.luxelFlags = NULL;
 			}
 			else {
-				qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
+				newLight.luxelFlags = new byte[newLight.width * newLight.height];
+				qrad_get_lightmap_flags(this, i, (light_flag_t*)newLight.luxelFlags);
 
 				int maxWidth = min(newLight.width, oldLight.width);
 				int maxHeight = min(newLight.height, oldLight.height);
@@ -1608,7 +1637,7 @@ void Bsp::write(string path) {
 		path = path + ".bsp";
 	}
 
-	logf("Writing %s", path.c_str());
+	logf("Writing %s\n", path.c_str());
 
 	// calculate lump offsets
 	int offset = sizeof(BSPHEADER);

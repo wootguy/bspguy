@@ -99,7 +99,7 @@ public:
 	Bsp(std::string fname);
 	~Bsp();
 
-	bool move(vec3 offset);
+	bool move(vec3 offset, int modelIdx=-1);
 	void move_texinfo(int idx, vec3 offset);
 	void write(string path);
 
@@ -224,7 +224,7 @@ private:
 	// for each model, split structures that are shared with models that both have and don't have an origin
 	void split_shared_model_structures();
 
-	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
+	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMODEL* target);
 
 	bool load_lumps(string fname);
 

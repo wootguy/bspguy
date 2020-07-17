@@ -166,6 +166,20 @@ void Gui::pasteTexture() {
 
 void Gui::draw3dContextMenus() {
 
+	if (app->originHovered) {
+		if (ImGui::BeginPopup("ent_context") || ImGui::BeginPopup("empty_context")) {
+			if (ImGui::MenuItem("Center origin", "")) {
+				app->transformedOrigin = app->getEntOrigin(app->pickInfo.map, app->pickInfo.ent);
+				app->applyTransform();
+				app->pickCount++; // force gui refresh
+			}
+
+			ImGui::EndPopup();
+		}
+
+		return;
+	}
+
 	if (app->pickMode == PICK_OBJECT) {
 		if (ImGui::BeginPopup("ent_context"))
 		{
@@ -301,10 +315,6 @@ void Gui::drawMenuBar() {
 	{
 		if (ImGui::MenuItem("Save", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
-			for (int i = 0; i < map->ents.size(); i++) {
-				if (map->ents[i]->keyvalues["classname"] == "info_node")
-					map->ents[i]->keyvalues["classname"] = "info_bode";
-			}
 			map->update_ent_lump();
 			//map->write("yabma_move.bsp");
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
@@ -462,7 +472,6 @@ void Gui::drawMenuBar() {
 				lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
 				delete[] tex_dat;
 			}
-			
 
 			int modelIdx = destMap->map->create_solid(mins, maxs, aaatriggerIdx);
 
@@ -1351,6 +1360,9 @@ void Gui::drawTransformWidget() {
 				}
 				else {
 					vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+					if (app->originSelected) {
+						ori = app->transformedOrigin;
+					}
 					x = fx = ori.x;
 					y = fy = ori.y;
 					z = fz = ori.z;
@@ -1465,7 +1477,8 @@ void Gui::drawTransformWidget() {
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Target: ");  ImGui::SameLine();
 				ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::SameLine();
-				ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX);
+				ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::SameLine();
+				ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN);
 
 				const int grid_snap_modes = 11;
 				const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
@@ -1511,7 +1524,7 @@ void Gui::drawTransformWidget() {
 						z = last_fz = fz;
 					}
 				}
-				else {
+				else if (app->transformTarget == TRANSFORM_OBJECT) {
 					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
 					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
 
@@ -1529,15 +1542,36 @@ void Gui::drawTransformWidget() {
 					ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
 					bspRenderer->refreshEnt(app->pickInfo.entIdx);
 				}
+				else if (app->transformTarget == TRANSFORM_ORIGIN) {
+					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
+
+					if (app->gridSnappingEnabled) {
+						fx = x;
+						fy = y;
+						fz = z;
+					}
+					else {
+						x = fx;
+						y = fy;
+						z = fz;
+					}
+
+					app->transformedOrigin = newOrigin;
+					app->applyTransform();
+				}
 			}
 			if (scaled && ent->isBspModel() && app->isTransformableSolid) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {
 					app->scaleSelectedVerts(sx, sy, sz);
 				}
-				else {
+				else if (app->transformTarget == TRANSFORM_OBJECT) {
 					int modelIdx = ent->getBspModelIdx();
 					app->scaleSelectedObject(sx, sy, sz);
 					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+				}
+				else if (app->transformTarget == TRANSFORM_ORIGIN) {
+					logf("Scaling has no effect on origins\n");
 				}
 			}
 		}

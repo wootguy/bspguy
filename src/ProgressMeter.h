@@ -4,6 +4,9 @@
 
 class ProgressMeter {
 public:
+	bool simpleMode = false;
+	bool hide = false;
+
 	ProgressMeter();
 
 	// set a new title for the progress meter and set the number of ticks needed to reach 100%

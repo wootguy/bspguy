@@ -104,7 +104,7 @@ struct LIGHTMAP
 {
 	int width, height;
 	int layers; // for when multiple lights hit the same face (nStyles[0-3] != 255)
-	light_flag_t luxelFlags[MAX_SINGLEMAP];
+	byte* luxelFlags;
 };
 
 extern BSPFACE* g_dfaces;

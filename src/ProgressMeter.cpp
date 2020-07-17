@@ -12,10 +12,13 @@ void ProgressMeter::update(const char* newTitle, int totalProgressTicks) {
 	progress_title = newTitle;
 	progress = 0;
 	progress_total = totalProgressTicks;
+	if (simpleMode && !hide) {
+		logf((string(newTitle) + "\n").c_str());
+	}
 }
 
 void ProgressMeter::tick() {
-	if (progress_title[0] == '\0') {
+	if (progress_title[0] == '\0' || simpleMode || hide) {
 		return;
 	}
 	if (progress++ > 0) {
@@ -34,6 +37,9 @@ void ProgressMeter::tick() {
 }
 
 void ProgressMeter::clear() {
+	if (simpleMode || hide) {
+		return;
+	}
 	// 50 chars
 	for (int i = 0; i < 6; i++) logf("\b\b\b\b\b\b\b\b\b\b");
 	for (int i = 0; i < 6; i++) logf("          ");
