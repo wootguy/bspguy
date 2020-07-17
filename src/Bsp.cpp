@@ -440,10 +440,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 
 			if (!skipResize) {
 				oldLightmaps[i].luxelFlags = new byte[size[0] * size[1]];
-				qrad_get_lightmap_flags(this, i, (light_flag_t*)oldLightmaps[i].luxelFlags);
-			}
-			else {
-				oldLightmaps[i].luxelFlags = NULL;
+				qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
 			}
 
 			g_progress.tick();
@@ -615,11 +612,11 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 		resize_lightmaps(oldLightmaps, newLightmaps, target);
 
 		for (int i = 0; i < faceCount; i++) {
-			if (oldLightmaps->luxelFlags) {
-				delete[] oldLightmaps->luxelFlags;
+			if (oldLightmaps[i].luxelFlags) {
+				delete[] oldLightmaps[i].luxelFlags;
 			}
-			if (newLightmaps->luxelFlags) {
-				delete[] newLightmaps->luxelFlags;
+			if (newLightmaps[i].luxelFlags) {
+				delete[] newLightmaps[i].luxelFlags;
 			}
 		}
 		delete[] oldLightmaps;
@@ -716,7 +713,6 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 		memset(newLightData, 255, newColorCount * sizeof(COLOR3));
 		int lightmapOffset = 0;
 
-
 		for (int i = 0; i < faceCount; i++) {
 			BSPFACE& face = faces[i];
 
@@ -740,7 +736,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 			}
 			else {
 				newLight.luxelFlags = new byte[newLight.width * newLight.height];
-				qrad_get_lightmap_flags(this, i, (light_flag_t*)newLight.luxelFlags);
+				qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
 
 				int maxWidth = min(newLight.width, oldLight.width);
 				int maxHeight = min(newLight.height, oldLight.height);
