@@ -104,6 +104,10 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
+	if (!fileExists(map)) {
+		logf("ERROR: File not found: %s", map.c_str());
+		return;
+	}
 	Renderer renderer = Renderer();
 	renderer.addMap(new Bsp(map));
 	hideConsoleWindow();
