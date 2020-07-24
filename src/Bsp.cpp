@@ -2215,7 +2215,7 @@ void Bsp::mark_face_structures(int iFace, STRUCTUSAGE* usage) {
 	usage->textures[texinfos[face.iTextureInfo].iMiptex] = true;
 }
 
-void Bsp::mark_node_structures(int iNode, STRUCTUSAGE* usage) {
+void Bsp::mark_node_structures(int iNode, STRUCTUSAGE* usage, bool skipLeaves) {
 	BSPNODE& node = nodes[iNode];
 
 	usage->nodes[iNode] = true;
@@ -2227,9 +2227,9 @@ void Bsp::mark_node_structures(int iNode, STRUCTUSAGE* usage) {
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			mark_node_structures(node.iChildren[i], usage);
+			mark_node_structures(node.iChildren[i], usage, skipLeaves);
 		}
-		else {
+		else if (!skipLeaves) {
 			BSPLEAF& leaf = leaves[~node.iChildren[i]];
 			for (int i = 0; i < leaf.nMarkSurfaces; i++) {
 				usage->markSurfs[leaf.iFirstMarkSurface + i] = true;
@@ -2261,8 +2261,16 @@ void Bsp::mark_clipnode_structures(int iNode, STRUCTUSAGE* usage) {
 void Bsp::mark_model_structures(int modelIdx, STRUCTUSAGE* usage) {
 	BSPMODEL& model = models[modelIdx];
 
+	for (int i = 0; i < model.nFaces; i++) {
+		mark_face_structures(model.iFirstFace + i, usage);
+	}
+
+	// submodels don't use leaves like the world model does.
+	// Only the contents of a leaf matters for submodels. All other data is ignored.
+	bool skipLeaves = modelIdx != 0;
+
 	if (model.iHeadnodes[0] >= 0 && model.iHeadnodes[0] < nodeCount)
-		mark_node_structures(model.iHeadnodes[0], usage);
+		mark_node_structures(model.iHeadnodes[0], usage, skipLeaves);
 	for (int k = 1; k < MAX_MAP_HULLS; k++) {
 		if (model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] < clipnodeCount)
 			mark_clipnode_structures(model.iHeadnodes[k], usage);
@@ -2737,7 +2745,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 			face.nPlaneSide = i % 2 == 0; // even-numbered planes are inverted
 			face.iTextureInfo = startTexinfo+i;
 			face.nLightmapOffset = 0; // TODO: Lighting
-			memset(face.nStyles, 0, 4);
+			memset(face.nStyles, 255, 4);
 		}
 
 		replace_lump(LUMP_FACES, newFaces, (faceCount + 6) * sizeof(BSPFACE));
@@ -2912,7 +2920,7 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 			//face.iTextureInfo = startTexinfo + i;
 			face.iTextureInfo = solid.faces[i].iTextureInfo;
 			face.nLightmapOffset = 0; // TODO: Lighting
-			memset(face.nStyles, 0, 4);
+			memset(face.nStyles, 255, 4);
 
 			surfedgeOffset += face.nEdges;
 		}

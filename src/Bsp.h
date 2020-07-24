@@ -249,7 +249,7 @@ private:
 	// TODO: don't mark faces in submodel leaves (unused)
 	void mark_model_structures(int modelIdx, STRUCTUSAGE* STRUCTUSAGE);
 	void mark_face_structures(int iFace, STRUCTUSAGE* usage);
-	void mark_node_structures(int iNode, STRUCTUSAGE* usage);
+	void mark_node_structures(int iNode, STRUCTUSAGE* usage, bool skipLeaves);
 	void mark_clipnode_structures(int iNode, STRUCTUSAGE* usage);
 
 	// remaps structure indexes to new locations
