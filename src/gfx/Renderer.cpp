@@ -784,7 +784,7 @@ void Renderer::applyTransform() {
 	if (pickInfo.valid && pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
 		bool transformingVerts = transformTarget == TRANSFORM_VERTEX && isTransformableSolid;
 		bool scalingObject = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE;
-		bool movingOrigin = transformTarget == TRANSFORM_ORIGIN && transformMode == TRANSFORM_MOVE;
+		bool movingOrigin = transformTarget == TRANSFORM_ORIGIN;
 
 		if (transformingVerts || scalingObject) {
 			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
@@ -820,10 +820,17 @@ void Renderer::applyTransform() {
 				pickInfo.map->move(delta*-1, pickInfo.modelIdx);
 				g_progress.hide = false;
 
-				pickInfo.ent->setOrAddKeyvalue("origin", (pickInfo.ent->getOrigin() + delta).toKeyvalueString());
 				oldOrigin = transformedOrigin;
 				mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.modelIdx);
-				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+
+				for (int i = 0; i < pickInfo.map->ents.size(); i++) {
+					Entity* ent = pickInfo.map->ents[i];
+					if (ent->getBspModelIdx() == pickInfo.modelIdx) {
+						ent->setOrAddKeyvalue("origin", (ent->getOrigin() + delta).toKeyvalueString());
+						mapRenderers[pickInfo.mapIdx]->refreshEnt(i);
+					}
+				}
+				
 				//mapRenderers[pickInfo.mapIdx]->reloadLightmaps();
 			}
 		}
@@ -998,6 +1005,8 @@ void Renderer::moveGrabbedEnt() {
 		vec3 newOrigin = (oldOrigin + delta) - offset;
 		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
 
+		transformedOrigin = this->oldOrigin = rounded;
+		
 		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
 	}

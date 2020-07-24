@@ -221,7 +221,7 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	if (start < 0 || start > numVerts)
 		logf("Invalid start index: %d\n", start);
 	else if (end > numVerts || end < 0)
-		logf("Invalid start index: %d\n", end);
+		logf("Invalid end index: %d\n", end);
 	else if (end - start <= 0)
 		logf("Invalid draw range: %d -> %d\n", start, end);
 	else

@@ -1171,6 +1171,9 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			if (key != data->Buf) {
 				ent->renameKey(inputData->idx, data->Buf);
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
+				if (key == "model" || string(data->Buf) == "model") {
+					inputData->bspRenderer->preRenderEnts();
+				}
 			}
 
 			return 1;
@@ -1182,8 +1185,11 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			string key = ent->keyOrder[inputData->idx];
 
 			if (ent->keyvalues[key] != data->Buf) {
-				ent->keyvalues[key] = data->Buf;
+				ent->setOrAddKeyvalue(key, data->Buf);
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
+				if (key == "model") {
+					inputData->bspRenderer->preRenderEnts();
+				}
 			}
 
 			return 1;
@@ -1319,6 +1325,8 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
 				ent->removeKeyvalue(key);
 				app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+				if (key == "model")
+					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
 				ignoreErrors = 2;
 			}
 			ImGui::PopStyleColor(3);
