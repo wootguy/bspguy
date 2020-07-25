@@ -298,6 +298,30 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
+				if (ImGui::BeginMenu("Create Hull")) {
+					if (ImGui::MenuItem("Clipnodes")) {
+						map->regenerate_clipnodes(app->pickInfo.modelIdx, -1);
+						checkValidHulls();
+						logf("Regenerated hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
+					}
+
+					ImGui::Separator();
+
+					for (int i = 1; i < MAX_MAP_HULLS; i++) {
+						bool isHullValid = model.iHeadnodes[i] >= 0;
+
+						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str())) {
+							map->regenerate_clipnodes(app->pickInfo.modelIdx, i);
+							checkValidHulls();
+							logf("Regenerated hull %d on model %d\n", i, app->pickInfo.modelIdx);
+						}
+					}
+
+					ImGui::Separator();
+
+					ImGui::EndMenu();
+				}
+
 				if (ImGui::MenuItem("Duplicate BSP model")) {
 					int newModelIdx = map->duplicate_model(app->pickInfo.modelIdx);
 					app->pickInfo.ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));

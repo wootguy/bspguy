@@ -397,7 +397,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 	if (!regenClipnodes)
 		return true;
 
-	regenerate_clipnodes(modelIdx);
+	regenerate_clipnodes(modelIdx, -1);
 
 	return true;
 }
@@ -2455,7 +2455,7 @@ int Bsp::create_solid(Solid& solid, int targetModelIdx) {
 	BSPMODEL& newModel = models[modelIdx];
 
 	create_nodes(solid, &newModel);
-	regenerate_clipnodes(modelIdx);
+	regenerate_clipnodes(modelIdx, -1);
 
 	return modelIdx;
 }
@@ -3334,7 +3334,7 @@ int Bsp::get_model_from_face(int faceIdx) {
 	return -1;
 }
 
-int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
+int16 Bsp::regenerate_clipnodes_from_nodes(int iNode, int hullIdx) {
 	BSPNODE& node = nodes[iNode];
 
 	switch (planes[node.iPlane].nType) {
@@ -3358,7 +3358,7 @@ int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
 				}
 				return CONTENTS_SOLID; // solid leaf
 			}
-			return regenerate_clipnodes(solidChild, hullIdx);
+			return regenerate_clipnodes_from_nodes(solidChild, hullIdx);
 		}
 		default:
 			break;
@@ -3371,7 +3371,7 @@ int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
 	int solidChild = -1;
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			int childIdx = regenerate_clipnodes(node.iChildren[i], hullIdx);
+			int childIdx = regenerate_clipnodes_from_nodes(node.iChildren[i], hullIdx);
 			clipnodes[newClipnodeIdx].iChildren[i] = childIdx;
 			solidChild = solidChild == -1 ? i : -1;			
 		}
@@ -3409,17 +3409,20 @@ int16 Bsp::regenerate_clipnodes(int iNode, int hullIdx) {
 	return newClipnodeIdx;
 }
 
-void Bsp::regenerate_clipnodes(int modelIdx) {
-	BSPMODEL& model = models[modelIdx];	
+void Bsp::regenerate_clipnodes(int modelIdx, int hullIdx) {
+	BSPMODEL& model = models[modelIdx];
 
 	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		if (hullIdx >= 0 && hullIdx != i)
+			continue;
+
 		// first create a bounding box for the model. For some reason this is needed to prevent
 		// planes from extended farther than they should. All clip types do this.
 		int solidNodeIdx = create_clipnode_box(model.nMins, model.nMaxs, &model, i, false); // fills in the headnode
 		
 		for (int k = 0; k < 2; k++) {
 			if (clipnodes[solidNodeIdx].iChildren[k] == CONTENTS_SOLID) {
-				clipnodes[solidNodeIdx].iChildren[k] = regenerate_clipnodes(model.iHeadnodes[0], i);
+				clipnodes[solidNodeIdx].iChildren[k] = regenerate_clipnodes_from_nodes(model.iHeadnodes[0], i);
 			}
 		}
 

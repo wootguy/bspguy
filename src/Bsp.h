@@ -204,8 +204,8 @@ public:
 
 	// for use after scaling a model. Convex only.
 	// Skips axis-aligned planes (bounding box should have been generated beforehand)
-	void regenerate_clipnodes(int modelIdx);
-	int16 regenerate_clipnodes(int iNode, int hullIdx);
+	void regenerate_clipnodes(int modelIdx, int hullIdx);
+	int16 regenerate_clipnodes_from_nodes(int iNode, int hullIdx);
 
 	int create_clipnode();
 	int create_plane();
