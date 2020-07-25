@@ -164,6 +164,56 @@ void Gui::pasteTexture() {
 	refreshSelectedFaces = true;
 }
 
+void Gui::copyLightmap() {
+	if (!app->pickInfo.valid) {
+		return;
+	}
+
+	Bsp* map = app->pickInfo.map;
+
+	copiedLightmapFace = app->pickInfo.faceIdx;
+	qrad_init_globals(map);
+
+	int size[2];
+	GetFaceLightmapSize(app->pickInfo.faceIdx, size);
+	copiedLightmap.width = size[0];
+	copiedLightmap.height = size[1];
+	copiedLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
+	//copiedLightmap.luxelFlags = new byte[size[0] * size[1]];
+	//qrad_get_lightmap_flags(map, app->pickInfo.faceIdx, copiedLightmap.luxelFlags);
+}
+
+void Gui::pasteLightmap() {
+	if (!app->pickInfo.valid) {
+		return;
+	}
+
+	Bsp* map = app->pickInfo.map;
+
+	int size[2];
+	GetFaceLightmapSize(app->pickInfo.faceIdx, size);
+	LIGHTMAP dstLightmap;
+	dstLightmap.width = size[0];
+	dstLightmap.height = size[1];
+	dstLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
+
+	if (dstLightmap.width != copiedLightmap.width || dstLightmap.height != copiedLightmap.height) {
+		logf("WARNING: lightmap sizes don't match (%dx%d != %d%d)",
+			copiedLightmap.width,
+			copiedLightmap.height,
+			dstLightmap.width,
+			dstLightmap.height);
+		// TODO: resize the lightmap, or maybe just shift if the face is the same size
+	}
+
+	BSPFACE& src = map->faces[copiedLightmapFace];
+	BSPFACE& dst = map->faces[app->pickInfo.faceIdx];
+	dst.nLightmapOffset = src.nLightmapOffset;
+	memcpy(dst.nStyles, src.nStyles, 4);
+
+	app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
+}
+
 void Gui::draw3dContextMenus() {
 	ImGuiContext& g = *GImGui;
 
@@ -381,6 +431,21 @@ void Gui::draw3dContextMenus() {
 			}
 			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && copiedMiptex < map->textureCount)) {
 				pasteTexture();
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Copy lightmap", "(WIP)")) {
+				copyLightmap();
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Only works for faces with matching sizes/extents,\nand the lightmap might get shifted.");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Paste lightmap", "", false, copiedLightmapFace >= 0 && copiedLightmapFace < map->faceCount)) {
+				pasteLightmap();
 			}
 
 			ImGui::EndPopup();

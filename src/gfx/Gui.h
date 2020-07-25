@@ -8,6 +8,7 @@
 #include "remap.h"
 #include "bsptypes.h"
 #include "Texture.h"
+#include "qtools/rad.h"
 
 struct ModelInfo {
 	string classname;
@@ -44,6 +45,8 @@ public:
 	void openContextMenu(int entIdx);
 	void copyTexture();
 	void pasteTexture();
+	void copyLightmap();
+	void pasteLightmap();
 
 private:
 	bool vsync = true;
@@ -86,6 +89,8 @@ private:
 	int emptyContextMenu = 0; // open context menu for rightclicking world/void
 
 	int copiedMiptex = -1;
+	int copiedLightmapFace = -1; // index into faces
+	LIGHTMAP copiedLightmap;
 	bool refreshSelectedFaces = false;
 
 	ImGuiTextBuffer Buf;
