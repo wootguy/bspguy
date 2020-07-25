@@ -760,7 +760,8 @@ void Renderer::cameraPickingControls() {
 						*modelFaceVerts[i].ptr = modelFaceVerts[i].pos;
 					}
 				}
-				invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
+				invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false, true);
+				gui->reloadLimits();
 
 				int modelIdx = pickInfo.ent->getBspModelIdx();
 				if (pickInfo.modelIdx >= 0)
@@ -787,7 +788,9 @@ void Renderer::applyTransform() {
 		bool movingOrigin = transformTarget == TRANSFORM_ORIGIN;
 
 		if (transformingVerts || scalingObject) {
-			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
+			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false, true);
+			gui->reloadLimits();
+
 			for (int i = 0; i < modelVerts.size(); i++) {
 				modelVerts[i].startPos = modelVerts[i].pos;
 				if (!invalidSolid) {
@@ -831,6 +834,7 @@ void Renderer::applyTransform() {
 					}
 				}
 				
+				updateModelVerts();
 				//mapRenderers[pickInfo.mapIdx]->reloadLightmaps();
 			}
 		}
@@ -1365,6 +1369,8 @@ void Renderer::drawPlane(BSPPLANE& plane, COLOR3 color) {
 }
 
 void Renderer::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
+	if (iNode == -1)
+		return;
 	BSPCLIPNODE& node = map->clipnodes[iNode];
 
 	if (currentPlane == activePlane)
@@ -1859,7 +1865,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	}
 
 	// update planes for picking
-	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false);
+	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false, false);
 
 	//
 	// TODO: I have no idea what I'm doing but this code scales axis-aligned texture coord axes correctly.
@@ -1954,7 +1960,7 @@ void Renderer::moveSelectedVerts(vec3 delta) {
 		}
 	}
 
-	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, true);
+	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, true, false);
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 }
 
@@ -2181,7 +2187,7 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 		}
 	}
 
-	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, true);
+	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, true, false);
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
 }
 
@@ -2252,6 +2258,11 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	if (copiedEnt == NULL)
 		return;
 
+	if (pickInfo.map == NULL) {
+		logf("Select a map before pasting an ent\n");
+		return;
+	}
+
 	Bsp* map = getMapContainingCamera()->map;
 
 	Entity* insertEnt = new Entity();
@@ -2271,6 +2282,7 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	map->ents.push_back(insertEnt);
 
 	pickInfo.entIdx = map->ents.size() - 1;
+	pickInfo.ent = map->ents[pickInfo.entIdx];
 	pickInfo.valid = true;
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
 }

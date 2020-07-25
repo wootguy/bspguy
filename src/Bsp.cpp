@@ -305,7 +305,7 @@ vector<ScalableTexinfo> Bsp::getScalableTexinfos(int modelIdx) {
 	return scalable;
 }
 
-bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly) {
+bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly, bool regenClipnodes) {
 	set<int> affectedPlanes;
 
 	map<int, vector<vec3>> planeVerts;
@@ -393,6 +393,10 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 
 	BSPMODEL& model = models[modelIdx];
 	getBoundingBox(allVertPos, model.nMins, model.nMaxs);
+
+	if (!regenClipnodes)
+		return true;
+
 	regenerate_clipnodes(modelIdx);
 
 	return true;
@@ -3533,6 +3537,22 @@ void Bsp::update_lump_pointers() {
 	textureCount = *((int32_t*)(lumps[LUMP_TEXTURES]));
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
+
+	if (planeCount > MAX_MAP_PLANES) logf("Overflowed Planes !!!");
+	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!");
+	if (leafCount > MAX_MAP_LEAVES) logf("Overflowed leaves !!!");
+	if (modelCount > MAX_MAP_MODELS) logf("Overflowed models !!!");
+	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!");
+	if (nodeCount > MAX_MAP_NODES) logf("Overflowed nodes !!!");
+	if (vertCount > MAX_MAP_VERTS) logf("Overflowed verts !!!");
+	if (faceCount > MAX_MAP_FACES) logf("Overflowed faces !!!");
+	if (clipnodeCount > MAX_MAP_CLIPNODES) logf("Overflowed clipnodes !!!");
+	if (marksurfCount > MAX_MAP_MARKSURFS) logf("Overflowed marksurfs !!!");
+	if (surfedgeCount > MAX_MAP_SURFEDGES) logf("Overflowed surfedges !!!");
+	if (edgeCount > MAX_MAP_EDGES) logf("Overflowed edges !!!");
+	if (textureCount > MAX_MAP_TEXTURES) logf("Overflowed textures !!!");
+	if (lightDataLength > MAX_MAP_LIGHTDATA) logf("Overflowed lightdata !!!");
+	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!");
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {

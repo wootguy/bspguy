@@ -148,7 +148,7 @@ public:
 	// fixes up the model planes/nodes after vertex posisions have been modified
 	// returns false if the model has non-planar faces
 	// TODO: split any planes shared with other models
-	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly);
+	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly, bool regenClipnodes);
 
 	void load_ents();
 
