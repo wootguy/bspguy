@@ -157,6 +157,9 @@ public:
 
 	vec3 get_model_center(int modelIdx);
 
+	// returns the number of lightmaps applied to the face, or 0 if it has no lighting
+	int lightmap_count(int faceIdx);
+
 	bool isValid(); // check if any lumps are overflowed
 
 	// delete structures not used by the map (needed after deleting models/hulls)
@@ -192,6 +195,7 @@ public:
 	int add_texture(const char* name, byte* data, int width, int height);
 
 	void replace_lump(int lumpIdx, void* newData, int newLength);
+	void append_lump(int lumpIdx, void* newData, int appendLength);
 
 	bool is_invisible_solid(Entity* ent);
 
@@ -207,6 +211,8 @@ public:
 	int create_plane();
 	int create_model();
 	int create_texinfo();
+
+	int duplicate_model(int modelIdx);
 
 	// if the face's texinfo is not unique, a new one is created and returned. Otherwise, it's current texinfo is returned
 	BSPTEXTUREINFO* get_unique_texinfo(int faceIdx);

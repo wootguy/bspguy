@@ -22,7 +22,7 @@ void qrad_init_globals(Bsp* bsp) {
 	g_dedges = (BSPEDGE*)bsp->lumps[LUMP_EDGES];
 	g_dvertexes = (vec3*)bsp->lumps[LUMP_VERTICES];
 
-	int planeCount = bsp->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
+	int planeCount = bsp->planeCount;
 
 	for (int i = 0; i < planeCount; i++) {
 		backplanes[i].fDist = -g_dplanes[i].fDist;

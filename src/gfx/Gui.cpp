@@ -165,6 +165,7 @@ void Gui::pasteTexture() {
 }
 
 void Gui::draw3dContextMenus() {
+	ImGuiContext& g = *GImGui;
 
 	if (app->originHovered) {
 		if (ImGui::BeginPopup("ent_context") || ImGui::BeginPopup("empty_context")) {
@@ -229,6 +230,7 @@ void Gui::draw3dContextMenus() {
 			if (ImGui::MenuItem("Delete", "Del")) {
 				app->deleteEnt();
 			}
+			ImGui::Separator();
 			if (app->pickInfo.modelIdx > 0) {
 				Bsp* map = app->pickInfo.map;
 				BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
@@ -294,6 +296,25 @@ void Gui::draw3dContextMenus() {
 					}
 
 					ImGui::EndMenu();
+				}
+
+				if (ImGui::MenuItem("Duplicate BSP model")) {
+					int newModelIdx = map->duplicate_model(app->pickInfo.modelIdx);
+					app->pickInfo.ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));
+					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+
+					app->mapRenderers[app->pickInfo.mapIdx]->updateLightmapInfos();
+					app->mapRenderers[app->pickInfo.mapIdx]->calcFaceMaths();
+					app->mapRenderers[app->pickInfo.mapIdx]->preRenderFaces();
+					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
+					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
+
+					reloadLimits();
+				}
+				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+					ImGui::BeginTooltip();
+					ImGui::TextUnformatted("Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
+					ImGui::EndTooltip();
 				}
 			}
 			ImGui::Separator();
@@ -811,7 +832,7 @@ void Gui::drawDebugWidget() {
 						ImGui::Text("Texture ID: %d", info.iMiptex);
 						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
 					}
-					
+					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
 				}
 
 			}

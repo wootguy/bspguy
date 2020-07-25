@@ -459,10 +459,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 			GetFaceLightmapSize(i, size);
 
 			int lightmapSz = size[0] * size[1];
-			int lightmapCount = 0;
-			for (int k = 0; k < 4; k++) {
-				lightmapCount += face.nStyles[k] != 255;
-			}
+			int lightmapCount = lightmap_count(i);
 			oldLightmaps[i].layers = lightmapCount;
 			lightmapSz *= lightmapCount;
 
@@ -687,7 +684,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 
 		g_progress.tick();
 
-		if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL || face.nLightmapOffset > lightDataLength)
+		if (lightmap_count(i) == 0)
 			continue;
 
 		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
@@ -726,7 +723,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 
 			g_progress.tick();
 
-			if (face.nStyles[0] == 255 || texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL || face.nLightmapOffset > lightDataLength) // no lighting
+			if (lightmap_count(i) == 0) // no lighting
 				continue;
 
 			LIGHTMAP& oldLight = oldLightmaps[i];
@@ -1019,7 +1016,7 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 
-		if (usedFaces[i] && ((int64)face.nLightmapOffset + lightmapSizes[i]) < (int64)lightDataLength) {
+		if (usedFaces[i] && ((int64)face.nLightmapOffset + lightmapSizes[i]) <= (int64)lightDataLength) {
 			memcpy(newColorData + offset, lightdata + face.nLightmapOffset, lightmapSizes[i]);
 			face.nLightmapOffset = offset;
 			offset += lightmapSizes[i];
@@ -1623,6 +1620,20 @@ vec3 Bsp::get_model_center(int modelIdx) {
 	BSPMODEL& model = models[modelIdx];
 
 	return model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+}
+
+int Bsp::lightmap_count(int faceIdx) {
+	BSPFACE& face = faces[faceIdx];
+
+	if (texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL || face.nLightmapOffset >= lightDataLength)
+		return 0;
+
+	int lightmapCount = 0;
+	for (int k = 0; k < 4; k++) {
+		lightmapCount += face.nStyles[k] != 255;
+	}
+
+	return lightmapCount;
 }
 
 void Bsp::write(string path) {
@@ -3137,6 +3148,164 @@ int Bsp::create_texinfo() {
 	return texinfoCount - 1;
 }
 
+int Bsp::duplicate_model(int modelIdx) {
+	STRUCTUSAGE usage(this);
+	mark_model_structures(modelIdx, &usage, true);
+
+	STRUCTREMAP remap(this);
+
+	vector<BSPPLANE> newPlanes;
+	for (int i = 0; i < usage.count.planes; i++) {
+		if (usage.planes[i]) {
+			remap.planes[i] = planeCount + newPlanes.size();
+			newPlanes.push_back(planes[i]);
+		}
+	}
+
+	vector<vec3> newVerts;
+	for (int i = 0; i < usage.count.verts; i++) {
+		if (usage.verts[i]) {
+			remap.verts[i] = vertCount + newVerts.size();
+			newVerts.push_back(verts[i]);
+		}
+	}
+
+	vector<BSPEDGE> newEdges;
+	for (int i = 0; i < usage.count.edges; i++) {
+		if (usage.edges[i]) {
+			remap.edges[i] = edgeCount + newEdges.size();
+
+			BSPEDGE edge = edges[i];
+			for (int k = 0; k < 2; k++)
+				edge.iVertex[k] = remap.verts[edge.iVertex[k]];
+			newEdges.push_back(edge);
+		}
+	}
+
+	vector<int32_t> newSurfedges;
+	for (int i = 0; i < usage.count.surfEdges; i++) {
+		if (usage.surfEdges[i]) {
+			remap.surfEdges[i] = surfedgeCount + newSurfedges.size();
+
+			int32_t surfedge = remap.edges[abs(surfedges[i])];
+			if (surfedges[i] < 0)
+				surfedge = -surfedge;
+			newSurfedges.push_back(surfedge);
+		}
+	}
+
+	vector<BSPTEXTUREINFO> newTexinfo;
+	for (int i = 0; i < usage.count.texInfos; i++) {
+		if (usage.texInfo[i]) {
+			remap.texInfo[i] = texinfoCount + newTexinfo.size();
+			newTexinfo.push_back(texinfos[i]);
+		}
+	}
+
+	qrad_init_globals(this);
+
+	vector<BSPFACE> newFaces;
+	vector<COLOR3> newLightmaps;
+	int lightmapAppendSz = 0;
+	for (int i = 0; i < usage.count.faces; i++) {
+		if (usage.faces[i]) {
+			remap.faces[i] = faceCount + newFaces.size();
+
+			BSPFACE face = faces[i];
+			face.iFirstEdge = remap.surfEdges[face.iFirstEdge];
+			face.iPlane = remap.planes[face.iPlane];
+			face.iTextureInfo = remap.texInfo[face.iTextureInfo];
+
+			// TODO: Check if face even has lighting
+			int size[2];
+			GetFaceLightmapSize(i, size);
+			int lightmapCount = lightmap_count(i);
+			int lightmapSz = size[0] * size[1] * lightmapCount;
+			COLOR3* lightmapSrc = (COLOR3*)(lightdata + face.nLightmapOffset);
+			for (int k = 0; k < lightmapSz; k++) {
+				newLightmaps.push_back(lightmapSrc[k]);
+			}
+
+			face.nLightmapOffset = lightmapCount != 0 ? lightDataLength + lightmapAppendSz : -1;
+			newFaces.push_back(face);
+
+			lightmapAppendSz += lightmapSz * sizeof(COLOR3);
+			logf("Duplicated %d pixel lightmap. Offset %d\n", lightmapSz, face.nLightmapOffset);
+		}
+	}
+
+	vector<BSPNODE> newNodes;
+	for (int i = 0; i < usage.count.nodes; i++) {
+		if (usage.nodes[i]) {
+			remap.nodes[i] = nodeCount + newNodes.size();
+			newNodes.push_back(nodes[i]);
+		}
+	}
+	for (int i = 0; i < newNodes.size(); i++) {
+		BSPNODE& node = newNodes[i];
+		node.firstFace = remap.faces[node.firstFace];
+		node.iPlane = remap.planes[node.iPlane];
+
+		for (int k = 0; k < 2; k++) {
+			if (node.iChildren[k] > 0) {
+				node.iChildren[k] = remap.nodes[node.iChildren[k]];
+			}
+		}
+	}
+
+	vector<BSPCLIPNODE> newClipnodes;
+	for (int i = 0; i < usage.count.clipnodes; i++) {
+		if (usage.clipnodes[i]) {
+			remap.clipnodes[i] = clipnodeCount + newClipnodes.size();
+			newClipnodes.push_back(clipnodes[i]);
+		}
+	}
+	for (int i = 0; i < newClipnodes.size(); i++) {
+		BSPCLIPNODE& clipnode = newClipnodes[i];
+		clipnode.iPlane = remap.planes[clipnode.iPlane];
+
+		for (int k = 0; k < 2; k++) {
+			if (clipnode.iChildren[k] > 0) {
+				clipnode.iChildren[k] = remap.clipnodes[clipnode.iChildren[k]];
+			}
+		}
+	}
+
+	// MAYBE TODO: duplicate leaves(?) + marksurfs + recacl vis
+
+	if (newClipnodes.size())
+		append_lump(LUMP_CLIPNODES, &newClipnodes[0], sizeof(BSPCLIPNODE) * newClipnodes.size());
+	if (newEdges.size())
+		append_lump(LUMP_EDGES, &newEdges[0], sizeof(BSPEDGE) * newEdges.size());
+	if (newFaces.size())
+		append_lump(LUMP_FACES, &newFaces[0], sizeof(BSPFACE) * newFaces.size());
+	if (newNodes.size())
+		append_lump(LUMP_NODES, &newNodes[0], sizeof(BSPNODE) * newNodes.size());
+	if (newPlanes.size())
+		append_lump(LUMP_PLANES, &newPlanes[0], sizeof(BSPPLANE) * newPlanes.size());
+	if (newSurfedges.size())
+		append_lump(LUMP_SURFEDGES, &newSurfedges[0], sizeof(int32_t) * newSurfedges.size());
+	if (newTexinfo.size())
+		append_lump(LUMP_TEXINFO, &newTexinfo[0], sizeof(BSPTEXTUREINFO) * newTexinfo.size());
+	if (newVerts.size())
+		append_lump(LUMP_VERTICES, &newVerts[0], sizeof(vec3) * newVerts.size());
+	if (newLightmaps.size())
+		append_lump(LUMP_LIGHTING, &newLightmaps[0], sizeof(COLOR3) * newLightmaps.size());
+
+	int newModelIdx = create_model();
+	BSPMODEL& oldModel = models[modelIdx];
+	BSPMODEL& newModel = models[newModelIdx];
+	memcpy(&newModel, &oldModel, sizeof(BSPMODEL));
+
+	newModel.iFirstFace = remap.faces[oldModel.iFirstFace];
+	newModel.iHeadnodes[0] = remap.nodes[oldModel.iHeadnodes[0]];
+	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		newModel.iHeadnodes[i] = remap.clipnodes[oldModel.iHeadnodes[i]];
+	}
+
+	return newModelIdx;
+}
+
 BSPTEXTUREINFO* Bsp::get_unique_texinfo(int faceIdx) {
 	BSPFACE& targetFace = faces[faceIdx];
 	int targetInfo = targetFace.iTextureInfo;
@@ -3561,4 +3730,14 @@ void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
 	header.lump[lumpIdx].nLength = newLength;
 
 	update_lump_pointers();
+}
+
+void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
+	int oldLen = header.lump[lumpIdx].nLength;
+	byte* newLump = new byte[oldLen + appendLength];
+	
+	memcpy(newLump, lumps[lumpIdx], oldLen);
+	memcpy(newLump + oldLen, newData, appendLength);
+
+	replace_lump(lumpIdx, newLump, oldLen + appendLength);
 }
