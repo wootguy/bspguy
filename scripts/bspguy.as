@@ -4,6 +4,8 @@ namespace bspguy {
 	bool noscript = false; // true if this script shouldn't be used but is loaded anyway
 	
 	dictionary no_delete_ents; // entity classes that don't work right if spawned late
+	dictionary map_loaded;
+	dictionary map_cleaned;
 
 	void print(string text) { g_Game.AlertMessage( at_console, text); }
 	void println(string text) { print(text + "\n"); }
@@ -16,12 +18,54 @@ namespace bspguy {
 	{
 		string thisMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source");
 		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map");
+		
+		if (map_cleaned.exists(thisMap)) {
+			println("Map " + nextMap + " has already been cleaned. Ignoring mapchange trigger.");
+			return;
+		}
+		if (map_loaded.exists(nextMap)) {
+			println("Map " + nextMap + " has already loaded. Ignoring mapchange trigger.");
+			return;
+		}
+		map_cleaned[thisMap] = true;
+		map_loaded[nextMap] = true;
+		
 		println("Transition from " + thisMap + " to " + nextMap);
 		
 		spawnMapEnts(nextMap);
 		deleteMapEnts(thisMap, false, true); // delete spawns immediately
 		g_Scheduler.SetTimeout("delay_respawn", 0.5f);
 		g_Scheduler.SetTimeout("deleteMapEnts", 1.0f, thisMap, false, false); // delete everything else
+	}
+	
+	void mapload(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
+	{
+		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map");
+		
+		if (map_loaded.exists(nextMap)) {
+			println("Map " + nextMap + " has already loaded. Ignoring mapload trigger.");
+			return;
+		}
+		map_loaded[nextMap] = true;
+		
+		println("Loading map " + nextMap);
+		
+		spawnMapEnts(nextMap);
+	}
+	
+	void mapclean(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
+	{
+		string cleanMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source");
+		
+		if (map_cleaned.exists(cleanMap)) {
+			println("Map " + cleanMap + " has already been cleaned. Ignoring mapclean trigger.");
+			return;
+		}
+		map_cleaned[cleanMap] = true;
+		
+		println("Cleaning map " + cleanMap);
+		
+		deleteMapEnts(cleanMap, false, false); // delete everything
 	}
 	
 	void loadMapEnts() {
@@ -167,7 +211,8 @@ namespace bspguy {
 					Vector ori = ent.pev.origin;
 					// probably a entity that spawned from a squadmaker or something
 					// skip if it's outside the map boundaries
-					if (ori.x < min.x || ori.x > max.x || ori.y < min.y || ori.y > max.y || ori.z < min.z || ori.z > max.z) {
+					bool outOfBounds = ori.x < min.x || ori.x > max.x || ori.y < min.y || ori.y > max.y || ori.z < min.z || ori.z > max.z;
+					if ((!invertFilter && outOfBounds) || (invertFilter && !outOfBounds)) {
 						continue;
 					}
 				}
@@ -234,7 +279,8 @@ namespace bspguy {
 			firstMapName = getCustomStringKeyvalue(mapchangeEnt, "$s_first_map");
 			noscript = getCustomStringKeyvalue(mapchangeEnt, "$s_noscript") == "yes";
 		} else {
-			println("ERROR: Missing entity 'bspguy_mapchage'. The BSP guy doesn't which map comes first!");
+			println("ERROR: Missing entity 'bspguy_info'. bspguy script disabled!");
+			return;
 		}
 		
 		if (noscript) {
@@ -247,6 +293,20 @@ namespace bspguy {
 		keys["delay"] = "0";
 		keys["m_iszScriptFile"] = "bspguy/bspguy";
 		keys["m_iszScriptFunctionName"] = "bspguy::mapchange";
+		keys["m_iMode"] = "1"; // trigger
+		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
+		
+		keys["targetname"] = "bspguy_mapload";
+		keys["delay"] = "0";
+		keys["m_iszScriptFile"] = "bspguy/bspguy";
+		keys["m_iszScriptFunctionName"] = "bspguy::mapload";
+		keys["m_iMode"] = "1"; // trigger
+		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
+		
+		keys["targetname"] = "bspguy_mapclean";
+		keys["delay"] = "0";
+		keys["m_iszScriptFile"] = "bspguy/bspguy";
+		keys["m_iszScriptFunctionName"] = "bspguy::mapclean";
 		keys["m_iMode"] = "1"; // trigger
 		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
 		
