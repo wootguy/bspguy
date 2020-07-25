@@ -401,11 +401,40 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 bool Bsp::move(vec3 offset, int modelIdx) {
 	BSPMODEL* target = modelIdx >= 0 ? &models[modelIdx] : NULL;
 
-	if (!target)
-		split_shared_model_structures();
+	// Submodels don't use leaves like the world model does. Only the contents of a leaf matters
+	// for submodels. All other data is ignored. bspguy will reuse world leaves in submodels to 
+	// save space, which means moving leaves for those models would likely break something else.
+	// So, don't move leaves for submodels.
+	bool dontMoveLeaves = modelIdx >= 0;
+
+	int* modelShouldBeMoved = new int[modelCount];
+
+	if (target) {
+		// only one model should be moved
+		memset(modelShouldBeMoved, 0, modelCount * sizeof(int));
+		modelShouldBeMoved[modelIdx] = 1;
+	}
+	else {
+		memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
+
+		for (int i = 0; i < ents.size(); i++) {
+			if (!ents[i]->hasKey("origin")) {
+				if (ents[i]->isBspModel()) {
+					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
+				}
+				continue;
+			}
+			if (ents[i]->isBspModel()) {
+				// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
+				if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2)
+					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
+			}
+		}
+	}
+
+	split_shared_model_structures(modelShouldBeMoved, dontMoveLeaves);
 
 	bool hasLighting = lightDataLength > 0;
-
 	LIGHTMAP* oldLightmaps = NULL;
 	LIGHTMAP* newLightmaps = NULL;
 
@@ -446,36 +475,10 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 			g_progress.tick();
 		}
 	}
-	
-	g_progress.update("Moving structures", ents.size()*2 + modelCount);
 
-	int* modelShouldBeMoved = new int[modelCount];
-	
+	g_progress.update("Moving structures", ents.size() + modelCount);
 
-	if (target) {
-		// only one model should be moved
-		memset(modelShouldBeMoved, 0, modelCount * sizeof(int));
-		modelShouldBeMoved[modelIdx] = 1;
-	}
-	else {
-		memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
-
-		for (int i = 0; i < ents.size(); i++) {
-			g_progress.tick();
-
-			if (!ents[i]->hasKey("origin")) {
-				if (ents[i]->isBspModel()) {
-					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
-				}
-				continue;
-			}
-			if (ents[i]->isBspModel()) {
-				// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
-				if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2)
-					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
-			}
-		}
-
+	if (!target) {
 		for (int i = 0; i < ents.size(); i++) {
 			g_progress.tick();
 
@@ -514,9 +517,10 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 	STRUCTUSAGE shouldBeMoved(this);
 	for (int i = 0; i < modelCount; i++) {
 		if (modelShouldBeMoved[i])
-			mark_model_structures(i, &shouldBeMoved);
+			mark_model_structures(i, &shouldBeMoved, dontMoveLeaves);
 		g_progress.tick();
 	}
+
 
 	for (int i = 0; i < nodeCount; i++) {
 		if (!shouldBeMoved.nodes[i]) {
@@ -783,16 +787,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 	}
 }
 
-void Bsp::split_shared_model_structures() {
-	bool* modelHasOrigin = new bool[modelCount];
-	memset(modelHasOrigin, 0, modelCount * sizeof(bool));
-
-	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i]->hasKey("origin") && ents[i]->isBspModel()) {
-			modelHasOrigin[ents[i]->getBspModelIdx()] = true;
-		}
-	}
-
+void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInModelsToMove) {
 	// marks which structures should not be moved
 	STRUCTUSAGE shouldMove(this);
 	STRUCTUSAGE shouldNotMove(this);
@@ -800,10 +795,10 @@ void Bsp::split_shared_model_structures() {
 	g_progress.update("Split model structures", modelCount * 2);
 
 	for (int i = 0; i < modelCount; i++) {
-		if (modelHasOrigin[i])
-			mark_model_structures(i, &shouldNotMove);
+		if (modelsToMove[i])
+			mark_model_structures(i, &shouldMove, ignoreLeavesInModelsToMove);
 		else
-			mark_model_structures(i, &shouldMove);
+			mark_model_structures(i, &shouldNotMove, false);
 
 		g_progress.tick();
 	}
@@ -883,7 +878,7 @@ void Bsp::split_shared_model_structures() {
 	remappedStuff.visitedClipnodes = newVisitedClipnodes;
 
 	for (int i = 0; i < modelCount; i++) {
-		if (!modelHasOrigin[i]) {
+		if (modelsToMove[i]) {
 			remap_model_structures(i, &remappedStuff);
 		}
 		g_progress.tick();
@@ -891,8 +886,6 @@ void Bsp::split_shared_model_structures() {
 
 	//if (duplicatePlanes)
 	//	logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicatePlanes);
-
-	delete[] modelHasOrigin;
 }
 
 int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes) {
@@ -1104,7 +1097,7 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 			delete_model(i);
 		}
 		else {
-			mark_model_structures(i, &usedStructures);
+			mark_model_structures(i, &usedStructures, false);
 		}
 	}
 
@@ -1997,7 +1990,7 @@ vector<STRUCTUSAGE*> Bsp::get_sorted_model_infos(int sortMode) {
 	for (int i = 0; i < modelCount; i++) {
 		modelStructs[i] = new STRUCTUSAGE(this);
 		modelStructs[i]->modelIdx = i;
-		mark_model_structures(i, modelStructs[i]);
+		mark_model_structures(i, modelStructs[i], false);
 		modelStructs[i]->compute_sum();
 	}
 
@@ -2258,16 +2251,12 @@ void Bsp::mark_clipnode_structures(int iNode, STRUCTUSAGE* usage) {
 	}
 }
 
-void Bsp::mark_model_structures(int modelIdx, STRUCTUSAGE* usage) {
+void Bsp::mark_model_structures(int modelIdx, STRUCTUSAGE* usage, bool skipLeaves) {
 	BSPMODEL& model = models[modelIdx];
 
 	for (int i = 0; i < model.nFaces; i++) {
 		mark_face_structures(model.iFirstFace + i, usage);
 	}
-
-	// submodels don't use leaves like the world model does.
-	// Only the contents of a leaf matters for submodels. All other data is ignored.
-	bool skipLeaves = modelIdx != 0;
 
 	if (model.iHeadnodes[0] >= 0 && model.iHeadnodes[0] < nodeCount)
 		mark_node_structures(model.iHeadnodes[0], usage, skipLeaves);
@@ -2458,7 +2447,7 @@ int Bsp::create_solid(Solid& solid, int targetModelIdx) {
 
 void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	STRUCTUSAGE usage(sourceMap);
-	sourceMap->mark_model_structures(modelIdx, &usage);
+	sourceMap->mark_model_structures(modelIdx, &usage, false);
 
 	// TODO: add the model lel
 

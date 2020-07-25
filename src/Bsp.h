@@ -222,7 +222,7 @@ private:
 	int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
 
 	// for each model, split structures that are shared with models that both have and don't have an origin
-	void split_shared_model_structures();
+	void split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInModelsToMove);
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMODEL* target);
 
@@ -247,7 +247,7 @@ private:
 
 	// marks all structures that this model uses
 	// TODO: don't mark faces in submodel leaves (unused)
-	void mark_model_structures(int modelIdx, STRUCTUSAGE* STRUCTUSAGE);
+	void mark_model_structures(int modelIdx, STRUCTUSAGE* STRUCTUSAGE, bool skipLeaves);
 	void mark_face_structures(int iFace, STRUCTUSAGE* usage);
 	void mark_node_structures(int iNode, STRUCTUSAGE* usage, bool skipLeaves);
 	void mark_clipnode_structures(int iNode, STRUCTUSAGE* usage);
