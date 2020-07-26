@@ -2046,7 +2046,6 @@ void Gui::drawHelp() {
 			if (ImGui::BeginTabItem("3D Controls")) {
 				ImGui::Dummy(ImVec2(0, 10));
 
-				// user guide from the demo
 				ImGuiIO& io = ImGui::GetIO();
 				ImGui::BulletText("WASD to move (hold SHIFT/CTRL for faster/slower movement).");
 				ImGui::BulletText("Hold right mouse button to rotate view.");
@@ -2059,6 +2058,16 @@ void Gui::drawHelp() {
 				ImGui::BulletText("While grabbing 3D transform axes:\n");
 				ImGui::Indent();
 				ImGui::BulletText("Hold SHIFT/CTRL for faster/slower adjustments");
+				ImGui::Unindent();
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Vertex Manipulation")) {
+				ImGui::Dummy(ImVec2(0, 10));
+
+				ImGuiIO& io = ImGui::GetIO();
+				ImGui::BulletText("Press F to split a face while 2 edges are selected.");
 				ImGui::Unindent();
 
 				ImGui::EndTabItem();

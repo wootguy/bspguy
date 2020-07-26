@@ -33,6 +33,7 @@
 // scaling allowing concave solids (merge0.bsp angled wedge)
 // can't select faces sometimes
 // make all commands available in the 3d editor
+// transforms gradually waste more and more planes+clipnodes until the map overflows (need smarter updates)
 
 // minor todo:
 // trigger_changesky for series maps with different skies
@@ -75,7 +76,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v3 WIP (June 2020)";
+const char* g_version_string = "bspguy v3";
 
 bool g_verbose = false;
 
