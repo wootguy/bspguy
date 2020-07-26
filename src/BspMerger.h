@@ -40,7 +40,7 @@ private:
 	// - monsters should spawn only when the current map is active
 	// - entities might need map name prefixes
 	// - entities in previous levels should be cleaned up
-	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName, bool noscript);
+	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, vector<Bsp*>& mapOrder, string firstMapName, bool noscript);
 
 	// renames any entity that shares a name with an entity in another map
 	int force_unique_ent_names_per_map(Bsp* mergedMap);

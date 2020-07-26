@@ -6,12 +6,36 @@ namespace bspguy {
 	dictionary no_delete_ents; // entity classes that don't work right if spawned late
 	dictionary map_loaded;
 	dictionary map_cleaned;
+	array<string> map_order;
+	int current_map_idx;
 
 	void print(string text) { g_Game.AlertMessage( at_console, text); }
 	void println(string text) { print(text + "\n"); }
 	
 	void delay_respawn() {
 		g_PlayerFuncs.RespawnAllPlayers(true, true);
+	}
+	
+	void mapchange_internal(string thisMap, string nextMap) {
+		for (uint i = 0; i < map_order.size(); i++) {
+			if (map_order[i] == nextMap) {
+				current_map_idx = i;
+				break;
+			}
+		}
+		
+		println("Transition from " + thisMap + " to " + nextMap);
+		
+		if (thisMap != nextMap) {
+			spawnMapEnts(nextMap);
+			deleteMapEnts(thisMap, false, true); // delete spawns immediately
+			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
+			g_Scheduler.SetTimeout("deleteMapEnts", 1.0f, thisMap, false, false); // delete everything else
+		} else {
+			deleteMapEnts(thisMap, false, false);
+			spawnMapEnts(nextMap);
+			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
+		}
 	}
 	
 	void mapchange(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
@@ -30,12 +54,7 @@ namespace bspguy {
 		map_cleaned[thisMap] = true;
 		map_loaded[nextMap] = true;
 		
-		println("Transition from " + thisMap + " to " + nextMap);
-		
-		spawnMapEnts(nextMap);
-		deleteMapEnts(thisMap, false, true); // delete spawns immediately
-		g_Scheduler.SetTimeout("delay_respawn", 0.5f);
-		g_Scheduler.SetTimeout("deleteMapEnts", 1.0f, thisMap, false, false); // delete everything else
+		mapchange_internal(thisMap, nextMap);
 	}
 	
 	void mapload(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
@@ -274,10 +293,20 @@ namespace bspguy {
 	
 	void MapActivate() {		
 		string firstMapName;
-		CBaseEntity@ mapchangeEnt = g_EntityFuncs.FindEntityByTargetname(null, "bspguy_info");
-		if (mapchangeEnt !is null) {
-			firstMapName = getCustomStringKeyvalue(mapchangeEnt, "$s_first_map");
-			noscript = getCustomStringKeyvalue(mapchangeEnt, "$s_noscript") == "yes";
+		CBaseEntity@ infoEnt = g_EntityFuncs.FindEntityByTargetname(null, "bspguy_info");
+		if (infoEnt !is null) {
+			firstMapName = getCustomStringKeyvalue(infoEnt, "$s_map0");
+			current_map_idx = 0;
+			
+			for (int i = 0; i < 64; i++) {
+				string mapName = getCustomStringKeyvalue(infoEnt, "$s_map" + i);
+				if (mapName.Length() > 0)
+					map_order.insertLast(mapName);
+				else
+					break;
+			}
+			
+			noscript = getCustomStringKeyvalue(infoEnt, "$s_noscript") == "yes";
 		} else {
 			println("ERROR: Missing entity 'bspguy_info'. bspguy script disabled!");
 			return;
@@ -285,6 +314,11 @@ namespace bspguy {
 		
 		if (noscript) {
 			println("WARNING: this map was not intended to be used with the bspguy script!");
+			return;
+		}
+		
+		if (firstMapName.Length() == 0) {
+			println("ERROR: bspguy_info entity has no $s_mapX keys. bspguy script disabled!");
 			return;
 		}
 		
@@ -313,6 +347,81 @@ namespace bspguy {
 		// all entities in all sections are spawned by now. Delete everything except for the ents in the first section.
 		// It may be a bit slow to spawn all ents at first, but that will ensure everything is precached
 		deleteMapEnts(firstMapName, true, false);
+	}
+
+	void printMapSections(CBasePlayer@ plr) {
+		g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, "Map sections:\n");	
+		for (uint i = 0; i < map_order.size(); i++) {
+			string begin = i < 9 ? "     " : "    ";
+			string end = i == uint(current_map_idx) ? "    (CURRENT SECTION)\n" : "\n";
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, begin + (i+1) + ") " +  map_order[i] + end);
+		}
+	}
+
+	void doCommand(CBasePlayer@ plr, const CCommand@ args, bool inConsole) {
+		bool isAdmin = g_PlayerFuncs.AdminLevel(plr) >= ADMIN_YES;
+		
+		if (args.ArgC() >= 2)
+		{
+			if (args[1] == "version") {
+				g_PlayerFuncs.SayText(plr, "bspguy script v1\n");
+			}
+			if (args[1] == "list") {
+				printMapSections(plr);
+			}
+			if (args[1] == "mapchange") {
+				if (!isAdmin) {
+					g_PlayerFuncs.SayText(plr, "Only admins can use that command.\n");
+					return;
+				}
+				if (args.ArgC() >= 3) {
+					string arg = args[2];
+					string thisMap = map_order[current_map_idx];
+					string nextMap;
+					for (uint i = 0; i < map_order.size(); i++) {
+						if (arg.ToLowercase() == map_order[i].ToLowercase()) {
+							nextMap = arg;
+							break;
+						}
+					}
+					if (nextMap.Length() == 0) {
+						uint idx = atoi(arg) - 1;
+						if (idx < map_order.size()) {
+							nextMap = map_order[idx];
+						}
+					}
+					if (nextMap.Length() == 0) {
+						g_PlayerFuncs.SayText(plr, "Invalid section name/number. See \"bspguy list\" output.\n");
+					} else {
+						mapchange_internal(thisMap, nextMap);
+						printMapSections(plr);
+					}
+				} else {
+					if (current_map_idx >= int(map_order.size())-1) {
+						g_PlayerFuncs.SayText(plr, "This is the last map section.\n");
+					} else {
+						string thisMap = map_order[current_map_idx];
+						string nextMap = map_order[current_map_idx+1];
+						
+						mapchange_internal(thisMap, nextMap);
+						printMapSections(plr);
+					}
+				}
+			}
+		} else {			
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '----------------------------------bspguy commands----------------------------------\n\n');
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, 'Type "bspguy list" to list map sections.\n\n');
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, 'Type "bspguy mapchange [name|number]" to transition to a new map section.\n');
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '    [name|number] = Optional. Map section name or number to load (as shown in "bspguy list")\n');
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '\n-----------------------------------------------------------------------------------\n\n');
+		}
+	}
+
+	CClientCommand _bspguy("bspguy", "bspguy commands", @bspguy::consoleCmd );
+
+	void consoleCmd( const CCommand@ args ) {
+		CBasePlayer@ plr = g_ConCommandSystem.GetCurrentPlayer();
+		doCommand(plr, args, true);
 	}
 }
 

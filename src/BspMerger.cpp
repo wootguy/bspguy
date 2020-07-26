@@ -102,7 +102,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool noscript)
 					flattenedBlocks.push_back(blocks[z][y][x]);
 
 		logf("\nUpdating map series entity logic:\n");
-		update_map_series_entity_logic(output, flattenedBlocks, maps[0]->name, noscript);
+		update_map_series_entity_logic(output, flattenedBlocks, maps, maps[0]->name, noscript);
 	}
 
 	return output;
@@ -227,7 +227,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 typedef map< string, set<string> > mapStringToSet;
 typedef map< string, MAPBLOCK > mapStringToMapBlock;
 
-void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, string firstMapName, bool noscript) {
+void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, vector<Bsp*>& mapOrder, string firstMapName, bool noscript) {
 	int originalEntCount = mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
@@ -245,9 +245,14 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		Entity* map_info = new Entity();
 		map_info->addKeyvalue("origin", map_info_origin.toKeyvalueString());
 		map_info->addKeyvalue("targetname", "bspguy_info");
-		map_info->addKeyvalue("$s_first_map", firstMapName);
 		map_info->addKeyvalue("$s_noscript", noscript ? "yes" : "no");
+		map_info->addKeyvalue("$s_version", g_version_string);
 		map_info->addKeyvalue("classname", "info_target");
+
+		for (int i = 0; i < mapOrder.size(); i++) {
+			map_info->addKeyvalue("$s_map" + to_string(i), mapOrder[i]->name);
+		}
+
 		mergedMap->ents.push_back(map_info);
 		map_info_origin.z += 10;
 	}
@@ -266,6 +271,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			map_info->addKeyvalue("targetname", "bspguy_info_" + sourceMapName);
 			map_info->addKeyvalue("$v_min", map_min.toKeyvalueString());
 			map_info->addKeyvalue("$v_max", map_max.toKeyvalueString());
+			map_info->addKeyvalue("$v_offset", sourceMap.offset.toKeyvalueString());
 			map_info->addKeyvalue("classname", "info_target");
 			mergedMap->ents.push_back(map_info);
 			map_info_origin.z += 10;
