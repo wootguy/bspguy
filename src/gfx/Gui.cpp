@@ -317,8 +317,6 @@ void Gui::draw3dContextMenus() {
 						}
 					}
 
-					ImGui::Separator();
-
 					ImGui::EndMenu();
 				}
 
@@ -348,7 +346,7 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
-				if (ImGui::BeginMenu("Create Hull")) {
+				if (ImGui::BeginMenu("Create Hull", !app->invalidSolid && app->isTransformableSolid)) {
 					if (ImGui::MenuItem("Clipnodes")) {
 						map->regenerate_clipnodes(app->pickInfo.modelIdx, -1);
 						checkValidHulls();
@@ -366,11 +364,10 @@ void Gui::draw3dContextMenus() {
 							logf("Regenerated hull %d on model %d\n", i, app->pickInfo.modelIdx);
 						}
 					}
-
-					ImGui::Separator();
-
 					ImGui::EndMenu();
 				}
+
+				ImGui::Separator();
 
 				if (ImGui::MenuItem("Duplicate BSP model")) {
 					int newModelIdx = map->duplicate_model(app->pickInfo.modelIdx);
@@ -391,7 +388,7 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndTooltip();
 				}
 			}
-			ImGui::Separator();
+
 			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
 				app->movingEnt = !app->movingEnt;
 				if (app->movingEnt)
