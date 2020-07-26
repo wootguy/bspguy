@@ -8,7 +8,7 @@ BspMerger::BspMerger() {
 
 }
 
-Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool noscript) {
+Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript) {
 	if (maps.size() < 1) {
 		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
@@ -102,7 +102,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, bool noripent, bool noscript)
 					flattenedBlocks.push_back(blocks[z][y][x]);
 
 		logf("\nUpdating map series entity logic:\n");
-		update_map_series_entity_logic(output, flattenedBlocks, maps, maps[0]->name, noscript);
+		update_map_series_entity_logic(output, flattenedBlocks, maps, output_name, maps[0]->name, noscript);
 	}
 
 	return output;
@@ -227,7 +227,8 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 typedef map< string, set<string> > mapStringToSet;
 typedef map< string, MAPBLOCK > mapStringToMapBlock;
 
-void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, vector<Bsp*>& mapOrder, string firstMapName, bool noscript) {
+void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, 
+		vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript) {
 	int originalEntCount = mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
@@ -664,7 +665,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	mergedMap->update_ent_lump();
 
 	if (!noscript) {
-		ofstream entFile(mergedMap->name + ".ent", ios::out | ios::trunc);
+		ofstream entFile(output_name + ".ent", ios::out | ios::trunc);
 		entFile.write((const char*)mergedMap->lumps[LUMP_ENTITIES], mergedMap->header.lump[LUMP_ENTITIES].nLength - 1);
 	}
 }
