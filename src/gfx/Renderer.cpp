@@ -12,6 +12,8 @@ string g_config_dir = getConfigDir();
 string g_settings_path = g_config_dir + "bspguy.cfg";
 Renderer* g_app = NULL;
 
+future<void> Renderer::fgdFuture;
+
 void error_callback(int error, const char* description)
 {
 	logf("GLFW Error: %s\n", description);

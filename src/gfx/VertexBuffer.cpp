@@ -1,6 +1,7 @@
 #include <GL/glew.h>
 #include "VertexBuffer.h"
 #include "util.h"
+#include <string.h>
 
 VertexAttr commonAttr[VBUF_FLAGBITS] =
 {

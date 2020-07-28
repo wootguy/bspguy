@@ -83,7 +83,6 @@ public:
 	vector<BspRenderer*> mapRenderers;
 
 	Renderer();
-	Renderer(Renderer& renderer);
 	~Renderer();
 
 	void addMap(Bsp* map);
@@ -103,7 +102,7 @@ private:
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
 
-	future<void> fgdFuture;
+	static future<void> fgdFuture;
 	bool reloading = false;
 	bool reloadingGameDir = false;
 	bool isLoading = false;

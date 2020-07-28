@@ -472,6 +472,9 @@ bool createDir(const string& dirName)
 }
 
 #else
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void print_color(int colors)
 {
@@ -495,7 +498,7 @@ void print_color(int colors)
 	logf("\x1B[%s;%sm", mode, color);
 }
 
-String getConfigDir()
+string getConfigDir()
 {
 	return string("") + getenv("HOME") + "/.config/bspguy/";
 }
