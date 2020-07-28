@@ -40,11 +40,11 @@ namespace bspguy {
 	
 	void mapchange(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
-		string thisMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source");
-		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map");
+		string thisMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source").ToLowercase();
+		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
 		
 		if (map_cleaned.exists(thisMap)) {
-			println("Map " + nextMap + " has already been cleaned. Ignoring mapchange trigger.");
+			println("Map " + thisMap + " has already been cleaned. Ignoring mapchange trigger.");
 			return;
 		}
 		if (map_loaded.exists(nextMap)) {
@@ -59,7 +59,7 @@ namespace bspguy {
 	
 	void mapload(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
-		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map");
+		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
 		
 		if (map_loaded.exists(nextMap)) {
 			println("Map " + nextMap + " has already loaded. Ignoring mapload trigger.");
@@ -74,7 +74,7 @@ namespace bspguy {
 	
 	void mapclean(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
-		string cleanMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source");
+		string cleanMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source").ToLowercase();
 		
 		if (map_cleaned.exists(cleanMap)) {
 			println("Map " + cleanMap + " has already been cleaned. Ignoring mapclean trigger.");
@@ -185,7 +185,7 @@ namespace bspguy {
 	}
 	
 	void deleteMapEnts(string mapName, bool invertFilter, bool spawnsOnly) {
-	
+		mapName = mapName.ToLowercase();
 		string infoEntName = "bspguy_info_" + mapName;
 		CBaseEntity@ mapchangeEnt = g_EntityFuncs.FindEntityByTargetname(null, infoEntName);
 		
@@ -220,7 +220,7 @@ namespace bspguy {
 				CustomKeyvalues@ pCustom = ent.GetCustomKeyvalues();
 				CustomKeyvalue mapKeyvalue( pCustom.GetKeyvalue( "$s_bspguy_map_source" ) );
 				if (mapKeyvalue.Exists()) {
-					string mapSource = mapKeyvalue.GetString();
+					string mapSource = mapKeyvalue.GetString().ToLowercase();
 					if (invertFilter && mapSource == mapName) {
 						continue;
 					} else if (!invertFilter && mapSource != mapName) {
@@ -246,6 +246,8 @@ namespace bspguy {
 	}
 	
 	void spawnMapEnts(string mapName) {
+		mapName = mapName.ToLowercase();
+	
 		for (uint i = 0; i < g_ent_defs.size(); i++) {
 			string mapSource;
 			g_ent_defs[i].get("$s_bspguy_map_source", mapSource);
@@ -291,7 +293,7 @@ namespace bspguy {
 		no_delete_ents["multi_manager"] = true; // never triggers anything if spawned late
 	}
 	
-	void MapActivate() {		
+	void MapActivate() {	
 		string firstMapName;
 		CBaseEntity@ infoEnt = g_EntityFuncs.FindEntityByTargetname(null, "bspguy_info");
 		if (infoEnt !is null) {
@@ -299,7 +301,7 @@ namespace bspguy {
 			current_map_idx = 0;
 			
 			for (int i = 0; i < 64; i++) {
-				string mapName = getCustomStringKeyvalue(infoEnt, "$s_map" + i);
+				string mapName = getCustomStringKeyvalue(infoEnt, "$s_map" + i).ToLowercase();
 				if (mapName.Length() > 0)
 					map_order.insertLast(mapName);
 				else
