@@ -221,14 +221,17 @@ public:
 
 	vector<STRUCTUSAGE*> get_sorted_model_infos(int sortMode);
 
+	// for each model, split structures that are shared with models that both have and don't have an origin
+	void split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInModelsToMove);
+
+	// true if the model is sharing planes/clipnodes with other models
+	bool does_model_use_shared_structures(int modelIdx);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
 	int remove_unused_textures(bool* usedTextures, int* remappedIndexes);
 	int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
-
-	// for each model, split structures that are shared with models that both have and don't have an origin
-	void split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInModelsToMove);
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMODEL* target);
 

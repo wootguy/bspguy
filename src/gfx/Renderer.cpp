@@ -349,7 +349,7 @@ void Renderer::renderLoop() {
 
 		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
 		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
-		bool isTransformingValid = (isTransformableSolid || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
 		if (showDragAxes && !movingEnt && pickInfo.valid && pickInfo.entIdx > 0 && (isTransformingValid || isMovingOrigin)) {
 			drawTransformAxes();
 		}
@@ -358,7 +358,7 @@ void Renderer::renderLoop() {
 			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
 				drawModelVerts();
 			}
-			if (transformTarget == TRANSFORM_ORIGIN) {
+			if (transformTarget == TRANSFORM_ORIGIN && !modelUsesSharedStructures) {
 				drawModelOrigin();
 			}
 		}
@@ -1597,8 +1597,11 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 }
 
 void Renderer::updateModelVerts() {
-	if (!pickInfo.valid || pickInfo.modelIdx <= 0)
+	if (!pickInfo.valid || pickInfo.modelIdx <= 0) {
+		originSelected = false;
+		modelUsesSharedStructures = false;
 		return;
+	}
 
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
@@ -1621,12 +1624,17 @@ void Renderer::updateModelVerts() {
 		transformedOrigin = oldOrigin = pickInfo.ent->getOrigin();
 	}
 	
-	originSelected = false;
 	modelOriginBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, &modelOriginCube, 6 * 6);
+
+	modelUsesSharedStructures = map->does_model_use_shared_structures(modelIdx);
+	if (modelUsesSharedStructures) {
+		return;
+	}
 
 	if (!map->is_convex(modelIdx)) {
 		return;
 	}
+
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
 	map->getModelPlaneIntersectVerts(pickInfo.modelIdx, modelVerts); // for vertex manipulation + scaling
 	modelFaceVerts = map->getModelVerts(pickInfo.modelIdx); // for scaling only

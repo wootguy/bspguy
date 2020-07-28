@@ -172,6 +172,7 @@ private:
 	int hoverVert = -1;
 	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
+	bool modelUsesSharedStructures = false;
 
 	Entity* copiedEnt = NULL;
 

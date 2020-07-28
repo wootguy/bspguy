@@ -809,7 +809,7 @@ void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInMo
 	// TODO: handle all of these, assuming it's possible these are ever shared
 	for (int i = 1; i < shouldNotMove.count.leaves; i++) { // skip solid leaf - it doesn't matter
 		if (shouldMove.leaves[i] && shouldNotMove.leaves[i]) {
-			logf("\nError: leaf shared with models of different origin types. Something will break.\n");
+			logf("\nWarning: leaf shared with models of different origin types. Something might break.\n");
 			break;
 		}
 	}
@@ -887,6 +887,30 @@ void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInMo
 
 	//if (duplicatePlanes)
 	//	logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicatePlanes);
+}
+
+bool Bsp::does_model_use_shared_structures(int modelIdx) {
+	STRUCTUSAGE shouldMove(this);
+	STRUCTUSAGE shouldNotMove(this);
+
+	for (int i = 0; i < modelCount; i++) {
+		if (i == modelIdx)
+			mark_model_structures(i, &shouldMove, true);
+		else
+			mark_model_structures(i, &shouldNotMove, false);
+	}
+
+	for (int i = 0; i < planeCount; i++) {
+		if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
+			return true;
+		}
+	}
+	for (int i = 0; i < clipnodeCount; i++) {
+		if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
+			return true;
+		}
+	}
+	return false;
 }
 
 int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes) {

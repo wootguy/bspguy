@@ -381,6 +381,9 @@ void Gui::draw3dContextMenus() {
 					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 
 					reloadLimits();
+
+					app->pickInfo.modelIdx = newModelIdx;
+					app->updateModelVerts();
 				}
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
@@ -764,7 +767,7 @@ void Gui::drawStatusMessage() {
 	static int loadingWindowWidth = 32;
 	static int loadingWindowHeight = 32;
 
-	bool showStatus = app->invalidSolid || !app->isTransformableSolid || badSurfaceExtents || lightmapTooLarge;
+	bool showStatus = app->invalidSolid || !app->isTransformableSolid || badSurfaceExtents || lightmapTooLarge || app->modelUsesSharedStructures;
 	if (showStatus) {
 		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
@@ -773,6 +776,17 @@ void Gui::drawStatusMessage() {
 
 		if (ImGui::Begin("status", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 		{
+			if (app->modelUsesSharedStructures) {
+				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "SHARED DATA");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"Model shares planes/clipnodes with other models.\n\nDuplicate the model to enable model editing.";
+					ImGui::BeginTooltip();
+					ImGui::TextUnformatted(info);
+					ImGui::EndTooltip();
+				}
+			}
 			if (!app->isTransformableSolid) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "CONCAVE SOLID");
 				if (ImGui::IsItemHovered())
@@ -780,9 +794,7 @@ void Gui::drawStatusMessage() {
 					const char* info =
 						"Scaling and vertex manipulation don't work with concave solids yet\n";
 					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
-					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}
 			}
@@ -794,9 +806,7 @@ void Gui::drawStatusMessage() {
 						"The selected solid is not convex or has non-planar faces.\n\n"
 						"Transformations will be reverted unless you fix this.";
 					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
-					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}
 			}
@@ -808,9 +818,7 @@ void Gui::drawStatusMessage() {
 						"One or more of the selected faces contain too many texture pixels on some axis.\n\n"
 						"This will crash the game. Increase texture scale to fix.";
 					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
-					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}
 			}
@@ -822,9 +830,7 @@ void Gui::drawStatusMessage() {
 						"One or more of the selected faces contain too many texture pixels.\n\n"
 						"This will crash the game. Increase texture scale to fix.";
 					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					ImGui::TextUnformatted(info);
-					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}
 			}
@@ -1724,7 +1730,7 @@ void Gui::drawTransformWidget() {
 					app->applyTransform();
 				}
 			}
-			if (scaled && ent->isBspModel() && app->isTransformableSolid) {
+			if (scaled && ent->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {
 					app->scaleSelectedVerts(sx, sy, sz);
 				}
