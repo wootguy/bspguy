@@ -251,7 +251,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		map_info->addKeyvalue("classname", "info_target");
 
 		for (int i = 0; i < mapOrder.size(); i++) {
-			map_info->addKeyvalue("$s_map" + to_string(i), mapOrder[i]->name);
+			map_info->addKeyvalue("$s_map" + to_string(i), toLowerCase(mapOrder[i]->name));
 		}
 
 		mergedMap->ents.push_back(map_info);
@@ -269,7 +269,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 			Entity* map_info = new Entity();
 			map_info->addKeyvalue("origin", map_info_origin.toKeyvalueString());
-			map_info->addKeyvalue("targetname", "bspguy_info_" + sourceMapName);
+			map_info->addKeyvalue("targetname", "bspguy_info_" + toLowerCase(sourceMapName));
 			map_info->addKeyvalue("$v_min", map_min.toKeyvalueString());
 			map_info->addKeyvalue("$v_max", map_max.toKeyvalueString());
 			map_info->addKeyvalue("$v_offset", sourceMap.offset.toKeyvalueString());
