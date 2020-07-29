@@ -954,11 +954,14 @@ uint BspRenderer::getFaceTextureId(int faceIdx) {
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 	BSPMODEL& world = map->models[0];
+	mapOffset = map->ents[0]->getOrigin();
+	vec3 renderOffset = mapOffset.flip();
 
 	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
 
 	activeShader->bind();
 	activeShader->modelMat->loadIdentity();
+	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	activeShader->updateMatrixes();
 
 	glEnable(GL_BLEND);
@@ -969,6 +972,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			activeShader->pushMatrix(MAT_MODEL);
 			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
+			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 			activeShader->updateMatrixes();
 
 			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
@@ -987,6 +991,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[i].modelMat;
+				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				activeShader->updateMatrixes();
 
 				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, i == highlightEnt, false);
@@ -1004,6 +1009,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			activeShader->pushMatrix(MAT_MODEL);
 			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
+			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 			activeShader->updateMatrixes();
 
 			glDisable(GL_DEPTH_TEST);
@@ -1109,6 +1115,7 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 }
 
 void BspRenderer::drawPointEntities(int highlightEnt) {
+	vec3 renderOffset = mapOffset.flip();
 
 	colorShader->bind();
 
@@ -1127,6 +1134,7 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 		if (highlightEnt == i) {
 			colorShader->pushMatrix(MAT_MODEL);
 			*colorShader->modelMat = renderEnts[i].modelMat;
+			colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 			colorShader->updateMatrixes();
 
 			renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
@@ -1149,6 +1157,8 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 
 bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 	bool foundBetterPick = false;
+
+	start -= mapOffset;
 
 	if (pickPoly(start, dir, vec3(0, 0, 0), 0, pickInfo)) {
 		pickInfo.entIdx = 0;

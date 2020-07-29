@@ -116,10 +116,11 @@ void TranslateWorldToTex(Bsp* bsp, int facenum, matrix_t& m)
 {
 	BSPFACE* f;
 	BSPTEXTUREINFO* ti;
-	const BSPPLANE fp = getPlaneFromFace(bsp, f);
+	
 	int i;
 
 	f = &bsp->faces[facenum];
+	const BSPPLANE fp = getPlaneFromFace(bsp, f);
 	ti = &bsp->texinfos[f->iTextureInfo];
 	for (i = 0; i < 3; i++)
 	{

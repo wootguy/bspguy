@@ -90,6 +90,7 @@ class BspRenderer {
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
+	vec3 mapOffset;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
