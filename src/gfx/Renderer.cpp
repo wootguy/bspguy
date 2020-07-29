@@ -1132,6 +1132,8 @@ void Renderer::pickObject() {
 	}
 
 	pickClickHeld = true;
+
+	updateSelectionSize();
 }
 
 bool Renderer::transformAxisControls() {
@@ -1602,6 +1604,7 @@ void Renderer::updateModelVerts() {
 	if (!pickInfo.valid || pickInfo.modelIdx <= 0) {
 		originSelected = false;
 		modelUsesSharedStructures = false;
+		updateSelectionSize();
 		return;
 	}
 
@@ -1627,6 +1630,8 @@ void Renderer::updateModelVerts() {
 	}
 	
 	modelOriginBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, &modelOriginCube, 6 * 6);
+
+	updateSelectionSize();
 
 	modelUsesSharedStructures = map->does_model_use_shared_structures(modelIdx);
 	if (modelUsesSharedStructures) {
@@ -1654,6 +1659,25 @@ void Renderer::updateModelVerts() {
 	modelVertCubes = new cCube[numCubes];
 	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
 	//logf("%d intersection points\n", modelVerts.size());
+}
+
+void Renderer::updateSelectionSize() {
+	selectionSize = vec3();
+
+	if (!pickInfo.valid || !pickInfo.map) {
+		return;
+	}
+	
+	if (pickInfo.modelIdx > 0) {
+		vec3 mins, maxs;
+		pickInfo.map->get_model_vertex_bounds(pickInfo.modelIdx, mins, maxs);
+		selectionSize = maxs - mins;
+	}
+	else if (pickInfo.ent) {
+		EntCube* cube = pointEntRenderer->getEntCube(pickInfo.ent);
+		if (cube)
+			selectionSize = cube->maxs - cube->mins;
+	}
 }
 
 bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
@@ -1876,6 +1900,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 
 	// update planes for picking
 	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false, false);
+
+	updateSelectionSize();
 
 	//
 	// TODO: I have no idea what I'm doing but this code scales axis-aligned texture coord axes correctly.
@@ -2199,6 +2225,7 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 
 	invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, true, false);
 	mapRenderers[pickInfo.mapIdx]->refreshModel(pickInfo.ent->getBspModelIdx());
+	updateSelectionSize();
 }
 
 vec3 Renderer::getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& edge) {
@@ -2295,6 +2322,7 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	pickInfo.ent = map->ents[pickInfo.entIdx];
 	pickInfo.valid = true;
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
+	updateSelectionSize();
 }
 
 void Renderer::deleteEnt() {

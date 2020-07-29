@@ -193,7 +193,7 @@ float vec3::length()
 	return sqrt( (x*x) + (y*y) + (z*z) );
 }
 
-string vec3::toKeyvalueString(bool truncate) {
+string vec3::toKeyvalueString(bool truncate, string suffix_x, string suffix_y, string suffix_z) {
 	string parts[3] = { to_string(x) , to_string(y), to_string(z) };
 
 	// remove trailing zeros to save some space
@@ -210,7 +210,7 @@ string vec3::toKeyvalueString(bool truncate) {
 		}
 	}
 
-	return parts[0] + " " + parts[1] + " " + parts[2];
+	return parts[0] + suffix_x + parts[1] + suffix_y + parts[2] + suffix_z;
 }
 
 vec3 vec3::flip() {

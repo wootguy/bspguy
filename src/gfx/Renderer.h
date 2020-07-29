@@ -172,6 +172,7 @@ private:
 	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
 	bool modelUsesSharedStructures = false;
+	vec3 selectionSize;
 
 	Entity* copiedEnt = NULL;
 
@@ -229,6 +230,7 @@ private:
 
 	void updateDragAxes();
 	void updateModelVerts();
+	void updateSelectionSize();
 	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
 	void splitFace();

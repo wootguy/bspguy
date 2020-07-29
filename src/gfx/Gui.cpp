@@ -1668,6 +1668,11 @@ void Gui::drawTransformWidget() {
 		}
 		ImGui::PopItemWidth();
 
+		ImGui::Dummy(ImVec2(0, style.FramePadding.y*2));
+		ImGui::Separator();
+		ImGui::Dummy(ImVec2(0, style.FramePadding.y*2));
+		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(false, "w ", "l ", "h")).c_str());
+
 		if (transformingEnt) {
 			if (originChanged) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {

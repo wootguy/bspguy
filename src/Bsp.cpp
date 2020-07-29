@@ -95,15 +95,8 @@ void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
 			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
 			BSPEDGE& edge = edges[abs(edgeIdx)];
 			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-			vec3 vert = verts[vertIdx];
 
-			if (vert.x > maxs.x) maxs.x = vert.x;
-			if (vert.y > maxs.y) maxs.y = vert.y;
-			if (vert.z > maxs.z) maxs.z = vert.z;
-
-			if (vert.x < mins.x) mins.x = vert.x;
-			if (vert.y < mins.y) mins.y = vert.y;
-			if (vert.z < mins.z) mins.z = vert.z;
+			expandBoundingBox(verts[vertIdx], mins, maxs);
 		}
 	}
 }
