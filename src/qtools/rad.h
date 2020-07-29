@@ -107,26 +107,14 @@ struct LIGHTMAP
 	byte* luxelFlags;
 };
 
-extern BSPFACE* g_dfaces;
-extern BSPPLANE* g_dplanes;
-extern BSPTEXTUREINFO* g_texinfo;
-extern int32_t* g_dsurfedges;
-extern BSPEDGE* g_dedges;
-extern vec3* g_dvertexes;
-
-extern BSPPLANE backplanes[MAX_MAP_PLANES];
-
-extern const vec3_t vec3_origin;
-
 class Bsp;
 
-void qrad_init_globals(Bsp* bsp);
 void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut);
 
-const BSPPLANE* getPlaneFromFace(const BSPFACE* const face);
+const BSPPLANE getPlaneFromFace(Bsp* bsp, const BSPFACE* const face);
 
-bool GetFaceLightmapSize(int facenum, int size[2]);
-int GetFaceLightmapSizeBytes(int facenum);
-void GetFaceExtents(int facenum, int mins_out[2], int extents_out[2]);
-void CalcFaceExtents(lightinfo_t* l);
-void CalcPoints(lightinfo_t* l, byte* LuxelFlags);
+bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]);
+int GetFaceLightmapSizeBytes(Bsp* bsp, int facenum);
+void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int extents_out[2]);
+void CalcFaceExtents(Bsp* bsp, lightinfo_t* l);
+void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags);

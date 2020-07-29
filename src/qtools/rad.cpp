@@ -3,38 +3,11 @@
 #include "Bsp.h"
 #include <algorithm>
 
-BSPFACE* g_dfaces;
-BSPPLANE* g_dplanes;
-BSPTEXTUREINFO* g_texinfo;
-int32_t* g_dsurfedges;
-BSPEDGE* g_dedges;
-vec3* g_dvertexes;
-BSPPLANE backplanes[MAX_MAP_PLANES];
-
-const vec3_t vec3_origin = { 0, 0, 0 };
-
-// fill out the global vars that the qrad compiler code requires
-void qrad_init_globals(Bsp* bsp) {
-	g_dplanes = (BSPPLANE*)bsp->lumps[LUMP_PLANES];
-	g_dfaces = (BSPFACE*)bsp->lumps[LUMP_FACES];
-	g_texinfo = (BSPTEXTUREINFO*)bsp->lumps[LUMP_TEXINFO];
-	g_dsurfedges = (int32_t*)bsp->lumps[LUMP_SURFEDGES];
-	g_dedges = (BSPEDGE*)bsp->lumps[LUMP_EDGES];
-	g_dvertexes = (vec3*)bsp->lumps[LUMP_VERTICES];
-
-	int planeCount = bsp->planeCount;
-
-	for (int i = 0; i < planeCount; i++) {
-		backplanes[i].fDist = -g_dplanes[i].fDist;
-		backplanes[i].vNormal = g_dplanes[i].vNormal.invert();
-	}
-}
-
 void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
 
-	BSPFACE* f = &g_dfaces[faceIdx];
+	BSPFACE* f = &bsp->faces[faceIdx];
 
-	if (f->nStyles[0] == 255 || g_texinfo[f->iTextureInfo].nFlags & TEX_SPECIAL)
+	if (f->nStyles[0] == 255 || bsp->texinfos[f->iTextureInfo].nFlags & TEX_SPECIAL)
 		return;                                            // non-lit texture
 
 	lightinfo_t l;
@@ -42,8 +15,8 @@ void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
 	l.surfnum = faceIdx;
 	l.face = f;
 
-	CalcFaceExtents(&l);
-	CalcPoints(&l, luxelFlagsOut);
+	CalcFaceExtents(bsp, &l);
+	CalcPoints(bsp, &l, luxelFlagsOut);
 
 	return;
 }
@@ -118,7 +91,7 @@ bool InvertMatrix(const matrix_t& m, matrix_t& m_inverse)
 	return true;
 }
 
-const BSPPLANE* getPlaneFromFace(const BSPFACE* const face)
+const BSPPLANE getPlaneFromFace(Bsp* bsp, const BSPFACE* const face)
 {
 	if (!face)
 	{
@@ -127,40 +100,42 @@ const BSPPLANE* getPlaneFromFace(const BSPFACE* const face)
 
 	if (face->nPlaneSide)
 	{
-		return &backplanes[face->iPlane];
+		BSPPLANE backplane = bsp->planes[face->iPlane];
+		backplane.fDist = -backplane.fDist;
+		backplane.vNormal = backplane.vNormal.invert();
+		return backplane;
 	}
 	else
 	{
-		return &g_dplanes[face->iPlane];
+		return bsp->planes[face->iPlane];
 	}
 }
 
-void TranslateWorldToTex(int facenum, matrix_t& m)
+void TranslateWorldToTex(Bsp* bsp, int facenum, matrix_t& m)
 // without g_face_offset
 {
 	BSPFACE* f;
 	BSPTEXTUREINFO* ti;
-	const BSPPLANE* fp;
+	const BSPPLANE fp = getPlaneFromFace(bsp, f);
 	int i;
 
-	f = &g_dfaces[facenum];
-	ti = &g_texinfo[f->iTextureInfo];
-	fp = getPlaneFromFace(f);
+	f = &bsp->faces[facenum];
+	ti = &bsp->texinfos[f->iTextureInfo];
 	for (i = 0; i < 3; i++)
 	{
 		m.v[i][0] = ((vec_t*)&ti->vS)[i];
 		m.v[i][1] = ((vec_t*)&ti->vT)[i];
 	}
-	m.v[0][2] = fp->vNormal.x;
-	m.v[1][2] = fp->vNormal.y;
-	m.v[2][2] = fp->vNormal.z;
+	m.v[0][2] = fp.vNormal.x;
+	m.v[1][2] = fp.vNormal.y;
+	m.v[2][2] = fp.vNormal.z;
 
 	m.v[3][0] = ti->shiftS;
 	m.v[3][1] = ti->shiftT;
-	m.v[3][2] = -fp->fDist;
+	m.v[3][2] = -fp.fDist;
 }
 
-bool CanFindFacePosition(int facenum)
+bool CanFindFacePosition(Bsp* bsp, int facenum)
 {
 	vec_t texmins[2], texmaxs[2];
 	int imins[2], imaxs[2];
@@ -168,19 +143,19 @@ bool CanFindFacePosition(int facenum)
 	matrix_t worldtotex;
 	matrix_t textoworld;
 
-	BSPFACE* f = &g_dfaces[facenum];
-	if (g_texinfo[f->iTextureInfo].nFlags & TEX_SPECIAL)
+	BSPFACE* f = &bsp->faces[facenum];
+	if (bsp->texinfos[f->iTextureInfo].nFlags & TEX_SPECIAL)
 	{
 		return false;
 	}
 
-	TranslateWorldToTex(facenum, worldtotex);
+	TranslateWorldToTex(bsp, facenum, worldtotex);
 	if (!InvertMatrix(worldtotex, textoworld))
 	{
 		return false;
 	}
 
-	Winding facewinding(*f);
+	Winding facewinding(bsp, *f);
 	Winding texwinding(facewinding.m_NumPoints);
 	for (int x = 0; x < facewinding.m_NumPoints; x++)
 	{
@@ -220,7 +195,7 @@ bool CanFindFacePosition(int facenum)
 	return true;
 }
 
-static bool TestSampleFrag(int facenum, vec_t s, vec_t t, const vec_t square[2][2], int maxsize)
+static bool TestSampleFrag(Bsp* bsp, int facenum, vec_t s, vec_t t, const vec_t square[2][2], int maxsize)
 {
 	const vec3_t v_s = { 1, 0, 0 };
 	const vec3_t v_t = { 0, 1, 0 };
@@ -237,10 +212,10 @@ static bool TestSampleFrag(int facenum, vec_t s, vec_t t, const vec_t square[2][
 	// ChopFrag
 	// get the shape of the fragment by clipping the face using the boundaries
 	matrix_t worldtotex;
-	BSPFACE* f = &g_dfaces[head.facenum];
-	Winding facewinding(*f);
+	BSPFACE* f = &bsp->faces[head.facenum];
+	Winding facewinding(bsp, *f);
 
-	TranslateWorldToTex(head.facenum, worldtotex);
+	TranslateWorldToTex(bsp, head.facenum, worldtotex);
 	head.mywinding = new Winding(facewinding.m_NumPoints);
 	for (int x = 0; x < facewinding.m_NumPoints; x++)
 	{
@@ -257,7 +232,7 @@ static bool TestSampleFrag(int facenum, vec_t s, vec_t t, const vec_t square[2][
 	bool hasPoints = head.mywinding->m_NumPoints != 0;
 	delete head.mywinding;
 
-	return hasPoints && CanFindFacePosition(head.facenum);
+	return hasPoints && CanFindFacePosition(bsp, head.facenum);
 }
 
 float CalculatePointVecsProduct(const volatile float* point, const volatile float* vecs)
@@ -275,11 +250,11 @@ float CalculatePointVecsProduct(const volatile float* point, const volatile floa
 	return (float)val;
 }
 
-bool GetFaceLightmapSize(int facenum, int size[2]) {
+bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]) {
 	int mins[2];
 	int maxs[2];
 
-	GetFaceExtents(facenum, mins, maxs);
+	GetFaceExtents(bsp, facenum, mins, maxs);
 
 	size[0] = (maxs[0] - mins[0]);
 	size[1] = (maxs[1] - mins[1]);
@@ -299,10 +274,10 @@ bool GetFaceLightmapSize(int facenum, int size[2]) {
 	return !badSurfaceExtents;
 }
 
-int GetFaceLightmapSizeBytes(int facenum) {
+int GetFaceLightmapSizeBytes(Bsp* bsp, int facenum) {
 	int size[2];
-	GetFaceLightmapSize(facenum, size);
-	BSPFACE& face = g_dfaces[facenum];
+	GetFaceLightmapSize(bsp, facenum, size);
+	BSPFACE& face = bsp->faces[facenum];
 
 	int lightmapCount = 0;
 	for (int k = 0; k < 4; k++) {
@@ -311,7 +286,7 @@ int GetFaceLightmapSizeBytes(int facenum) {
 	return size[0] * size[1] * lightmapCount * sizeof(COLOR3);
 }
 
-void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
+void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 {
 	//CorrectFPUPrecision();
 
@@ -322,23 +297,23 @@ void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
 	BSPTEXTUREINFO* tex;
 	int bmins[2], bmaxs[2];
 
-	f = &g_dfaces[facenum];
+	f = &bsp->faces[facenum];
 
 	mins[0] = mins[1] = 999999;
 	maxs[0] = maxs[1] = -99999;
 
-	tex = &g_texinfo[f->iTextureInfo];
+	tex = &bsp->texinfos[f->iTextureInfo];
 
 	for (i = 0; i < f->nEdges; i++)
 	{
-		e = g_dsurfedges[f->iFirstEdge + i];
+		e = bsp->surfedges[f->iFirstEdge + i];
 		if (e >= 0)
 		{
-			v = &g_dvertexes[g_dedges[e].iVertex[0]];
+			v = &bsp->verts[bsp->edges[e].iVertex[0]];
 		}
 		else
 		{
-			v = &g_dvertexes[g_dedges[-e].iVertex[1]];
+			v = &bsp->verts[bsp->edges[-e].iVertex[1]];
 		}
 		for (j = 0; j < 2; j++)
 		{
@@ -370,7 +345,7 @@ void GetFaceExtents(int facenum, int mins_out[2], int maxs_out[2])
 	}
 }
 
-void CalcFaceExtents(lightinfo_t* l)
+void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 {
 	const int       facenum = l->surfnum;
 	BSPFACE* s;
@@ -384,18 +359,18 @@ void CalcFaceExtents(lightinfo_t* l)
 	mins[0] = mins[1] = 99999999;
 	maxs[0] = maxs[1] = -99999999;
 
-	tex = &g_texinfo[s->iTextureInfo];
+	tex = &bsp->texinfos[s->iTextureInfo];
 
 	for (i = 0; i < s->nEdges; i++)
 	{
-		e = g_dsurfedges[s->iFirstEdge + i];
+		e = bsp->surfedges[s->iFirstEdge + i];
 		if (e >= 0)
 		{
-			v = g_dvertexes + g_dedges[e].iVertex[0];
+			v = bsp->verts + bsp->edges[e].iVertex[0];
 		}
 		else
 		{
-			v = g_dvertexes + g_dedges[-e].iVertex[1];
+			v = bsp->verts + bsp->edges[-e].iVertex[1];
 		}
 
 		for (j = 0; j < 2; j++)
@@ -417,7 +392,7 @@ void CalcFaceExtents(lightinfo_t* l)
 
 	int bmins[2];
 	int bmaxs[2];
-	GetFaceExtents(l->surfnum, bmins, bmaxs);
+	GetFaceExtents(bsp, l->surfnum, bmins, bmaxs);
 	for (i = 0; i < 2; i++)
 	{
 		mins[i] = bmins[i];
@@ -439,10 +414,10 @@ void CalcFaceExtents(lightinfo_t* l)
 	}
 }
 
-void CalcPoints(lightinfo_t* l, byte* LuxelFlags)
+void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags)
 {
 	const int       facenum = l->surfnum;
-	const BSPFACE* f = g_dfaces + facenum;
+	const BSPFACE* f = bsp->faces + facenum;
 	const int       h = l->texsize[1] + 1;
 	const int       w = l->texsize[0] + 1;
 	const vec_t     starts = l->texmins[0] * TEXTURE_STEP;
@@ -462,7 +437,7 @@ void CalcPoints(lightinfo_t* l, byte* LuxelFlags)
 			square[1][0] = us + TEXTURE_STEP;
 			square[1][1] = ut + TEXTURE_STEP;
 
-			*pLuxelFlags = TestSampleFrag(l->surfnum, us, ut, square, 100) ? LightNormal : LightOutside;
+			*pLuxelFlags = TestSampleFrag(bsp, l->surfnum, us, ut, square, 100) ? LightNormal : LightOutside;
 		}
 	}
 

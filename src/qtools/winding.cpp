@@ -42,7 +42,7 @@ Winding::~Winding()
     delete[] m_Points;
 }
 
-Winding::Winding(const BSPFACE& face, vec_t epsilon)
+Winding::Winding(Bsp* bsp, const BSPFACE& face, vec_t epsilon)
 {
     int             se;
     vec3*      dv;
@@ -54,17 +54,17 @@ Winding::Winding(const BSPFACE& face, vec_t epsilon)
     unsigned i;
     for (i = 0; i < face.nEdges; i++)
     {
-        se = g_dsurfedges[face.iFirstEdge + i];
+        se = bsp->surfedges[face.iFirstEdge + i];
         if (se < 0)
         {
-            v = g_dedges[-se].iVertex[1];
+            v = bsp->edges[-se].iVertex[1];
         }
         else
         {
-            v = g_dedges[se].iVertex[0];
+            v = bsp->edges[se].iVertex[0];
         }
 
-        dv = &g_dvertexes[v];
+        dv = &bsp->verts[v];
         VectorCopy((vec_t*)dv, m_Points[i]);
     }
 

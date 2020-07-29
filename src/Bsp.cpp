@@ -443,13 +443,11 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 		memset(oldLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
 		memset(newLightmaps, 0, sizeof(LIGHTMAP) * faceCount);
 
-		qrad_init_globals(this);
-
 		for (int i = 0; i < faceCount; i++) {
 			BSPFACE& face = faces[i];
 
 			int size[2];
-			GetFaceLightmapSize(i, size);
+			GetFaceLightmapSize(this, i, size);
 
 			int lightmapSz = size[0] * size[1];
 			int lightmapCount = lightmap_count(i);
@@ -668,7 +666,6 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 	g_progress.update("Recalculate lightmaps", faceCount);
 
 	// calculate new lightmap sizes
-	qrad_init_globals(this);
 	int newLightDataSz = 0;
 	int totalLightmaps = 0;
 	int lightmapsResizeCount = 0;
@@ -685,7 +682,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 		int size[2];
-		GetFaceLightmapSize(i, size);
+		GetFaceLightmapSize(this, i, size);
 
 		int lightmapSz = size[0] * size[1];
 
@@ -1015,14 +1012,12 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	int oldLightdataSize = lightDataLength;
 
-	qrad_init_globals(this);
-
 	int* lightmapSizes = new int[faceCount];
 
 	int newLightDataSize = 0;
 	for (int i = 0; i < faceCount; i++) {
 		if (usedFaces[i]) {
-			lightmapSizes[i] = GetFaceLightmapSizeBytes(i);
+			lightmapSizes[i] = GetFaceLightmapSizeBytes(this, i);
 			newLightDataSize += lightmapSizes[i];
 		}
 	}
@@ -3219,8 +3214,6 @@ int Bsp::duplicate_model(int modelIdx) {
 		}
 	}
 
-	qrad_init_globals(this);
-
 	vector<BSPFACE> newFaces;
 	vector<COLOR3> newLightmaps;
 	int lightmapAppendSz = 0;
@@ -3235,7 +3228,7 @@ int Bsp::duplicate_model(int modelIdx) {
 
 			// TODO: Check if face even has lighting
 			int size[2];
-			GetFaceLightmapSize(i, size);
+			GetFaceLightmapSize(this, i, size);
 			int lightmapCount = lightmap_count(i);
 			int lightmapSz = size[0] * size[1] * lightmapCount;
 			COLOR3* lightmapSrc = (COLOR3*)(lightdata + face.nLightmapOffset);
@@ -3453,11 +3446,9 @@ void Bsp::dump_lightmap(int faceIdx, string outputPath) {
 
 	BSPFACE& face = faces[faceIdx];
 
-	qrad_init_globals(this);
-
 	int mins[2];
 	int extents[2];
-	GetFaceExtents(faceIdx, mins, extents);
+	GetFaceExtents(this, faceIdx, mins, extents);
 
 	int lightmapSz = extents[0] * extents[1];
 
@@ -3476,8 +3467,6 @@ void Bsp::dump_lightmap_atlas(string outputPath) {
 
 	memset(pngData, 0, sz * sizeof(COLOR3));
 
-	qrad_init_globals(this);
-
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 
@@ -3488,7 +3477,7 @@ void Bsp::dump_lightmap_atlas(string outputPath) {
 		int atlasY = (i / lightmapsPerDim)*lightmapWidth;
 
 		int size[2];
-		GetFaceLightmapSize(i, size);
+		GetFaceLightmapSize(this, i, size);
 
 		int lightmapWidth = size[0];
 		int lightmapHeight = size[1];

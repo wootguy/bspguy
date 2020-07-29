@@ -241,7 +241,6 @@ void BspRenderer::loadLightmaps() {
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
 
 	logf("Calculating lightmaps\n");
-	qrad_init_globals(map);
 
 	int lightmapCount = 0;
 	int atlasId = 0;
@@ -256,8 +255,8 @@ void BspRenderer::loadLightmaps() {
 		int dummy[2];
 		int imins[2];
 		int imaxs[2];
-		GetFaceLightmapSize(i, size);
-		GetFaceExtents(i, imins, imaxs);
+		GetFaceLightmapSize(map, i, size);
+		GetFaceExtents(map, i, imins, imaxs);
 
 		LightmapInfo& info = lightmaps[i];
 		info.w = size[0];

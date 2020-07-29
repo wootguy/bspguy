@@ -172,10 +172,9 @@ void Gui::copyLightmap() {
 	Bsp* map = app->pickInfo.map;
 
 	copiedLightmapFace = app->pickInfo.faceIdx;
-	qrad_init_globals(map);
 
 	int size[2];
-	GetFaceLightmapSize(app->pickInfo.faceIdx, size);
+	GetFaceLightmapSize(map, app->pickInfo.faceIdx, size);
 	copiedLightmap.width = size[0];
 	copiedLightmap.height = size[1];
 	copiedLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
@@ -191,7 +190,7 @@ void Gui::pasteLightmap() {
 	Bsp* map = app->pickInfo.map;
 
 	int size[2];
-	GetFaceLightmapSize(app->pickInfo.faceIdx, size);
+	GetFaceLightmapSize(map, app->pickInfo.faceIdx, size);
 	LIGHTMAP dstLightmap;
 	dstLightmap.width = size[0];
 	dstLightmap.height = size[1];
@@ -2700,10 +2699,9 @@ void Gui::checkFaceErrors() {
 
 	Bsp* map = app->pickInfo.map;
 
-	qrad_init_globals(map);
 	for (int i = 0; i < app->selectedFaces.size(); i++) {
 		int size[2];
-		if (!GetFaceLightmapSize(app->selectedFaces[i], size)) {
+		if (!GetFaceLightmapSize(map, app->selectedFaces[i], size)) {
 			badSurfaceExtents = true;
 		}
 		if (size[0] * size[1] > MAX_LUXELS) {

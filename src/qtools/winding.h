@@ -19,7 +19,7 @@ public:
 	uint32  m_NumPoints;
 	vec3_t* m_Points;
 
-	Winding(const BSPFACE& face, vec_t epsilon = ON_EPSILON);
+	Winding(Bsp* bsp, const BSPFACE& face, vec_t epsilon = ON_EPSILON);
 	Winding(uint32 points);
 	Winding(const Winding& other);
 	virtual ~Winding();
