@@ -198,7 +198,10 @@ private:
 	vec3 debugVec3;
 	int debugInt = 0;
 	int debugIntMax = 0;
+	int debugNode = 0;
+	int debugNodeMax = 0;
 	bool debugClipnodes = false;
+	bool debugNodes = false;
 
 	vec3 getMoveDir();
 	void controls();
@@ -222,6 +225,7 @@ private:
 	void drawLine(vec3 start, vec3 end, COLOR3 color);
 	void drawPlane(BSPPLANE& plane, COLOR3 color);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
+	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);

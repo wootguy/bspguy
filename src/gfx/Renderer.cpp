@@ -339,6 +339,15 @@ void Renderer::renderLoop() {
 				glEnable(GL_CULL_FACE);
 			}
 
+			if (debugNodes && pickInfo.valid && pickInfo.modelIdx > 0) {
+				BSPMODEL& pickModel = pickInfo.map->models[pickInfo.modelIdx];
+				glDisable(GL_CULL_FACE);
+				int currentPlane = 0;
+				drawNodes(pickInfo.map, pickModel.iHeadnodes[0], currentPlane, debugNode);
+				debugNodeMax = currentPlane - 1;
+				glEnable(GL_CULL_FACE);
+			}
+
 			if (g_render_flags & RENDER_ORIGIN) {
 				colorShader->bind();
 				model.loadIdentity();
@@ -1388,6 +1397,22 @@ void Renderer::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activeP
 	}
 }
 
+void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
+	if (iNode == -1)
+		return;
+	BSPNODE& node = map->nodes[iNode];
+
+	if (currentPlane == activePlane)
+		drawPlane(map->planes[node.iPlane], { 255, 128, 128 });
+	currentPlane++;
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			drawNodes(map, node.iChildren[i], currentPlane, activePlane);
+		}
+	}
+}
+
 vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
 	vec3 origin = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3(0, 0, 0);
 	return origin + getEntOffset(map, ent);
@@ -1601,15 +1626,6 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 }
 
 void Renderer::updateModelVerts() {
-	if (!pickInfo.valid || pickInfo.modelIdx <= 0) {
-		originSelected = false;
-		modelUsesSharedStructures = false;
-		updateSelectionSize();
-		return;
-	}
-
-	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
 
 	if (modelVertBuff) {
 		delete modelVertBuff;
@@ -1620,6 +1636,18 @@ void Renderer::updateModelVerts() {
 		scaleTexinfos.clear();
 		modelEdges.clear();
 	}
+
+	if (!pickInfo.valid || pickInfo.modelIdx <= 0) {
+		originSelected = false;
+		modelUsesSharedStructures = false;
+		updateSelectionSize();
+		return;
+	}
+
+	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
+	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
+
+	
 
 	if (modelOriginBuff) {
 		delete modelOriginBuff;

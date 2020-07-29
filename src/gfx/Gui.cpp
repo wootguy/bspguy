@@ -904,6 +904,9 @@ void Gui::drawDebugWidget() {
 				if (app->pickInfo.modelIdx > 0) {
 					ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
 					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
+
+					ImGui::Checkbox("Debug nodes", &app->debugNodes);
+					ImGui::SliderInt("Node", &app->debugNode, 0, app->debugNodeMax);
 				}
 
 				if (app->pickInfo.faceIdx != -1) {
@@ -915,6 +918,11 @@ void Gui::drawDebugWidget() {
 
 					ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
 					ImGui::Text("Plane ID: %d", face.iPlane);
+
+					ImGui::Text("Headnode[0]: %d", model.iHeadnodes[0]);
+					ImGui::Text("Headnode[1]: %d", model.iHeadnodes[1]);
+					ImGui::Text("Headnode[2]: %d", model.iHeadnodes[2]);
+					ImGui::Text("Headnode[3]: %d", model.iHeadnodes[3]);
 
 					if (face.iTextureInfo < map->texinfoCount) {
 						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
