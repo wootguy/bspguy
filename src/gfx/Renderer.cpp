@@ -373,10 +373,10 @@ void Renderer::renderLoop() {
 		}
 
 		if (pickInfo.valid && pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
-			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid && !modelUsesSharedStructures) {
+			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
 				drawModelVerts();
 			}
-			if (transformTarget == TRANSFORM_ORIGIN && !modelUsesSharedStructures) {
+			if (transformTarget == TRANSFORM_ORIGIN) {
 				drawModelOrigin();
 			}
 		}
@@ -524,13 +524,18 @@ void Renderer::drawModelVerts() {
 	vec3 renderOffset = mapOffset.flip();
 	vec3 localCameraOrigin = cameraOrigin - mapOffset;
 
-	const COLOR3 vertDimColor = { 200, 200, 200 };
-	const COLOR3 vertHoverColor = { 255, 255, 255 };
-	const COLOR3 edgeDimColor = { 255, 128, 0 };
-	const COLOR3 edgeHoverColor = { 255, 255, 0 };
-	const COLOR3 selectColor = { 0, 128, 255 };
-	const COLOR3 hoverSelectColor = { 96, 200, 255 };
+	COLOR3 vertDimColor = { 200, 200, 200 };
+	COLOR3 vertHoverColor = { 255, 255, 255 };
+	COLOR3 edgeDimColor = { 255, 128, 0 };
+	COLOR3 edgeHoverColor = { 255, 255, 0 };
+	COLOR3 selectColor = { 0, 128, 255 };
+	COLOR3 hoverSelectColor = { 96, 200, 255 };
 	vec3 entOrigin = ent->getOrigin();
+
+	if (modelUsesSharedStructures) {
+		vertDimColor = { 32, 32, 32 };
+		edgeDimColor = { 64, 64, 32 };
+	}
 
 	int cubeIdx = 0;
 	for (int i = 0; i < modelVerts.size(); i++) {
@@ -591,10 +596,14 @@ void Renderer::drawModelOrigin() {
 	vec3 mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
 	Entity* ent = map->ents[pickInfo.entIdx];
 
-	const COLOR3 vertDimColor = { 0, 200, 0 };
-	const COLOR3 vertHoverColor = { 128, 255, 128 };
-	const COLOR3 selectColor = { 0, 128, 255 };
-	const COLOR3 hoverSelectColor = { 96, 200, 255 };
+	COLOR3 vertDimColor = { 0, 200, 0 };
+	COLOR3 vertHoverColor = { 128, 255, 128 };
+	COLOR3 selectColor = { 0, 128, 255 };
+	COLOR3 hoverSelectColor = { 96, 200, 255 };
+
+	if (modelUsesSharedStructures) {
+		vertDimColor = { 32, 32, 32 };
+	}
 
 	vec3 ori = transformedOrigin + mapOffset;
 	float s = (ori - cameraOrigin).length() * vertExtentFactor;
@@ -902,6 +911,9 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 
 void Renderer::cameraObjectHovering() {
 	originHovered = false;
+
+	if (modelUsesSharedStructures)
+		return;
 
 	vec3 mapOffset;
 	if (pickInfo.valid)
@@ -1689,9 +1701,6 @@ void Renderer::updateModelVerts() {
 	updateSelectionSize();
 
 	modelUsesSharedStructures = map->does_model_use_shared_structures(modelIdx);
-	if (modelUsesSharedStructures) {
-		return;
-	}
 
 	if (!map->is_convex(modelIdx)) {
 		return;
