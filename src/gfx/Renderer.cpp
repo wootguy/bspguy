@@ -1059,6 +1059,9 @@ void Renderer::moveGrabbedEnt() {
 
 void Renderer::shortcutControls() {
 	if (pickMode == PICK_OBJECT) {
+		bool anyEnterPressed = (pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) ||
+			(pressed[GLFW_KEY_KP_ENTER] && !oldPressed[GLFW_KEY_KP_ENTER]);
+
 		if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
 			movingEnt = !movingEnt;
 			if (movingEnt)
@@ -1076,7 +1079,7 @@ void Renderer::shortcutControls() {
 		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
 			gui->showTransformWidget = !gui->showTransformWidget;
 		}
-		if (anyAltPressed && pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) {
+		if (anyAltPressed && anyEnterPressed) {
 			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
 		}
 		if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
