@@ -1,3 +1,4 @@
+#include "bspguy_equip"
 
 namespace bspguy {
 	array<dictionary> g_ent_defs;
@@ -37,6 +38,30 @@ namespace bspguy {
 			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
 		}
 	}
+
+	void load_map_no_repeat(string map) {
+		if (map_loaded.exists(map)) {
+			println("Map " + map + " has already loaded. Ignoring mapload trigger.");
+			return;
+		}
+		map_loaded[map] = true;
+		
+		println("Loading section " + map);
+		
+		spawnMapEnts(map);
+	}
+	
+	void clean_map_no_repeat(string map) {
+		if (map_cleaned.exists(map)) {
+			println("Map " + map + " has already been cleaned. Ignoring mapload trigger.");
+			return;
+		}
+		map_cleaned[map] = true;
+		
+		println("Cleaning section " + map);
+		
+		deleteMapEnts(map, false, false); // delete everything
+	}
 	
 	void mapchange(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
@@ -60,31 +85,103 @@ namespace bspguy {
 	void mapload(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
 		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
-		
-		if (map_loaded.exists(nextMap)) {
-			println("Map " + nextMap + " has already loaded. Ignoring mapload trigger.");
-			return;
-		}
-		map_loaded[nextMap] = true;
-		
-		println("Loading map " + nextMap);
-		
-		spawnMapEnts(nextMap);
+		load_map_no_repeat(nextMap);
 	}
 	
 	void mapclean(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
 		string cleanMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source").ToLowercase();
+		clean_map_no_repeat(cleanMap);
+	}
+	
+	void bspguy(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
+	{		
+		string loadMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_load").ToLowercase();
+		string cleanMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_clean").ToLowercase();
+		string rotate = getCustomStringKeyvalue(pCaller, "$s_bspguy_rotate");
+		string trigger = getCustomStringKeyvalue(pCaller, "$s_bspguy_trigger");
 		
-		if (map_cleaned.exists(cleanMap)) {
-			println("Map " + cleanMap + " has already been cleaned. Ignoring mapclean trigger.");
-			return;
+		if (loadMap.Length() > 0) {
+			load_map_no_repeat(loadMap);
 		}
-		map_cleaned[cleanMap] = true;
 		
-		println("Cleaning map " + cleanMap);
+		if (cleanMap.Length() > 0) {
+			clean_map_no_repeat(cleanMap);
+		}
 		
-		deleteMapEnts(cleanMap, false, false); // delete everything
+		if (rotate.Length() > 0 && pActivator !is null && pCaller !is null) {
+			println("Rotating around caller by " + rotate);
+			float rot = atof(rotate);
+			
+			Vector delta = pActivator.pev.origin - pCaller.pev.origin;
+			array<float> yawRotMat = rotationMatrix(Vector(0,0,-1), rot);
+			pActivator.pev.velocity = matMultVector(yawRotMat, pActivator.pev.velocity);
+			pActivator.pev.origin = pCaller.pev.origin + matMultVector(yawRotMat, delta);
+			
+			if (pActivator.IsPlayer()) {
+				pActivator.pev.angles = pActivator.pev.v_angle;
+				pActivator.pev.angles.y += rot;
+				pActivator.pev.fixangle = 1;
+			} else {
+				pActivator.pev.angles.y += rot;
+			}
+		}
+		
+		if (trigger.Length() > 0) {
+			int triggerTypeSep = trigger.Find("#");
+			bool killed = false;
+			
+			if (triggerTypeSep != -1) {
+				int triggerType = atoi(trigger.SubString(triggerTypeSep+1));
+				trigger = trigger.SubString(0, triggerTypeSep);
+				
+				if (triggerType == 0) {
+					useType = USE_OFF;
+				} else if (triggerType == 1) {
+					useType = USE_ON;
+				} else if (triggerType == 2) {
+					killed = true;
+					
+					CBaseEntity@ ent = null;
+					do {
+						@ent = g_EntityFuncs.FindEntityByTargetname(ent, trigger);
+						if (ent !is null) {
+							g_EntityFuncs.Remove(ent);
+						}
+					} while (ent !is null);
+				}
+			}
+			
+			if (!killed)
+				g_EntityFuncs.FireTargets(trigger, pActivator, pCaller, useType);
+		}
+	}
+	
+	array<float> rotationMatrix(Vector axis, float angle)
+	{
+		angle = angle * Math.PI / 180.0; // convert to radians
+		axis = axis.Normalize();
+		float s = sin(angle);
+		float c = cos(angle);
+		float oc = 1.0 - c;
+	 
+		array<float> mat = {
+			oc * axis.x * axis.x + c,          oc * axis.x * axis.y - axis.z * s, oc * axis.z * axis.x + axis.y * s, 0.0,
+			oc * axis.x * axis.y + axis.z * s, oc * axis.y * axis.y + c,          oc * axis.y * axis.z - axis.x * s, 0.0,
+			oc * axis.z * axis.x - axis.y * s, oc * axis.y * axis.z + axis.x * s, oc * axis.z * axis.z + c,			 0.0,
+			0.0,                               0.0,                               0.0,								 1.0
+		};
+		return mat;
+	}
+	
+	// multiply a matrix with a vector (assumes w component of vector is 1.0f) 
+	Vector matMultVector(array<float> rotMat, Vector v)
+	{
+		Vector outv;
+		outv.x = rotMat[0]*v.x + rotMat[4]*v.y + rotMat[8]*v.z  + rotMat[12];
+		outv.y = rotMat[1]*v.x + rotMat[5]*v.y + rotMat[9]*v.z  + rotMat[13];
+		outv.z = rotMat[2]*v.x + rotMat[6]*v.y + rotMat[10]*v.z + rotMat[14];
+		return outv;
 	}
 	
 	void loadMapEnts() {
@@ -263,6 +360,8 @@ namespace bspguy {
 				g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
 			}
 		}
+		
+		g_EntityFuncs.FireTargets("bspguy_start_" + mapName, null, null, USE_TOGGLE);
 	}
 	
 	CustomKeyvalue getCustomKeyvalue(CBaseEntity@ ent, string keyName) {
@@ -289,6 +388,8 @@ namespace bspguy {
 	
 	void MapInit() {
 		loadMapEnts();
+		
+		g_CustomEntityFuncs.RegisterCustomEntity( "bspguy::bspguy_equip", "bspguy_equip" );
 		
 		no_delete_ents["multi_manager"] = true; // never triggers anything if spawned late
 	}
@@ -325,25 +426,24 @@ namespace bspguy {
 		}
 		
 		dictionary keys;
-		keys["targetname"] = "bspguy_mapchange";
 		keys["delay"] = "0";
 		keys["m_iszScriptFile"] = "bspguy/bspguy";
-		keys["m_iszScriptFunctionName"] = "bspguy::mapchange";
 		keys["m_iMode"] = "1"; // trigger
+		
+		keys["targetname"] = "bspguy_mapchange";
+		keys["m_iszScriptFunctionName"] = "bspguy::mapchange";
 		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
 		
 		keys["targetname"] = "bspguy_mapload";
-		keys["delay"] = "0";
-		keys["m_iszScriptFile"] = "bspguy/bspguy";
 		keys["m_iszScriptFunctionName"] = "bspguy::mapload";
-		keys["m_iMode"] = "1"; // trigger
 		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
 		
 		keys["targetname"] = "bspguy_mapclean";
-		keys["delay"] = "0";
-		keys["m_iszScriptFile"] = "bspguy/bspguy";
 		keys["m_iszScriptFunctionName"] = "bspguy::mapclean";
-		keys["m_iMode"] = "1"; // trigger
+		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
+		
+		keys["targetname"] = "bspguy";
+		keys["m_iszScriptFunctionName"] = "bspguy::bspguy";
 		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
 		
 		// all entities in all sections are spawned by now. Delete everything except for the ents in the first section.
@@ -366,10 +466,13 @@ namespace bspguy {
 		if (args.ArgC() >= 2)
 		{
 			if (args[1] == "version") {
-				g_PlayerFuncs.SayText(plr, "bspguy script v1\n");
+				g_PlayerFuncs.SayText(plr, "bspguy script v2\n");
 			}
 			if (args[1] == "list") {
 				printMapSections(plr);
+			}
+			if (args[1] == "spawn") {
+				g_Scheduler.SetInterval("delay_respawn", 0.1, 25);
 			}
 			if (args[1] == "mapchange") {
 				if (!isAdmin) {
@@ -413,6 +516,7 @@ namespace bspguy {
 		} else {			
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '----------------------------------bspguy commands----------------------------------\n\n');
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, 'Type "bspguy list" to list map sections.\n\n');
+			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, 'Type "bspguy spawn" to test spawn points.\n\n');
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, 'Type "bspguy mapchange [name|number]" to transition to a new map section.\n');
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '    [name|number] = Optional. Map section name or number to load (as shown in "bspguy list")\n');
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, '\n-----------------------------------------------------------------------------------\n\n');
