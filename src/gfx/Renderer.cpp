@@ -1732,7 +1732,12 @@ void Renderer::updateSelectionSize() {
 		return;
 	}
 	
-	if (pickInfo.modelIdx > 0) {
+	if (pickInfo.modelIdx == 0) {
+		vec3 mins, maxs;
+		pickInfo.map->get_bounding_box(mins, maxs);
+		selectionSize = maxs - mins;
+	}
+	else if (pickInfo.modelIdx > 0) {
 		vec3 mins, maxs;
 		pickInfo.map->get_model_vertex_bounds(pickInfo.modelIdx, mins, maxs);
 		selectionSize = maxs - mins;
@@ -2387,9 +2392,11 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 
 	pickInfo.entIdx = map->ents.size() - 1;
 	pickInfo.ent = map->ents[pickInfo.entIdx];
+	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
 	pickInfo.valid = true;
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
 	updateSelectionSize();
+	pickCount++; // force transform window updage
 }
 
 void Renderer::deleteEnt() {
