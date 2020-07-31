@@ -284,6 +284,27 @@ void Gui::draw3dContextMenus() {
 				Bsp* map = app->pickInfo.map;
 				BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
 
+				if (ImGui::BeginMenu("Create Hull", !app->invalidSolid && app->isTransformableSolid)) {
+					if (ImGui::MenuItem("Clipnodes")) {
+						map->regenerate_clipnodes(app->pickInfo.modelIdx, -1);
+						checkValidHulls();
+						logf("Regenerated hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
+					}
+
+					ImGui::Separator();
+
+					for (int i = 1; i < MAX_MAP_HULLS; i++) {
+						bool isHullValid = model.iHeadnodes[i] >= 0;
+
+						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str())) {
+							map->regenerate_clipnodes(app->pickInfo.modelIdx, i);
+							checkValidHulls();
+							logf("Regenerated hull %d on model %d\n", i, app->pickInfo.modelIdx);
+						}
+					}
+					ImGui::EndMenu();
+				}
+
 				if (ImGui::BeginMenu("Delete Hull")) {
 					if (ImGui::MenuItem("All Hulls")) {
 						map->delete_hull(0, app->pickInfo.modelIdx, -1);
@@ -319,6 +340,28 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
+				if (ImGui::BeginMenu("Simplify Hull")) {
+					if (ImGui::MenuItem("Clipnodes")) {
+						map->simplify_model_collision(app->pickInfo.modelIdx, 1);
+						map->simplify_model_collision(app->pickInfo.modelIdx, 2);
+						map->simplify_model_collision(app->pickInfo.modelIdx, 3);
+						logf("Replaced hulls 1-3 on model %d with a box-shaped hull\n", app->pickInfo.modelIdx);
+					}
+
+					ImGui::Separator();
+
+					for (int i = 1; i < MAX_MAP_HULLS; i++) {
+						bool isHullValid = model.iHeadnodes[i] >= 0;
+
+						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
+							map->simplify_model_collision(app->pickInfo.modelIdx, 1);
+							logf("Replaced hull %d on model %d with a box-shaped hull\n", i, app->pickInfo.modelIdx);
+						}
+					}
+
+					ImGui::EndMenu();
+				}
+
 				bool canRedirect = model.iHeadnodes[1] != model.iHeadnodes[2] || model.iHeadnodes[1] != model.iHeadnodes[3];
 
 				if (ImGui::BeginMenu("Redirect Hull", canRedirect)) {
@@ -342,27 +385,6 @@ void Gui::draw3dContextMenus() {
 						}
 					}
 
-					ImGui::EndMenu();
-				}
-
-				if (ImGui::BeginMenu("Create Hull", !app->invalidSolid && app->isTransformableSolid)) {
-					if (ImGui::MenuItem("Clipnodes")) {
-						map->regenerate_clipnodes(app->pickInfo.modelIdx, -1);
-						checkValidHulls();
-						logf("Regenerated hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
-					}
-
-					ImGui::Separator();
-
-					for (int i = 1; i < MAX_MAP_HULLS; i++) {
-						bool isHullValid = model.iHeadnodes[i] >= 0;
-
-						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str())) {
-							map->regenerate_clipnodes(app->pickInfo.modelIdx, i);
-							checkValidHulls();
-							logf("Regenerated hull %d on model %d\n", i, app->pickInfo.modelIdx);
-						}
-					}
 					ImGui::EndMenu();
 				}
 
