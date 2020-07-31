@@ -17,6 +17,15 @@ namespace bspguy {
 		g_PlayerFuncs.RespawnAllPlayers(true, true);
 	}
 	
+	void delay_trigger(EHandle h_ent) {
+		CBaseEntity@ ent = h_ent;
+		
+		if (ent is null)
+			return;
+			
+		ent.Use(null, null, USE_TOGGLE);
+	}
+	
 	void mapchange_internal(string thisMap, string nextMap) {
 		for (uint i = 0; i < map_order.size(); i++) {
 			if (map_order[i] == nextMap) {
@@ -359,10 +368,21 @@ namespace bspguy {
 				
 				CBaseEntity@ ent = g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
 				
-				// the initial toggle trigger effect is inverted for trains that are spawned late
-				// (needs to be toggle twice before it starts moving)
+				
 				if (ent !is null && string(ent.pev.classname) == "func_train") {
-					ent.Use(null, null, USE_TOGGLE);
+					if (string(ent.pev.targetname).Length() > 0) {
+						// triggering is broken the first few times when spawned late
+						// (needs to be toggled three times before it responds properly)
+						delay_trigger(EHandle(ent));
+						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+					} else {
+						// unnamed trains are supposed to start active, but don't when spawned late.
+						// It needs to be triggered on separate server frames for it to start moving
+						delay_trigger(EHandle(ent));
+						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+					}
+					
 				}
 			}
 		}

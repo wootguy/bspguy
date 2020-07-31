@@ -1,6 +1,8 @@
 
 namespace bspguy {
 
+	const int FL_EQUIP_ALL_ON_USE = 1;
+
 	class EquipItem {
 		string classname;
 		int primaryAmmo = 0;
@@ -78,6 +80,17 @@ namespace bspguy {
 			} else if (useType == USE_OFF) {
 				applyToSpawners = false;
 				return;
+			}
+			
+			if (pev.spawnflags & FL_EQUIP_ALL_ON_USE != 0) {
+				for ( int i = 1; i <= g_Engine.maxClients; i++ )
+				{
+					CBasePlayer@ plr = g_PlayerFuncs.FindPlayerByIndex(i);
+					if (plr is null or !plr.IsConnected())
+						continue;
+					
+					equip_player(plr, false);
+				}
 			}
 			
 			if (pActivator is null or !pActivator.IsPlayer()) {
