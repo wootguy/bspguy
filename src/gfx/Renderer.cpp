@@ -912,7 +912,7 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 void Renderer::cameraObjectHovering() {
 	originHovered = false;
 
-	if (modelUsesSharedStructures)
+	if (modelUsesSharedStructures && (transformTarget != TRANSFORM_OBJECT || transformMode != TRANSFORM_MOVE))
 		return;
 
 	vec3 mapOffset;
