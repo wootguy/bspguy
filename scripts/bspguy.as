@@ -353,11 +353,17 @@ namespace bspguy {
 				string classname;
 				g_ent_defs[i].get("classname", classname);
 				
-				if (no_delete_ents.exists(classname)) {
+				if (no_delete_ents.exists(classname) || classname == "info_node" || classname == "info_node_air") {
 					continue;
 				}
 				
-				g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
+				CBaseEntity@ ent = g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
+				
+				// the initial toggle trigger effect is inverted for trains that are spawned late
+				// (needs to be toggle twice before it starts moving)
+				if (ent !is null && string(ent.pev.classname) == "func_train") {
+					ent.Use(null, null, USE_TOGGLE);
+				}
 			}
 		}
 		
@@ -392,6 +398,7 @@ namespace bspguy {
 		g_CustomEntityFuncs.RegisterCustomEntity( "bspguy::bspguy_equip", "bspguy_equip" );
 		
 		no_delete_ents["multi_manager"] = true; // never triggers anything if spawned late
+		no_delete_ents["path_track"] = true; // messes up track_train if spawned late
 	}
 	
 	void MapActivate() {	
