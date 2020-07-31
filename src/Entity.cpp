@@ -351,4 +351,25 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 			keyvalues[key] = newTargetname;
 		}
 	}
+
+	if (keyvalues["classname"] == "multi_manager") {
+		// multi_manager is a special case where the targets are in the key names
+		for (int i = 0; i < keyOrder.size(); i++) {
+			string tname = keyOrder[i];
+			size_t hashPos = tname.find("#");
+			string suffix;
+
+			// duplicate targetnames have a #X suffix to differentiate them
+			if (hashPos != string::npos) {
+				tname = keyOrder[i].substr(0, hashPos);
+				suffix = keyOrder[i].substr(hashPos);
+			}
+
+			if (tname == oldTargetname) {
+				string newKey = newTargetname + suffix;
+				keyvalues[newKey] = keyvalues[keyOrder[i]];
+				keyOrder[i] = newKey;
+			}
+		}
+	}
 }

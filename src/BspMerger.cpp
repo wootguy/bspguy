@@ -304,7 +304,9 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			origin = mergedMap->get_model_center(ent->getBspModelIdx());
 		}
 
-		if (cname == "info_player_start" || cname == "info_player_coop" || cname == "info_player_dm2") {
+		if (noscript && (cname == "info_player_start" || cname == "info_player_coop" || cname == "info_player_dm2")) {
+			// info_player_start ents are ignored if there is any active info_player_deathmatch,
+			// so this may break spawns if there are a mix of spawn types
 			cname = ent->keyvalues["classname"] = "info_player_deathmatch";
 		}
 
@@ -660,7 +662,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	logf("    Replaced %d level transitions\n", replaced_changelevels);
 	logf("    Updated %d spawn points\n", updated_spawns);
 	logf("    Replaced %d monster_* ents with squadmakers\n", updated_monsters);
-	logf("    Renamed %d entities to prevent conflicts between map sections\n", updated_monsters);
+	logf("    Renamed %d entities to prevent conflicts between map sections\n", renameCount);
 
 	mergedMap->update_ent_lump();
 
