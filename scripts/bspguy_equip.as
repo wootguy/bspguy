@@ -60,8 +60,10 @@ namespace bspguy {
 		
 		void Spawn()
 		{
-			if (!g_equipHookRegistered)
+			if (!g_equipHookRegistered) {
 				g_Hooks.RegisterHook( Hooks::Player::PlayerSpawn, @EquipPlayerSpawn );
+				g_equipHookRegistered = true;
+			}
 				
 			playerUsedAlready.resize(33);
 			

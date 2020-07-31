@@ -22,8 +22,12 @@ namespace bspguy {
 		
 		if (ent is null)
 			return;
-			
+
 		ent.Use(null, null, USE_TOGGLE);
+	}
+	
+	void delay_fire_targets(string target) {
+		g_EntityFuncs.FireTargets(target, null, null, USE_TOGGLE);
 	}
 	
 	void mapchange_internal(string thisMap, string nextMap) {
@@ -40,6 +44,7 @@ namespace bspguy {
 			spawnMapEnts(nextMap);
 			deleteMapEnts(thisMap, false, true); // delete spawns immediately
 			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
+			g_Scheduler.SetTimeout("delay_fire_targets", 0.5f, "bspguy_start_" + nextMap);
 			g_Scheduler.SetTimeout("deleteMapEnts", 1.0f, thisMap, false, false); // delete everything else
 		} else {
 			deleteMapEnts(thisMap, false, false);
@@ -76,6 +81,11 @@ namespace bspguy {
 	{
 		string thisMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_map_source").ToLowercase();
 		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
+		
+		if (thisMap == "" or nextMap == "") {
+			println("ERROR: bspguy_mapchange called by " + pCaller.pev.classname + " which is missing $s_bspguy_map_source or $s_next_map");
+			return;
+		}
 		
 		if (map_cleaned.exists(thisMap)) {
 			println("Map " + thisMap + " has already been cleaned. Ignoring mapchange trigger.");
@@ -368,7 +378,6 @@ namespace bspguy {
 				
 				CBaseEntity@ ent = g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
 				
-				
 				if (ent !is null && string(ent.pev.classname) == "func_train") {
 					if (string(ent.pev.targetname).Length() > 0) {
 						// triggering is broken the first few times when spawned late
@@ -387,7 +396,7 @@ namespace bspguy {
 			}
 		}
 		
-		g_EntityFuncs.FireTargets("bspguy_start_" + mapName, null, null, USE_TOGGLE);
+		g_EntityFuncs.FireTargets("bspguy_init_" + mapName, null, null, USE_TOGGLE);
 	}
 	
 	CustomKeyvalue getCustomKeyvalue(CBaseEntity@ ent, string keyName) {
