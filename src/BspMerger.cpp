@@ -1035,7 +1035,6 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 			thisMergeSz += sz;
 		}
 		newTexCount++;
-		
 
 		g_progress.tick();
 	}
@@ -1089,11 +1088,12 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	uint32_t* texHeader = (uint32_t*)(newTextureData);
 	texHeader[0] = newTexCount;
 	for (int i = 0; i < newTexCount; i++) {
-		texHeader[i + 1] = mipTexOffsets[i] + texHeaderSize;
+		texHeader[i + 1] = (mipTexOffsets[i] == -1) ? -1 : mipTexOffsets[i] + texHeaderSize;
 	}
 
 	memcpy(newTextureData + texHeaderSize, newMipTexData, mipTexWritePtr - newMipTexData);
 
+	delete[] mipTexOffsets;
 	mapA.replace_lump(LUMP_TEXTURES, newTextureData, newLen);
 }
 
