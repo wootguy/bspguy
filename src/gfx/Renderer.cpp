@@ -1029,7 +1029,7 @@ void Renderer::cameraContextMenus() {
 
 void Renderer::moveGrabbedEnt() {
 	// grabbing
-	if (pickInfo.valid && movingEnt) {
+	if (pickInfo.valid && movingEnt && pickInfo.ent) {
 		if (g_scroll != oldScroll) {
 			float moveScale = pressed[GLFW_KEY_LEFT_SHIFT] ? 4.0f : 2.0f;
 			if (pressed[GLFW_KEY_LEFT_CONTROL])
@@ -1054,6 +1054,9 @@ void Renderer::moveGrabbedEnt() {
 		
 		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+	}
+	else {
+		movingEnt = false;
 	}
 }
 
