@@ -241,6 +241,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	mapStringToMapBlock mapsByName;
 
 	vec3 map_info_origin = vec3(-64, 64, 0);
+	vec3 changesky_origin = vec3(64, 64, 0);
 
 	{
 		Entity* map_info = new Entity();
@@ -276,6 +277,40 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			map_info->addKeyvalue("classname", "info_target");
 			mergedMap->ents.push_back(map_info);
 			map_info_origin.z += 10;
+		}
+	}
+
+	string startingSky = "desert";
+	for (int k = 0; k < mergedMap->ents.size(); k++) {
+		Entity* ent = mergedMap->ents[k];
+		if (ent->keyvalues["classname"] == "worldspawn") {
+			if (ent->hasKey("skyname")) {
+				startingSky = toLowerCase(ent->keyvalues["skyname"]);
+			}
+		}
+	}
+
+	string lastSky = startingSky;
+	for (int i = 1; i < mapOrder.size(); i++) {
+		string skyname = "desert";
+		for (int k = 0; k < sourceMaps[i].map->ents.size(); k++) {
+			Entity* ent = sourceMaps[i].map->ents[k];
+			if (ent->keyvalues["classname"] == "worldspawn") {
+				if (ent->hasKey("skyname")) {
+					skyname = toLowerCase(ent->keyvalues["skyname"]);
+				}
+			}
+		}
+		if (skyname != lastSky) {
+			Entity* changesky = new Entity();
+			changesky->addKeyvalue("origin", changesky_origin.toKeyvalueString());
+			changesky->addKeyvalue("targetname", "bspguy_start_" + toLowerCase(mapOrder[i]->name));
+			changesky->addKeyvalue("skyname", skyname.c_str());
+			changesky->addKeyvalue("spawnflags", "5"); // all players + update server
+			changesky->addKeyvalue("classname", "trigger_changesky");
+			mergedMap->ents.push_back(changesky);
+			changesky_origin.z += 18;
+			lastSky = skyname;
 		}
 	}
 

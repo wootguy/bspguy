@@ -41,7 +41,6 @@
 // parse CFG and add game_player_equip ents for each transition
 
 // minor todo:
-// trigger_changesky for series maps with different skies
 // warn about game_playerjoin and other special names
 // fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
