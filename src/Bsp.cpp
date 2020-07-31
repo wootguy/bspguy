@@ -3321,6 +3321,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	for (int i = 1; i < MAX_MAP_HULLS; i++) {
 		newModel.iHeadnodes[i] = remap.clipnodes[oldModel.iHeadnodes[i]];
 	}
+	newModel.nVisLeafs = 0; // techinically should match the old model, but leaves aren't duplicated yet
 
 	return newModelIdx;
 }
