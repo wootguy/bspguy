@@ -10,6 +10,8 @@
 // super todo:
 // gui scale number not accurate at all
 // invalid solid undo not reverting plane vertex positions sometimes
+// can't move solid with shared data 3d axes
+// backwards mins/maxs when creating second teleport in scale mode and cant drag the handle
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -34,6 +36,9 @@
 // can't select faces sometimes
 // make all commands available in the 3d editor
 // transforms gradually waste more and more planes+clipnodes until the map overflows (need smarter updates)
+// "Validate" doesn't return any response.. -Sparks (add a results window or something for that + clean/optimize)
+// copy-paste ents from Jack -Outerbeast
+// parse CFG and add game_player_equip ents for each transition
 
 // minor todo:
 // trigger_changesky for series maps with different skies

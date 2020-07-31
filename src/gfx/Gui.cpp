@@ -455,6 +455,8 @@ void Gui::draw3dContextMenus() {
 }
 
 void Gui::drawMenuBar() {
+	ImGuiContext& g = *GImGui;
+
 	ImGui::BeginMainMenuBar();
 
 	if (ImGui::BeginMenu("File"))
@@ -466,6 +468,32 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
+		if (ImGui::MenuItem("Test", NULL)) {
+			Bsp* map = app->getMapContainingCamera()->map;
+
+			string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
+			string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
+
+			map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
+			map->write(mapPath);
+			map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
+
+			ofstream entFile(entPath, ios::out | ios::trunc);
+			if (entFile.is_open()) {
+				logf("Writing %s\n", entPath.c_str());
+				entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+			}
+			else {
+				logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
+				logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
+			}
+		}
+		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
+			ImGui::EndTooltip();
+		}
+
 		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
 			app->reloadMaps();
 		}

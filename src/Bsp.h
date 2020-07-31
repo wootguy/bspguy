@@ -153,7 +153,7 @@ public:
 	void load_ents();
 
 	// call this after editing ents
-	void update_ent_lump();
+	void update_ent_lump(bool stripNodes=false);
 
 	vec3 get_model_center(int modelIdx);
 

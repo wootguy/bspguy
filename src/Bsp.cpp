@@ -1597,10 +1597,17 @@ void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLig
 	srcOffsetY = newLightmap.height != oldLightmap.height ? shouldShiftTop : 0;
 }
 
-void Bsp::update_ent_lump() {
+void Bsp::update_ent_lump(bool stripNodes) {
 	stringstream ent_data;
 
 	for (int i = 0; i < ents.size(); i++) {
+		if (stripNodes) {
+			string cname = ents[i]->keyvalues["classname"];
+			if (cname == "info_node" || cname == "info_node_air") {
+				continue;
+			}
+		}
+
 		ent_data << "{\n";
 
 		for (int k = 0; k < ents[i]->keyOrder.size(); k++) {
@@ -1653,8 +1660,6 @@ void Bsp::write(string path) {
 		path = path + ".bsp";
 	}
 
-	logf("Writing %s\n", path.c_str());
-
 	// calculate lump offsets
 	int offset = sizeof(BSPHEADER);
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -1663,7 +1668,11 @@ void Bsp::write(string path) {
 	}
 
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
+	if (!file.is_open()) {
+		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
+	}
 
+	logf("Writing %s\n", path.c_str());
 
 	file.write((char*)&header, sizeof(BSPHEADER));
 
