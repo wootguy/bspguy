@@ -29,7 +29,7 @@ EntCube* PointEntRenderer::getEntCube(Entity* ent) {
 void PointEntRenderer::genPointEntCubes() {
 	// default purple cube
 	EntCube* defaultCube = new EntCube();
-	defaultCube->color = { 220, 0, 220 };
+	defaultCube->color = { 220, 0, 220, 255 };
 	defaultCube->mins = { -8, -8, -8 };
 	defaultCube->maxs = { 8, 8, 8 };
 	genCubeBuffers(defaultCube);
@@ -45,7 +45,7 @@ void PointEntRenderer::genPointEntCubes() {
 			EntCube* cube = new EntCube();
 			cube->mins = fgdClass->mins;
 			cube->maxs = fgdClass->maxs;
-			cube->color = fgdClass->color;
+			cube->color = COLOR4(fgdClass->color, 255);
 
 			EntCube* matchingCube = getCubeMatchingProps(cube);
 
@@ -89,8 +89,8 @@ void PointEntRenderer::genCubeBuffers(EntCube* entCube) {
 	cube->top.setColor(entCube->color * 0.40f);
 	cube->back.setColor(entCube->color * 0.53f);
 
-	COLOR3 selectColor = { 220, 0, 0 };
-	entCube->buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, cube, 6 * 6);
+	COLOR4 selectColor = { 220, 0, 0, 255 };
+	entCube->buffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, cube, 6 * 6);
 
 	cCube* selectCube = new cCube(min, max, selectColor);
 
@@ -100,7 +100,7 @@ void PointEntRenderer::genCubeBuffers(EntCube* entCube) {
 	selectCube->top.setColor(selectColor * 0.40f);
 	selectCube->back.setColor(selectColor * 0.53f);
 
-	entCube->selectBuffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, selectCube, 6 * 6);
+	entCube->selectBuffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, selectCube, 6 * 6);
 
 	vec3 vcube[8] = {
 		vec3(min.x, min.y, min.z), // front-left-bottom
@@ -114,7 +114,7 @@ void PointEntRenderer::genCubeBuffers(EntCube* entCube) {
 		vec3(min.x, max.y, max.z), // back-left-top
 	};
 
-	COLOR3 yellow = { 255, 255, 0 };
+	COLOR4 yellow = { 255, 255, 0, 255 };
 
 	// edges
 	cVert selectWireframe[12 * 2] = {
@@ -137,7 +137,7 @@ void PointEntRenderer::genCubeBuffers(EntCube* entCube) {
 	cVert* selectWireframeBuf = new cVert[12 * 2];
 	memcpy(selectWireframeBuf, selectWireframe, sizeof(cVert) * 12 * 2);
 
-	entCube->wireframeBuffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, selectWireframeBuf, 2 * 12);
+	entCube->wireframeBuffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, selectWireframeBuf, 2 * 12);
 
 	entCube->buffer->ownData = true;
 	entCube->selectBuffer->ownData = true;

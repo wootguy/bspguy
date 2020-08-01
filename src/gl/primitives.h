@@ -33,12 +33,12 @@ struct lightmapVert
 
 struct cVert
 {
-	COLOR3 c;
+	COLOR4 c;
 	float x, y, z;
 
 	cVert() {}
-	cVert(float x, float y, float z, COLOR3 c) : c(c), x(x), y(y), z(z) {}
-	cVert(vec3 p, COLOR3 c) : c(c), x(p.x), y(p.y), z(p.z) {}
+	cVert(float x, float y, float z, COLOR4 c) : c(c), x(x), y(y), z(z) {}
+	cVert(vec3 p, COLOR4 c) : c(c), x(p.x), y(p.y), z(p.z) {}
 };
 
 struct tTri
@@ -78,8 +78,8 @@ struct cQuad
 	cQuad() {}
 	cQuad(cVert v1, cVert v2, cVert v3, cVert v4);
 
-	void setColor(COLOR3 c); // color for the entire quad
-	void setColor(COLOR3 c1, COLOR3 c2, COLOR3 c3, COLOR3 c4); // color each vertex in CCW order
+	void setColor(COLOR4 c); // color for the entire quad
+	void setColor(COLOR4 c1, COLOR4 c2, COLOR4 c3, COLOR4 c4); // color each vertex in CCW order
 };
 
 // Textured 3D Cube
@@ -100,10 +100,10 @@ struct cCube
 	cQuad front, back;
 
 	cCube() {}
-	cCube(vec3 mins, vec3 maxs, COLOR3 c);
+	cCube(vec3 mins, vec3 maxs, COLOR4 c);
 
-	void setColor(COLOR3 c); // set color for the entire cube
-	void setColor(COLOR3 left, COLOR3 right, COLOR3 top, COLOR3 bottom, COLOR3 front, COLOR3 back);
+	void setColor(COLOR4 c); // set color for the entire cube
+	void setColor(COLOR4 left, COLOR4 right, COLOR4 top, COLOR4 bottom, COLOR4 front, COLOR4 back);
 };
 
 #pragma pack(pop)

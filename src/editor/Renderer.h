@@ -34,8 +34,8 @@ struct TransformAxes {
 	vec3 origin;
 	vec3 mins[6];
 	vec3 maxs[6];
-	COLOR3 dimColor[6];
-	COLOR3 hoverColor[6];
+	COLOR4 dimColor[6];
+	COLOR4 hoverColor[6];
 	int numAxes;
 };
 
@@ -222,8 +222,8 @@ private:
 	void drawModelVerts();
 	void drawModelOrigin();
 	void drawTransformAxes();
-	void drawLine(vec3 start, vec3 end, COLOR3 color);
-	void drawPlane(BSPPLANE& plane, COLOR3 color);
+	void drawLine(vec3 start, vec3 end, COLOR4 color);
+	void drawPlane(BSPPLANE& plane, COLOR4 color);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 

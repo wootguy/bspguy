@@ -47,7 +47,7 @@ cQuad::cQuad(cVert v1, cVert v2, cVert v3, cVert v4)
 	this->v6 = v4;
 }
 
-void cQuad::setColor(COLOR3 c )
+void cQuad::setColor(COLOR4 c )
 {
 	v1.c = c;
 	v2.c = c;
@@ -57,7 +57,7 @@ void cQuad::setColor(COLOR3 c )
 	v6.c = c;
 }
 
-void cQuad::setColor(COLOR3 c1, COLOR3 c2, COLOR3 c3, COLOR3 c4 )
+void cQuad::setColor(COLOR4 c1, COLOR4 c2, COLOR4 c3, COLOR4 c4 )
 {
 	v1.c = c1;
 	v2.c = c2;
@@ -108,7 +108,7 @@ tCube::tCube(vec3 mins, vec3 maxs)
 	back = tQuad(v1, v2, v3, v4);
 }
 
-cCube::cCube(vec3 mins, vec3 maxs, COLOR3 c)
+cCube::cCube(vec3 mins, vec3 maxs, COLOR4 c)
 {
 	cVert v1, v2, v3, v4;
 
@@ -149,7 +149,7 @@ cCube::cCube(vec3 mins, vec3 maxs, COLOR3 c)
 	back = cQuad(v1, v2, v3, v4);
 }
 
-void cCube::setColor(COLOR3 c )
+void cCube::setColor(COLOR4 c )
 {
 	left.setColor(c);
 	right.setColor(c);
@@ -159,7 +159,7 @@ void cCube::setColor(COLOR3 c )
 	back.setColor(c);
 }
 
-void cCube::setColor(COLOR3 lf, COLOR3 rt, COLOR3 tp, COLOR3 bt, COLOR3 ft, COLOR3 bk )
+void cCube::setColor(COLOR4 lf, COLOR4 rt, COLOR4 tp, COLOR4 bt, COLOR4 ft, COLOR4 bk )
 {
 	left.setColor(lf);
 	right.setColor(rt);

@@ -19,8 +19,8 @@ enum RenderFlags {
 	RENDER_SPECIAL = 16,
 	RENDER_SPECIAL_ENTS = 32,
 	RENDER_POINT_ENTS = 64,
-
-	RENDER_ORIGIN = 128
+	RENDER_ORIGIN = 128,
+	RENDER_CLIPNODES = 256
 };
 
 struct LightmapInfo {
@@ -65,6 +65,10 @@ struct RenderModel {
 	int groupCount;
 	RenderFace* renderFaces;
 	int renderFaceCount;
+
+	int clipnodeVertCount;
+	cVert* clipnodeVerts;
+	VertexBuffer* clipnodeBuffer;
 };
 
 struct FaceMath {
@@ -98,6 +102,7 @@ public:
 	void render(int highlightEnt, bool highlightAlwaysOnTop);
 
 	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
+	void drawModelClipnodes(int modelIdx, bool highlight, bool edgesOnly);
 	void drawPointEntities(int highlightEnt);
 
 	bool pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo);
@@ -167,6 +172,7 @@ private:
 
 	void loadLightmaps();
 	RenderModel* genRenderFaces(int& renderModelCount);
+	void generateClipnodeBuffer(int modelIdx, RenderModel* renderModel);
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderFaces();
 	void deleteTextures();

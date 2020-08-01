@@ -2019,6 +2019,7 @@ void Gui::drawSettings() {
 			bool renderSpecialEnts = g_render_flags & RENDER_SPECIAL_ENTS;
 			bool renderPointEnts = g_render_flags & RENDER_POINT_ENTS;
 			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
+			bool renderClipnodes = g_render_flags & RENDER_CLIPNODES;
 
 			ImGui::Columns(2, 0, false);
 
@@ -2035,6 +2036,9 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::Checkbox("Origin", &renderOrigin)) {
 				g_render_flags ^= RENDER_ORIGIN;
+			}
+			if (ImGui::Checkbox("Clipnodes", &renderClipnodes)) {
+				g_render_flags ^= RENDER_CLIPNODES;
 			}
 
 			ImGui::NextColumn();

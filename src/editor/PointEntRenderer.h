@@ -6,7 +6,7 @@
 struct EntCube {
 	vec3 mins;
 	vec3 maxs;
-	COLOR3 color;
+	COLOR4 color;
 
 	VertexBuffer* buffer;
 	VertexBuffer* selectBuffer; // red coloring for selected ents

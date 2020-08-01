@@ -244,50 +244,50 @@ void Renderer::renderLoop() {
 	glCullFace(GL_FRONT);
 
 	{
-		moveAxes.dimColor[0] = { 110, 0, 160 };
-		moveAxes.dimColor[1] = { 0, 0, 220 };
-		moveAxes.dimColor[2] = { 0, 160, 0 };
-		moveAxes.dimColor[3] = { 160, 160, 160 };
+		moveAxes.dimColor[0] = { 110, 0, 160, 255 };
+		moveAxes.dimColor[1] = { 0, 0, 220, 255 };
+		moveAxes.dimColor[2] = { 0, 160, 0, 255 };
+		moveAxes.dimColor[3] = { 160, 160, 160, 255 };
 
-		moveAxes.hoverColor[0] = { 128, 64, 255 };
-		moveAxes.hoverColor[1] = { 64, 64, 255 };
-		moveAxes.hoverColor[2] = { 64, 255, 64 };
-		moveAxes.hoverColor[3] = { 255, 255, 255 };
+		moveAxes.hoverColor[0] = { 128, 64, 255, 255 };
+		moveAxes.hoverColor[1] = { 64, 64, 255, 255 };
+		moveAxes.hoverColor[2] = { 64, 255, 64, 255 };
+		moveAxes.hoverColor[3] = { 255, 255, 255, 255 };
 
 		// flipped for HL coords
 		moveAxes.model = new cCube[4];
-		moveAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, moveAxes.model, 6 * 6 * 4);
+		moveAxes.buffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, moveAxes.model, 6 * 6 * 4);
 		moveAxes.numAxes = 4;
 	}
 
 	{
-		scaleAxes.dimColor[0] = { 110, 0, 160 };
-		scaleAxes.dimColor[1] = { 0, 0, 220 };
-		scaleAxes.dimColor[2] = { 0, 160, 0 };
+		scaleAxes.dimColor[0] = { 110, 0, 160, 255 };
+		scaleAxes.dimColor[1] = { 0, 0, 220, 255 };
+		scaleAxes.dimColor[2] = { 0, 160, 0, 255 };
 
-		scaleAxes.dimColor[3] = { 110, 0, 160 };
-		scaleAxes.dimColor[4] = { 0, 0, 220 };
-		scaleAxes.dimColor[5] = { 0, 160, 0 };
+		scaleAxes.dimColor[3] = { 110, 0, 160, 255 };
+		scaleAxes.dimColor[4] = { 0, 0, 220, 255 };
+		scaleAxes.dimColor[5] = { 0, 160, 0, 255 };
 
-		scaleAxes.hoverColor[0] = { 128, 64, 255 };
-		scaleAxes.hoverColor[1] = { 64, 64, 255 };
-		scaleAxes.hoverColor[2] = { 64, 255, 64 };
+		scaleAxes.hoverColor[0] = { 128, 64, 255, 255 };
+		scaleAxes.hoverColor[1] = { 64, 64, 255, 255 };
+		scaleAxes.hoverColor[2] = { 64, 255, 64, 255 };
 
-		scaleAxes.hoverColor[3] = { 128, 64, 255 };		
-		scaleAxes.hoverColor[4] = { 64, 64, 255 };
-		scaleAxes.hoverColor[5] = { 64, 255, 64 };
+		scaleAxes.hoverColor[3] = { 128, 64, 255, 255 };
+		scaleAxes.hoverColor[4] = { 64, 64, 255, 255 };
+		scaleAxes.hoverColor[5] = { 64, 255, 64, 255 };
 
 		// flipped for HL coords
 		scaleAxes.model = new cCube[6];
-		scaleAxes.buffer = new VertexBuffer(colorShader, COLOR_3B | POS_3F, scaleAxes.model, 6 * 6 * 6);
+		scaleAxes.buffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, scaleAxes.model, 6 * 6 * 6);
 		scaleAxes.numAxes = 6;
 	}
 
 	updateDragAxes();
 
 	float s = 1.0f;
-	cCube vertCube(vec3(-s, -s, -s), vec3(s, s, s), { 0, 128, 255 });
-	VertexBuffer vertCubeBuffer(colorShader, COLOR_3B | POS_3F, &vertCube, 6 * 6);
+	cCube vertCube(vec3(-s, -s, -s), vec3(s, s, s), { 0, 128, 255, 255 });
+	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
 
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
@@ -357,9 +357,9 @@ void Renderer::renderLoop() {
 					model.translate(offset.x, offset.y, offset.z);
 				}
 				colorShader->updateMatrixes();
-				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255 });
-				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0 });
-				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255 });
+				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
+				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
+				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
 				colorShader->popMatrix(MAT_MODEL);
 			}
 		}
@@ -524,17 +524,17 @@ void Renderer::drawModelVerts() {
 	vec3 renderOffset = mapOffset.flip();
 	vec3 localCameraOrigin = cameraOrigin - mapOffset;
 
-	COLOR3 vertDimColor = { 200, 200, 200 };
-	COLOR3 vertHoverColor = { 255, 255, 255 };
-	COLOR3 edgeDimColor = { 255, 128, 0 };
-	COLOR3 edgeHoverColor = { 255, 255, 0 };
-	COLOR3 selectColor = { 0, 128, 255 };
-	COLOR3 hoverSelectColor = { 96, 200, 255 };
+	COLOR4 vertDimColor = { 200, 200, 200, 255 };
+	COLOR4 vertHoverColor = { 255, 255, 255, 255 };
+	COLOR4 edgeDimColor = { 255, 128, 0, 255 };
+	COLOR4 edgeHoverColor = { 255, 255, 0, 255 };
+	COLOR4 selectColor = { 0, 128, 255, 255 };
+	COLOR4 hoverSelectColor = { 96, 200, 255, 255 };
 	vec3 entOrigin = ent->getOrigin();
 
 	if (modelUsesSharedStructures) {
-		vertDimColor = { 32, 32, 32 };
-		edgeDimColor = { 64, 64, 32 };
+		vertDimColor = { 32, 32, 32, 255 };
+		edgeDimColor = { 64, 64, 32, 255 };
 	}
 
 	int cubeIdx = 0;
@@ -549,7 +549,7 @@ void Renderer::drawModelVerts() {
 
 		vec3 min = vec3(-s, -s, -s) + ori;
 		vec3 max = vec3(s, s, s) + ori;
-		COLOR3 color;
+		COLOR4 color;
 		if (modelVerts[i].selected) {
 			color = i == hoverVert ? hoverSelectColor : selectColor;
 		}
@@ -570,7 +570,7 @@ void Renderer::drawModelVerts() {
 
 		vec3 min = vec3(-s, -s, -s) + ori;
 		vec3 max = vec3(s, s, s) + ori;
-		COLOR3 color;
+		COLOR4 color;
 		if (modelEdges[i].selected) {
 			color = i == hoverEdge ? hoverSelectColor : selectColor;
 		}
@@ -596,13 +596,13 @@ void Renderer::drawModelOrigin() {
 	vec3 mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
 	Entity* ent = map->ents[pickInfo.entIdx];
 
-	COLOR3 vertDimColor = { 0, 200, 0 };
-	COLOR3 vertHoverColor = { 128, 255, 128 };
-	COLOR3 selectColor = { 0, 128, 255 };
-	COLOR3 hoverSelectColor = { 96, 200, 255 };
+	COLOR4 vertDimColor = { 0, 200, 0, 255 };
+	COLOR4 vertHoverColor = { 128, 255, 128, 255 };
+	COLOR4 selectColor = { 0, 128, 255, 255 };
+	COLOR4 hoverSelectColor = { 96, 200, 255, 255 };
 
 	if (modelUsesSharedStructures) {
-		vertDimColor = { 32, 32, 32 };
+		vertDimColor = { 32, 32, 32, 255 };
 	}
 
 	vec3 ori = transformedOrigin + mapOffset;
@@ -611,7 +611,7 @@ void Renderer::drawModelOrigin() {
 
 	vec3 min = vec3(-s, -s, -s) + ori;
 	vec3 max = vec3(s, s, s) + ori;
-	COLOR3 color;
+	COLOR4 color;
 	if (originSelected) {
 		color = originHovered ? hoverSelectColor : selectColor;
 	}
@@ -1376,7 +1376,7 @@ void Renderer::addMap(Bsp* map) {
 	gui->checkValidHulls();
 }
 
-void Renderer::drawLine(vec3 start, vec3 end, COLOR3 color) {
+void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
 	cVert verts[2];
 
 	verts[0].x = start.x;
@@ -1389,11 +1389,11 @@ void Renderer::drawLine(vec3 start, vec3 end, COLOR3 color) {
 	verts[1].z = -end.y;
 	verts[1].c = color;
 
-	VertexBuffer buffer(colorShader, COLOR_3B | POS_3F, &verts[0], 2);
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &verts[0], 2);
 	buffer.draw(GL_LINES);
 }
 
-void Renderer::drawPlane(BSPPLANE& plane, COLOR3 color) {
+void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color) {
 
 	vec3 ori = plane.vNormal * plane.fDist;
 	vec3 crossDir = fabs(plane.vNormal.z) > 0.9f ? vec3(1, 0, 0) : vec3(0, 0, 1);
@@ -1413,7 +1413,7 @@ void Renderer::drawPlane(BSPPLANE& plane, COLOR3 color) {
 	cVert bottomRightVert(bottomRight, color);
 	cQuad quad(bottomRightVert, bottomLeftVert, topLeftVert, topRightVert);
 
-	VertexBuffer buffer(colorShader, COLOR_3B | POS_3F, &quad, 6);
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &quad, 6);
 	buffer.draw(GL_TRIANGLES);
 }
 
@@ -1423,7 +1423,7 @@ void Renderer::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activeP
 	BSPCLIPNODE& node = map->clipnodes[iNode];
 
 	if (currentPlane == activePlane)
-		drawPlane(map->planes[node.iPlane], { 255, 255, 255 });
+		drawPlane(map->planes[node.iPlane], { 255, 255, 255, 255 });
 	currentPlane++;
 
 	for (int i = 0; i < 2; i++) {
@@ -1439,7 +1439,7 @@ void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane
 	BSPNODE& node = map->nodes[iNode];
 
 	if (currentPlane == activePlane)
-		drawPlane(map->planes[node.iPlane], { 255, 128, 128 });
+		drawPlane(map->planes[node.iPlane], { 255, 128, 128, 255 });
 	currentPlane++;
 
 	for (int i = 0; i < 2; i++) {
@@ -1702,7 +1702,7 @@ void Renderer::updateModelVerts() {
 		transformedOrigin = oldOrigin = pickInfo.ent->getOrigin();
 	}
 	
-	modelOriginBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, &modelOriginCube, 6 * 6);
+	modelOriginBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, &modelOriginCube, 6 * 6);
 
 	updateSelectionSize();
 
@@ -1727,7 +1727,7 @@ void Renderer::updateModelVerts() {
 
 	int numCubes = modelVerts.size() + modelEdges.size();
 	modelVertCubes = new cCube[numCubes];
-	modelVertBuff = new VertexBuffer(colorShader, COLOR_3B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
+	modelVertBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
 	//logf("%d intersection points\n", modelVerts.size());
 }
 
