@@ -203,7 +203,7 @@ private:
 	int debugNodeMax = 0;
 	bool debugClipnodes = false;
 	bool debugNodes = false;
-	int clipnodeRenderHull = 3;
+	int clipnodeRenderHull = -1;
 
 	vec3 getMoveDir();
 	void controls();

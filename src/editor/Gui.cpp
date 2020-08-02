@@ -992,6 +992,13 @@ void Gui::drawDebugWidget() {
 
 					vec3 localCamera = app->cameraOrigin - app->mapRenderers[app->pickInfo.mapIdx]->mapOffset;
 
+					static ImVec4 hullColors[] = {
+						ImVec4(1, 1, 1, 1),
+						ImVec4(0.3, 1, 1, 1),
+						ImVec4(1, 0.3, 1, 1),
+						ImVec4(1, 1, 0.3, 1),
+					};
+
 					for (int i = 0; i < MAX_MAP_HULLS; i++) {
 						vector<int> nodeBranch;
 						int leafIdx;
@@ -999,6 +1006,7 @@ void Gui::drawDebugWidget() {
 						int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
 						int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
 
+						ImGui::PushStyleColor(ImGuiCol_Text, hullColors[i]);
 						if (ImGui::TreeNode(("HULL " + to_string(i)).c_str()))
 						{
 							ImGui::Indent();
@@ -1015,6 +1023,7 @@ void Gui::drawDebugWidget() {
 							ImGui::Unindent();
 							ImGui::TreePop();
 						}
+						ImGui::PopStyleColor();
 					}
 				}
 				else {
@@ -2041,6 +2050,7 @@ void Gui::drawSettings() {
 			}
 		}
 		else if (settingsTab == 2) {
+			ImGui::Text("Viewport:");
 			if (ImGui::Checkbox("VSync", &vsync)) {
 				glfwSwapInterval(vsync ? 1 : 0);
 			}
@@ -2058,6 +2068,8 @@ void Gui::drawSettings() {
 			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
 			bool renderWorldClipnodes = g_render_flags & RENDER_WORLD_CLIPNODES;
 			bool renderEntClipnodes = g_render_flags & RENDER_ENT_CLIPNODES;
+
+			ImGui::Text("Render Flags:");
 
 			ImGui::Columns(2, 0, false);
 
@@ -2096,30 +2108,31 @@ void Gui::drawSettings() {
 
 			ImGui::Separator();
 
+			ImGui::Text("Clipnode Rendering:");
+
 			ImGui::Columns(2, 0, false);
-
-			if (ImGui::Checkbox("World Clipnodes", &renderWorldClipnodes)) {
-				g_render_flags ^= RENDER_WORLD_CLIPNODES;
-			}
-			ImGui::NextColumn();
-			if (ImGui::Checkbox("Entity Clipnodes", &renderEntClipnodes)) {
-				g_render_flags ^= RENDER_ENT_CLIPNODES;
-			}
-
-			ImGui::Columns(1);
-
-			ImGui::Text("Clipnode Hull: ");
-			ImGui::Indent();
+			ImGui::RadioButton("Auto", &app->clipnodeRenderHull, -1);
+			ImGui::RadioButton("0 - Point", &app->clipnodeRenderHull, 0);
 			ImGui::RadioButton("1 - Human", &app->clipnodeRenderHull, 1);
 			ImGui::RadioButton("2 - Large", &app->clipnodeRenderHull, 2);
 			ImGui::RadioButton("3 - Head", &app->clipnodeRenderHull, 3);
 
+			ImGui::NextColumn();
+
+			if (ImGui::Checkbox("World Leaves", &renderWorldClipnodes)) {
+				g_render_flags ^= RENDER_WORLD_CLIPNODES;
+			}
+			if (ImGui::Checkbox("Entity Leaves", &renderEntClipnodes)) {
+				g_render_flags ^= RENDER_ENT_CLIPNODES;
+			}
 			static bool transparentNodes = true;
-			if (ImGui::Checkbox("Clipnode Transparency", &transparentNodes)) {
+			if (ImGui::Checkbox("Transparency", &transparentNodes)) {
 				for (int i = 0; i < g_app->mapRenderers.size(); i++) {
 					g_app->mapRenderers[i]->updateClipnodeOpacity(transparentNodes ? 128 : 255);
 				}
 			}
+
+			ImGui::Columns(1);
 		}
 		else if (settingsTab == 3) {
 			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");

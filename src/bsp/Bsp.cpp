@@ -237,9 +237,12 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
 	vector<NodeVolumeCuts> modelVolumeCuts;
 
-	if (hullIdx >= 1 && hullIdx < MAX_MAP_HULLS) {
-		if (models[modelIdx].iHeadnodes[hullIdx] != -1) {
-			vector<BSPPLANE> clipOrder;
+	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && models[modelIdx].iHeadnodes[hullIdx] != -1) {
+		vector<BSPPLANE> clipOrder;
+		if (hullIdx == 0) {
+			get_node_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
+		}
+		else {
 			get_clipnode_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
 		}
 	}
@@ -262,6 +265,37 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output);
 		}
 		else if (node.iChildren[i] != CONTENTS_EMPTY) {
+			NodeVolumeCuts nodeVolumeCuts;
+			nodeVolumeCuts.nodeIdx = iNode;
+
+			// reverse order of branched planes = order of cuts to the world which define this node's volume
+			// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
+			for (int k = clipOrder.size() - 1; k >= 0; k--) {
+				nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+			}
+
+			output.push_back(nodeVolumeCuts);
+		}
+
+		clipOrder.pop_back();
+	}
+}
+
+void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output) {
+	BSPNODE& node = nodes[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		BSPPLANE plane = planes[node.iPlane];
+		if (i != 0) {
+			plane.vNormal = plane.vNormal.invert();
+			plane.fDist = -plane.fDist;
+		}
+		clipOrder.push_back(plane);
+
+		if (node.iChildren[i] >= 0) {
+			get_node_leaf_cuts(node.iChildren[i], clipOrder, output);
+		}
+		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_EMPTY) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 

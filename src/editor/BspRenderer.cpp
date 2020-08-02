@@ -737,7 +737,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 	Clipper clipper;
 	
-	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i);
 
 		vector<CMesh> meshes;
@@ -745,8 +745,14 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 			meshes.push_back(clipper.clip(solidNodes[k].cuts));
 			clipnodeLeafCount++;
 		}
-
-		COLOR4 color = { 255, 255, 255, 128 };
+		
+		static COLOR4 hullColors[] = {
+			COLOR4(255, 255, 255, 128),
+			COLOR4(96, 255, 255, 128),
+			COLOR4(255, 96, 255, 128),
+			COLOR4(255, 255, 96, 128),
+		};
+		COLOR4 color = hullColors[i];
 
 		vector<cVert> allVerts;
 		vector<cVert> wireframeVerts;
@@ -1255,13 +1261,16 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 	if (clipnodesLoaded) {
 		colorShader->bind();
 
-		if (g_render_flags & RENDER_WORLD_CLIPNODES) {
+		if (g_render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1) {
 			drawModelClipnodes(0, false, clipnodeHull);
 		}
 
 		if (g_render_flags & RENDER_ENT_CLIPNODES) {
 			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 				if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+					if (clipnodeHull == -1 && renderModels[renderEnts[i].modelIdx].groupCount > 0) {
+						continue; // skip rendering for models that have faces, if in auto mode
+					}
 					colorShader->pushMatrix(MAT_MODEL);
 					*colorShader->modelMat = renderEnts[i].modelMat;
 					colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
@@ -1398,6 +1407,14 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
 	RenderClipnodes& clip = renderClipnodes[modelIdx];
+
+	if (hullIdx == -1) {
+		hullIdx = getBestClipnodeHull(modelIdx);
+		if (hullIdx == -1) {
+			return; // nothing can be drawn
+		}
+	}
+	
 	if (clip.clipnodeBuffer[hullIdx]) {
 		clip.clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
 		clip.wireframeClipnodeBuffer[hullIdx]->draw(GL_LINES);
@@ -1450,7 +1467,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 
 	start -= mapOffset;
 
-	if (pickPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, pickInfo)) {
+	if (pickModelPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, pickInfo)) {
 		pickInfo.entIdx = 0;
 		pickInfo.modelIdx = 0;
 		pickInfo.map = map;
@@ -1475,7 +1492,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 				continue;
 			}
 
-			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, pickInfo)) {
+			if (pickModelPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, pickInfo)) {
 				pickInfo.entIdx = i;
 				pickInfo.modelIdx = renderEnts[i].modelIdx;
 				pickInfo.map = map;
@@ -1501,7 +1518,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
 	BSPMODEL& model = map->models[modelIdx];
 
 	start -= offset;
@@ -1529,10 +1546,14 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int 
 		}
 	}
 
-	bool selectWorldClips = modelIdx == 0 && (g_render_flags & RENDER_WORLD_CLIPNODES);
+	bool selectWorldClips = modelIdx == 0 && (g_render_flags & RENDER_WORLD_CLIPNODES) && hullIdx != -1;
 	bool selectEntClips = modelIdx > 0 && (g_render_flags & RENDER_ENT_CLIPNODES);
 
-	if (clipnodesLoaded && (selectWorldClips || selectEntClips)) {
+	if (hullIdx == -1) {
+		hullIdx = getBestClipnodeHull(modelIdx);
+	}
+
+	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
 			FaceMath& faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
 
@@ -1573,4 +1594,28 @@ bool BspRenderer::pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& 
 	g_app->debugVec0 = intersection;
 
 	return true;
+}
+
+int BspRenderer::getBestClipnodeHull(int modelIdx) {
+	if (!clipnodesLoaded) {
+		return -1;
+	}
+
+	RenderClipnodes& clip = renderClipnodes[modelIdx];
+
+	// prefer hull that most closely matches the object size from a player's perspective
+	if (clip.clipnodeBuffer[0]) {
+		return 0;
+	}
+	else if (clip.clipnodeBuffer[3]) {
+		return 3;
+	}
+	else if (clip.clipnodeBuffer[1]) {
+		return 1;
+	}
+	else if (clip.clipnodeBuffer[2]) {
+		return 2;
+	}
+	
+	return -1;
 }

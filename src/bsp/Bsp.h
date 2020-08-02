@@ -107,6 +107,7 @@ public:
 	// get cuts required to create bounding volumes for each solid leaf in the model
 	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx);
 	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
+	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.

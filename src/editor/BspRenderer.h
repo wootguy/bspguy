@@ -108,7 +108,7 @@ public:
 	void drawPointEntities(int highlightEnt);
 
 	bool pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo);
-	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
+	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
 	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);
@@ -196,4 +196,5 @@ private:
 	void deleteFaceMaths();
 	void delayLoadData();
 	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
+	int getBestClipnodeHull(int modelIdx);
 };
