@@ -510,18 +510,18 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 }
 
 vector<vec2> localizeVerts(vector<vec3>& verts) {
-	vec3 plane_z = getNormalFromVerts(verts);
+	vector<vec3> triangularVerts = getTriangularVerts(verts);
 
-	if (plane_z == vec3()) {
+	if (triangularVerts.empty()) {
 		return vector<vec2>();
 	}
 
-	vec3 plane_x = (verts[1] - verts[0]).normalize();
-	vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
+	vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
+	vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
 
-	if (fabs(dotProduct(plane_z, plane_x)) > 0.99f) {
-		logf("ZOMG CHANGE NORMAL\n");
-	}
+	vec3 plane_z = crossProduct(e1, e2).normalize();
+	vec3 plane_x = e1;
+	vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
 
 	mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 

@@ -179,7 +179,7 @@ bool Clipper::getOpenPolyline(CMesh& mesh, CFace& face, int& start, int& final) 
 		}
 	}
 
-	return start != -1;
+	return start != -1 && final != -1;
 }
 
 CMesh Clipper::createMaxSizeVolume() {

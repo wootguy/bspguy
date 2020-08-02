@@ -2281,6 +2281,8 @@ void Bsp::print_node(BSPNODE node) {
 
 int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx) {
 	if (iNode < 0) {
+		leafIdx = -1;
+		childIdx = -1;
 		return CONTENTS_EMPTY;
 	}
 	
