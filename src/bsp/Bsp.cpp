@@ -237,7 +237,7 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
 	vector<NodeVolumeCuts> modelVolumeCuts;
 
-	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && models[modelIdx].iHeadnodes[hullIdx] != -1) {
+	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && models[modelIdx].iHeadnodes[hullIdx] >= 0) {
 		vector<BSPPLANE> clipOrder;
 		if (hullIdx == 0) {
 			get_node_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
@@ -313,7 +313,7 @@ void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<Node
 }
 
 bool Bsp::is_convex(int modelIdx) {
-	return is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
+	return models[modelIdx].iHeadnodes[0] >= 0 && is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
 }
 
 bool Bsp::is_node_hull_convex(int iNode) {
@@ -2280,6 +2280,10 @@ void Bsp::print_node(BSPNODE node) {
 }
 
 int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx) {
+	if (iNode < 0) {
+		return CONTENTS_EMPTY;
+	}
+	
 	if (hull == 0) {
 		while (iNode >= 0)
 		{

@@ -305,7 +305,7 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
-				if (ImGui::BeginMenu("Delete Hull")) {
+				if (ImGui::BeginMenu("Delete Hull", !app->isLoading)) {
 					if (ImGui::MenuItem("All Hulls")) {
 						map->delete_hull(0, app->pickInfo.modelIdx, -1);
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
@@ -319,6 +319,7 @@ void Gui::draw3dContextMenus() {
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
 						map->delete_hull(2, app->pickInfo.modelIdx, -1);
 						map->delete_hull(3, app->pickInfo.modelIdx, -1);
+						app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
 						checkValidHulls();
 						logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
 					}
@@ -333,6 +334,8 @@ void Gui::draw3dContextMenus() {
 							checkValidHulls();
 							if (i == 0)
 								app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+							else
+								app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -340,11 +343,12 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
-				if (ImGui::BeginMenu("Simplify Hull")) {
+				if (ImGui::BeginMenu("Simplify Hull", !app->isLoading)) {
 					if (ImGui::MenuItem("Clipnodes")) {
 						map->simplify_model_collision(app->pickInfo.modelIdx, 1);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 2);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 3);
+						app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
 						logf("Replaced hulls 1-3 on model %d with a box-shaped hull\n", app->pickInfo.modelIdx);
 					}
 
@@ -355,6 +359,7 @@ void Gui::draw3dContextMenus() {
 
 						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
 							map->simplify_model_collision(app->pickInfo.modelIdx, 1);
+							app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Replaced hull %d on model %d with a box-shaped hull\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -364,7 +369,7 @@ void Gui::draw3dContextMenus() {
 
 				bool canRedirect = model.iHeadnodes[1] != model.iHeadnodes[2] || model.iHeadnodes[1] != model.iHeadnodes[3];
 
-				if (ImGui::BeginMenu("Redirect Hull", canRedirect)) {
+				if (ImGui::BeginMenu("Redirect Hull", canRedirect && !app->isLoading)) {
 					for (int i = 1; i < MAX_MAP_HULLS; i++) {
 						if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
 
@@ -376,6 +381,7 @@ void Gui::draw3dContextMenus() {
 
 								if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
 									model.iHeadnodes[i] = model.iHeadnodes[k];
+									app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
 									checkValidHulls();
 									logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
 								}
@@ -390,7 +396,7 @@ void Gui::draw3dContextMenus() {
 
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Duplicate BSP model")) {
+				if (ImGui::MenuItem("Duplicate BSP model", 0, false, !app->isLoading)) {
 					int newModelIdx = map->duplicate_model(app->pickInfo.modelIdx);
 					app->pickInfo.ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));
 					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
@@ -580,12 +586,13 @@ void Gui::drawMenuBar() {
 
 		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
 
-		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision)) {
+		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision && !app->isLoading)) {
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
 					for (int k = 0; k < app->mapRenderers.size(); k++) {
 						Bsp* map = app->mapRenderers[k]->map;
 						map->delete_hull(i, -1);
+						app->mapRenderers[k]->reloadClipnodes();
 						logf("Deleted hull %d in map %s\n", i, map->name.c_str());
 					}
 					checkValidHulls();
@@ -594,7 +601,7 @@ void Gui::drawMenuBar() {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Redirect Hull", hasAnyCollision)) {
+		if (ImGui::BeginMenu("Redirect Hull", hasAnyCollision && !app->isLoading)) {
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
 					for (int k = 1; k < MAX_MAP_HULLS; k++) {
@@ -604,6 +611,7 @@ void Gui::drawMenuBar() {
 							for (int j = 0; j < app->mapRenderers.size(); j++) {
 								Bsp* map = app->mapRenderers[j]->map;
 								map->delete_hull(i, k);
+								app->mapRenderers[j]->reloadClipnodes();
 								logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
 							}
 							checkValidHulls();

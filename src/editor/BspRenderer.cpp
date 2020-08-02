@@ -713,6 +713,19 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	return renderModel->groupCount;
 }
 
+int BspRenderer::refreshModelClipnodes(int modelIdx) {
+	if (!clipnodesLoaded) {
+		return 0;
+	}
+	if (modelIdx < 0 || modelIdx >= numRenderClipnodes) {
+		logf("Bad model idx\n");
+		return 0;
+	}
+
+	deleteRenderModelClipnodes(&renderClipnodes[modelIdx]);
+	generateClipnodeBuffer(modelIdx);
+}
+
 void BspRenderer::loadClipnodes() {
 	numRenderClipnodes = map->modelCount;
 	renderClipnodes = new RenderClipnodes[numRenderClipnodes];
