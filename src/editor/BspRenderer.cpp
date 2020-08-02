@@ -70,8 +70,10 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	uint sTexId2 = glGetUniformLocation(fullBrightBspShader->ID, "sTex");
 	glUniform1i(sTexId2, 0);
 
+	numRenderClipnodes = map->modelCount;
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
+	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
 }
 
 void BspRenderer::loadTextures() {
@@ -201,6 +203,7 @@ void BspRenderer::reload() {
 	preRenderEnts();
 	reloadTextures();
 	reloadLightmaps();
+	reloadClipnodes();
 }
 
 void BspRenderer::reloadTextures() {
@@ -216,6 +219,25 @@ void BspRenderer::reloadLightmaps() {
 		delete[] lightmaps;
 	}
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
+}
+
+void BspRenderer::reloadClipnodes() {
+	clipnodesLoaded = false;
+	clipnodeLeafCount = 0;
+
+	deleteRenderClipnodes();
+
+	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
+}
+
+void BspRenderer::addClipnodeModel(int modelIdx) {
+	RenderClipnodes* newRenderClipnodes = new RenderClipnodes[numRenderClipnodes +1];
+	memcpy(newRenderClipnodes, renderClipnodes, numRenderClipnodes * sizeof(RenderClipnodes));
+	memset(&newRenderClipnodes[numRenderClipnodes], 0, sizeof(RenderClipnodes));
+	numRenderClipnodes++;
+	renderClipnodes = newRenderClipnodes;
+	
+	generateClipnodeBuffer(modelIdx);
 }
 
 void BspRenderer::updateModelShaders() {
@@ -341,37 +363,30 @@ void BspRenderer::updateLightmapInfos() {
 void BspRenderer::preRenderFaces() {
 	deleteRenderFaces();
 
-	renderModels = genRenderFaces(numRenderModels);
+	genRenderFaces(numRenderModels);
 
 	for (int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
+		RenderClipnodes& clip = renderClipnodes[i];
 		for (int k = 0; k < model.groupCount; k++) {
 			model.renderGroups[k].buffer->bindAttributes(true);
 			model.renderGroups[k].wireframeBuffer->bindAttributes(true);
 			model.renderGroups[k].buffer->upload();
 			model.renderGroups[k].wireframeBuffer->upload();
 		}
-
-		for (int k = 0; k < MAX_MAP_HULLS; k++) {
-			if (model.clipnodeVertCount[k] > 0) {
-				model.clipnodeBuffer[k]->bindAttributes(true);
-				model.clipnodeBuffer[k]->upload();
-			}
-		}
-		
 	}
 }
 
-RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
-	RenderModel* newRenderModels = new RenderModel[map->modelCount];
-	memset(newRenderModels, 0, sizeof(RenderModel) * map->modelCount);
+void BspRenderer::genRenderFaces(int& renderModelCount) {
+	renderModels = new RenderModel[map->modelCount];
+	memset(renderModels, 0, sizeof(RenderModel) * map->modelCount);
 	renderModelCount = map->modelCount;
 
 	int worldRenderGroups = 0;
 	int modelRenderGroups = 0;
 
 	for (int m = 0; m < map->modelCount; m++) {
-		int groupCount = refreshModel(m, &newRenderModels[m]);
+		int groupCount = refreshModel(m, false);
 		if (m == 0)
 			worldRenderGroups += groupCount;
 		else
@@ -382,8 +397,6 @@ RenderModel* BspRenderer::genRenderFaces(int& renderModelCount) {
 		worldRenderGroups + modelRenderGroups,
 		worldRenderGroups,
 		modelRenderGroups);
-
-	return newRenderModels;
 }
 
 void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
@@ -398,14 +411,30 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 		delete group.wireframeBuffer;
 	}
 
-	for (int i = 0; i < MAX_MAP_HULLS; i++) {
-		if (renderModel->clipnodeVertCount[i] > 0) {
-			delete renderModel->clipnodeBuffer[i];
-		}
-	}
-
 	delete[] renderModel->renderGroups;
 	delete[] renderModel->renderFaces;
+}
+
+void BspRenderer::deleteRenderClipnodes() {
+	if (renderClipnodes != NULL) {
+		for (int i = 0; i < numRenderClipnodes; i++) {
+			deleteRenderModelClipnodes(&renderClipnodes[i]);
+		}
+		delete[] renderClipnodes;
+	}
+
+	renderClipnodes = NULL;
+}
+
+void BspRenderer::deleteRenderModelClipnodes(RenderClipnodes* renderClip) {
+	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		if (renderClip->clipnodeBuffer[i]) {
+			delete renderClip->clipnodeBuffer[i];
+			delete renderClip->wireframeClipnodeBuffer[i];
+		}
+		renderClip->clipnodeBuffer[i] = NULL;
+		renderClip->wireframeClipnodeBuffer[i] = NULL;
+	}
 }
 
 void BspRenderer::deleteRenderFaces() {
@@ -454,17 +483,13 @@ void BspRenderer::deleteFaceMaths() {
 	faceMaths = NULL;
 }
 
-int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
+int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	BSPMODEL& model = map->models[modelIdx];
-	if (renderModel == NULL) {
-		renderModel = &renderModels[modelIdx];
-	}
+	RenderModel* renderModel = &renderModels[modelIdx];
 
 	deleteRenderModel(renderModel);
 	
 	renderModel->renderFaces = new RenderFace[model.nFaces];
-	for (int k = 0; k < MAX_MAP_HULLS; k++)
-		renderModel->clipnodeVertCount[k] = 0;
 
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
@@ -683,20 +708,32 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 		refreshFace(model.iFirstFace + i);
 	}
 
-	generateClipnodeBuffer(modelIdx, renderModel);
+	if (refreshClipnodes)
+		generateClipnodeBuffer(modelIdx);
 
 	return renderModel->groupCount;
 }
 
-void BspRenderer::generateClipnodeBuffer(int modelIdx, RenderModel* renderModel) {
+void BspRenderer::loadClipnodes() {
+	numRenderClipnodes = map->modelCount;
+	renderClipnodes = new RenderClipnodes[numRenderClipnodes];
+	memset(renderClipnodes, 0, numRenderClipnodes * sizeof(RenderClipnodes));
+
+	for (int i = 0; i < numRenderClipnodes; i++) {
+		generateClipnodeBuffer(i);
+	}
+}
+
+void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	BSPMODEL& model = map->models[modelIdx];
+	RenderClipnodes* renderClip = &renderClipnodes[modelIdx];
 
 	vec3 min = vec3(model.nMins.x, model.nMins.y, model.nMins.z);
 	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
 
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
-		renderModel->clipnodeBuffer[i] = NULL;
-		renderModel->wireframeClipnodeBuffer[i] = NULL;
+		renderClip->clipnodeBuffer[i] = NULL;
+		renderClip->wireframeClipnodeBuffer[i] = NULL;
 	}
 
 	Clipper clipper;
@@ -707,26 +744,24 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx, RenderModel* renderModel)
 		vector<CMesh> meshes;
 		for (int k = 0; k < solidNodes.size(); k++) {
 			meshes.push_back(clipper.clip(solidNodes[k].cuts));
+			clipnodeLeafCount++;
 		}
 
 		clipper.getDrawableVerts(meshes, colorShader, { 255, 255, 255, 128 },
-			&renderModel->clipnodeBuffer[i], &renderModel->wireframeClipnodeBuffer[i]);
-
-		renderModel->clipnodeVertCount[i] = renderModel->clipnodeBuffer[i]->numVerts;
-		renderModel->wireframeClipnodeVertCount[i] = renderModel->wireframeClipnodeBuffer[i]->numVerts;
+			&renderClip->clipnodeBuffer[i], &renderClip->wireframeClipnodeBuffer[i]);
 	}
 }
 
 void BspRenderer::updateClipnodeOpacity(byte newValue) {
-	for (int i = 0; i < numRenderModels; i++) {
+	for (int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
-			if (renderModels[i].clipnodeVertCount[k] > 0) {
-				cVert* data = (cVert*)renderModels[i].clipnodeBuffer[k]->data;
-				for (int v = 0; v < renderModels[i].clipnodeVertCount[k]; v++) {
+			if (renderClipnodes[i].clipnodeBuffer[k]) {
+				cVert* data = (cVert*)renderClipnodes[i].clipnodeBuffer[k]->data;
+				for (int v = 0; v < renderClipnodes[i].clipnodeBuffer[k]->numVerts; v++) {
 					data[v].c.a = newValue;
 				}
-				renderModels[i].clipnodeBuffer[k]->deleteBuffer();
-				renderModels[i].clipnodeBuffer[k]->upload();
+				renderClipnodes[i].clipnodeBuffer[k]->deleteBuffer();
+				renderClipnodes[i].clipnodeBuffer[k]->upload();
 			}
 		}
 	}
@@ -876,7 +911,8 @@ void BspRenderer::refreshFace(int faceIdx) {
 
 BspRenderer::~BspRenderer() {
 	if (lightmapFuture.wait_for(chrono::milliseconds(0)) != future_status::ready ||
-		texturesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready) {
+		texturesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready ||
+		clipnodesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready) {
 		logf("ERROR: Deleted bsp renderer while it was loading\n");
 	}
 
@@ -893,6 +929,7 @@ BspRenderer::~BspRenderer() {
 	deleteTextures();
 	deleteLightmapTextures();
 	deleteRenderFaces();
+	deleteRenderClipnodes();
 	deleteFaceMaths();
 
 	// TODO: share these with all renderers
@@ -934,10 +971,26 @@ void BspRenderer::delayLoadData() {
 
 		preRenderFaces();
 	}
+
+	if (!clipnodesLoaded && clipnodesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+
+		for (int i = 0; i < numRenderClipnodes; i++) {
+			RenderClipnodes& clip = renderClipnodes[i];
+			for (int k = 0; k < MAX_MAP_HULLS; k++) {
+				if (clip.clipnodeBuffer[k]) {
+					clip.clipnodeBuffer[k]->bindAttributes(true);
+					clip.clipnodeBuffer[k]->upload();
+				}
+			}
+		}
+
+		clipnodesLoaded = true;
+		logf("Loaded %d clipnode leaves\n", clipnodeLeafCount);
+	}
 }
 
 bool BspRenderer::isFinishedLoading() {
-	return lightmapsUploaded && texturesLoaded;
+	return lightmapsUploaded && texturesLoaded && clipnodesLoaded;
 }
 
 void BspRenderer::highlightFace(int faceIdx, bool highlight) {
@@ -1069,21 +1122,23 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 		}
 	}
 
-	if (g_render_flags & RENDER_WORLD_CLIPNODES) {
-		drawModelClipnodes(0, false, clipnodeHull);
-	}
+	if (clipnodesLoaded) {
+		if (g_render_flags & RENDER_WORLD_CLIPNODES) {
+			drawModelClipnodes(0, false, clipnodeHull);
+		}
 
-	if (g_render_flags & RENDER_ENT_CLIPNODES) {
-		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
-				colorShader->pushMatrix(MAT_MODEL);
-				*colorShader->modelMat = renderEnts[i].modelMat;
-				colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-				colorShader->updateMatrixes();
+		if (g_render_flags & RENDER_ENT_CLIPNODES) {
+			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+				if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+					colorShader->pushMatrix(MAT_MODEL);
+					*colorShader->modelMat = renderEnts[i].modelMat;
+					colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+					colorShader->updateMatrixes();
 
-				drawModelClipnodes(renderEnts[i].modelIdx, false, clipnodeHull);
+					drawModelClipnodes(renderEnts[i].modelIdx, false, clipnodeHull);
 
-				colorShader->popMatrix(MAT_MODEL);
+					colorShader->popMatrix(MAT_MODEL);
+				}
 			}
 		}
 	}
@@ -1198,9 +1253,10 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 }
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
-	if (renderModels[modelIdx].clipnodeVertCount[hullIdx] > 0 && renderModels[modelIdx].clipnodeBuffer[hullIdx]) {
-		renderModels[modelIdx].clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
-		renderModels[modelIdx].wireframeClipnodeBuffer[hullIdx]->draw(GL_LINES);
+	RenderClipnodes& clip = renderClipnodes[modelIdx];
+	if (clip.clipnodeBuffer[hullIdx]) {
+		clip.clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
+		clip.wireframeClipnodeBuffer[hullIdx]->draw(GL_LINES);
 	}
 }
 

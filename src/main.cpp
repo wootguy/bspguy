@@ -12,6 +12,7 @@
 // invalid solid undo not reverting plane vertex positions sometimes
 // can't move solid with shared data 3d axes
 // backwards mins/maxs when creating second teleport in scale mode and cant drag the handle
+// vertex editing rapidly duplicates clipnodes
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

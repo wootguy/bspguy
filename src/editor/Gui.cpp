@@ -397,6 +397,7 @@ void Gui::draw3dContextMenus() {
 
 					app->mapRenderers[app->pickInfo.mapIdx]->updateLightmapInfos();
 					app->mapRenderers[app->pickInfo.mapIdx]->calcFaceMaths();
+					app->mapRenderers[app->pickInfo.mapIdx]->addClipnodeModel(newModelIdx);
 					app->mapRenderers[app->pickInfo.mapIdx]->preRenderFaces();
 					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
 					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();

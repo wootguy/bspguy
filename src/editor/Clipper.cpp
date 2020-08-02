@@ -312,6 +312,12 @@ void Clipper::getDrawableVerts(vector<CMesh> meshes, ShaderProgram* shaderProgra
 		wireOutput[i] = wireframeVerts[i];
 	}
 
+	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+		*faceBuffer = NULL;
+		*wireframeBuffer = NULL;
+		return;
+	}
+
 	VertexBuffer* buffer = new VertexBuffer(shaderProgram, COLOR_4B | POS_3F, output, allVerts.size());
 	buffer->ownData = true;
 	*faceBuffer = buffer;

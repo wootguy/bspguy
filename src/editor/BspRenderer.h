@@ -66,9 +66,9 @@ struct RenderModel {
 	int groupCount;
 	RenderFace* renderFaces;
 	int renderFaceCount;
+};
 
-	int clipnodeVertCount[MAX_MAP_HULLS];
-	int wireframeClipnodeVertCount[MAX_MAP_HULLS];
+struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
 	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
 };
@@ -111,7 +111,7 @@ public:
 	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
 
 	void refreshEnt(int entIdx);
-	int refreshModel(int modelIdx, RenderModel* renderModel=NULL);
+	int refreshModel(int modelIdx, bool refreshClipnodes=true);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
 	void updateClipnodeOpacity(byte newValue);
@@ -119,6 +119,8 @@ public:
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();
 	void reloadLightmaps();
+	void reloadClipnodes();
+	void addClipnodeModel(int modelIdx);
 	void updateModelShaders();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
@@ -143,6 +145,7 @@ private:
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;
 	RenderModel* renderModels = NULL;
+	RenderClipnodes* renderClipnodes = NULL;
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
 
@@ -151,6 +154,7 @@ private:
 
 	int numLightmapAtlases;
 	int numRenderModels;
+	int numRenderClipnodes;
 	int numRenderLightmapInfos;
 	int numFaceMaths;
 	int numPointEnts;
@@ -173,10 +177,17 @@ private:
 	bool texturesLoaded = false;
 	future<void> texturesFuture;
 
+	bool clipnodesLoaded = false;
+	int clipnodeLeafCount = 0;
+	future<void> clipnodesFuture;
+
 	void loadLightmaps();
-	RenderModel* genRenderFaces(int& renderModelCount);
-	void generateClipnodeBuffer(int modelIdx, RenderModel* renderModel);
+	void genRenderFaces(int& renderModelCount);
+	void loadClipnodes();
+	void generateClipnodeBuffer(int modelIdx);
 	void deleteRenderModel(RenderModel* renderModel);
+	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
+	void deleteRenderClipnodes();
 	void deleteRenderFaces();
 	void deleteTextures();
 	void deleteLightmapTextures();
