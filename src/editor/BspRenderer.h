@@ -36,6 +36,13 @@ struct LightmapInfo {
 	float midPolyU, midPolyV;
 };
 
+struct FaceMath {
+	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
+	vec3 normal;
+	float fdist;
+	vector<vec2> localVerts;
+};
+
 struct RenderEnt {
 	mat4x4 modelMat; // model matrix for rendering
 	vec3 offset; // vertex transformations for picking
@@ -71,14 +78,7 @@ struct RenderModel {
 struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
 	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
-};
-
-struct FaceMath {
-	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
-	vec3 normal;
-	float fdist;
-	vec3* verts = NULL; // skips the edge lookups
-	int vertCount;
+	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
 struct PickInfo {
@@ -107,8 +107,9 @@ public:
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities(int highlightEnt);
 
-	bool pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo);
-	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo);
+	bool pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo);
+	bool pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
+	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);
@@ -141,6 +142,7 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
+	uint colorShaderMultId;
 
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;

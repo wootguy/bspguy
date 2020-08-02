@@ -59,10 +59,6 @@ public:
 	// clips a box against the list of clipping planes, in order, to create a convex volume
 	CMesh clip(vector<BSPPLANE>& clips);
 
-	// returns face vertices for drawing with GL_TRIANGLES
-	void getDrawableVerts(vector<CMesh> meshes, ShaderProgram* shaderProgram, COLOR4 color,
-		VertexBuffer** faceBuffer, VertexBuffer** wireframeBuffer);
-
 private:
 
 	int clipVertices(CMesh& mesh, BSPPLANE& clip);

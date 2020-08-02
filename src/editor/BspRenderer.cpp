@@ -70,6 +70,8 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	uint sTexId2 = glGetUniformLocation(fullBrightBspShader->ID, "sTex");
 	glUniform1i(sTexId2, 0);
 
+	colorShaderMultId = glGetUniformLocation(colorShader->ID, "colorMult");
+
 	numRenderClipnodes = map->modelCount;
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
@@ -474,9 +476,6 @@ void BspRenderer::deleteLightmapTextures() {
 
 void BspRenderer::deleteFaceMaths() {
 	if (faceMaths != NULL) {
-		for (int i = 0; i < numFaceMaths; i++) {
-			delete[] faceMaths[i].verts;
-		}
 		delete[] faceMaths;
 	}
 
@@ -747,8 +746,137 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 			clipnodeLeafCount++;
 		}
 
-		clipper.getDrawableVerts(meshes, colorShader, { 255, 255, 255, 128 },
-			&renderClip->clipnodeBuffer[i], &renderClip->wireframeClipnodeBuffer[i]);
+		COLOR4 color = { 255, 255, 255, 128 };
+
+		vector<cVert> allVerts;
+		vector<cVert> wireframeVerts;
+		vector<FaceMath> faceMaths;
+
+		for (int m = 0; m < meshes.size(); m++) {
+			CMesh& mesh = meshes[m];
+
+			for (int i = 0; i < mesh.faces.size(); i++) {
+
+				if (!mesh.faces[i].visible) {
+					continue;
+				}
+
+				set<int> uniqueFaceVerts;
+
+				for (int k = 0; k < mesh.faces[i].edges.size(); k++) {
+					for (int v = 0; v < 2; v++) {
+						int vertIdx = mesh.edges[mesh.faces[i].edges[k]].verts[v];
+						if (!mesh.verts[vertIdx].visible) {
+							continue;
+						}
+						uniqueFaceVerts.insert(vertIdx);
+					}
+				}
+
+				vector<vec3> faceVerts;
+				for (auto vertIdx : uniqueFaceVerts) {
+					faceVerts.push_back(mesh.verts[vertIdx].pos);
+				}
+
+				faceVerts = getSortedPlanarVerts(faceVerts);
+
+				if (faceVerts.size() < 3) {
+					//logf("Degenerate clipnode face discarded\n");
+					continue;
+				}
+
+				vec3 normal = getNormalFromVerts(faceVerts);
+
+				if (dotProduct(mesh.faces[i].normal, normal) > 0) {
+					reverse(faceVerts.begin(), faceVerts.end());
+					normal = normal.invert();
+				}
+
+				// calculations for face picking
+				{
+					FaceMath faceMath;
+					faceMath.normal = mesh.faces[i].normal;
+					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal, faceVerts[0]);
+
+					vec3 v0 = faceVerts[0];
+					vec3 v1;
+					bool found = false;
+					for (int i = 1; i < faceVerts.size(); i++) {
+						if (faceVerts[i] != v0) {
+							v1 = faceVerts[i];
+							found = true;
+							break;
+						}
+					}
+					if (!found) {
+						logf("Failed to find non-duplicate vert for clipnode face\n");
+					}
+
+					vec3 plane_z = mesh.faces[i].normal;
+					vec3 plane_x = (v1 - v0).normalize();
+					vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
+					faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
+
+					faceMath.localVerts = vector<vec2>(faceVerts.size());
+					for (int k = 0; k < faceVerts.size(); k++) {
+						faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(faceVerts[k], 1)).xy();
+					}
+
+					faceMaths.push_back(faceMath);
+				}
+
+				// create the verts for rendering
+				{
+					for (int i = 0; i < faceVerts.size(); i++) {
+						faceVerts[i] = faceVerts[i].flip();
+					}
+
+					COLOR4 wireframeColor = { 0, 0, 0, 255 };
+					for (int k = 0; k < faceVerts.size(); k++) {
+						wireframeVerts.push_back(cVert(faceVerts[k], wireframeColor));
+						wireframeVerts.push_back(cVert(faceVerts[(k + 1) % faceVerts.size()], wireframeColor));
+					}
+
+					vec3 lightDir = vec3(1, 1, -1).normalize();
+					float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
+					if (dot > 0.5f) {
+						dot = dot * dot;
+					}
+					COLOR4 faceColor = color * (dot);
+
+					// convert from TRIANGLE_FAN style verts to TRIANGLES
+					for (int k = 2; k < faceVerts.size(); k++) {
+						allVerts.push_back(cVert(faceVerts[0], faceColor));
+						allVerts.push_back(cVert(faceVerts[k - 1], faceColor));
+						allVerts.push_back(cVert(faceVerts[k], faceColor));
+					}
+				}
+			}
+		}
+
+		cVert* output = new cVert[allVerts.size()];
+		for (int i = 0; i < allVerts.size(); i++) {
+			output[i] = allVerts[i];
+		}
+
+		cVert* wireOutput = new cVert[wireframeVerts.size()];
+		for (int i = 0; i < wireframeVerts.size(); i++) {
+			wireOutput[i] = wireframeVerts[i];
+		}
+
+		if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+			renderClip->clipnodeBuffer[i] = NULL;
+			renderClip->wireframeClipnodeBuffer[i] = NULL;
+			continue;
+		}
+
+		renderClip->clipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+		renderClip->clipnodeBuffer[i]->ownData = true;
+
+		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
+
+		renderClip->faceMaths[i] = faceMaths;
 	}
 }
 
@@ -883,30 +1011,31 @@ void BspRenderer::refreshFace(int faceIdx) {
 
 	faceMath.normal = planeNormal;
 	faceMath.fdist = fDist;
-
-	if (faceMath.verts)
-		delete[] faceMath.verts;
-	faceMath.verts = new vec3[face.nEdges];
-	faceMath.vertCount = face.nEdges;
 	
+	vector<vec3> allVerts(face.nEdges);
 	vec3 v1;
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
 		int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
-		faceMath.verts[e] = map->verts[vertIdx];
+		allVerts[e] = map->verts[vertIdx];
 
 		// 2 verts can share the same position on a face, so need to find one that isn't shared (aomdc_1intro)
-		if (e > 0 && faceMath.verts[e] != faceMath.verts[0]) {
-			v1 = faceMath.verts[e];
+		if (e > 0 && allVerts[e] != allVerts[0]) {
+			v1 = allVerts[e];
 		}
 	}
 
-	vec3 plane_x = (v1 - faceMath.verts[0]).normalize(1.0f);
+	vec3 plane_x = (v1 - allVerts[0]).normalize(1.0f);
 	vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
 	vec3 plane_z = planeNormal;
 
 	faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
+
+	faceMath.localVerts = vector<vec2>(allVerts.size());
+	for (int i = 0; i < allVerts.size(); i++) {
+		faceMath.localVerts[i] = (faceMath.worldToLocal * vec4(allVerts[i], 1)).xy();
+	}
 }
 
 BspRenderer::~BspRenderer() {
@@ -1119,10 +1248,13 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 
 		if ((g_render_flags & RENDER_POINT_ENTS) && pass == 0) {
 			drawPointEntities(highlightEnt);
+			activeShader->bind();
 		}
 	}
 
 	if (clipnodesLoaded) {
+		colorShader->bind();
+
 		if (g_render_flags & RENDER_WORLD_CLIPNODES) {
 			drawModelClipnodes(0, false, clipnodeHull);
 		}
@@ -1135,15 +1267,27 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 					colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 					colorShader->updateMatrixes();
 
+					bool hightlighted = highlightEnt == i;
+
+					if (hightlighted) {
+						glUniform4f(colorShaderMultId, 1, 0.25f, 0.25f, 1);
+					}
+
 					drawModelClipnodes(renderEnts[i].modelIdx, false, clipnodeHull);
+
+					if (hightlighted) {
+						glUniform4f(colorShaderMultId, 1, 1, 1, 1);
+					}
 
 					colorShader->popMatrix(MAT_MODEL);
 				}
 			}
-		}
+		}		
 	}
 
 	if (highlightEnt > 0 && highlightAlwaysOnTop) {
+		activeShader->bind();
+
 		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			activeShader->pushMatrix(MAT_MODEL);
 			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
@@ -1301,12 +1445,12 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * (skipIdx + 1), cubeVerts * numPointEnts);
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo) {
 	bool foundBetterPick = false;
 
 	start -= mapOffset;
 
-	if (pickPoly(start, dir, vec3(0, 0, 0), 0, pickInfo)) {
+	if (pickPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, pickInfo)) {
 		pickInfo.entIdx = 0;
 		pickInfo.modelIdx = 0;
 		pickInfo.map = map;
@@ -1331,7 +1475,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 				continue;
 			}
 
-			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, pickInfo)) {
+			if (pickPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, pickInfo)) {
 				pickInfo.entIdx = i;
 				pickInfo.modelIdx = renderEnts[i].modelIdx;
 				pickInfo.map = map;
@@ -1357,8 +1501,10 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo) {
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
 	BSPMODEL& model = map->models[modelIdx];
+
+	start -= offset;
 
 	bool foundBetterPick = false;
 	bool skipSpecial = !(g_render_flags & RENDER_SPECIAL);
@@ -1366,9 +1512,6 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, Pick
 	for (int k = 0; k < model.nFaces; k++) {
 		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
 		BSPFACE& face = map->faces[model.iFirstFace + k];
-		BSPPLANE& plane = map->planes[face.iPlane];
-		vec3 planeNormal = faceMath.normal;
-		float fDist = faceMath.fdist;
 		
 		if (skipSpecial && modelIdx == 0) {
 			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
@@ -1376,68 +1519,58 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, Pick
 				continue;
 			}
 		}
-		
-		if (offset.x != 0 || offset.y != 0 || offset.z != 0) {
-			vec3 newPlaneOri = offset + (planeNormal * fDist);
-			fDist = dotProduct(planeNormal, newPlaneOri) / dotProduct(planeNormal, planeNormal);
-		}
 
-		float dot = dotProduct(dir, planeNormal);
-
-		// don't select backfaces or parallel faces
-		if (dot >= 0) {
-			continue;
-		}
-
-		float t = dotProduct((planeNormal * fDist) - start, planeNormal) / dot;
-
-		if (t < 0) {
-			continue; // intersection behind camera
-		}
-
-		vec3 intersection = start + dir * t; // point where ray intersects the plane
-
-		// transform to plane's coordinate system
-		vec2 localRayPoint = (faceMath.worldToLocal * vec4(intersection, 1)).xy();
-
-		static vec2 localVerts[128];
-		for (int e = 0; e < faceMath.vertCount; e++) {
-			localVerts[e] = (faceMath.worldToLocal * vec4(faceMath.verts[e] + offset, 1)).xy();
-		}
-
-		// check if point is inside the polygon using the plane's 2D coordinate system
-		// https://stackoverflow.com/a/34689268
-		bool inside = true;
-		float lastd = 0;
-		for (int i = 0; i < faceMath.vertCount; i++)
-		{
-			vec2& v1 = localVerts[i];
-			vec2& v2 = localVerts[(i + 1) % faceMath.vertCount];
-
-			if (v1.x == localRayPoint.x && v1.y == localRayPoint.y) {
-				break; // on edge = inside
-			}
-			
-			float d = (localRayPoint.x - v1.x) * (v2.y - v1.y) - (localRayPoint.y - v1.y) * (v2.x - v1.x);
-
-			if ((d < 0 && lastd > 0) || (d > 0 && lastd < 0)) {
-				// point is outside of this edge
-				inside = false;
-				break;
-			}
-			lastd = d;
-		}
-		if (!inside) {
-			continue;
-		}
-
-		if (t < pickInfo.bestDist) {
+		float t = pickInfo.bestDist;
+		if (pickFaceMath(start, dir, faceMath, t)) {
 			foundBetterPick = true;
+			pickInfo.valid = true;
 			pickInfo.bestDist = t;
 			pickInfo.faceIdx = model.iFirstFace + k;
-			pickInfo.valid = true;
+		}
+	}
+
+	bool selectWorldClips = modelIdx == 0 && (g_render_flags & RENDER_WORLD_CLIPNODES);
+	bool selectEntClips = modelIdx > 0 && (g_render_flags & RENDER_ENT_CLIPNODES);
+
+	if (clipnodesLoaded && (selectWorldClips || selectEntClips)) {
+		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
+			FaceMath& faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+
+			float t = pickInfo.bestDist;
+			if (pickFaceMath(start, dir, faceMath, t)) {
+				foundBetterPick = true;
+				pickInfo.valid = true;
+				pickInfo.bestDist = t;
+				pickInfo.faceIdx = -1;
+			}
 		}
 	}
 
 	return foundBetterPick;
+}
+
+bool BspRenderer::pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist) {
+	float dot = dotProduct(dir, faceMath.normal);
+	if (dot >= 0) {
+		return false; // don't select backfaces or parallel faces
+	}
+
+	float t = dotProduct((faceMath.normal * faceMath.fdist) - start, faceMath.normal) / dot;
+	if (t < 0 || t >= bestDist) {
+		return false; // intersection behind camera, or not a better pick
+	}
+
+	// transform intersection point to the plane's coordinate system
+	vec3 intersection = start + dir * t;
+	vec2 localRayPoint = (faceMath.worldToLocal * vec4(intersection, 1)).xy();
+
+	// check if point is inside the polygon using the plane's 2D coordinate system
+	if (!pointInsidePolygon(faceMath.localVerts, localRayPoint)) {
+		return false;
+	}
+
+	bestDist = t;
+	g_app->debugVec0 = intersection;
+
+	return true;
 }

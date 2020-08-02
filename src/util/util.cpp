@@ -453,8 +453,7 @@ bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane) {
 	return true;
 }
 
-vec3 getNormalFromVerts(vector<vec3>& verts) {
-
+vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 	int i0 = 0;
 	int i1 = -1;
 	int i2 = -1;
@@ -470,7 +469,7 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 
 	if (i1 == -1) {
 		//logf("Only 1 unique vert!\n");
-		return vec3();
+		return vector<vec3>();
 	}
 
 	for (int i = 1; i < verts.size(); i++) {
@@ -491,14 +490,20 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 
 	if (i2 == -1) {
 		//logf("All verts are colinear!\n");
-		return vec3();
+		return vector<vec3>();
 	}
 
-	vec3 v0 = verts[i0];
-	vec3 v1 = verts[i1];
-	vec3 v2 = verts[i2];
-	vec3 e1 = (v1 - v0).normalize();
-	vec3 e2 = (v2 - v0).normalize();
+	return { verts[i0], verts[i1], verts[i2] };
+}
+
+vec3 getNormalFromVerts(vector<vec3>& verts) {
+	vector<vec3> triangularVerts = getTriangularVerts(verts);
+
+	if (triangularVerts.empty())
+		return vec3();
+
+	vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
+	vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
 	vec3 vertsNormal = crossProduct(e1, e2).normalize();
 
 	return vertsNormal;
@@ -584,6 +589,31 @@ vector<vec3> getSortedPlanarVerts(vector<vec3>& verts) {
 		outVerts[i] = verts[vertOrder[i]];
 	}
 	return outVerts;
+}
+
+bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
+	// https://stackoverflow.com/a/34689268
+	bool inside = true;
+	float lastd = 0;
+	for (int i = 0; i < poly.size(); i++)
+	{
+		vec2& v1 = poly[i];
+		vec2& v2 = poly[(i + 1) % poly.size()];
+
+		if (v1.x == p.x && v1.y == p.y) {
+			break; // on edge = inside
+		}
+
+		float d = (p.x - v1.x) * (v2.y - v1.y) - (p.y - v1.y) * (v2.x - v1.x);
+
+		if ((d < 0 && lastd > 0) || (d > 0 && lastd < 0)) {
+			// point is outside of this edge
+			inside = false;
+			break;
+		}
+		lastd = d;
+	}
+	return inside;
 }
 
 #ifdef WIN32

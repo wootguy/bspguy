@@ -115,7 +115,7 @@ void Clipper::clipEdges(CMesh& mesh, BSPPLANE& clip) {
 }
 
 void Clipper::clipFaces(CMesh& mesh, BSPPLANE& clip) {
-	CFace closeFace({}, clip.vNormal);
+	CFace closeFace({}, clip.vNormal.invert());
 	int findex = mesh.faces.size();
 
 	for (int i = 0; i < mesh.faces.size(); i++) {
@@ -229,100 +229,4 @@ CMesh Clipper::createMaxSizeVolume() {
 	}
 
 	return mesh;
-}
-
-void Clipper::getDrawableVerts(vector<CMesh> meshes, ShaderProgram* shaderProgram, COLOR4 color, 
-		VertexBuffer** faceBuffer, VertexBuffer** wireframeBuffer) {
-	vector<cVert> allVerts;
-	vector<cVert> wireframeVerts;
-
-	for (int m = 0; m < meshes.size(); m++) {
-		CMesh& mesh = meshes[m];
-
-		for (int i = 0; i < mesh.faces.size(); i++) {
-
-			if (!mesh.faces[i].visible) {
-				continue;
-			}
-
-			set<int> uniqueFaceVerts;
-
-			for (int k = 0; k < mesh.faces[i].edges.size(); k++) {
-				for (int v = 0; v < 2; v++) {
-					int vertIdx = mesh.edges[mesh.faces[i].edges[k]].verts[v];
-					if (!mesh.verts[vertIdx].visible) {
-						continue;
-					}
-					uniqueFaceVerts.insert(vertIdx);
-				}
-			}
-
-			vector<vec3> faceVerts;
-			for (auto vertIdx : uniqueFaceVerts) {
-				faceVerts.push_back(mesh.verts[vertIdx].pos);
-			}
-
-			faceVerts = getSortedPlanarVerts(faceVerts);
-
-			if (faceVerts.size() < 3) {
-				//logf("Degenerate clipnode face discarded\n");
-				continue;
-			}
-
-			vec3 normal = getNormalFromVerts(faceVerts);
-
-			if (dotProduct(mesh.faces[i].normal, normal) < 0) {
-				reverse(faceVerts.begin(), faceVerts.end());
-				normal = normal.invert();
-			}
-
-			for (int i = 0; i < faceVerts.size(); i++) {
-				faceVerts[i] = faceVerts[i].flip();
-			}
-
-			COLOR4 wireframeColor = {0, 0, 0, 255};
-			for (int k = 0; k < faceVerts.size(); k++) {
-				wireframeVerts.push_back(cVert(faceVerts[k], wireframeColor));
-				wireframeVerts.push_back(cVert(faceVerts[(k + 1) % faceVerts.size()], wireframeColor));
-			}
-
-			vec3 lightDir = vec3(1, 1, -1).normalize();
-			float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
-			if (dot > 0.5f) {
-				dot = dot * dot;
-			}
-			COLOR4 faceColor = color * (dot);
-
-			// convert from TRIANGLE_FAN style verts to TRIANGLES
-			for (int k = 2; k < faceVerts.size(); k++) {
-				allVerts.push_back(cVert(faceVerts[0], faceColor));
-				allVerts.push_back(cVert(faceVerts[k - 1], faceColor));
-				allVerts.push_back(cVert(faceVerts[k], faceColor));
-			}
-		}
-	}
-
-	cVert* output = new cVert[allVerts.size()];
-	for (int i = 0; i < allVerts.size(); i++) {
-		output[i] = allVerts[i];
-	}
-
-	cVert* wireOutput = new cVert[wireframeVerts.size()];
-	for (int i = 0; i < wireframeVerts.size(); i++) {
-		wireOutput[i] = wireframeVerts[i];
-	}
-
-	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
-		*faceBuffer = NULL;
-		*wireframeBuffer = NULL;
-		return;
-	}
-
-	VertexBuffer* buffer = new VertexBuffer(shaderProgram, COLOR_4B | POS_3F, output, allVerts.size());
-	buffer->ownData = true;
-	*faceBuffer = buffer;
-
-	VertexBuffer* wireBuffer = new VertexBuffer(shaderProgram, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
-	wireBuffer->ownData = true;
-	*wireframeBuffer = wireBuffer;
 }

@@ -210,6 +210,10 @@ Renderer::Renderer() {
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
 
+	colorShader->bind();
+	uint colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
+	glUniform4f(colorMultId, 1, 1, 1, 1);
+
 	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME;
 	
@@ -1013,7 +1017,7 @@ void Renderer::cameraContextMenus() {
 		memset(&tempPick, 0, sizeof(PickInfo));
 		tempPick.bestDist = 9e99;
 		for (int i = 0; i < mapRenderers.size(); i++) {
-			if (mapRenderers[i]->pickPoly(pickStart, pickDir, tempPick)) {
+			if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, tempPick)) {
 				tempPick.mapIdx = i;
 			}
 		}
@@ -1110,7 +1114,7 @@ void Renderer::pickObject() {
 	memset(&pickInfo, 0, sizeof(PickInfo));
 	pickInfo.bestDist = 9e99;
 	for (int i = 0; i < mapRenderers.size(); i++) {
-		if (mapRenderers[i]->pickPoly(pickStart, pickDir, pickInfo)) {
+		if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, pickInfo)) {
 			pickInfo.mapIdx = i;
 		}
 	}

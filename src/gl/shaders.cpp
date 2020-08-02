@@ -7,6 +7,7 @@
 const char* g_shader_cVert_vertex =
 // object variables
 "uniform mat4 modelViewProjection;\n"
+"uniform vec4 colorMult;\n"
 
 // vertex variables
 "attribute vec3 vPosition;\n"
@@ -18,7 +19,7 @@ const char* g_shader_cVert_vertex =
 "void main()\n"
 "{\n"
 "	gl_Position = modelViewProjection * vec4(vPosition, 1);\n"
-"	fColor = vColor;\n"
+"	fColor = vColor * colorMult;\n"
 "}\n";
 
 

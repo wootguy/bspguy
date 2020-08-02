@@ -82,6 +82,12 @@ class Renderer {
 public:
 	vector<BspRenderer*> mapRenderers;
 
+	vec3 debugPoint;
+	vec3 debugVec0;
+	vec3 debugVec1;
+	vec3 debugVec2;
+	vec3 debugVec3;
+
 	Renderer();
 	~Renderer();
 
@@ -191,11 +197,6 @@ private:
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 
-	vec3 debugPoint;
-	vec3 debugVec0;
-	vec3 debugVec1;
-	vec3 debugVec2;
-	vec3 debugVec3;
 	int debugInt = 0;
 	int debugIntMax = 0;
 	int debugNode = 0;

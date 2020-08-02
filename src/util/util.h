@@ -89,6 +89,9 @@ vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes);
 
 bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane);
 
+// get verts from the given set that form a triangle (no duplicates and not colinear)
+vector<vec3> getTriangularVerts(vector<vec3>& verts);
+
 vec3 getNormalFromVerts(vector<vec3>& verts);
 
 // transforms verts onto a plane (which is defined by the verts themselves)
@@ -98,3 +101,5 @@ vector<vec2> localizeVerts(vector<vec3>& verts);
 vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
 
 vector<vec3> getSortedPlanarVerts(vector<vec3>& verts);
+
+bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
