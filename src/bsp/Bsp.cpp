@@ -234,6 +234,50 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 	}
 }
 
+vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
+	vector<NodeVolumeCuts> modelVolumeCuts;
+
+	if (hullIdx >= 1 && hullIdx < MAX_MAP_HULLS) {
+		if (models[modelIdx].iHeadnodes[hullIdx] != -1) {
+			vector<BSPPLANE> clipOrder;
+			get_clipnode_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
+		}
+	}
+
+	return modelVolumeCuts;
+}
+
+void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output) {
+	BSPCLIPNODE& node = clipnodes[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		BSPPLANE plane = planes[node.iPlane];
+		if (i != 0) {
+			plane.vNormal = plane.vNormal.invert();
+			plane.fDist = -plane.fDist;
+		}
+		clipOrder.push_back(plane);
+
+		if (node.iChildren[i] >= 0) {
+			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output);
+		}
+		else if (node.iChildren[i] != CONTENTS_EMPTY) {
+			NodeVolumeCuts nodeVolumeCuts;
+			nodeVolumeCuts.nodeIdx = iNode;
+
+			// reverse order of branched planes = order of cuts to the world which define this node's volume
+			// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
+			for (int k = clipOrder.size() - 1; k >= 0; k--) {
+				nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+			}
+
+			output.push_back(nodeVolumeCuts);
+		}
+
+		clipOrder.pop_back();
+	}
+}
+
 bool Bsp::is_convex(int modelIdx) {
 	return is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
 }
@@ -2115,7 +2159,7 @@ void Bsp::print_clipnode_tree(int iNode, int depth) {
 	}
 
 	if (iNode < 0) {
-		print_contents(iNode);
+		logf(getLeafContentsName(iNode));
 		logf("\n");
 		return;
 	}
@@ -2201,28 +2245,90 @@ void Bsp::print_node(BSPNODE node) {
 		node.nMaxs[0], node.nMaxs[1], node.nMaxs[2]);
 }
 
-int Bsp::pointContents(int iNode, vec3 p) {
-	float       d;
-	BSPNODE* node;
-	BSPPLANE* plane;
+int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx) {
+	if (hull == 0) {
+		while (iNode >= 0)
+		{
+			nodeBranch.push_back(iNode);
+			BSPNODE& node = nodes[iNode];
+			BSPPLANE& plane = planes[node.iPlane];
 
-	while (iNode >= 0)
-	{
-		node = &nodes[iNode];
-		plane = &planes[node->iPlane];
+			float d = dotProduct(plane.vNormal, p) - plane.fDist;
+			if (d < 0) {
+				iNode = node.iChildren[1];
+				childIdx = 1;
+			}
+			else {
+				iNode = node.iChildren[0];
+				childIdx = 0;
+			}
+		}
 
-		d = dotProduct(plane->vNormal, p) - plane->fDist;
-		if (d < 0)
-			iNode = node->iChildren[1];
-		else
-			iNode = node->iChildren[0];
+		leafIdx = ~iNode;
+		return leaves[~iNode].nContents;
 	}
+	else {
+		while (iNode >= 0)
+		{
+			nodeBranch.push_back(iNode);
+			BSPCLIPNODE& node = clipnodes[iNode];
+			BSPPLANE& plane = planes[node.iPlane];
 
-	//logf << "Contents at " << p.x << " " << p.y << " " << p.z << " is ";
-	//print_leaf(leaves[~iNode]);
-	//logf << " (LEAF " << ~iNode << ")\n";
+			float d = dotProduct(plane.vNormal, p) - plane.fDist;
+			if (d < 0) {
+				iNode = node.iChildren[1];
+				childIdx = 1;
+			}
+			else {
+				iNode = node.iChildren[0];
+				childIdx = 0;
+			}
+		}
 
-	return leaves[~iNode].nContents;
+		return iNode;
+	}
+}
+
+int32_t Bsp::pointContents(int iNode, vec3 p, int hull) {
+	vector<int> nodeBranch;
+	int leafIdx;
+	int childIdx;
+	return pointContents(iNode, p, hull, nodeBranch, leafIdx, childIdx);
+}
+
+const char* Bsp::getLeafContentsName(int32_t contents) {
+	switch (contents) {
+	case CONTENTS_EMPTY:
+		return "EMPTY";
+	case CONTENTS_SOLID:
+		return "SOLID";
+	case CONTENTS_WATER:
+		return "WATER";
+	case CONTENTS_SLIME:
+		return "SLIME";
+	case CONTENTS_LAVA:
+		return "LAVA";
+	case CONTENTS_SKY:
+		return "SKY";
+	case CONTENTS_ORIGIN:
+		return "ORIGIN";
+	case CONTENTS_CURRENT_0:
+		return "CURRENT_0";
+	case CONTENTS_CURRENT_90:
+		return "CURRENT_90";
+	case CONTENTS_CURRENT_180:
+		return "CURRENT_180";
+	case CONTENTS_CURRENT_270:
+		return "CURRENT_270";
+	case CONTENTS_CURRENT_UP:
+		return "CURRENT_UP";
+	case CONTENTS_CURRENT_DOWN:
+		return "CURRENT_DOWN";
+	case CONTENTS_TRANSLUCENT:
+		return "TRANSLUCENT";
+	default:
+		return "UNKNOWN";
+	}
 }
 
 void Bsp::mark_face_structures(int iFace, STRUCTUSAGE* usage) {
@@ -2275,10 +2381,6 @@ void Bsp::mark_clipnode_structures(int iNode, STRUCTUSAGE* usage) {
 
 	usage->clipnodes[iNode] = true;
 	usage->planes[node.iPlane] = true;
-
-	if (node.iPlane == 258) {
-		logf("");
-	}
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
@@ -2693,8 +2795,8 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		// reverse cuz i fucked the edge order and I don't wanna redo
 		for (int i = 12-1; i >= 0; i--) {
 			int32_t edgeIdx = startEdge + i;
-			newSurfedges[startSurfedge + (i*2)] = -edgeIdx;
-			newSurfedges[startSurfedge + (i*2) + 1] = edgeIdx; // negative = use second vertex in edge
+			newSurfedges[startSurfedge + (i*2)] = -edgeIdx; // negative = use second vertex in edge
+			newSurfedges[startSurfedge + (i*2) + 1] = edgeIdx;
 		}
 		
 		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + 24) * sizeof(int32_t));
@@ -3653,43 +3755,8 @@ void Bsp::write_csg_polys(int16_t nodeIdx, FILE* polyfile, int flipPlaneSkip, bo
 	}
 }
 
-void Bsp::print_contents(int contents) {
-	switch (contents) {
-	case CONTENTS_EMPTY:
-		logf("EMPTY"); break;
-	case CONTENTS_SOLID:
-		logf("SOLID"); break;
-	case CONTENTS_WATER:
-		logf("WATER"); break;
-	case CONTENTS_SLIME:
-		logf("SLIME"); break;
-	case CONTENTS_LAVA:
-		logf("LAVA"); break;
-	case CONTENTS_SKY:
-		logf("SKY"); break;
-	case CONTENTS_ORIGIN:
-		logf("ORIGIN"); break;
-	case CONTENTS_CURRENT_0:
-		logf("CURRENT_0"); break;
-	case CONTENTS_CURRENT_90:
-		logf("CURRENT_90"); break;
-	case CONTENTS_CURRENT_180:
-		logf("CURRENT_180"); break;
-	case CONTENTS_CURRENT_270:
-		logf("CURRENT_270"); break;
-	case CONTENTS_CURRENT_UP:
-		logf("CURRENT_UP"); break;
-	case CONTENTS_CURRENT_DOWN:
-		logf("CURRENT_DOWN"); break;
-	case CONTENTS_TRANSLUCENT:
-		logf("TRANSLUCENT"); break;
-	default:
-		logf("UNKNOWN"); break;
-	}
-}
-
 void Bsp::print_leaf(BSPLEAF leaf) {
-	print_contents(leaf.nContents);
+	logf(getLeafContentsName(leaf.nContents));
 	logf(" %d surfs, Min(%d, %d, %d), Max(%d %d %d)", leaf.nMarkSurfaces, 
 		leaf.nMins[0], leaf.nMins[1], leaf.nMins[2],
 		leaf.nMaxs[0], leaf.nMaxs[1], leaf.nMaxs[2]);

@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "bsplimits.h"
+#include <vector>
 
 #define BSP_MODEL_BYTES 64 // size of a BSP model in bytes
 
@@ -170,4 +171,52 @@ struct BSPCLIPNODE
 {
 	int32_t iPlane;       // Index into planes
 	int16_t iChildren[2]; // negative numbers are contents
+};
+
+
+/*
+ * application types (not part of the BSP)
+ */
+
+struct ScalableTexinfo {
+	int texinfoIdx;
+	vec3 oldS, oldT;
+	float oldShiftS, oldShiftT;
+	int planeIdx;
+	int faceIdx;
+};
+
+struct TransformVert {
+	vec3 pos;
+	vec3* ptr; // face vertex to move with (null for invisible faces)
+	vector<int> iPlanes;
+	vec3 startPos; // for dragging
+	vec3 undoPos; // for undoing invalid solid stuff
+	bool selected;
+};
+
+struct HullEdge {
+	int verts[2]; // index into modelVerts/hullVerts
+	int planes[2]; // index into iPlanes
+	bool selected;
+};
+
+struct Face {
+	vector<int> verts; // index into hullVerts
+	BSPPLANE plane;
+	int planeSide;
+	int iTextureInfo;
+};
+
+struct Solid {
+	vector<Face> faces;
+
+	vector<TransformVert> hullVerts; // control points for hull 0
+	vector<HullEdge> hullEdges; // for vertex manipulation (holds indexes into hullVerts)
+};
+
+// used to construct bounding volumes for solid leaves
+struct NodeVolumeCuts {
+	int nodeIdx;
+	vector<BSPPLANE> cuts; // cuts which define the leaf boundaries when applied to a bounding box, in order.
 };

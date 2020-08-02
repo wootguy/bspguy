@@ -17,43 +17,6 @@ struct membuf : std::streambuf
 	}
 };
 
-struct ScalableTexinfo {
-	int texinfoIdx;
-	vec3 oldS, oldT;
-	float oldShiftS, oldShiftT;
-	int planeIdx;
-	int faceIdx;
-};
-
-struct TransformVert {
-	vec3 pos;
-	vec3* ptr; // face vertex to move with (null for invisible faces)
-	vector<int> iPlanes;
-	vec3 startPos; // for dragging
-	vec3 undoPos; // for undoing invalid solid stuff
-	bool selected;
-};
-
-struct HullEdge {
-	int verts[2]; // index into modelVerts/hullVerts
-	int planes[2]; // index into iPlanes
-	bool selected;
-};
-
-struct Face {
-	vector<int> verts; // index into hullVerts
-	BSPPLANE plane;
-	int planeSide;
-	int iTextureInfo;
-};
-
-struct Solid {
-	vector<Face> faces;
-
-	vector<TransformVert> hullVerts; // control points for hull 0
-	vector<HullEdge> hullEdges; // for vertex manipulation (holds indexes into hullVerts)
-};
-
 class Bsp
 {
 public:
@@ -107,7 +70,9 @@ public:
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
-	int32_t pointContents(int iNode, vec3 p);
+	int32_t pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx);
+	int32_t pointContents(int iNode, vec3 p, int hull);
+	const char* getLeafContentsName(int32_t contents);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0
@@ -138,6 +103,10 @@ public:
 	void getNodePlanes(int iNode, vector<int>& nodePlanes);
 	bool is_convex(int modelIdx);
 	bool is_node_hull_convex(int iNode);
+
+	// get cuts required to create bounding volumes for each solid leaf in the model
+	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx);
+	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
@@ -244,7 +213,6 @@ private:
 
 	void print_model_bsp(int modelIdx);
 	void print_leaf(BSPLEAF leaf);
-	void print_contents(int contents);
 	void print_node(BSPNODE node);
 	void print_stat(string name, uint val, uint max, bool isMem);
 	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);

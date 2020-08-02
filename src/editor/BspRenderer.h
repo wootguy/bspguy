@@ -20,7 +20,8 @@ enum RenderFlags {
 	RENDER_SPECIAL_ENTS = 32,
 	RENDER_POINT_ENTS = 64,
 	RENDER_ORIGIN = 128,
-	RENDER_CLIPNODES = 256
+	RENDER_WORLD_CLIPNODES = 256,
+	RENDER_ENT_CLIPNODES = 512
 };
 
 struct LightmapInfo {
@@ -66,9 +67,10 @@ struct RenderModel {
 	RenderFace* renderFaces;
 	int renderFaceCount;
 
-	int clipnodeVertCount;
-	cVert* clipnodeVerts;
-	VertexBuffer* clipnodeBuffer;
+	int clipnodeVertCount[MAX_MAP_HULLS];
+	int wireframeClipnodeVertCount[MAX_MAP_HULLS];
+	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
+	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
 };
 
 struct FaceMath {
@@ -99,10 +101,10 @@ public:
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
-	void render(int highlightEnt, bool highlightAlwaysOnTop);
+	void render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull);
 
 	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
-	void drawModelClipnodes(int modelIdx, bool highlight, bool edgesOnly);
+	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities(int highlightEnt);
 
 	bool pickPoly(vec3 start, vec3 dir, PickInfo& pickInfo);
@@ -112,6 +114,7 @@ public:
 	int refreshModel(int modelIdx, RenderModel* renderModel=NULL);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
+	void updateClipnodeOpacity(byte newValue);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();

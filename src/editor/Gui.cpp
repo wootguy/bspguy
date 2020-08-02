@@ -928,7 +928,7 @@ void Gui::drawStatusMessage() {
 void Gui::drawDebugWidget() {
 	ImGui::SetNextWindowBgAlpha(0.75f);
 
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, 800));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight));
 	if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
 
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
@@ -941,12 +941,12 @@ void Gui::drawDebugWidget() {
 			Bsp* map = app->pickInfo.map;
 			Entity* ent =app->pickInfo.ent;
 
-			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen) && app->pickInfo.valid)
+			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Text("Name: %s", map->name.c_str());
 			}
 
-			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen) && app->pickInfo.valid)
+			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
 
@@ -968,11 +968,6 @@ void Gui::drawDebugWidget() {
 					ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
 					ImGui::Text("Plane ID: %d", face.iPlane);
 
-					ImGui::Text("Headnode[0]: %d", model.iHeadnodes[0]);
-					ImGui::Text("Headnode[1]: %d", model.iHeadnodes[1]);
-					ImGui::Text("Headnode[2]: %d", model.iHeadnodes[2]);
-					ImGui::Text("Headnode[3]: %d", model.iHeadnodes[3]);
-
 					if (face.iTextureInfo < map->texinfoCount) {
 						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
 						int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
@@ -983,7 +978,48 @@ void Gui::drawDebugWidget() {
 					}
 					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
 				}
+			}
 
+			string bspTreeTitle = "BSP Tree";
+			if (app->pickInfo.modelIdx >= 0) {
+				bspTreeTitle += " (Model " + to_string(app->pickInfo.modelIdx) + ")";
+			}
+			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+				
+				if (app->pickInfo.modelIdx >= 0) {
+					Bsp* map = app->pickInfo.map;
+
+					vec3 localCamera = app->cameraOrigin - app->mapRenderers[app->pickInfo.mapIdx]->mapOffset;
+
+					for (int i = 0; i < MAX_MAP_HULLS; i++) {
+						vector<int> nodeBranch;
+						int leafIdx;
+						int childIdx =- 1;
+						int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
+						int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
+
+						if (ImGui::TreeNode(("HULL " + to_string(i)).c_str()))
+						{
+							ImGui::Indent();
+							ImGui::Text("Contents: %s", map->getLeafContentsName(contents));
+							if (i == 0) {
+								ImGui::Text("Leaf: %d", leafIdx);
+							}
+							ImGui::Text("Parent Node: %d (child %d)", 
+								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
+								childIdx);
+							ImGui::Text("Head Node: %d", headNode);
+							ImGui::Text("Depth: %d", nodeBranch.size());
+
+							ImGui::Unindent();
+							ImGui::TreePop();
+						}
+					}
+				}
+				else {
+					ImGui::Text("No model selected");
+				}
+				
 			}
 
 			if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen) && app->pickInfo.valid)
@@ -2019,7 +2055,8 @@ void Gui::drawSettings() {
 			bool renderSpecialEnts = g_render_flags & RENDER_SPECIAL_ENTS;
 			bool renderPointEnts = g_render_flags & RENDER_POINT_ENTS;
 			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
-			bool renderClipnodes = g_render_flags & RENDER_CLIPNODES;
+			bool renderWorldClipnodes = g_render_flags & RENDER_WORLD_CLIPNODES;
+			bool renderEntClipnodes = g_render_flags & RENDER_ENT_CLIPNODES;
 
 			ImGui::Columns(2, 0, false);
 
@@ -2037,9 +2074,6 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("Origin", &renderOrigin)) {
 				g_render_flags ^= RENDER_ORIGIN;
 			}
-			if (ImGui::Checkbox("Clipnodes", &renderClipnodes)) {
-				g_render_flags ^= RENDER_CLIPNODES;
-			}
 
 			ImGui::NextColumn();
 
@@ -2055,8 +2089,36 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("Special World Faces", &renderSpecial)) {
 				g_render_flags ^= RENDER_SPECIAL;
 			}
+			
 
-			ImGui::Columns(1);	
+			ImGui::Columns(1);
+
+			ImGui::Separator();
+
+			ImGui::Columns(2, 0, false);
+
+			if (ImGui::Checkbox("World Clipnodes", &renderWorldClipnodes)) {
+				g_render_flags ^= RENDER_WORLD_CLIPNODES;
+			}
+			ImGui::NextColumn();
+			if (ImGui::Checkbox("Entity Clipnodes", &renderEntClipnodes)) {
+				g_render_flags ^= RENDER_ENT_CLIPNODES;
+			}
+
+			ImGui::Columns(1);
+
+			ImGui::Text("Clipnode Hull: ");
+			ImGui::Indent();
+			ImGui::RadioButton("1 - Human", &app->clipnodeRenderHull, 1);
+			ImGui::RadioButton("2 - Large", &app->clipnodeRenderHull, 2);
+			ImGui::RadioButton("3 - Head", &app->clipnodeRenderHull, 3);
+
+			static bool transparentNodes = true;
+			if (ImGui::Checkbox("Clipnode Transparency", &transparentNodes)) {
+				for (int i = 0; i < g_app->mapRenderers.size(); i++) {
+					g_app->mapRenderers[i]->updateClipnodeOpacity(transparentNodes ? 128 : 255);
+				}
+			}
 		}
 		else if (settingsTab == 3) {
 			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");

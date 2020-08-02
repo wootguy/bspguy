@@ -319,7 +319,7 @@ void Renderer::renderLoop() {
 			if (pickInfo.valid && pickInfo.mapIdx == i && pickMode == PICK_OBJECT) {
 				highlightEnt = pickInfo.entIdx;
 			}
-			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX);
+			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
@@ -1782,61 +1782,21 @@ bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& 
 			return false;
 		}
 
-		vec3 plane_z = plane.vNormal;
-		vec3 plane_x = (hullVerts[verts[1]].pos - hullVerts[verts[0]].pos).normalize();
-		vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
-		if (fabs(dotProduct(plane_z, plane_x)) > 0.99f) {
-			logf("ZOMG CHANGE NORMAL\n");
-		}
-		mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
-
-		vector<vec2> localVerts;
-		for (int e = 0; e < verts.size(); e++) {
-			vec2 localVert = (worldToLocal * vec4(hullVerts[verts[e]].pos, 1)).xy();
-			localVerts.push_back(localVert);
+		vector<vec3> tempVerts(verts.size());
+		for (int i = 0; i < verts.size(); i++) {
+			tempVerts[i] = hullVerts[verts[i]].pos;
 		}
 
-		vec2 center = getCenter(localVerts);
-		vector<int> orderedVerts;
-		orderedVerts.push_back(verts[0]);
-		vec2 lastVert = localVerts[0];
-		verts.erase(verts.begin() + 0);
-		localVerts.erase(localVerts.begin() + 0);
-		for (int k = 0, sz = verts.size(); k < sz; k++) {
-			int bestIdx = 0;
-			float bestAngle = 9e99;
-
-			for (int i = 0; i < verts.size(); i++) {
-				vec2 a = lastVert;
-				vec2 b = localVerts[i];
-				double a1 = atan2(a.x - center.x, a.y - center.y);
-				double a2 = atan2(b.x - center.x, b.y - center.y);
-				float angle = a2 - a1;
-				if (angle < 0)
-					angle += PI * 2;
-
-				if (angle < bestAngle) {
-					bestAngle = angle;
-					bestIdx = i;
-				}
-			}
-
-			lastVert = localVerts[bestIdx];
-			orderedVerts.push_back(verts[bestIdx]);
-			verts.erase(verts.begin() + bestIdx);
-			localVerts.erase(localVerts.begin() + bestIdx);
+		vector<int> orderedVerts = getSortedPlanarVertOrder(tempVerts);
+		for (int i = 0; i < orderedVerts.size(); i++) {
+			orderedVerts[i] = verts[orderedVerts[i]];
+			tempVerts[i] = hullVerts[orderedVerts[i]].pos;
 		}
 
 		Face face;
 		face.plane = plane;
 
-		// get normal of ordered verts
-		vec3 v0 = hullVerts[orderedVerts[0]].pos;
-		vec3 v1 = hullVerts[orderedVerts[1]].pos;
-		vec3 v2 = hullVerts[orderedVerts[orderedVerts.size()-1]].pos;
-		vec3 e1 = (v1 - v0).normalize();
-		vec3 e2 = (v2 - v0).normalize();
-		vec3 orderedVertsNormal = crossProduct(e1, e2).normalize();
+		vec3 orderedVertsNormal = getNormalFromVerts(tempVerts);
 
 		// get plane normal, flipping if it points inside the solid
 		vec3 faceNormal = plane.vNormal;

@@ -79,6 +79,8 @@ void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs);
 
 vec2 getCenter(vector<vec2>& verts);
 
+vec3 getCenter(vector<vec3>& verts);
+
 void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs);
 
 void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs);
@@ -86,3 +88,13 @@ void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs);
 vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes);
 
 bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane);
+
+vec3 getNormalFromVerts(vector<vec3>& verts);
+
+// transforms verts onto a plane (which is defined by the verts themselves)
+vector<vec2> localizeVerts(vector<vec3>& verts);
+
+// Returns CCW sorted indexes into the verts, as viewed on the plane the verts define
+vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
+
+vector<vec3> getSortedPlanarVerts(vector<vec3>& verts);

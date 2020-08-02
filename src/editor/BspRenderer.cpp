@@ -5,6 +5,7 @@
 #include "lodepng.h"
 #include <algorithm>
 #include "Renderer.h"
+#include "Clipper.h"
 
 #include "icons/missing.h"
 
@@ -351,10 +352,13 @@ void BspRenderer::preRenderFaces() {
 			model.renderGroups[k].wireframeBuffer->upload();
 		}
 
-		if (model.clipnodeVerts > 0) {
-			model.clipnodeBuffer->bindAttributes(true);
-			model.clipnodeBuffer->upload();
+		for (int k = 0; k < MAX_MAP_HULLS; k++) {
+			if (model.clipnodeVertCount[k] > 0) {
+				model.clipnodeBuffer[k]->bindAttributes(true);
+				model.clipnodeBuffer[k]->upload();
+			}
 		}
+		
 	}
 }
 
@@ -394,9 +398,10 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 		delete group.wireframeBuffer;
 	}
 
-	if (renderModel->clipnodeVertCount > 0) {
-		delete[] renderModel->clipnodeVerts;
-		delete renderModel->clipnodeBuffer;
+	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		if (renderModel->clipnodeVertCount[i] > 0) {
+			delete renderModel->clipnodeBuffer[i];
+		}
 	}
 
 	delete[] renderModel->renderGroups;
@@ -458,7 +463,8 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 	deleteRenderModel(renderModel);
 	
 	renderModel->renderFaces = new RenderFace[model.nFaces];
-	renderModel->clipnodeVerts = 0;
+	for (int k = 0; k < MAX_MAP_HULLS; k++)
+		renderModel->clipnodeVertCount[k] = 0;
 
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
@@ -685,24 +691,45 @@ int BspRenderer::refreshModel(int modelIdx, RenderModel* renderModel) {
 void BspRenderer::generateClipnodeBuffer(int modelIdx, RenderModel* renderModel) {
 	BSPMODEL& model = map->models[modelIdx];
 
-	vec3 min = vec3(model.nMins.x, model.nMins.z, -model.nMins.y);
-	vec3 max = vec3(model.nMaxs.x, model.nMaxs.z, -model.nMaxs.y);
+	vec3 min = vec3(model.nMins.x, model.nMins.y, model.nMins.z);
+	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
 
-	logf("Create clipnode cube: %f %f %f, %f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z);
+	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		renderModel->clipnodeBuffer[i] = NULL;
+		renderModel->wireframeClipnodeBuffer[i] = NULL;
+	}
 
-	COLOR4 clipColor = { 255, 255, 255, 128 };
-	cCube* cube = new cCube(min, max, clipColor);
+	Clipper clipper;
+	
+	for (int i = 1; i < MAX_MAP_HULLS; i++) {
+		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i);
 
-	cube->left.setColor(clipColor * 0.66f);
-	cube->right.setColor(clipColor * 0.66f);
-	cube->front.setColor(clipColor * 0.8f);
-	cube->back.setColor(clipColor * 0.53f);
-	cube->top.setColor(clipColor * 0.40f);
-	cube->bottom.setColor(clipColor * 1.0f);
+		vector<CMesh> meshes;
+		for (int k = 0; k < solidNodes.size(); k++) {
+			meshes.push_back(clipper.clip(solidNodes[k].cuts));
+		}
 
-	renderModel->clipnodeVertCount = 6 * 6;
-	renderModel->clipnodeBuffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, cube, renderModel->clipnodeVertCount);
-	renderModel->clipnodeBuffer->ownData = true;
+		clipper.getDrawableVerts(meshes, colorShader, { 255, 255, 255, 128 },
+			&renderModel->clipnodeBuffer[i], &renderModel->wireframeClipnodeBuffer[i]);
+
+		renderModel->clipnodeVertCount[i] = renderModel->clipnodeBuffer[i]->numVerts;
+		renderModel->wireframeClipnodeVertCount[i] = renderModel->wireframeClipnodeBuffer[i]->numVerts;
+	}
+}
+
+void BspRenderer::updateClipnodeOpacity(byte newValue) {
+	for (int i = 0; i < numRenderModels; i++) {
+		for (int k = 0; k < MAX_MAP_HULLS; k++) {
+			if (renderModels[i].clipnodeVertCount[k] > 0) {
+				cVert* data = (cVert*)renderModels[i].clipnodeBuffer[k]->data;
+				for (int v = 0; v < renderModels[i].clipnodeVertCount[k]; v++) {
+					data[v].c.a = newValue;
+				}
+				renderModels[i].clipnodeBuffer[k]->deleteBuffer();
+				renderModels[i].clipnodeBuffer[k]->upload();
+			}
+		}
+	}
 }
 
 void BspRenderer::preRenderEnts() {
@@ -989,7 +1016,7 @@ uint BspRenderer::getFaceTextureId(int faceIdx) {
 	return glTextures[texinfo.iMiptex]->id;
 }
 
-void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
+void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {
 	BSPMODEL& world = map->models[0];
 	mapOffset = map->ents[0]->getOrigin();
 	vec3 renderOffset = mapOffset.flip();
@@ -1042,7 +1069,11 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 		}
 	}
 
-	if (g_render_flags & RENDER_CLIPNODES) {
+	if (g_render_flags & RENDER_WORLD_CLIPNODES) {
+		drawModelClipnodes(0, false, clipnodeHull);
+	}
+
+	if (g_render_flags & RENDER_ENT_CLIPNODES) {
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 				colorShader->pushMatrix(MAT_MODEL);
@@ -1050,7 +1081,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop) {
 				colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				colorShader->updateMatrixes();
 
-				drawModelClipnodes(renderEnts[i].modelIdx, false, false);
+				drawModelClipnodes(renderEnts[i].modelIdx, false, clipnodeHull);
 
 				colorShader->popMatrix(MAT_MODEL);
 			}
@@ -1166,9 +1197,10 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 	}
 }
 
-void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, bool edgesOnly) {
-	if (renderModels[modelIdx].clipnodeVertCount > 0) {
-		renderModels[modelIdx].clipnodeBuffer->draw(GL_TRIANGLES);
+void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
+	if (renderModels[modelIdx].clipnodeVertCount[hullIdx] > 0 && renderModels[modelIdx].clipnodeBuffer[hullIdx]) {
+		renderModels[modelIdx].clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
+		renderModels[modelIdx].wireframeClipnodeBuffer[hullIdx]->draw(GL_LINES);
 	}
 }
 

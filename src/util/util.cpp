@@ -342,6 +342,17 @@ vec2 getCenter(vector<vec2>& verts) {
 	return mins + (maxs - mins) * 0.5f;
 }
 
+vec3 getCenter(vector<vec3>& verts) {
+	vec3 maxs = vec3(-9e99, -9e99, -9e99);
+	vec3 mins = vec3(9e99, 9e99, 9e99);
+
+	for (int i = 0; i < verts.size(); i++) {
+		expandBoundingBox(verts[i], mins, maxs);
+	}
+
+	return mins + (maxs - mins) * 0.5f;
+}
+
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
 	maxs = vec3(-9e99, -9e99, -9e99);
 	mins = vec3(9e99, 9e99, 9e99);
@@ -440,6 +451,139 @@ bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane) {
 	}
 
 	return true;
+}
+
+vec3 getNormalFromVerts(vector<vec3>& verts) {
+
+	int i0 = 0;
+	int i1 = -1;
+	int i2 = -1;
+
+	int count = 1;
+	for (int i = 1; i < verts.size() && count < 3; i++) {
+		if (verts[i] != verts[i0]) {
+			i1 = i;
+			count++;
+			break;
+		}
+	}
+
+	if (i1 == -1) {
+		//logf("Only 1 unique vert!\n");
+		return vec3();
+	}
+
+	for (int i = 1; i < verts.size(); i++) {
+		if (i == i1)
+			continue;
+
+		if (verts[i] != verts[i0] && verts[i] != verts[i1]) {
+			vec3 ab = (verts[i1] - verts[i0]).normalize();
+			vec3 ac = (verts[i] - verts[i0]).normalize();
+			if (fabs(dotProduct(ab, ac)) == 1) {
+				continue;
+			}
+
+			i2 = i;
+			break;
+		}
+	}
+
+	if (i2 == -1) {
+		//logf("All verts are colinear!\n");
+		return vec3();
+	}
+
+	vec3 v0 = verts[i0];
+	vec3 v1 = verts[i1];
+	vec3 v2 = verts[i2];
+	vec3 e1 = (v1 - v0).normalize();
+	vec3 e2 = (v2 - v0).normalize();
+	vec3 vertsNormal = crossProduct(e1, e2).normalize();
+
+	return vertsNormal;
+}
+
+vector<vec2> localizeVerts(vector<vec3>& verts) {
+	vec3 plane_z = getNormalFromVerts(verts);
+
+	if (plane_z == vec3()) {
+		return vector<vec2>();
+	}
+
+	vec3 plane_x = (verts[1] - verts[0]).normalize();
+	vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
+
+	if (fabs(dotProduct(plane_z, plane_x)) > 0.99f) {
+		logf("ZOMG CHANGE NORMAL\n");
+	}
+
+	mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
+
+	vector<vec2> localVerts(verts.size());
+	for (int e = 0; e < verts.size(); e++) {
+		localVerts[e] = (worldToLocal * vec4(verts[e], 1)).xy();
+	}
+
+	return localVerts;
+}
+
+vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
+	vector<vec2> localVerts = localizeVerts(verts);
+	if (localVerts.empty()) {
+		return vector<int>();
+	}
+
+	vec2 center = getCenter(localVerts);
+	vector<int> orderedVerts;
+	vector<int> remainingVerts;
+
+	for (int i = 0; i < localVerts.size(); i++) {
+		remainingVerts.push_back(i);
+	}
+
+	orderedVerts.push_back(remainingVerts[0]);
+	vec2 lastVert = localVerts[0];
+	remainingVerts.erase(remainingVerts.begin() + 0);
+	localVerts.erase(localVerts.begin() + 0);
+	for (int k = 0, sz = remainingVerts.size(); k < sz; k++) {
+		int bestIdx = 0;
+		float bestAngle = 9e99;
+
+		for (int i = 0; i < remainingVerts.size(); i++) {
+			vec2 a = lastVert;
+			vec2 b = localVerts[i];
+			double a1 = atan2(a.x - center.x, a.y - center.y);
+			double a2 = atan2(b.x - center.x, b.y - center.y);
+			float angle = a2 - a1;
+			if (angle < 0)
+				angle += PI * 2;
+
+			if (angle < bestAngle) {
+				bestAngle = angle;
+				bestIdx = i;
+			}
+		}
+
+		lastVert = localVerts[bestIdx];
+		orderedVerts.push_back(remainingVerts[bestIdx]);
+		remainingVerts.erase(remainingVerts.begin() + bestIdx);
+		localVerts.erase(localVerts.begin() + bestIdx);
+	}
+
+	return orderedVerts;
+}
+
+vector<vec3> getSortedPlanarVerts(vector<vec3>& verts) {
+	vector<vec3> outVerts(verts.size());
+	vector<int> vertOrder = getSortedPlanarVertOrder(verts);
+	if (vertOrder.empty()) {
+		return vector<vec3>();
+	}
+	for (int i = 0; i < vertOrder.size(); i++) {
+		outVerts[i] = verts[vertOrder[i]];
+	}
+	return outVerts;
 }
 
 #ifdef WIN32
