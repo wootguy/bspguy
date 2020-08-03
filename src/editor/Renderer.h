@@ -183,6 +183,9 @@ private:
 	bool modelUsesSharedStructures = false;
 	vec3 selectionSize;
 
+	VertexBuffer* entConnections = NULL;
+	VertexBuffer* entConnectionPoints = NULL;
+
 	Entity* copiedEnt = NULL;
 
 	int oldLeftMouse;
@@ -227,6 +230,7 @@ private:
 	void drawModelVerts();
 	void drawModelOrigin();
 	void drawTransformAxes();
+	void drawEntConnections();
 	void drawLine(vec3 start, vec3 end, COLOR4 color);
 	void drawPlane(BSPPLANE& plane, COLOR4 color);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
@@ -240,6 +244,8 @@ private:
 	void updateDragAxes();
 	void updateModelVerts();
 	void updateSelectionSize();
+	void updateEntConnections();
+	void updateEntConnectionPositions(); // only updates positions in the buffer
 	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
 	void splitFace();

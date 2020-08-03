@@ -76,6 +76,11 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
 	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
+
+	// cache ent targets so first selection doesn't lag
+	for (int i = 0; i < map->ents.size(); i++) {
+		map->ents[i]->getTargets();
+	}
 }
 
 void BspRenderer::loadTextures() {

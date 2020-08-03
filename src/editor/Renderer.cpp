@@ -320,6 +320,8 @@ void Renderer::renderLoop() {
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
+		drawEntConnections();
+
 		isLoading = reloading;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
@@ -369,6 +371,14 @@ void Renderer::renderLoop() {
 				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
 				colorShader->popMatrix(MAT_MODEL);
 			}
+		}
+
+		if (entConnectionPoints && (g_render_flags & RENDER_ENT_CONNECTIONS)) {
+			model.loadIdentity();
+			colorShader->updateMatrixes();
+			glDisable(GL_DEPTH_TEST);
+			entConnectionPoints->draw(GL_TRIANGLES);
+			glEnable(GL_DEPTH_TEST);
 		}
 
 		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
@@ -658,6 +668,14 @@ void Renderer::drawTransformAxes() {
 		model.translate(ori.x, ori.z, -ori.y);
 		colorShader->updateMatrixes();
 		moveAxes.buffer->draw(GL_TRIANGLES);
+	}
+}
+
+void Renderer::drawEntConnections() {
+	if (entConnections && (g_render_flags & RENDER_ENT_CONNECTIONS)) {
+		model.loadIdentity();
+		colorShader->updateMatrixes();
+		entConnections->draw(GL_LINES);
 	}
 }
 
@@ -1065,6 +1083,7 @@ void Renderer::moveGrabbedEnt() {
 		
 		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 		mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+		updateEntConnectionPositions();
 	}
 	else {
 		movingEnt = false;
@@ -1189,7 +1208,11 @@ void Renderer::pickObject() {
 
 	pickClickHeld = true;
 
-	updateSelectionSize();
+	updateEntConnections();
+
+	if (pickInfo.valid && pickInfo.map && pickInfo.ent) {
+		selectEnt(pickInfo.map, pickInfo.entIdx);
+	}
 }
 
 bool Renderer::transformAxisControls() {
@@ -1247,6 +1270,7 @@ bool Renderer::transformAxisControls() {
 
 				ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 				mapRenderers[pickInfo.mapIdx]->refreshEnt(pickInfo.entIdx);
+				updateEntConnectionPositions();
 			}
 			else if (transformTarget == TRANSFORM_ORIGIN) {
 				transformedOrigin = (oldOrigin + delta);
@@ -1769,6 +1793,117 @@ void Renderer::updateSelectionSize() {
 		EntCube* cube = pointEntRenderer->getEntCube(pickInfo.ent);
 		if (cube)
 			selectionSize = cube->maxs - cube->mins;
+	}
+}
+
+void Renderer::updateEntConnections() {
+	if (entConnections) {
+		delete entConnections;
+		delete entConnectionPoints;
+		entConnections = NULL;
+		entConnectionPoints = NULL;
+	}
+
+	if (!(g_render_flags & RENDER_ENT_CONNECTIONS)) {
+		return;
+	}
+
+	if (pickInfo.valid && pickInfo.map && pickInfo.ent) {
+		Bsp* map = pickInfo.map;
+		vector<string> targetNames = pickInfo.ent->getTargets();
+		vector<Entity*> targets;
+		vector<Entity*> callers;
+		vector<Entity*> callerAndTarget; // both a target and a caller
+		string thisName;
+		if (pickInfo.ent->hasKey("targetname")) {
+			thisName = pickInfo.ent->keyvalues["targetname"];
+		}
+
+		for (int k = 0; k < map->ents.size(); k++) {
+			Entity* ent = map->ents[k];
+
+			if (k == pickInfo.entIdx)
+				continue;
+			
+			bool isTarget = false;
+			if (ent->hasKey("targetname")) {
+				string tname = ent->keyvalues["targetname"];
+				for (int i = 0; i < targetNames.size(); i++) {
+					if (tname == targetNames[i]) {
+						isTarget = true;
+						break;
+					}
+				}
+			}
+
+			bool isCaller = thisName.length() && ent->hasTarget(thisName);
+
+			if (isTarget && isCaller) {
+				callerAndTarget.push_back(ent);
+			}
+			else if (isTarget) {
+				targets.push_back(ent);
+			}
+			else if (isCaller) {
+				callers.push_back(ent);
+			}			
+		}
+
+		if (targets.empty() && callers.empty() && callerAndTarget.empty()) {
+			return;
+		}
+
+		int numVerts = targets.size() * 2 + callers.size() * 2 + callerAndTarget.size() * 2;
+		int numPoints = callers.size() + targets.size() + callerAndTarget.size();
+		cVert* lines = new cVert[numVerts];
+		cCube* points = new cCube[numPoints];
+
+		const COLOR4 targetColor = { 255, 255, 0, 255 };
+		const COLOR4 callerColor = { 0, 255, 255, 255 };
+		const COLOR4 bothColor = { 0, 255, 0, 255 };
+
+		vec3 srcPos = getEntOrigin(map, pickInfo.ent).flip();
+		int idx = 0;
+		int cidx = 0;
+		float s = 1.5f;
+		vec3 extent = vec3(s,s,s);
+
+		for (int i = 0; i < targets.size(); i++) {
+			vec3 ori = getEntOrigin(map, targets[i]).flip();
+			points[cidx++] = cCube(ori - extent, ori + extent, targetColor);
+			lines[idx++] = cVert(srcPos, targetColor);
+			lines[idx++] = cVert(ori, targetColor);
+		}
+		for (int i = 0; i < callers.size(); i++) {
+			vec3 ori = getEntOrigin(map, callers[i]).flip();
+			points[cidx++] = cCube(ori - extent, ori + extent, callerColor);
+			lines[idx++] = cVert(srcPos, callerColor);
+			lines[idx++] = cVert(ori, callerColor);
+		}
+		for (int i = 0; i < callerAndTarget.size(); i++) {
+			vec3 ori = getEntOrigin(map, callerAndTarget[i]).flip();
+			points[cidx++] = cCube(ori - extent, ori + extent, bothColor);
+			lines[idx++] = cVert(srcPos, bothColor);
+			lines[idx++] = cVert(ori, bothColor);
+		}
+
+		entConnections = new VertexBuffer(colorShader, COLOR_4B | POS_3F, lines, numVerts);
+		entConnectionPoints = new VertexBuffer(colorShader, COLOR_4B | POS_3F, points, numPoints * 6 * 6);
+		entConnections->ownData = true;
+		entConnectionPoints->ownData = true;
+	}
+}
+
+void Renderer::updateEntConnectionPositions() {
+	if (entConnections && pickInfo.valid && pickInfo.ent) {
+		vec3 pos = getEntOrigin(pickInfo.map, pickInfo.ent).flip();
+
+		cVert* verts = (cVert*)entConnections->data;
+		for (int i = 0; i < entConnections->numVerts; i += 2) {
+			verts[i].x = pos.x;
+			verts[i].y = pos.y;
+			verts[i].z = pos.z;
+		}
 	}
 }
 
@@ -2373,12 +2508,9 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 
 	map->ents.push_back(insertEnt);
 
-	pickInfo.entIdx = map->ents.size() - 1;
-	pickInfo.ent = map->ents[pickInfo.entIdx];
-	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
 	pickInfo.valid = true;
+	selectEnt(map, map->ents.size() - 1);
 	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	updateSelectionSize();
 	pickCount++; // force transform window updage
 }
 
@@ -2402,6 +2534,7 @@ void Renderer::deselectObject() {
 	hoverVert = -1;
 	hoverEdge = -1;
 	hoverAxis = -1;
+	updateEntConnections();
 }
 
 void Renderer::deselectFaces() {
@@ -2416,6 +2549,7 @@ void Renderer::selectEnt(Bsp* map, int entIdx) {
 	pickInfo.ent = map->ents[entIdx];
 	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
 	updateSelectionSize();
+	updateEntConnections();
 }
 
 void Renderer::goToEnt(Bsp* map, int entIdx) {

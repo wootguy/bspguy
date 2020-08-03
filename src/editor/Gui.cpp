@@ -1252,6 +1252,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 						if (ImGui::Selectable(choice.name.c_str(), selected)) {
 							ent->setOrAddKeyvalue(key, choice.svalue);
 							app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+							app->updateEntConnections();
 						}
 					}
 
@@ -1286,6 +1287,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							ent->setOrAddKeyvalue(inputData->key, newVal);
 						}
 						inputData->bspRenderer->refreshEnt(inputData->entIdx);
+						g_app->updateEntConnections();
 						return 1;
 					}
 				};
@@ -1409,6 +1411,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				if (key == "model" || string(data->Buf) == "model") {
 					inputData->bspRenderer->preRenderEnts();
 				}
+				g_app->updateEntConnections();
 			}
 
 			return 1;
@@ -1425,6 +1428,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				if (key == "model") {
 					inputData->bspRenderer->preRenderEnts();
 				}
+				g_app->updateEntConnections();
 			}
 
 			return 1;
@@ -1563,6 +1567,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				if (key == "model")
 					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
 				ignoreErrors = 2;
+				g_app->updateEntConnections();
 			}
 			ImGui::PopStyleColor(3);
 			ImGui::NextColumn();
@@ -1586,6 +1591,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		}
 		ent->addKeyvalue(keyName, "");
 		app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+		g_app->updateEntConnections();
 		ignoreErrors = 2;
 	}
 
@@ -1837,6 +1843,7 @@ void Gui::drawTransformWidget() {
 
 					ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
 					bspRenderer->refreshEnt(app->pickInfo.entIdx);
+					app->updateEntConnectionPositions();
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
@@ -2087,6 +2094,7 @@ void Gui::drawSettings() {
 			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
 			bool renderWorldClipnodes = g_render_flags & RENDER_WORLD_CLIPNODES;
 			bool renderEntClipnodes = g_render_flags & RENDER_ENT_CLIPNODES;
+			bool renderEntConnections = g_render_flags & RENDER_ENT_CONNECTIONS;
 
 			ImGui::Text("Render Flags:");
 
@@ -2105,6 +2113,12 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::Checkbox("Origin", &renderOrigin)) {
 				g_render_flags ^= RENDER_ORIGIN;
+			}
+			if (ImGui::Checkbox("Entity Links", &renderEntConnections)) {
+				g_render_flags ^= RENDER_ENT_CONNECTIONS;
+				if (g_render_flags & RENDER_ENT_CONNECTIONS) {
+					app->updateEntConnections();
+				}
 			}
 
 			ImGui::NextColumn();
@@ -2431,6 +2445,11 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	int selected = app->pickInfo.valid ? app->pickInfo.entIdx : -1;
 
 	for (int i = 0; i < limitModels[sortMode].size(); i++) {
+
+		if (modelInfos[i].val == "0") {
+			break;
+		}
+
 		string cname = modelInfos[i].classname + "##" + "select" + to_string(i);
 		int flags = ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns;
 		if (ImGui::Selectable(cname.c_str(), selected == modelInfos[i].entIdx, flags)) {

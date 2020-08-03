@@ -42,6 +42,7 @@ void Entity::addKeyvalue( Keyvalue& k )
 	}
 
 	cachedModelIdx = -2;
+	targetsCached = false;
 }
 
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
@@ -50,10 +51,13 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 
 	keyOrder.push_back(key);
 	cachedModelIdx = -2;
+	targetsCached = false;
 }
 
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
 	cachedModelIdx = -2;
+	targetsCached = false;
+
 	if (hasKey(key)) {
 		keyvalues[key] = value;
 		return;
@@ -67,6 +71,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 	keyOrder.erase(find(keyOrder.begin(), keyOrder.end(), key));
 	keyvalues.erase(key);
 	cachedModelIdx = -2;
+	targetsCached = false;
 }
 
 bool Entity::renameKey(int idx, string newName) {
@@ -83,6 +88,7 @@ bool Entity::renameKey(int idx, string newName) {
 	keyvalues.erase(keyOrder[idx]);
 	keyOrder[idx] = newName;
 	cachedModelIdx = -2;
+	targetsCached = false;
 	return true;
 }
 
@@ -101,6 +107,7 @@ void Entity::clearEmptyKeyvalues() {
 	}
 	keyOrder = newKeyOrder;
 	cachedModelIdx = -2;
+	targetsCached = false;
 }
 
 bool Entity::hasKey(const std::string& key)
@@ -145,8 +152,8 @@ vec3 Entity::getOrigin() {
 #define TOTAL_TARGETNAME_KEYS 134
 const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {
 	// common target-related keys
-	"target",
 	"targetname",
+	"target",
 	"killtarget",
 	"master",
 	"netname",
@@ -343,6 +350,56 @@ const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {
 };
 
 // This needs to be kept in sync with the FGD
+
+vector<string> Entity::getTargets() {
+	if (targetsCached) {
+		return cachedTargets;
+	}
+
+	vector<string> targets;
+
+	for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
+		const char* key = potential_tergetname_keys[i];
+		if (hasKey(key)) {
+			targets.push_back(keyvalues[key]);
+		}
+	}
+
+	if (keyvalues["classname"] == "multi_manager") {
+		// multi_manager is a special case where the targets are in the key names
+		for (int i = 0; i < keyOrder.size(); i++) {
+			string tname = keyOrder[i];
+			size_t hashPos = tname.find("#");
+			string suffix;
+
+			// duplicate targetnames have a #X suffix to differentiate them
+			if (hashPos != string::npos) {
+				tname = tname.substr(0, hashPos);
+			}
+			targets.push_back(tname);
+		}
+	}
+
+	cachedTargets.clear();
+	cachedTargets.reserve(targets.size());
+	for (int i = 0; i < targets.size(); i++) {
+		cachedTargets.push_back(targets[i]);
+	}
+	targetsCached = true;
+
+	return targets;
+}
+
+bool Entity::hasTarget(string checkTarget) {
+	vector<string> targets = getTargets();
+	for (int i = 0; i < targets.size(); i++) {
+		if (targets[i] == checkTarget) {
+			return true;
+		}
+	}
+
+	return false;
+}
 
 void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) {
 	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {

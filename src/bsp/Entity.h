@@ -11,6 +11,8 @@ public:
 	vector<string> keyOrder;
 
 	int cachedModelIdx = -2; // -2 = not cached
+	vector<string> cachedTargets;
+	bool targetsCached = false;
 
 	Entity(void);
 	Entity(const std::string& classname);
@@ -33,6 +35,10 @@ public:
 	vec3 getOrigin();
 
 	bool hasKey(const std::string& key);
+
+	vector<string> getTargets();
+
+	bool hasTarget(string tname);
 
 	void renameTargetnameValues(string oldTargetname, string newTargetname);
 };
