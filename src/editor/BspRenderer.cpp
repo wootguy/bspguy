@@ -1562,7 +1562,8 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 	bool selectWorldClips = modelIdx == 0 && (g_render_flags & RENDER_WORLD_CLIPNODES) && hullIdx != -1;
 	bool selectEntClips = modelIdx > 0 && (g_render_flags & RENDER_ENT_CLIPNODES);
 
-	if (hullIdx == -1) {
+	if (hullIdx == -1 && renderModels[modelIdx].groupCount == 0) {
+		// clipnodes are visible for this model because it has no faces
 		hullIdx = getBestClipnodeHull(modelIdx);
 	}
 

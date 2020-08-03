@@ -40,6 +40,8 @@
 // "Validate" doesn't return any response.. -Sparks (add a results window or something for that + clean/optimize)
 // copy-paste ents from Jack -Outerbeast
 // parse CFG and add game_player_equip ents for each transition
+// clipnode models sometimes missing faces or extending to infinity
+// - floating point inaccuracies probably. Changing starting cube size also changes the model
 
 // minor todo:
 // warn about game_playerjoin and other special names

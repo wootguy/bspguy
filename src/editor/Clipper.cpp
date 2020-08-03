@@ -19,6 +19,7 @@ CMesh Clipper::clip(vector<BSPPLANE>& clips) {
 			return CMesh();
 		}
 		if (result == 1) {
+			// nothing clipped
 			continue;
 		}
 
