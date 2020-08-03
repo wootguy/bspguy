@@ -1440,7 +1440,8 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 	colorShader->bind();
 
 	if (highlightEnt <= 0 || highlightEnt >= map->ents.size()) {
-		pointEnts->draw(GL_TRIANGLES);
+		if (pointEnts->numVerts > 0)
+			pointEnts->draw(GL_TRIANGLES);
 		return;
 	}
 

@@ -103,6 +103,9 @@ void Gui::draw() {
 	if (showTextureWidget) {
 		drawTextureTool();
 	}
+	if (showEntityReport) {
+		drawEntityReport();
+	}
 
 	if (app->pickMode == PICK_OBJECT) {
 		if (contextMenuEnt != -1) {
@@ -545,9 +548,15 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Map"))
 	{
+		if (ImGui::MenuItem("Entity Report", NULL)) {
+			showEntityReport = true;
+		}
+
 		if (ImGui::MenuItem("Show Limits", NULL)) {
 			showLimitsWidget = true;
 		}
+
+		ImGui::Separator();
 
 		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
@@ -583,6 +592,8 @@ void Gui::drawMenuBar() {
 				checkValidHulls();
 			}
 		}
+
+		ImGui::Separator();
 
 		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
 
@@ -1114,7 +1125,7 @@ void Gui::drawKeyvalueEditor() {
 					if (ImGui::BeginMenu(group.groupName.c_str())) {
 						for (int k = 0; k < group.classes.size(); k++) {
 							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
-								ent->keyvalues["classname"] = group.classes[k]->name;
+								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
 								app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
 							}
 						}
@@ -2434,10 +2445,7 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 				// map should already be valid if limits are showing
 
 				if (ImGui::IsMouseDoubleClicked(0)) {
-					BSPMODEL& model = map->models[ent->getBspModelIdx()];
-					vec3 size = (model.nMaxs - model.nMins) * 0.5f;
-
-					app->cameraOrigin = app->getEntOrigin(map, ent) - app->cameraForward * (size.length() + 64.0f);
+					app->goToEnt(map, entIdx);
 				}
 			}
 		}
@@ -2465,6 +2473,265 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 
 	ImGui::PopFont();
 	ImGui::EndChild();
+}
+
+void Gui::drawEntityReport() {
+	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+
+	Bsp* map = app->pickInfo.valid ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+	string title = map ? "Entity Report - " + map->name : "Entity Report";
+
+	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
+		if (map == NULL) {
+			ImGui::Text("No map selected");
+		}
+		else {
+			ImGui::BeginGroup();
+
+			const int MAX_FILTERS = 1;
+			const int MAX_KEY_LEN = 64;
+			static char keyFilter[MAX_FILTERS][MAX_KEY_LEN];
+			static char valueFilter[MAX_FILTERS][MAX_KEY_LEN];
+			static int lastSelect = -1;
+			static string classFilter = "(none)";
+			static bool partialMatches = true;
+			static bool filterNeeded = true;
+			static vector<int> visibleEnts;
+			static vector<bool> selectedItems;
+
+			const ImGuiKeyModFlags expected_key_mod_flags = ImGui::GetMergedKeyModFlags();
+
+			int footerHeight = ImGui::GetFrameHeightWithSpacing()*5 + 16;
+			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
+
+			if (filterNeeded) {
+				visibleEnts.clear();
+				for (int i = 1; i < map->ents.size(); i++) {
+					Entity* ent = map->ents[i];
+					string cname = ent->keyvalues["classname"];
+
+					bool visible = true;
+
+					if (!classFilter.empty() && classFilter != "(none)") {
+						if (toLowerCase(cname) != toLowerCase(classFilter)) {
+							visible = false;
+						}
+					}
+
+					for (int k = 0; k < MAX_FILTERS; k++) {
+						if (strlen(keyFilter[k]) > 0) {
+							string searchKey = trimSpaces(toLowerCase(keyFilter[k]));
+
+							bool foundKey = false;
+							string actualKey;
+							for (int c = 0; c < ent->keyOrder.size(); c++) {
+								string key = toLowerCase(ent->keyOrder[c]);
+								if (key == searchKey || (partialMatches && key.find(searchKey) != string::npos)) {
+									foundKey = true;
+									actualKey = key;
+									break;
+								}
+							}
+							if (!foundKey) {
+								visible = false;
+								break;
+							}
+
+							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
+							if (!searchValue.empty()) {
+								if ((partialMatches && ent->keyvalues[actualKey].find(searchValue) == string::npos) ||
+									(!partialMatches && ent->keyvalues[actualKey] != searchValue)) {
+									visible = false;
+									break;
+								}
+							}
+						}
+						else if (strlen(valueFilter[k]) > 0) {
+							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
+							bool foundMatch = false;
+							for (int c = 0; c < ent->keyOrder.size(); c++) {
+								string val = toLowerCase(ent->keyvalues[ent->keyOrder[c]]);
+								if (val == searchValue || (partialMatches && val.find(searchValue) != string::npos)) {
+									foundMatch = true;
+									break;
+								}
+							}
+							if (!foundMatch) {
+								visible = false;
+								break;
+							}
+						}
+					}
+					if (visible) {
+						visibleEnts.push_back(i);
+					}
+				}
+
+				selectedItems.clear();
+				selectedItems.resize(visibleEnts.size());
+				for (int k = 0; k < selectedItems.size(); k++)
+					selectedItems[k] = false;
+			}
+			filterNeeded = false;
+
+			ImGuiListClipper clipper;
+			clipper.Begin(visibleEnts.size());
+
+			while (clipper.Step())
+			{
+				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size(); line++)
+				{
+					int i = line;
+					int entIdx = visibleEnts[i];
+					Entity* ent = map->ents[entIdx];
+					string cname = ent->keyvalues["classname"];
+
+					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
+						if (expected_key_mod_flags & ImGuiKeyModFlags_Ctrl) {
+							selectedItems[i] = !selectedItems[i];
+							lastSelect = i;
+						}
+						else if (expected_key_mod_flags & ImGuiKeyModFlags_Shift) {
+							if (lastSelect >= 0) {
+								int begin = i > lastSelect ? lastSelect : i;
+								int end = i > lastSelect ? i : lastSelect;
+								for (int k = 0; k < selectedItems.size(); k++)
+									selectedItems[k] = false;
+								for (int k = begin; k < end; k++)
+									selectedItems[k] = true;
+								selectedItems[lastSelect] = true;
+								selectedItems[i] = true;
+							}
+						}
+						else {
+							for (int k = 0; k < selectedItems.size(); k++)
+								selectedItems[k] = false;
+							selectedItems[i] = true;
+							lastSelect = i;
+						}
+
+						if (ImGui::IsMouseDoubleClicked(0)) {
+							app->goToEnt(map, entIdx);
+						}
+
+						g_app->selectEnt(map, entIdx);
+					}
+
+					if (selectedItems[i] && ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {
+						ImGui::OpenPopup("ent_report_context");
+					}
+				}
+			}
+
+			if (ImGui::BeginPopup("ent_report_context"))
+			{
+				if (ImGui::MenuItem("Delete")) {
+					vector<Entity*> newEnts;
+
+					set<int> selectedEnts;
+					for (int i = 0; i < selectedItems.size(); i++) {
+						if (selectedItems[i])
+							selectedEnts.insert(visibleEnts[i]);
+					}
+
+					for (int i = 0; i < map->ents.size(); i++) {
+						if (selectedEnts.find(i) != selectedEnts.end()) {
+							delete map->ents[i];
+						}
+						else {
+							newEnts.push_back(map->ents[i]);
+						}
+					}
+					map->ents = newEnts;
+					app->deselectObject();
+					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
+					reloadLimits();
+					filterNeeded = true;
+				}
+
+				ImGui::EndPopup();
+			}
+
+			ImGui::EndChild();
+
+			ImGui::BeginChild("filters");
+
+			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, 8));
+
+			static vector<string> usedClasses;
+			static set<string> uniqueClasses;
+
+			static bool comboWasOpen = false;
+
+			ImGui::Text("Classname Filter");
+			if (ImGui::BeginCombo("##classfilter", classFilter.c_str()))
+			{
+				if (!comboWasOpen) {
+					comboWasOpen = true;
+
+					usedClasses.clear();
+					uniqueClasses.clear();
+					usedClasses.push_back("(none)");
+
+					for (int i = 1; i < map->ents.size(); i++) {
+						Entity* ent = map->ents[i];
+						string cname = ent->keyvalues["classname"];
+
+						if (uniqueClasses.find(cname) == uniqueClasses.end()) {
+							usedClasses.push_back(cname);
+							uniqueClasses.insert(cname);
+						}
+					}
+					sort(usedClasses.begin(), usedClasses.end());
+
+				}
+				for (int k = 0; k < usedClasses.size(); k++) {
+					bool selected = usedClasses[k] == classFilter;
+					if (ImGui::Selectable(usedClasses[k].c_str(), selected)) {
+						classFilter = usedClasses[k];
+						filterNeeded = true;
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+			else {
+				comboWasOpen = false;
+			}
+
+			ImGui::Dummy(ImVec2(0, 8));
+			ImGui::Text("Keyvalue Filter");
+			
+			ImGuiStyle& style = ImGui::GetStyle();
+			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
+			inputWidth -= smallFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " = ").x;
+
+			for (int i = 0; i < MAX_FILTERS; i++) {
+				ImGui::SetNextItemWidth(inputWidth);
+				if (ImGui::InputText(("##Key" + to_string(i)).c_str(), keyFilter[i], 64)) {
+					filterNeeded = true;
+				}
+				ImGui::SameLine();
+				ImGui::Text(" = "); ImGui::SameLine();
+				ImGui::SetNextItemWidth(inputWidth);
+				if (ImGui::InputText(("##Value" + to_string(i)).c_str(), valueFilter[i], 64)) {
+					filterNeeded = true;
+				}
+			}
+
+			if (ImGui::Checkbox("Partial Matching", &partialMatches)) {
+				filterNeeded = true;
+			}
+
+			ImGui::EndChild();
+
+			ImGui::EndGroup();
+		}
+	}
+
+	ImGui::End();
 }
 
 void Gui::drawTextureTool() {

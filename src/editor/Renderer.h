@@ -55,6 +55,7 @@ struct AppSettings {
 	bool log_open = false;
 	bool settings_open = false;
 	bool limits_open = false;
+	bool entreport_open = false;
 	int settings_tab = 0;
 
 	float fov;
@@ -87,6 +88,8 @@ public:
 	vec3 debugVec1;
 	vec3 debugVec2;
 	vec3 debugVec3;
+
+	bool hideGui = false;
 
 	Renderer();
 	~Renderer();
@@ -255,6 +258,8 @@ private:
 	vec3 getCentroid(vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
 	void deselectFaces();
+	void selectEnt(Bsp* map, int entIdx);
+	void goToEnt(Bsp* map, int entIdx);
 
 	void loadFgds();
 };

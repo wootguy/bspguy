@@ -59,6 +59,7 @@ private:
 	bool showAboutWidget = false;
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
+	bool showEntityReport = false;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	bool openSavedTabs = false;
@@ -115,6 +116,7 @@ private:
 	void drawLimits();
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);
+	void drawEntityReport();
 	StatInfo calcStat(string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void reloadLimits();

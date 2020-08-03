@@ -21,8 +21,9 @@ void error_callback(int error, const char* description)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GLFW_TRUE);
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		g_app->hideGui = !g_app->hideGui;
+	}
 }
 
 void window_size_callback(GLFWwindow* window, int width, int height)
@@ -82,6 +83,7 @@ void AppSettings::load() {
 			else if (key == "log_open") { g_settings.log_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "limits_open") { g_settings.limits_open = atoi(val.c_str()) != 0; }
+			else if (key == "entreport_open") { g_settings.entreport_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
@@ -122,6 +124,7 @@ void AppSettings::save() {
 	file << "log_open=" << g_settings.log_open << endl;
 	file << "settings_open=" << g_settings.settings_open << endl;
 	file << "limits_open=" << g_settings.limits_open << endl;
+	file << "entreport_open=" << g_settings.entreport_open << endl;
 
 	file << "settings_tab=" << g_settings.settings_tab << endl;
 
@@ -389,7 +392,9 @@ void Renderer::renderLoop() {
 		makeVectors(cameraAngles, forward, right, up);
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
-		gui->draw();
+		if (!g_app->hideGui)
+			gui->draw();
+
 		controls();
 
 		glfwSwapBuffers(window);
@@ -452,6 +457,7 @@ void Renderer::saveSettings() {
 	g_settings.log_open = gui->showLogWidget;
 	g_settings.settings_open = gui->showSettingsWidget;
 	g_settings.limits_open = gui->showLimitsWidget;
+	g_settings.entreport_open = gui->showEntityReport;
 
 	g_settings.settings_tab = gui->settingsTab;
 
@@ -481,6 +487,7 @@ void Renderer::loadSettings() {
 	gui->showLogWidget = g_settings.log_open;
 	gui->showSettingsWidget = g_settings.settings_open;
 	gui->showLimitsWidget = g_settings.limits_open;
+	gui->showEntityReport = g_settings.entreport_open;
 
 	gui->settingsTab = g_settings.settings_tab;
 	gui->openSavedTabs = true;
@@ -1749,7 +1756,13 @@ void Renderer::updateSelectionSize() {
 	}
 	else if (pickInfo.modelIdx > 0) {
 		vec3 mins, maxs;
-		pickInfo.map->get_model_vertex_bounds(pickInfo.modelIdx, mins, maxs);
+		if (pickInfo.map->models[pickInfo.modelIdx].nFaces == 0) {
+			mins = pickInfo.map->models[pickInfo.modelIdx].nMins;
+			maxs = pickInfo.map->models[pickInfo.modelIdx].nMaxs;
+		}
+		else {
+			pickInfo.map->get_model_vertex_bounds(pickInfo.modelIdx, mins, maxs);
+		}
 		selectionSize = maxs - mins;
 	}
 	else if (pickInfo.ent) {
@@ -2396,4 +2409,27 @@ void Renderer::deselectFaces() {
 		mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
 	}
 	selectedFaces.clear();
+}
+
+void Renderer::selectEnt(Bsp* map, int entIdx) {
+	pickInfo.entIdx = entIdx;
+	pickInfo.ent = map->ents[entIdx];
+	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
+	updateSelectionSize();
+}
+
+void Renderer::goToEnt(Bsp* map, int entIdx) {
+	Entity* ent = map->ents[entIdx];
+
+	vec3 size;
+	if (ent->isBspModel()) {
+		BSPMODEL& model = map->models[ent->getBspModelIdx()];
+		size = (model.nMaxs - model.nMins) * 0.5f;
+	}
+	else {
+		EntCube* cube = pointEntRenderer->getEntCube(ent);
+		size = cube->maxs - cube->mins * 0.5f;
+	}
+
+	cameraOrigin = getEntOrigin(map, ent) - cameraForward * (size.length() + 64.0f);
 }
