@@ -93,6 +93,7 @@ void AppSettings::load() {
 			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
+			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 		}
@@ -141,6 +142,7 @@ void AppSettings::save() {
 	file << "rot_speed=" << g_settings.rotSpeed << endl;
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << g_settings.fontSize << endl;
+	file << "undo_levels=" << g_settings.undoLevels << endl;
 }
 
 int g_scroll = 0;
@@ -477,6 +479,7 @@ void Renderer::saveSettings() {
 	g_settings.fov = fov;
 	g_settings.render_flags = g_render_flags;
 	g_settings.fontSize = gui->fontSize;
+	g_settings.undoLevels = undoLevels;
 	g_settings.moveSpeed = moveSpeed;
 	g_settings.rotSpeed = rotationSpeed;
 }
@@ -508,6 +511,7 @@ void Renderer::loadSettings() {
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;
 	gui->fontSize = g_settings.fontSize;
+	undoLevels = g_settings.undoLevels;
 	rotationSpeed = g_settings.rotSpeed;
 	moveSpeed = g_settings.moveSpeed;
 
@@ -693,33 +697,43 @@ void Renderer::controls() {
 
 	if (!io.WantCaptureKeyboard)
 		cameraOrigin += getMoveDir() * frameTimeScale;
-
+	
 	moveGrabbedEnt();
 
-	if (io.WantCaptureMouse)
-		return;
+	static bool oldWantTextInput = false;
 
-	double xpos, ypos;
-	glfwGetCursorPos(window, &xpos, &ypos);
-	vec2 mousePos(xpos, ypos);
+	if (!io.WantTextInput && oldWantTextInput) {
+		pushEntityUndoState("Edit Keyvalues");
+	}
 
-	cameraContextMenus();
+	oldWantTextInput = io.WantTextInput;
 
-	cameraRotationControls(mousePos);
+	if (!io.WantTextInput)
+		globalShortcutControls();
 
-	makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
+	if (!io.WantCaptureMouse) {
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
+		vec2 mousePos(xpos, ypos);
 
-	cameraObjectHovering();
+		cameraContextMenus();
 
-	vertexEditControls();
+		cameraRotationControls(mousePos);
 
-	cameraPickingControls();
+		makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
 
-	shortcutControls();
+		cameraObjectHovering();
+
+		vertexEditControls();
+
+		cameraPickingControls();
+
+		shortcutControls();
+	}
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-	
+
 	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
 		oldPressed[i] = pressed[i];
 		oldReleased[i] = released[i];
@@ -836,6 +850,10 @@ void Renderer::cameraPickingControls() {
 		if (draggingAxis != -1) {
 			draggingAxis = -1;
 			applyTransform();
+
+			if (pickInfo.valid && pickInfo.ent && undoEntityState->getOrigin() != pickInfo.ent->getOrigin()) {
+				pushEntityUndoState("Move Entity");
+			}
 		}
 	}
 }
@@ -1074,7 +1092,7 @@ void Renderer::moveGrabbedEnt() {
 		vec3 delta = ((cameraOrigin - mapOffset) + cameraForward * grabDist) - grabStartOrigin;
 		Entity* ent = map->ents[pickInfo.entIdx];
 
-		vec3 oldOrigin = gragStartEntOrigin;
+		vec3 oldOrigin = grabStartEntOrigin;
 		vec3 offset = getEntOffset(map, ent);
 		vec3 newOrigin = (oldOrigin + delta) - offset;
 		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
@@ -1086,7 +1104,7 @@ void Renderer::moveGrabbedEnt() {
 		updateEntConnectionPositions();
 	}
 	else {
-		movingEnt = false;
+		ungrabEnt();
 	}
 }
 
@@ -1096,9 +1114,11 @@ void Renderer::shortcutControls() {
 			(pressed[GLFW_KEY_KP_ENTER] && !oldPressed[GLFW_KEY_KP_ENTER]);
 
 		if (pressed[GLFW_KEY_G] == GLFW_PRESS && oldPressed[GLFW_KEY_G] != GLFW_PRESS) {
-			movingEnt = !movingEnt;
-			if (movingEnt)
+			if (!movingEnt)
 				grabEnt();
+			else {
+				ungrabEnt();
+			}
 		}
 		if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
 			copyEnt();
@@ -1129,6 +1149,15 @@ void Renderer::shortcutControls() {
 	}
 }
 
+void Renderer::globalShortcutControls() {
+	if (anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
+		undo();
+	}
+	if (anyCtrlPressed && pressed[GLFW_KEY_Y] && !oldPressed[GLFW_KEY_Y]) {
+		redo();
+	}
+}
+
 void Renderer::pickObject() {
 	bool pointEntWasSelected = pickInfo.valid && pickInfo.ent && !pickInfo.ent->isBspModel();
 	int oldSelectedEntIdx = pickInfo.entIdx;
@@ -1146,7 +1175,7 @@ void Renderer::pickObject() {
 	}
 
 	if (movingEnt && oldEntIdx != pickInfo.entIdx) {
-		movingEnt = false;
+		ungrabEnt();
 	}
 
 	if (pickInfo.modelIdx >= 0) {
@@ -2443,12 +2472,13 @@ vec3 Renderer::snapToGrid(vec3 pos) {
 void Renderer::grabEnt() {
 	if (!pickInfo.valid || pickInfo.entIdx <= 0)
 		return;
+	movingEnt = true;
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	vec3 mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
 	vec3 localCamOrigin = cameraOrigin - mapOffset;
 	grabDist = (getEntOrigin(map, map->ents[pickInfo.entIdx]) - localCamOrigin).length();
 	grabStartOrigin = localCamOrigin + cameraForward * grabDist;
-	gragStartEntOrigin = localCamOrigin + cameraForward * grabDist;
+	grabStartEntOrigin = localCamOrigin + cameraForward * grabDist;
 }
 
 void Renderer::cutEnt() {
@@ -2461,11 +2491,10 @@ void Renderer::cutEnt() {
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	copiedEnt = new Entity();
 	*copiedEnt = *map->ents[pickInfo.entIdx];
-	delete map->ents[pickInfo.entIdx];
-	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
-	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	deselectObject();
-	gui->reloadLimits();
+	
+	DeleteEntityCommand* deleteCommand = new DeleteEntityCommand("Cut Entity", pickInfo);
+	deleteCommand->execute();
+	pushUndoCommand(deleteCommand);
 }
 
 void Renderer::copyEnt() {
@@ -2506,23 +2535,22 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 		insertEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 	}
 
-	map->ents.push_back(insertEnt);
+	CreateEntityCommand* createCommand = new CreateEntityCommand("Paste Entity", pickInfo.mapIdx, insertEnt);
+	delete insertEnt;
+	createCommand->execute();
+	pushUndoCommand(createCommand);
 
 	pickInfo.valid = true;
 	selectEnt(map, map->ents.size() - 1);
-	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	pickCount++; // force transform window updage
 }
 
 void Renderer::deleteEnt() {
 	if (!pickInfo.valid || pickInfo.entIdx <= 0)
 		return;
 
-	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
-	map->ents.erase(map->ents.begin() + pickInfo.entIdx);
-	mapRenderers[pickInfo.mapIdx]->preRenderEnts();
-	deselectObject();
-	gui->reloadLimits();
+	DeleteEntityCommand* deleteCommand = new DeleteEntityCommand("Delete Entity", pickInfo);
+	deleteCommand->execute();
+	pushUndoCommand(deleteCommand);
 }
 
 void Renderer::deselectObject() {
@@ -2550,6 +2578,8 @@ void Renderer::selectEnt(Bsp* map, int entIdx) {
 	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
 	updateSelectionSize();
 	updateEntConnections();
+	updateEntityState(pickInfo.ent);
+	pickCount++; // force transform window update
 }
 
 void Renderer::goToEnt(Bsp* map, int entIdx) {
@@ -2566,4 +2596,96 @@ void Renderer::goToEnt(Bsp* map, int entIdx) {
 	}
 
 	cameraOrigin = getEntOrigin(map, ent) - cameraForward * (size.length() + 64.0f);
+}
+
+void Renderer::ungrabEnt() {
+	if (!movingEnt) {
+		return;
+	}
+
+	movingEnt = false;
+
+	pushEntityUndoState("Move Entity");
+}
+
+void Renderer::updateEntityState(Entity* ent) {
+	if (!undoEntityState) {
+		undoEntityState = new Entity();
+	}
+	*undoEntityState = *ent;
+}
+
+void Renderer::pushEntityUndoState(string actionDesc) {
+	if (!pickInfo.valid || !pickInfo.ent) {
+		logf("Invalid entity undo state push\n");
+		return;
+	}
+
+	bool anythingToUndo = true;
+	if (undoEntityState->keyOrder.size() == pickInfo.ent->keyOrder.size()) {
+		bool keyvaluesDifferent = false;
+		for (int i = 0; i < undoEntityState->keyOrder.size(); i++) {
+			string oldKey = undoEntityState->keyOrder[i];
+			string newKey = pickInfo.ent->keyOrder[i];
+			if (oldKey != newKey) {
+				keyvaluesDifferent = true;
+				break;
+			}
+			string oldVal = undoEntityState->keyvalues[oldKey];
+			string newVal = pickInfo.ent->keyvalues[oldKey];
+			if (oldVal != newVal) {
+				keyvaluesDifferent = true;
+				break;
+			}
+		}
+
+		anythingToUndo = keyvaluesDifferent;
+	}
+
+	if (!anythingToUndo) {
+		return; // nothing to undo
+	}
+
+	pushUndoCommand(new EditEntityCommand(actionDesc, pickInfo, undoEntityState, pickInfo.ent));
+	updateEntityState(pickInfo.ent);
+}
+
+void Renderer::pushUndoCommand(Command* cmd) {
+	undoHistory.push_back(cmd);
+	clearRedoCommands();
+
+	while (!undoHistory.empty() && undoHistory.size() > undoLevels) {
+		delete undoHistory[0];
+		undoHistory.erase(undoHistory.begin());
+	}
+}
+
+void Renderer::undo() {
+	if (undoHistory.empty()) {
+		return;
+	}
+
+	Command* undoCommand = undoHistory[undoHistory.size() - 1];
+	undoCommand->undo();
+	undoHistory.pop_back();
+	redoHistory.push_back(undoCommand);
+}
+
+void Renderer::redo() {
+	if (redoHistory.empty()) {
+		return;
+	}
+
+	Command* redoCommand = redoHistory[redoHistory.size() - 1];
+	redoCommand->execute();
+	redoHistory.pop_back();
+	undoHistory.push_back(redoCommand);
+}
+
+void Renderer::clearRedoCommands() {
+	for (int i = 0; i < redoHistory.size(); i++) {
+		delete redoHistory[i];
+	}
+
+	redoHistory.clear();
 }

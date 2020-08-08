@@ -46,6 +46,7 @@ set(SOURCE_FILES
 	src/editor/PointEntRenderer.h	src/editor/PointEntRenderer.cpp
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Clipper.h			src/editor/Clipper.cpp
+	src/editor/Command.h			src/editor/Command.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -135,6 +136,7 @@ if(MSVC)
 												src/editor/Fgd.h
 												src/editor/Gui.h
 												src/editor/PointEntRenderer.h
+												src/editor/Command.h
 												src/editor/Clipper.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/BspRenderer.cpp
@@ -143,6 +145,7 @@ if(MSVC)
 												src/editor/Fgd.cpp
 												src/editor/Gui.cpp
 												src/editor/PointEntRenderer.cpp
+												src/editor/Command.cpp
 												src/editor/Clipper.cpp)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h

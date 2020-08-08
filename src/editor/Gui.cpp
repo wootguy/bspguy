@@ -5,6 +5,7 @@
 #include "shaders.h"
 #include "Renderer.h"
 #include <lodepng.h>
+#include <algorithm>
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -424,9 +425,11 @@ void Gui::draw3dContextMenus() {
 			}
 
 			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
-				app->movingEnt = !app->movingEnt;
-				if (app->movingEnt)
+				if (!app->movingEnt)
 					app->grabEnt();
+				else {
+					app->ungrabEnt();
+				}
 			}
 			if (ImGui::MenuItem("Transform", "Ctrl+M")) {
 				showTransformWidget = !showTransformWidget;
@@ -546,6 +549,62 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
+	if (ImGui::BeginMenu("Edit")) {
+		bool canUndo = !app->undoHistory.empty();
+		bool canRedo = !app->redoHistory.empty();
+		string undoTitle = canUndo ? "Undo " + app->undoHistory[app->undoHistory.size()-1]->desc : "Can't undo";
+		string redoTitle = canRedo ? "Redo " + app->redoHistory[app->redoHistory.size()-1]->desc : "Can't redo";
+		bool entSelected = app->pickInfo.valid && app->pickInfo.ent;
+		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
+		bool nonWorldspawnEntSelected = entSelected && app->pickInfo.entIdx != 0;
+
+		if (ImGui::MenuItem(undoTitle.c_str(), "Ctrl+Z", false, canUndo)) {
+			app->undo();
+		}
+		else if (ImGui::MenuItem(redoTitle.c_str(), "Ctrl+Y", false, canRedo)) {
+			app->redo();
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Cut", "Ctrl+X", false, nonWorldspawnEntSelected)) {
+			app->cutEnt();
+		}
+		if (ImGui::MenuItem("Copy", "Ctrl+C", false, nonWorldspawnEntSelected)) {
+			app->copyEnt();
+		}
+		if (ImGui::MenuItem("Paste", "Ctrl+V", false, mapSelected && app->copiedEnt != NULL)) {
+			app->pasteEnt(false);
+		}
+		if (ImGui::MenuItem("Paste at original origin", 0, false, entSelected && app->copiedEnt != NULL)) {
+			app->pasteEnt(true);
+		}
+		if (ImGui::MenuItem("Delete", "Del", false, nonWorldspawnEntSelected)) {
+			app->deleteEnt();
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G", false, nonWorldspawnEntSelected)) {
+			if (!app->movingEnt)
+				app->grabEnt();
+			else {
+				app->ungrabEnt();
+			}
+		}
+		if (ImGui::MenuItem("Transform", "Ctrl+M", false, entSelected)) {
+			showTransformWidget = !showTransformWidget;
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Properties", "Alt+Enter", false, entSelected)) {
+			showKeyvalueWidget = !showKeyvalueWidget;
+		}
+
+		ImGui::EndMenu();
+	}
+
 	if (ImGui::BeginMenu("Map"))
 	{
 		if (ImGui::MenuItem("Entity Report", NULL)) {
@@ -639,23 +698,25 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Create"))
 	{
-		if (ImGui::MenuItem("Entity")) {
+		bool mapSelected = app->pickInfo.valid&& app->pickInfo.map;
+		Bsp* map = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+		BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+
+		if (ImGui::MenuItem("Entity", 0, false, mapSelected)) {
 			Entity* newEnt = new Entity();
 			vec3 origin = (app->cameraOrigin + app->cameraForward * 100);
 			if (app->gridSnappingEnabled)
 				origin = app->snapToGrid(origin);
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "info_player_deathmatch");
-			BspRenderer* destMap = app->getMapContainingCamera();
-			destMap->map->ents.push_back(newEnt);
-			destMap->preRenderEnts();
-			reloadLimits();
+
+			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->pickInfo.mapIdx, newEnt);
+			delete newEnt;
+			createCommand->execute();
+			app->pushUndoCommand(createCommand);
 		}
 
-		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
-			BspRenderer* destMap = app->getMapContainingCamera();
-			Bsp* map = destMap->map;
-
+		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading && mapSelected)) {
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
 			if (app->gridSnappingEnabled)
 				origin = app->snapToGrid(origin);
@@ -683,24 +744,24 @@ void Gui::drawMenuBar() {
 
 				lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
 				aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
-				destMap->reloadTextures();
+				renderer->reloadTextures();
 
 				lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
 				delete[] tex_dat;
 			}
 
-			int modelIdx = destMap->map->create_solid(mins, maxs, aaatriggerIdx);
+			int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
 
 			Entity* newEnt = new Entity();
 			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "func_wall");
-			destMap->map->ents.push_back(newEnt);
+			map->ents.push_back(newEnt);
 
-			destMap->updateLightmapInfos();
-			destMap->calcFaceMaths();
-			destMap->preRenderFaces();
-			destMap->preRenderEnts();
+			renderer->updateLightmapInfos();
+			renderer->calcFaceMaths();
+			renderer->preRenderFaces();
+			renderer->preRenderEnts();
 
 			//destMap->map->print_model_hull(modelIdx, 1);
 			reloadLimits();		
@@ -1127,6 +1188,7 @@ void Gui::drawKeyvalueEditor() {
 							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
 								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
 								app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+								app->pushEntityUndoState("Change Class");
 							}
 						}
 
@@ -1253,6 +1315,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							ent->setOrAddKeyvalue(key, choice.svalue);
 							app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
 							app->updateEntConnections();
+							app->pushEntityUndoState("Edit Keyvalue");
 						}
 					}
 
@@ -1348,6 +1411,8 @@ void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent) {
 				ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags));
 			else
 				ent->removeKeyvalue("spawnflags");
+
+			app->pushEntityUndoState(checkboxEnabled[i] ? "Enable Flag" : "Disable Flag");
 		}
 	}
 
@@ -1464,6 +1529,9 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	static bool hoveredDrag[128];
 	static int ignoreErrors = 0;
 
+	static bool wasKeyDragging = false;
+	bool keyDragging = false;
+
 	float startY = 0;
 	for (int i = 0; i < ent->keyOrder.size() && i < 128; i++) {
 		const char* item = dragIds[i];
@@ -1479,6 +1547,10 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			style.SelectableTextAlign.x = 0.0f;
 
 			hoveredDrag[i] = ImGui::IsItemActive();
+			if (hoveredDrag[i]) {
+				keyDragging = true;
+			}
+			
 
 			if (i == 0) {
 				startY = ImGui::GetItemRectMin().y;
@@ -1568,11 +1640,18 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
 				ignoreErrors = 2;
 				g_app->updateEntConnections();
+				g_app->pushEntityUndoState("Delete Keyvalue");
 			}
 			ImGui::PopStyleColor(3);
 			ImGui::NextColumn();
 		}
 	}
+
+	if (!keyDragging && wasKeyDragging) {
+		app->pushEntityUndoState("Move Keyvalue");
+	}
+
+	wasKeyDragging = keyDragging;
 
 	lastPickCount = app->pickCount;
 
@@ -1591,8 +1670,9 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		}
 		ent->addKeyvalue(keyName, "");
 		app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
-		g_app->updateEntConnections();
+		app->updateEntConnections();
 		ignoreErrors = 2;
+		app->pushEntityUndoState("Add Keyvalue");
 	}
 
 	if (ignoreErrors > 0) {
@@ -1675,6 +1755,9 @@ void Gui::drawTransformWidget() {
 		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
 		float inputWidth4 = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.25f;
+
+		static bool inputsWereDragged = false;
+		bool inputsAreDragging = false;
 		
 		ImGui::Text("Move");
 		ImGui::PushItemWidth(inputWidth);
@@ -1683,32 +1766,51 @@ void Gui::drawTransformWidget() {
 			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 			ImGui::SameLine();
 
 			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 			ImGui::SameLine();
 
 			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 		}
 		else {
 			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 			ImGui::SameLine();
 
 			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 			ImGui::SameLine();
 
 			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
 		}
+
+		if (inputsWereDragged && !inputsAreDragging) {
+			if (app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
+				app->pushEntityUndoState("Move Entity");
+			}
+		}
+		inputsWereDragged = inputsAreDragging;
 
 		ImGui::PopItemWidth();
 
@@ -2039,11 +2141,11 @@ void Gui::drawSettings() {
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
-
+			ImGui::InputText("Game Directory", gamedir, 256);
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
-			ImGui::InputText("Game Directory", gamedir, 256);
+			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 		}
 		else if (settingsTab == 1) {
 			int pathWidth = ImGui::GetWindowWidth() - 60;
@@ -2508,9 +2610,8 @@ void Gui::drawEntityReport() {
 			ImGui::BeginGroup();
 
 			const int MAX_FILTERS = 1;
-			const int MAX_KEY_LEN = 64;
 			static char keyFilter[MAX_FILTERS][MAX_KEY_LEN];
-			static char valueFilter[MAX_FILTERS][MAX_KEY_LEN];
+			static char valueFilter[MAX_FILTERS][MAX_VAL_LEN];
 			static int lastSelect = -1;
 			static string classFilter = "(none)";
 			static bool partialMatches = true;

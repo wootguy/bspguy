@@ -11,14 +11,18 @@
 #define MAX_MAP_LEAVES 65536
 #define MAX_MAP_MARKSURFS 65536
 #define MAX_MAP_TEXDATA 0
-#define MAX_MAP_VISDATA 0x800000 //0x400000 //vluzacn
+#define MAX_MAP_VISDATA (64 * ( 1024 * 1024 )) // 64 MB
 #define MAX_MAP_ENTS 8192
 #define MAX_MAP_SURFEDGES 512000
 #define MAX_MAP_EDGES 256000
 #define MAX_MAP_TEXTURES 4096
-#define MAX_MAP_LIGHTDATA 0x3000000 //0x600000 //vluzacn
+#define MAX_MAP_LIGHTDATA (64 * ( 1024 * 1024 )) // 64 MB
 #define MAX_TEXTURE_DIMENSION 1024
 #define MAXTEXTURENAME 16
 #define MIPLEVELS 4
+#define MAX_TEXTURE_SIZE ((MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION * sizeof(short) * 3) / 2)
+
+#define MAX_KEY_LEN 256 // not sure if this includes the null char
+#define MAX_VAL_LEN 4096 // not sure if this includes the null char
 
 #define MAXLIGHTMAPS    4

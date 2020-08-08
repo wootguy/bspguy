@@ -10,9 +10,12 @@
 // super todo:
 // gui scale number not accurate at all
 // invalid solid undo not reverting plane vertex positions sometimes
-// can't move solid with shared data 3d axes
 // backwards mins/maxs when creating second teleport in scale mode and cant drag the handle
 // vertex editing rapidly duplicates clipnodes
+// dbm_14 invisible triggers not showing clipndoes.
+// can't select by clipnodes when manually toggled on and rendering disabled for ents
+// deleting ents breaks entity report list when filter is used
+// update merge logic for v2 scripts
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -24,7 +27,6 @@
 // normalized clip type for clipnode regeneration (fixes broken collision around 90+ degree angle edges)
 // lerp plane distance in regenerated clipnodes between bbox height and width
 // uniform scaling
-// fix flickering transform axes
 // highlight non-planar faces in vertex edit mode
 // subdivided faces can't be transformed in verte edit mode
 // auto-clean after a while? Unused data will pile up after a lot of face splitting
@@ -39,16 +41,16 @@
 // transforms gradually waste more and more planes+clipnodes until the map overflows (need smarter updates)
 // "Validate" doesn't return any response.. -Sparks (add a results window or something for that + clean/optimize)
 // copy-paste ents from Jack -Outerbeast
-// parse CFG and add game_player_equip ents for each transition
+// parse CFG and add bspguy_equip ents for each transition
 // clipnode models sometimes missing faces or extending to infinity
 // - floating point inaccuracies probably. Changing starting cube size also changes the model
+// show tooltip when hovering over ent target/caller
+// customize limits and remove auto-fgd logic so the editor isn't sven-specific in any way
 
 // minor todo:
 // warn about game_playerjoin and other special names
-// fix spawners for things with custom keyvalues (apache, osprey, etc.)
 // dump model info for the rest of the data types
 // delete all frames from unused animated textures
-// apaches not deleted sometimes
 // moving maps can cause bad surface extents which could cause lightmap seams?
 // see if balancing the BSP tree is possible and if helps performance at all
 // - https://www.researchgate.net/publication/238348725_A_Tutorial_on_Binary_Space_Partitioning_Trees

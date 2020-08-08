@@ -9,6 +9,7 @@
 #include "Fgd.h"
 #include <thread>
 #include <future>
+#include "Command.h"
 
 class Gui;
 
@@ -48,6 +49,7 @@ struct AppSettings {
 	int fontSize = 22;
 	string gamedir;
 	bool valid = false;
+	int undoLevels = 64;
 
 	bool debug_open = false;
 	bool keyvalue_open = false;
@@ -79,6 +81,9 @@ extern Renderer* g_app;
 
 class Renderer {
 	friend class Gui;
+	friend class EditEntityCommand;
+	friend class DeleteEntityCommand;
+	friend class CreateEntityCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -111,6 +116,8 @@ private:
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
 
+	Entity* undoEntityState = NULL;
+
 	static future<void> fgdFuture;
 	bool reloading = false;
 	bool reloadingGameDir = false;
@@ -139,7 +146,7 @@ private:
 
 	bool movingEnt = false; // grab an ent and move it with the camera
 	vec3 grabStartOrigin;
-	vec3 gragStartEntOrigin;
+	vec3 grabStartEntOrigin;
 	float grabDist;
 
 	TransformAxes moveAxes;
@@ -211,6 +218,10 @@ private:
 	bool debugNodes = false;
 	int clipnodeRenderHull = -1;
 
+	int undoLevels = 64;
+	vector<Command*> undoHistory;
+	vector<Command*> redoHistory;
+
 	vec3 getMoveDir();
 	void controls();
 	void cameraPickingControls();
@@ -220,8 +231,10 @@ private:
 	void cameraContextMenus(); // right clicking on ents and things
 	void moveGrabbedEnt(); // translates the grabbed ent
 	void shortcutControls(); // hotkeys for menus and things
+	void globalShortcutControls(); // these work even with the UI selected
 	void pickObject(); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
+	void moveSelectedEnt();
 	void applyTransform();
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
@@ -266,6 +279,15 @@ private:
 	void deselectFaces();
 	void selectEnt(Bsp* map, int entIdx);
 	void goToEnt(Bsp* map, int entIdx);
+	void ungrabEnt();
+
+	void pushEntityUndoState(string actionDesc);
+	void pushUndoCommand(Command* cmd);
+	void undo();
+	void redo();
+	void clearRedoCommands();
+
+	void updateEntityState(Entity* ent);
 
 	void loadFgds();
 };
