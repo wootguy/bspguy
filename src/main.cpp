@@ -50,6 +50,8 @@
 // Add tooltips for everything
 // first-time launch help window or something
 // make .bsp extension optional when opening editor
+// export embedded textures
+// texture browser/import
 
 // minor todo:
 // warn about game_playerjoin and other special names

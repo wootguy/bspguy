@@ -86,6 +86,7 @@ class Renderer {
 	friend class DeleteEntityCommand;
 	friend class CreateEntityCommand;
 	friend class DuplicateBspModelCommand;
+	friend class CreateBspModelCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;

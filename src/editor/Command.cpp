@@ -1,6 +1,9 @@
 #include "Command.h"
 #include "Renderer.h"
 #include "Gui.h"
+#include <lodepng.h>
+
+#include "icons/aaatrigger.h"
 
 Command::Command(string desc, int mapIdx) {
 	this->desc = desc;
@@ -199,13 +202,13 @@ DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickIn
 	this->entIdx = pickInfo.entIdx;
 	this->initialized = false;
 	this->allowedDuringLoad = false;
+	memset(&oldLumps, 0, sizeof(LumpState));
 }
 
 DuplicateBspModelCommand::~DuplicateBspModelCommand() {
-	if (initialized) {
-		for (int i = 0; i < HEADER_LUMPS; i++) {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
 			delete[] oldLumps.lumps[i];
-		}
 	}
 }
 
@@ -271,11 +274,121 @@ void DuplicateBspModelCommand::undo() {
 int DuplicateBspModelCommand::memoryUsage() {
 	int size = sizeof(DuplicateBspModelCommand);
 
-	if (initialized) {
-		for (int i = 0; i < HEADER_LUMPS; i++) {
-			size += oldLumps.lumpLen[i];
-		}
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
 	}
 
 	return size;
+}
+
+
+//
+// Create BSP model
+//
+CreateBspModelCommand::CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size) : Command(desc, mapIdx) {
+	this->entData = new Entity();
+	*this->entData = *entData;
+	this->size = size;
+	this->initialized = false;
+	memset(&oldLumps, 0, sizeof(LumpState));
+}
+
+CreateBspModelCommand::~CreateBspModelCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void CreateBspModelCommand::execute() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	int aaatriggerIdx = getDefaultTextureIdx();
+
+	if (!initialized) {
+		int dupLumps = CLIPNODES | EDGES | FACES | NODES | PLANES | SURFEDGES | TEXINFO | VERTICES | LIGHTING | MODELS;
+		if (aaatriggerIdx == -1) {
+			dupLumps |= TEXTURES;
+		}
+		oldLumps = map->duplicate_lumps(dupLumps);
+	}
+
+	// add the aaatrigger texture if it doesn't already exist
+	if (aaatriggerIdx == -1) {
+		aaatriggerIdx = addDefaultTexture();
+		renderer->reloadTextures();
+	}
+
+	vec3 mins = vec3(-size, -size, -size);
+	vec3 maxs = vec3(size, size, size);
+	int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
+
+	if (!initialized) {
+		entData->addKeyvalue("model", "*" + to_string(modelIdx));
+	}
+
+	Entity* newEnt = new Entity();
+	*newEnt = *entData;
+	map->ents.push_back(newEnt);
+
+	g_app->deselectObject();
+	renderer->reload();
+	g_app->gui->reloadLimits();
+
+	initialized = true;
+}
+
+void CreateBspModelCommand::undo() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	map->replace_lumps(oldLumps);
+
+	delete map->ents[map->ents.size() - 1];
+	map->ents.pop_back();
+
+	renderer->reload();
+	g_app->gui->reloadLimits();
+	g_app->deselectObject();
+}
+
+int CreateBspModelCommand::memoryUsage() {
+	int size = sizeof(DuplicateBspModelCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+int CreateBspModelCommand::getDefaultTextureIdx() {
+	Bsp* map = getBsp();
+
+	int32_t totalTextures = ((int32_t*)map->textures)[0];
+	for (uint i = 0; i < totalTextures; i++) {
+		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+		if (strcmp(tex.szName, "aaatrigger") == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+int CreateBspModelCommand::addDefaultTexture() {
+	Bsp* map = getBsp();
+	byte* tex_dat = NULL;
+	uint w, h;
+
+	lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
+	int aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
+	//renderer->reloadTextures();
+
+	lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
+	delete[] tex_dat;
+
+	return aaatriggerIdx;
 }

@@ -12,7 +12,6 @@
 #include "fonts/robotomedium.h"
 #include "icons/object.h"
 #include "icons/face.h"
-#include "icons/aaatrigger.h"
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
@@ -716,52 +715,20 @@ void Gui::drawMenuBar() {
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
 			if (app->gridSnappingEnabled)
 				origin = app->snapToGrid(origin);
-			float snapSize = pow(2.0, app->gridSnapLevel);
+
+			Entity* newEnt = new Entity();
+			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
+			newEnt->addKeyvalue("classname", "func_wall");
+
+			float snapSize = pow(2.0, g_app->gridSnapLevel);
 			if (snapSize < 16) {
 				snapSize = 16;
 			}
-			vec3 mins = vec3(-snapSize, -snapSize, -snapSize);
-			vec3 maxs = vec3(snapSize, snapSize, snapSize);
 
-			// add the aaatrigger texture if it doesn't already exist
-			int32_t totalTextures = ((int32_t*)map->textures)[0];
-			int aaatriggerIdx = -1;
-			for (uint i = 0; i < totalTextures; i++) {
-				int32_t texOffset = ((int32_t*)map->textures)[i + 1];
-				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-				if (strcmp(tex.szName, "aaatrigger") == 0) {
-					aaatriggerIdx = i;
-					break;
-				}
-			}
-			if (aaatriggerIdx == -1) {
-				byte* tex_dat = NULL;
-				uint w, h;
-
-				lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
-				aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
-				renderer->reloadTextures();
-
-				lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
-				delete[] tex_dat;
-			}
-
-			int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
-
-			Entity* newEnt = new Entity();
-			newEnt->addKeyvalue("model", "*" + to_string(modelIdx));
-			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
-			newEnt->addKeyvalue("classname", "func_wall");
-			map->ents.push_back(newEnt);
-
-			renderer->updateLightmapInfos();
-			renderer->calcFaceMaths();
-			renderer->preRenderFaces();
-			renderer->preRenderEnts();
-			renderer->addClipnodeModel(modelIdx);
-
-			//destMap->map->print_model_hull(modelIdx, 1);
-			reloadLimits();		
+			CreateBspModelCommand* command = new CreateBspModelCommand("Create Model", app->pickInfo.mapIdx, newEnt, snapSize);
+			command->execute();
+			delete newEnt;
+			app->pushUndoCommand(command);
 		}
 		ImGui::EndMenu();
 	}
@@ -2404,7 +2371,7 @@ void Gui::drawLimits() {
 						stats.push_back(calcStat("leaves", map->leafCount, MAX_MAP_LEAVES, false));
 						stats.push_back(calcStat("marksurfaces", map->marksurfCount, MAX_MAP_MARKSURFS, false));
 						stats.push_back(calcStat("surfedges", map->surfedgeCount, MAX_MAP_SURFEDGES, false));
-						stats.push_back(calcStat("edges", map->edgeCount, MAX_MAP_SURFEDGES, false));
+						stats.push_back(calcStat("edges", map->edgeCount, MAX_MAP_EDGES, false));
 						stats.push_back(calcStat("textures", map->textureCount, MAX_MAP_TEXTURES, false));
 						stats.push_back(calcStat("lightdata", map->lightDataLength, MAX_MAP_LIGHTDATA, true));
 						stats.push_back(calcStat("visdata", map->visDataLength, MAX_MAP_VISDATA, true));

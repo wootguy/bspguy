@@ -84,3 +84,23 @@ public:
 	void undo();
 	int memoryUsage();
 };
+
+
+class CreateBspModelCommand : public Command {
+public:
+	Entity* entData;
+	LumpState oldLumps;
+	bool initialized = false;
+	float size;
+
+	CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size);
+	~CreateBspModelCommand();
+
+	void execute();
+	void undo();
+	int memoryUsage();
+
+private:
+	int getDefaultTextureIdx();
+	int addDefaultTexture();
+};
