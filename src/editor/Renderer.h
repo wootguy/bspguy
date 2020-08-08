@@ -85,6 +85,7 @@ class Renderer {
 	friend class EditEntityCommand;
 	friend class DeleteEntityCommand;
 	friend class CreateEntityCommand;
+	friend class DuplicateBspModelCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -220,6 +221,7 @@ private:
 	int clipnodeRenderHull = -1;
 
 	int undoLevels = 64;
+	int undoMemoryUsage = 0; // approximate space used by undo+redo history
 	vector<Command*> undoHistory;
 	vector<Command*> redoHistory;
 
@@ -235,7 +237,6 @@ private:
 	void globalShortcutControls(); // these work even with the UI selected
 	void pickObject(); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
-	void moveSelectedEnt();
 	void applyTransform();
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
@@ -287,6 +288,7 @@ private:
 	void undo();
 	void redo();
 	void clearRedoCommands();
+	void calcUndoMemoryUsage();
 
 	void updateEntityState(Entity* ent);
 

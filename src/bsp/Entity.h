@@ -41,5 +41,7 @@ public:
 	bool hasTarget(string tname);
 
 	void renameTargetnameValues(string oldTargetname, string newTargetname);
+
+	int getMemoryUsage(); // aproximate
 };
 

@@ -401,21 +401,9 @@ void Gui::draw3dContextMenus() {
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Duplicate BSP model", 0, false, !app->isLoading)) {
-					int newModelIdx = map->duplicate_model(app->pickInfo.modelIdx);
-					app->pickInfo.ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));
-					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
-
-					app->mapRenderers[app->pickInfo.mapIdx]->updateLightmapInfos();
-					app->mapRenderers[app->pickInfo.mapIdx]->calcFaceMaths();
-					app->mapRenderers[app->pickInfo.mapIdx]->addClipnodeModel(newModelIdx);
-					app->mapRenderers[app->pickInfo.mapIdx]->preRenderFaces();
-					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
-					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
-
-					reloadLimits();
-
-					app->pickInfo.modelIdx = newModelIdx;
-					app->updateModelVerts();
+					DuplicateBspModelCommand* command = new DuplicateBspModelCommand("Duplicate BSP Model", app->pickInfo);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
@@ -550,10 +538,12 @@ void Gui::drawMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("Edit")) {
-		bool canUndo = !app->undoHistory.empty();
-		bool canRedo = !app->redoHistory.empty();
-		string undoTitle = canUndo ? "Undo " + app->undoHistory[app->undoHistory.size()-1]->desc : "Can't undo";
-		string redoTitle = canRedo ? "Redo " + app->redoHistory[app->redoHistory.size()-1]->desc : "Can't redo";
+		Command* undoCmd = !app->undoHistory.empty() ? app->undoHistory[app->undoHistory.size() - 1] : NULL;
+		Command* redoCmd = !app->redoHistory.empty() ? app->redoHistory[app->redoHistory.size() - 1] : NULL;
+		string undoTitle = undoCmd ? "Undo " + undoCmd->desc : "Can't undo";
+		string redoTitle = redoCmd ? "Redo " + redoCmd->desc : "Can't redo";
+		bool canUndo = undoCmd && (!app->isLoading || undoCmd->allowedDuringLoad);
+		bool canRedo = redoCmd && (!app->isLoading || redoCmd->allowedDuringLoad);
 		bool entSelected = app->pickInfo.valid && app->pickInfo.ent;
 		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
 		bool nonWorldspawnEntSelected = entSelected && app->pickInfo.entIdx != 0;
@@ -585,6 +575,11 @@ void Gui::drawMenuBar() {
 
 		ImGui::Separator();
 
+		if (ImGui::MenuItem("Duplicate BSP model", 0, false, !app->isLoading && nonWorldspawnEntSelected)) {
+			DuplicateBspModelCommand* command = new DuplicateBspModelCommand("Duplicate BSP Model", app->pickInfo);
+			command->execute();
+			app->pushUndoCommand(command);
+		}
 		if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G", false, nonWorldspawnEntSelected)) {
 			if (!app->movingEnt)
 				app->grabEnt();
@@ -763,6 +758,7 @@ void Gui::drawMenuBar() {
 			renderer->calcFaceMaths();
 			renderer->preRenderFaces();
 			renderer->preRenderEnts();
+			renderer->addClipnodeModel(modelIdx);
 
 			//destMap->map->print_model_hull(modelIdx, 1);
 			reloadLimits();		
@@ -1112,20 +1108,22 @@ void Gui::drawDebugWidget() {
 				}
 				
 			}
-
-			if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen) && app->pickInfo.valid)
-			{
-				ImGui::Text("DebugVec0 %6.2f %6.2f %6.2f", app->debugVec0.x, app->debugVec0.y, app->debugVec0.z);
-				ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", app->debugVec1.x, app->debugVec1.y, app->debugVec1.z);
-				ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", app->debugVec2.x, app->debugVec2.y, app->debugVec2.z);
-				ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", app->debugVec3.x, app->debugVec3.y, app->debugVec3.z);
-			}
 		}
 		else {
 			ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen);
 			ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen);
 		}
 
+		if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Text("DebugVec0 %6.2f %6.2f %6.2f", app->debugVec0.x, app->debugVec0.y, app->debugVec0.z);
+			ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", app->debugVec1.x, app->debugVec1.y, app->debugVec1.z);
+			ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", app->debugVec2.x, app->debugVec2.y, app->debugVec2.z);
+			ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", app->debugVec3.x, app->debugVec3.y, app->debugVec3.z);
+			
+			float mb = app->undoMemoryUsage / (1024.0f * 1024.0f);
+			ImGui::Text("Undo Memory Usage: %.2f MB\n", mb);
+		}
 	}
 	ImGui::End();
 }

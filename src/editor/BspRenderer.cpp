@@ -351,7 +351,7 @@ void BspRenderer::updateLightmapInfos() {
 		return;
 	}
 	if (map->faceCount < numRenderLightmapInfos) {
-		logf("TODO: Recalculate lightmaps when faces deleted\n");
+		debugf("TODO: Recalculate lightmaps when faces deleted\n");
 		return;
 	}
 

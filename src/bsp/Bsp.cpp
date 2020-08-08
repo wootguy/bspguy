@@ -981,6 +981,38 @@ bool Bsp::does_model_use_shared_structures(int modelIdx) {
 	return false;
 }
 
+LumpState Bsp::duplicate_lumps(int targets) {
+	LumpState state;
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if ((targets & (1 << i)) == 0) {
+			state.lumps[i] = NULL;
+			state.lumpLen[i] = 0;
+			continue;
+		}
+		state.lumps[i] = new byte[header.lump[i].nLength];
+		state.lumpLen[i] = header.lump[i].nLength;
+		memcpy(state.lumps[i], lumps[i], header.lump[i].nLength);
+	}
+
+	return state;
+}
+
+void Bsp::replace_lumps(LumpState& state) {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (state.lumps[i] == NULL) {
+			continue;
+		}
+
+		delete[] lumps[i];
+		lumps[i] = new byte[state.lumpLen[i]];
+		memcpy(lumps[i], state.lumps[i], state.lumpLen[i]);
+		header.lump[i].nLength = state.lumpLen[i];
+	}
+
+	update_lump_pointers();
+}
+
 int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes) {
 	int structSize = 0;
 
@@ -3430,7 +3462,7 @@ int Bsp::duplicate_model(int modelIdx) {
 		}
 	}
 
-	// MAYBE TODO: duplicate leaves(?) + marksurfs + recacl vis
+	// MAYBE TODO: duplicate leaves(?) + marksurfs + recacl vis + update undo command lumps
 
 	if (newClipnodes.size())
 		append_lump(LUMP_CLIPNODES, &newClipnodes[0], sizeof(BSPCLIPNODE) * newClipnodes.size());
@@ -3831,21 +3863,21 @@ void Bsp::update_lump_pointers() {
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 
-	if (planeCount > MAX_MAP_PLANES) logf("Overflowed Planes !!!");
-	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!");
-	if (leafCount > MAX_MAP_LEAVES) logf("Overflowed leaves !!!");
-	if (modelCount > MAX_MAP_MODELS) logf("Overflowed models !!!");
-	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!");
-	if (nodeCount > MAX_MAP_NODES) logf("Overflowed nodes !!!");
-	if (vertCount > MAX_MAP_VERTS) logf("Overflowed verts !!!");
-	if (faceCount > MAX_MAP_FACES) logf("Overflowed faces !!!");
-	if (clipnodeCount > MAX_MAP_CLIPNODES) logf("Overflowed clipnodes !!!");
-	if (marksurfCount > MAX_MAP_MARKSURFS) logf("Overflowed marksurfs !!!");
-	if (surfedgeCount > MAX_MAP_SURFEDGES) logf("Overflowed surfedges !!!");
-	if (edgeCount > MAX_MAP_EDGES) logf("Overflowed edges !!!");
-	if (textureCount > MAX_MAP_TEXTURES) logf("Overflowed textures !!!");
-	if (lightDataLength > MAX_MAP_LIGHTDATA) logf("Overflowed lightdata !!!");
-	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!");
+	if (planeCount > MAX_MAP_PLANES) logf("Overflowed Planes !!!\n");
+	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!\n");
+	if (leafCount > MAX_MAP_LEAVES) logf("Overflowed leaves !!!\n");
+	if (modelCount > MAX_MAP_MODELS) logf("Overflowed models !!!\n");
+	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!\n");
+	if (nodeCount > MAX_MAP_NODES) logf("Overflowed nodes !!!\n");
+	if (vertCount > MAX_MAP_VERTS) logf("Overflowed verts !!!\n");
+	if (faceCount > MAX_MAP_FACES) logf("Overflowed faces !!!\n");
+	if (clipnodeCount > MAX_MAP_CLIPNODES) logf("Overflowed clipnodes !!!\n");
+	if (marksurfCount > MAX_MAP_MARKSURFS) logf("Overflowed marksurfs !!!\n");
+	if (surfedgeCount > MAX_MAP_SURFEDGES) logf("Overflowed surfedges !!!\n");
+	if (edgeCount > MAX_MAP_EDGES) logf("Overflowed edges !!!\n");
+	if (textureCount > MAX_MAP_TEXTURES) logf("Overflowed textures !!!\n");
+	if (lightDataLength > MAX_MAP_LIGHTDATA) logf("Overflowed lightdata !!!\n");
+	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!\n");
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {

@@ -5,7 +5,7 @@
 Command::Command(string desc, int mapIdx) {
 	this->desc = desc;
 	this->mapIdx = mapIdx;
-	//logf("New undo command added: %s\n", desc.c_str());
+	debugf("New undo command added: %s\n", desc.c_str());
 }
 
 Bsp* Command::getBsp() {
@@ -35,6 +35,7 @@ EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* ol
 	this->newEntData = new Entity();
 	*this->oldEntData = *oldEntData;
 	*this->newEntData = *newEntData;
+	this->allowedDuringLoad = true;
 }
 
 EditEntityCommand::~EditEntityCommand() {
@@ -44,16 +45,16 @@ EditEntityCommand::~EditEntityCommand() {
 		delete newEntData;
 }
 
-bool EditEntityCommand::execute() {
+void EditEntityCommand::execute() {
 	Entity* target = getEnt();
 	*target = *newEntData;
-	return refresh();
+	refresh();
 }
 
-bool EditEntityCommand::undo() {
+void EditEntityCommand::undo() {
 	Entity* target = getEnt();
 	*target = *oldEntData;
-	return refresh();
+	refresh();
 }
 
 Entity* EditEntityCommand::getEnt() {
@@ -66,7 +67,7 @@ Entity* EditEntityCommand::getEnt() {
 	return map->ents[entIdx];
 }
 
-bool EditEntityCommand::refresh() {
+void EditEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	Entity* ent = getEnt();
 	renderer->refreshEnt(entIdx);
@@ -75,7 +76,11 @@ bool EditEntityCommand::refresh() {
 	}
 	g_app->updateEntityState(ent);
 	g_app->pickCount++; // force GUI update
-	return true;
+	true;
+}
+
+int EditEntityCommand::memoryUsage() {
+	return sizeof(EditEntityCommand) + oldEntData->getMemoryUsage() + newEntData->getMemoryUsage();
 }
 
 
@@ -87,6 +92,7 @@ DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
 	this->entIdx = pickInfo.entIdx;
 	this->entData = new Entity();
 	*this->entData = *pickInfo.ent;
+	this->allowedDuringLoad = true;
 }
 
 DeleteEntityCommand::~DeleteEntityCommand() {
@@ -94,7 +100,7 @@ DeleteEntityCommand::~DeleteEntityCommand() {
 		delete entData;
 }
 
-bool DeleteEntityCommand::execute() {
+void DeleteEntityCommand::execute() {
 	Bsp* map = getBsp();
 
 	if (g_app->pickInfo.entIdx == entIdx) {
@@ -107,10 +113,10 @@ bool DeleteEntityCommand::execute() {
 	delete map->ents[entIdx];
 	map->ents.erase(map->ents.begin() + entIdx);
 
-	return refresh();
+	refresh();
 }
 
-bool DeleteEntityCommand::undo() {
+void DeleteEntityCommand::undo() {
 	Bsp* map = getBsp();
 
 	if (g_app->pickInfo.entIdx >= entIdx) {
@@ -121,14 +127,17 @@ bool DeleteEntityCommand::undo() {
 	*newEnt = *entData;
 	map->ents.insert(map->ents.begin() + entIdx, newEnt);
 
-	return refresh();
+	refresh();
 }
 
-bool DeleteEntityCommand::refresh() {
+void DeleteEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->reloadLimits();
-	return true;
+}
+
+int DeleteEntityCommand::memoryUsage() {
+	return sizeof(DeleteEntityCommand) + entData->getMemoryUsage();
 }
 
 
@@ -138,6 +147,7 @@ bool DeleteEntityCommand::refresh() {
 CreateEntityCommand::CreateEntityCommand(string desc, int mapIdx, Entity* entData) : Command(desc, mapIdx) {
 	this->entData = new Entity();
 	*this->entData = *entData;
+	this->allowedDuringLoad = true;
 }
 
 CreateEntityCommand::~CreateEntityCommand() {
@@ -146,17 +156,17 @@ CreateEntityCommand::~CreateEntityCommand() {
 	}
 }
 
-bool CreateEntityCommand::execute() {
+void CreateEntityCommand::execute() {
 	Bsp* map = getBsp();
 	
 	Entity* newEnt = new Entity();
 	*newEnt = *entData;
 	map->ents.push_back(newEnt);
 
-	return refresh();
+	refresh();
 }
 
-bool CreateEntityCommand::undo() {
+void CreateEntityCommand::undo() {
 	Bsp* map = getBsp();
 
 	if (g_app->pickInfo.entIdx == map->ents.size() - 1) {
@@ -165,12 +175,107 @@ bool CreateEntityCommand::undo() {
 	delete map->ents[map->ents.size() - 1];
 	map->ents.pop_back();
 
-	return refresh();
+	refresh();
 }
 
-bool CreateEntityCommand::refresh() {
+void CreateEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->reloadLimits();
-	return true;
+}
+
+int CreateEntityCommand::memoryUsage() {
+	return sizeof(CreateEntityCommand) + entData->getMemoryUsage();
+}
+
+
+//
+// Duplicate BSP Model command
+//
+DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
+		: Command(desc, pickInfo.mapIdx) {
+	this->oldModelIdx = pickInfo.modelIdx;
+	this->newModelIdx = -1;
+	this->entIdx = pickInfo.entIdx;
+	this->initialized = false;
+	this->allowedDuringLoad = false;
+}
+
+DuplicateBspModelCommand::~DuplicateBspModelCommand() {
+	if (initialized) {
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			delete[] oldLumps.lumps[i];
+		}
+	}
+}
+
+void DuplicateBspModelCommand::execute() {
+	Bsp* map = getBsp();
+	Entity* ent = map->ents[entIdx];
+	BspRenderer* renderer = getBspRenderer();
+
+	if (!initialized) {
+		int dupLumps = CLIPNODES | EDGES | FACES | NODES | PLANES | SURFEDGES | TEXINFO | VERTICES | LIGHTING | MODELS;
+		oldLumps = map->duplicate_lumps(dupLumps);
+		initialized = true;
+	}
+
+	newModelIdx = map->duplicate_model(oldModelIdx);
+	ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));	
+
+	renderer->updateLightmapInfos();
+	renderer->calcFaceMaths();
+	renderer->preRenderFaces();
+	renderer->preRenderEnts();
+	renderer->reloadLightmaps();
+	renderer->addClipnodeModel(newModelIdx);
+	g_app->gui->reloadLimits();
+
+	g_app->deselectObject();
+	/*
+	if (g_app->pickInfo.entIdx == entIdx) {
+		g_app->pickInfo.modelIdx = newModelIdx;
+		g_app->updateModelVerts();
+	}
+	*/
+}
+
+void DuplicateBspModelCommand::undo() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	Entity* ent = map->ents[entIdx];
+	map->replace_lumps(oldLumps);
+	ent->setOrAddKeyvalue("model", "*" + to_string(oldModelIdx));
+
+	if (g_app->pickInfo.modelIdx == newModelIdx) {
+		g_app->pickInfo.modelIdx = oldModelIdx;
+		
+	}
+	else if (g_app->pickInfo.modelIdx > newModelIdx) {
+		g_app->pickInfo.modelIdx -= 1;
+	}
+
+	renderer->reload();
+	g_app->gui->reloadLimits();
+
+	g_app->deselectObject();
+	/*
+	if (g_app->pickInfo.entIdx == entIdx) {
+		g_app->pickInfo.modelIdx = oldModelIdx;
+		g_app->updateModelVerts();
+	}
+	*/
+}
+
+int DuplicateBspModelCommand::memoryUsage() {
+	int size = sizeof(DuplicateBspModelCommand);
+
+	if (initialized) {
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			size += oldLumps.lumpLen[i];
+		}
+	}
+
+	return size;
 }

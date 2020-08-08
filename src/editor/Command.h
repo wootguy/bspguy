@@ -11,10 +11,12 @@ class Command {
 public:
 	string desc;
 	int mapIdx;
+	bool allowedDuringLoad = false;
 
 	Command(string desc, int mapIdx);
-	virtual bool execute() = 0;
-	virtual bool undo() = 0;
+	virtual void execute() = 0;
+	virtual void undo() = 0;
+	virtual int memoryUsage() = 0;
 	
 	BspRenderer* getBspRenderer();
 	Bsp* getBsp();
@@ -30,10 +32,11 @@ public:
 	EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData);
 	~EditEntityCommand();
 
-	bool execute();
-	bool undo();
+	void execute();
+	void undo();
 	Entity* getEnt();
-	bool refresh();
+	void refresh();
+	int memoryUsage();
 };
 
 
@@ -45,9 +48,10 @@ public:
 	DeleteEntityCommand(string desc, PickInfo& pickInfo);
 	~DeleteEntityCommand();
 
-	bool execute();
-	bool undo();
-	bool refresh();
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
 };
 
 
@@ -58,7 +62,25 @@ public:
 	CreateEntityCommand(string desc, int mapIdx, Entity* entData);
 	~CreateEntityCommand();
 
-	bool execute();
-	bool undo();
-	bool refresh();
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+
+class DuplicateBspModelCommand : public Command {
+public:
+	int oldModelIdx;
+	int newModelIdx; // TODO: could break redos if this is ever not deterministic
+	int entIdx;
+	LumpState oldLumps;
+	bool initialized = false;
+
+	DuplicateBspModelCommand(string desc, PickInfo& pickInfo);
+	~DuplicateBspModelCommand();
+
+	void execute();
+	void undo();
+	int memoryUsage();
 };

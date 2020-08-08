@@ -430,3 +430,19 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 		}
 	}
 }
+
+int Entity::getMemoryUsage() {
+	int size = sizeof(Entity);
+
+	for (int i = 0; i < cachedTargets.size(); i++) {
+		size += cachedTargets[i].size();
+	}
+	for (int i = 0; i < keyOrder.size(); i++) {
+		size += keyOrder[i].size();
+	}
+	for (const auto& entry : keyvalues) {
+		size += entry.first.size() + entry.second.size();
+	}
+
+	return size;
+}

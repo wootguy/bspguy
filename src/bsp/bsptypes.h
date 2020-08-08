@@ -22,6 +22,24 @@
 #define LUMP_MODELS       14
 #define HEADER_LUMPS      15
 
+enum lump_copy_targets {
+	ENTITIES = 1,
+	PLANES = 2,
+	TEXTURES = 4,
+	VERTICES = 8,
+	VISIBILITY = 16,
+	NODES = 32,
+	TEXINFO = 64,
+	FACES = 128,
+	LIGHTING = 256,
+	CLIPNODES = 512,
+	LEAVES = 1024,
+	MARKSURFACES = 2048,
+	EDGES = 4096,
+	SURFEDGES = 8192,
+	MODELS = 16384
+};
+
 #define CONTENTS_EMPTY        -1
 #define CONTENTS_SOLID        -2
 #define CONTENTS_WATER        -3
@@ -87,6 +105,11 @@ struct BSPHEADER
 {
 	int32_t nVersion;           // Must be 30 for a valid HL BSP file
 	BSPLUMP lump[HEADER_LUMPS]; // Stores the directory of lumps
+};
+
+struct LumpState {
+	byte* lumps[HEADER_LUMPS];
+	int lumpLen[HEADER_LUMPS];
 };
 
 struct BSPPLANE {

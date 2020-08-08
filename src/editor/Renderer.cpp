@@ -2662,6 +2662,8 @@ void Renderer::pushUndoCommand(Command* cmd) {
 		delete undoHistory[0];
 		undoHistory.erase(undoHistory.begin());
 	}
+
+	calcUndoMemoryUsage();
 }
 
 void Renderer::undo() {
@@ -2670,6 +2672,11 @@ void Renderer::undo() {
 	}
 
 	Command* undoCommand = undoHistory[undoHistory.size() - 1];
+	if (!undoCommand->allowedDuringLoad && isLoading) {
+		logf("Can't undo %s while map is loading!\n", undoCommand->desc.c_str());
+		return;
+	}
+
 	undoCommand->undo();
 	undoHistory.pop_back();
 	redoHistory.push_back(undoCommand);
@@ -2681,6 +2688,11 @@ void Renderer::redo() {
 	}
 
 	Command* redoCommand = redoHistory[redoHistory.size() - 1];
+	if (!redoCommand->allowedDuringLoad && isLoading) {
+		logf("Can't redo %s while map is loading!\n", redoCommand->desc.c_str());
+		return;
+	}
+
 	redoCommand->execute();
 	redoHistory.pop_back();
 	undoHistory.push_back(redoCommand);
@@ -2692,4 +2704,16 @@ void Renderer::clearRedoCommands() {
 	}
 
 	redoHistory.clear();
+	calcUndoMemoryUsage();
+}
+
+void Renderer::calcUndoMemoryUsage() {
+	undoMemoryUsage = (undoHistory.size() + redoHistory.size()) * sizeof(Command*);
+
+	for (int i = 0; i < undoHistory.size(); i++) {
+		undoMemoryUsage += undoHistory[i]->memoryUsage();
+	}
+	for (int i = 0; i < redoHistory.size(); i++) {
+		undoMemoryUsage += redoHistory[i]->memoryUsage();
+	}
 }
