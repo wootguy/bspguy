@@ -22,6 +22,7 @@
 #define MIPLEVELS 4
 #define MAX_TEXTURE_SIZE ((MAX_TEXTURE_DIMENSION * MAX_TEXTURE_DIMENSION * sizeof(short) * 3) / 2)
 
+#define MAX_KEYS_PER_ENT 64 // just guessing
 #define MAX_KEY_LEN 256 // not sure if this includes the null char
 #define MAX_VAL_LEN 4096 // not sure if this includes the null char
 

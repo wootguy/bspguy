@@ -87,6 +87,7 @@ void AppSettings::load() {
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
+			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
@@ -136,6 +137,7 @@ void AppSettings::save() {
 
 	file << "vsync=" << g_settings.vsync << endl;
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
+	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "move_speed=" << g_settings.moveSpeed << endl;
@@ -475,6 +477,7 @@ void Renderer::saveSettings() {
 
 	g_settings.vsync = gui->vsync;
 	g_settings.show_transform_axes = showDragAxes;
+	g_settings.verboseLogs = g_verbose;
 	g_settings.zfar = zFar;
 	g_settings.fov = fov;
 	g_settings.render_flags = g_render_flags;
@@ -507,6 +510,7 @@ void Renderer::loadSettings() {
 
 	gui->vsync = g_settings.vsync;
 	showDragAxes = g_settings.show_transform_axes;
+	g_verbose = g_settings.verboseLogs;
 	zFar = g_settings.zfar;
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;

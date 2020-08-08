@@ -16,6 +16,7 @@
 // can't select by clipnodes when manually toggled on and rendering disabled for ents
 // deleting ents breaks entity report list when filter is used
 // update merge logic for v2 scripts
+// abort scale/vertex edits if an overflow occurs
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -46,6 +47,9 @@
 // - floating point inaccuracies probably. Changing starting cube size also changes the model
 // show tooltip when hovering over ent target/caller
 // customize limits and remove auto-fgd logic so the editor isn't sven-specific in any way
+// Add tooltips for everything
+// first-time launch help window or something
+// make .bsp extension optional when opening editor
 
 // minor todo:
 // warn about game_playerjoin and other special names
@@ -61,6 +65,7 @@
 // vertex manipulation: face inversions should be invalid
 // vertex manipulation: max face extents should be invalid
 // vertex manipulation: colplanar node planes should be invalid
+// add command to check which ents are preventing hull 2 delete
 
 // refactoring:
 // stop mixing camel case and underscores

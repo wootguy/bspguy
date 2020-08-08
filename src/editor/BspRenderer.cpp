@@ -196,11 +196,11 @@ void BspRenderer::loadTextures() {
 	}
 
 	if (wadTexCount)
-		logf("Loaded %d wad textures\n", wadTexCount);
+		debugf("Loaded %d wad textures\n", wadTexCount);
 	if (embedCount)
-		logf("Loaded %d embedded textures\n", embedCount);
+		debugf("Loaded %d embedded textures\n", embedCount);
 	if (missingCount)
-		logf("%d missing textures\n", missingCount);
+		debugf("%d missing textures\n", missingCount);
 }
 
 void BspRenderer::reload() {
@@ -270,7 +270,7 @@ void BspRenderer::loadLightmaps() {
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
 
-	logf("Calculating lightmaps\n");
+	debugf("Calculating lightmaps\n");
 
 	int lightmapCount = 0;
 	int atlasId = 0;
@@ -342,7 +342,7 @@ void BspRenderer::loadLightmaps() {
 	numLightmapAtlases = atlasTextures.size();
 
 	//lodepng_encode24_file("atlas.png", atlasTextures[0]->data, LIGHTMAP_ATLAS_SIZE, LIGHTMAP_ATLAS_SIZE);
-	logf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
+	debugf("Fit %d lightmaps into %d atlases\n", lightmapCount, atlasId + 1);
 }
 
 void BspRenderer::updateLightmapInfos() {
@@ -400,7 +400,7 @@ void BspRenderer::genRenderFaces(int& renderModelCount) {
 			modelRenderGroups += groupCount;
 	}
 
-	logf("Created %d solid render groups (%d world, %d entity)\n", 
+	debugf("Created %d solid render groups (%d world, %d entity)\n", 
 		worldRenderGroups + modelRenderGroups,
 		worldRenderGroups,
 		modelRenderGroups);
@@ -1138,7 +1138,7 @@ void BspRenderer::delayLoadData() {
 		}
 
 		clipnodesLoaded = true;
-		logf("Loaded %d clipnode leaves\n", clipnodeLeafCount);
+		debugf("Loaded %d clipnode leaves\n", clipnodeLeafCount);
 	}
 }
 

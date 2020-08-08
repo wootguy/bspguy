@@ -50,6 +50,7 @@ struct AppSettings {
 	string gamedir;
 	bool valid = false;
 	int undoLevels = 64;
+	bool verboseLogs = false;
 
 	bool debug_open = false;
 	bool keyvalue_open = false;

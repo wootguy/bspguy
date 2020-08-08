@@ -36,6 +36,8 @@ struct BSPMIPTEX;
 
 void logf(const char* format, ...);
 
+void debugf(const char* format, ...);
+
 bool fileExists(const string& fileName);
 
 char * loadFile( const string& fileName, int& length);

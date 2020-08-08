@@ -1358,8 +1358,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		vector<Entity*> usageEnts = get_model_ents(i);
 		
 		if (usageEnts.size() == 0) {
-			if (g_verbose)
-				logf("Deleting unused model %d\n", i);
+			debugf("Deleting unused model %d\n", i);
 
 			for (int k = 0; k < MAX_MAP_HULLS; k++)
 				deletedHulls += models[i].iHeadnodes[k] >= 0;
@@ -1493,8 +1492,8 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[i];
 
 		if (!needsVisibleHull) {
-			if (g_verbose && models[i].iHeadnodes[0] >= 0)
-				logf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
+			if (models[i].iHeadnodes[0] >= 0)
+				debugf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
 
 			deletedHulls += models[i].iHeadnodes[0] >= 0;
 
@@ -1513,16 +1512,16 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 				}
 			}
 
-			if (g_verbose && deletedAnyHulls)
-				logf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
+			if (deletedAnyHulls)
+				debugf("Deleting HULL 1-3 from model %d, used in %s\n", i, uses.c_str());
 
 			model.iHeadnodes[1] = -1;
 			model.iHeadnodes[2] = -1;
 			model.iHeadnodes[3] = -1;
 		}
 		else if (!needsMonsterHulls) {
-			if (g_verbose && models[i].iHeadnodes[2] >= 0)
-				logf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
+			if (models[i].iHeadnodes[2] >= 0)
+				debugf("Deleting HULL 2 from model %d, used in %s\n", i, uses.c_str());
 
 			deletedHulls += models[i].iHeadnodes[2] >= 0;
 
@@ -3391,7 +3390,6 @@ int Bsp::duplicate_model(int modelIdx) {
 			newFaces.push_back(face);
 
 			lightmapAppendSz += lightmapSz * sizeof(COLOR3);
-			logf("Duplicated %d pixel lightmap. Offset %d\n", lightmapSz, face.nLightmapOffset);
 		}
 	}
 
@@ -3478,7 +3476,7 @@ BSPTEXTUREINFO* Bsp::get_unique_texinfo(int faceIdx) {
 			texinfos[newInfo] = texinfos[targetInfo];
 			targetInfo = newInfo;
 			targetFace.iTextureInfo = newInfo;
-			logf("Create new texinfo\n");
+			debugf("Create new texinfo\n");
 			break;
 		}
 	}

@@ -13,18 +13,36 @@ int g_render_flags;
 vector<string> g_log_buffer;
 mutex g_log_mutex;
 
-void logf(const char* format, ...) {
-	static char line[4096];
+static char log_line[4096];
 
+void logf(const char* format, ...) {
 	g_log_mutex.lock();
 
 	va_list vl;
 	va_start(vl, format);
-	vsnprintf(line, 4096, format, vl);
+	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf(line);
-	g_log_buffer.push_back(line);
+	printf(log_line);
+	g_log_buffer.push_back(log_line);
+
+	g_log_mutex.unlock();
+}
+
+void debugf(const char* format, ...) {
+	if (!g_verbose) {
+		return;
+	}
+	
+	g_log_mutex.lock();
+
+	va_list vl;
+	va_start(vl, format);
+	vsnprintf(log_line, 4096, format, vl);
+	va_end(vl);
+
+	printf(log_line);
+	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
 }

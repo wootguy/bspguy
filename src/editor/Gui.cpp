@@ -621,7 +621,7 @@ void Gui::drawMenuBar() {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
 				Bsp* map = app->mapRenderers[i]->map;
 				logf("Cleaning %s\n", map->name.c_str());
-				map->remove_unused_model_structures().print_delete_stats(0);
+				map->remove_unused_model_structures().print_delete_stats(1);
 				app->mapRenderers[i]->reload();
 				app->deselectObject();
 				reloadLimits();
@@ -637,13 +637,14 @@ void Gui::drawMenuBar() {
 
 				logf("Optimizing %s\n", map->name.c_str());
 				if (!map->has_hull2_ents()) {
-					logf("Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
+					logf("    Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
 					map->delete_hull(2, 1);
 				}
 
+				bool oldVerbose = g_verbose;
 				g_verbose = true;
-				map->delete_unused_hulls(true).print_delete_stats(0);
-				g_verbose = false;
+				map->delete_unused_hulls(true).print_delete_stats(1);
+				g_verbose = oldVerbose;
 
 				app->mapRenderers[k]->reload();
 				app->deselectObject();
@@ -1451,8 +1452,8 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	ImGui::SetColumnWidth(2, textColWidth);
 	ImGui::SetColumnWidth(3, butColWidth);
 
-	static char keyNames[128][64];
-	static char keyValues[128][64];
+	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
+	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
 
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
 	float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
@@ -1500,21 +1501,21 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		}
 	};
 
-	static InputData keyIds[128];
-	static InputData valueIds[128];
+	static InputData keyIds[MAX_KEYS_PER_ENT];
+	static InputData valueIds[MAX_KEYS_PER_ENT];
 	static int lastPickCount = -1;
-	static string dragNames[128];
-	static const char* dragIds[128];
+	static string dragNames[MAX_KEYS_PER_ENT];
+	static const char* dragIds[MAX_KEYS_PER_ENT];
 
 	if (dragNames[0].empty()) {
-		for (int i = 0; i < 128; i++) {
+		for (int i = 0; i < MAX_KEYS_PER_ENT; i++) {
 			string name = "::##drag" + to_string(i);
 			dragNames[i] = name;
 		}
 	}
 
 	if (lastPickCount != app->pickCount) {
-		for (int i = 0; i < 128; i++) {
+		for (int i = 0; i < MAX_KEYS_PER_ENT; i++) {
 			dragIds[i] = dragNames[i].c_str();
 		}
 	}
@@ -1526,14 +1527,14 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 
 	ImVec4 dragButColor = style.Colors[ImGuiCol_Header];
 
-	static bool hoveredDrag[128];
+	static bool hoveredDrag[MAX_KEYS_PER_ENT];
 	static int ignoreErrors = 0;
 
 	static bool wasKeyDragging = false;
 	bool keyDragging = false;
 
 	float startY = 0;
-	for (int i = 0; i < ent->keyOrder.size() && i < 128; i++) {
+	for (int i = 0; i < ent->keyOrder.size() && i < MAX_KEYS_PER_ENT; i++) {
 		const char* item = dragIds[i];
 
 		{
@@ -1599,7 +1600,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			}
 
 			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::InputText(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyNames[i], 64, ImGuiInputTextFlags_CallbackAlways,
+			ImGui::InputText(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyNames[i], MAX_KEY_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
 
 			if (invalidKey || hoveredDrag[i]) {
@@ -1620,7 +1621,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
 			}
 			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::InputText(("##val" + to_string(i) + to_string(app->pickCount)).c_str(), keyValues[i], 64, ImGuiInputTextFlags_CallbackAlways,
+			ImGui::InputText(("##val" + to_string(i) + to_string(app->pickCount)).c_str(), keyValues[i], MAX_VAL_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
 			if (hoveredDrag[i]) {
 				ImGui::PopStyleColor();
@@ -2146,6 +2147,7 @@ void Gui::drawSettings() {
 				shouldReloadFonts = true;
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
+			ImGui::Checkbox("Verbose Logging", &g_verbose);
 		}
 		else if (settingsTab == 1) {
 			int pathWidth = ImGui::GetWindowWidth() - 60;
