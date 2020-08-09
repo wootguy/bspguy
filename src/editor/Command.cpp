@@ -79,7 +79,7 @@ void EditEntityCommand::refresh() {
 	}
 	g_app->updateEntityState(ent);
 	g_app->pickCount++; // force GUI update
-	true;
+	g_app->updateModelVerts();
 }
 
 int EditEntityCommand::memoryUsage() {
@@ -391,4 +391,77 @@ int CreateBspModelCommand::addDefaultTexture() {
 	delete[] tex_dat;
 
 	return aaatriggerIdx;
+}
+
+
+//
+// Edit BSP model
+//
+EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
+		vec3 oldOrigin) : Command(desc, pickInfo.mapIdx) {
+	this->modelIdx = pickInfo.modelIdx;
+	this->entIdx = pickInfo.entIdx;
+	this->oldLumps = oldLumps;
+	this->newLumps = newLumps;
+	this->allowedDuringLoad = false;
+	this->oldOrigin = oldOrigin;
+	this->newOrigin = pickInfo.ent->getOrigin();
+}
+
+void EditBspModelCommand::execute() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	map->replace_lumps(newLumps);
+	map->ents[entIdx]->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString());
+	g_app->undoEntOrigin = newOrigin;
+
+	refresh();
+}
+
+void EditBspModelCommand::undo() {
+	Bsp* map = getBsp();
+	
+	map->replace_lumps(oldLumps);
+	map->ents[entIdx]->setOrAddKeyvalue("origin", oldOrigin.toKeyvalueString());
+	g_app->undoEntOrigin = oldOrigin;
+
+	refresh();
+}
+
+void EditBspModelCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+	Entity* ent = map->ents[entIdx];
+
+	renderer->updateLightmapInfos();
+	renderer->calcFaceMaths();
+	renderer->refreshModel(modelIdx);
+	renderer->refreshEnt(entIdx);
+	g_app->gui->reloadLimits();
+	g_app->saveLumpState(map, 0xffffff, true);
+	g_app->updateEntityState(ent);
+
+	if (g_app->pickInfo.entIdx == entIdx) {
+		g_app->updateModelVerts();
+	}
+}
+
+int EditBspModelCommand::memoryUsage() {
+	int size = sizeof(DuplicateBspModelCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i] + newLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+EditBspModelCommand::~EditBspModelCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+		if (newLumps.lumps[i])
+			delete[] newLumps.lumps[i];
+	}
 }

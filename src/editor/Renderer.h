@@ -87,6 +87,7 @@ class Renderer {
 	friend class CreateEntityCommand;
 	friend class DuplicateBspModelCommand;
 	friend class CreateBspModelCommand;
+	friend class EditBspModelCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -118,8 +119,6 @@ private:
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
-
-	Entity* undoEntityState = NULL;
 
 	static future<void> fgdFuture;
 	bool reloading = false;
@@ -225,6 +224,9 @@ private:
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history
 	vector<Command*> undoHistory;
 	vector<Command*> redoHistory;
+	Entity* undoEntityState = NULL;
+	LumpState undoLumpState;
+	vec3 undoEntOrigin;
 
 	vec3 getMoveDir();
 	void controls();
@@ -238,7 +240,7 @@ private:
 	void globalShortcutControls(); // these work even with the UI selected
 	void pickObject(); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
-	void applyTransform();
+	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
 	BspRenderer* getMapContainingCamera();
@@ -285,6 +287,7 @@ private:
 	void ungrabEnt();
 
 	void pushEntityUndoState(string actionDesc);
+	void pushModelUndoState(string actionDesc, int targetLumps);
 	void pushUndoCommand(Command* cmd);
 	void undo();
 	void redo();
@@ -292,6 +295,7 @@ private:
 	void calcUndoMemoryUsage();
 
 	void updateEntityState(Entity* ent);
+	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
 
 	void loadFgds();
 };

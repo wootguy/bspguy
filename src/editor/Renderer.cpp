@@ -12,6 +12,9 @@ string g_config_dir = getConfigDir();
 string g_settings_path = g_config_dir + "bspguy.cfg";
 Renderer* g_app = NULL;
 
+// everything except VIS, ENTITIES, MARKSURFS
+#define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
+
 future<void> Renderer::fgdFuture;
 
 void error_callback(int error, const char* description)
@@ -222,7 +225,8 @@ Renderer::Renderer() {
 	glUniform4f(colorMultId, 1, 1, 1, 1);
 
 	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
-		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME;
+		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
+		| RENDER_ENT_CLIPNODES;
 	
 	pickInfo.valid = false;
 
@@ -240,6 +244,8 @@ Renderer::Renderer() {
 
 	reloading = true;
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+
+	memset(&undoLumpState, 0, sizeof(LumpState));
 
 	//cameraOrigin = vec3(51, 427, 234);
 	//cameraAngles = vec3(41, 0, -170);
@@ -862,7 +868,7 @@ void Renderer::cameraPickingControls() {
 	}
 }
 
-void Renderer::applyTransform() {
+void Renderer::applyTransform(bool forceUpdate) {
 	if (!isTransformableSolid || modelUsesSharedStructures) {
 		return;
 	}
@@ -871,8 +877,17 @@ void Renderer::applyTransform() {
 		bool transformingVerts = transformTarget == TRANSFORM_VERTEX;
 		bool scalingObject = transformTarget == TRANSFORM_OBJECT && transformMode == TRANSFORM_SCALE;
 		bool movingOrigin = transformTarget == TRANSFORM_ORIGIN;
+		bool actionIsUndoable = false;
 
-		if (transformingVerts || scalingObject) {
+		bool anyVertsChanged = false;
+		for (int i = 0; i < modelVerts.size(); i++) {
+			if (modelVerts[i].pos != modelVerts[i].startPos || modelVerts[i].pos != modelVerts[i].undoPos) {
+				anyVertsChanged = true;
+			}
+		}
+
+		if (anyVertsChanged && (transformingVerts || scalingObject || forceUpdate)) {
+
 			invalidSolid = !pickInfo.map->vertex_manipulation_sync(pickInfo.modelIdx, modelVerts, false, true);
 			gui->reloadLimits();
 
@@ -898,6 +913,8 @@ void Renderer::applyTransform() {
 					scaleTexinfos[i].oldT = info.vT;
 				}
 			}
+
+			actionIsUndoable = !invalidSolid;
 		}
 
 		if (movingOrigin && pickInfo.valid && pickInfo.modelIdx >= 0) {
@@ -921,7 +938,13 @@ void Renderer::applyTransform() {
 				
 				updateModelVerts();
 				//mapRenderers[pickInfo.mapIdx]->reloadLightmaps();
+
+				actionIsUndoable = true;
 			}
+		}
+
+		if (actionIsUndoable) {
+			pushModelUndoState("Edit BSP Model", EDIT_MODEL_LUMPS);
 		}
 	}
 }
@@ -2398,6 +2421,8 @@ void Renderer::splitFace() {
 		modelEdges[i].selected = false;
 	}
 
+	pushModelUndoState("Split Face", EDIT_MODEL_LUMPS);
+
 	mapRenderer->updateLightmapInfos();
 	mapRenderer->calcFaceMaths();
 	mapRenderer->refreshModel(modelIdx);
@@ -2563,6 +2588,7 @@ void Renderer::deselectObject() {
 	pickInfo.faceIdx = -1;
 	pickInfo.modelIdx = -1;
 	isTransformableSolid = true;
+	modelUsesSharedStructures = false;
 	hoverVert = -1;
 	hoverEdge = -1;
 	hoverAxis = -1;
@@ -2583,6 +2609,8 @@ void Renderer::selectEnt(Bsp* map, int entIdx) {
 	updateSelectionSize();
 	updateEntConnections();
 	updateEntityState(pickInfo.ent);
+	if (pickInfo.ent->isBspModel())
+		saveLumpState(pickInfo.map, 0xffffffff, true);
 	pickCount++; // force transform window update
 }
 
@@ -2617,6 +2645,18 @@ void Renderer::updateEntityState(Entity* ent) {
 		undoEntityState = new Entity();
 	}
 	*undoEntityState = *ent;
+	undoEntOrigin = ent->getOrigin();
+}
+
+void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
+	if (deleteOldState) {
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			if (undoLumpState.lumps[i])
+				delete[] undoLumpState.lumps[i];
+		}
+	}
+
+	undoLumpState = map->duplicate_lumps(targetLumps);
 }
 
 void Renderer::pushEntityUndoState(string actionDesc) {
@@ -2651,6 +2691,48 @@ void Renderer::pushEntityUndoState(string actionDesc) {
 	}
 
 	pushUndoCommand(new EditEntityCommand(actionDesc, pickInfo, undoEntityState, pickInfo.ent));
+	updateEntityState(pickInfo.ent);
+}
+
+void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
+	if (!pickInfo.valid || !pickInfo.ent || pickInfo.modelIdx <= 0) {
+		return;
+	}
+	
+	LumpState newLumps = pickInfo.map->duplicate_lumps(targetLumps);
+
+	bool differences[HEADER_LUMPS] = { false };
+
+	bool anyDifference = false;
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (newLumps.lumps[i] && undoLumpState.lumps[i]) {
+			if (newLumps.lumpLen[i] != undoLumpState.lumpLen[i] || memcmp(newLumps.lumps[i], undoLumpState.lumps[i], newLumps.lumpLen[i]) != 0) {
+				anyDifference = true;
+				differences[i] = true;
+			}
+		}
+	}
+	
+	if (!anyDifference) {
+		logf("No differences detected\n");
+		return;
+	}
+
+	// delete lumps that have no differences to save space
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (!differences[i]) {
+			delete[] undoLumpState.lumps[i];
+			delete[] newLumps.lumps[i];
+			undoLumpState.lumps[i] = newLumps.lumps[i] = NULL;
+			undoLumpState.lumpLen[i] = newLumps.lumpLen[i] = 0;
+		}
+	}
+
+	EditBspModelCommand* editCommand = new EditBspModelCommand(actionDesc, pickInfo, undoLumpState, newLumps, undoEntOrigin);
+	pushUndoCommand(editCommand);
+	saveLumpState(pickInfo.map, 0xffffffff, false);
+
+	// entity origin edits also update the ent origin (TODO: this breaks when moving + scaling something)
 	updateEntityState(pickInfo.ent);
 }
 

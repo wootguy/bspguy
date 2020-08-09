@@ -1441,6 +1441,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
 				if (key == "model" || string(data->Buf) == "model") {
 					inputData->bspRenderer->preRenderEnts();
+					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
 				g_app->updateEntConnections();
 			}
@@ -1458,6 +1459,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
 				if (key == "model") {
 					inputData->bspRenderer->preRenderEnts();
+					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
 				g_app->updateEntConnections();
 			}
@@ -1771,13 +1773,6 @@ void Gui::drawTransformWidget() {
 				inputsAreDragging = true;
 		}
 
-		if (inputsWereDragged && !inputsAreDragging) {
-			if (app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
-				app->pushEntityUndoState("Move Entity");
-			}
-		}
-		inputsWereDragged = inputsAreDragging;
-
 		ImGui::PopItemWidth();
 
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
@@ -1788,16 +1783,43 @@ void Gui::drawTransformWidget() {
 		if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
 		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 			guiHoverAxis = 0;
+		if (ImGui::IsItemActive())
+			inputsAreDragging = true;
 		ImGui::SameLine();
 
 		if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
 		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 			guiHoverAxis = 1;
+		if (ImGui::IsItemActive())
+			inputsAreDragging = true;
 		ImGui::SameLine();
 
 		if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
 		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 			guiHoverAxis = 2;
+		if (ImGui::IsItemActive())
+			inputsAreDragging = true;
+
+		if (inputsWereDragged && !inputsAreDragging) {
+			if (app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
+				app->pushEntityUndoState("Move Entity");
+			}
+
+			if (transformingEnt) {
+				app->applyTransform(true);
+
+				if (app->gridSnappingEnabled) {
+					fx = last_fx = x;
+					fy = last_fy = y;
+					fz = last_fz = z;
+				}
+				else {
+					x = last_fx = fx;
+					y = last_fy = fy;
+					z = last_fz = fz;
+				}
+			}
+		}
 
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 3));
 		ImGui::PopItemWidth();
@@ -1881,18 +1903,6 @@ void Gui::drawTransformWidget() {
 					}
 
 					app->moveSelectedVerts(delta);
-					app->applyTransform();
-
-					if (app->gridSnappingEnabled) {
-						fx = last_fx = x;
-						fy = last_fy = y;
-						fz = last_fz = z;
-					}
-					else {
-						x = last_fx = fx;
-						y = last_fy = fy;
-						z = last_fz = fz;
-					}
 				}
 				else if (app->transformTarget == TRANSFORM_OBJECT) {
 					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
@@ -1917,19 +1927,7 @@ void Gui::drawTransformWidget() {
 					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
 					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
 
-					if (app->gridSnappingEnabled) {
-						fx = x;
-						fy = y;
-						fz = z;
-					}
-					else {
-						x = fx;
-						y = fy;
-						z = fz;
-					}
-
 					app->transformedOrigin = newOrigin;
-					app->applyTransform();
 				}
 			}
 			if (scaled && ent->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
@@ -1946,6 +1944,8 @@ void Gui::drawTransformWidget() {
 				}
 			}
 		}
+
+		inputsWereDragged = inputsAreDragging;
 	}
 	ImGui::End();
 }

@@ -8,15 +8,15 @@
 #include "Renderer.h"
 
 // super todo:
-// gui scale number not accurate at all
+// gui scale not accurate and mostly broken
 // invalid solid undo not reverting plane vertex positions sometimes
 // backwards mins/maxs when creating second teleport in scale mode and cant drag the handle
-// vertex editing rapidly duplicates clipnodes
 // dbm_14 invisible triggers not showing clipndoes.
 // can't select by clipnodes when manually toggled on and rendering disabled for ents
 // deleting ents breaks entity report list when filter is used
 // update merge logic for v2 scripts
 // abort scale/vertex edits if an overflow occurs
+// 3d axes don't appear until moving mouse over 3D view sometimes
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

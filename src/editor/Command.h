@@ -104,3 +104,22 @@ private:
 	int getDefaultTextureIdx();
 	int addDefaultTexture();
 };
+
+
+class EditBspModelCommand : public Command {
+public:
+	int modelIdx;
+	int entIdx;
+	vec3 oldOrigin;
+	vec3 newOrigin;
+	LumpState oldLumps;
+	LumpState newLumps;
+
+	EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, vec3 oldOrigin);
+	~EditBspModelCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
