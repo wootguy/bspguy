@@ -62,6 +62,8 @@ namespace bspguy {
 		
 		println("Loading section " + map);
 		
+		g_Scheduler.SetTimeout("delay_fire_targets", 0.5f, "bspguy_start_" + map);
+		
 		spawnMapEnts(map);
 	}
 	
