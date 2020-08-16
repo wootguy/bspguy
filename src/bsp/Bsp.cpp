@@ -1427,9 +1427,9 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		monsterOnlyTriggers.insert("trigger_monsterjump");
 
 		string uses = "";
-		bool needsPlayerHulls = false;
-		bool needsMonsterHulls = false;
-		bool needsVisibleHull = false;
+		bool needsPlayerHulls = false; // HULL 1 + HULL 3
+		bool needsMonsterHulls = false; // All HULLs
+		bool needsVisibleHull = false; // HULL 0
 		for (int k = 0; k < usageEnts.size(); k++) {
 			string cname = usageEnts[k]->keyvalues["classname"];
 			string tname = usageEnts[k]->keyvalues["targetname"];
@@ -1451,10 +1451,8 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 				needsVisibleHull = !(spawnflags & 8) || !is_invisible_solid(usageEnts[k]);
 			}
 			else if (cname.find("trigger_") == 0) {
-				bool affectsPointEnts = spawnflags & 8; // "Everything else" flag checked
-
-				if (affectsPointEnts && conditionalPointEntTriggers.find(cname) != conditionalPointEntTriggers.end()) {
-					needsVisibleHull = true; // needed for point-ent collision
+				if (conditionalPointEntTriggers.find(cname) != conditionalPointEntTriggers.end()) {
+					needsVisibleHull = spawnflags & 8; // "Everything else" flag checked
 					needsPlayerHulls = !(spawnflags & 2); // "No clients" unchecked
 					needsMonsterHulls = (spawnflags & 1) || (spawnflags & 4); // "monsters" or "pushables" checked
 				}
@@ -1487,9 +1485,11 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 			}
 			else if (cname == "func_rot_button") {
 				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 1); // "Not solid" unchecked
+				needsVisibleHull = true;
 			}
 			else if (cname == "func_rotating") {
 				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 64); // "Not solid" unchecked
+				needsVisibleHull = true;
 			}
 			else if (cname == "func_ladder") {
 				needsPlayerHulls = true;
@@ -1512,7 +1512,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 
 		BSPMODEL& model = ((BSPMODEL*)lumps[LUMP_MODELS])[i];
 
-		if (!needsVisibleHull) {
+		if (!needsVisibleHull && !needsMonsterHulls) {
 			if (models[i].iHeadnodes[0] >= 0)
 				debugf("Deleting HULL 0 from model %d, used in %s\n", i, uses.c_str());
 
