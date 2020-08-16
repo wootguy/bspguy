@@ -1842,7 +1842,7 @@ void Gui::drawTransformWidget() {
 		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
 
 		ImGui::Text("3D Axes: "); ImGui::NextColumn();
-		if (ImGui::RadioButton("Hide", &app->transformMode, -1))
+		if (ImGui::RadioButton("Hide", &app->transformMode, TRANSFORM_NONE))
 			app->showDragAxes = false;
 
 		ImGui::NextColumn();

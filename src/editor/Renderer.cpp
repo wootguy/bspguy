@@ -1209,7 +1209,8 @@ void Renderer::pickObject() {
 		//pickInfo.map->print_model_hull(pickInfo.modelIdx, 0);
 	}
 	else {
-		transformMode = TRANSFORM_MOVE;
+		if (transformMode != TRANSFORM_MOVE && transformMode != TRANSFORM_NONE)
+			transformMode = TRANSFORM_MOVE;
 		transformTarget = TRANSFORM_OBJECT;
 	}
 

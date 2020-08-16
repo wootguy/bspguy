@@ -14,6 +14,7 @@
 class Gui;
 
 enum transform_modes {
+	TRANSFORM_NONE = -1,
 	TRANSFORM_MOVE,
 	TRANSFORM_SCALE
 };
