@@ -474,40 +474,23 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 }
 
 bool Bsp::move(vec3 offset, int modelIdx) {
-	BSPMODEL* target = modelIdx >= 0 ? &models[modelIdx] : NULL;
+	if (modelIdx < 0 || modelIdx >= modelCount) {
+		logf("Invalid modelIdx moved");
+		return false;
+	}
+
+	BSPMODEL& target = models[modelIdx];
+
+	// all ents should be moved if the world is being moved
+	bool movingWorld = modelIdx == 0;
 
 	// Submodels don't use leaves like the world model does. Only the contents of a leaf matters
 	// for submodels. All other data is ignored. bspguy will reuse world leaves in submodels to 
 	// save space, which means moving leaves for those models would likely break something else.
 	// So, don't move leaves for submodels.
-	bool dontMoveLeaves = modelIdx >= 0;
+	bool dontMoveLeaves = !movingWorld;
 
-	int* modelShouldBeMoved = new int[modelCount];
-
-	if (target) {
-		// only one model should be moved
-		memset(modelShouldBeMoved, 0, modelCount * sizeof(int));
-		modelShouldBeMoved[modelIdx] = 1;
-	}
-	else {
-		memset(modelShouldBeMoved, 1, modelCount * sizeof(int)); // assume all models should be moved
-
-		for (int i = 0; i < ents.size(); i++) {
-			if (!ents[i]->hasKey("origin")) {
-				if (ents[i]->isBspModel()) {
-					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 2; // model definately should be moved
-				}
-				continue;
-			}
-			if (ents[i]->isBspModel()) {
-				// should not be moved, unless this is a clone of some ent that should be (aomdc_1nightmare lassie22)
-				if (modelShouldBeMoved[ents[i]->getBspModelIdx()] != 2)
-					modelShouldBeMoved[ents[i]->getBspModelIdx()] = 0;
-			}
-		}
-	}
-
-	split_shared_model_structures(modelShouldBeMoved, dontMoveLeaves);
+	split_shared_model_structures(modelIdx);
 
 	bool hasLighting = lightDataLength > 0;
 	LIGHTMAP* oldLightmaps = NULL;
@@ -535,7 +518,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 			oldLightmaps[i].width = size[0];
 			oldLightmaps[i].height = size[1];
 
-			bool skipResize = target && (i < target->iFirstFace || i >= target->iFirstFace + target->nFaces);
+			bool skipResize = i < target.iFirstFace || i >= target.iFirstFace + target.nFaces;
 
 			if (!skipResize) {
 				oldLightmaps[i].luxelFlags = new byte[size[0] * size[1]];
@@ -546,55 +529,42 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 		}
 	}
 
-	g_progress.update("Moving structures", ents.size() + modelCount);
+	g_progress.update("Moving structures", ents.size()-1);
 
-	if (!target) {
-		for (int i = 0; i < ents.size(); i++) {
+	if (movingWorld) {
+		for (int i = 1; i < ents.size(); i++) { // don't move the world entity
 			g_progress.tick();
 
-			if (!ents[i]->hasKey("origin"))
-				continue;
-			if (ents[i]->isBspModel() && modelShouldBeMoved[ents[i]->getBspModelIdx()])
-				continue;
+			vec3 ori;
+			if (ents[i]->hasKey("origin")) {
+				ori = parseVector(ents[i]->keyvalues["origin"]);
+			}
+			ori += offset;
 
-			Keyvalue keyvalue("origin", ents[i]->keyvalues["origin"]);
-			vec3 ori = keyvalue.getVector() + offset;
-
-			ents[i]->keyvalues["origin"] = ori.toKeyvalueString();
+			ents[i]->setOrAddKeyvalue("origin", ori.toKeyvalueString());
 		}
 
 		update_ent_lump();
 	}
 	
-	for (int i = 0; i < modelCount; i++) {
-		BSPMODEL& model = models[i];
-
-		if (modelShouldBeMoved[i]) {
-			model.nMins += offset;
-			model.nMaxs += offset;
-
-			if (fabs(model.nMins.x) > MAX_MAP_COORD ||
-				fabs(model.nMins.y) > MAX_MAP_COORD ||
-				fabs(model.nMins.z) > MAX_MAP_COORD ||
-				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
-				fabs(model.nMaxs.z) > MAX_MAP_COORD ||
-				fabs(model.nMaxs.z) > MAX_MAP_COORD) {
-				logf("\nWARNING: Model moved past safe world boundary!\n");
-			}
-		}
+	target.nMins += offset;
+	target.nMaxs += offset;
+	if (fabs(target.nMins.x) > MAX_MAP_COORD ||
+		fabs(target.nMins.y) > MAX_MAP_COORD ||
+		fabs(target.nMins.z) > MAX_MAP_COORD ||
+		fabs(target.nMaxs.z) > MAX_MAP_COORD ||
+		fabs(target.nMaxs.z) > MAX_MAP_COORD ||
+		fabs(target.nMaxs.z) > MAX_MAP_COORD) {
+		logf("\nWARNING: Model moved past safe world boundary!\n");
 	}
 
 	STRUCTUSAGE shouldBeMoved(this);
-	for (int i = 0; i < modelCount; i++) {
-		if (modelShouldBeMoved[i])
-			mark_model_structures(i, &shouldBeMoved, dontMoveLeaves);
-		g_progress.tick();
-	}
+	mark_model_structures(modelIdx, &shouldBeMoved, dontMoveLeaves);
 
 
 	for (int i = 0; i < nodeCount; i++) {
 		if (!shouldBeMoved.nodes[i]) {
-			continue; // don't move submodels with origins
+			continue;
 		}
 
 		BSPNODE& node = nodes[i];
@@ -617,7 +587,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 
 	for (int i = 1; i < leafCount; i++) { // don't move the solid leaf (always has 0 size)
 		if (!shouldBeMoved.leaves[i]) {
-			continue; // don't move submodels with origins
+			continue;
 		}
 
 		BSPLEAF& leaf = leaves[i];
@@ -640,7 +610,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 
 	for (int i = 0; i < vertCount; i++) {
 		if (!shouldBeMoved.verts[i]) {
-			continue; // don't move submodels with origins
+			continue;
 		}
 
 		vec3& vert = verts[i];
@@ -683,7 +653,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 	}
 
 	if (hasLighting) {
-		resize_lightmaps(oldLightmaps, newLightmaps, target);
+		resize_lightmaps(oldLightmaps, newLightmaps);
 
 		for (int i = 0; i < faceCount; i++) {
 			if (oldLightmaps[i].luxelFlags) {
@@ -740,7 +710,7 @@ void Bsp::move_texinfo(int idx, vec3 offset) {
 	}
 }
 
-void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMODEL* target) {
+void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 	g_progress.update("Recalculate lightmaps", faceCount);
 
 	// calculate new lightmap sizes
@@ -803,7 +773,10 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 
 			totalLightmaps++;
 
-			if (oldLight.width == newLight.width && oldLight.height == newLight.height) {
+			bool faceMoved = oldLightmaps[i].luxelFlags != NULL;
+			bool lightmapResized = oldLight.width != newLight.width || oldLight.height != newLight.height;
+
+			if (!faceMoved || !lightmapResized) {
 				memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
 				newLight.luxelFlags = NULL;
 			}
@@ -856,17 +829,16 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps, BSPMO
 	}
 }
 
-void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInModelsToMove) {
+void Bsp::split_shared_model_structures(int modelIdx) {
 	// marks which structures should not be moved
 	STRUCTUSAGE shouldMove(this);
 	STRUCTUSAGE shouldNotMove(this);
 
-	g_progress.update("Split model structures", modelCount * 2);
+	g_progress.update("Split model structures", modelCount);
 
+	mark_model_structures(modelIdx, &shouldMove, modelIdx == 0);
 	for (int i = 0; i < modelCount; i++) {
-		if (modelsToMove[i])
-			mark_model_structures(i, &shouldMove, ignoreLeavesInModelsToMove);
-		else
+		if (i != modelIdx)
 			mark_model_structures(i, &shouldNotMove, false);
 
 		g_progress.tick();
@@ -877,25 +849,25 @@ void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInMo
 	// TODO: handle all of these, assuming it's possible these are ever shared
 	for (int i = 1; i < shouldNotMove.count.leaves; i++) { // skip solid leaf - it doesn't matter
 		if (shouldMove.leaves[i] && shouldNotMove.leaves[i]) {
-			logf("\nWarning: leaf shared with models of different origin types. Something might break.\n");
+			logf("\nWarning: leaf shared with multiple models. Something might break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.nodes; i++) {
 		if (shouldMove.nodes[i] && shouldNotMove.nodes[i]) {
-			logf("\nError: node shared with models of different origin types. Something will break.\n");
+			logf("\nError: node shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.texInfos; i++) {
 		if (shouldMove.texInfo[i] && shouldNotMove.texInfo[i] && !(texinfos[i].nFlags & TEX_SPECIAL)) {
-			logf("\nError: texinfo shared with models of different origin types. Something will break.\n");
-			break;
+			logf("\nError: texinfo %d shared with multiple models. Something will break.\n", i);
+			//break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.verts; i++) {
 		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
-			logf("\nError: vertex shared with models of different origin types. Something will break.\n");
+			logf("\nError: vertex shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
@@ -946,15 +918,10 @@ void Bsp::split_shared_model_structures(int* modelsToMove, bool ignoreLeavesInMo
 	delete[] remappedStuff.visitedClipnodes;
 	remappedStuff.visitedClipnodes = newVisitedClipnodes;
 
-	for (int i = 0; i < modelCount; i++) {
-		if (modelsToMove[i]) {
-			remap_model_structures(i, &remappedStuff);
-		}
-		g_progress.tick();
-	}
+	remap_model_structures(modelIdx, &remappedStuff);
 
-	//if (duplicatePlanes)
-	//	logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicatePlanes);
+	if (duplicatePlanes)
+		logf("\nDuplicated %d shared model planes to allow independent movement\n", duplicatePlanes);
 }
 
 bool Bsp::does_model_use_shared_structures(int modelIdx) {
@@ -1505,6 +1472,10 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 			}
 			else if (cname == "func_rotating") {
 				needsPlayerHulls = needsMonsterHulls = !(spawnflags & 64); // "Not solid" unchecked
+			}
+			else if (cname == "func_ladder") {
+				needsPlayerHulls = true;
+				needsVisibleHull = true;
 			}
 			else if (playerOnlyTriggers.find(cname) != playerOnlyTriggers.end()) {
 				needsPlayerHulls = true;
