@@ -463,7 +463,9 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			if (!(spawnflags & 2)) {
 				string model = ent->keyvalues["model"];
 
+				string oldOrigin = ent->keyvalues["origin"];
 				ent->clearAllKeyvalues();
+				ent->addKeyvalue("origin", oldOrigin);
 				ent->addKeyvalue("model", model);
 				ent->addKeyvalue("target", newTriggerTarget);
 				ent->addKeyvalue("$s_next_map", map);
