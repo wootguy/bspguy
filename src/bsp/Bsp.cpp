@@ -993,6 +993,10 @@ void Bsp::replace_lumps(LumpState& state) {
 		lumps[i] = new byte[state.lumpLen[i]];
 		memcpy(lumps[i], state.lumps[i], state.lumpLen[i]);
 		header.lump[i].nLength = state.lumpLen[i];
+
+		if (i == LUMP_ENTITIES) {
+			load_ents();
+		}
 	}
 
 	update_lump_pointers();

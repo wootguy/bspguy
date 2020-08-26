@@ -89,6 +89,7 @@ class Renderer {
 	friend class DuplicateBspModelCommand;
 	friend class CreateBspModelCommand;
 	friend class EditBspModelCommand;
+	friend class CleanMapCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -292,6 +293,7 @@ private:
 	void pushUndoCommand(Command* cmd);
 	void undo();
 	void redo();
+	void clearUndoCommands();
 	void clearRedoCommands();
 	void calcUndoMemoryUsage();
 

@@ -47,7 +47,7 @@ public:
 	void pasteTexture();
 	void copyLightmap();
 	void pasteLightmap();
-	void reloadLimits();
+	void refresh();
 
 private:
 	bool vsync = true;
@@ -121,6 +121,7 @@ private:
 	StatInfo calcStat(string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void checkValidHulls();
+	void reloadLimits();
 
 	void clearLog();
 	void addLog(const char* s);

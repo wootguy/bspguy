@@ -136,7 +136,7 @@ void DeleteEntityCommand::undo() {
 void DeleteEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 }
 
 int DeleteEntityCommand::memoryUsage() {
@@ -184,7 +184,7 @@ void CreateEntityCommand::undo() {
 void CreateEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 }
 
 int CreateEntityCommand::memoryUsage() {
@@ -232,7 +232,7 @@ void DuplicateBspModelCommand::execute() {
 	renderer->preRenderEnts();
 	renderer->reloadLightmaps();
 	renderer->addClipnodeModel(newModelIdx);
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 
 	g_app->deselectObject();
 	/*
@@ -260,7 +260,7 @@ void DuplicateBspModelCommand::undo() {
 	}
 
 	renderer->reload();
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 
 	g_app->deselectObject();
 	/*
@@ -334,7 +334,7 @@ void CreateBspModelCommand::execute() {
 
 	g_app->deselectObject();
 	renderer->reload();
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 
 	initialized = true;
 }
@@ -349,7 +349,7 @@ void CreateBspModelCommand::undo() {
 	map->ents.pop_back();
 
 	renderer->reload();
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 	g_app->deselectObject();
 }
 
@@ -408,6 +408,15 @@ EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpSt
 	this->newOrigin = pickInfo.ent->getOrigin();
 }
 
+EditBspModelCommand::~EditBspModelCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+		if (newLumps.lumps[i])
+			delete[] newLumps.lumps[i];
+	}
+}
+
 void EditBspModelCommand::execute() {
 	Bsp* map = getBsp();
 	BspRenderer* renderer = getBspRenderer();
@@ -438,7 +447,7 @@ void EditBspModelCommand::refresh() {
 	renderer->calcFaceMaths();
 	renderer->refreshModel(modelIdx);
 	renderer->refreshEnt(entIdx);
-	g_app->gui->reloadLimits();
+	g_app->gui->refresh();
 	g_app->saveLumpState(map, 0xffffff, true);
 	g_app->updateEntityState(ent);
 
@@ -457,11 +466,57 @@ int EditBspModelCommand::memoryUsage() {
 	return size;
 }
 
-EditBspModelCommand::~EditBspModelCommand() {
+
+
+//
+// Clean Map
+//
+CleanMapCommand::CleanMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+}
+
+CleanMapCommand::~CleanMapCommand() {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		if (oldLumps.lumps[i])
 			delete[] oldLumps.lumps[i];
-		if (newLumps.lumps[i])
-			delete[] newLumps.lumps[i];
 	}
+}
+
+void CleanMapCommand::execute() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	logf("Cleaning %s\n", map->name.c_str());
+	map->remove_unused_model_structures().print_delete_stats(1);
+
+	refresh();
+}
+
+void CleanMapCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+
+	refresh();
+}
+
+void CleanMapCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int CleanMapCommand::memoryUsage() {
+	int size = sizeof(DuplicateBspModelCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
 }

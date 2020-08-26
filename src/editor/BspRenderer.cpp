@@ -321,13 +321,20 @@ void BspRenderer::loadLightmaps() {
 
 			// copy lightmap data into atlas
 			int lightmapSz = info.w * info.h * sizeof(COLOR3);
-			COLOR3* lightSrc = (COLOR3*)(map->lightdata + face.nLightmapOffset + s * lightmapSz);
+			int offset = face.nLightmapOffset + s * lightmapSz;
+			COLOR3* lightSrc = (COLOR3*)(map->lightdata + offset);
 			COLOR3* lightDst = (COLOR3*)(atlasTextures[atlasId]->data);
 			for (int y = 0; y < info.h; y++) {
 				for (int x = 0; x < info.w; x++) {
 					int src = y * info.w + x;
 					int dst = (info.y[s] + y) * LIGHTMAP_ATLAS_SIZE + info.x[s] + x;
-					lightDst[dst] = lightSrc[src];
+					if (offset + src*sizeof(COLOR3) < map->lightDataLength) {
+						lightDst[dst] = lightSrc[src];
+					}
+					else {
+						bool checkers = x % 2 == 0 != y % 2 == 0;
+						lightDst[dst] = { (byte)(checkers ? 255 : 0), 0, (byte)(checkers ? 255 : 0) };
+					}
 				}
 			}
 		}
@@ -1388,7 +1395,7 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 
 
 		glActiveTexture(GL_TEXTURE0);
-		if (g_render_flags & RENDER_TEXTURES) {
+		if (texturesLoaded && g_render_flags & RENDER_TEXTURES) {
 			rgroup.texture->bind();
 		}
 		else {

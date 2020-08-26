@@ -611,19 +611,17 @@ void Gui::drawMenuBar() {
 
 		ImGui::Separator();
 
-		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
-			for (int i = 0; i < app->mapRenderers.size(); i++) {
-				Bsp* map = app->mapRenderers[i]->map;
-				logf("Cleaning %s\n", map->name.c_str());
-				map->remove_unused_model_structures().print_delete_stats(1);
-				app->mapRenderers[i]->reload();
-				app->deselectObject();
-				reloadLimits();
-				checkValidHulls();
-			}
+		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
+		Bsp* map = mapSelected ? app->pickInfo.map : NULL;
+
+		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading && mapSelected)) {
+			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
 		}
 
-		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading)) {
+		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
 			if (app->isLoading) {
 			}
 			for (int k = 0; k < app->mapRenderers.size(); k++) {
@@ -3200,4 +3198,9 @@ void Gui::checkFaceErrors() {
 			lightmapTooLarge = true;
 		}
 	}
+}
+
+void Gui::refresh() {
+	reloadLimits();
+	checkValidHulls();
 }

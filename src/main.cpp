@@ -17,6 +17,7 @@
 // update merge logic for v2 scripts
 // abort scale/vertex edits if an overflow occurs
 // 3d axes don't appear until moving mouse over 3D view sometimes
+// "Hide" axes setting not loaded properly
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes

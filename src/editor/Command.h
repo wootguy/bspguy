@@ -123,3 +123,17 @@ public:
 	void refresh();
 	int memoryUsage();
 };
+
+
+class CleanMapCommand : public Command {
+public:
+	LumpState oldLumps;
+
+	CleanMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	~CleanMapCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};

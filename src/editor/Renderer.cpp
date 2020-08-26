@@ -467,6 +467,10 @@ void Renderer::reloadMaps() {
 	for (int i = 0; i < reloadPaths.size(); i++) {
 		addMap(new Bsp(reloadPaths[i]));
 	}
+	
+	clearUndoCommands();
+	clearRedoCommands();
+
 	logf("Reloaded maps\n");
 }
 
@@ -1209,7 +1213,7 @@ void Renderer::pickObject() {
 		//pickInfo.map->print_model_hull(pickInfo.modelIdx, 0);
 	}
 	else {
-		if (transformMode != TRANSFORM_MOVE && transformMode != TRANSFORM_NONE)
+		if (transformMode == TRANSFORM_SCALE)
 			transformMode = TRANSFORM_MOVE;
 		transformTarget = TRANSFORM_OBJECT;
 	}
@@ -2779,6 +2783,15 @@ void Renderer::redo() {
 	redoCommand->execute();
 	redoHistory.pop_back();
 	undoHistory.push_back(redoCommand);
+}
+
+void Renderer::clearUndoCommands() {
+	for (int i = 0; i < undoHistory.size(); i++) {
+		delete undoHistory[i];
+	}
+
+	undoHistory.clear();
+	calcUndoMemoryUsage();
 }
 
 void Renderer::clearRedoCommands() {
