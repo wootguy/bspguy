@@ -137,3 +137,17 @@ public:
 	void refresh();
 	int memoryUsage();
 };
+
+
+class OptimizeMapCommand : public Command {
+public:
+	LumpState oldLumps;
+
+	OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	~OptimizeMapCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};

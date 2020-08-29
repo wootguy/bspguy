@@ -512,7 +512,70 @@ void CleanMapCommand::refresh() {
 }
 
 int CleanMapCommand::memoryUsage() {
-	int size = sizeof(DuplicateBspModelCommand);
+	int size = sizeof(CleanMapCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+
+//
+// Optimize Map
+//
+OptimizeMapCommand::OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+}
+
+OptimizeMapCommand::~OptimizeMapCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void OptimizeMapCommand::execute() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	logf("Optimizing %s\n", map->name.c_str());
+	if (!map->has_hull2_ents()) {
+		logf("    Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
+		map->delete_hull(2, 1);
+	}
+
+	bool oldVerbose = g_verbose;
+	g_verbose = true;
+	map->delete_unused_hulls(true).print_delete_stats(1);
+	g_verbose = oldVerbose;
+
+	refresh();
+}
+
+void OptimizeMapCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+
+	refresh();
+}
+
+void OptimizeMapCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int OptimizeMapCommand::memoryUsage() {
+	int size = sizeof(OptimizeMapCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		size += oldLumps.lumpLen[i];

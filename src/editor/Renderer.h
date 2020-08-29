@@ -90,6 +90,7 @@ class Renderer {
 	friend class CreateBspModelCommand;
 	friend class EditBspModelCommand;
 	friend class CleanMapCommand;
+	friend class OptimizeMapCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;

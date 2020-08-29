@@ -622,27 +622,10 @@ void Gui::drawMenuBar() {
 		}
 
 		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
-			if (app->isLoading) {
-			}
-			for (int k = 0; k < app->mapRenderers.size(); k++) {
-				Bsp* map = app->mapRenderers[k]->map;
-
-				logf("Optimizing %s\n", map->name.c_str());
-				if (!map->has_hull2_ents()) {
-					logf("    Redirecting hull 2 to hull 1 because there are no large monsters/pushables\n");
-					map->delete_hull(2, 1);
-				}
-
-				bool oldVerbose = g_verbose;
-				g_verbose = true;
-				map->delete_unused_hulls(true).print_delete_stats(1);
-				g_verbose = oldVerbose;
-
-				app->mapRenderers[k]->reload();
-				app->deselectObject();
-				reloadLimits();
-				checkValidHulls();
-			}
+			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
 		}
 
 		ImGui::Separator();
