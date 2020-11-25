@@ -983,6 +983,39 @@ LumpState Bsp::duplicate_lumps(int targets) {
 	return state;
 }
 
+int Bsp::delete_embedded_textures() {
+	uint headerSz = (textureCount+1) * sizeof(int32_t);
+	uint newTexDataSize = headerSz + (textureCount * sizeof(BSPMIPTEX));
+	byte* newTextureData = new byte[newTexDataSize];
+	
+	BSPMIPTEX* mips = (BSPMIPTEX*)(newTextureData + headerSz);
+	
+	int32_t* header = (int32_t*)newTextureData;
+	*header = textureCount;
+	header++;
+
+	int numRemoved = 0;
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t oldOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX* oldTex = (BSPMIPTEX*)(textures + oldOffset);
+
+		if (oldTex->nOffsets[0] != -1) {
+			numRemoved++;
+		}
+
+		header[i] = headerSz + i*sizeof(BSPMIPTEX);
+		mips[i].nWidth = oldTex->nWidth;
+		mips[i].nHeight = oldTex->nHeight;
+		memcpy(mips[i].szName, oldTex->szName, MAXTEXTURENAME);
+		memset(mips[i].nOffsets, 0, MIPLEVELS*sizeof(int32_t));
+	}
+
+	replace_lump(LUMP_TEXTURES, newTextureData, newTexDataSize);
+
+	return numRemoved;
+}
+
 void Bsp::replace_lumps(LumpState& state) {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		if (state.lumps[i] == NULL) {

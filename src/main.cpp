@@ -18,6 +18,7 @@
 // abort scale/vertex edits if an overflow occurs
 // 3d axes don't appear until moving mouse over 3D view sometimes
 // "Hide" axes setting not loaded properly
+// crash using 3d scale axes
 
 // todo:
 // add option to simplify clipnode hulls with QHull for shrinkwrap-style bounding volumes
@@ -93,7 +94,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v4 WIP (August 2020)";
+const char* g_version_string = "bspguy v4 WIP (November 2020)";
 
 bool g_verbose = false;
 
@@ -471,6 +472,8 @@ int deleteCmd(CommandLine& cli) {
 	map->print_info(false, 0, 0);
 
 	delete map;
+
+	return 0;
 }
 
 int transform(CommandLine& cli) {
@@ -499,6 +502,22 @@ int transform(CommandLine& cli) {
 	map->print_info(false, 0, 0);
 
 	delete map;
+
+	return 0;
+}
+
+int unembed(CommandLine& cli) {
+	Bsp* map = new Bsp(cli.bspfile);
+	if (!map->valid)
+		return 1;
+
+	int deleted = map->delete_embedded_textures();
+	logf("Deleted %d embedded textures\n", deleted);
+
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	logf("\n");
+
+	return 0;
 }
 
 void print_help(string command) {
@@ -605,6 +624,14 @@ void print_help(string command) {
 			"  -o <file>     : Output file. By default, <mapname> is overwritten.\n"
 			);
 	}
+	else if (command == "unembed") {
+	logf(
+		"unembed - Deletes embedded texture data, so that they reference WADs instead.\n\n"
+
+		"Usage:   bspguy unembed <mapname>\n"
+		"Example: bspguy unembed c1a0.bsp\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -618,6 +645,7 @@ void print_help(string command) {
 			"  delete    : Delete BSP models\n"
 			"  simplify  : Simplify BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
+			"  unembed   : Deletes embedded texture data\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
@@ -675,6 +703,9 @@ int main(int argc, char* argv[])
 	}
 	else if (cli.command == "merge") {
 		return merge_maps(cli);
+	}
+	else if (cli.command == "unembed") {
+		return unembed(cli);
 	}
 	else {
 		logf("unrecognized command: %d\n", cli.command.c_str());

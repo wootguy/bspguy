@@ -204,6 +204,8 @@ public:
 
 	void replace_lumps(LumpState& state);
 
+	int delete_embedded_textures();
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
