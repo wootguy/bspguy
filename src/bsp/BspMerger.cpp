@@ -281,6 +281,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	}
 
 	string startingSky = "desert";
+	string startingSkyColor = "0 0 0 0";
 	for (int k = 0; k < mergedMap->ents.size(); k++) {
 		Entity* ent = mergedMap->ents[k];
 		if (ent->keyvalues["classname"] == "worldspawn") {
@@ -288,11 +289,18 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				startingSky = toLowerCase(ent->keyvalues["skyname"]);
 			}
 		}
+		if (ent->keyvalues["classname"] == "light_environment") {
+			if (ent->hasKey("_light")) {
+				startingSkyColor = ent->keyvalues["_light"];
+			}
+		}
 	}
 
 	string lastSky = startingSky;
+	string lastSkyColor = startingSkyColor;
 	for (int i = 1; i < mapOrder.size(); i++) {
 		string skyname = "desert";
+		string skyColor = "0 0 0 0";
 		for (int k = 0; k < sourceMaps[i].map->ents.size(); k++) {
 			Entity* ent = sourceMaps[i].map->ents[k];
 			if (ent->keyvalues["classname"] == "worldspawn") {
@@ -300,17 +308,31 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 					skyname = toLowerCase(ent->keyvalues["skyname"]);
 				}
 			}
+			if (ent->keyvalues["classname"] == "light_environment") {
+				if (ent->hasKey("_light")) {
+					skyColor = ent->keyvalues["_light"];
+				}
+			}
 		}
-		if (skyname != lastSky) {
+
+		bool skyColorChanged = skyColor != lastSkyColor;
+
+		if (skyname != lastSky || skyColorChanged) {
 			Entity* changesky = new Entity();
 			changesky->addKeyvalue("origin", changesky_origin.toKeyvalueString());
 			changesky->addKeyvalue("targetname", "bspguy_start_" + toLowerCase(mapOrder[i]->name));
-			changesky->addKeyvalue("skyname", skyname.c_str());
+			if (skyname != lastSky) {
+				changesky->addKeyvalue("skyname", skyname.c_str());
+			}
+			if (skyColorChanged) {
+				changesky->addKeyvalue("color", skyColor.c_str());
+			}
 			changesky->addKeyvalue("spawnflags", "5"); // all players + update server
 			changesky->addKeyvalue("classname", "trigger_changesky");
 			mergedMap->ents.push_back(changesky);
 			changesky_origin.z += 18;
 			lastSky = skyname;
+			lastSkyColor = skyColor;
 		}
 	}
 
