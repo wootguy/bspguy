@@ -237,13 +237,22 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
 	vector<NodeVolumeCuts> modelVolumeCuts;
 
-	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && models[modelIdx].iHeadnodes[hullIdx] >= 0) {
+	int nodeIdx = models[modelIdx].iHeadnodes[hullIdx];
+	bool is_valid_node = false;
+	if (hullIdx == 0) {
+		is_valid_node = nodeIdx >= 0 && nodeIdx < nodeCount;
+	} else {
+		is_valid_node = nodeIdx >= 0 && nodeIdx < clipnodeCount;
+	}
+
+
+	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && nodeIdx >= 0 && is_valid_node) {
 		vector<BSPPLANE> clipOrder;
 		if (hullIdx == 0) {
-			get_node_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
+			get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
 		}
 		else {
-			get_clipnode_leaf_cuts(models[modelIdx].iHeadnodes[hullIdx], clipOrder, modelVolumeCuts);
+			get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
 		}
 	}
 
@@ -252,6 +261,10 @@ vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx
 
 void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output) {
 	BSPCLIPNODE& node = clipnodes[iNode];
+
+	if (node.iPlane < 0) {
+		return;
+	}
 
 	for (int i = 0; i < 2; i++) {
 		BSPPLANE plane = planes[node.iPlane];
@@ -2127,7 +2140,11 @@ bool Bsp::validate() {
 			logf("Bad face reference in model %d: %d / %d\n", i, models[i].iFirstFace, faceCount);
 			isValid = false;
 		}
-		for (int k = 0; k < MAX_MAP_HULLS; k++) {
+		if (models[i].iHeadnodes[0] >= nodeCount) {
+			logf("Bad node reference in model %d hull 0: %d / %d\n", i, models[i].iHeadnodes[0], nodeCount);
+			isValid = false;
+		}
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (models[i].iHeadnodes[k] >= clipnodeCount) {
 				logf("Bad clipnode reference in model %d hull %d: %d / %d\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
 				isValid = false;
