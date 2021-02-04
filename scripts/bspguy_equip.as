@@ -161,7 +161,7 @@ namespace bspguy {
 				
 				int secondaryAmmoIdx = wep.SecondaryAmmoIndex();
 				if (secondaryAmmoIdx != -1) {
-					int newAmmo = plr.m_rgAmmo(secondaryAmmoIdx) + items[i].primaryAmmo;
+					int newAmmo = plr.m_rgAmmo(secondaryAmmoIdx) + items[i].secondaryAmmo;
 					int maxAmmo = plr.GetMaxAmmo(secondaryAmmoIdx);
 					plr.m_rgAmmo(secondaryAmmoIdx, Math.min(newAmmo, maxAmmo));
 				}
