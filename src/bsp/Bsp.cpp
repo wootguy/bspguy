@@ -874,6 +874,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	}
 	for (int i = 0; i < shouldNotMove.count.verts; i++) {
 		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
+			// this happens on activist series but doesn't break anything
 			logf("\nError: vertex shared with multiple models. Something will break.\n");
 			break;
 		}
@@ -1445,7 +1446,6 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 
 		set<string> entsThatNeverNeedAnyHulls;
 		entsThatNeverNeedAnyHulls.insert("env_bubbles");
-		entsThatNeverNeedAnyHulls.insert("func_mortar_field");
 		entsThatNeverNeedAnyHulls.insert("func_tankcontrols");
 		entsThatNeverNeedAnyHulls.insert("func_traincontrols");
 		entsThatNeverNeedAnyHulls.insert("func_vehiclecontrols");
@@ -1454,6 +1454,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 
 		set<string> entsThatNeverNeedCollision;
 		entsThatNeverNeedCollision.insert("func_illusionary");
+		entsThatNeverNeedCollision.insert("func_mortar_field");
 
 		set<string> passableEnts;
 		passableEnts.insert("func_door");
