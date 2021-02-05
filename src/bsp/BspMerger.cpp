@@ -242,6 +242,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 	vec3 map_info_origin = vec3(-64, 64, 0);
 	vec3 changesky_origin = vec3(64, 64, 0);
+	vec3 equip_origin = vec3(64, -64, 0);
 
 	{
 		Entity* map_info = new Entity();
@@ -334,6 +335,39 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			lastSky = skyname;
 			lastSkyColor = skyColor;
 		}
+	}
+
+	// add dummy equipment logic, to save some copy-paste work.
+	// They'll do nothing until weapons keyvalues are added
+	// TODO: parse CFG files and set equipment automatically
+	for (int i = 0; i < mapOrder.size(); i++) {
+		Entity* equip = new Entity();
+		Entity* relay = new Entity();
+		string mapname = toLowerCase(mapOrder[i]->name);
+		string equip_name = "equip_" + mapname;
+		
+		equip->addKeyvalue("origin", equip_origin.toKeyvalueString());
+		equip->addKeyvalue("targetname", "equip_" + mapname);
+		equip->addKeyvalue("respawn_equip_mode", "1"); // always equip respawning players
+		equip->addKeyvalue("$s_bspguy_map_source", mapname);
+
+		// 1 = equip all on trigger to get new weapons for new sections
+		// 2 = force all flag. Set for first map so that you spawn with the most powerful weapon equipped
+		//     when starting a listen server (needed because ent is activated after the host spawns).
+		equip->addKeyvalue("spawnflags", i == 0 ? "3" : "1");
+
+		equip->addKeyvalue("classname", "bspguy_equip");
+
+		relay->addKeyvalue("origin", (equip_origin + vec3(0, 18, 0)).toKeyvalueString());
+		relay->addKeyvalue("targetname", "bspguy_start_" + mapname);
+		relay->addKeyvalue("target", "equip_" + mapname); // add new weapons when the map starts
+		relay->addKeyvalue("triggerstate", "1");
+		relay->addKeyvalue("classname", "trigger_relay");
+
+		mergedMap->ents.push_back(equip);
+		mergedMap->ents.push_back(relay);
+
+		equip_origin.z += 18;
 	}
 
 	int replaced_changelevels = 0;
