@@ -349,6 +349,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		equip->addKeyvalue("origin", equip_origin.toKeyvalueString());
 		equip->addKeyvalue("targetname", "equip_" + mapname);
 		equip->addKeyvalue("respawn_equip_mode", "1"); // always equip respawning players
+		equip->addKeyvalue("ammo_equip_mode", "1"); // restock ammo up to CFG default
 		equip->addKeyvalue("$s_bspguy_map_source", mapname);
 
 		// 1 = equip all on trigger to get new weapons for new sections

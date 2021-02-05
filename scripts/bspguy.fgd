@@ -16,6 +16,12 @@
 		1: "Always"
 	]
 	
+	ammo_equip_mode(choices) : "Ammo equip mode" : 0 =
+	[
+		0: "Restock"
+		1: "Add"
+	]
+	
 	best_weapon(string) : "Best weapon (blank = automatic)" : ""
 	
 	set_health(string) : "Set health" : ""

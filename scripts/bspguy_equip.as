@@ -10,6 +10,11 @@ namespace bspguy {
 		RESPAWN_EQUIP_IF_ON,
 		RESPAWN_EQUIP_ALWAYS
 	}
+	
+	enum ammo_equip_modes {
+		AMMO_EQUIP_RESTOCK,
+		AMMO_EQUIP_ADD
+	}
 
 	class EquipItem {
 		string classname;
@@ -46,6 +51,7 @@ namespace bspguy {
 		bool oneUsePerLife = true;
 		bool applyToSpawners = false;
 		int respawn_equip_mode = RESPAWN_EQUIP_IF_ON;
+		int ammo_equip_mode = AMMO_EQUIP_RESTOCK;
 		
 		float newMaxHealth = 0;
 		float newMaxArmor = 0;
@@ -229,6 +235,11 @@ namespace bspguy {
 				int primaryAmmoIdx = wep.PrimaryAmmoIndex();
 				if (primaryAmmoIdx != -1) {
 					int newAmmo = plr.m_rgAmmo(primaryAmmoIdx) + items[i].primaryAmmo;
+					
+					if (ammo_equip_mode == AMMO_EQUIP_RESTOCK) {
+						newAmmo = Math.max(items[i].primaryAmmo, plr.m_rgAmmo(primaryAmmoIdx));
+					}
+					
 					int maxAmmo = plr.GetMaxAmmo(primaryAmmoIdx);
 					plr.m_rgAmmo(primaryAmmoIdx, Math.min(newAmmo, maxAmmo));
 				}
@@ -236,6 +247,11 @@ namespace bspguy {
 				int secondaryAmmoIdx = wep.SecondaryAmmoIndex();
 				if (secondaryAmmoIdx != -1) {
 					int newAmmo = plr.m_rgAmmo(secondaryAmmoIdx) + items[i].secondaryAmmo;
+					
+					if (ammo_equip_mode == AMMO_EQUIP_RESTOCK) {
+						newAmmo = Math.max(items[i].primaryAmmo, plr.m_rgAmmo(primaryAmmoIdx));
+					}
+					
 					int maxAmmo = plr.GetMaxAmmo(secondaryAmmoIdx);
 					plr.m_rgAmmo(secondaryAmmoIdx, Math.min(newAmmo, maxAmmo));
 				}
