@@ -381,19 +381,31 @@ namespace bspguy {
 				CBaseEntity@ ent = g_EntityFuncs.CreateEntity(classname, g_ent_defs[i], true);
 				
 				if (ent !is null && string(ent.pev.classname) == "func_train") {
-					if (string(ent.pev.targetname).Length() > 0) {
-						// triggering is broken the first few times when spawned late
-						// (needs to be toggled three times before it responds properly)
-						delay_trigger(EHandle(ent));
-						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
-						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
-					} else {
-						// unnamed trains are supposed to start active, but don't when spawned late.
-						// It needs to be triggered on separate server frames for it to start moving
-						delay_trigger(EHandle(ent));
-						g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+					if (hasCustomKeyvalue(ent, "$i_bspguy_trainfix")) {
+						// For some reason survivor3 train at spawn only needs 2 triggers to respond properly.
+						// Might as well just allow a custom trigger count. It's getting too complicated
+						// to handle all scenarios.
+						
+						int triggerCount = getCustomIntegerKeyvalue(ent, "$i_bspguy_trainfix");
+						for (int t = 0; t < triggerCount; t++) {
+							g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+						}
+						println("bspguy: Triggered " + ent.pev.targetname + " (func_train) " + triggerCount + " times ($i_bspguy_trainfix)");
 					}
-					
+					else {
+						// default trigger logic to fix trains that are spawned late
+						
+						if (string(ent.pev.targetname).Length() > 0) {
+							// triggering is broken the first time when spawned late
+							// sometimes needs 2+ triggers, but in those cases the trainfix kevalue should be used
+							delay_trigger(EHandle(ent));
+						} else {
+							// unnamed trains are supposed to start active, but don't when spawned late.
+							// It needs to be triggered on separate server frames for it to start moving
+							delay_trigger(EHandle(ent));
+							g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
+						}
+					}
 				}
 			}
 		}
@@ -421,6 +433,19 @@ namespace bspguy {
 			return keyvalue.GetVector();
 		}
 		return Vector(0,0,0);
+	}
+	
+	int getCustomIntegerKeyvalue(CBaseEntity@ ent, string keyName) {
+		CustomKeyvalue keyvalue = getCustomKeyvalue(ent, keyName);
+		if (keyvalue.Exists()) {
+			return keyvalue.GetInteger();
+		}
+		return 0;
+	}
+	
+	bool hasCustomKeyvalue(CBaseEntity@ ent, string keyName) {
+		CustomKeyvalue keyvalue = getCustomKeyvalue(ent, keyName);
+		return keyvalue.Exists();
 	}
 	
 	void MapInit() {
