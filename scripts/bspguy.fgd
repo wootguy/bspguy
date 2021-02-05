@@ -1,0 +1,25 @@
+@PointClass size(-8 -8 -8, 8 8 8 ) color(255 200 0) = bspguy_equip : "Modifies player equipment"
+[
+	spawnflags(flags) =
+	[
+		1: "Equip all on use" : 0
+		2: "Switch to best weapon on use" : 0
+		4: "Re-equip on use" : 0
+		8: "Allow 2+ uses per life" : 0
+	]
+	
+	targetname(target_source) : "Name"
+	
+	respawn_equip_mode(choices) : "Equip respawning players?" : 0 =
+	[
+		0: "Only while triggered ON"
+		1: "Always"
+	]
+	
+	best_weapon(string) : "Best weapon (blank = automatic)" : ""
+	
+	set_health(string) : "Set health" : ""
+	set_max_health(string) : "Set max health" : ""
+	set_armor(string) : "Set armor" : ""
+	set_max_armor(string) : "Set max armor" : ""
+]

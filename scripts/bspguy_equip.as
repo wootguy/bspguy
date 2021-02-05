@@ -2,11 +2,20 @@
 namespace bspguy {
 
 	const int FL_EQUIP_ALL_ON_USE = 1;
+	const int FL_FORCE_WEAPON_SWITCH = 2; // force switch to most powerful weapon on trigger
+	const int FL_REQUIP_ON_USE = 4;
+	const int FL_ALLOW_MULTI_USE_PER_LIFE = 8;
+
+	enum respawn_equip_modes {
+		RESPAWN_EQUIP_IF_ON,
+		RESPAWN_EQUIP_ALWAYS
+	}
 
 	class EquipItem {
 		string classname;
 		int primaryAmmo = 0;
 		int secondaryAmmo = 0;
+		bool isWeapon = true;
 		
 		EquipItem() {}
 		
@@ -36,11 +45,46 @@ namespace bspguy {
 		array<bool> playerUsedAlready;
 		bool oneUsePerLife = true;
 		bool applyToSpawners = false;
+		int respawn_equip_mode = RESPAWN_EQUIP_IF_ON;
+		
+		float newMaxHealth = 0;
+		float newMaxArmor = 0;
+		float setHealth = 0;
+		float setArmor = 0;
+		
+		string best_weapon = "";
+		
+		bool stripSuit = false;
 		
 		bool KeyValue( const string& in szKey, const string& in szValue )
 		{
-			if (szKey.Find("weapon_") == 0) {
+			if (szKey == "set_max_health") {
+				newMaxHealth = atof(szValue);
+			}
+			else if (szKey == "set_max_armor") {
+				newMaxArmor = atof(szValue);
+			}
+			else if (szKey == "set_armor") {
+				setArmor = atof(szValue);
+			}
+			else if (szKey == "set_health") {
+				setHealth = atof(szValue);
+			}
+			else if (szKey == "nosuit") {
+				stripSuit = true;
+			}
+			else if (szKey == "respawn_equip_mode") {
+				respawn_equip_mode = atoi(szValue);
+				if (respawn_equip_mode == RESPAWN_EQUIP_ALWAYS) {
+					applyToSpawners = true;
+				}
+			}
+			else if (szKey == "best_weapon") {
+				best_weapon = szValue;
+			}
+			else if (szKey.Find("weapon_") == 0) {
 				EquipItem item = EquipItem(szKey);
+				item.isWeapon = true;
 				
 				string primaryAmmo = "0";
 				string secondaryAmmo = "0";
@@ -53,6 +97,11 @@ namespace bspguy {
 					item.primaryAmmo = atoi(szValue);
 				}
 				
+				items.insertLast(item);
+			}
+			else if (szKey.Find("item_") == 0) {
+				EquipItem item = EquipItem(szKey);
+				item.isWeapon = false;				
 				items.insertLast(item);
 			}
 			return BaseClass.KeyValue( szKey, szValue );
@@ -72,6 +121,8 @@ namespace bspguy {
 
 		void Use(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue = 0.0f)
 		{
+			oneUsePerLife = pev.spawnflags & FL_ALLOW_MULTI_USE_PER_LIFE == 0;
+			
 			if (!applyToSpawners && useType == USE_ON) {
 				playerUsedAlready.resize(0);
 				playerUsedAlready.resize(33);
@@ -79,7 +130,7 @@ namespace bspguy {
 			
 			if (useType == USE_ON) {
 				applyToSpawners = true;
-			} else if (useType == USE_OFF) {
+			} else if (useType == USE_OFF && respawn_equip_mode != RESPAWN_EQUIP_ALWAYS) {
 				applyToSpawners = false;
 				return;
 			}
@@ -91,8 +142,21 @@ namespace bspguy {
 					if (plr is null or !plr.IsConnected())
 						continue;
 					
-					equip_player(plr, false);
+					if (pev.spawnflags & FL_REQUIP_ON_USE != 0) {
+						plr.RemoveAllItems(stripSuit);
+						plr.SetItemPickupTimes(0);
+					}
+					
+					if (oneUsePerLife && playerUsedAlready[plr.entindex()]) {
+						return;
+					}
+					
+					if (equip_player(plr, pev.spawnflags & FL_FORCE_WEAPON_SWITCH != 0)) {
+						g_SoundSystem.EmitSoundDyn(plr.edict(), CHAN_ITEM, "items/gunpickup2.wav", 1.0f, 1.0f);
+					}
 				}
+				
+				return;
 			}
 			
 			if (pActivator is null or !pActivator.IsPlayer()) {
@@ -105,7 +169,12 @@ namespace bspguy {
 				return;
 			}
 			
-			if (equip_player(plr, false)) {
+			if (pev.spawnflags & FL_REQUIP_ON_USE != 0) {
+				plr.RemoveAllItems(stripSuit);
+				plr.SetItemPickupTimes(0);
+			}
+			
+			if (equip_player(plr, pev.spawnflags & FL_FORCE_WEAPON_SWITCH != 0)) {
 				g_SoundSystem.EmitSoundDyn(plr.edict(), CHAN_ITEM, "items/gunpickup2.wav", 1.0f, 1.0f);
 			}
 		}
@@ -114,6 +183,11 @@ namespace bspguy {
 			bool anyWeaponGiven = false;
 			
 			for (uint i = 0; i < items.size(); i++) {
+				if (!items[i].isWeapon) {
+					plr.GiveNamedItem(items[i].classname);
+					continue;
+				}
+				
 				CBasePlayerWeapon@ wep = cast<CBasePlayerWeapon@>(plr.HasNamedPlayerItem(items[i].classname));
 				
 				if (wep is null) {
@@ -168,7 +242,8 @@ namespace bspguy {
 			}
 			
 			// select the best weapon
-			if (switchWeapon && anyWeaponGiven) {
+			bool forceWeaponSwitch = pev.spawnflags & FL_FORCE_WEAPON_SWITCH != 0;
+			if (switchWeapon && (anyWeaponGiven || forceWeaponSwitch)) {
 				CBasePlayerWeapon@ bestWeapon = null;
 				int bestWeight = -1;
 			
@@ -176,6 +251,11 @@ namespace bspguy {
 					CBasePlayerWeapon@ wep = cast<CBasePlayerWeapon@>(plr.m_rgpPlayerItems(i));
 					
 					if (wep !is null) {
+						if (best_weapon == string(wep.pev.classname)) {
+							@bestWeapon = @wep;
+							break;
+						}
+					
 						ItemInfo itemInfo;
 						wep.GetItemInfo(itemInfo);
 						if (itemInfo.iWeight > bestWeight) {
@@ -191,6 +271,19 @@ namespace bspguy {
 			}
 			
 			playerUsedAlready[plr.entindex()] = true;
+			
+			if (newMaxArmor > 0) {
+				plr.pev.armortype = newMaxArmor;
+			}
+			if (newMaxHealth > 0) {
+				plr.pev.max_health = newMaxHealth;
+			}
+			if (setHealth > 0) {
+				plr.pev.health = setHealth;
+			}
+			if (setArmor > 0) {
+				plr.pev.armorvalue = setArmor;
+			}
 			
 			return anyWeaponGiven;
 		}

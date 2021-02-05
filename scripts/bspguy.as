@@ -127,7 +127,10 @@ namespace bspguy {
 		}
 		
 		if (cleanMap.Length() > 0) {
-			clean_map_no_repeat(cleanMap);
+			array<string> maps = cleanMap.Split("+");
+			for (uint i = 0; i < maps.size(); i++) {
+				clean_map_no_repeat(maps[i]);
+			}
 		}
 		
 		if (rotate.Length() > 0 && pActivator !is null && pCaller !is null) {
@@ -443,6 +446,14 @@ namespace bspguy {
 		return 0;
 	}
 	
+	float getCustomFloatKeyvalue(CBaseEntity@ ent, string keyName) {
+		CustomKeyvalue keyvalue = getCustomKeyvalue(ent, keyName);
+		if (keyvalue.Exists()) {
+			return keyvalue.GetFloat();
+		}
+		return 0;
+	}
+	
 	bool hasCustomKeyvalue(CBaseEntity@ ent, string keyName) {
 		CustomKeyvalue keyvalue = getCustomKeyvalue(ent, keyName);
 		return keyvalue.Exists();
@@ -512,6 +523,8 @@ namespace bspguy {
 		// all entities in all sections are spawned by now. Delete everything except for the ents in the first section.
 		// It may be a bit slow to spawn all ents at first, but that will ensure everything is precached
 		deleteMapEnts(firstMapName, true, false);
+		
+		g_Scheduler.SetTimeout("delay_fire_targets", 0.0f, "bspguy_start_" + firstMapName);
 	}
 
 	void printMapSections(CBasePlayer@ plr) {
