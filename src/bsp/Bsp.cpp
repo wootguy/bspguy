@@ -2169,6 +2169,17 @@ bool Bsp::validate() {
 		isValid = false;
 	}
 
+	int worldspawn_count = 0;
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->keyvalues["classname"] == "worldspawn") {
+			worldspawn_count++;
+		}
+	}
+	if (worldspawn_count != 1) {
+		logf("Found %d worldspawn entities (expected 1). This can cause crashes and svc_bad errors.\n", worldspawn_count);
+		isValid = false;
+	}
+
 	return isValid;
 }
 
