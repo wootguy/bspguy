@@ -30,7 +30,7 @@ namespace bspguy {
 		g_EntityFuncs.FireTargets(target, null, null, USE_TOGGLE);
 	}
 	
-	void mapchange_internal(string thisMap, string nextMap) {
+	void mapchange_internal(string thisMap, string nextMap, bool fastchange=false) {
 		for (uint i = 0; i < map_order.size(); i++) {
 			if (map_order[i] == nextMap) {
 				current_map_idx = i;
@@ -38,18 +38,20 @@ namespace bspguy {
 			}
 		}
 		
-		println("Transition from " + thisMap + " to " + nextMap);
+		g_PlayerFuncs.ClientPrintAll(HUD_PRINTCENTER, "Entering " + nextMap + "\n");
+		
+		float extraDelay = fastchange ? 0.0f : 1.5f;
 		
 		if (thisMap != nextMap) {
 			spawnMapEnts(nextMap);
 			deleteMapEnts(thisMap, false, true); // delete spawns immediately
-			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
-			g_Scheduler.SetTimeout("delay_fire_targets", 0.5f, "bspguy_start_" + nextMap);
-			g_Scheduler.SetTimeout("deleteMapEnts", 1.0f, thisMap, false, false); // delete everything else
+			g_Scheduler.SetTimeout("delay_respawn", 0.5f + extraDelay);
+			g_Scheduler.SetTimeout("delay_fire_targets", 0.5f + extraDelay, "bspguy_start_" + nextMap);
+			g_Scheduler.SetTimeout("deleteMapEnts", 1.0f + extraDelay, thisMap, false, false); // delete everything else
 		} else {
 			deleteMapEnts(thisMap, false, false);
 			spawnMapEnts(nextMap);
-			g_Scheduler.SetTimeout("delay_respawn", 0.5f);
+			g_Scheduler.SetTimeout("delay_respawn", 0.5f + extraDelay);
 		}
 	}
 
@@ -105,7 +107,7 @@ namespace bspguy {
 	
 	void mapload(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{
-		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
+		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();		
 		load_map_no_repeat(nextMap);
 	}
 	
@@ -574,7 +576,7 @@ namespace bspguy {
 					if (nextMap.Length() == 0) {
 						g_PlayerFuncs.SayText(plr, "Invalid section name/number. See \"bspguy list\" output.\n");
 					} else {
-						mapchange_internal(thisMap, nextMap);
+						mapchange_internal(thisMap, nextMap, true);
 						printMapSections(plr);
 					}
 				} else {
@@ -584,7 +586,7 @@ namespace bspguy {
 						string thisMap = map_order[current_map_idx];
 						string nextMap = map_order[current_map_idx+1];
 						
-						mapchange_internal(thisMap, nextMap);
+						mapchange_internal(thisMap, nextMap, true);
 						printMapSections(plr);
 					}
 				}
