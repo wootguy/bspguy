@@ -555,6 +555,11 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 			ori += offset;
 
 			ents[i]->setOrAddKeyvalue("origin", ori.toKeyvalueString());
+
+			if (ents[i]->hasKey("spawnorigin")) {
+				ori = parseVector(ents[i]->keyvalues["spawnorigin"]) + offset;
+				ents[i]->setOrAddKeyvalue("spawnorigin", ori.toKeyvalueString());
+			}			
 		}
 
 		update_ent_lump();
