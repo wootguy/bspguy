@@ -249,7 +249,7 @@ namespace bspguy {
 					int newAmmo = plr.m_rgAmmo(secondaryAmmoIdx) + items[i].secondaryAmmo;
 					
 					if (ammo_equip_mode == AMMO_EQUIP_RESTOCK) {
-						newAmmo = Math.max(items[i].primaryAmmo, plr.m_rgAmmo(primaryAmmoIdx));
+						newAmmo = Math.max(items[i].secondaryAmmo, plr.m_rgAmmo(secondaryAmmoIdx));
 					}
 					
 					int maxAmmo = plr.GetMaxAmmo(secondaryAmmoIdx);
