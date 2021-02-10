@@ -557,8 +557,12 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 			ents[i]->setOrAddKeyvalue("origin", ori.toKeyvalueString());
 
 			if (ents[i]->hasKey("spawnorigin")) {
-				ori = parseVector(ents[i]->keyvalues["spawnorigin"]) + offset;
-				ents[i]->setOrAddKeyvalue("spawnorigin", ori.toKeyvalueString());
+				vec3 spawnori = parseVector(ents[i]->keyvalues["spawnorigin"]);
+
+				// entity not moved if destination is 0,0,0
+				if (spawnori.x != 0 || spawnori.y != 0 || spawnori.z != 0) {
+					ents[i]->setOrAddKeyvalue("spawnorigin", (spawnori + offset).toKeyvalueString());
+				}
 			}			
 		}
 
