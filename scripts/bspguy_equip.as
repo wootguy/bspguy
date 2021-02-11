@@ -190,7 +190,20 @@ namespace bspguy {
 			
 			for (uint i = 0; i < items.size(); i++) {
 				if (!items[i].isWeapon) {
-					plr.GiveNamedItem(items[i].classname);
+					if (items[i].classname == "item_longjump" && plr.m_fLongJump) {
+						continue;
+					}
+					if (plr.HasNamedPlayerItem(items[i].classname) !is null) {
+						continue;
+					}
+					
+					dictionary keys;
+					keys["origin"] = plr.pev.origin.ToString();
+					keys["spawnflags"] = "1024";
+					CBaseEntity@ item = g_EntityFuncs.CreateEntity(items[i].classname, keys, true);
+					item.Use(plr, plr, USE_TOGGLE);
+					
+					//plr.GiveNamedItem(items[i].classname);
 					continue;
 				}
 				

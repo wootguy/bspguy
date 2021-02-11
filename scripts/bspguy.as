@@ -14,6 +14,7 @@ namespace bspguy {
 	void println(string text) { print(text + "\n"); }
 	
 	void delay_respawn() {
+		println("[bspguy] Respawning everyone");
 		g_PlayerFuncs.RespawnAllPlayers(true, true);
 	}
 	
@@ -27,7 +28,13 @@ namespace bspguy {
 	}
 	
 	void delay_fire_targets(string target) {
+		println("[bspguy] Triggering: " + target);
 		g_EntityFuncs.FireTargets(target, null, null, USE_TOGGLE);
+	}
+	
+	void resetMapCleanStates() {
+		println("[bspguy] Reset map clean states");
+		map_cleaned.clear();
 	}
 	
 	void mapchange_internal(string thisMap, string nextMap, bool fastchange=false) {
@@ -43,12 +50,25 @@ namespace bspguy {
 		float extraDelay = fastchange ? 0.0f : 1.5f;
 		
 		if (thisMap != nextMap) {
+			array<string>@ levelKeys = map_loaded.getKeys();
+			for (uint i = 0; i < levelKeys.length(); i++)
+			{
+				if (map_cleaned.exists(levelKeys[i])) {
+					println("[bspguy] Map " + levelKeys[i] + " has already been cleaned. Skipping mapchange clean.");
+					continue;
+				}
+		
+				deleteMapEnts(levelKeys[i], false, true); // delete spawns immediately, in all previous levels
+				g_Scheduler.SetTimeout("clean_map_no_repeat", 1.0f + extraDelay, levelKeys[i]); // everything else
+			}
+		
 			spawnMapEnts(nextMap);
-			deleteMapEnts(thisMap, false, true); // delete spawns immediately
-			g_Scheduler.SetTimeout("delay_respawn", 0.5f + extraDelay);
 			g_Scheduler.SetTimeout("delay_fire_targets", 0.5f + extraDelay, "bspguy_start_" + nextMap);
-			g_Scheduler.SetTimeout("deleteMapEnts", 1.0f + extraDelay, thisMap, false, false); // delete everything else
+			g_Scheduler.SetTimeout("delay_respawn", 0.5f + extraDelay);
+			g_Scheduler.SetTimeout("resetMapCleanStates", 1.1f + extraDelay);
+			
 		} else {
+			// restarting the same level
 			deleteMapEnts(thisMap, false, false);
 			spawnMapEnts(nextMap);
 			g_Scheduler.SetTimeout("delay_respawn", 0.5f + extraDelay);
@@ -57,26 +77,27 @@ namespace bspguy {
 
 	void load_map_no_repeat(string map) {
 		if (map_loaded.exists(map)) {
-			println("Map " + map + " has already loaded. Ignoring mapload trigger.");
+			println("[bspguy] Map " + map + " has already loaded. Ignoring mapload trigger.");
 			return;
 		}
-		map_loaded[map] = true;
 		
-		println("Loading section " + map);
-		
-		g_Scheduler.SetTimeout("delay_fire_targets", 0.5f, "bspguy_start_" + map);
+		g_Scheduler.SetTimeout("delay_fire_targets", 0.0f, "bspguy_start_" + map);
 		
 		spawnMapEnts(map);
+		
+		for (uint i = 0; i < map_order.size(); i++) {
+			if (map_order[i] == map) {
+				current_map_idx = i;
+				break;
+			}
+		}
 	}
 	
 	void clean_map_no_repeat(string map) {
 		if (map_cleaned.exists(map)) {
-			println("Map " + map + " has already been cleaned. Ignoring mapload trigger.");
+			println("[bspguy] Map " + map + " has already been cleaned.");
 			return;
 		}
-		map_cleaned[map] = true;
-		
-		println("Cleaning section " + map);
 		
 		deleteMapEnts(map, false, false); // delete everything
 	}
@@ -87,20 +108,18 @@ namespace bspguy {
 		string nextMap = getCustomStringKeyvalue(pCaller, "$s_next_map").ToLowercase();
 		
 		if (thisMap == "" or nextMap == "") {
-			println("ERROR: bspguy_mapchange called by " + pCaller.pev.classname + " which is missing $s_bspguy_map_source or $s_next_map");
+			println("[bspguy] ERROR: bspguy_mapchange called by " + pCaller.pev.classname + " which is missing $s_bspguy_map_source or $s_next_map");
 			return;
 		}
 		
 		if (map_cleaned.exists(thisMap)) {
-			println("Map " + thisMap + " has already been cleaned. Ignoring mapchange trigger.");
+			println("[bspguy] Map " + thisMap + " has already been cleaned. Ignoring mapchange trigger.");
 			return;
 		}
 		if (map_loaded.exists(nextMap)) {
-			println("Map " + nextMap + " has already loaded. Ignoring mapchange trigger.");
+			println("[bspguy] Map " + nextMap + " has already loaded. Ignoring mapchange trigger.");
 			return;
 		}
-		map_cleaned[thisMap] = true;
-		map_loaded[nextMap] = true;
 		
 		mapchange_internal(thisMap, nextMap);
 	}
@@ -136,7 +155,6 @@ namespace bspguy {
 		}
 		
 		if (rotate.Length() > 0 && pActivator !is null && pCaller !is null) {
-			println("Rotating around caller by " + rotate);
 			float rot = atof(rotate);
 			
 			Vector delta = pActivator.pev.origin - pCaller.pev.origin;
@@ -216,7 +234,7 @@ namespace bspguy {
 		File@ f = g_FileSystem.OpenFile( fpath, OpenFile::READ );
 		if( f is null or !f.IsOpen())
 		{
-			println("ERROR: bspguy ent file not found: " + fpath);
+			println("[bspguy] ERROR: bspguy ent file not found: " + fpath);
 			return;
 		}
 
@@ -237,7 +255,7 @@ namespace bspguy {
 			{
 				if (lastBracket == 0)
 				{
-					println(entFileName + " (line " + lineNum + "): Unexpected '{'");
+					println("[bspguy] " + entFileName + " (line " + lineNum + "): Unexpected '{'");
 					continue;
 				}
 				lastBracket = 0;
@@ -246,7 +264,7 @@ namespace bspguy {
 			else if (line[0] == '}')
 			{
 				if (lastBracket == 1)
-					println(entFileName + " (line " + lineNum + "): Unexpected '}'");
+					println("[bspguy] " + entFileName + " (line " + lineNum + "): Unexpected '}'");
 				lastBracket = 1;
 
 				if (current_ent.isEmpty())
@@ -304,7 +322,12 @@ namespace bspguy {
 			}
 		}
 		
-		println("Loaded " + g_ent_defs.size() + " entity definitions from " + entFileName);
+		println("[bspguy] Loaded " + g_ent_defs.size() + " entity definitions from " + entFileName);
+	}
+	
+	bool isSpawnEntity(string cname) {
+		return cname == "info_player_deathmatch" or cname == "info_player_start"
+				or cname == "info_player_dm2" or cname == "info_player_coop";
 	}
 	
 	void deleteMapEnts(string mapName, bool invertFilter, bool spawnsOnly) {
@@ -319,14 +342,14 @@ namespace bspguy {
 			max = getCustomVectorKeyvalue(mapchangeEnt, "$v_max");
 			minMaxLoaded = true;
 		} else {
-			println("ERROR: Missing entity '" + infoEntName + "'. Some entities may not be deleted in previous maps, and that can cause lag!");
+			println("[bspguy] ERROR: Missing entity '" + infoEntName + "'. Some entities may not be deleted in previous maps, and that can cause lag!");
 		}
 	
 		CBaseEntity@ ent = null;
 		do {
 			@ent = g_EntityFuncs.FindEntityByClassname(ent, "*");
 			if (ent !is null) {
-				if (spawnsOnly && string(ent.pev.classname) != "info_player_deathmatch")
+				if (spawnsOnly && !isSpawnEntity(ent.pev.classname))
 					continue;
 			
 				if (ent.IsPlayer() or string(ent.pev.targetname).Find("bspguy") == 0) {
@@ -366,6 +389,14 @@ namespace bspguy {
 				g_EntityFuncs.Remove(ent);
 			}
 		} while (ent !is null);
+		
+		if (!spawnsOnly) {
+			map_loaded.delete(mapName);
+			map_cleaned[mapName] = true;
+			println("[bspguy] Cleaned section " + mapName);
+		} else {
+			println("[bspguy] Disabled spawns in section " + mapName);
+		}
 	}
 	
 	void spawnMapEnts(string mapName) {
@@ -395,7 +426,7 @@ namespace bspguy {
 						for (int t = 0; t < triggerCount; t++) {
 							g_Scheduler.SetTimeout("delay_trigger", 0.0f, EHandle(ent));
 						}
-						println("bspguy: Triggered " + ent.pev.targetname + " (func_train) " + triggerCount + " times ($i_bspguy_trainfix)");
+						println("[bspguy] Triggered " + ent.pev.targetname + " (func_train) " + triggerCount + " times ($i_bspguy_trainfix)");
 					}
 					else {
 						// default trigger logic to fix trains that are spawned late
@@ -415,6 +446,10 @@ namespace bspguy {
 			}
 		}
 		
+		map_loaded[mapName] = true;
+		map_cleaned.delete(mapName);
+		println("[bspguy] Loaded section " + mapName);
+		println("[bspguy] Triggering: " + "bspguy_init_" + mapName);
 		g_EntityFuncs.FireTargets("bspguy_init_" + mapName, null, null, USE_TOGGLE);
 	}
 	
@@ -487,17 +522,17 @@ namespace bspguy {
 			
 			noscript = getCustomStringKeyvalue(infoEnt, "$s_noscript") == "yes";
 		} else {
-			println("ERROR: Missing entity 'bspguy_info'. bspguy script disabled!");
+			println("[bspguy] ERROR: Missing entity 'bspguy_info'. bspguy script disabled!");
 			return;
 		}
 		
 		if (noscript) {
-			println("WARNING: this map was not intended to be used with the bspguy script!");
+			println("[bspguy] WARNING: this map was not intended to be used with the bspguy script!");
 			return;
 		}
 		
 		if (firstMapName.Length() == 0) {
-			println("ERROR: bspguy_info entity has no $s_mapX keys. bspguy script disabled!");
+			println("[bspguy] ERROR: bspguy_info entity has no $s_mapX keys. bspguy script disabled!");
 			return;
 		}
 		
@@ -525,15 +560,33 @@ namespace bspguy {
 		// all entities in all sections are spawned by now. Delete everything except for the ents in the first section.
 		// It may be a bit slow to spawn all ents at first, but that will ensure everything is precached
 		deleteMapEnts(firstMapName, true, false);
+		map_loaded[firstMapName] = true;
+		map_cleaned.clear();
 		
 		g_Scheduler.SetTimeout("delay_fire_targets", 0.0f, "bspguy_start_" + firstMapName);
 	}
 
-	void printMapSections(CBasePlayer@ plr) {
+	void printMapSections(EHandle h_plr) {
+		CBasePlayer@ plr = cast<CBasePlayer@>(h_plr.GetEntity());
+	
 		g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, "Map sections:\n");	
 		for (uint i = 0; i < map_order.size(); i++) {
 			string begin = i < 9 ? "     " : "    ";
-			string end = i == uint(current_map_idx) ? "    (CURRENT SECTION)\n" : "\n";
+			
+			bool isLoaded = map_loaded.exists(map_order[i]);
+			bool isCleaned = map_cleaned.exists(map_order[i]);
+			
+			string end = "\n";
+			
+			if (i == uint(current_map_idx)) {
+				end = "    (LOADED + CURRENT)\n";
+			}
+			else if (isLoaded) {
+				end = "    (LOADED)\n";
+			} else if (isCleaned) {
+				end = "    (CLEANED)\n";
+			}
+			
 			g_PlayerFuncs.ClientPrint(plr, HUD_PRINTCONSOLE, begin + (i+1) + ") " +  map_order[i] + end);
 		}
 	}
@@ -547,7 +600,7 @@ namespace bspguy {
 				g_PlayerFuncs.SayText(plr, "bspguy script v2\n");
 			}
 			if (args[1] == "list") {
-				printMapSections(plr);
+				printMapSections(EHandle(plr));
 			}
 			if (args[1] == "spawn") {
 				g_Scheduler.SetInterval("delay_respawn", 0.1, 25);
@@ -577,7 +630,7 @@ namespace bspguy {
 						g_PlayerFuncs.SayText(plr, "Invalid section name/number. See \"bspguy list\" output.\n");
 					} else {
 						mapchange_internal(thisMap, nextMap, true);
-						printMapSections(plr);
+						g_Scheduler.SetTimeout("printMapSections", 1.2f, EHandle(plr));
 					}
 				} else {
 					if (current_map_idx >= int(map_order.size())-1) {
@@ -587,7 +640,7 @@ namespace bspguy {
 						string nextMap = map_order[current_map_idx+1];
 						
 						mapchange_internal(thisMap, nextMap, true);
-						printMapSections(plr);
+						g_Scheduler.SetTimeout("printMapSections", 1.2f, EHandle(plr));
 					}
 				}
 			}
