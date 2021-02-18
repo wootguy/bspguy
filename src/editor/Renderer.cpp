@@ -312,8 +312,14 @@ void Renderer::renderLoop() {
 	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
 
 	float lastFrameTime = glfwGetTime();
+	float lastTitleTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+		if (glfwGetTime( ) - lastTitleTime > 0.1)
+		{
+			lastTitleTime = glfwGetTime( );
+			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
+		}
 		glfwPollEvents();
 
 		float frameDelta = glfwGetTime() - lastFrameTime;
