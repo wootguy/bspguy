@@ -526,6 +526,11 @@ void Renderer::loadSettings() {
 		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_hd/");
 	}
 
+	if (!g_settings.valid)
+	{
+		return;
+	}
+
 	gui->showDebugWidget = g_settings.debug_open;
 	gui->showKeyvalueWidget = g_settings.keyvalue_open;
 	gui->showTransformWidget = g_settings.transform_open;
