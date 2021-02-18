@@ -71,6 +71,7 @@ struct AppSettings {
 	bool show_transform_axes;
 
 	vector<string> fgdPaths;
+	vector<string> resPaths;
 
 	void load();
 	void save();

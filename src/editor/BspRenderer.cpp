@@ -98,13 +98,10 @@ void BspRenderer::loadTextures() {
 	}
 
 	vector<string> tryPaths = {
-		"./",
-		g_settings.gamedir + "/svencoop/",
-		g_settings.gamedir + "/svencoop_addon/",
-		g_settings.gamedir + "/svencoop_downloads/",
-		g_settings.gamedir + "/svencoop_hd/",
+		"./"
 	};
 
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
 	
 	for (int i = 0; i < wadNames.size(); i++) {
 		string path;

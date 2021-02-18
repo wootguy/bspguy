@@ -100,6 +100,7 @@ void AppSettings::load() {
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
+			else if (key == "res") { resPaths.push_back(val); }
 		}
 		g_settings.valid = true;
 
@@ -136,6 +137,10 @@ void AppSettings::save() {
 	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
+	}
+
+	for (int i = 0; i < resPaths.size(); i++) {
+		file << "res=" << g_settings.resPaths[i] << endl;
 	}
 
 	file << "vsync=" << g_settings.vsync << endl;
@@ -498,13 +503,16 @@ void Renderer::saveSettings() {
 }
 
 void Renderer::loadSettings() {
-	if (!g_settings.valid) {
 
-		if (g_settings.fgdPaths.size() == 0) {
-			g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
-		}
+	if (g_settings.fgdPaths.size() == 0) {
+		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
+	}
 
-		return;
+	if (g_settings.resPaths.size() == 0) {
+		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_addon/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_downloads/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_hd/");
 	}
 
 	gui->showDebugWidget = g_settings.debug_open;
