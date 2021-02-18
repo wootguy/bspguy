@@ -101,7 +101,10 @@ void BspRenderer::loadTextures() {
 		"./"
 	};
 
-	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+	for (auto const& s : g_settings.resPaths)
+	{
+		tryPaths.push_back(s.c_str());
+	}
 	
 	for (int i = 0; i < wadNames.size(); i++) {
 		string path;
