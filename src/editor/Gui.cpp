@@ -29,7 +29,7 @@ void Gui::init() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	
+
 	io.IniFilename = iniPath.c_str();
 
 	// Setup Dear ImGui style
@@ -124,7 +124,7 @@ void Gui::draw() {
 			ImGui::OpenPopup("face_context");
 		}
 	}
-	
+
 
 	draw3dContextMenus();
 
@@ -473,7 +473,7 @@ void Gui::draw3dContextMenus() {
 		}
 	}
 
-	
+
 }
 
 void Gui::drawMenuBar() {
@@ -668,13 +668,13 @@ void Gui::drawMenuBar() {
 			}
 			ImGui::EndMenu();
 		}
-		
+
 		ImGui::EndMenu();
 	}
 
 	if (ImGui::BeginMenu("Create"))
 	{
-		bool mapSelected = app->pickInfo.valid&& app->pickInfo.map;
+		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
 		Bsp* map = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
 		BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 
@@ -799,7 +799,7 @@ void Gui::drawToolbar() {
 					app->selectedFaces.push_back(faceIdx);
 				}
 			}
-			
+
 			app->selectMapIdx = app->pickInfo.mapIdx;
 			app->deselectObject();
 			app->pickMode = PICK_FACE;
@@ -915,7 +915,7 @@ void Gui::drawStatusMessage() {
 	}
 
 	if (app->isLoading) {
-		ImVec2 window_pos = ImVec2((app->windowWidth - loadingWindowWidth) / 2, 
+		ImVec2 window_pos = ImVec2((app->windowWidth - loadingWindowWidth) / 2,
 			(app->windowHeight - loadingWindowHeight) / 2);
 		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
 
@@ -965,7 +965,7 @@ void Gui::drawDebugWidget() {
 
 		if (app->pickInfo.valid) {
 			Bsp* map = app->pickInfo.map;
-			Entity* ent =app->pickInfo.ent;
+			Entity* ent = app->pickInfo.ent;
 
 			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -1011,7 +1011,7 @@ void Gui::drawDebugWidget() {
 				bspTreeTitle += " (Model " + to_string(app->pickInfo.modelIdx) + ")";
 			}
 			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-				
+
 				if (app->pickInfo.modelIdx >= 0) {
 					Bsp* map = app->pickInfo.map;
 
@@ -1027,7 +1027,7 @@ void Gui::drawDebugWidget() {
 					for (int i = 0; i < MAX_MAP_HULLS; i++) {
 						vector<int> nodeBranch;
 						int leafIdx;
-						int childIdx =- 1;
+						int childIdx = -1;
 						int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
 						int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
 
@@ -1039,7 +1039,7 @@ void Gui::drawDebugWidget() {
 							if (i == 0) {
 								ImGui::Text("Leaf: %d", leafIdx);
 							}
-							ImGui::Text("Parent Node: %d (child %d)", 
+							ImGui::Text("Parent Node: %d (child %d)",
 								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
 								childIdx);
 							ImGui::Text("Head Node: %d", headNode);
@@ -1054,7 +1054,7 @@ void Gui::drawDebugWidget() {
 				else {
 					ImGui::Text("No model selected");
 				}
-				
+
 			}
 		}
 		else {
@@ -1068,7 +1068,7 @@ void Gui::drawDebugWidget() {
 			ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", app->debugVec1.x, app->debugVec1.y, app->debugVec1.z);
 			ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", app->debugVec2.x, app->debugVec2.y, app->debugVec2.z);
 			ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", app->debugVec3.x, app->debugVec3.y, app->debugVec3.z);
-			
+
 			float mb = app->undoMemoryUsage / (1024.0f * 1024.0f);
 			ImGui::Text("Undo Memory Usage: %.2f MB\n", mb);
 		}
@@ -1291,7 +1291,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							else {
 								ent->removeKeyvalue(inputData->key);
 							}
-							
+
 						}
 						else {
 							ent->setOrAddKeyvalue(inputData->key, newVal);
@@ -1499,7 +1499,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			if (hoveredDrag[i]) {
 				keyDragging = true;
 			}
-			
+
 
 			if (i == 0) {
 				startY = ImGui::GetItemRectMin().y;
@@ -1682,7 +1682,7 @@ void Gui::drawTransformWidget() {
 					y = fy = ori.y;
 					z = fz = ori.z;
 				}
-				
+
 			}
 			else {
 				x = fx = 0;
@@ -1707,7 +1707,7 @@ void Gui::drawTransformWidget() {
 
 		static bool inputsWereDragged = false;
 		bool inputsAreDragging = false;
-		
+
 		ImGui::Text("Move");
 		ImGui::PushItemWidth(inputWidth);
 
@@ -1807,9 +1807,9 @@ void Gui::drawTransformWidget() {
 
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y*2));
+		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
 
-		
+
 		ImGui::Columns(4, 0, false);
 		ImGui::SetColumnWidth(0, inputWidth4);
 		ImGui::SetColumnWidth(1, inputWidth4);
@@ -1817,7 +1817,7 @@ void Gui::drawTransformWidget() {
 		ImGui::SetColumnWidth(3, inputWidth4);
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Target: "); ImGui::NextColumn();
-		
+
 		ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
 		ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
 		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
@@ -1843,7 +1843,7 @@ void Gui::drawTransformWidget() {
 
 		ImGui::Columns(2, 0, false);
 		ImGui::SetColumnWidth(0, inputWidth4);
-		ImGui::SetColumnWidth(1, inputWidth4*3);
+		ImGui::SetColumnWidth(1, inputWidth4 * 3);
 		ImGui::Text("Grid Snap:"); ImGui::NextColumn();
 		ImGui::SetNextItemWidth(inputWidth4 * 3);
 		if (ImGui::SliderInt("##gridsnap", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
@@ -1867,9 +1867,9 @@ void Gui::drawTransformWidget() {
 		}
 		ImGui::PopItemWidth();
 
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y*2));
+		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
 		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y*2));
+		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
 		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(false, "w ", "l ", "h")).c_str());
 
 		if (transformingEnt) {
@@ -1962,7 +1962,7 @@ void Gui::loadFonts() {
 	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, sizeof(robotomedium), fontSize);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, sizeof(robotomedium), fontSize * 1.1f);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, sizeof(robotomono), fontSize);
-	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize*1.1f);
+	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize * 1.1f);
 }
 
 void Gui::drawLog() {
@@ -2040,7 +2040,7 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
-		const int settings_tabs = 4;
+		const int settings_tabs = 5;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
 			"Paths",
@@ -2050,7 +2050,7 @@ void Gui::drawSettings() {
 
 		// left
 		ImGui::BeginChild("left pane", ImVec2(150, 0), true);
-		
+
 		for (int i = 0; i < settings_tabs; i++) {
 			if (ImGui::Selectable(tab_titles[i], settingsTab == i))
 				settingsTab = i;
@@ -2060,15 +2060,18 @@ void Gui::drawSettings() {
 		ImGui::SameLine();
 
 		// right
-		
+
 		ImGui::BeginGroup();
-		int footerHeight = settingsTab <= 1 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
+		int footerHeight = settingsTab <= 2 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
 		ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
 		ImGui::Text(tab_titles[settingsTab]);
 		ImGui::Separator();
-		
+
 		static char gamedir[256];
 		static int numFgds = 0;
+		static int numRes = 0;
+
+		static char resPaths[64][256];
 		static int numRes = 0;
 
 		if (reloadSettings) {
@@ -2086,8 +2089,20 @@ void Gui::drawSettings() {
 				g_settings.resPaths[i].resize(256);
 			}
 
+			numRes = g_settings.resPaths.size();
+			if (numRes > 64) numRes = 64;
+			for (int i = 0; i < 64; i++) {
+				if (i < numRes)
+					strncpy(resPaths[i], g_settings.resPaths[i].c_str(), 256);
+				else
+					strncpy(resPaths[i], "", 256);
+			}
+
 			reloadSettings = false;
 		}
+
+		int pathWidth = ImGui::GetWindowWidth() - 60;
+		int delWidth = 50;
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
@@ -2099,7 +2114,6 @@ void Gui::drawSettings() {
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 		}
 		else if (settingsTab == 1) {
-
 			ImGui::Text("Fgd paths:");
 			int pathWidth = ImGui::GetWindowWidth() - 60;
 			int delWidth = 50;
@@ -2113,6 +2127,7 @@ void Gui::drawSettings() {
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+
 				if (ImGui::Button((" X ##del_fgd" + to_string(i)).c_str())) {
 					g_settings.fgdPaths.erase(g_settings.fgdPaths.begin() + i);
 					numFgds--;
@@ -2167,6 +2182,34 @@ void Gui::drawSettings() {
 			}
 		}
 		else if (settingsTab == 2) {
+			for (int i = 0; i < numRes; i++) {
+				ImGui::SetNextItemWidth(pathWidth);
+				ImGui::InputText(("##res" + to_string(i)).c_str(), resPaths[i], 256);
+				ImGui::SameLine();
+
+				ImGui::SetNextItemWidth(delWidth);
+				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+				if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
+					strncpy(resPaths[i], "", 256);
+					for (int k = i; k < numRes - 1; k++) {
+						memcpy(resPaths[k], resPaths[k + 1], 256);
+					}
+					numRes--;
+				}
+				ImGui::PopStyleColor(3);
+
+			}
+
+			if (ImGui::Button("Add")) {
+				numRes++;
+				if (numRes > 64) {
+					numRes = 64;
+				}
+			}
+		}
+		else if (settingsTab == 3) {
 			ImGui::Text("Viewport:");
 			if (ImGui::Checkbox("VSync", &vsync)) {
 				glfwSwapInterval(vsync ? 1 : 0);
@@ -2226,7 +2269,7 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("Special World Faces", &renderSpecial)) {
 				g_render_flags ^= RENDER_SPECIAL;
 			}
-			
+
 
 			ImGui::Columns(1);
 
@@ -2258,7 +2301,7 @@ void Gui::drawSettings() {
 
 			ImGui::Columns(1);
 		}
-		else if (settingsTab == 3) {
+		else if (settingsTab == 4) {
 			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
 			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 		}
@@ -2268,7 +2311,7 @@ void Gui::drawSettings() {
 
 		ImGui::EndChild();
 
-		if (settingsTab <= 1) {
+		if (settingsTab <= 2) {
 			ImGui::Separator();
 
 			if (ImGui::Button("Apply Changes")) {
@@ -2288,6 +2331,12 @@ void Gui::drawSettings() {
 						gamedir[g_settings.gamedir.size()] = '\0';
 				}
 				}
+
+				g_settings.resPaths.clear();
+				for (int i = 0; i < numRes; i++) {
+					g_settings.resPaths.push_back(resPaths[i]);
+				}
+
 				app->reloadFgdsAndTextures();
 			}
 		}
@@ -2305,7 +2354,7 @@ void Gui::drawHelp() {
 		{
 			if (ImGui::BeginTabItem("UI Controls")) {
 				ImGui::Dummy(ImVec2(0, 10));
-				
+
 				// user guide from the demo
 				ImGuiIO& io = ImGui::GetIO();
 				ImGui::BulletText("Click and drag on lower corner to resize window\n(double-click to auto fit window to its contents).");
@@ -2355,7 +2404,7 @@ void Gui::drawHelp() {
 				ImGui::EndTabItem();
 			}
 		}
-		ImGui::EndTabBar();		
+		ImGui::EndTabBar();
 	}
 	ImGui::End();
 }
@@ -2620,7 +2669,7 @@ void Gui::drawEntityReport() {
 
 			const ImGuiKeyModFlags expected_key_mod_flags = ImGui::GetMergedKeyModFlags();
 
-			int footerHeight = ImGui::GetFrameHeightWithSpacing()*5 + 16;
+			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
 
 			if (filterNeeded) {
@@ -2821,7 +2870,7 @@ void Gui::drawEntityReport() {
 
 			ImGui::Dummy(ImVec2(0, 8));
 			ImGui::Text("Keyvalue Filter");
-			
+
 			ImGuiStyle& style = ImGui::GetStyle();
 			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
@@ -2881,10 +2930,11 @@ void Gui::drawTextureTool() {
 					width = tex.nWidth;
 					height = tex.nHeight;
 					strncpy(textureName, tex.szName, MAXTEXTURENAME);
-				} else {
+				}
+				else {
 					textureName[0] = '\0';
 				}
-				
+
 				int miptex = texinfo.iMiptex;
 
 				scaleX = 1.0f / texinfo.vS.length();
@@ -2892,10 +2942,10 @@ void Gui::drawTextureTool() {
 				shiftX = texinfo.shiftS;
 				shiftY = texinfo.shiftT;
 				isSpecial = texinfo.nFlags & TEX_SPECIAL;
-				
+
 				textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
 				validTexture = true;
-				
+
 				// show default values if not all faces share the same values
 				for (int i = 1; i < app->selectedFaces.size(); i++) {
 					int faceIdx2 = app->selectedFaces[i];
@@ -2926,7 +2976,7 @@ void Gui::drawTextureTool() {
 		}
 
 		lastPickCount = app->pickCount;
-		
+
 		ImGuiStyle& style = ImGui::GetStyle();
 		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
@@ -2992,7 +3042,7 @@ void Gui::drawTextureTool() {
 		{
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Used with invisible faces to bypass the surface extent limit."
-								   "\nLightmaps may break in strange ways if this is used on a normal face.");
+				"\nLightmaps may break in strange ways if this is used on a normal face.");
 			ImGui::EndTooltip();
 		}
 
@@ -3078,7 +3128,7 @@ void Gui::drawTextureTool() {
 
 		refreshSelectedFaces = false;
 
-		ImVec2 imgSize = ImVec2(inputWidth*2 - 2, inputWidth*2 - 2);
+		ImVec2 imgSize = ImVec2(inputWidth * 2 - 2, inputWidth * 2 - 2);
 		if (ImGui::ImageButton(textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1), 1)) {
 			logf("Open browser!\n");
 
@@ -3144,7 +3194,7 @@ StatInfo Gui::calcStat(string name, uint val, uint max, bool isMem) {
 	sprintf(tmp, "%3.1f%%", percent);
 	stat.fullness = string(tmp);
 	stat.color = color;
-	
+
 	stat.progress = (float)val / (float)max;
 
 	return stat;
