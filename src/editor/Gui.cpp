@@ -2040,10 +2040,11 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
-		const int settings_tabs = 4;
+		const int settings_tabs = 5;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
-			"Paths",
+			"FGDs",
+			"Asset Paths",
 			"Rendering",
 			"Controls"
 		};
@@ -2062,7 +2063,7 @@ void Gui::drawSettings() {
 		// right
 
 		ImGui::BeginGroup();
-		int footerHeight = settingsTab <= 1 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
+		int footerHeight = settingsTab <= 2 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
 		ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
 		ImGui::Text(tab_titles[settingsTab]);
 		ImGui::Separator();
@@ -2089,6 +2090,9 @@ void Gui::drawSettings() {
 			reloadSettings = false;
 		}
 
+		int pathWidth = ImGui::GetWindowWidth() - 60;
+		int delWidth = 50;
+
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
@@ -2099,8 +2103,6 @@ void Gui::drawSettings() {
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 		}
 		else if (settingsTab == 1) {
-
-			ImGui::Text("Fgd paths:");
 			int pathWidth = ImGui::GetWindowWidth() - 60;
 			int delWidth = 50;
 			for (int i = 0; i < numFgds; i++) {
@@ -2133,10 +2135,10 @@ void Gui::drawSettings() {
 		}
 
 			ImGui::Separator();
-			ImGui::Text("Resource paths:");
-
-			pathWidth = ImGui::GetWindowWidth() - 60;
-			delWidth = 50;
+		}
+		else if (settingsTab == 2) {
+			int pathWidth = ImGui::GetWindowWidth() - 60;
+			int delWidth = 50;
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
 				ImGui::InputText(("##res" + to_string(i)).c_str(), &g_settings.resPaths[i][0], 256);
@@ -2163,10 +2165,11 @@ void Gui::drawSettings() {
 				{
 					g_settings.resPaths.push_back(std::string());
 					g_settings.resPaths[g_settings.resPaths.size() - 1].resize(256);
-				}
 			}
 		}
-		else if (settingsTab == 2) {
+			ImGui::Separator();
+		}
+		else if (settingsTab == 3) {
 			ImGui::Text("Viewport:");
 			if (ImGui::Checkbox("VSync", &vsync)) {
 				glfwSwapInterval(vsync ? 1 : 0);
@@ -2258,7 +2261,7 @@ void Gui::drawSettings() {
 
 			ImGui::Columns(1);
 		}
-		else if (settingsTab == 3) {
+		else if (settingsTab == 4) {
 			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
 			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 		}
@@ -2268,7 +2271,7 @@ void Gui::drawSettings() {
 
 		ImGui::EndChild();
 
-		if (settingsTab <= 1) {
+		if (settingsTab <= 2) {
 			ImGui::Separator();
 
 			if (ImGui::Button("Apply Changes")) {
