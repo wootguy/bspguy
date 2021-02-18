@@ -504,15 +504,20 @@ void Renderer::saveSettings() {
 
 void Renderer::loadSettings() {
 
+	if (g_settings.gamedir.size() == 0)
+	{
+		g_settings.gamedir = "./";
+	}
+
 	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
+		g_settings.fgdPaths.push_back(g_settings.gamedir + "svencoop/sven-coop.fgd");
 	}
 
 	if (g_settings.resPaths.size() == 0) {
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_addon/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_downloads/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_hd/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_addon/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_downloads/");
+		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_hd/");
 	}
 
 	gui->showDebugWidget = g_settings.debug_open;
