@@ -2103,8 +2103,6 @@ void Gui::drawSettings() {
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 		}
 		else if (settingsTab == 1) {
-			int pathWidth = ImGui::GetWindowWidth() - 60;
-			int delWidth = 50;
 			for (int i = 0; i < numFgds; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
 
@@ -2131,14 +2129,10 @@ void Gui::drawSettings() {
 				{
 					g_settings.fgdPaths.push_back(std::string());
 					g_settings.fgdPaths[g_settings.fgdPaths.size() - 1].resize(256);
+				}
 			}
 		}
-
-			ImGui::Separator();
-		}
 		else if (settingsTab == 2) {
-			int pathWidth = ImGui::GetWindowWidth() - 60;
-			int delWidth = 50;
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
 				ImGui::InputText(("##res" + to_string(i)).c_str(), &g_settings.resPaths[i][0], 256);
@@ -2165,9 +2159,8 @@ void Gui::drawSettings() {
 				{
 					g_settings.resPaths.push_back(std::string());
 					g_settings.resPaths[g_settings.resPaths.size() - 1].resize(256);
+				}
 			}
-		}
-			ImGui::Separator();
 		}
 		else if (settingsTab == 3) {
 			ImGui::Text("Viewport:");
