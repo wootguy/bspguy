@@ -136,11 +136,11 @@ void AppSettings::save() {
 
 	file << "gamedir=" << g_settings.gamedir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
-		file << "fgd=" << g_settings.fgdPaths[i] << endl;
+		file << "fgd=" << g_settings.fgdPaths[i].c_str() << endl;
 	}
 
 	for (int i = 0; i < resPaths.size(); i++) {
-		file << "res=" << g_settings.resPaths[i] << endl;
+		file << "res=" << g_settings.resPaths[i].c_str() << endl;
 	}
 
 	file << "vsync=" << g_settings.vsync << endl;
