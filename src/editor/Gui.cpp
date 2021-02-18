@@ -2043,7 +2043,7 @@ void Gui::drawSettings() {
 		const int settings_tabs = 4;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
-			"FGDs",
+			"Paths",
 			"Rendering",
 			"Controls"
 		};
@@ -2071,6 +2071,9 @@ void Gui::drawSettings() {
 		static char fgdPaths[64][256];
 		static int numFgds = 0;
 
+		static char resPaths[64][256];
+		static int numRes = 0;
+
 		if (reloadSettings) {
 			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
 
@@ -2081,6 +2084,15 @@ void Gui::drawSettings() {
 					strncpy(fgdPaths[i], g_settings.fgdPaths[i].c_str(), 256);
 				else
 					strncpy(fgdPaths[i], "", 256);
+			}
+
+			numRes = g_settings.resPaths.size();
+			if (numRes > 64) numRes = 64;
+			for (int i = 0; i < 64; i++) {
+				if (i < numRes)
+					strncpy(resPaths[i], g_settings.resPaths[i].c_str(), 256);
+				else
+					strncpy(resPaths[i], "", 256);
 			}
 
 			reloadSettings = false;
@@ -2122,6 +2134,38 @@ void Gui::drawSettings() {
 				numFgds++;
 				if (numFgds > 64) {
 					numFgds = 64;
+				}
+			}
+
+			ImGui::Separator();
+			ImGui::Text("Resource paths:");
+
+			pathWidth = ImGui::GetWindowWidth() - 60;
+			delWidth = 50;
+			for (int i = 0; i < numRes; i++) {
+				ImGui::SetNextItemWidth(pathWidth);
+				ImGui::InputText(("##res" + to_string(i)).c_str(), resPaths[i], 256);
+				ImGui::SameLine();
+
+				ImGui::SetNextItemWidth(delWidth);
+				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+				if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
+					strncpy(resPaths[i], "", 256);
+					for (int k = i; k < numRes - 1; k++) {
+						memcpy(resPaths[k], resPaths[k + 1], 256);
+					}
+					numRes--;
+				}
+				ImGui::PopStyleColor(3);
+
+			}
+
+			if (ImGui::Button("Add")) {
+				numRes++;
+				if (numRes > 64) {
+					numRes = 64;
 				}
 			}
 		}
@@ -2237,6 +2281,12 @@ void Gui::drawSettings() {
 				for (int i = 0; i < numFgds; i++) {
 					g_settings.fgdPaths.push_back(fgdPaths[i]);
 				}
+
+				g_settings.resPaths.clear();
+				for (int i = 0; i < numRes; i++) {
+					g_settings.resPaths.push_back(resPaths[i]);
+				}
+
 				app->reloadFgdsAndTextures();
 			}
 		}
