@@ -31,7 +31,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void window_size_callback(GLFWwindow* window, int width, int height)
 {
-	if (g_settings.maximized) {
+	if (g_settings.maximized || width == 0 || height == 0) {
 		return; // ignore size change when maximized, or else iconifying doesn't change size at all
 	}
 	g_settings.windowWidth = width;
@@ -165,12 +165,43 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 Renderer::Renderer() {
 	g_settings.load();
 
+	if (g_settings.fgdPaths.size() == 0) {
+		g_settings.fgdPaths.push_back("/svencoop/sven-coop.fgd");
+	}
+
+	if (g_settings.resPaths.size() == 0) {
+		g_settings.resPaths.push_back("/svencoop/");
+		g_settings.resPaths.push_back("/svencoop_addon/");
+		g_settings.resPaths.push_back("/svencoop_downloads/");
+		g_settings.resPaths.push_back("/svencoop_hd/");
+	}
+
+	if (g_settings.windowHeight <= 0 || g_settings.windowWidth <= 0)
+	{
+		g_settings.windowHeight = 600;
+		g_settings.windowWidth = 800;
+	}
+
+	if (g_settings.windowX < 0)
+	{
+		g_settings.windowX = 0;
+	}
+#ifdef WIN32
+	if (g_settings.windowY < 26) // fix window header
+	{
+		g_settings.windowY = 26;
+	}
+#else 
+	if (g_settings.windowY < 0)
+	{
+		g_settings.windowY = 0;
+	}
+#endif
 	if (!glfwInit())
 	{
 		logf("GLFW initialization failed\n");
 		return;
 	}
-
 	glfwSetErrorCallback(error_callback);
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -509,17 +540,6 @@ void Renderer::saveSettings() {
 }
 
 void Renderer::loadSettings() {
-
-	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back("/svencoop/sven-coop.fgd");
-	}
-
-	if (g_settings.resPaths.size() == 0) {
-		g_settings.resPaths.push_back("/svencoop/");
-		g_settings.resPaths.push_back("/svencoop_addon/");
-		g_settings.resPaths.push_back("/svencoop_downloads/");
-		g_settings.resPaths.push_back("/svencoop_hd/");
-	}
 
 	if (!g_settings.valid)
 	{
