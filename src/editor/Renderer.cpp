@@ -511,14 +511,19 @@ void Renderer::saveSettings() {
 void Renderer::loadSettings() {
 
 	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back(g_settings.gamedir + "/svencoop/sven-coop.fgd");
+		g_settings.fgdPaths.push_back("/svencoop/sven-coop.fgd");
 	}
 
 	if (g_settings.resPaths.size() == 0) {
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_addon/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_downloads/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "/svencoop_hd/");
+		g_settings.resPaths.push_back("/svencoop/");
+		g_settings.resPaths.push_back("/svencoop_addon/");
+		g_settings.resPaths.push_back("/svencoop_downloads/");
+		g_settings.resPaths.push_back("/svencoop_hd/");
+	}
+
+	if (!g_settings.valid)
+	{
+		return;
 	}
 
 	gui->showDebugWidget = g_settings.debug_open;
@@ -552,7 +557,14 @@ void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
-		tmp->parse();
+		if (!tmp->parse())
+		{
+			tmp->path = g_settings.gamedir + g_settings.fgdPaths[i];
+			if (!tmp->parse())
+			{
+				continue;
+			}
+		}
 
 		if (i == 0) {
 			mergedFgd = tmp;
@@ -1233,10 +1245,7 @@ void Renderer::pickObject() {
 	}
 
 	if ((pickMode == PICK_OBJECT || !anyCtrlPressed) && selectMapIdx != -1) {
-		for (int i = 0; i < selectedFaces.size(); i++) {
-			mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
-		}
-		selectedFaces.clear();
+		deselectFaces();
 	}
 
 	if (pickMode == PICK_OBJECT) {

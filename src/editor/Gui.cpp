@@ -2069,32 +2069,19 @@ void Gui::drawSettings() {
 		ImGui::Separator();
 
 		static char gamedir[256];
-		static char fgdPaths[64][256];
 		static int numFgds = 0;
-
-		static char resPaths[64][256];
 		static int numRes = 0;
+
+		static std::vector<std::string> tmpFgdPaths;
+		static std::vector<std::string> tmpResPaths;
 
 		if (reloadSettings) {
 			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
+			tmpFgdPaths = g_settings.fgdPaths;
+			tmpResPaths = g_settings.resPaths;
 
-			numFgds = g_settings.fgdPaths.size();
-			if (numFgds > 64) numFgds = 64;
-			for (int i = 0; i < 64; i++) {
-				if (i < numFgds)
-					strncpy(fgdPaths[i], g_settings.fgdPaths[i].c_str(), 256);
-				else
-					strncpy(fgdPaths[i], "", 256);
-			}
-
-			numRes = g_settings.resPaths.size();
-			if (numRes > 64) numRes = 64;
-			for (int i = 0; i < 64; i++) {
-				if (i < numRes)
-					strncpy(resPaths[i], g_settings.resPaths[i].c_str(), 256);
-				else
-					strncpy(resPaths[i], "", 256);
-			}
+			numFgds = tmpFgdPaths.size();
+			numRes = tmpResPaths.size();
 
 			reloadSettings = false;
 		}
@@ -2114,56 +2101,61 @@ void Gui::drawSettings() {
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
-				ImGui::InputText(("##fgd" + to_string(i)).c_str(), fgdPaths[i], 256);
+				tmpFgdPaths[i].resize(256);
+				ImGui::InputText(("##fgd" + to_string(i)).c_str(), &tmpFgdPaths[i][0], 256);
 				ImGui::SameLine();
 
 				ImGui::SetNextItemWidth(delWidth);
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-				if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
-					strncpy(fgdPaths[i], "", 256);
-					for (int k = i; k < numFgds - 1; k++) {
-						memcpy(fgdPaths[k], fgdPaths[k + 1], 256);
-					}
+				if (ImGui::Button((" X ##del_fgd" + to_string(i)).c_str())) {
+					tmpFgdPaths.erase(tmpFgdPaths.begin() + i);
 					numFgds--;
 				}
 				ImGui::PopStyleColor(3);
-
 			}
 
-			if (ImGui::Button("Add")) {
+			if (ImGui::Button("Add fgd path")) {
 				numFgds++;
 				if (numFgds > 64) {
 					numFgds = 64;
+				}
+				else
+				{
+					tmpFgdPaths.push_back(std::string());
+					tmpFgdPaths[tmpFgdPaths.size() - 1].resize(256);
 				}
 			}
 		}
 		else if (settingsTab == 2) {
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
-				ImGui::InputText(("##res" + to_string(i)).c_str(), resPaths[i], 256);
+				tmpResPaths[i].resize(256);
+				ImGui::InputText(("##res" + to_string(i)).c_str(), &tmpResPaths[i][0], 256);
 				ImGui::SameLine();
 
 				ImGui::SetNextItemWidth(delWidth);
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-				if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
-					strncpy(resPaths[i], "", 256);
-					for (int k = i; k < numRes - 1; k++) {
-						memcpy(resPaths[k], resPaths[k + 1], 256);
-					}
+				if (ImGui::Button((" X ##del_res" + to_string(i)).c_str())) {
+					tmpResPaths.erase(tmpResPaths.begin() + i);
 					numRes--;
 				}
 				ImGui::PopStyleColor(3);
 
 			}
 
-			if (ImGui::Button("Add")) {
+			if (ImGui::Button("Add res path")) {
 				numRes++;
 				if (numRes > 64) {
 					numRes = 64;
+				}
+				else
+				{
+					tmpResPaths.push_back(std::string());
+					tmpResPaths[tmpResPaths.size() - 1].resize(256);
 				}
 			}
 		}
@@ -2274,17 +2266,18 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
-
 				g_settings.fgdPaths.clear();
-				for (int i = 0; i < numFgds; i++) {
-					g_settings.fgdPaths.push_back(fgdPaths[i]);
+				for (auto const& s : tmpFgdPaths)
+				{
+					if (s[0] != '\0')
+						g_settings.fgdPaths.push_back(s.c_str()); // c_str for remove NULL characters
 				}
-
 				g_settings.resPaths.clear();
-				for (int i = 0; i < numRes; i++) {
-					g_settings.resPaths.push_back(resPaths[i]);
+				for (auto const& s : tmpResPaths)
+				{
+					if (s[0] != '\0')
+						g_settings.resPaths.push_back(s.c_str());
 				}
-
 				app->reloadFgdsAndTextures();
 			}
 		}
