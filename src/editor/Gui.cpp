@@ -2266,6 +2266,18 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
+				/* fixup gamedir */
+				if (g_settings.gamedir.size() == 0)
+				{
+					g_settings.gamedir = ".";
+				}
+				else if (g_settings.gamedir[g_settings.gamedir.size() - 1] == '/'
+					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\')
+				{
+					g_settings.gamedir.pop_back();
+					sprintf_s(gamedir, "%s", g_settings.gamedir.c_str());
+				}
+
 				g_settings.fgdPaths.clear();
 				for (auto const& s : tmpFgdPaths)
 				{
