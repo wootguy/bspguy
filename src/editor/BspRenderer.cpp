@@ -103,15 +103,20 @@ void BspRenderer::loadTextures() {
 
 	for (auto const& s : g_settings.resPaths)
 	{
-		tryPaths.push_back(s.c_str());
+		tryPaths.push_back(s);
 	}
 	
 	for (int i = 0; i < wadNames.size(); i++) {
 		string path;
 		for (int k = 0; k < tryPaths.size(); k++) {
 			string tryPath = tryPaths[k] + wadNames[i];
+			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
 			if (fileExists(tryPath)) {
 				path = tryPath;
+				break;
+			}
+			if (fileExists(tryPath_full)) {
+				path = tryPath_full;
 				break;
 			}
 		}

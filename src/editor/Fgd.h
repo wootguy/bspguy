@@ -101,7 +101,7 @@ public:
 	Fgd(string path);
 	~Fgd();
 
-	void parse();
+	bool parse();
 	void merge(Fgd* other);
 
 	FgdClass* getFgdClass(string cname);

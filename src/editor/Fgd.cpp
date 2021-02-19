@@ -49,11 +49,11 @@ void Fgd::merge(Fgd* other) {
 	}
 }
 
-void Fgd::parse() {
+bool Fgd::parse() {
 
 	if (!fileExists(path)) {
 		logf("Missing FGD: %s\n", path.c_str());
-		return;
+		return false;
 	}
 
 	logf("Parsing %s\n", path.c_str());
@@ -120,6 +120,7 @@ void Fgd::parse() {
 	processClassInheritance();
 	createEntGroups();
 	setSpawnflagNames();
+	return true;
 }
 
 void Fgd::parseClassHeader(FgdClass& fgdClass) {

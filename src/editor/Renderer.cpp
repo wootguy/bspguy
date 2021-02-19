@@ -315,9 +315,9 @@ void Renderer::renderLoop() {
 	float lastTitleTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
-		if (glfwGetTime( ) - lastTitleTime > 0.1)
+		if (glfwGetTime() - lastTitleTime > 0.1)
 		{
-			lastTitleTime = glfwGetTime( );
+			lastTitleTime = glfwGetTime();
 			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
 		}
 		glfwPollEvents();
@@ -365,7 +365,7 @@ void Renderer::renderLoop() {
 				glDisable(GL_CULL_FACE);
 				int currentPlane = 0;
 				drawClipnodes(pickInfo.map, pickModel.iHeadnodes[1], currentPlane, debugInt);
-				debugIntMax = currentPlane-1;
+				debugIntMax = currentPlane - 1;
 				glEnable(GL_CULL_FACE);
 			}
 
@@ -510,20 +510,15 @@ void Renderer::saveSettings() {
 
 void Renderer::loadSettings() {
 
-	if (g_settings.gamedir.size() == 0)
-	{
-		g_settings.gamedir = "./";
-	}
-
 	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back(g_settings.gamedir + "svencoop/sven-coop.fgd");
+		g_settings.fgdPaths.push_back("/svencoop/sven-coop.fgd");
 	}
 
 	if (g_settings.resPaths.size() == 0) {
-		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_addon/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_downloads/");
-		g_settings.resPaths.push_back(g_settings.gamedir + "svencoop_hd/");
+		g_settings.resPaths.push_back("/svencoop/");
+		g_settings.resPaths.push_back("/svencoop_addon/");
+		g_settings.resPaths.push_back("/svencoop_downloads/");
+		g_settings.resPaths.push_back("/svencoop_hd/");
 	}
 
 	if (!g_settings.valid)
@@ -562,7 +557,14 @@ void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
-		tmp->parse();
+		if (!tmp->parse())
+		{
+			tmp->path = g_settings.gamedir + g_settings.fgdPaths[i];
+			if (!tmp->parse())
+			{
+				continue;
+			}
+		}
 
 		if (i == 0) {
 			mergedFgd = tmp;
@@ -723,7 +725,7 @@ void Renderer::drawEntConnections() {
 
 void Renderer::controls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-
+	static int sel_faces = 0;
 	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
 		pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
 		released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
@@ -734,7 +736,50 @@ void Renderer::controls() {
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
 
 	if (!io.WantCaptureKeyboard)
+	{
+		// If pressed CTRL in current frame and then pressed 'A' do select all
+		if (pressed[GLFW_KEY_LEFT_CONTROL] && oldPressed[GLFW_KEY_LEFT_CONTROL])
+		{
+			if (!pressed[GLFW_KEY_A] && oldPressed[GLFW_KEY_A])
+			{
+				if (gui->app->pickMode == PICK_OBJECT)
+				{
+					
+				}
+				else if (gui->app->pickMode == PICK_FACE)
+				{
+					selectMapIdx = pickInfo.mapIdx;
+					pickInfo.faceIdx = -1;
+					if (selectMapIdx >= 0)
+					{
+						BspRenderer* mapRenderer = getMapContainingCamera();
+						int tmp_faces = selectedFaces.size();
+						if (tmp_faces > 0 && tmp_faces == sel_faces)
+						{
+							deselectFaces();
+						}
+						else
+						{
+							BspRenderer* mapRenderer = getMapContainingCamera();
+							int tmp_faces = 0;
+							for (int n = 0; n < mapRenderer->map->modelCount; n++)
+							{
+								BSPMODEL& model = mapRenderer->map->models[n];
+								for (int i = 0; i < model.nFaces; i++) {
+									int faceIdx = model.iFirstFace + i;
+									mapRenderer->highlightFace(faceIdx, true);
+									selectedFaces.push_back(faceIdx);
+								}
+							}
+						}
+					}
+					sel_faces = selectedFaces.size();
+				}
+			}
+		}
+		else
 		cameraOrigin += getMoveDir() * frameTimeScale;
+	}
 	
 	moveGrabbedEnt();
 
@@ -950,7 +995,7 @@ void Renderer::applyTransform(bool forceUpdate) {
 				vec3 delta = transformedOrigin - oldOrigin;
 
 				g_progress.hide = true;
-				pickInfo.map->move(delta*-1, pickInfo.modelIdx);
+				pickInfo.map->move(delta * -1, pickInfo.modelIdx);
 				g_progress.hide = false;
 
 				oldOrigin = transformedOrigin;
@@ -987,8 +1032,8 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 		}
 		else {
 			vec2 drag = mousePos - lastMousePos;
-			cameraAngles.z += drag.x * rotationSpeed*0.1f;
-			cameraAngles.x += drag.y * rotationSpeed*0.1f;
+			cameraAngles.z += drag.x * rotationSpeed * 0.1f;
+			cameraAngles.x += drag.y * rotationSpeed * 0.1f;
 
 			totalMouseDrag += vec2(fabs(drag.x), fabs(drag.y));
 
@@ -1243,10 +1288,7 @@ void Renderer::pickObject() {
 	}
 
 	if ((pickMode == PICK_OBJECT || !anyCtrlPressed) && selectMapIdx != -1) {
-		for (int i = 0; i < selectedFaces.size(); i++) {
-			mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
-		}
-		selectedFaces.clear();
+		deselectFaces();
 	}
 
 	if (pickMode == PICK_OBJECT) {
@@ -1651,8 +1693,8 @@ void Renderer::updateDragAxes() {
 
 	float baseScale = (activeAxes.origin - localCameraOrigin).length() * 0.005f;
 	float s = baseScale;
-	float s2 = baseScale*2;
-	float d = baseScale*32;
+	float s2 = baseScale * 2;
+	float d = baseScale * 32;
 
 	// create the meshes
 	if (transformMode == TRANSFORM_SCALE) {
@@ -1685,7 +1727,7 @@ void Renderer::updateDragAxes() {
 
 		// flip to HL coords
 		cVert* verts = (cVert*)scaleAxes.model;
-		for (int i = 0; i < 6*6*6; i++) {
+		for (int i = 0; i < 6 * 6 * 6; i++) {
 			float tmp = verts[i].z;
 			verts[i].z = -verts[i].y;
 			verts[i].y = tmp;
@@ -1951,7 +1993,7 @@ void Renderer::updateEntConnections() {
 		int idx = 0;
 		int cidx = 0;
 		float s = 1.5f;
-		vec3 extent = vec3(s,s,s);
+		vec3 extent = vec3(s, s, s);
 
 		for (int i = 0; i < targets.size(); i++) {
 			vec3 ori = getEntOrigin(map, targets[i]).flip();
