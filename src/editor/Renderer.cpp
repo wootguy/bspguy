@@ -85,8 +85,6 @@ void AppSettings::loadDefault()
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
 		| RENDER_ENT_CLIPNODES;
 
-
-
 	// Restore default window height if invalid.
 	if (windowHeight <= 0 || windowWidth <= 0)
 	{
@@ -156,8 +154,6 @@ void AppSettings::load() {
 	else {
 		logf("Failed to open user config: %s\n", g_settings_path.c_str());
 	}
-
-
 
 #ifdef WIN32
 	// Fix invisibled window header for primary screen.
