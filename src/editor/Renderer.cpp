@@ -148,6 +148,14 @@ void AppSettings::load() {
 		logf("Failed to open user config: %s\n", g_settings_path.c_str());
 	}
 
+	if (g_settings.windowY == -32000 &&
+		g_settings.windowX == -32000)
+	{
+		g_settings.windowY = 0;
+		g_settings.windowX = 0;
+	}
+
+
 #ifdef WIN32
 	// Fix invisibled window header for primary screen.
 	if (g_settings.windowY >= 0 && g_settings.windowY < 30)
@@ -155,6 +163,7 @@ void AppSettings::load() {
 		g_settings.windowY = 30;
 	}
 #endif
+
 
 	// Restore default window height if invalid.
 	if (windowHeight <= 0 || windowWidth <= 0)
