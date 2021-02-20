@@ -2124,7 +2124,6 @@ void Gui::drawSettings() {
 				else
 				{
 					tmpFgdPaths.push_back(std::string());
-					tmpFgdPaths[tmpFgdPaths.size() - 1].resize(256);
 				}
 			}
 		}
@@ -2155,7 +2154,6 @@ void Gui::drawSettings() {
 				else
 				{
 					tmpResPaths.push_back(std::string());
-					tmpResPaths[tmpResPaths.size() - 1].resize(256);
 				}
 			}
 		}
