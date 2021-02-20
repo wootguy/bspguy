@@ -1662,7 +1662,7 @@ void Gui::drawGOTOWidget() {
 		ImGui::SameLine();
 		ImGui::DragFloat("##zpos", &coordinates.z, 0.1f, 0, 0, "Z: %.0f");
 		ImGui::PopItemWidth();
-		ImGui::Text("Views");
+		ImGui::Text("Angles");
 		ImGui::PushItemWidth(inputWidth);
 		ImGui::DragFloat("##xangles", &angles.x, 0.1f, 0, 0, "X: %.0f");
 		ImGui::SameLine();
@@ -1674,7 +1674,7 @@ void Gui::drawGOTOWidget() {
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-		if (ImGui::Button("Angles") )
+		if (ImGui::Button("Go to") )
 		{
 			app->cameraOrigin = coordinates;
 			app->cameraAngles = angles;
