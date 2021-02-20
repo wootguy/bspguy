@@ -1642,7 +1642,8 @@ void Gui::drawGOTOWidget() {
 	ImGui::SetNextWindowSize(ImVec2(410, 200), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(410, 200), ImVec2(410, 200));
 	static vec3 coordinates = vec3();
-	static vec3 views = vec3();
+	static vec3 angles = vec3();
+	float angles_y = 0.0f;
 	if (ImGui::Begin("Go to coordinates:", &showGOTOWidget, 0)) {
 		ImGuiStyle& style = ImGui::GetStyle();
 		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
@@ -1650,34 +1651,34 @@ void Gui::drawGOTOWidget() {
 		if (showGOTOWidget_update)
 		{
 			coordinates = app->cameraOrigin;
-			views = app->cameraAngles;
+			angles = app->cameraAngles;
 			showGOTOWidget_update = false;
 		}
 		ImGui::Text("Coordinates");
 		ImGui::PushItemWidth(inputWidth);
-		ImGui::DragFloat("##xpos", &coordinates.x, 0.1f, 0, 0, "X: %f");
+		ImGui::DragFloat("##xpos", &coordinates.x, 0.1f, 0, 0, "X: %.0f");
 		ImGui::SameLine();
-		ImGui::DragFloat("##ypos", &coordinates.y, 0.1f, 0, 0, "Y: %f");
+		ImGui::DragFloat("##ypos", &coordinates.y, 0.1f, 0, 0, "Y: %.0f");
 		ImGui::SameLine();
-		ImGui::DragFloat("##zpos", &coordinates.z, 0.1f, 0, 0, "Z: %f");
+		ImGui::DragFloat("##zpos", &coordinates.z, 0.1f, 0, 0, "Z: %.0f");
 		ImGui::PopItemWidth();
 		ImGui::Text("Views");
 		ImGui::PushItemWidth(inputWidth);
-		ImGui::DragFloat("##xangles", &views.x, 0.1f, 0, 0, "X: %f");
+		ImGui::DragFloat("##xangles", &angles.x, 0.1f, 0, 0, "X: %.0f");
 		ImGui::SameLine();
-		ImGui::DragFloat("##yangles", &views.y, 0.1f, 0, 0, "Y: %f");
+		ImGui::DragFloat("##yangles", &angles_y, 0.1f, 0, 0, "Y: %.0f");
 		ImGui::SameLine();
-		ImGui::DragFloat("##zangles", &views.z, 0.1f, 0, 0, "Z: %f");
+		ImGui::DragFloat("##zangles", &angles.z, 0.1f, 0, 0, "Z: %.0f");
 		ImGui::PopItemWidth();
 
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-		if (ImGui::Button("GOTO") )
+		if (ImGui::Button("Angles") )
 		{
 			app->cameraOrigin = coordinates;
-			app->cameraAngles = views;
-			makeVectors(views, app->cameraForward, app->cameraRight, app->cameraUp);
+			app->cameraAngles = angles;
+			makeVectors(angles, app->cameraForward, app->cameraRight, app->cameraUp);
 		}
 		ImGui::PopStyleColor(3);
 
