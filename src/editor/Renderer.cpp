@@ -55,11 +55,58 @@ void window_close_callback(GLFWwindow* window)
 	logf("adios\n");
 }
 
-void AppSettings::load() {
-	ifstream file(g_settings_path);
+void AppSettings::loadDefault() 
+{
+	windowWidth = 800;
+	windowHeight = 600;
+	windowX = 0;
+#ifdef WIN32
+	windowY = 30;
+#else
+	windowY = 0;
+#endif
+	maximized = 0;
+	fontSize = 22;
+	gamedir;
+	valid = false;
+	undoLevels = 64;
+	verboseLogs = false;
+
+	debug_open = false;
+	keyvalue_open = false;
+	transform_open = false;
+	log_open = false;
+	settings_open = false;
+	limits_open = false;
+	entreport_open = false;
+	settings_tab = 0;
+
+	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
+		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
+		| RENDER_ENT_CLIPNODES;
+
+
+
+	// Restore default window height if invalid.
+	if (windowHeight <= 0 || windowWidth <= 0)
+	{
+		windowHeight = 600;
+		windowWidth = 800;
+	}
+
+	vsync = true;
+
+	moveSpeed = 4.0f;
+	fov = 75.0f;
+	zfar = 262144.0f;
+	rotSpeed = 5.0f;
 
 	fgdPaths.clear();
+	resPaths.clear();
+}
 
+void AppSettings::load() {
+	ifstream file(g_settings_path);
 	if (file.is_open()) {
 
 		string line = "";
@@ -102,12 +149,35 @@ void AppSettings::load() {
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 			else if (key == "res") { resPaths.push_back(val); }
 		}
+
 		g_settings.valid = true;
 
 	}
 	else {
 		logf("Failed to open user config: %s\n", g_settings_path.c_str());
 	}
+
+
+
+#ifdef WIN32
+	// Fix invisibled window header for primary screen.
+	if (g_settings.windowY >= 0 && g_settings.windowY < 30)
+	{
+		g_settings.windowY = 30;
+	}
+#endif
+
+	if (fgdPaths.size() == 0) {
+		fgdPaths.push_back("/svencoop/sven-coop.fgd");
+	}
+
+	if (resPaths.size() == 0) {
+		resPaths.push_back("/svencoop/");
+		resPaths.push_back("/svencoop_addon/");
+		resPaths.push_back("/svencoop_downloads/");
+		resPaths.push_back("/svencoop_hd/");
+	}
+
 }
 
 void AppSettings::save() {
@@ -163,40 +233,9 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 Renderer::Renderer() {
+	g_settings.loadDefault();
 	g_settings.load();
 
-	if (g_settings.fgdPaths.size() == 0) {
-		g_settings.fgdPaths.push_back("/svencoop/sven-coop.fgd");
-	}
-
-	if (g_settings.resPaths.size() == 0) {
-		g_settings.resPaths.push_back("/svencoop/");
-		g_settings.resPaths.push_back("/svencoop_addon/");
-		g_settings.resPaths.push_back("/svencoop_downloads/");
-		g_settings.resPaths.push_back("/svencoop_hd/");
-	}
-
-	if (g_settings.windowHeight <= 0 || g_settings.windowWidth <= 0)
-	{
-		g_settings.windowHeight = 600;
-		g_settings.windowWidth = 800;
-	}
-
-	if (g_settings.windowX < 0)
-	{
-		g_settings.windowX = 0;
-	}
-#ifdef WIN32
-	if (g_settings.windowY < 26) // fix window header
-	{
-		g_settings.windowY = 26;
-	}
-#else 
-	if (g_settings.windowY < 0)
-	{
-		g_settings.windowY = 0;
-	}
-#endif
 	if (!glfwInit())
 	{
 		logf("GLFW initialization failed\n");
@@ -260,9 +299,6 @@ Renderer::Renderer() {
 	uint colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
 	glUniform4f(colorMultId, 1, 1, 1, 1);
 
-	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL 
-		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
-		| RENDER_ENT_CLIPNODES;
 	
 	pickInfo.valid = false;
 
@@ -524,9 +560,7 @@ void Renderer::saveSettings() {
 	g_settings.settings_open = gui->showSettingsWidget;
 	g_settings.limits_open = gui->showLimitsWidget;
 	g_settings.entreport_open = gui->showEntityReport;
-
 	g_settings.settings_tab = gui->settingsTab;
-
 	g_settings.vsync = gui->vsync;
 	g_settings.show_transform_axes = showDragAxes;
 	g_settings.verboseLogs = g_verbose;

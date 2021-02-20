@@ -674,16 +674,17 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+	if (cli.hasOption("-v")) {
+		g_verbose = true;
+	}
+
 	if (argc == 2) {
 		start_viewer(argv[1]);
 	}
-
+	else
+	{
 	if (cli.bspfile.empty()) {
 		logf("ERROR: no map specified\n"); return 1;
-	}
-
-	if (cli.hasOption("-v")) {
-		g_verbose = true;
 	}
 
 	if (cli.command == "info") {
@@ -709,6 +710,7 @@ int main(int argc, char* argv[])
 	}
 	else {
 		logf("unrecognized command: %d\n", cli.command.c_str());
+		}
 	}
 
 	return 0;

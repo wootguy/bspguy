@@ -2271,7 +2271,7 @@ void Gui::drawSettings() {
 					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\'))
 				{
 					g_settings.gamedir.pop_back();
-					sprintf_s(gamedir, "%s", g_settings.gamedir.c_str());
+					sprintf(gamedir, "%s", g_settings.gamedir.c_str());
 				}
 
 				g_settings.fgdPaths.clear();

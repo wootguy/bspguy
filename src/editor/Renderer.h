@@ -42,25 +42,25 @@ struct TransformAxes {
 };
 
 struct AppSettings {
-	int windowWidth = 800;
-	int windowHeight = 600;
-	int windowX = 0;
-	int windowY = 0;
-	int maximized = 0;
-	int fontSize = 22;
+	int windowWidth;
+	int windowHeight;
+	int windowX;
+	int windowY;
+	int maximized;
+	int fontSize;
 	string gamedir;
-	bool valid = false;
-	int undoLevels = 64;
-	bool verboseLogs = false;
+	bool valid;
+	int undoLevels;
+	bool verboseLogs;
 
-	bool debug_open = false;
-	bool keyvalue_open = false;
-	bool transform_open = false;
-	bool log_open = false;
-	bool settings_open = false;
-	bool limits_open = false;
-	bool entreport_open = false;
-	int settings_tab = 0;
+	bool debug_open;
+	bool keyvalue_open;
+	bool transform_open;
+	bool log_open;
+	bool settings_open;
+	bool limits_open;
+	bool entreport_open;
+	int settings_tab;
 
 	float fov;
 	float zfar;
@@ -73,6 +73,7 @@ struct AppSettings {
 	vector<string> fgdPaths;
 	vector<string> resPaths;
 
+	void loadDefault();
 	void load();
 	void save();
 };
