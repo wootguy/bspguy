@@ -85,13 +85,6 @@ void AppSettings::loadDefault()
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
 		| RENDER_ENT_CLIPNODES;
 
-	// Restore default window height if invalid.
-	if (windowHeight <= 0 || windowWidth <= 0)
-	{
-		windowHeight = 600;
-		windowWidth = 800;
-	}
-
 	vsync = true;
 
 	moveSpeed = 4.0f;
@@ -162,6 +155,13 @@ void AppSettings::load() {
 		g_settings.windowY = 30;
 	}
 #endif
+
+	// Restore default window height if invalid.
+	if (windowHeight <= 0 || windowWidth <= 0)
+	{
+		windowHeight = 600;
+		windowWidth = 800;
+	}
 
 	if (fgdPaths.size() == 0) {
 		fgdPaths.push_back("/svencoop/sven-coop.fgd");
