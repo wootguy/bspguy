@@ -677,38 +677,41 @@ int main(int argc, char* argv[])
 	if (argc == 2) {
 		start_viewer(argv[1]);
 	}
+	else
+	{
+		if (cli.bspfile.empty()) {
+			logf("ERROR: no map specified\n"); 
+			return 1;
+		}
 
-	if (cli.bspfile.empty()) {
-		logf("ERROR: no map specified\n"); return 1;
-	}
+		if (cli.hasOption("-v")) {
+			g_verbose = true;
+		}
 
-	if (cli.hasOption("-v")) {
-		g_verbose = true;
-	}
-
-	if (cli.command == "info") {
-		return print_info(cli);
-	}
-	else if (cli.command == "noclip") {
-		return noclip(cli);
-	}
-	else if (cli.command == "simplify") {
-		return simplify(cli);
-	}
-	else if (cli.command == "delete") {
-		return deleteCmd(cli);
-	}
-	else if (cli.command == "transform") {
-		return transform(cli);
-	}
-	else if (cli.command == "merge") {
-		return merge_maps(cli);
-	}
-	else if (cli.command == "unembed") {
-		return unembed(cli);
-	}
-	else {
-		logf("unrecognized command: %d\n", cli.command.c_str());
+		if (cli.command == "info") {
+			return print_info(cli);
+		}
+		else if (cli.command == "noclip") {
+			return noclip(cli);
+		}
+		else if (cli.command == "simplify") {
+			return simplify(cli);
+		}
+		else if (cli.command == "delete") {
+			return deleteCmd(cli);
+		}
+		else if (cli.command == "transform") {
+			return transform(cli);
+		}
+		else if (cli.command == "merge") {
+			return merge_maps(cli);
+		}
+		else if (cli.command == "unembed") {
+			return unembed(cli);
+		}
+		else {
+			logf("unrecognized command: %d\n", cli.command.c_str());
+		}
 	}
 
 	return 0;

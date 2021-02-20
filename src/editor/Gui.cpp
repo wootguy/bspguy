@@ -2124,7 +2124,6 @@ void Gui::drawSettings() {
 				else
 				{
 					tmpFgdPaths.push_back(std::string());
-					tmpFgdPaths[tmpFgdPaths.size() - 1].resize(256);
 				}
 			}
 		}
@@ -2155,7 +2154,6 @@ void Gui::drawSettings() {
 				else
 				{
 					tmpResPaths.push_back(std::string());
-					tmpResPaths[tmpResPaths.size() - 1].resize(256);
 				}
 			}
 		}
@@ -2266,6 +2264,14 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
+				/* fixup gamedir */
+				if (g_settings.gamedir.size() && (g_settings.gamedir[g_settings.gamedir.size() - 1] == '/'
+					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\'))
+				{
+					g_settings.gamedir.pop_back();
+					sprintf(gamedir, "%s", g_settings.gamedir.c_str());
+				}
+
 				g_settings.fgdPaths.clear();
 				for (auto const& s : tmpFgdPaths)
 				{
