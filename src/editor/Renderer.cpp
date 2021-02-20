@@ -1248,6 +1248,10 @@ void Renderer::shortcutControls() {
 		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
 			gui->showTransformWidget = !gui->showTransformWidget;
 		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
+			gui->showGOTOWidget = !gui->showGOTOWidget;
+			gui->showGOTOWidget_update = true;
+		}
 		if (anyAltPressed && anyEnterPressed) {
 			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
 		}
@@ -2699,6 +2703,13 @@ void Renderer::selectEnt(Bsp* map, int entIdx) {
 	if (pickInfo.ent->isBspModel())
 		saveLumpState(pickInfo.map, 0xffffffff, true);
 	pickCount++; // force transform window update
+}
+
+void Renderer::goToCoords(float x, float y, float z)
+{
+	cameraOrigin.x = x;
+	cameraOrigin.y = y;
+	cameraOrigin.z = z;
 }
 
 void Renderer::goToEnt(Bsp* map, int entIdx) {

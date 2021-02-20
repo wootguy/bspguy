@@ -61,6 +61,8 @@ private:
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
 	bool showEntityReport = false;
+	bool showGOTOWidget = false;
+	bool showGOTOWidget_update = false;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	bool openSavedTabs = false;
@@ -109,6 +111,7 @@ private:
 	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
 	void drawKeyvalueEditor_FlagsTab(Entity* ent);
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
+	void drawGOTOWidget();
 	void drawTransformWidget();
 	void drawLog();
 	void drawSettings();
