@@ -106,6 +106,9 @@ void Gui::draw() {
 	if (showEntityReport) {
 		drawEntityReport();
 	}
+	if (showGOTOWidget) {
+		drawGOTOWidget();
+	}
 
 	if (app->pickMode == PICK_OBJECT) {
 		if (contextMenuEnt != -1) {
@@ -724,6 +727,10 @@ void Gui::drawMenuBar() {
 		}
 		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
 			showTransformWidget = !showTransformWidget;
+		}
+		if (ImGui::MenuItem("Go to", "Ctrl+G", showGOTOWidget)) {
+			showGOTOWidget = !showGOTOWidget;
+			showGOTOWidget_update = true;
 		}
 		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
 			showTextureWidget = !showTextureWidget;
@@ -1631,6 +1638,54 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	ImGui::EndChild();
 }
 
+void Gui::drawGOTOWidget() {
+	ImGui::SetNextWindowSize(ImVec2(410, 200), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(410, 200), ImVec2(410, 200));
+	static vec3 coordinates = vec3();
+	static vec3 angles = vec3();
+	float angles_y = 0.0f;
+	if (ImGui::Begin("Go to coordinates:", &showGOTOWidget, 0)) {
+		ImGuiStyle& style = ImGui::GetStyle();
+		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
+		if (showGOTOWidget_update)
+		{
+			coordinates = app->cameraOrigin;
+			angles = app->cameraAngles;
+			showGOTOWidget_update = false;
+		}
+		ImGui::Text("Coordinates");
+		ImGui::PushItemWidth(inputWidth);
+		ImGui::DragFloat("##xpos", &coordinates.x, 0.1f, 0, 0, "X: %.0f");
+		ImGui::SameLine();
+		ImGui::DragFloat("##ypos", &coordinates.y, 0.1f, 0, 0, "Y: %.0f");
+		ImGui::SameLine();
+		ImGui::DragFloat("##zpos", &coordinates.z, 0.1f, 0, 0, "Z: %.0f");
+		ImGui::PopItemWidth();
+		ImGui::Text("Angles");
+		ImGui::PushItemWidth(inputWidth);
+		ImGui::DragFloat("##xangles", &angles.x, 0.1f, 0, 0, "X: %.0f");
+		ImGui::SameLine();
+		ImGui::DragFloat("##yangles", &angles_y, 0.1f, 0, 0, "Y: %.0f");
+		ImGui::SameLine();
+		ImGui::DragFloat("##zangles", &angles.z, 0.1f, 0, 0, "Z: %.0f");
+		ImGui::PopItemWidth();
+
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+		if (ImGui::Button("Go to") )
+		{
+			app->cameraOrigin = coordinates;
+			app->cameraAngles = angles;
+			makeVectors(angles, app->cameraForward, app->cameraRight, app->cameraUp);
+		}
+		ImGui::PopStyleColor(3);
+
+	}
+
+	ImGui::End();
+}
 void Gui::drawTransformWidget() {
 	bool transformingEnt = app->pickInfo.valid && app->pickInfo.entIdx > 0;
 
