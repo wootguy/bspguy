@@ -1322,6 +1322,7 @@ void Renderer::pickObject() {
 	else if (pickMode == PICK_FACE) {
 		pickInfo.ent = NULL;
 		pickInfo.entIdx = -1;
+		gui->showLightmapEditorUpdate = true;
 
 		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {			
 			if (selectedFaces.size() && selectMapIdx != pickInfo.mapIdx) {

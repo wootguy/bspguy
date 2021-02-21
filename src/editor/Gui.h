@@ -60,9 +60,11 @@ private:
 	bool showAboutWidget = false;
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
+	bool showLightmapEditorWidget = false;
+	bool showLightmapEditorUpdate = true;
 	bool showEntityReport = false;
 	bool showGOTOWidget = false;
-	bool showGOTOWidget_update = false;
+	bool showGOTOWidget_update = true;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	bool openSavedTabs = false;
@@ -118,6 +120,7 @@ private:
 	void drawHelp();
 	void drawAbout();
 	void drawLimits();
+	void drawLightMapTool();
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);
 	void drawEntityReport();
