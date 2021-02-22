@@ -3272,7 +3272,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			ColorPicker3(colourPatch);
 			ImGui::Separator();
-			ImGui::Combo("Disable light:", &type, light_names, IM_ARRAYSIZE(light_names));
+			ImGui::Combo("- Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
 			app->mapRenderers[app->pickInfo.mapIdx]->showLightFlag = type - 1;
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
