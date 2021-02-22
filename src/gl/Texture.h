@@ -18,7 +18,7 @@ public:
 	~Texture();
 
 	// upload the texture with the specified settings
-	void upload(int format);
+	void upload(int format, bool lighmap = false);
 
 	// use this texture for rendering
 	void bind();

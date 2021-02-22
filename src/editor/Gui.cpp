@@ -739,7 +739,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
 			showTextureWidget = !showTextureWidget;
 		}
-		if (ImGui::MenuItem("Ligtmap Editor", "", showLightmapEditorWidget)) {
+		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
 			showLightmapEditorWidget = !showLightmapEditorWidget;
 			showLightmapEditorUpdate = true;
 		}
@@ -3122,14 +3122,16 @@ bool ColorPicker4(float col[4]) {
 
 
 void Gui::drawLightMapTool() {
-	static Texture* currentlightMap = nullptr;
-	static char exportPath[256] = "lightmap.bmp";
+	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr, };
 	static float colourPatch[3];
 
-	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(600, 400), ImVec2(600, 400));
+	int readLightmaps = /*MAXLIGHTMAPS*/ 1;
+	int windowWidth = 50 + readLightmaps * 200;
 
-	if (ImGui::Begin("LightMap Editor", &showLightmapEditorWidget)) {
+	ImGui::SetNextWindowSize(ImVec2(windowWidth, 520), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, 520), ImVec2(windowWidth, 520));
+
+	if (ImGui::Begin("LightMap Editor (WIP)", &showLightmapEditorWidget)) {
 
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
@@ -3137,103 +3139,127 @@ void Gui::drawLightMapTool() {
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
 
-			if (showLightmapEditorUpdate || currentlightMap == nullptr)
+			if (showLightmapEditorUpdate)
 			{
-				if (currentlightMap != nullptr)
-					delete currentlightMap;
-				int size[2];
-				GetFaceLightmapSize(map, faceIdx, size);
-				currentlightMap = new Texture(size[0], size[1]);
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					if (face.nStyles[s] == 255)
-						continue;
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + s * lightmapSz;
-					COLOR3* lightSrc = (COLOR3*)(map->lightdata + offset);
-					memcpy(currentlightMap->data, lightSrc, size[0] * size[1] * sizeof(COLOR3));
-					break;
+				for (int i = 0; i < readLightmaps; i++)
+				{
+					if (currentlightMap[i] != nullptr)
+						delete currentlightMap[i];
+					int size[2];
+					GetFaceLightmapSize(map, faceIdx, size);
+					currentlightMap[i] = new Texture(size[0], size[1]);
+					for (int s = 0; s < readLightmaps; s++) {
+						if (face.nStyles[s] == 255)
+							continue;
+						int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+						int offset = face.nLightmapOffset + s * lightmapSz;
+						COLOR3* lightSrc = (COLOR3*)(map->lightdata + offset);
+						memcpy(currentlightMap[i]->data, lightSrc, size[0] * size[1] * sizeof(COLOR3));
+						break;
+					}
+					currentlightMap[i]->upload(GL_RGB, true);
 				}
-				currentlightMap->upload(GL_RGB);
+
+				showLightmapEditorUpdate = false;
 			}
 			ImVec2 imgSize = ImVec2(200, 200);
-			if (ImGui::ImageButton((void*)currentlightMap->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
-				ImVec2 picker_pos = ImGui::GetCursorScreenPos();
-				ImVec2 mouse_pos_in_canvas = ImVec2( ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
-				int image_x = currentlightMap->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
-				int image_y = currentlightMap->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
-				if (image_x < 0)
+			for (int i = 0; i < readLightmaps; i++)
+			{
+				if (i == 1 || i > 2)
 				{
-					image_x = 0;
+					ImGui::SameLine();
 				}
-				if (image_y < 0)
+				else if (i == 2)
 				{
-					image_y = 0;
+					ImGui::Separator();
 				}
-				if (image_x > currentlightMap->width)
-				{
-					image_x = currentlightMap->width;
-				}
-				if (image_y > currentlightMap->height)
-				{
-					image_y = currentlightMap->height;
-				}
+				if (currentlightMap[i] == nullptr)
+					continue;
 
-				int offset = (currentlightMap->width * 3 * image_y) + (image_x * 3);
-				if (offset > currentlightMap->width * currentlightMap->height * 3)
-					offset = currentlightMap->width * currentlightMap->height * 3;
-				else if (offset < 0)
-					offset = 0;
+				if (ImGui::ImageButton((void*)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
+					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
+					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
+					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					if (image_x < 0)
+					{
+						image_x = 0;
+					}
+					if (image_y < 0)
+					{
+						image_y = 0;
+					}
+					if (image_x > currentlightMap[i]->width)
+					{
+						image_x = currentlightMap[i]->width;
+					}
+					if (image_y > currentlightMap[i]->height)
+					{
+						image_y = currentlightMap[i]->height;
+					}
 
-				currentlightMap->data[offset + 0] = colourPatch[0] * 255;
-				currentlightMap->data[offset + 1] = colourPatch[1] * 255;
-				currentlightMap->data[offset + 2] = colourPatch[2] * 255;
+					int offset = (currentlightMap[i]->width * 3 * image_y) + (image_x * 3);
+					if (offset > currentlightMap[i]->width * currentlightMap[i]->height * 3)
+						offset = currentlightMap[i]->width * currentlightMap[i]->height * 3;
+					else if (offset < 0)
+						offset = 0;
 
-				currentlightMap->upload(GL_RGB);
+					currentlightMap[i]->data[offset + 0] = colourPatch[0] * 255;
+					currentlightMap[i]->data[offset + 1] = colourPatch[1] * 255;
+					currentlightMap[i]->data[offset + 2] = colourPatch[2] * 255;
+
+					currentlightMap[i]->upload(GL_RGB, true);
+				}
+				ImGui::SameLine();
+				ImGui::Text("w\n%d\n\nh\n%d", currentlightMap[i]->width, currentlightMap[i]->height);
 			}
-
-			ImGui::SameLine();
-			ColorPicker3(colourPatch);
-
 			ImGui::Separator();
-
-			ImGui::Text("Lightmap size w/h = %d/%d", currentlightMap->width, currentlightMap->height);
-
+			ColorPicker3(colourPatch);
 			
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
 			{
 				int size[2];
 				GetFaceLightmapSize(map, faceIdx, size);
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					if (face.nStyles[s] == 255)
+
+				for (int i = 0; i < readLightmaps; i++) {
+					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
 						continue;
 					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + s * lightmapSz;
-					memcpy((COLOR3*)(map->lightdata + offset), currentlightMap->data, size[0] * size[1] * sizeof(COLOR3));
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					memcpy((COLOR3*)(map->lightdata + offset), currentlightMap[i]->data, size[0] * size[1] * sizeof(COLOR3));
 					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
-					break;
 				}
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reload", ImVec2(120, 0)))
 			{
-				int size[2];
-				GetFaceLightmapSize(map, faceIdx, size);
-				currentlightMap = new Texture(size[0], size[1]);
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					if (face.nStyles[s] == 255)
-						continue;
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + s * lightmapSz;
-					COLOR3* lightSrc = (COLOR3*)(map->lightdata + offset);
-					memcpy(currentlightMap->data, lightSrc, size[0] * size[1] * sizeof(COLOR3));
-					break;
-				}
-				currentlightMap->upload(GL_RGB);
+				showLightmapEditorUpdate = true;
 			}
-			
+			/* 
+					TODO: Export and import from file
+				ImGui::Separator();
+				if (ImGui::Button("Export", ImVec2(120, 0)))
+				{
+				
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Import", ImVec2(120, 0)))
+				{
+					showLightmapEditorUpdate = true;
+				}
+					TODO: Export/import all lightmaps from files
+				ImGui::Separator();
+				if (ImGui::Button("Export ALL", ImVec2(120, 0)))
+				{
 
-			showLightmapEditorUpdate = false;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Import ALL", ImVec2(120, 0)))
+				{
+					
+				}
+			*/
 		}
 		else
 		{
