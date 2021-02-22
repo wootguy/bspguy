@@ -3198,7 +3198,7 @@ void Gui::drawLightMapTool() {
 					ImGui::SameLine();
 					ImGui::Dummy(ImVec2(120, 5.0f));
 					ImGui::SameLine();
-					ImGui::TextDisabled(light_names[1]);
+					ImGui::TextDisabled(light_names[2]);
 				}
 
 				if (i == 2)
