@@ -55,8 +55,8 @@ Run 'bspguy <command> help' to read about a specific command.
 ### Windows users:
 1. Install CMake and Visual Studio
 1. Download and extract the source somewhere
-1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/latest/) and extract next to the `bspguy` folder. Rename to `imgui`.
-1. Download [GLFW](https://www.glfw.org/) and extract next to the `bspguy` folder. Rename to `glfw`.
+1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract next to the `src` folder. Rename to `imgui`.
+1. Download [GLFW](https://www.glfw.org/) and extract next to the `src` folder. Rename to `glfw`.
 1. Download [GLEW](http://glew.sourceforge.net/) (choose the  `Binaries 		Windows 32-bit and 64-bit` link) and extract next to the `src` folder. Rename to `glew`.
 1. Open a command prompt in the `bspguy` folder and run these commands:
     ```
@@ -69,7 +69,7 @@ Run 'bspguy <command> help' to read about a specific command.
 1. Install Git, CMake, X11, GLFW, and GLEW.
     * Debian: `sudo apt install git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libglew-dev`
 1. Download the source: `git clone https://github.com/wootguy/bspguy.git`
-1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/latest) and extract next to the `bspguy` folder. Rename to `imgui`.
+1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract next to the `src` folder. Rename to `imgui`.
 1. Open a shell in the `bspguy` folder and run these commands:
     ```
     mkdir build; cd build
