@@ -103,6 +103,9 @@ void Gui::draw() {
 	if (showTextureWidget) {
 		drawTextureTool();
 	}
+	if (showLightmapEditorWidget) {
+		drawLightMapTool();
+	}
 	if (showEntityReport) {
 		drawEntityReport();
 	}
@@ -732,8 +735,13 @@ void Gui::drawMenuBar() {
 			showGOTOWidget = !showGOTOWidget;
 			showGOTOWidget_update = true;
 		}
+
 		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
 			showTextureWidget = !showTextureWidget;
+		}
+		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
+			showLightmapEditorWidget = !showLightmapEditorWidget;
+			showLightmapEditorUpdate = true;
 		}
 		if (ImGui::MenuItem("Log", "", showLogWidget)) {
 			showLogWidget = !showLogWidget;
@@ -1674,7 +1682,7 @@ void Gui::drawGOTOWidget() {
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-		if (ImGui::Button("Go to") )
+		if (ImGui::Button("Go to"))
 		{
 			app->cameraOrigin = coordinates;
 			app->cameraAngles = angles;
@@ -2904,6 +2912,421 @@ void Gui::drawEntityReport() {
 	ImGui::End();
 }
 
+
+static bool ColorPicker(float* col, bool alphabar)
+{
+	const int    EDGE_SIZE = 200; // = int( ImGui::GetWindowWidth() * 0.75f );
+	const ImVec2 SV_PICKER_SIZE = ImVec2(EDGE_SIZE, EDGE_SIZE);
+	const float  SPACING = ImGui::GetStyle().ItemInnerSpacing.x;
+	const float  HUE_PICKER_WIDTH = 20.f;
+	const float  CROSSHAIR_SIZE = 7.0f;
+
+	ImColor color(col[0], col[1], col[2]);
+	bool value_changed = false;
+
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+	// setup
+
+	ImVec2 picker_pos = ImGui::GetCursorScreenPos();
+
+	float hue, saturation, value;
+	ImGui::ColorConvertRGBtoHSV(
+		color.Value.x, color.Value.y, color.Value.z, hue, saturation, value);
+
+	// draw hue bar
+
+	ImColor colors[] = { ImColor(255, 0, 0),
+		ImColor(255, 255, 0),
+		ImColor(0, 255, 0),
+		ImColor(0, 255, 255),
+		ImColor(0, 0, 255),
+		ImColor(255, 0, 255),
+		ImColor(255, 0, 0) };
+
+	for (int i = 0; i < 6; ++i)
+	{
+		draw_list->AddRectFilledMultiColor(
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + SPACING, picker_pos.y + i * (SV_PICKER_SIZE.y / 6)),
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + SPACING + HUE_PICKER_WIDTH,
+				picker_pos.y + (i + 1) * (SV_PICKER_SIZE.y / 6)),
+			colors[i],
+			colors[i],
+			colors[i + 1],
+			colors[i + 1]);
+	}
+
+	draw_list->AddLine(
+		ImVec2(picker_pos.x + SV_PICKER_SIZE.x + SPACING - 2, picker_pos.y + hue * SV_PICKER_SIZE.y),
+		ImVec2(picker_pos.x + SV_PICKER_SIZE.x + SPACING + 2 + HUE_PICKER_WIDTH, picker_pos.y + hue * SV_PICKER_SIZE.y),
+		ImColor(255, 255, 255));
+
+	// draw alpha bar
+
+	if (alphabar) {
+		float alpha = col[3];
+
+		draw_list->AddRectFilledMultiColor(
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + 2 * SPACING + HUE_PICKER_WIDTH, picker_pos.y),
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + 2 * SPACING + 2 * HUE_PICKER_WIDTH, picker_pos.y + SV_PICKER_SIZE.y),
+			ImColor(0, 0, 0), ImColor(0, 0, 0), ImColor(255, 255, 255), ImColor(255, 255, 255));
+
+		draw_list->AddLine(
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + 2 * (SPACING - 2) + HUE_PICKER_WIDTH, picker_pos.y + alpha * SV_PICKER_SIZE.y),
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x + 2 * (SPACING + 2) + 2 * HUE_PICKER_WIDTH, picker_pos.y + alpha * SV_PICKER_SIZE.y),
+			ImColor(255.f - alpha, 255.f, 255.f));
+	}
+
+	// draw color matrix
+
+	{
+		const ImU32 c_oColorBlack = ImGui::ColorConvertFloat4ToU32(ImVec4(0.f, 0.f, 0.f, 1.f));
+		const ImU32 c_oColorBlackTransparent = ImGui::ColorConvertFloat4ToU32(ImVec4(0.f, 0.f, 0.f, 0.f));
+		const ImU32 c_oColorWhite = ImGui::ColorConvertFloat4ToU32(ImVec4(1.f, 1.f, 1.f, 1.f));
+
+		ImVec4 cHueValue(1, 1, 1, 1);
+		ImGui::ColorConvertHSVtoRGB(hue, 1, 1, cHueValue.x, cHueValue.y, cHueValue.z);
+		ImU32 oHueColor = ImGui::ColorConvertFloat4ToU32(cHueValue);
+
+		draw_list->AddRectFilledMultiColor(
+			ImVec2(picker_pos.x, picker_pos.y),
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x, picker_pos.y + SV_PICKER_SIZE.y),
+			c_oColorWhite,
+			oHueColor,
+			oHueColor,
+			c_oColorWhite
+		);
+
+		draw_list->AddRectFilledMultiColor(
+			ImVec2(picker_pos.x, picker_pos.y),
+			ImVec2(picker_pos.x + SV_PICKER_SIZE.x, picker_pos.y + SV_PICKER_SIZE.y),
+			c_oColorBlackTransparent,
+			c_oColorBlackTransparent,
+			c_oColorBlack,
+			c_oColorBlack
+		);
+	}
+
+	// draw cross-hair
+
+	float x = saturation * SV_PICKER_SIZE.x;
+	float y = (1 - value) * SV_PICKER_SIZE.y;
+	ImVec2 p(picker_pos.x + x, picker_pos.y + y);
+	draw_list->AddLine(ImVec2(p.x - CROSSHAIR_SIZE, p.y), ImVec2(p.x - 2, p.y), ImColor(255, 255, 255));
+	draw_list->AddLine(ImVec2(p.x + CROSSHAIR_SIZE, p.y), ImVec2(p.x + 2, p.y), ImColor(255, 255, 255));
+	draw_list->AddLine(ImVec2(p.x, p.y + CROSSHAIR_SIZE), ImVec2(p.x, p.y + 2), ImColor(255, 255, 255));
+	draw_list->AddLine(ImVec2(p.x, p.y - CROSSHAIR_SIZE), ImVec2(p.x, p.y - 2), ImColor(255, 255, 255));
+
+	// color matrix logic
+
+	ImGui::InvisibleButton("saturation_value_selector", SV_PICKER_SIZE);
+
+	if (ImGui::IsItemActive() && ImGui::GetIO().MouseDown[0])
+	{
+		ImVec2 mouse_pos_in_canvas = ImVec2(
+			ImGui::GetIO().MousePos.x - picker_pos.x, ImGui::GetIO().MousePos.y - picker_pos.y);
+
+		/**/ if (mouse_pos_in_canvas.x < 0) mouse_pos_in_canvas.x = 0;
+		else if (mouse_pos_in_canvas.x >= SV_PICKER_SIZE.x - 1) mouse_pos_in_canvas.x = SV_PICKER_SIZE.x - 1;
+
+		/**/ if (mouse_pos_in_canvas.y < 0) mouse_pos_in_canvas.y = 0;
+		else if (mouse_pos_in_canvas.y >= SV_PICKER_SIZE.y - 1) mouse_pos_in_canvas.y = SV_PICKER_SIZE.y - 1;
+
+		value = 1 - (mouse_pos_in_canvas.y / (SV_PICKER_SIZE.y - 1));
+		saturation = mouse_pos_in_canvas.x / (SV_PICKER_SIZE.x - 1);
+		value_changed = true;
+	}
+
+	// hue bar logic
+
+	ImGui::SetCursorScreenPos(ImVec2(picker_pos.x + SPACING + SV_PICKER_SIZE.x, picker_pos.y));
+	ImGui::InvisibleButton("hue_selector", ImVec2(HUE_PICKER_WIDTH, SV_PICKER_SIZE.y));
+
+	if (ImGui::GetIO().MouseDown[0] && (ImGui::IsItemHovered() || ImGui::IsItemActive()))
+	{
+		ImVec2 mouse_pos_in_canvas = ImVec2(
+			ImGui::GetIO().MousePos.x - picker_pos.x, ImGui::GetIO().MousePos.y - picker_pos.y);
+
+		/**/ if (mouse_pos_in_canvas.y < 0) mouse_pos_in_canvas.y = 0;
+		else if (mouse_pos_in_canvas.y >= SV_PICKER_SIZE.y - 1) mouse_pos_in_canvas.y = SV_PICKER_SIZE.y - 1;
+
+		hue = mouse_pos_in_canvas.y / (SV_PICKER_SIZE.y - 1);
+		value_changed = true;
+	}
+
+	// alpha bar logic
+
+	if (alphabar) {
+
+		ImGui::SetCursorScreenPos(ImVec2(picker_pos.x + SPACING * 2 + HUE_PICKER_WIDTH + SV_PICKER_SIZE.x, picker_pos.y));
+		ImGui::InvisibleButton("alpha_selector", ImVec2(HUE_PICKER_WIDTH, SV_PICKER_SIZE.y));
+
+		if (ImGui::GetIO().MouseDown[0] && (ImGui::IsItemHovered() || ImGui::IsItemActive()))
+		{
+			ImVec2 mouse_pos_in_canvas = ImVec2(
+				ImGui::GetIO().MousePos.x - picker_pos.x, ImGui::GetIO().MousePos.y - picker_pos.y);
+
+			/**/ if (mouse_pos_in_canvas.y < 0) mouse_pos_in_canvas.y = 0;
+			else if (mouse_pos_in_canvas.y >= SV_PICKER_SIZE.y - 1) mouse_pos_in_canvas.y = SV_PICKER_SIZE.y - 1;
+
+			float alpha = mouse_pos_in_canvas.y / (SV_PICKER_SIZE.y - 1);
+			col[3] = alpha;
+			value_changed = true;
+		}
+
+	}
+
+	// R,G,B or H,S,V color editor
+
+	color = ImColor::HSV(hue >= 1 ? hue - 10 * 1e-6 : hue, saturation > 0 ? saturation : 10 * 1e-6, value > 0 ? value : 1e-6);
+	col[0] = color.Value.x;
+	col[1] = color.Value.y;
+	col[2] = color.Value.z;
+
+	bool widget_used;
+	ImGui::PushItemWidth((alphabar ? SPACING + HUE_PICKER_WIDTH : 0) +
+		SV_PICKER_SIZE.x + SPACING + HUE_PICKER_WIDTH - 2 * ImGui::GetStyle().FramePadding.x);
+	widget_used = alphabar ? ImGui::ColorEdit4("", col) : ImGui::ColorEdit3("", col);
+	ImGui::PopItemWidth();
+
+	// try to cancel hue wrap (after ColorEdit), if any
+	{
+		float new_hue, new_sat, new_val;
+		ImGui::ColorConvertRGBtoHSV(col[0], col[1], col[2], new_hue, new_sat, new_val);
+		if (new_hue <= 0 && hue > 0) {
+			if (new_val <= 0 && value != new_val) {
+				color = ImColor::HSV(hue, saturation, new_val <= 0 ? value * 0.5f : new_val);
+				col[0] = color.Value.x;
+				col[1] = color.Value.y;
+				col[2] = color.Value.z;
+			}
+			else
+				if (new_sat <= 0) {
+					color = ImColor::HSV(hue, new_sat <= 0 ? saturation * 0.5f : new_sat, new_val);
+					col[0] = color.Value.x;
+					col[1] = color.Value.y;
+					col[2] = color.Value.z;
+				}
+		}
+	}
+	return value_changed | widget_used;
+}
+
+bool ColorPicker3(float col[3]) {
+	return ColorPicker(col, false);
+}
+
+bool ColorPicker4(float col[4]) {
+	return ColorPicker(col, true);
+}
+
+
+void Gui::drawLightMapTool() {
+	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
+	static float colourPatch[3];
+
+	int readLightmaps = MAXLIGHTMAPS;
+	int windowWidth = 50 + readLightmaps > 1 ? 500 : 200;
+	int windowHeight = 520;
+
+	const char* light_names[] =
+	{
+		"OFF",
+		"Main light",
+		"Light 1",
+		"Light 2",
+		"Light 3"
+	};
+	static int type = 0;
+
+	ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, windowHeight), ImVec2(windowWidth, FLT_MAX));
+
+	if (ImGui::Begin("LightMap Editor (WIP)", &showLightmapEditorWidget)) {
+		ImGui::Dummy(ImVec2(windowWidth / 2.45f, 10.0f));
+		ImGui::SameLine();
+		ImGui::TextDisabled("(WIP)");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted("Almost always breaks lightmaps if changed.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		
+		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
+		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
+		{
+			int faceIdx = app->selectedFaces[0];
+			BSPFACE& face = map->faces[faceIdx];
+			int size[2];
+			GetFaceLightmapSize(map, faceIdx, size);
+
+
+			if (showLightmapEditorUpdate)
+			{
+				for (int i = 0; i < readLightmaps; i++)
+				{
+					if (currentlightMap[i] != nullptr)
+						delete currentlightMap[i];
+					currentlightMap[i] = nullptr;
+				}
+
+				for (int i = 0; i < readLightmaps; i++) {
+					if (face.nStyles[i] == 255)
+						continue;
+					currentlightMap[i] = new Texture(size[0], size[1]);
+					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
+					currentlightMap[i]->upload(GL_RGB, true);
+					//logf("upload %d style at offset %d\n", i, offset);
+				}
+
+				showLightmapEditorUpdate = false;
+			}
+			ImVec2 imgSize = ImVec2(200, 200);
+			for (int i = 0; i < readLightmaps; i++)
+			{
+				if (i == 0)
+				{
+					ImGui::Separator();
+					ImGui::Dummy(ImVec2(50, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[1]);
+					ImGui::SameLine();
+					ImGui::Dummy(ImVec2(120, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[2]);
+				}
+
+				if (i == 2)
+				{
+					ImGui::Separator();
+					ImGui::Dummy(ImVec2(50, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[3]);
+					ImGui::SameLine();
+					ImGui::Dummy(ImVec2(150, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[4]);
+				}
+
+				if (i == 1 || i > 2)
+				{
+					ImGui::SameLine();
+				}
+				else if (i == 2)
+				{
+					ImGui::Separator();
+				}
+
+				if (currentlightMap[i] == nullptr)
+				{
+					ImGui::Dummy(ImVec2(200, 200));
+					continue;
+				}
+
+				if (ImGui::ImageButton((void*)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
+					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
+					if (i == 1 || i == 3)
+					{
+						picker_pos.x += 208;
+					}
+					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					
+
+					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
+					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					if (image_x < 0)
+					{
+						image_x = 0;
+					}
+					if (image_y < 0)
+					{
+						image_y = 0;
+					}
+					if (image_x > currentlightMap[i]->width)
+					{
+						image_x = currentlightMap[i]->width;
+					}
+					if (image_y > currentlightMap[i]->height)
+					{
+						image_y = currentlightMap[i]->height;
+					}
+
+					int offset = (currentlightMap[i]->width * sizeof(COLOR3) * image_y) + (image_x * sizeof(COLOR3));
+					if (offset >= currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3))
+						offset = (currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3)) - 1;
+					if (offset < 0)
+						offset = 0;
+
+					currentlightMap[i]->data[offset + 0] = colourPatch[0] * 255;
+					currentlightMap[i]->data[offset + 1] = colourPatch[1] * 255;
+					currentlightMap[i]->data[offset + 2] = colourPatch[2] * 255;
+					currentlightMap[i]->upload(GL_RGB, true);
+					//logf("%f %f %f %f %d %d = %d \n", picker_pos.x, picker_pos.y, mouse_pos_in_canvas.x, mouse_pos_in_canvas.y, image_x, image_y, i);
+				}
+			}
+			ImGui::Separator();
+			ImGui::Text("Lightmap size width:%d height:%d", size[0], size[1]);
+			ImGui::Separator();
+			ColorPicker3(colourPatch);
+			ImGui::Separator();
+			ImGui::Combo("Disable light:", &type, light_names, IM_ARRAYSIZE(light_names));
+			app->mapRenderers[app->pickInfo.mapIdx]->showLightFlag = type - 1;
+			ImGui::Separator();
+			if (ImGui::Button("Save", ImVec2(120, 0)))
+			{
+				for (int i = 0; i < readLightmaps; i++) {
+					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+						continue;
+					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
+				}
+
+				app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reload", ImVec2(120, 0)))
+			{
+				showLightmapEditorUpdate = true;
+			}
+			/* 
+					TODO: Export and import from file
+				ImGui::Separator();
+				if (ImGui::Button("Export", ImVec2(120, 0)))
+				{
+				
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Import", ImVec2(120, 0)))
+				{
+					showLightmapEditorUpdate = true;
+				}
+					TODO: Export/import all lightmaps from files
+				ImGui::Separator();
+				if (ImGui::Button("Export ALL", ImVec2(120, 0)))
+				{
+
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Import ALL", ImVec2(120, 0)))
+				{
+					
+				}
+			*/
+		}
+		else
+		{
+			ImGui::Text("No selected face");
+		}
+
+	}
+	ImGui::End();
+}
 void Gui::drawTextureTool() {
 	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));

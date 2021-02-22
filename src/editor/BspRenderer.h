@@ -98,6 +98,7 @@ public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
+	int showLightFlag = -1;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
@@ -163,6 +164,7 @@ private:
 	int numFaceMaths;
 	int numPointEnts;
 	int numLoadedTextures = 0;
+
 
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;
