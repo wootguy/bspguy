@@ -55,11 +55,12 @@ set(SOURCE_FILES
 	
 	# library files
 	imgui/imgui.cpp
+	imgui/imgui_tables.cpp
 	imgui/imgui_widgets.cpp
 	imgui/imgui_draw.cpp
 	imgui/imgui_demo.cpp
-	imgui/examples/imgui_impl_glfw.cpp
-	imgui/examples/imgui_impl_opengl3.cpp
+	imgui/backends/imgui_impl_glfw.cpp
+	imgui/backends/imgui_impl_opengl3.cpp
 	src/util/lodepng.h
 	src/util/lodepng.cpp
 )
@@ -74,6 +75,7 @@ include_directories(src/qtools)
 include_directories(src/util)
 include_directories(imgui)
 include_directories(imgui/examples)
+include_directories(imgui/backends)
 include_directories(glew/include)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
@@ -167,11 +169,12 @@ if(MSVC)
 	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)
 	
 	source_group("Source Files\\util\\lib" FILES	imgui/imgui.cpp
+													imgui/imgui_tables.cpp
 													imgui/imgui_widgets.cpp
 													imgui/imgui_draw.cpp
 													imgui/imgui_demo.cpp
-													imgui/examples/imgui_impl_glfw.cpp
-													imgui/examples/imgui_impl_opengl3.cpp
+													imgui/backends/imgui_impl_glfw.cpp
+													imgui/backends/imgui_impl_opengl3.cpp
 													src/util/lodepng.cpp)
 
 else()
