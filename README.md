@@ -54,11 +54,11 @@ Run 'bspguy <command> help' to read about a specific command.
 # Building the source
 ### Windows users:
 1. Install CMake and Visual Studio
-1. Download and extract the source somewhere
-1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract next to the `src` folder. Rename to `imgui`.
-1. Download [GLFW](https://www.glfw.org/) and extract next to the `src` folder. Rename to `glfw`.
-1. Download [GLEW](http://glew.sourceforge.net/) (choose the  `Binaries 		Windows 32-bit and 64-bit` link) and extract next to the `src` folder. Rename to `glew`.
-1. Open a command prompt in the `bspguy` folder and run these commands:
+1. Download and extract [the source](https://github.com/wootguy/bspguy/archive/master.zip) somewhere
+1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract into the `bspguy-master` folder. Rename to `imgui`.
+1. Download [GLFW](https://www.glfw.org/) and extract into the `bspguy-master` folder. Rename to `glfw`.
+1. Download [GLEW](http://glew.sourceforge.net/) (choose the  `Binaries 		Windows 32-bit and 64-bit` link) and extract into the `bspguy-master` folder. Rename to `glew`.
+1. Open a command prompt in the `bspguy-master` folder and run these commands:
     ```
     mkdir build && cd build
     cmake ..
