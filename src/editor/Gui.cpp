@@ -3306,12 +3306,6 @@ void Gui::drawLightMapTool() {
 		else
 		{
 			ImGui::Text("No selected face");
-			ImGui::Separator();
-
-			if (ImGui::Button("OK", ImVec2(120, 0)))
-			{
-
-			}
 		}
 
 	}
