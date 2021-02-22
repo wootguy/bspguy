@@ -3269,8 +3269,9 @@ void Gui::drawLightMapTool() {
 					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
-					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 				}
+
+				app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reload", ImVec2(120, 0)))
