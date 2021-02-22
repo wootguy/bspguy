@@ -3122,49 +3122,78 @@ bool ColorPicker4(float col[4]) {
 
 
 void Gui::drawLightMapTool() {
-	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr, };
+	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 	static float colourPatch[3];
 
-	int readLightmaps = /*MAXLIGHTMAPS*/ 1;
-	int windowWidth = 50 + readLightmaps * 200;
+	int readLightmaps = MAXLIGHTMAPS;
+	int windowWidth = 50 + readLightmaps > 1 ? 500 : 200;
+	int windowHeight = 520;
 
-	ImGui::SetNextWindowSize(ImVec2(windowWidth, 520), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, 520), ImVec2(windowWidth, 520));
+	ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, windowHeight), ImVec2(windowWidth, windowHeight));
 
 	if (ImGui::Begin("LightMap Editor (WIP)", &showLightmapEditorWidget)) {
-
+		ImGui::Dummy(ImVec2(windowWidth / 2.45f, 10.0f));
+		ImGui::SameLine();
+		ImGui::TextDisabled("(WIP)");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted("Almost always breaks lightmaps if changed.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
 		{
+
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
 
 			if (showLightmapEditorUpdate)
 			{
+				int size[2];
+				GetFaceLightmapSize(map, faceIdx, size);
+
 				for (int i = 0; i < readLightmaps; i++)
 				{
 					if (currentlightMap[i] != nullptr)
 						delete currentlightMap[i];
-					int size[2];
-					GetFaceLightmapSize(map, faceIdx, size);
-					currentlightMap[i] = new Texture(size[0], size[1]);
-					for (int s = 0; s < readLightmaps; s++) {
-						if (face.nStyles[s] == 255)
-							continue;
-						int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-						int offset = face.nLightmapOffset + s * lightmapSz;
-						COLOR3* lightSrc = (COLOR3*)(map->lightdata + offset);
-						memcpy(currentlightMap[i]->data, lightSrc, size[0] * size[1] * sizeof(COLOR3));
-						break;
-					}
-					currentlightMap[i]->upload(GL_RGB, true);
+					currentlightMap[i] = nullptr;
 				}
+
+				for (int i = 0; i < readLightmaps; i++) {
+					if (face.nStyles[i] == 255)
+						continue;
+					currentlightMap[i] = new Texture(size[0], size[1]);
+					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
+					currentlightMap[i]->upload(GL_RGB, true);
+					logf("upload %d style at offset %d\n", i, offset);
+				}
+
+		
 
 				showLightmapEditorUpdate = false;
 			}
 			ImVec2 imgSize = ImVec2(200, 200);
 			for (int i = 0; i < readLightmaps; i++)
 			{
+				if (i == 0)
+				{
+					ImGui::Separator();
+					ImGui::Dummy(ImVec2(50, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled("Main style");
+					ImGui::SameLine();
+					ImGui::Dummy(ImVec2(120, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled("Light enabled");
+				}
+
 				if (i == 1 || i > 2)
 				{
 					ImGui::SameLine();
@@ -3173,12 +3202,24 @@ void Gui::drawLightMapTool() {
 				{
 					ImGui::Separator();
 				}
+
 				if (currentlightMap[i] == nullptr)
+				{
+					ImGui::Dummy(ImVec2(200, 200));
+					ImGui::SameLine();
+					ImGui::Text("w\n%d\n\nh\n%d", 0, 0);
 					continue;
+				}
 
 				if (ImGui::ImageButton((void*)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
 					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
+					if (i == 1 || i == 3)
+					{
+						picker_pos.x += 240;
+					}
 					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					
+
 					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
 					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
 					if (image_x < 0)
@@ -3198,17 +3239,17 @@ void Gui::drawLightMapTool() {
 						image_y = currentlightMap[i]->height;
 					}
 
-					int offset = (currentlightMap[i]->width * 3 * image_y) + (image_x * 3);
-					if (offset > currentlightMap[i]->width * currentlightMap[i]->height * 3)
-						offset = currentlightMap[i]->width * currentlightMap[i]->height * 3;
-					else if (offset < 0)
+					int offset = (currentlightMap[i]->width * sizeof(COLOR3) * image_y) + (image_x * sizeof(COLOR3));
+					if (offset >= currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3))
+						offset = (currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3)) - 1;
+					if (offset < 0)
 						offset = 0;
 
 					currentlightMap[i]->data[offset + 0] = colourPatch[0] * 255;
 					currentlightMap[i]->data[offset + 1] = colourPatch[1] * 255;
 					currentlightMap[i]->data[offset + 2] = colourPatch[2] * 255;
-
 					currentlightMap[i]->upload(GL_RGB, true);
+					//logf("%f %f %f %f %d %d = %d \n", picker_pos.x, picker_pos.y, mouse_pos_in_canvas.x, mouse_pos_in_canvas.y, image_x, image_y, i);
 				}
 				ImGui::SameLine();
 				ImGui::Text("w\n%d\n\nh\n%d", currentlightMap[i]->width, currentlightMap[i]->height);
@@ -3227,7 +3268,7 @@ void Gui::drawLightMapTool() {
 						continue;
 					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 					int offset = face.nLightmapOffset + i * lightmapSz;
-					memcpy((COLOR3*)(map->lightdata + offset), currentlightMap[i]->data, size[0] * size[1] * sizeof(COLOR3));
+					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
 					app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 				}
 			}

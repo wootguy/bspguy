@@ -52,6 +52,13 @@ void Texture::upload(int format, bool lightmap)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
+
+	if (format == GL_RGB)
+	{
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	}
+
+
 	//glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
 	// TODO: load mipmaps from BSP/WAD
