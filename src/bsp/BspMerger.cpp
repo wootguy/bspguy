@@ -1628,6 +1628,8 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	COLOR3* thisRad = (COLOR3*)mapA.lightdata;
 	COLOR3* otherRad = (COLOR3*)mapB.lightdata;
+	bool freemem = false;
+
 	int thisColorCount = mapA.header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
 	int otherColorCount = mapB.header.lump[LUMP_LIGHTING].nLength / sizeof(COLOR3);
 	int totalColorCount = thisColorCount + otherColorCount;
@@ -1657,7 +1659,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 		otherColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
 		totalColorCount += otherColorCount;
 		otherRad = new COLOR3[otherColorCount];
-
+		freemem = true;
 		memset(otherRad, 255, otherColorCount * sizeof(COLOR3));
 
 		for (int i = thisWorldFaceCount; i < thisWorldFaceCount + otherFaceCount; i++) {
@@ -1673,7 +1675,10 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	
 	g_progress.tick();
 	memcpy((byte*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
-	
+	if (freemem)
+	{
+		delete[] otherRad;
+	}
 	g_progress.tick();
 	mapA.replace_lump(LUMP_LIGHTING, newRad, totalColorCount * sizeof(COLOR3));
 

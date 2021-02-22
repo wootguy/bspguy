@@ -96,6 +96,7 @@ const BSPPLANE getPlaneFromFace(Bsp* bsp, const BSPFACE* const face)
 	if (!face)
 	{
 		logf("getPlaneFromFace() face was NULL\n");
+		return BSPPLANE();
 	}
 
 	if (face->nPlaneSide)

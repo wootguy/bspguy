@@ -398,6 +398,7 @@ void Renderer::renderLoop() {
 		frameTimeScale = 0.05f / frameDelta;
 		float fps = 1.0f / frameDelta;
 		
+		//FIXME : frameTimeScale = 0.05f / frameDelta ???
 		frameTimeScale = 144.0f / fps;
 
 		lastFrameTime = glfwGetTime();
@@ -936,7 +937,7 @@ void Renderer::cameraPickingControls() {
 				gui->reloadLimits();
 
 				int modelIdx = pickInfo.ent->getBspModelIdx();
-				if (pickInfo.modelIdx >= 0)
+				if (modelIdx >= 0)
 					mapRenderers[pickInfo.mapIdx]->refreshModel(modelIdx);
 			}
 			

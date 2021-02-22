@@ -237,25 +237,28 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
 	vector<NodeVolumeCuts> modelVolumeCuts;
 
-	int nodeIdx = models[modelIdx].iHeadnodes[hullIdx];
-	bool is_valid_node = false;
-	if (hullIdx == 0) {
-		is_valid_node = nodeIdx >= 0 && nodeIdx < nodeCount;
-	} else {
-		is_valid_node = nodeIdx >= 0 && nodeIdx < clipnodeCount;
-	}
-
-
-	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS && nodeIdx >= 0 && is_valid_node) {
-		vector<BSPPLANE> clipOrder;
+	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS)
+	{
+		int nodeIdx = models[modelIdx].iHeadnodes[hullIdx];
+		bool is_valid_node = false;
+		
 		if (hullIdx == 0) {
-			get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+			is_valid_node = nodeIdx >= 0 && nodeIdx < nodeCount;
 		}
 		else {
-			get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+			is_valid_node = nodeIdx >= 0 && nodeIdx < clipnodeCount;
+		}
+
+		if (nodeIdx >= 0 && is_valid_node) {
+			vector<BSPPLANE> clipOrder;
+			if (hullIdx == 0) {
+				get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+			}
+			else {
+				get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+			}
 		}
 	}
-
 	return modelVolumeCuts;
 }
 
@@ -409,6 +412,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 	map<int, bool> shouldFlipChildren;
 	for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
 		int iPlane = it->first;
+		
 		vector<vec3>& verts = it->second;
 
 		if (verts.size() < 3) {
@@ -467,7 +471,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 				if (node.iPlane == iPlane) {
 					int16 temp = node.iChildren[0];
 					node.iChildren[0] = node.iChildren[1];
-					node.iChildren[1] = node.iChildren[0];
+					node.iChildren[1] = temp;
 				}
 			}
 		}
@@ -574,8 +578,8 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 	if (fabs(target.nMins.x) > MAX_MAP_COORD ||
 		fabs(target.nMins.y) > MAX_MAP_COORD ||
 		fabs(target.nMins.z) > MAX_MAP_COORD ||
-		fabs(target.nMaxs.z) > MAX_MAP_COORD ||
-		fabs(target.nMaxs.z) > MAX_MAP_COORD ||
+		fabs(target.nMaxs.x) > MAX_MAP_COORD ||
+		fabs(target.nMaxs.y) > MAX_MAP_COORD ||
 		fabs(target.nMaxs.z) > MAX_MAP_COORD) {
 		logf("\nWARNING: Model moved past safe world boundary!\n");
 	}
@@ -663,8 +667,8 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
 	}
 
-	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0];
-	byte* textures = lumps[LUMP_TEXTURES];
+	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0]; // unused
+	byte* textures = lumps[LUMP_TEXTURES]; // unused
 
 	for (int i = 0; i < texinfoCount; i++) {
 		if (!shouldBeMoved.texInfo[i]) {
@@ -3844,10 +3848,12 @@ void Bsp::write_csg_polys(int16_t nodeIdx, FILE* polyfile, int flipPlaneSkip, bo
 				continue;
 			BSPFACE& face = faces[marksurfs[i]];
 
+			// FIXME : z always == 1
 			bool flipped = (z == 1 || face.nPlaneSide) && !(z == 1 && face.nPlaneSide);
 
 			int iPlane = !flipped ? face.iPlane : face.iPlane + flipPlaneSkip;
 
+			// FIXME : z always == 1
 			// contents in front of the face
 			int faceContents = z == 1 ? leaf.nContents : CONTENTS_SOLID;
 

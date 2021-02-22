@@ -1271,7 +1271,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 				{
 					for (int k = 0; k < keyvalue.choices.size(); k++) {
 						KeyvalueChoice& choice = keyvalue.choices[k];
-						bool selected = choice.svalue == value || value.empty() && choice.svalue == keyvalue.defaultValue;
+						bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
 
 						if (ImGui::Selectable(choice.name.c_str(), selected)) {
 							ent->setOrAddKeyvalue(key, choice.svalue);
@@ -1523,7 +1523,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
 			{
 				int n_next = (ImGui::GetMousePos().y - startY) / (ImGui::GetItemRectSize().y + style.FramePadding.y * 2);
-				if (n_next >= 0 && n_next < ent->keyOrder.size() && n_next < 128)
+				if (n_next >= 0 && n_next < ent->keyOrder.size() && n_next < MAX_KEYS_PER_ENT)
 				{
 					dragIds[i] = dragIds[n_next];
 					dragIds[n_next] = item;
@@ -1901,8 +1901,7 @@ void Gui::drawTransformWidget() {
 
 		const int grid_snap_modes = 11;
 		const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
-		static int current_element = app->gridSnapLevel;
-		current_element = app->gridSnapLevel + 1;
+		static int current_element = app->gridSnapLevel + 1;
 
 		ImGui::Columns(2, 0, false);
 		ImGui::SetColumnWidth(0, inputWidth4);
@@ -3125,8 +3124,7 @@ void Gui::drawLightMapTool() {
 	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 	static float colourPatch[3];
 
-	int readLightmaps = MAXLIGHTMAPS;
-	int windowWidth = 50 + readLightmaps > 1 ? 500 : 200;
+	int windowWidth = 50 + MAXLIGHTMAPS > 1 ? 500 : 200;
 	int windowHeight = 520;
 
 	const char* light_names[] =
@@ -3166,14 +3164,14 @@ void Gui::drawLightMapTool() {
 
 			if (showLightmapEditorUpdate)
 			{
-				for (int i = 0; i < readLightmaps; i++)
+				for (int i = 0; i < MAXLIGHTMAPS; i++)
 				{
 					if (currentlightMap[i] != nullptr)
 						delete currentlightMap[i];
 					currentlightMap[i] = nullptr;
 				}
 
-				for (int i = 0; i < readLightmaps; i++) {
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255)
 						continue;
 					currentlightMap[i] = new Texture(size[0], size[1]);
@@ -3187,7 +3185,7 @@ void Gui::drawLightMapTool() {
 				showLightmapEditorUpdate = false;
 			}
 			ImVec2 imgSize = ImVec2(200, 200);
-			for (int i = 0; i < readLightmaps; i++)
+			for (int i = 0; i < MAXLIGHTMAPS; i++)
 			{
 				if (i == 0)
 				{
@@ -3279,7 +3277,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
 			{
-				for (int i = 0; i < readLightmaps; i++) {
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
 						continue;
 					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
@@ -3341,7 +3339,12 @@ void Gui::drawTextureTool() {
 
 		BspRenderer* mapRenderer = app->selectMapIdx >= 0 ? app->mapRenderers[app->selectMapIdx] : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
-
+		if (map == NULL)
+		{
+			ImGui::Text("No face selected!");
+			ImGui::End();
+			return;
+		}
 		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
 			if (app->selectedFaces.size() && app->pickInfo.valid && mapRenderer != NULL) {
 				int faceIdx = app->selectedFaces[0];
@@ -3494,7 +3497,7 @@ void Gui::drawTextureTool() {
 		ImGui::SameLine();
 		ImGui::Text("%dx%d", width, height);
 
-		if (map && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
+		if ((scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
 			uint32_t newMiptex = 0;
 			if (textureChanged) {
 				validTexture = false;
@@ -3650,7 +3653,7 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 
 	if (isMem) {
 		sprintf(tmp, "%8.1f", val / meg);
-		stat.val = val;
+		stat.val = to_string(val);
 
 		sprintf(tmp, "%-5.1f MB", max / meg);
 		stat.usage = tmp;

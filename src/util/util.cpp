@@ -23,7 +23,7 @@ void logf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf(log_line);
+	printf("%s",log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
@@ -41,7 +41,7 @@ void debugf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf(log_line);
+	printf("%s",log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
