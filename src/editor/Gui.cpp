@@ -3225,8 +3225,6 @@ void Gui::drawLightMapTool() {
 				if (currentlightMap[i] == nullptr)
 				{
 					ImGui::Dummy(ImVec2(200, 200));
-					ImGui::SameLine();
-					ImGui::Text("w\n%d\n\nh\n%d", 0, 0);
 					continue;
 				}
 
@@ -3234,7 +3232,7 @@ void Gui::drawLightMapTool() {
 					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
 					if (i == 1 || i == 3)
 					{
-						picker_pos.x += 240;
+						picker_pos.x += 200;
 					}
 					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
 					
