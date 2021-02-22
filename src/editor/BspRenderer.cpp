@@ -1408,10 +1408,19 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
 				glActiveTexture(GL_TEXTURE1 + s);
 
+
 				if (highlight) {
 					redTex->bind();
 				}
 				else if (lightmapsUploaded) {
+					if (showLightFlag != -1)
+					{
+						if (showLightFlag == s)
+						{
+							blackTex->bind();
+							continue;
+						}
+					}
 					rgroup.lightmapAtlas[s]->bind();
 				}
 				else {

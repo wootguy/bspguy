@@ -3129,8 +3129,18 @@ void Gui::drawLightMapTool() {
 	int windowWidth = 50 + readLightmaps > 1 ? 500 : 200;
 	int windowHeight = 520;
 
+	const char* light_names[] =
+	{
+		"OFF",
+		"Main light",
+		"Light 1",
+		"Light 2",
+		"Light 3"
+	};
+	static int type = 0;
+
 	ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, windowHeight), ImVec2(windowWidth, windowHeight));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(windowWidth, windowHeight), ImVec2(windowWidth, FLT_MAX));
 
 	if (ImGui::Begin("LightMap Editor (WIP)", &showLightmapEditorWidget)) {
 		ImGui::Dummy(ImVec2(windowWidth / 2.45f, 10.0f));
@@ -3148,15 +3158,14 @@ void Gui::drawLightMapTool() {
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
 		{
-
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
+			int size[2];
+			GetFaceLightmapSize(map, faceIdx, size);
+
 
 			if (showLightmapEditorUpdate)
 			{
-				int size[2];
-				GetFaceLightmapSize(map, faceIdx, size);
-
 				for (int i = 0; i < readLightmaps; i++)
 				{
 					if (currentlightMap[i] != nullptr)
@@ -3172,10 +3181,8 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
 					currentlightMap[i]->upload(GL_RGB, true);
-					logf("upload %d style at offset %d\n", i, offset);
+					//logf("upload %d style at offset %d\n", i, offset);
 				}
-
-		
 
 				showLightmapEditorUpdate = false;
 			}
@@ -3187,11 +3194,23 @@ void Gui::drawLightMapTool() {
 					ImGui::Separator();
 					ImGui::Dummy(ImVec2(50, 5.0f));
 					ImGui::SameLine();
-					ImGui::TextDisabled("Main style");
+					ImGui::TextDisabled(light_names[1]);
 					ImGui::SameLine();
 					ImGui::Dummy(ImVec2(120, 5.0f));
 					ImGui::SameLine();
-					ImGui::TextDisabled("Light enabled");
+					ImGui::TextDisabled(light_names[1]);
+				}
+
+				if (i == 2)
+				{
+					ImGui::Separator();
+					ImGui::Dummy(ImVec2(50, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[3]);
+					ImGui::SameLine();
+					ImGui::Dummy(ImVec2(150, 5.0f));
+					ImGui::SameLine();
+					ImGui::TextDisabled(light_names[4]);
 				}
 
 				if (i == 1 || i > 2)
@@ -3251,18 +3270,17 @@ void Gui::drawLightMapTool() {
 					currentlightMap[i]->upload(GL_RGB, true);
 					//logf("%f %f %f %f %d %d = %d \n", picker_pos.x, picker_pos.y, mouse_pos_in_canvas.x, mouse_pos_in_canvas.y, image_x, image_y, i);
 				}
-				ImGui::SameLine();
-				ImGui::Text("w\n%d\n\nh\n%d", currentlightMap[i]->width, currentlightMap[i]->height);
 			}
 			ImGui::Separator();
+			ImGui::Text("Lightmap size width:%d height:%d", size[0], size[1]);
+			ImGui::Separator();
 			ColorPicker3(colourPatch);
-			
+			ImGui::Separator();
+			ImGui::Combo("Disable light:", &type, light_names, IM_ARRAYSIZE(light_names));
+			app->mapRenderers[app->pickInfo.mapIdx]->showLightFlag = type - 1;
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
 			{
-				int size[2];
-				GetFaceLightmapSize(map, faceIdx, size);
-
 				for (int i = 0; i < readLightmaps; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
 						continue;
