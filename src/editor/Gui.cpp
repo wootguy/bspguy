@@ -2226,7 +2226,7 @@ void Gui::drawSettings() {
 				glfwSwapInterval(vsync ? 1 : 0);
 			}
 			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
-			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, 0, 0, "%.0f", 100.0f);
+			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 			ImGui::Separator();
 
 			bool renderTextures = g_render_flags & RENDER_TEXTURES;
