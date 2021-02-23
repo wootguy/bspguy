@@ -1559,7 +1559,6 @@ void Renderer::addMap(Bsp* map) {
 	gui->checkValidHulls();
 
 	// Pick default map
-	
 	if (!pickInfo.map) 
 	{
 		pickInfo.modelIdx = -1;
@@ -1569,10 +1568,11 @@ void Renderer::addMap(Bsp* map) {
 		pickInfo.mapIdx = 0;
 		pickInfo.map = map;
 		pickInfo.valid = true;
-		// Move camera to map
-		if (map->ents.size() > 1)
+		// Move camera to first entity with origin
+		for(auto const & ent : map->ents)
 		{
-			cameraOrigin = map->ents[1]->getOrigin();
+			if (ent->getOrigin() != vec3())
+				cameraOrigin = ent->getOrigin();
 		}
 	}
 }
