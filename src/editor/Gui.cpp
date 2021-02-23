@@ -539,6 +539,11 @@ void Gui::drawMenuBar() {
 			}
 			showSettingsWidget = true;
 		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Exit", NULL)) {
+			g_settings.save();
+			glfwTerminate();
+		}
 		ImGui::EndMenu();
 	}
 
@@ -2133,6 +2138,7 @@ void Gui::drawSettings() {
 		ImGui::Separator();
 
 		static char gamedir[256];
+		static char workingdir[256];
 		static int numFgds = 0;
 		static int numRes = 0;
 
@@ -2141,6 +2147,7 @@ void Gui::drawSettings() {
 
 		if (reloadSettings) {
 			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
+			strncpy(workingdir, g_settings.workingdir.c_str(), 256);
 			tmpFgdPaths = g_settings.fgdPaths;
 			tmpResPaths = g_settings.resPaths;
 
@@ -2156,6 +2163,8 @@ void Gui::drawSettings() {
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
+			ImGui::Text("Working Directory:");
+			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}

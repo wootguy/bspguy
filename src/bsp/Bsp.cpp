@@ -1826,9 +1826,26 @@ void Bsp::write(string path) {
 		offset += header.lump[i].nLength;
 	}
 
+	// Make single backup
+	if (fileExists(path) && !fileExists(path + ".bak"))
+	{
+		int len;
+		char* oldfile = loadFile(path, len);
+		ofstream file(path + ".bak", ios::out | ios::binary | ios::trunc);
+		if (!file.is_open()) {
+			logf("Failed to open backup file for writing:\n%s\n", path.c_str());
+			return;
+		}
+		logf("Writing backup to %s\n", (path + ".bak").c_str());
+
+		file.write(oldfile, len);
+		delete[] oldfile;
+	}
+
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
 	if (!file.is_open()) {
 		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
+		return;
 	}
 
 	logf("Writing %s\n", path.c_str());

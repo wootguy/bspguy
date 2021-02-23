@@ -67,7 +67,8 @@ void AppSettings::loadDefault()
 #endif
 	maximized = 0;
 	fontSize = 22;
-	gamedir;
+	gamedir = std::string();
+	workingdir = "/bspguy_work/";
 	valid = false;
 	undoLevels = 64;
 	verboseLogs = false;
@@ -79,9 +80,10 @@ void AppSettings::loadDefault()
 	settings_open = false;
 	limits_open = false;
 	entreport_open = false;
+	show_transform_axes = false;
 	settings_tab = 0;
 
-	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
+	render_flags = g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
 		| RENDER_ENT_CLIPNODES;
 
@@ -137,6 +139,7 @@ void AppSettings::load() {
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
+			else if (key == "workingdir") { g_settings.workingdir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 			else if (key == "res") { resPaths.push_back(val); }
 		}
@@ -210,6 +213,7 @@ void AppSettings::save() {
 	file << "settings_tab=" << g_settings.settings_tab << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
+	file << "workingdir=" << g_settings.workingdir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
 	}
@@ -580,12 +584,6 @@ void Renderer::saveSettings() {
 }
 
 void Renderer::loadSettings() {
-
-	if (!g_settings.valid)
-	{
-		return;
-	}
-
 	gui->showDebugWidget = g_settings.debug_open;
 	gui->showKeyvalueWidget = g_settings.keyvalue_open;
 	gui->showTransformWidget = g_settings.transform_open;

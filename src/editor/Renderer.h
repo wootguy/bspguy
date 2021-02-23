@@ -49,6 +49,7 @@ struct AppSettings {
 	int maximized;
 	int fontSize;
 	string gamedir;
+	string workingdir;
 	bool valid;
 	int undoLevels;
 	bool verboseLogs;
