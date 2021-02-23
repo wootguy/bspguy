@@ -510,7 +510,7 @@ void Gui::drawMenuBar() {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
-					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), map->name + ".wad");
+					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
 					if (map->textureCount > 0)
 					{
 						Wad* tmpWad = new Wad(map->path);
@@ -549,6 +549,53 @@ void Gui::drawMenuBar() {
 						ifstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", std::ios::binary);
 						entFile.read(data, datasize);
 						map->replace_lump(LUMP_ENTITIES, data, datasize);
+					}
+					else
+					{
+						logf("Error! No file!\n");
+					}
+				}
+			}
+			if (ImGui::MenuItem("Wad file", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+					if (fileExists(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad"))
+					{
+						Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+						if (!tmpWad->readInfo())
+						{
+							logf("Parsing wad file failed!\n");
+						}
+						else
+						{
+							for (int i = 0; i < tmpWad->numTex; i++)
+							{
+								WADTEX* wadTex = tmpWad->readTexture(i);
+								int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+								COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+								byte* src = wadTex->data;
+
+								COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+								int sz = wadTex->nWidth * wadTex->nHeight;
+
+								for (int k = 0; k < sz; k++) {
+									imageData[k] = palette[src[k]];
+								}
+
+								map->add_texture(wadTex->szName, (byte *)imageData, wadTex->nWidth, wadTex->nHeight);
+
+								delete[] imageData;
+								delete wadTex;
+							}
+							for (int i = 0; i < app->mapRenderers.size(); i++) {
+								app->mapRenderers[i]->reloadTextures();
+							}
+						}
+						delete tmpWad;
 					}
 					else
 					{
