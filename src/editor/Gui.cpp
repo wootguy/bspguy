@@ -814,7 +814,6 @@ void Gui::drawToolbar() {
 					app->selectedFaces.push_back(faceIdx);
 				}
 			}
-
 			app->selectMapIdx = app->pickInfo.mapIdx;
 			app->deselectObject();
 			app->pickMode = PICK_FACE;
@@ -1705,19 +1704,22 @@ void Gui::drawTransformWidget() {
 		ent = app->pickInfo.ent;
 	}
 
-	ImGui::SetNextWindowSize(ImVec2(425, 330), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+
+
+	static int x, y, z;
+	static float fx, fy, fz;
+	static float last_fx, last_fy, last_fz;
+	static float sx, sy, sz;
+
+	static int lastPickCount = -1;
+	static int lastVertPickCount = -1;
+	static int oldSnappingEnabled = app->gridSnappingEnabled;
+	static int oldTransformTarget = -1;
+
+
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
-		static int x, y, z;
-		static float fx, fy, fz;
-		static float last_fx, last_fy, last_fz;
-		static float sx, sy, sz;
-
-		static int lastPickCount = -1;
-		static int lastVertPickCount = -1;
-		static int oldSnappingEnabled = app->gridSnappingEnabled;
-		static int oldTransformTarget = -1;
-
 		ImGuiStyle& style = ImGui::GetStyle();
 
 		bool shouldUpdateUi = lastPickCount != app->pickCount ||
@@ -3124,9 +3126,9 @@ void Gui::drawLightMapTool() {
 	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 	static float colourPatch[3];
 
-	int windowWidth = 50 + MAXLIGHTMAPS > 1 ? 500 : 200;
-	int windowHeight = 520;
-
+	static int windowWidth = 550;
+	static int windowHeight = 520;
+	static int lightmaps = 0;
 	const char* light_names[] =
 	{
 		"OFF",
@@ -3164,6 +3166,7 @@ void Gui::drawLightMapTool() {
 
 			if (showLightmapEditorUpdate)
 			{
+				lightmaps = 0;
 				for (int i = 0; i < MAXLIGHTMAPS; i++)
 				{
 					if (currentlightMap[i] != nullptr)
@@ -3179,13 +3182,14 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
 					currentlightMap[i]->upload(GL_RGB, true);
+					lightmaps++;
 					//logf("upload %d style at offset %d\n", i, offset);
 				}
-
+				windowWidth = lightmaps > 1 ? 550 : 250;
 				showLightmapEditorUpdate = false;
 			}
 			ImVec2 imgSize = ImVec2(200, 200);
-			for (int i = 0; i < MAXLIGHTMAPS; i++)
+			for (int i = 0; i < lightmaps; i++)
 			{
 				if (i == 0)
 				{
@@ -3272,7 +3276,8 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			ColorPicker3(colourPatch);
 			ImGui::Separator();
-			ImGui::Combo("- Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
+			ImGui::SetNextItemWidth(100.f);
+			ImGui::Combo(" Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
 			app->mapRenderers[app->pickInfo.mapIdx]->showLightFlag = type - 1;
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
@@ -3319,14 +3324,14 @@ void Gui::drawLightMapTool() {
 		}
 		else
 		{
-			ImGui::Text("No selected face");
+			ImGui::Text("No face selected");
 		}
 
 	}
 	ImGui::End();
 }
 void Gui::drawTextureTool() {
-	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(300, 570), ImGuiCond_FirstUseEver);
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
 	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
 		static float scaleX, scaleY, shiftX, shiftY;
@@ -3336,12 +3341,11 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
-
-		BspRenderer* mapRenderer = app->selectMapIdx >= 0 ? app->mapRenderers[app->selectMapIdx] : NULL;
+		BspRenderer* mapRenderer = app->selectMapIdx >= 0 && app->selectMapIdx < app->mapRenderers.size() ? app->mapRenderers[app->selectMapIdx] : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
-		if (map == NULL)
+		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
-			ImGui::Text("No face selected!");
+			ImGui::Text("No face selected");
 			ImGui::End();
 			return;
 		}
@@ -3402,7 +3406,6 @@ void Gui::drawTextureTool() {
 
 			checkFaceErrors();
 		}
-
 		lastPickCount = app->pickCount;
 
 		ImGuiStyle& style = ImGui::GetStyle();

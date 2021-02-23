@@ -179,11 +179,9 @@ void BspRenderer::loadTextures() {
 		COLOR3* imageData = new COLOR3[tex.nWidth * tex.nHeight];
 
 		int sz = tex.nWidth * tex.nHeight;
-		if (palette && src)
-		{
-			for (int k = 0; k < sz; k++) {
-				imageData[k] = palette[src[k]];
-			}
+		
+		for (int k = 0; k < sz; k++) {
+			imageData[k] = palette[src[k]];
 		}
 
 		if (wadTex) {

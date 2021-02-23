@@ -667,9 +667,6 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 		plane.fDist = dotProduct(plane.vNormal, newPlaneOri) / dotProduct(plane.vNormal, plane.vNormal);
 	}
 
-	uint32_t texCount = (uint32_t)(lumps[LUMP_TEXTURES])[0]; // unused
-	byte* textures = lumps[LUMP_TEXTURES]; // unused
-
 	for (int i = 0; i < texinfoCount; i++) {
 		if (!shouldBeMoved.texInfo[i]) {
 			continue; // don't move submodels with origins
@@ -2025,6 +2022,7 @@ bool sortModelInfos(const STRUCTUSAGE* a, const STRUCTUSAGE* b) {
 	case SORT_FACES:
 		return a->sum.faces > b->sum.faces;
 	}
+	return false;
 }
 
 bool Bsp::isValid() {

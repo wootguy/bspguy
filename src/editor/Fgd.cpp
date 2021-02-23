@@ -294,7 +294,6 @@ vector<string> Fgd::groupParts(vector<string>& ungrouped) {
 
 		if (stringGroupStarts(ungrouped[i])) {
 			string groupedPart = ungrouped[i];
-			// FIXME : warn 'i' used in prev loop
 			for (i = i + 1; i < ungrouped.size(); i++) {
 				groupedPart += " " + ungrouped[i];
 				if (stringGroupEnds(ungrouped[i])) {

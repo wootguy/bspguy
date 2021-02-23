@@ -96,10 +96,10 @@ private:
 
 	int copiedMiptex = -1;
 	int copiedLightmapFace = -1; // index into faces
-	LIGHTMAP copiedLightmap;
+	LIGHTMAP copiedLightmap = LIGHTMAP();
 	bool refreshSelectedFaces = false;
 
-	ImGuiTextBuffer Buf;
+	ImGuiTextBuffer Buf = ImGuiTextBuffer();
 	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
 	bool AutoScroll = true;  // Keep scrolling if already at the bottom
 

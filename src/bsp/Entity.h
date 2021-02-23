@@ -7,7 +7,7 @@ typedef std::map< std::string, std::string > hashmap;
 class Entity
 {
 public:
-	hashmap keyvalues;
+	hashmap keyvalues = hashmap();
 	vector<string> keyOrder;
 
 	int cachedModelIdx = -2; // -2 = not cached

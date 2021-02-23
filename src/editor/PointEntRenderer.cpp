@@ -66,7 +66,6 @@ void PointEntRenderer::genPointEntCubes() {
 
 EntCube* PointEntRenderer::getCubeMatchingProps(EntCube* cube) {
 	for (int i = 0; i < entCubes.size(); i++) {
-		// FIXME : warn? cube filled not fully
 		if (memcmp(cube, entCubes[i], sizeof(EntCube) - sizeof(VertexBuffer*)*3) == 0) {
 			return entCubes[i];
 		}

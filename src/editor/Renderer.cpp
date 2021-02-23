@@ -1331,7 +1331,6 @@ void Renderer::pickObject() {
 			}
 			else {
 				selectMapIdx = pickInfo.mapIdx;
-
 				bool select = true;
 				for (int i = 0; i < selectedFaces.size(); i++) {
 					if (selectedFaces[i] == pickInfo.faceIdx) {

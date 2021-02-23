@@ -74,7 +74,7 @@ public:
 	int oldModelIdx;
 	int newModelIdx; // TODO: could break redos if this is ever not deterministic
 	int entIdx;
-	LumpState oldLumps;
+	LumpState oldLumps = LumpState();
 	bool initialized = false;
 
 	DuplicateBspModelCommand(string desc, PickInfo& pickInfo);
@@ -89,7 +89,7 @@ public:
 class CreateBspModelCommand : public Command {
 public:
 	Entity* entData;
-	LumpState oldLumps;
+	LumpState oldLumps = LumpState();
 	bool initialized = false;
 	float size;
 
@@ -110,10 +110,10 @@ class EditBspModelCommand : public Command {
 public:
 	int modelIdx;
 	int entIdx;
-	vec3 oldOrigin;
-	vec3 newOrigin;
-	LumpState oldLumps;
-	LumpState newLumps;
+	vec3 oldOrigin = vec3();
+	vec3 newOrigin = vec3();
+	LumpState oldLumps = LumpState();
+	LumpState newLumps = LumpState();
 
 	EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, vec3 oldOrigin);
 	~EditBspModelCommand();
@@ -127,7 +127,7 @@ public:
 
 class CleanMapCommand : public Command {
 public:
-	LumpState oldLumps;
+	LumpState oldLumps = LumpState();
 
 	CleanMapCommand(string desc, int mapIdx, LumpState oldLumps);
 	~CleanMapCommand();
@@ -141,7 +141,7 @@ public:
 
 class OptimizeMapCommand : public Command {
 public:
-	LumpState oldLumps;
+	LumpState oldLumps = LumpState();
 
 	OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps);
 	~OptimizeMapCommand();

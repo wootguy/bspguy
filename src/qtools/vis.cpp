@@ -180,6 +180,10 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 				memset(dest + lastUsedIdx + 1, 0, sz);
 			}
 		}
+		else {
+			logf("Overflow decompressing VIS lump!");
+			return;
+		}
 	}
 }
 
