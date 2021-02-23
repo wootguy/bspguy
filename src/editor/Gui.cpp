@@ -542,10 +542,10 @@ void Gui::drawMenuBar() {
 		ImGui::Separator();
 		if (ImGui::MenuItem("Exit", NULL)) {
 			g_settings.save();
-			//glfwTerminate();
+			glfwTerminate();
 			if (dirExists(g_settings.gamedir + g_settings.workingdir))
 				removeDir(g_settings.gamedir + g_settings.workingdir);
-			//std::exit(0);
+			std::exit(0);
 		}
 		ImGui::EndMenu();
 	}
