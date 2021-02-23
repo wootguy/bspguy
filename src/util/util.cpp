@@ -709,11 +709,12 @@ bool createDir(const string& dirName)
 
 void removeDir(const string& dirName)
 {
-#if defined(__cpp_lib_experimental_filesystem) || defined(__cpp_lib_filesystem) 
-	std::experimental::filesystem::remove(dirName);
-#else
-
-
+#if defined(__cpp_lib_experimental_filesystem) 
+	std::error_code e;
+	std::experimental::filesystem::remove_all(dirName,e);
+#elif defined(__cpp_lib_filesystem) 
+	std::error_code e;
+	std::filesystem::remove_all(dirName, e);
 #endif
 }
 
