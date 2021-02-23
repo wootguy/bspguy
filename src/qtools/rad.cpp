@@ -297,12 +297,11 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 	int i, j, e;
 	vec3* v;
 	BSPTEXTUREINFO* tex;
-	int bmins[2], bmaxs[2];
 
 	f = &bsp->faces[facenum];
 
-	mins[0] = mins[1] = FLT_MAX;
-	maxs[0] = maxs[1] = FLT_MIN;
+	mins[0] = mins[1] = 999999;
+	maxs[0] = maxs[1] = -999999;
 
 	tex = &bsp->texinfos[f->iTextureInfo];
 
@@ -329,6 +328,7 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 			// So we must also know how Valve compiles HLSDK. I think Valve compiles HLSDK with VC6.0 in the past.
 			vec3& axis = j == 0 ? tex->vS : tex->vT;
 			val = CalculatePointVecsProduct((vec_t*)v, (vec_t*)&axis);
+
 			if (val < mins[j])
 			{
 				mins[j] = val;
@@ -358,8 +358,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 
 	s = l->face;
 
-	mins[0] = mins[1] = FLT_MIN;
-	maxs[0] = maxs[1] = FLT_MAX;
+	mins[0] = mins[1] = 99999999;
+	maxs[0] = maxs[1] = -99999999;
 
 	tex = &bsp->texinfos[s->iTextureInfo];
 

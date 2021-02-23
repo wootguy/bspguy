@@ -1427,10 +1427,7 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 				}
 				else {
 					if (s == 0) {
-						if (lightmapsUploaded) // FIXME : lightmapsUploaded here always false
-							whiteTex->bind();
-						else
-							greyTex->bind();
+						greyTex->bind();
 					}
 					else {
 						blackTex->bind();
