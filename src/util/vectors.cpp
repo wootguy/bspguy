@@ -217,6 +217,10 @@ vec3 vec3::flip() {
 	return vec3(x, z, -y);
 }
 
+vec3 vec3::abs() {
+	return vec3(fabs(x), fabs(y), fabs(z));
+}
+
 
 bool operator==(vec2 v1, vec2 v2)
 {

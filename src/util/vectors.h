@@ -12,6 +12,7 @@ struct vec3
 	vec3 invert();
 	std::string toKeyvalueString(bool truncate=false, std::string suffix_x=" ", std::string suffix_y=" ", std::string suffix_z="");
 	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
+	vec3 abs();
 
 	void operator-=(vec3 v);
 	void operator+=(vec3 v);

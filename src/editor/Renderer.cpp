@@ -1557,6 +1557,24 @@ void Renderer::addMap(Bsp* map) {
 	mapRenderers.push_back(mapRenderer);
 
 	gui->checkValidHulls();
+
+	// Pick default map
+	
+	if (!pickInfo.map) 
+	{
+		pickInfo.modelIdx = -1;
+		pickInfo.faceIdx = -1;
+		pickInfo.ent = NULL;
+		pickInfo.entIdx = -1;
+		pickInfo.mapIdx = 0;
+		pickInfo.map = map;
+		pickInfo.valid = true;
+		// Move camera to map
+		if (map->ents.size() > 1)
+		{
+			cameraOrigin = map->ents[1]->getOrigin();
+		}
+	}
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
