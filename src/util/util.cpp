@@ -121,6 +121,19 @@ bool removeFile(const string& fileName)
 	
 }
 
+std::streampos fileSize(const string& filePath) {
+
+	std::streampos fsize = 0;
+	std::ifstream file(filePath, std::ios::binary);
+
+	fsize = file.tellg();
+	file.seekg(0, std::ios::end);
+	fsize = file.tellg() - fsize;
+	file.close();
+
+	return fsize;
+}
+
 vector<string> splitString(string str, const char* delimitters)
 {
 	vector<string> split;

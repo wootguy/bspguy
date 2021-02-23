@@ -46,6 +46,8 @@ bool writeFile(const string& fileName, const char * data, int len);
 
 bool removeFile(const string& fileName);
 
+std::streampos fileSize(const string& filePath);
+
 vector<string> splitString(string str, const char* delimitters);
 
 string basename(string path);

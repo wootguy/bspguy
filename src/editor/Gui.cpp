@@ -497,13 +497,36 @@ void Gui::drawMenuBar() {
 			map->write(map->path);
 		}
 		if (ImGui::BeginMenu("Export")) {
-			if (ImGui::MenuItem("Entity file",NULL)) {
+			if (ImGui::MenuItem("Entity file", NULL)) {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
 					logf("Export entities: %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
-					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength);
+				}
+			}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Import")) {
+			if (ImGui::MenuItem("Entity file", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Import entities from: %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
+					{
+						int datasize = fileSize(g_settings.gamedir + g_settings.workingdir + "entities.ent");
+						char* data = new char[datasize + 1];
+						data[datasize] = '\0';
+						ifstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", std::ios::binary);
+						entFile.read(data, datasize);
+						map->replace_lump(LUMP_ENTITIES, data, datasize);
+					}
+					else
+					{
+						logf("Error! No file!\n");
+					}
 				}
 			}
 			ImGui::EndMenu();
