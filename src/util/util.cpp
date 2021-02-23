@@ -717,28 +717,15 @@ void removeDir(const string& dirName)
 #endif
 }
 
-#ifdef WIN32
-#include <Windows.h>
-#include <Shlobj.h>
 
 void print_color(int colors)
 {
+#ifdef WIN32
+
 	HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 	colors = colors ? colors : (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 	SetConsoleTextAttribute(console, (WORD)colors);
-}
-
-string getConfigDir()
-{
-	char path[MAX_PATH];
-	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
-	return string(path) + "\\AppData\\Roaming\\bspguy\\";
-}
-
-#else
-
-void print_color(int colors)
-{
+#else 
 	if (!colors)
 	{
 		logf("\x1B[0m");
@@ -757,11 +744,17 @@ void print_color(int colors)
 	case PRINT_GREEN | PRINT_BLUE | PRINT_RED:	color = "36"; break;
 	}
 	logf("\x1B[%s;%sm", mode, color);
+#endif
 }
 
 string getConfigDir()
 {
-	return string("") + getenv("HOME") + "/.config/bspguy/";
-}
+#ifdef WIN32
 
+	char path[MAX_PATH];
+	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
+	return string(path) + "\\AppData\\Roaming\\bspguy\\";
+#else 
+	return string("") + getenv("HOME") + "/.config/bspguy/";
 #endif
+}
