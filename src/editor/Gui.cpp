@@ -501,9 +501,36 @@ void Gui::drawMenuBar() {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
-					logf("Export entities: %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
 					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength);
+				}
+			}
+			if (ImGui::MenuItem("Wad file", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), map->name + ".wad");
+					if (map->textureCount > 0)
+					{
+						Wad* tmpWad = new Wad(map->path);
+						std::vector<WADTEX*> tmpWadTex;
+						for (int i = 0; i < map->textureCount; i++) {
+							int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
+							BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
+							WADTEX* oldTex = new WADTEX(bspTex);
+							tmpWadTex.push_back(oldTex);
+						}
+						tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+						for (int i = 0; i < map->textureCount; i++) {
+							delete tmpWadTex[i];
+						}
+						tmpWadTex.clear();
+					}
+					else
+					{
+						logf("No textures for export.\n");
+					}
 				}
 			}
 			ImGui::EndMenu();
@@ -513,7 +540,7 @@ void Gui::drawMenuBar() {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
-					logf("Import entities from: %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
 					{
 						int datasize = fileSize(g_settings.gamedir + g_settings.workingdir + "entities.ent");

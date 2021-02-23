@@ -32,8 +32,6 @@ extern mutex g_log_mutex;
 
 extern int g_render_flags;
 
-struct BSPMIPTEX;
-
 void logf(const char* format, ...);
 
 void debugf(const char* format, ...);
