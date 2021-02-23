@@ -186,11 +186,17 @@ void AppSettings::load() {
 		resPaths.push_back("/svencoop_hd/");
 	}
 
+	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
+		createDir(g_settings.gamedir + g_settings.workingdir);
 }
 
 void AppSettings::save() {
 	if (!dirExists(g_config_dir)) {
 		createDir(g_config_dir);
+	}
+
+	if (dirExists(g_settings.gamedir + g_settings.workingdir)) {
+		removeDir(g_settings.gamedir + g_settings.workingdir);
 	}
 
 	g_app->saveSettings();
@@ -250,6 +256,7 @@ Renderer::Renderer() {
 		logf("GLFW initialization failed\n");
 		return;
 	}
+
 	glfwSetErrorCallback(error_callback);
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);

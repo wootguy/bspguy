@@ -543,8 +543,6 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Exit", NULL)) {
 			g_settings.save();
 			glfwTerminate();
-			if (dirExists(g_settings.gamedir + g_settings.workingdir))
-				removeDir(g_settings.gamedir + g_settings.workingdir);
 			std::exit(0);
 		}
 		ImGui::EndMenu();
@@ -2340,13 +2338,34 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
+				g_settings.workingdir = string(workingdir);
 				/* fixup gamedir */
 				if (g_settings.gamedir.size() && (g_settings.gamedir[g_settings.gamedir.size() - 1] == '/'
 					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\'))
 				{
 					g_settings.gamedir.pop_back();
-					sprintf(gamedir, "%s", g_settings.gamedir.c_str());
 				}
+				sprintf(gamedir, "%s", g_settings.gamedir.c_str());
+
+				/* fixup workingdir */
+				if (g_settings.workingdir.size() > 1)
+				{
+					if (g_settings.workingdir[0] != '\\' &&
+						g_settings.workingdir[0] != '/')
+					{
+						g_settings.workingdir = "/" + g_settings.workingdir;
+					}
+					if (g_settings.workingdir[g_settings.workingdir.size() - 1] != '\\' &&
+						g_settings.workingdir[g_settings.workingdir.size() - 1] != '/')
+					{
+						g_settings.workingdir = g_settings.workingdir + "/";
+					}
+				}
+				else
+				{
+					g_settings.workingdir = "/";
+				}
+				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
 
 				g_settings.fgdPaths.clear();
 				for (auto const& s : tmpFgdPaths)
@@ -3309,30 +3328,47 @@ void Gui::drawLightMapTool() {
 			{
 				showLightmapEditorUpdate = true;
 			}
-			/*
-					TODO: Export and import from file
-				ImGui::Separator();
-				if (ImGui::Button("Export", ImVec2(120, 0)))
-				{
+			
+			ImGui::Separator();
+			if (ImGui::Button("Export", ImVec2(120, 0)))
+			{
+				char fileNam[256];
 
+				logf("Export lightmaps to png files...\n");
+				logf("Clean previous lightmaps...");
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
+					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+					removeFile(fileNam);
 				}
-				ImGui::SameLine();
-				if (ImGui::Button("Import", ImVec2(120, 0)))
-				{
-					showLightmapEditorUpdate = true;
+				logf("Generating new lightmaps...");
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
+					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+						continue;
+					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					sprintf(fileNam, "%s%s%s-%i.png",g_settings.gamedir.c_str(),g_settings.workingdir.c_str(), "lightmap",i);
+					logf("Exporting %s\n", fileNam);
+					lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
 				}
-					TODO: Export/import all lightmaps from files
-				ImGui::Separator();
-				if (ImGui::Button("Export ALL", ImVec2(120, 0)))
-				{
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Import", ImVec2(120, 0)))
+			{
+				logf("Import lightmaps to png files...\n");
+				char fileNam[256];
 
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
+					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+						continue;
+					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+					int offset = face.nLightmapOffset + i * lightmapSz;
+					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+					unsigned int w = size[0], h = size[1];
+					void* src = map->lightdata + offset;
+					logf("Importing %s\n", fileNam);
+					lodepng_decode24_file((unsigned char**)(&src), &w, &h,fileNam);
 				}
-				ImGui::SameLine();
-				if (ImGui::Button("Import ALL", ImVec2(120, 0)))
-				{
-
-				}
-			*/
+			}
 		}
 		else
 		{

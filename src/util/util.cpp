@@ -97,6 +97,30 @@ char * loadFile( const string& fileName, int& length)
 	return buffer;
 }
 
+bool writeFile(const string& fileName, const char* data, int len)
+{
+	ofstream file(fileName, ios::out | ios::binary | ios::trunc);
+	if (!file.is_open()) {
+		return false;
+	}
+	file.write(data, len);
+	return true;
+}
+
+bool removeFile(const string& fileName)
+{
+#if defined(__cpp_lib_experimental_filesystem)
+	return std::experimental::filesystem::exists(fileName) && std::experimental::filesystem::remove(fileName);
+#elif defined(__cpp_lib_filesystem) 
+	return std::filesystem::exists(fileName) && std::filesystem::remove(fileName);
+#elif WIN32
+	return DeleteFile(fileName.c_str());
+#else 
+	return remove(fileName.c_str());
+#endif
+	
+}
+
 vector<string> splitString(string str, const char* delimitters)
 {
 	vector<string> split;

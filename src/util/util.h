@@ -40,7 +40,11 @@ void debugf(const char* format, ...);
 
 bool fileExists(const string& fileName);
 
-char * loadFile( const string& fileName, int& length);
+char* loadFile(const string& fileName, int& length);
+
+bool writeFile(const string& fileName, const char * data, int len);
+
+bool removeFile(const string& fileName);
 
 vector<string> splitString(string str, const char* delimitters);
 
