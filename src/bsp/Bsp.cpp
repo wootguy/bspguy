@@ -3352,8 +3352,8 @@ void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
 		return;
 	}
 
-	vec3 vertMin(9e9, 9e9, 9e9);
-	vec3 vertMax(-9e9, -9e9, -9e9);
+	vec3 vertMin(FLT_MAX, FLT_MAX, FLT_MAX);
+	vec3 vertMax(FLT_MIN, FLT_MIN, FLT_MIN);
 	get_model_vertex_bounds(modelIdx, vertMin, vertMax);
 
 	create_clipnode_box(vertMin, vertMax, &model, hullIdx, true);
