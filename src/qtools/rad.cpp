@@ -300,7 +300,8 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 
 	f = &bsp->faces[facenum];
 
-	bool initminmax = false;
+	mins[0] = mins[1] = 999999;
+	maxs[0] = maxs[1] = -999999;
 
 	tex = &bsp->texinfos[f->iTextureInfo];
 
@@ -328,24 +329,15 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 			vec3& axis = j == 0 ? tex->vS : tex->vT;
 			val = CalculatePointVecsProduct((vec_t*)v, (vec_t*)&axis);
 
-			if (!initminmax)
+			if (val < mins[j])
 			{
 				mins[j] = val;
+			}
+			if (val > maxs[j])
+			{
 				maxs[j] = val;
 			}
-			else
-			{
-				if (val < mins[j])
-				{
-					mins[j] = val;
-				}
-				if (val > maxs[j])
-				{
-					maxs[j] = val;
-				}
-			}
 		}
-		initminmax = true;
 	}
 
 	for (i = 0; i < 2; i++)
@@ -366,7 +358,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 
 	s = l->face;
 
-	bool initminmax = false;
+	mins[0] = mins[1] = 99999999;
+	maxs[0] = maxs[1] = -99999999;
 
 	tex = &bsp->texinfos[s->iTextureInfo];
 
@@ -388,24 +381,15 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 			float shift = j == 0 ? tex->shiftS : tex->shiftT;
 
 			val = v->x * axis.x + v->y * axis.y + v->z * axis.z + shift;
-			if (!initminmax)
+			if (val < mins[j])
 			{
 				mins[j] = val;
+			}
+			if (val > maxs[j])
+			{
 				maxs[j] = val;
 			}
-			else
-			{
-				if (val < mins[j])
-				{
-					mins[j] = val;
-				}
-				if (val > maxs[j])
-				{
-					maxs[j] = val;
-				}
-			}
 		}
-		initminmax = true;
 	}
 
 	int bmins[2];
