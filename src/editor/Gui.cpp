@@ -3335,12 +3335,12 @@ void Gui::drawLightMapTool() {
 				char fileNam[256];
 
 				logf("Export lightmaps to png files...\n");
-				logf("Clean previous lightmaps...");
+				logf("Clean previous lightmaps...\n");
 				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
 					removeFile(fileNam);
 				}
-				logf("Generating new lightmaps...");
+				logf("Generating new lightmaps...\n");
 				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
 						continue;
@@ -3364,9 +3364,26 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
 					unsigned int w = size[0], h = size[1];
-					void* src = map->lightdata + offset;
 					logf("Importing %s\n", fileNam);
-					lodepng_decode24_file((unsigned char**)(&src), &w, &h,fileNam);
+					unsigned char * image_bytes = nullptr;
+					auto error = lodepng_decode24_file(&image_bytes, &w, &h, fileNam);
+					if (error == 0 && w > 0 && h > 0 && image_bytes != nullptr)
+					{
+						if (w == size[0] && h == size[1])
+						{
+							memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
+							currentlightMap[i]->upload(GL_RGB);
+						}
+						else
+						{
+							logf("Invalid lightmap image width/height!\n");
+						}
+						free(image_bytes);
+					}
+					else
+					{
+						logf("Invalid lightmap image format. Need 24bit png!\n");
+					}
 				}
 			}
 		}
