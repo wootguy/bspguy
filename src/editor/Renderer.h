@@ -146,7 +146,7 @@ private:
 	float rotationSpeed = 5.0f;
 	int windowWidth;
 	int windowHeight;
-	mat4x4 model, view, projection, modelView, modelViewProjection;
+	mat4x4 model = mat4x4(), view = mat4x4(), projection = mat4x4(), modelView = mat4x4(), modelViewProjection = mat4x4();
 
 	vec2 lastMousePos;
 	vec2 totalMouseDrag;
@@ -156,8 +156,8 @@ private:
 	vec3 grabStartEntOrigin;
 	float grabDist;
 
-	TransformAxes moveAxes;
-	TransformAxes scaleAxes;
+	TransformAxes moveAxes = TransformAxes();
+	TransformAxes scaleAxes = TransformAxes();
 	int hoverAxis; // axis being hovered
 	int draggingAxis = -1; // axis currently being dragged by the mouse
 	bool gridSnappingEnabled = true;
@@ -184,7 +184,7 @@ private:
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts
 	vector<HullEdge> modelEdges;
 	cCube* modelVertCubes = NULL;
-	cCube modelOriginCube;
+	cCube modelOriginCube = cCube();
 	VertexBuffer* modelVertBuff = NULL;
 	VertexBuffer* modelOriginBuff = NULL;
 	bool originSelected = false;
@@ -213,7 +213,7 @@ private:
 	bool anyAltPressed;
 	bool anyShiftPressed;
 
-	PickInfo pickInfo;
+	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 
@@ -230,7 +230,7 @@ private:
 	vector<Command*> undoHistory;
 	vector<Command*> redoHistory;
 	Entity* undoEntityState = NULL;
-	LumpState undoLumpState;
+	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
 
 	vec3 getMoveDir();

@@ -115,7 +115,7 @@ public:
 
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);
-	int refreshModelClipnodes(int modelIdx);
+	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
 	void updateClipnodeOpacity(byte newValue);

@@ -219,7 +219,6 @@ bool Winding::Clip(const BSPPLANE& split, bool keepon, vec_t epsilon)
 	{
 		delete[] m_Points;
 		m_Points = NULL;
-		m_NumPoints = 0;
 		return false;
 	}
 

@@ -177,8 +177,9 @@ void BspRenderer::loadTextures() {
 		}
 
 		COLOR3* imageData = new COLOR3[tex.nWidth * tex.nHeight];
-		int sz = tex.nWidth * tex.nHeight;
 
+		int sz = tex.nWidth * tex.nHeight;
+		
 		for (int k = 0; k < sz; k++) {
 			imageData[k] = palette[src[k]];
 		}
@@ -727,17 +728,18 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	return renderModel->groupCount;
 }
 
-int BspRenderer::refreshModelClipnodes(int modelIdx) {
+bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 	if (!clipnodesLoaded) {
-		return 0;
+		return false;
 	}
 	if (modelIdx < 0 || modelIdx >= numRenderClipnodes) {
 		logf("Bad model idx\n");
-		return 0;
+		return false;
 	}
 
 	deleteRenderModelClipnodes(&renderClipnodes[modelIdx]);
 	generateClipnodeBuffer(modelIdx);
+	return true;
 }
 
 void BspRenderer::loadClipnodes() {
@@ -1425,7 +1427,7 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 				}
 				else {
 					if (s == 0) {
-						if (lightmapsUploaded)
+						if (lightmapsUploaded) // FIXME : lightmapsUploaded here always false
 							whiteTex->bind();
 						else
 							greyTex->bind();

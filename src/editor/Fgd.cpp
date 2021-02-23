@@ -294,7 +294,6 @@ vector<string> Fgd::groupParts(vector<string>& ungrouped) {
 
 		if (stringGroupStarts(ungrouped[i])) {
 			string groupedPart = ungrouped[i];
-
 			for (i = i + 1; i < ungrouped.size(); i++) {
 				groupedPart += " " + ungrouped[i];
 				if (stringGroupEnds(ungrouped[i])) {
@@ -493,7 +492,7 @@ void Fgd::setSpawnflagNames() {
 					KeyvalueChoice& choice = classes[i]->keyvalues[k].choices[c];
 
 					if (!choice.isInteger) {
-						logf("ERROR: Invalid spwanflag value %s\n", choice.svalue);
+						logf("ERROR: Invalid spwanflag value %s\n", choice.svalue.c_str());
 						continue;
 					}
 
@@ -504,7 +503,7 @@ void Fgd::setSpawnflagNames() {
 					}
 
 					if (bit > 31) {
-						logf("ERROR: Invalid spawnflag value %s\n", choice.svalue);
+						logf("ERROR: Invalid spawnflag value %s\n", choice.svalue.c_str());
 					}
 					else {
 						classes[i]->spawnFlagNames[bit] = choice.name;

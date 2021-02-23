@@ -23,7 +23,7 @@ void logf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf(log_line);
+	printf("%s",log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
@@ -41,7 +41,7 @@ void debugf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf(log_line);
+	printf("%s",log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
@@ -350,8 +350,8 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 }
 
 vec2 getCenter(vector<vec2>& verts) {
-	vec2 maxs = vec2(-9e99, -9e99);
-	vec2 mins = vec2(9e99, 9e99);
+	vec2 maxs = vec2(FLT_MIN, FLT_MIN);
+	vec2 mins = vec2(FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -361,8 +361,8 @@ vec2 getCenter(vector<vec2>& verts) {
 }
 
 vec3 getCenter(vector<vec3>& verts) {
-	vec3 maxs = vec3(-9e99, -9e99, -9e99);
-	vec3 mins = vec3(9e99, 9e99, 9e99);
+	vec3 maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -372,8 +372,8 @@ vec3 getCenter(vector<vec3>& verts) {
 }
 
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
-	maxs = vec3(-9e99, -9e99, -9e99);
-	mins = vec3(9e99, 9e99, 9e99);
+	maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -571,7 +571,7 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
 	localVerts.erase(localVerts.begin() + 0);
 	for (int k = 0, sz = remainingVerts.size(); k < sz; k++) {
 		int bestIdx = 0;
-		float bestAngle = 9e99;
+		float bestAngle = FLT_MAX;
 
 		for (int i = 0; i < remainingVerts.size(); i++) {
 			vec2 a = lastVert;

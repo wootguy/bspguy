@@ -63,7 +63,7 @@ class Wad
 {
 public:
 	std::string filename;
-	WADHEADER header;
+	WADHEADER header = WADHEADER();
 	WADDIRENTRY * dirEntries;
 	int numTex;
 

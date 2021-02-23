@@ -160,25 +160,29 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	{
 		g_progress.tick();
 		dest = output + i * newVisRowSize;
+		if (lastUsedIdx >= 0)
+		{
+			if (leafLump[i + 1].nVisOffset < 0) {
+				memset(dest, 255, lastUsedIdx);
+				dest[lastUsedIdx] |= lastChunkMask;
+				continue;
+			}
 
-		if (leafLump[i + 1].nVisOffset < 0) {
-			memset(dest, 255, lastUsedIdx);
-			dest[lastUsedIdx] |= lastChunkMask;
-			continue;
+			DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
+
+			// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
+			// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
+			// Leaves for submodels also don't matter and can be set to 0 to save space during recompression.
+			if (lastUsedIdx < newVisRowSize) {
+				dest[lastUsedIdx] &= lastChunkMask;
+				int sz = newVisRowSize - (lastUsedIdx + 1);
+				int last = lastUsedIdx + 1 + sz;
+				memset(dest + lastUsedIdx + 1, 0, sz);
+			}
 		}
-
-		DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
-
-		// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
-		// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
-		// Leaves for submodels also don't matter and can be set to 0 to save space during recompression.
-		if (lastUsedIdx >= 0 && lastUsedIdx < newVisRowSize) {
-			dest[lastUsedIdx] &= lastChunkMask;
-		}
-		if (lastUsedIdx < newVisRowSize) {
-			int sz = newVisRowSize - (lastUsedIdx + 1);
-			int last = lastUsedIdx + 1 + sz;
-			memset(dest + lastUsedIdx + 1, 0, sz);
+		else {
+			logf("Overflow decompressing VIS lump!");
+			return;
 		}
 	}
 }

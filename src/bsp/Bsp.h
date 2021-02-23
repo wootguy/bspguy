@@ -22,7 +22,7 @@ class Bsp
 public:
 	string path;
 	string name;
-	BSPHEADER header;
+	BSPHEADER header = BSPHEADER();
 	byte ** lumps;
 	bool valid;
 

@@ -1,6 +1,6 @@
 #include "util.h"
 
-class BSPLEAF;
+struct BSPLEAF;
 
 bool shiftVis(byte* vis, int len, int offsetLeaf, int shift);
 
