@@ -496,6 +496,7 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
+#ifndef NDEBUG
 		if (ImGui::MenuItem("Test", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
 
@@ -516,6 +517,7 @@ void Gui::drawMenuBar() {
 				logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
 			}
 		}
+#endif
 		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
