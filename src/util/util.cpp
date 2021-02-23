@@ -10,6 +10,10 @@
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
+#else 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 
@@ -732,9 +736,6 @@ string getConfigDir()
 }
 
 #else
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 void print_color(int colors)
 {
