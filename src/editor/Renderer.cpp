@@ -1572,7 +1572,10 @@ void Renderer::addMap(Bsp* map) {
 		for(auto const & ent : map->ents)
 		{
 			if (ent->getOrigin() != vec3())
+			{
 				cameraOrigin = ent->getOrigin();
+				break;
+			}
 		}
 	}
 }
