@@ -543,6 +543,8 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Exit", NULL)) {
 			g_settings.save();
 			glfwTerminate();
+			if (dirExists(g_settings.gamedir + g_settings.workingdir))
+				removeDir(g_settings.gamedir + g_settings.workingdir);
 			std::exit(0);
 		}
 		ImGui::EndMenu();
@@ -3164,7 +3166,7 @@ void Gui::drawLightMapTool() {
 			ImGui::PopTextWrapPos();
 			ImGui::EndTooltip();
 		}
-		
+
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
 		{
@@ -3247,7 +3249,7 @@ void Gui::drawLightMapTool() {
 						picker_pos.x += 208;
 					}
 					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
-					
+
 
 					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
 					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
@@ -3307,12 +3309,12 @@ void Gui::drawLightMapTool() {
 			{
 				showLightmapEditorUpdate = true;
 			}
-			/* 
+			/*
 					TODO: Export and import from file
 				ImGui::Separator();
 				if (ImGui::Button("Export", ImVec2(120, 0)))
 				{
-				
+
 				}
 				ImGui::SameLine();
 				if (ImGui::Button("Import", ImVec2(120, 0)))
@@ -3328,7 +3330,7 @@ void Gui::drawLightMapTool() {
 				ImGui::SameLine();
 				if (ImGui::Button("Import ALL", ImVec2(120, 0)))
 				{
-					
+
 				}
 			*/
 		}

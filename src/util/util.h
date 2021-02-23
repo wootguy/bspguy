@@ -58,6 +58,8 @@ bool dirExists(const string& dirName_in);
 
 bool createDir(const string& dirName);
 
+void removeDir(const string& dirName);
+
 string toLowerCase(string str);
 
 string trimSpaces(string s);

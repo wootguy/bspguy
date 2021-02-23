@@ -7,6 +7,20 @@
 #include <string.h>
 #include "Wad.h"
 #include <stdarg.h>
+#ifdef WIN32
+#include <Windows.h>
+#include <Shlobj.h>
+#endif
+
+
+#ifdef __cpp_lib_experimental_filesystem
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else __cpp_lib_filesystem
+#include <filesystem>
+namespace fs = std::filesystem;
+#endif
+
 
 ProgressMeter g_progress;
 int g_render_flags;
@@ -49,12 +63,18 @@ void debugf(const char* format, ...) {
 
 bool fileExists(const string& fileName)
 {
+#if defined(__cpp_lib_experimental_filesystem)
+	return std::experimental::filesystem::exists(fileName) && !std::experimental::filesystem::is_directory(fileName);
+#elif defined(__cpp_lib_filesystem) 
+	return std::filesystem::exists(fileName) && !std::filesystem::is_directory(fileName);
+#else
 	if (FILE *file = fopen(fileName.c_str(), "r"))
 	{
 		fclose(file);
 		return true;
 	}
 	return false; 
+#endif
 }
 
 char * loadFile( const string& fileName, int& length)
@@ -634,6 +654,65 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 	return inside;
 }
 
+bool dirExists(const string& dirName_in)
+{
+#if defined(__cpp_lib_experimental_filesystem)
+	return std::experimental::filesystem::exists(dirName_in) && std::experimental::filesystem::is_directory(dirName_in);
+#elif defined(__cpp_lib_filesystem) 
+	return std::filesystem::exists(dirName_in) && std::filesystem::is_directory(dirName_in);
+#elif WIN32
+	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;  //something is wrong with your path!
+
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;   // this is a directory!
+
+	return false;    // this is not a directory!
+#else 
+	struct stat sb;
+	return stat(dirName.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode);
+#endif
+}
+
+bool createDir(const string& dirName)
+{
+#if defined(__cpp_lib_experimental_filesystem)
+	return std::experimental::filesystem::create_directory(dirName);
+#elif defined(__cpp_lib_filesystem) 
+	return std::filesystem::create_directory(dirName);
+#elif WIN32
+	int ret = CreateDirectory(dirName.c_str(), NULL);
+	if (ret == ERROR_PATH_NOT_FOUND)
+	{
+		logf("Could not create directory: %s", dirName.c_str());
+		return false;
+	}
+	return true;
+#else 
+	if (dirExists(dirName))
+		return true;
+
+	int ret = mkdir(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	if (ret != 0)
+	{
+		logf("Could not create directory: %s", dirName.c_str());
+		return false;
+	}
+	return true;
+#endif
+}
+
+void removeDir(const string& dirName)
+{
+#if defined(__cpp_lib_experimental_filesystem) || defined(__cpp_lib_filesystem) 
+	std::experimental::filesystem::remove(dirName);
+#else
+
+
+#endif
+}
+
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
@@ -650,29 +729,6 @@ string getConfigDir()
 	char path[MAX_PATH];
 	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
 	return string(path) + "\\AppData\\Roaming\\bspguy\\";
-}
-
-bool dirExists(const string& dirName_in)
-{
-	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
-	if (ftyp == INVALID_FILE_ATTRIBUTES)
-		return false;  //something is wrong with your path!
-
-	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
-		return true;   // this is a directory!
-
-	return false;    // this is not a directory!
-}
-
-bool createDir(const string& dirName)
-{
-	int ret = CreateDirectory(dirName.c_str(), NULL);
-	if (ret == ERROR_PATH_NOT_FOUND)
-	{
-		logf("Could not create directory: %s", dirName.c_str());
-		return false;
-	}
-	return true;
 }
 
 #else
@@ -707,23 +763,4 @@ string getConfigDir()
 	return string("") + getenv("HOME") + "/.config/bspguy/";
 }
 
-bool dirExists(const string& dirName)
-{
-	struct stat sb;
-	return stat(dirName.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode);
-}
-
-bool createDir(const string& dirName)
-{
-	if (dirExists(dirName))
-		return true;
-
-	int ret = mkdir(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	if (ret != 0)
-	{
-		logf("Could not create directory: %s", dirName.c_str());
-		return false;
-	}
-	return true;
-}
 #endif
