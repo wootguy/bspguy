@@ -543,6 +543,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Exit", NULL)) {
 			g_settings.save();
 			glfwTerminate();
+			std::exit(0);
 		}
 		ImGui::EndMenu();
 	}
