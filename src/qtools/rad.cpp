@@ -301,8 +301,8 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 
 	f = &bsp->faces[facenum];
 
-	mins[0] = mins[1] = 999999;
-	maxs[0] = maxs[1] = -99999;
+	mins[0] = mins[1] = FLT_MAX;
+	maxs[0] = maxs[1] = FLT_MIN;
 
 	tex = &bsp->texinfos[f->iTextureInfo];
 
@@ -358,8 +358,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 
 	s = l->face;
 
-	mins[0] = mins[1] = 99999999;
-	maxs[0] = maxs[1] = -99999999;
+	mins[0] = mins[1] = FLT_MIN;
+	maxs[0] = maxs[1] = FLT_MAX;
 
 	tex = &bsp->texinfos[s->iTextureInfo];
 

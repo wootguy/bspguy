@@ -83,8 +83,8 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 }
 
 void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
-	mins = vec3(9e99, 9e99, 9e99);
-	maxs = vec3(-9e99, -9e99, -9e99);
+	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
 
 	BSPMODEL& model = models[modelIdx];
 
@@ -3076,8 +3076,8 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	targetModel->iFirstFace = startFace;
 	targetModel->nFaces = 6;
 
-	targetModel->nMaxs = vec3(-9e99, -9e99, -9e99);
-	targetModel->nMins = vec3(9e99, 9e99, 9e99);
+	targetModel->nMaxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	targetModel->nMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	for (int i = 0; i < 8; i++) {
 		vec3 v = verts[startVert + i];
 
@@ -3250,8 +3250,8 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 	targetModel->iFirstFace = startFace;
 	targetModel->nFaces = solid.faces.size();
 
-	targetModel->nMaxs = vec3(-9e99, -9e99, -9e99);
-	targetModel->nMins = vec3(9e99, 9e99, 9e99);
+	targetModel->nMaxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	targetModel->nMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	for (int i = 0; i < solid.hullVerts.size(); i++) {
 		vec3 v = verts[startVert + i];
 		expandBoundingBox(v, targetModel->nMins, targetModel->nMaxs);
