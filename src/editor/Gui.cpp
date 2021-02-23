@@ -3157,6 +3157,8 @@ void Gui::drawLightMapTool() {
 	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 	static float colourPatch[3];
 
+	char fileNam[256];
+
 	static int windowWidth = 550;
 	static int windowHeight = 520;
 	static int lightmaps = 0;
@@ -3197,6 +3199,11 @@ void Gui::drawLightMapTool() {
 
 			if (showLightmapEditorUpdate)
 			{
+				logf("Clean previous lightmaps...\n");
+				for (int i = 0; i < MAXLIGHTMAPS; i++) {
+					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+					removeFile(fileNam);
+				}
 				lightmaps = 0;
 				for (int i = 0; i < MAXLIGHTMAPS; i++)
 				{
@@ -3332,15 +3339,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			if (ImGui::Button("Export", ImVec2(120, 0)))
 			{
-				char fileNam[256];
-
 				logf("Export lightmaps to png files...\n");
-				logf("Clean previous lightmaps...\n");
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
-					removeFile(fileNam);
-				}
-				logf("Generating new lightmaps...\n");
 				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
 						continue;
@@ -3355,7 +3354,6 @@ void Gui::drawLightMapTool() {
 			if (ImGui::Button("Import", ImVec2(120, 0)))
 			{
 				logf("Import lightmaps to png files...\n");
-				char fileNam[256];
 
 				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
@@ -3372,7 +3370,7 @@ void Gui::drawLightMapTool() {
 						if (w == size[0] && h == size[1])
 						{
 							memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
-							currentlightMap[i]->upload(GL_RGB);
+							currentlightMap[i]->upload(GL_RGB,true);
 						}
 						else
 						{
