@@ -496,6 +496,18 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
+		if (ImGui::BeginMenu("Export")) {
+			if (ImGui::MenuItem("Entity file",NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Export entities: %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
+					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+				}
+			}
+			ImGui::EndMenu();
+		}
 #ifndef NDEBUG
 		if (ImGui::MenuItem("Test", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
