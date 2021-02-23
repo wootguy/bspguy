@@ -3272,7 +3272,7 @@ void Gui::drawLightMapTool() {
 				}
 			}
 			ImGui::Separator();
-			ImGui::Text("Lightmap size width:%d height:%d", size[0], size[1]);
+			ImGui::Text("Lightmap width:%d height:%d", size[0], size[1]);
 			ImGui::Separator();
 			ColorPicker3(colourPatch);
 			ImGui::Separator();
