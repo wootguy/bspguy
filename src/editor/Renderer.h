@@ -97,11 +97,11 @@ class Renderer {
 public:
 	vector<BspRenderer*> mapRenderers;
 
-	vec3 debugPoint = vec3();
-	vec3 debugVec0 = vec3();
-	vec3 debugVec1 = vec3();
-	vec3 debugVec2 = vec3();
-	vec3 debugVec3 = vec3();
+	vec3 debugPoint;
+	vec3 debugVec0;
+	vec3 debugVec1;
+	vec3 debugVec2;
+	vec3 debugVec3;
 
 	bool hideGui = false;
 
@@ -132,11 +132,11 @@ private:
 
 	Fgd* fgd = NULL;
 
-	vec3 cameraOrigin = vec3();
-	vec3 cameraAngles = vec3();
-	vec3 cameraForward = vec3();
-	vec3 cameraUp = vec3();
-	vec3 cameraRight = vec3();
+	vec3 cameraOrigin;
+	vec3 cameraAngles;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	vec3 cameraRight;
 	bool cameraIsRotating;
 	float frameTimeScale = 0.0f;
 	float moveSpeed = 4.0f;
@@ -148,12 +148,12 @@ private:
 	int windowHeight;
 	mat4x4 model = mat4x4(), view = mat4x4(), projection = mat4x4(), modelView = mat4x4(), modelViewProjection = mat4x4();
 
-	vec2 lastMousePos = vec2();
-	vec2 totalMouseDrag = vec2();
+	vec2 lastMousePos;
+	vec2 totalMouseDrag;
 
 	bool movingEnt = false; // grab an ent and move it with the camera
-	vec3 grabStartOrigin = vec3();
-	vec3 grabStartEntOrigin = vec3();
+	vec3 grabStartOrigin;
+	vec3 grabStartEntOrigin;
 	float grabDist;
 
 	TransformAxes moveAxes = TransformAxes();
@@ -167,8 +167,8 @@ private:
 	int pickMode = PICK_OBJECT;
 	bool showDragAxes = false;
 	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
-	vec3 axisDragStart = vec3();
-	vec3 axisDragEntOriginStart = vec3();
+	vec3 axisDragStart;
+	vec3 axisDragEntOriginStart;
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	bool textureLock = false;
 	bool invalidSolid = false;
@@ -189,13 +189,13 @@ private:
 	VertexBuffer* modelOriginBuff = NULL;
 	bool originSelected = false;
 	bool originHovered = false;
-	vec3 oldOrigin = vec3();;
-	vec3 transformedOrigin = vec3();;
+	vec3 oldOrigin;
+	vec3 transformedOrigin;
 	int hoverVert = -1;
 	int hoverEdge = -1;
 	float vertExtentFactor = 0.01f;
 	bool modelUsesSharedStructures = false;
-	vec3 selectionSize = vec3();;
+	vec3 selectionSize;
 
 	VertexBuffer* entConnections = NULL;
 	VertexBuffer* entConnectionPoints = NULL;
@@ -213,7 +213,7 @@ private:
 	bool anyAltPressed;
 	bool anyShiftPressed;
 
-	PickInfo pickInfo = PickInfo(); // FIXED: I got random crash if not initialize this struct because mapid randomly!!
+	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 
@@ -231,7 +231,7 @@ private:
 	vector<Command*> redoHistory;
 	Entity* undoEntityState = NULL;
 	LumpState undoLumpState = LumpState();
-	vec3 undoEntOrigin = vec3();
+	vec3 undoEntOrigin;
 
 	vec3 getMoveDir();
 	void controls();

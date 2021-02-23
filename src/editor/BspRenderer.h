@@ -97,7 +97,7 @@ class BspRenderer {
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
-	vec3 mapOffset = vec3();
+	vec3 mapOffset;
 	int showLightFlag = -1;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);

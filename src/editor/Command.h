@@ -110,8 +110,8 @@ class EditBspModelCommand : public Command {
 public:
 	int modelIdx;
 	int entIdx;
-	vec3 oldOrigin = vec3();
-	vec3 newOrigin = vec3();
+	vec3 oldOrigin;
+	vec3 newOrigin;
 	LumpState oldLumps = LumpState();
 	LumpState newLumps = LumpState();
 

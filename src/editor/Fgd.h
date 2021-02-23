@@ -54,10 +54,10 @@ struct FgdClass {
 	bool isModel;
 	bool isSprite;
 	bool isDecal;
-	vec3 mins = vec3();
-	vec3 maxs = vec3();
-	COLOR3 color = COLOR3();
-	hashmap otherTypes = hashmap(); // unrecognized types
+	vec3 mins;
+	vec3 maxs;
+	COLOR3 color;
+	hashmap otherTypes; // unrecognized types
 
 	// if false, then need to get props from the base class
 	bool colorSet;
