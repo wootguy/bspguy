@@ -478,14 +478,75 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 	}
+}
 
+void ExportWad(Bsp* map)
+{
+	if (map->textureCount > 0)
+	{
+		Wad* tmpWad = new Wad(map->path);
+		std::vector<WADTEX*> tmpWadTex;
+		for (int i = 0; i < map->textureCount; i++) {
+			int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
+			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
+			WADTEX* oldTex = new WADTEX(bspTex);
+			tmpWadTex.push_back(oldTex);
+		}
+		tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+		for (int i = 0; i < map->textureCount; i++) {
+			delete tmpWadTex[i];
+		}
+		tmpWadTex.clear();
+	}
+	else
+	{
+		logf("No textures for export.\n");
+	}
+}
 
+void ImportWad(Bsp* map, Renderer* app)
+{
+	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+	if (!tmpWad->readInfo())
+	{
+		logf("Parsing wad file failed!\n");
+	}
+	else
+	{
+		for (int i = 0; i < tmpWad->numTex; i++)
+		{
+			WADTEX* wadTex = tmpWad->readTexture(i);
+			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+			byte* src = wadTex->data;
+
+			COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+			int sz = wadTex->nWidth * wadTex->nHeight;
+
+			for (int k = 0; k < sz; k++) {
+				imageData[k] = palette[src[k]];
+			}
+
+			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+
+			delete[] imageData;
+			delete wadTex;
+		}
+		for (int i = 0; i < app->mapRenderers.size(); i++) {
+			app->mapRenderers[i]->reloadTextures();
+		}
+	}
+	delete tmpWad;
 }
 
 void Gui::drawMenuBar() {
 	ImGuiContext& g = *GImGui;
 
 	ImGui::BeginMainMenuBar();
+
+	static bool showSvenTestMenu = true;
 
 	if (ImGui::BeginMenu("File"))
 	{
@@ -503,7 +564,11 @@ void Gui::drawMenuBar() {
 				{
 					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
-					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength);
+					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
+					{
+						std::string entities = std::string(map->lumps[LUMP_ENTITIES], map->lumps[LUMP_ENTITIES] + map->header.lump[LUMP_ENTITIES].nLength - 1);
+						entFile.write(entities.c_str(), entities.size());
+					}
 				}
 			}
 			if (ImGui::MenuItem("Wad file", NULL)) {
@@ -511,26 +576,7 @@ void Gui::drawMenuBar() {
 				if (map)
 				{
 					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-					if (map->textureCount > 0)
-					{
-						Wad* tmpWad = new Wad(map->path);
-						std::vector<WADTEX*> tmpWadTex;
-						for (int i = 0; i < map->textureCount; i++) {
-							int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
-							BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
-							WADTEX* oldTex = new WADTEX(bspTex);
-							tmpWadTex.push_back(oldTex);
-						}
-						tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
-						for (int i = 0; i < map->textureCount; i++) {
-							delete tmpWadTex[i];
-						}
-						tmpWadTex.clear();
-					}
-					else
-					{
-						logf("No textures for export.\n");
-					}
+					ExportWad(map);
 				}
 			}
 			ImGui::EndMenu();
@@ -543,12 +589,15 @@ void Gui::drawMenuBar() {
 					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
 					{
+						byte * nulllump = new byte[1]{ 0 };
+						map->replace_lump(LUMP_ENTITIES, nulllump, 1);
+						map->load_ents();
 						int datasize = fileSize(g_settings.gamedir + g_settings.workingdir + "entities.ent");
-						char* data = new char[datasize + 1];
-						data[datasize] = '\0';
-						ifstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", std::ios::binary);
+						char* data = new char[datasize];
+						ifstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ifstream::binary);
 						entFile.read(data, datasize);
 						map->replace_lump(LUMP_ENTITIES, data, datasize);
+						map->load_ents();
 					}
 					else
 					{
@@ -563,39 +612,7 @@ void Gui::drawMenuBar() {
 					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
 					if (fileExists(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad"))
 					{
-						Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
-						if (!tmpWad->readInfo())
-						{
-							logf("Parsing wad file failed!\n");
-						}
-						else
-						{
-							for (int i = 0; i < tmpWad->numTex; i++)
-							{
-								WADTEX* wadTex = tmpWad->readTexture(i);
-								int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
-
-								COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-								byte* src = wadTex->data;
-
-								COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
-
-								int sz = wadTex->nWidth * wadTex->nHeight;
-
-								for (int k = 0; k < sz; k++) {
-									imageData[k] = palette[src[k]];
-								}
-
-								map->add_texture(wadTex->szName, (byte *)imageData, wadTex->nWidth, wadTex->nHeight);
-
-								delete[] imageData;
-								delete wadTex;
-							}
-							for (int i = 0; i < app->mapRenderers.size(); i++) {
-								app->mapRenderers[i]->reloadTextures();
-							}
-						}
-						delete tmpWad;
+						ImportWad(map, app);
 					}
 					else
 					{
@@ -605,8 +622,17 @@ void Gui::drawMenuBar() {
 			}
 			ImGui::EndMenu();
 		}
-#ifndef NDEBUG
-		if (ImGui::MenuItem("Test", NULL)) {
+
+		if (showSvenTestMenu)
+		{
+			if (!dirExists(g_settings.gamedir + "/svencoop_addon/"))
+			{ 
+				// Test menu made only for svencoop
+				showSvenTestMenu = false;
+			}
+		}
+
+		if (showSvenTestMenu && ImGui::MenuItem("Test")) {
 			Bsp* map = app->getMapContainingCamera()->map;
 
 			string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
@@ -626,7 +652,7 @@ void Gui::drawMenuBar() {
 				logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
 			}
 		}
-#endif
+
 		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
@@ -2275,7 +2301,7 @@ void Gui::drawSettings() {
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
-			ImGui::Text("Working Directory:");
+			ImGui::Text("Import/Export Directory:");
 			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
@@ -2304,13 +2330,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add fgd path")) {
 				numFgds++;
-				if (numFgds > 64) {
-					numFgds = 64;
-				}
-				else
-				{
-					tmpFgdPaths.push_back(std::string());
-				}
+				tmpFgdPaths.push_back(std::string());
 			}
 		}
 		else if (settingsTab == 2) {
@@ -2334,13 +2354,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add res path")) {
 				numRes++;
-				if (numRes > 64) {
-					numRes = 64;
-				}
-				else
-				{
-					tmpResPaths.push_back(std::string());
-				}
+				tmpResPaths.push_back(std::string());
 			}
 		}
 		else if (settingsTab == 3) {
@@ -2452,44 +2466,30 @@ void Gui::drawSettings() {
 				g_settings.gamedir = string(gamedir);
 				g_settings.workingdir = string(workingdir);
 				/* fixup gamedir */
-				if (g_settings.gamedir.size() && (g_settings.gamedir[g_settings.gamedir.size() - 1] == '/'
-					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\'))
-				{
-					g_settings.gamedir.pop_back();
-				}
+				fixupPath(g_settings.gamedir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
 				sprintf(gamedir, "%s", g_settings.gamedir.c_str());
 
 				/* fixup workingdir */
-				if (g_settings.workingdir.size() > 1)
-				{
-					if (g_settings.workingdir[0] != '\\' &&
-						g_settings.workingdir[0] != '/')
-					{
-						g_settings.workingdir = "/" + g_settings.workingdir;
-					}
-					if (g_settings.workingdir[g_settings.workingdir.size() - 1] != '\\' &&
-						g_settings.workingdir[g_settings.workingdir.size() - 1] != '/')
-					{
-						g_settings.workingdir = g_settings.workingdir + "/";
-					}
-				}
-				else
-				{
-					g_settings.workingdir = "/";
-				}
+				fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
 				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
 
 				g_settings.fgdPaths.clear();
-				for (auto const& s : tmpFgdPaths)
+				for (auto & s : tmpFgdPaths)
 				{
 					if (s[0] != '\0')
+					{
+						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
 						g_settings.fgdPaths.push_back(s.c_str()); // c_str for remove NULL characters
+					}
 				}
 				g_settings.resPaths.clear();
-				for (auto const& s : tmpResPaths)
+				for (auto & s : tmpResPaths)
 				{
 					if (s[0] != '\0')
+					{
+						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
 						g_settings.resPaths.push_back(s.c_str());
+					}
 				}
 				app->reloadFgdsAndTextures();
 			}
@@ -2901,7 +2901,7 @@ void Gui::drawEntityReport() {
 
 			while (clipper.Step())
 			{
-				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size(); line++)
+				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size() && visibleEnts[line] < map->ents.size(); line++)
 				{
 					int i = line;
 					int entIdx = visibleEnts[i];
@@ -3264,13 +3264,83 @@ bool ColorPicker4(float col[4]) {
 	return ColorPicker(col, true);
 }
 
+static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 
-void Gui::drawLightMapTool() {
-	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
-	static float colourPatch[3];
-
+void ExportLightmaps(BSPFACE face, int size[2], Bsp * map)
+{
 	char fileNam[256];
 
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+			continue;
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		logf("Exporting %s\n", fileNam);
+		lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
+	}
+}
+
+void ImportLightmaps(BSPFACE face, int size[2])
+{
+	char fileNam[256];
+
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+			continue;
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		unsigned int w = size[0], h = size[1];
+		logf("Importing %s\n", fileNam);
+		unsigned char* image_bytes = nullptr;
+		auto error = lodepng_decode24_file(&image_bytes, &w, &h, fileNam);
+		if (error == 0 && w > 0 && h > 0 && image_bytes != nullptr)
+		{
+			if (w == size[0] && h == size[1])
+			{
+				memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
+				currentlightMap[i]->upload(GL_RGB, true);
+			}
+			else
+			{
+				logf("Invalid lightmap image width/height!\n");
+			}
+			free(image_bytes);
+		}
+		else
+		{
+			logf("Invalid lightmap image format. Need 24bit png!\n");
+		}
+	}
+}
+
+void UpdateLightmaps(BSPFACE face, int size[2], Bsp * map, int& lightmaps)
+{
+	for (int i = 0; i < MAXLIGHTMAPS; i++)
+	{
+		if (currentlightMap[i] != nullptr)
+			delete currentlightMap[i];
+		currentlightMap[i] = nullptr;
+	}
+
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255)
+			continue;
+		currentlightMap[i] = new Texture(size[0], size[1]);
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
+		currentlightMap[i]->upload(GL_RGB, true);
+		lightmaps++;
+		//logf("upload %d style at offset %d\n", i, offset);
+	}
+}
+
+void Gui::drawLightMapTool() {
+	static float colourPatch[3];
+
+	
 	static int windowWidth = 550;
 	static int windowHeight = 520;
 	static int lightmaps = 0;
@@ -3307,34 +3377,10 @@ void Gui::drawLightMapTool() {
 			BSPFACE& face = map->faces[faceIdx];
 			int size[2];
 			GetFaceLightmapSize(map, faceIdx, size);
-
-
 			if (showLightmapEditorUpdate)
 			{
-				logf("Clean previous lightmaps...\n");
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
-					removeFile(fileNam);
-				}
 				lightmaps = 0;
-				for (int i = 0; i < MAXLIGHTMAPS; i++)
-				{
-					if (currentlightMap[i] != nullptr)
-						delete currentlightMap[i];
-					currentlightMap[i] = nullptr;
-				}
-
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					if (face.nStyles[i] == 255)
-						continue;
-					currentlightMap[i] = new Texture(size[0], size[1]);
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + i * lightmapSz;
-					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
-					currentlightMap[i]->upload(GL_RGB, true);
-					lightmaps++;
-					//logf("upload %d style at offset %d\n", i, offset);
-				}
+				UpdateLightmaps(face, size, map, lightmaps);
 				windowWidth = lightmaps > 1 ? 550 : 250;
 				showLightmapEditorUpdate = false;
 			}
@@ -3439,7 +3485,6 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
 				}
-
 				app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 			}
 			ImGui::SameLine();
@@ -3452,49 +3497,13 @@ void Gui::drawLightMapTool() {
 			if (ImGui::Button("Export", ImVec2(120, 0)))
 			{
 				logf("Export lightmaps to png files...\n");
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
-						continue;
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + i * lightmapSz;
-					sprintf(fileNam, "%s%s%s-%i.png",g_settings.gamedir.c_str(),g_settings.workingdir.c_str(), "lightmap",i);
-					logf("Exporting %s\n", fileNam);
-					lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
-				}
+				ExportLightmaps(face, size, map);
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Import", ImVec2(120, 0)))
 			{
-				logf("Import lightmaps to png files...\n");
-
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
-						continue;
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + i * lightmapSz;
-					sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
-					unsigned int w = size[0], h = size[1];
-					logf("Importing %s\n", fileNam);
-					unsigned char * image_bytes = nullptr;
-					auto error = lodepng_decode24_file(&image_bytes, &w, &h, fileNam);
-					if (error == 0 && w > 0 && h > 0 && image_bytes != nullptr)
-					{
-						if (w == size[0] && h == size[1])
-						{
-							memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
-							currentlightMap[i]->upload(GL_RGB,true);
-						}
-						else
-						{
-							logf("Invalid lightmap image width/height!\n");
-						}
-						free(image_bytes);
-					}
-					else
-					{
-						logf("Invalid lightmap image format. Need 24bit png!\n");
-					}
-				}
+				logf("Import lightmaps from png files...\n");
+				ImportLightmaps(face, size);
 			}
 		}
 		else

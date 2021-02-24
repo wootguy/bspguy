@@ -197,10 +197,6 @@ void AppSettings::save() {
 		createDir(g_config_dir);
 	}
 
-	if (dirExists(g_settings.gamedir + g_settings.workingdir)) {
-		removeDir(g_settings.gamedir + g_settings.workingdir);
-	}
-
 	g_app->saveSettings();
 
 	ofstream file(g_settings_path, ios::out | ios::trunc);
@@ -634,7 +630,7 @@ void Renderer::loadFgds() {
 			}
 		}
 
-		if (i == 0) {
+		if (i == 0 || mergedFgd == NULL) {
 			mergedFgd = tmp;
 		}
 		else {

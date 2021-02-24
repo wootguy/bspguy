@@ -16,15 +16,19 @@
 #include <unistd.h>
 #endif
 
-
-#ifdef __cpp_lib_experimental_filesystem
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#else __cpp_lib_filesystem
-#include <filesystem>
-namespace fs = std::filesystem;
+#ifdef WIN32
+#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #endif
 
+#ifdef __cpp_lib_filesystem
+#include <filesystem>
+namespace fs = std::filesystem;
+#define USE_FILESYSTEM
+#else 
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#define USE_FILESYSTEM
+#endif
 
 ProgressMeter g_progress;
 int g_render_flags;
@@ -41,7 +45,7 @@ void logf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf("%s",log_line);
+	printf("%s", log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
@@ -51,7 +55,7 @@ void debugf(const char* format, ...) {
 	if (!g_verbose) {
 		return;
 	}
-	
+
 	g_log_mutex.lock();
 
 	va_list vl;
@@ -59,7 +63,7 @@ void debugf(const char* format, ...) {
 	vsnprintf(log_line, 4096, format, vl);
 	va_end(vl);
 
-	printf("%s",log_line);
+	printf("%s", log_line);
 	g_log_buffer.push_back(log_line);
 
 	g_log_mutex.unlock();
@@ -67,29 +71,27 @@ void debugf(const char* format, ...) {
 
 bool fileExists(const string& fileName)
 {
-#if defined(__cpp_lib_experimental_filesystem)
-	return std::experimental::filesystem::exists(fileName) && !std::experimental::filesystem::is_directory(fileName);
-#elif defined(__cpp_lib_filesystem) 
-	return std::filesystem::exists(fileName) && !std::filesystem::is_directory(fileName);
+#ifdef USE_FILESYSTEM
+	return fs::exists(fileName) && !fs::is_directory(fileName);
 #else
-	if (FILE *file = fopen(fileName.c_str(), "r"))
+	if (FILE* file = fopen(fileName.c_str(), "r"))
 	{
 		fclose(file);
 		return true;
 	}
-	return false; 
+	return false;
 #endif
 }
 
-char * loadFile( const string& fileName, int& length)
+char* loadFile(const string& fileName, int& length)
 {
 	if (!fileExists(fileName))
 		return NULL;
-	ifstream fin(fileName.c_str(), ifstream::in|ios::binary);
+	ifstream fin(fileName.c_str(), ifstream::in | ios::binary);
 	long long begin = fin.tellg();
-	fin.seekg (0, ios::end);
+	fin.seekg(0, ios::end);
 	uint size = (uint)((int)fin.tellg() - begin);
-	char * buffer = new char[size];
+	char* buffer = new char[size];
 	fin.seekg(0);
 	fin.read(buffer, size);
 	fin.close();
@@ -109,16 +111,13 @@ bool writeFile(const string& fileName, const char* data, int len)
 
 bool removeFile(const string& fileName)
 {
-#if defined(__cpp_lib_experimental_filesystem)
-	return std::experimental::filesystem::exists(fileName) && std::experimental::filesystem::remove(fileName);
-#elif defined(__cpp_lib_filesystem) 
-	return std::filesystem::exists(fileName) && std::filesystem::remove(fileName);
+#ifdef USE_FILESYSTEM
+	return fs::exists(fileName) && fs::remove(fileName);
 #elif WIN32
 	return DeleteFile(fileName.c_str());
 #else 
 	return remove(fileName.c_str());
 #endif
-	
 }
 
 std::streampos fileSize(const string& filePath) {
@@ -212,7 +211,7 @@ int getBspTextureSize(BSPMIPTEX* bspTexture) {
 		sz += 256 * 3 + 4; // pallette + padding
 
 		for (int i = 0; i < MIPLEVELS; i++) {
-			sz += (bspTexture->nWidth >> i)* (bspTexture->nHeight >> i);
+			sz += (bspTexture->nWidth >> i) * (bspTexture->nHeight >> i);
 		}
 	}
 	return sz;
@@ -697,11 +696,10 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 
 bool dirExists(const string& dirName_in)
 {
-#if defined(__cpp_lib_experimental_filesystem)
-	return std::experimental::filesystem::exists(dirName_in) && std::experimental::filesystem::is_directory(dirName_in);
-#elif defined(__cpp_lib_filesystem) 
-	return std::filesystem::exists(dirName_in) && std::filesystem::is_directory(dirName_in);
-#elif WIN32
+#ifdef USE_FILESYSTEM
+	return fs::exists(dirName_in) && fs::is_directory(dirName_in);
+#else
+#ifdef WIN32
 	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
 	if (ftyp == INVALID_FILE_ATTRIBUTES)
 		return false;  //something is wrong with your path!
@@ -714,19 +712,82 @@ bool dirExists(const string& dirName_in)
 	struct stat sb;
 	return stat(dirName.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode);
 #endif
+#endif
 }
+
+#ifndef WIN32
+// mkdir_p for linux from https://gist.github.com/ChisholmKyle/0cbedcd3e64132243a39
+int mkdir_p(const char* dir, const mode_t mode) {
+	char tmp[PATH_MAX_STRING_SIZE];
+	char* p = NULL;
+	struct stat sb;
+	size_t len;
+
+	/* copy path */
+	len = strnlen(dir, PATH_MAX_STRING_SIZE);
+	if (len == 0 || len == PATH_MAX_STRING_SIZE) {
+		return -1;
+	}
+	memcpy(tmp, dir, len);
+	tmp[len] = '\0';
+
+	/* remove trailing slash */
+	if (tmp[len - 1] == '/') {
+		tmp[len - 1] = '\0';
+	}
+
+	/* check if path exists and is a directory */
+	if (stat(tmp, &sb) == 0) {
+		if (S_ISDIR(sb.st_mode)) {
+			return 0;
+		}
+	}
+
+	/* recursive mkdir */
+	for (p = tmp + 1; *p; p++) {
+		if (*p == '/') {
+			*p = 0;
+			/* test path */
+			if (stat(tmp, &sb) != 0) {
+				/* path does not exist - create directory */
+				if (mkdir(tmp, mode) < 0) {
+					return -1;
+				}
+			}
+			else if (!S_ISDIR(sb.st_mode)) {
+				/* not a directory */
+				return -1;
+			}
+			*p = '/';
+		}
+	}
+	/* test path */
+	if (stat(tmp, &sb) != 0) {
+		/* path does not exist - create directory */
+		if (mkdir(tmp, mode) < 0) {
+			return -1;
+		}
+	}
+	else if (!S_ISDIR(sb.st_mode)) {
+		/* not a directory */
+		return -1;
+	}
+	return 0;
+}
+#endif 
 
 bool createDir(const string& dirName)
 {
-#if defined(__cpp_lib_experimental_filesystem)
-	return std::experimental::filesystem::create_directory(dirName);
-#elif defined(__cpp_lib_filesystem) 
-	return std::filesystem::create_directory(dirName);
-#elif WIN32
-	int ret = CreateDirectory(dirName.c_str(), NULL);
-	if (ret == ERROR_PATH_NOT_FOUND)
+#ifdef USE_FILESYSTEM
+	return fs::create_directories(dirName);
+#else
+#ifdef WIN32
+	std::string fixDirName = dirName;
+	fixupPath(fixDirName, FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH_REMOVE);
+	int ret = SHCreateDirectoryExA(NULL, dirName.c_str(), NULL);
+	if (ret != ERROR_SUCCESS)
 	{
-		logf("Could not create directory: %s", dirName.c_str());
+		logf("Could not create directory: %s. Error: %i", dirName.c_str(), ret);
 		return false;
 	}
 	return true;
@@ -734,7 +795,7 @@ bool createDir(const string& dirName)
 	if (dirExists(dirName))
 		return true;
 
-	int ret = mkdir(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	int ret = mkdir_p(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (ret != 0)
 	{
 		logf("Could not create directory: %s", dirName.c_str());
@@ -742,28 +803,108 @@ bool createDir(const string& dirName)
 	}
 	return true;
 #endif
+#endif
 }
 
 void removeDir(const string& dirName)
 {
-#if defined(__cpp_lib_experimental_filesystem) 
+#ifdef USE_FILESYSTEM
 	std::error_code e;
-	std::experimental::filesystem::remove_all(dirName,e);
-#elif defined(__cpp_lib_filesystem) 
-	std::error_code e;
-	std::filesystem::remove_all(dirName, e);
+	fs::remove_all(dirName, e);
 #endif
 }
 
 
+void replaceAll(std::string& str, const std::string& from, const std::string& to) {
+	if (from.empty())
+		return;
+	size_t start_pos = 0;
+	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length();
+	}
+}
+
+
+void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
+{
+	if (path.empty())
+		return;
+#ifdef WIN32
+	replaceAll(path, "/", "\\");
+	replaceAll(path, "\\\\", "\\");
+#else
+	replaceAll(path, "\\", "/");
+	replaceAll(path, "//", "/");
+#endif
+	if (startslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
+	{
+		if (path[0] != '\\' && path[0] != '/')
+		{
+#ifdef WIN32
+			path = "\\" + path;
+#else 
+			path = "/" + path;
+#endif
+		}
+	}
+	else if (startslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE)
+	{
+		if (path[0] == '\\' || path[0] == '/')
+		{
+			path.erase(path.begin());
+		}
+	}
+
+	if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
+	{
+		if (path.empty() || ( path[path.size() - 1] != '\\' && path[path.size() - 1] != '/') )
+		{
+#ifdef WIN32
+			path = path + "\\";
+#else 
+			path = path + "/";
+#endif
+		}
+	}
+	else if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE)
+	{
+		if (path.empty())
+			return;
+
+		if (path[path.size() - 1] == '\\' || path[path.size() - 1] == '/')
+		{
+			path.pop_back();
+		}
+	}
+
+#ifdef WIN32
+	replaceAll(path, "/", "\\");
+	replaceAll(path, "\\\\", "\\");
+#else
+	replaceAll(path, "\\", "/");
+	replaceAll(path, "//", "/");
+#endif
+}
+
+
+#ifdef WIN32
 void print_color(int colors)
 {
-#ifdef WIN32
-
 	HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
 	colors = colors ? colors : (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 	SetConsoleTextAttribute(console, (WORD)colors);
+}
+
+string getConfigDir()
+{
+	char path[MAX_PATH];
+	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
+	return string(path) + "\\AppData\\Roaming\\bspguy\\";
+}
 #else 
+void print_color(int colors)
+{
 	if (!colors)
 	{
 		logf("\x1B[0m");
@@ -782,17 +923,10 @@ void print_color(int colors)
 	case PRINT_GREEN | PRINT_BLUE | PRINT_RED:	color = "36"; break;
 	}
 	logf("\x1B[%s;%sm", mode, color);
-#endif
 }
 
 string getConfigDir()
 {
-#ifdef WIN32
-
-	char path[MAX_PATH];
-	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
-	return string(path) + "\\AppData\\Roaming\\bspguy\\";
-#else 
 	return string("") + getenv("HOME") + "/.config/bspguy/";
-#endif
 }
+#endif

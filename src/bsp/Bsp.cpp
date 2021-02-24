@@ -3970,7 +3970,6 @@ void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
 	delete[] lumps[lumpIdx];
 	lumps[lumpIdx] = (byte*)newData;
 	header.lump[lumpIdx].nLength = newLength;
-
 	update_lump_pointers();
 }
 
