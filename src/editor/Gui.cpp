@@ -489,12 +489,18 @@ void ExportWad(Bsp* map)
 		for (int i = 0; i < map->textureCount; i++) {
 			int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
 			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
+			if (bspTex->nOffsets[0] == -1 || bspTex->nOffsets[0] == 0)
+				continue;
 			WADTEX* oldTex = new WADTEX(bspTex);
 			tmpWadTex.push_back(oldTex);
 		}
-		tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
-		for (int i = 0; i < map->textureCount; i++) {
-			delete tmpWadTex[i];
+		if (tmpWadTex.size() > 0)
+			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+		else
+			logf("Not found any textures in bsp file.");
+		for (int i = 0; i < tmpWadTex.size(); i++) {
+			if (tmpWadTex[i] != nullptr)
+				delete tmpWadTex[i];
 		}
 		tmpWadTex.clear();
 	}
