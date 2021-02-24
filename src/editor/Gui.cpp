@@ -589,14 +589,12 @@ void Gui::drawMenuBar() {
 					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
 					{
-						byte * nulllump = new byte[1]{ 0 };
-						map->replace_lump(LUMP_ENTITIES, nulllump, 1);
-						map->load_ents();
-						int datasize = fileSize(g_settings.gamedir + g_settings.workingdir + "entities.ent");
-						char* data = new char[datasize];
-						ifstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ifstream::binary);
-						entFile.read(data, datasize);
-						map->replace_lump(LUMP_ENTITIES, data, datasize);
+						std::ifstream t(g_settings.gamedir + g_settings.workingdir + "entities.ent");
+						std::string str((std::istreambuf_iterator<char>(t)),
+							std::istreambuf_iterator<char>());
+						byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
+						memcpy(newlump, &str[0], str.size());
+						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
 						map->load_ents();
 					}
 					else
@@ -2944,7 +2942,7 @@ void Gui::drawEntityReport() {
 					}
 				}
 			}
-
+			clipper.End();
 			if (ImGui::BeginPopup("ent_report_context"))
 			{
 				if (ImGui::MenuItem("Delete")) {

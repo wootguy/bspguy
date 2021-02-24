@@ -1235,7 +1235,7 @@ uint BspRenderer::getFaceTextureId(int faceIdx) {
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {
 	BSPMODEL& world = map->models[0];
-	mapOffset = map->ents[0]->getOrigin();
+	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
 	vec3 renderOffset = mapOffset.flip();
 
 	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
@@ -1502,6 +1502,11 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 	bool foundBetterPick = false;
 
 	start -= mapOffset;
+
+	if (!map || map->ents.size() == 0)
+	{
+		return false;
+	}
 
 	if (pickModelPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, pickInfo)) {
 		pickInfo.entIdx = 0;

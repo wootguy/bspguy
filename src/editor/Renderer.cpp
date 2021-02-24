@@ -1675,10 +1675,16 @@ void Renderer::updateDragAxes() {
 	Entity* ent = NULL;
 	vec3 mapOffset;
 
-	if (pickInfo.valid && pickInfo.entIdx >= 0) {
+	if (pickInfo.valid && 
+		pickInfo.mapIdx >= 0 && pickInfo.mapIdx < mapRenderers.size() &&
+		pickInfo.entIdx >= 0 && pickInfo.entIdx < mapRenderers[pickInfo.mapIdx]->map->ents.size()) {
 		map = mapRenderers[pickInfo.mapIdx]->map;
 		ent = map->ents[pickInfo.entIdx];
 		mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
+	}
+	else
+	{
+		return;
 	}
 
 	vec3 localCameraOrigin = cameraOrigin - mapOffset;
