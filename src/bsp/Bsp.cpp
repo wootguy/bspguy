@@ -6,6 +6,7 @@
 #include "rad.h"
 #include "vis.h"
 #include "remap.h"
+#include "Renderer.h"
 #include <set>
 
 typedef map< string, vec3 > mapStringToVector;
@@ -1827,7 +1828,7 @@ void Bsp::write(string path) {
 	}
 
 	// Make single backup
-	if (fileExists(path) && !fileExists(path + ".bak"))
+	if (g_settings.backUpMap && fileExists(path) && !fileExists(path + ".bak"))
 	{
 		int len;
 		char* oldfile = loadFile(path, len);

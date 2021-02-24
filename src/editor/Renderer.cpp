@@ -88,6 +88,7 @@ void AppSettings::loadDefault()
 		| RENDER_ENT_CLIPNODES;
 
 	vsync = true;
+	backUpMap = false;
 
 	moveSpeed = 4.0f;
 	fov = 75.0f;
@@ -142,6 +143,7 @@ void AppSettings::load() {
 			else if (key == "workingdir") { g_settings.workingdir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 			else if (key == "res") { resPaths.push_back(val); }
+			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 		}
 
 		g_settings.valid = true;
@@ -238,6 +240,7 @@ void AppSettings::save() {
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << g_settings.fontSize << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
+	file << "savebackup=" << g_settings.backUpMap << endl;
 }
 
 int g_scroll = 0;

@@ -70,6 +70,7 @@ struct AppSettings {
 	int render_flags;
 	bool vsync;
 	bool show_transform_axes;
+	bool backUpMap;
 
 	vector<string> fgdPaths;
 	vector<string> resPaths;

@@ -2282,6 +2282,7 @@ void Gui::drawSettings() {
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
+			ImGui::Checkbox("Make map backup", &g_settings.backUpMap);
 		}
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {
