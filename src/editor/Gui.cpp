@@ -2480,20 +2480,22 @@ void Gui::drawSettings() {
 				g_settings.fgdPaths.clear();
 				for (auto & s : tmpFgdPaths)
 				{
-					if (s[0] != '\0')
-					{
-						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
-						g_settings.fgdPaths.push_back(s.c_str()); // c_str for remove NULL characters
-					}
+					if (!s.length())
+						continue;
+					std::string s2 = s.c_str();
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					g_settings.resPaths.push_back(s2);
+					s = s2;
 				}
 				g_settings.resPaths.clear();
 				for (auto & s : tmpResPaths)
 				{
-					if (s[0] != '\0')
-					{
-						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
-						g_settings.resPaths.push_back(s.c_str());
-					}
+					if (!s.length())
+						continue;
+					std::string s2 = s.c_str();
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					g_settings.resPaths.push_back(s2);
+					s = s2;
 				}
 				app->reloadFgdsAndTextures();
 			}

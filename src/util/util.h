@@ -112,7 +112,7 @@ vector<vec3> getSortedPlanarVerts(vector<vec3>& verts);
 
 bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
 
-enum FIXUPPATH_SLASH
+enum class FIXUPPATH_SLASH
 {
 	FIXUPPATH_SLASH_CREATE,
 	FIXUPPATH_SLASH_SKIP,
