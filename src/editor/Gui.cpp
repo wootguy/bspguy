@@ -2491,7 +2491,7 @@ void Gui::drawSettings() {
 				{
 					if (s[0] != '\0')
 					{
-						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+						fixupPath(s, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
 						g_settings.resPaths.push_back(s.c_str());
 					}
 				}
