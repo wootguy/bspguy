@@ -611,6 +611,10 @@ void Gui::drawMenuBar() {
 						memcpy(newlump, &str[0], str.size());
 						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
 						map->load_ents();
+						for (int i = 0; i < app->mapRenderers.size(); i++) {
+							BspRenderer* render = app->mapRenderers[i];
+							render->reload();
+						}
 					}
 					else
 					{
