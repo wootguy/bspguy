@@ -2506,6 +2506,7 @@ void Gui::drawSettings() {
 				app->loadFgds();
 				app->reloadFgds();
 				app->reloading = false;
+				g_settings.save();
 			}
 		}
 
