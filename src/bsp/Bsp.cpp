@@ -2768,7 +2768,7 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	logf("");
 }
 
-BSPMIPTEX * Bsp::replace_embedded_texture(const char* name) {
+BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 	if (!name || name[0] == '\0')
 		return false;
 	for (int i = 0; i < textureCount; i++) {
@@ -2794,7 +2794,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 
 	BSPMIPTEX* oldtex = nullptr;
 
-	if (oldtex = replace_embedded_texture(name))
+	if (oldtex = find_embedded_texture(name))
 	{
 		logf("Texture with name %s found in map. Just replace it.\n", name);
 	}
