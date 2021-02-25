@@ -206,6 +206,8 @@ public:
 
 	int delete_embedded_textures();
 
+	BSPMIPTEX * replace_embedded_texture(const char * name);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves

@@ -513,6 +513,7 @@ void ExportWad(Bsp* map)
 void ImportWad(Bsp* map, Renderer* app)
 {
 	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+	
 	if (!tmpWad->readInfo())
 	{
 		logf("Parsing wad file failed!\n");
@@ -552,8 +553,6 @@ void Gui::drawMenuBar() {
 
 	ImGui::BeginMainMenuBar();
 
-	static bool showSvenTestMenu = true;
-
 	if (ImGui::BeginMenu("File"))
 	{
 		if (ImGui::MenuItem("Save", NULL)) {
@@ -577,12 +576,22 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
-			if (ImGui::MenuItem("Wad file", NULL)) {
+			if (ImGui::MenuItem("Embedded textures (.wad)", NULL)) {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
 					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
 					ExportWad(map);
+					logf("Remove all embedded textures\n");
+					map->delete_embedded_textures();
+					if (map->ents.size())
+					{
+						std::string wadstr = map->ents[0]->keyvalues["wad"];
+						if (wadstr.find(map->name + ".wad" + ";") == std::string::npos)
+						{
+							map->ents[0]->keyvalues["wad"] += map->name + ".wad" + ";";
+						}
+					}
 				}
 			}
 			ImGui::EndMenu();
@@ -609,7 +618,7 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
-			if (ImGui::MenuItem("Wad file", NULL)) {
+			if (ImGui::MenuItem("Merge with .wad", NULL)) {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
@@ -627,33 +636,30 @@ void Gui::drawMenuBar() {
 			ImGui::EndMenu();
 		}
 
-		if (showSvenTestMenu)
-		{
-			if (!dirExists(g_settings.gamedir + "/svencoop_addon/"))
-			{ 
-				// Test menu made only for svencoop
-				showSvenTestMenu = false;
-			}
-		}
-
-		if (showSvenTestMenu && ImGui::MenuItem("Test")) {
+		if (ImGui::MenuItem("Test")) {
 			Bsp* map = app->getMapContainingCamera()->map;
-
-			string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
-			string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
-
-			map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
-			map->write(mapPath);
-			map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
-
-			ofstream entFile(entPath, ios::out | ios::trunc);
-			if (entFile.is_open()) {
-				logf("Writing %s\n", entPath.c_str());
-				entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+			if (!map || !dirExists(g_settings.gamedir + "/svencoop_addon/maps/"))
+			{
+				logf("Failed. No svencoop directory found.\n");
 			}
-			else {
-				logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
-				logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
+			else
+			{
+				string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
+				string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
+
+				map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
+				map->write(mapPath);
+				map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
+
+				ofstream entFile(entPath, ios::out | ios::trunc);
+				if (entFile.is_open()) {
+					logf("Writing %s\n", entPath.c_str());
+					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+				}
+				else {
+					logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
+					logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
+				}
 			}
 		}
 

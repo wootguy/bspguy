@@ -1946,7 +1946,10 @@ void Bsp::load_ents()
 			if (ent == NULL)
 				continue;
 
-			ents.push_back(ent);
+			if (ent->keyvalues.count("classname"))
+				ents.push_back(ent);
+			else
+				logf("Found unknown classname entity. Skip it.\n");
 			ent = NULL;
 
 			// you can end/start an ent on the same line, you know
@@ -1961,6 +1964,22 @@ void Bsp::load_ents()
 			Keyvalue k(line);
 			if (k.key.length() && k.value.length())
 				ent->addKeyvalue(k);
+		}
+	}
+
+	if (ents.size() > 1)
+	{
+		if (ents[0]->keyvalues["classname"] != "worldspawn")
+		{
+			logf("First entity has classname different from 'woldspawn', we do fixup it\n");
+			for (int i = 1; i < ents.size(); i++)
+			{
+				if (ents[i]->keyvalues["classname"] == "worldspawn")
+				{
+					std::swap(ents[0], ents[i]);
+					break;
+				}
+			}
 		}
 	}
 
@@ -2749,6 +2768,20 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	logf("");
 }
 
+BSPMIPTEX * Bsp::replace_embedded_texture(const char* name) {
+	if (!name || name[0] == '\0')
+		return false;
+	for (int i = 0; i < textureCount; i++) {
+		int32_t oldOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX* oldTex = (BSPMIPTEX*)(textures + oldOffset);
+		if (strcmp(name, oldTex->szName) == 0)
+		{
+			return oldTex;
+		}
+	}
+	return false;
+}
+
 int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	if (width % 16 != 0 || height % 16 != 0) {
 		logf("Dimensions not divisible by 16");
@@ -2757,6 +2790,13 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	if (width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION) {
 		logf("Width/height too large");
 		return -1;
+	}
+
+	BSPMIPTEX* oldtex = nullptr;
+
+	if (oldtex = replace_embedded_texture(name))
+	{
+		logf("Texture with name %s found in map. Just replace it.\n", name);
 	}
 
 	COLOR3 palette[256];
@@ -2818,6 +2858,19 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 				src += div;
 			}
 		}
+	}
+
+	if (oldtex != nullptr)
+	{
+		memcpy((byte*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
+		memcpy((byte*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
+		memcpy((byte*)oldtex + oldtex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
+		memcpy((byte*)oldtex + oldtex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
+		memcpy((byte*)oldtex + (oldtex->nOffsets[3] + (width >> 3) * (height >> 3) + 2), palette, sizeof(COLOR3) * 256);
+		for (int i = 0; i < MIPLEVELS; i++) {
+			delete[] mip[i];
+		}
+		return 0;
 	}
 
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
