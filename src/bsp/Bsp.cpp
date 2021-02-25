@@ -2770,7 +2770,7 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 
 BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 	if (!name || name[0] == '\0')
-		return false;
+		return nullptr;
 	for (int i = 0; i < textureCount; i++) {
 		int32_t oldOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX* oldTex = (BSPMIPTEX*)(textures + oldOffset);
@@ -2779,7 +2779,7 @@ BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 			return oldTex;
 		}
 	}
-	return false;
+	return nullptr;
 }
 
 int Bsp::add_texture(const char* name, byte* data, int width, int height) {
