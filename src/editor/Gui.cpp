@@ -495,7 +495,10 @@ void ExportWad(Bsp* map)
 			tmpWadTex.push_back(oldTex);
 		}
 		if (tmpWadTex.size() > 0)
+		{
+			createDir(g_settings.gamedir + g_settings.workingdir);
 			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+		}
 		else
 			logf("Not found any textures in bsp file.");
 		for (int i = 0; i < tmpWadTex.size(); i++) {
@@ -568,6 +571,7 @@ void Gui::drawMenuBar() {
 				if (map)
 				{
 					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					createDir(g_settings.gamedir + g_settings.workingdir);
 					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
 					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
 					{
@@ -3311,6 +3315,7 @@ void ExportLightmaps(BSPFACE face, int size[2], Bsp * map)
 		int offset = face.nLightmapOffset + i * lightmapSz;
 		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
 		logf("Exporting %s\n", fileNam);
+		createDir(g_settings.gamedir + g_settings.workingdir);
 		lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
 	}
 }

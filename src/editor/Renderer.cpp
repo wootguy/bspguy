@@ -187,9 +187,6 @@ void AppSettings::load() {
 		resPaths.push_back("/svencoop_downloads/");
 		resPaths.push_back("/svencoop_hd/");
 	}
-
-	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
-		createDir(g_settings.gamedir + g_settings.workingdir);
 }
 
 void AppSettings::save() {
