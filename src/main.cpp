@@ -6,6 +6,8 @@
 #include "CommandLine.h"
 #include "remap.h"
 #include "Renderer.h"
+#include "icons/aaatrigger.h"
+#include <lodepng.h>
 
 // super todo:
 // gui scale not accurate and mostly broken
@@ -123,12 +125,39 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	if (!fileExists(map)) {
+	if (map != "new" && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
 	}
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map));
+	if (map == "new")
+	{
+		logf("Create new bsp: %s", map.c_str());
+		Bsp* newBsp = new Bsp();
+		newBsp->path = "new.bsp";
+		newBsp->name = "new.bsp";
+		Entity * tmpEntity = new Entity("worldspawn");
+		byte* tex_dat = NULL;
+		uint w, h;
+		lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
+		newBsp->add_texture("aaatrigger", tex_dat, w, h);
+		int aaatriggerIdx = newBsp->add_texture("texture", tex_dat, w, h);
+		delete[] tex_dat;
+		newBsp->create_leaf(CONTENTS_SOLID);
+		newBsp->create_solid(vec3(64,64, -64), vec3(-64, -64, 64), aaatriggerIdx);
+		newBsp->ents.push_back(tmpEntity);
+		newBsp->ents[0]->cachedModelIdx = -1;
+		BSPFACE* thisFaces = (BSPFACE*)newBsp->lumps[LUMP_FACES];
+		int thisFaceCount = newBsp->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+		for (int i = 0; i < thisFaceCount; i++)
+		{
+			thisFaces[i].nStyles[0] = 0;
+			thisFaces[i].nLightmapOffset = 0;
+		}
+		renderer.addMap(newBsp);
+	}
+	else 
+		renderer.addMap(new Bsp(map));
 	hideConsoleWindow();
 	renderer.renderLoop();
 }

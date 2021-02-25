@@ -622,8 +622,10 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
+
+			Bsp* map = app->getMapContainingCamera()->map;
+
 			if (ImGui::MenuItem("Merge with .wad", NULL)) {
-				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
 					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
@@ -636,6 +638,14 @@ void Gui::drawMenuBar() {
 						logf("Error! No file!\n");
 					}
 				}
+			}
+
+			if (map && ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				char embtextooltip[256];
+				sprintf(embtextooltip, "Embeds textures from %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+				ImGui::TextUnformatted(embtextooltip);
+				ImGui::EndTooltip();
 			}
 			ImGui::EndMenu();
 		}
@@ -2264,6 +2274,7 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
+		ImGuiContext& g = *GImGui;
 		const int settings_tabs = 5;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
@@ -2326,6 +2337,10 @@ void Gui::drawSettings() {
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 			ImGui::Checkbox("Make map backup", &g_settings.backUpMap);
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
+			}
 		}
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {
@@ -2508,7 +2523,7 @@ void Gui::drawSettings() {
 				}
 				app->reloading = true;
 				app->loadFgds();
-				app->reloadFgds();
+				app->postLoadFgds();
 				app->reloading = false;
 				g_settings.save();
 			}

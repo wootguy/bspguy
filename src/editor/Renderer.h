@@ -113,8 +113,8 @@ public:
 	void addMap(Bsp* map);
 
 	void renderLoop();
-	void reloadFgdsAndTextures();
-	void reloadFgds();
+	void postLoadFgdsAndTextures();
+	void postLoadFgds();
 	void reloadMaps();
 	void saveSettings();
 	void loadSettings();

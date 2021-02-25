@@ -26,9 +26,34 @@ Bsp::Bsp() {
 	header.nVersion = 30;
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		header.lump[i].nLength = 0;
+
 		header.lump[i].nOffset = 0;
-		lumps[i] = NULL;
+		switch (i)
+		{
+		case LUMP_ENTITIES:
+			header.lump[i].nLength = 1;
+			break;
+		case LUMP_PLANES:
+			break;
+		case LUMP_TEXTURES:
+			header.lump[i].nLength = 4;
+			break;
+		case LUMP_LIGHTING:
+			header.lump[i].nLength = 512;
+			break;
+		default:
+			header.lump[i].nLength = 0;
+			break;
+		}
+	
+		lumps[i] = new byte[header.lump[i].nLength];
+		if (header.lump[i].nLength > 0)
+		{
+			if (i == LUMP_LIGHTING)
+				memset(lumps[i], 255, header.lump[i].nLength);
+			else
+				memset(lumps[i], 0, header.lump[i].nLength);
+		}
 	}
 
 	update_lump_pointers();
@@ -2792,11 +2817,16 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		return -1;
 	}
 
-	BSPMIPTEX* oldtex = nullptr;
+	BSPMIPTEX* oldtex = find_embedded_texture(name);
 
-	if (oldtex = find_embedded_texture(name))
+	if (oldtex)
 	{
 		logf("Texture with name %s found in map. Just replace it.\n", name);
+		if (oldtex->nWidth != width || oldtex->nHeight != height)
+		{
+			sprintf(oldtex->szName, "%s", "-unused_texture");
+			logf("Warning! Texture size different. Need rename old texture.\n");
+		}
 	}
 
 	COLOR3 palette[256];

@@ -514,7 +514,7 @@ void Renderer::renderLoop() {
 		glfwSwapBuffers(window);
 
 		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
-			reloadFgds();
+			postLoadFgds();
 			reloading = reloadingGameDir = false;
 		}
 
@@ -527,7 +527,7 @@ void Renderer::renderLoop() {
 	glfwTerminate();
 }
 
-void Renderer::reloadFgds()
+void Renderer::postLoadFgds()
 {
 	delete pointEntRenderer;
 	delete fgd;
@@ -546,7 +546,7 @@ void Renderer::reloadFgds()
 	swapPointEntRenderer = NULL;
 }
 
-void Renderer::reloadFgdsAndTextures() {
+void Renderer::postLoadFgdsAndTextures() {
 	if (reloading) {
 		logf("Previous reload not finished. Aborting reload.");
 		return;
