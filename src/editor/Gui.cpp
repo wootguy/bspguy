@@ -1339,7 +1339,10 @@ void Gui::drawKeyvalueEditor() {
 
 		}
 		else {
-			ImGui::Text("No entity selected");
+			if (!app->pickInfo.valid || !app->pickInfo.ent)
+				ImGui::Text("No entity selected");
+			else 
+				ImGui::Text("No fgd loaded"); 
 		}
 
 	}
@@ -2486,24 +2489,23 @@ void Gui::drawSettings() {
 				g_settings.fgdPaths.clear();
 				for (auto & s : tmpFgdPaths)
 				{
-					if (!s.length())
-						continue;
 					std::string s2 = s.c_str();
 					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
-					g_settings.resPaths.push_back(s2);
+					g_settings.fgdPaths.push_back(s2);
 					s = s2;
 				}
 				g_settings.resPaths.clear();
 				for (auto & s : tmpResPaths)
 				{
-					if (!s.length())
-						continue;
 					std::string s2 = s.c_str();
 					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
 					g_settings.resPaths.push_back(s2);
 					s = s2;
 				}
-				app->reloadFgdsAndTextures();
+				app->reloading = true;
+				app->loadFgds();
+				app->reloadFgds();
+				app->reloading = false;
 			}
 		}
 

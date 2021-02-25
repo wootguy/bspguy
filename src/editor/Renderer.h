@@ -114,6 +114,7 @@ public:
 
 	void renderLoop();
 	void reloadFgdsAndTextures();
+	void reloadFgds();
 	void reloadMaps();
 	void saveSettings();
 	void loadSettings();

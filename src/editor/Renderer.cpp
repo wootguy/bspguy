@@ -514,22 +514,8 @@ void Renderer::renderLoop() {
 		glfwSwapBuffers(window);
 
 		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
-			delete pointEntRenderer;
-			delete fgd;
-			
-			pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
-			fgd = pointEntRenderer->fgd;
-
-			for (int i = 0; i < mapRenderers.size(); i++) {
-				mapRenderers[i]->pointEntRenderer = pointEntRenderer;
-				mapRenderers[i]->preRenderEnts();
-				if (reloadingGameDir) {
-					mapRenderers[i]->reloadTextures();
-				}
-			}
-
+			reloadFgds();
 			reloading = reloadingGameDir = false;
-			swapPointEntRenderer = NULL;
 		}
 
 		int glerror = glGetError();
@@ -539,6 +525,25 @@ void Renderer::renderLoop() {
 	}
 
 	glfwTerminate();
+}
+
+void Renderer::reloadFgds()
+{
+	delete pointEntRenderer;
+	delete fgd;
+
+	pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
+	fgd = pointEntRenderer->fgd;
+
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		mapRenderers[i]->pointEntRenderer = pointEntRenderer;
+		mapRenderers[i]->preRenderEnts();
+		if (reloadingGameDir) {
+			mapRenderers[i]->reloadTextures();
+		}
+	}
+
+	swapPointEntRenderer = NULL;
 }
 
 void Renderer::reloadFgdsAndTextures() {
