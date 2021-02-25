@@ -1577,6 +1577,8 @@ void Renderer::addMap(Bsp* map) {
 		pickInfo.mapIdx = 0;
 		pickInfo.map = map;
 		pickInfo.valid = true;
+		/*
+		* TODO: move camera to center of map
 		// Move camera to first entity with origin
 		for(auto const & ent : map->ents)
 		{
@@ -1586,6 +1588,7 @@ void Renderer::addMap(Bsp* map) {
 				break;
 			}
 		}
+		*/
 	}
 }
 
