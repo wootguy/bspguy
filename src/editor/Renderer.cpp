@@ -67,7 +67,8 @@ void AppSettings::loadDefault()
 #endif
 	maximized = 0;
 	fontSize = 22;
-	gamedir;
+	gamedir = std::string();
+	workingdir = "/bspguy_work/";
 	valid = false;
 	undoLevels = 64;
 	verboseLogs = false;
@@ -79,13 +80,15 @@ void AppSettings::loadDefault()
 	settings_open = false;
 	limits_open = false;
 	entreport_open = false;
+	show_transform_axes = false;
 	settings_tab = 0;
 
-	g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
+	render_flags = g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
 		| RENDER_ENT_CLIPNODES;
 
 	vsync = true;
+	backUpMap = false;
 
 	moveSpeed = 4.0f;
 	fov = 75.0f;
@@ -137,8 +140,10 @@ void AppSettings::load() {
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
+			else if (key == "workingdir") { g_settings.workingdir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val);  }
 			else if (key == "res") { resPaths.push_back(val); }
+			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 		}
 
 		g_settings.valid = true;
@@ -182,7 +187,6 @@ void AppSettings::load() {
 		resPaths.push_back("/svencoop_downloads/");
 		resPaths.push_back("/svencoop_hd/");
 	}
-
 }
 
 void AppSettings::save() {
@@ -210,6 +214,7 @@ void AppSettings::save() {
 	file << "settings_tab=" << g_settings.settings_tab << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
+	file << "workingdir=" << g_settings.workingdir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
 	}
@@ -228,6 +233,7 @@ void AppSettings::save() {
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << g_settings.fontSize << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
+	file << "savebackup=" << g_settings.backUpMap << endl;
 }
 
 int g_scroll = 0;
@@ -246,6 +252,7 @@ Renderer::Renderer() {
 		logf("GLFW initialization failed\n");
 		return;
 	}
+
 	glfwSetErrorCallback(error_callback);
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -504,22 +511,8 @@ void Renderer::renderLoop() {
 		glfwSwapBuffers(window);
 
 		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
-			delete pointEntRenderer;
-			delete fgd;
-			
-			pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
-			fgd = pointEntRenderer->fgd;
-
-			for (int i = 0; i < mapRenderers.size(); i++) {
-				mapRenderers[i]->pointEntRenderer = pointEntRenderer;
-				mapRenderers[i]->preRenderEnts();
-				if (reloadingGameDir) {
-					mapRenderers[i]->reloadTextures();
-				}
-			}
-
+			postLoadFgds();
 			reloading = reloadingGameDir = false;
-			swapPointEntRenderer = NULL;
 		}
 
 		int glerror = glGetError();
@@ -531,7 +524,26 @@ void Renderer::renderLoop() {
 	glfwTerminate();
 }
 
-void Renderer::reloadFgdsAndTextures() {
+void Renderer::postLoadFgds()
+{
+	delete pointEntRenderer;
+	delete fgd;
+
+	pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
+	fgd = pointEntRenderer->fgd;
+
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		mapRenderers[i]->pointEntRenderer = pointEntRenderer;
+		mapRenderers[i]->preRenderEnts();
+		if (reloadingGameDir) {
+			mapRenderers[i]->reloadTextures();
+		}
+	}
+
+	swapPointEntRenderer = NULL;
+}
+
+void Renderer::postLoadFgdsAndTextures() {
 	if (reloading) {
 		logf("Previous reload not finished. Aborting reload.");
 		return;
@@ -580,12 +592,6 @@ void Renderer::saveSettings() {
 }
 
 void Renderer::loadSettings() {
-
-	if (!g_settings.valid)
-	{
-		return;
-	}
-
 	gui->showDebugWidget = g_settings.debug_open;
 	gui->showKeyvalueWidget = g_settings.keyvalue_open;
 	gui->showTransformWidget = g_settings.transform_open;
@@ -626,7 +632,7 @@ void Renderer::loadFgds() {
 			}
 		}
 
-		if (i == 0) {
+		if (i == 0 || mergedFgd == NULL) {
 			mergedFgd = tmp;
 		}
 		else {
@@ -1557,6 +1563,30 @@ void Renderer::addMap(Bsp* map) {
 	mapRenderers.push_back(mapRenderer);
 
 	gui->checkValidHulls();
+
+	// Pick default map
+	if (!pickInfo.map) 
+	{
+		pickInfo.modelIdx = -1;
+		pickInfo.faceIdx = -1;
+		pickInfo.ent = NULL;
+		pickInfo.entIdx = -1;
+		pickInfo.mapIdx = 0;
+		pickInfo.map = map;
+		pickInfo.valid = true;
+		/*
+		* TODO: move camera to center of map
+		// Move camera to first entity with origin
+		for(auto const & ent : map->ents)
+		{
+			if (ent->getOrigin() != vec3())
+			{
+				cameraOrigin = ent->getOrigin();
+				break;
+			}
+		}
+		*/
+	}
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
@@ -1650,10 +1680,16 @@ void Renderer::updateDragAxes() {
 	Entity* ent = NULL;
 	vec3 mapOffset;
 
-	if (pickInfo.valid && pickInfo.entIdx >= 0) {
+	if (pickInfo.valid && 
+		pickInfo.mapIdx >= 0 && pickInfo.mapIdx < mapRenderers.size() &&
+		pickInfo.entIdx >= 0 && pickInfo.entIdx < mapRenderers[pickInfo.mapIdx]->map->ents.size()) {
 		map = mapRenderers[pickInfo.mapIdx]->map;
 		ent = map->ents[pickInfo.entIdx];
 		mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
+	}
+	else
+	{
+		return;
 	}
 
 	vec3 localCameraOrigin = cameraOrigin - mapOffset;

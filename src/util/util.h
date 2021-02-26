@@ -32,15 +32,19 @@ extern mutex g_log_mutex;
 
 extern int g_render_flags;
 
-struct BSPMIPTEX;
-
 void logf(const char* format, ...);
 
 void debugf(const char* format, ...);
 
 bool fileExists(const string& fileName);
 
-char * loadFile( const string& fileName, int& length);
+char* loadFile(const string& fileName, int& length);
+
+bool writeFile(const string& fileName, const char * data, int len);
+
+bool removeFile(const string& fileName);
+
+std::streampos fileSize(const string& filePath);
 
 vector<string> splitString(string str, const char* delimitters);
 
@@ -57,6 +61,8 @@ string getConfigDir();
 bool dirExists(const string& dirName_in);
 
 bool createDir(const string& dirName);
+
+void removeDir(const string& dirName);
 
 string toLowerCase(string str);
 
@@ -105,3 +111,13 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
 vector<vec3> getSortedPlanarVerts(vector<vec3>& verts);
 
 bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
+
+enum class FIXUPPATH_SLASH
+{
+	FIXUPPATH_SLASH_CREATE,
+	FIXUPPATH_SLASH_SKIP,
+	FIXUPPATH_SLASH_REMOVE
+};
+
+void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
+void replaceAll(std::string& str, const std::string& from, const std::string& to);

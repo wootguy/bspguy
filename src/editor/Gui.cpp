@@ -478,8 +478,77 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 	}
+}
 
+void ExportWad(Bsp* map)
+{
+	if (map->textureCount > 0)
+	{
+		Wad* tmpWad = new Wad(map->path);
+		std::vector<WADTEX*> tmpWadTex;
+		for (int i = 0; i < map->textureCount; i++) {
+			int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
+			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
+			if (bspTex->nOffsets[0] == -1 || bspTex->nOffsets[0] == 0)
+				continue;
+			WADTEX* oldTex = new WADTEX(bspTex);
+			tmpWadTex.push_back(oldTex);
+		}
+		if (tmpWadTex.size() > 0)
+		{
+			createDir(g_settings.gamedir + g_settings.workingdir);
+			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+		}
+		else
+			logf("Not found any textures in bsp file.");
+		for (int i = 0; i < tmpWadTex.size(); i++) {
+			if (tmpWadTex[i] != nullptr)
+				delete tmpWadTex[i];
+		}
+		tmpWadTex.clear();
+	}
+	else
+	{
+		logf("No textures for export.\n");
+	}
+}
 
+void ImportWad(Bsp* map, Renderer* app)
+{
+	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+	
+	if (!tmpWad->readInfo())
+	{
+		logf("Parsing wad file failed!\n");
+	}
+	else
+	{
+		for (int i = 0; i < tmpWad->numTex; i++)
+		{
+			WADTEX* wadTex = tmpWad->readTexture(i);
+			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+			byte* src = wadTex->data;
+
+			COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+			int sz = wadTex->nWidth * wadTex->nHeight;
+
+			for (int k = 0; k < sz; k++) {
+				imageData[k] = palette[src[k]];
+			}
+
+			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+
+			delete[] imageData;
+			delete wadTex;
+		}
+		for (int i = 0; i < app->mapRenderers.size(); i++) {
+			app->mapRenderers[i]->reloadTextures();
+		}
+	}
+	delete tmpWad;
 }
 
 void Gui::drawMenuBar() {
@@ -496,26 +565,122 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
-		if (ImGui::MenuItem("Test", NULL)) {
+		if (ImGui::BeginMenu("Export")) {
+			if (ImGui::MenuItem("Entity file", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					createDir(g_settings.gamedir + g_settings.workingdir);
+					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
+					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
+					{
+						std::string entities = std::string(map->lumps[LUMP_ENTITIES], map->lumps[LUMP_ENTITIES] + map->header.lump[LUMP_ENTITIES].nLength - 1);
+						entFile.write(entities.c_str(), entities.size());
+					}
+				}
+			}
+			if (ImGui::MenuItem("Embedded textures (.wad)", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+					ExportWad(map);
+					logf("Remove all embedded textures\n");
+					map->delete_embedded_textures();
+					if (map->ents.size())
+					{
+						std::string wadstr = map->ents[0]->keyvalues["wad"];
+						if (wadstr.find(map->name + ".wad" + ";") == std::string::npos)
+						{
+							map->ents[0]->keyvalues["wad"] += map->name + ".wad" + ";";
+						}
+					}
+				}
+			}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Import")) {
+			if (ImGui::MenuItem("Entity file", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
+					{
+						std::ifstream t(g_settings.gamedir + g_settings.workingdir + "entities.ent");
+						std::string str((std::istreambuf_iterator<char>(t)),
+							std::istreambuf_iterator<char>());
+						byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
+						memcpy(newlump, &str[0], str.size());
+						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
+						map->load_ents();
+						for (int i = 0; i < app->mapRenderers.size(); i++) {
+							BspRenderer* render = app->mapRenderers[i];
+							render->reload();
+						}
+					}
+					else
+					{
+						logf("Error! No file!\n");
+					}
+				}
+			}
+
 			Bsp* map = app->getMapContainingCamera()->map;
 
-			string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
-			string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
-
-			map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
-			map->write(mapPath);
-			map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
-
-			ofstream entFile(entPath, ios::out | ios::trunc);
-			if (entFile.is_open()) {
-				logf("Writing %s\n", entPath.c_str());
-				entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+			if (ImGui::MenuItem("Merge with .wad", NULL)) {
+				if (map)
+				{
+					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+					if (fileExists(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad"))
+					{
+						ImportWad(map, app);
+					}
+					else
+					{
+						logf("Error! No file!\n");
+					}
+				}
 			}
-			else {
-				logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
-				logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
+
+			if (map && ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				char embtextooltip[256];
+				sprintf(embtextooltip, "Embeds textures from %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+				ImGui::TextUnformatted(embtextooltip);
+				ImGui::EndTooltip();
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::MenuItem("Test")) {
+			Bsp* map = app->getMapContainingCamera()->map;
+			if (!map || !dirExists(g_settings.gamedir + "/svencoop_addon/maps/"))
+			{
+				logf("Failed. No svencoop directory found.\n");
+			}
+			else
+			{
+				string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
+				string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
+
+				map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
+				map->write(mapPath);
+				map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
+
+				ofstream entFile(entPath, ios::out | ios::trunc);
+				if (entFile.is_open()) {
+					logf("Writing %s\n", entPath.c_str());
+					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
+				}
+				else {
+					logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
+					logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
+				}
 			}
 		}
+
 		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
@@ -538,6 +703,12 @@ void Gui::drawMenuBar() {
 				reloadSettings = true;
 			}
 			showSettingsWidget = true;
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Exit", NULL)) {
+			g_settings.save();
+			glfwTerminate();
+			std::exit(0);
 		}
 		ImGui::EndMenu();
 	}
@@ -1186,7 +1357,10 @@ void Gui::drawKeyvalueEditor() {
 
 		}
 		else {
-			ImGui::Text("No entity selected");
+			if (!app->pickInfo.valid || !app->pickInfo.ent)
+				ImGui::Text("No entity selected");
+			else 
+				ImGui::Text("No fgd loaded"); 
 		}
 
 	}
@@ -2104,6 +2278,7 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
+		ImGuiContext& g = *GImGui;
 		const int settings_tabs = 5;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
@@ -2133,6 +2308,7 @@ void Gui::drawSettings() {
 		ImGui::Separator();
 
 		static char gamedir[256];
+		static char workingdir[256];
 		static int numFgds = 0;
 		static int numRes = 0;
 
@@ -2141,6 +2317,7 @@ void Gui::drawSettings() {
 
 		if (reloadSettings) {
 			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
+			strncpy(workingdir, g_settings.workingdir.c_str(), 256);
 			tmpFgdPaths = g_settings.fgdPaths;
 			tmpResPaths = g_settings.resPaths;
 
@@ -2156,11 +2333,18 @@ void Gui::drawSettings() {
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
+			ImGui::Text("Import/Export Directory:");
+			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
+			ImGui::Checkbox("Make map backup", &g_settings.backUpMap);
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
+			}
 		}
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {
@@ -2182,13 +2366,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add fgd path")) {
 				numFgds++;
-				if (numFgds > 64) {
-					numFgds = 64;
-				}
-				else
-				{
-					tmpFgdPaths.push_back(std::string());
-				}
+				tmpFgdPaths.push_back(std::string());
 			}
 		}
 		else if (settingsTab == 2) {
@@ -2212,13 +2390,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add res path")) {
 				numRes++;
-				if (numRes > 64) {
-					numRes = 64;
-				}
-				else
-				{
-					tmpResPaths.push_back(std::string());
-				}
+				tmpResPaths.push_back(std::string());
 			}
 		}
 		else if (settingsTab == 3) {
@@ -2328,27 +2500,36 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
+				g_settings.workingdir = string(workingdir);
 				/* fixup gamedir */
-				if (g_settings.gamedir.size() && (g_settings.gamedir[g_settings.gamedir.size() - 1] == '/'
-					|| g_settings.gamedir[g_settings.gamedir.size() - 1] == '\\'))
-				{
-					g_settings.gamedir.pop_back();
-					sprintf(gamedir, "%s", g_settings.gamedir.c_str());
-				}
+				fixupPath(g_settings.gamedir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+				sprintf(gamedir, "%s", g_settings.gamedir.c_str());
+
+				/* fixup workingdir */
+				fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
 
 				g_settings.fgdPaths.clear();
-				for (auto const& s : tmpFgdPaths)
+				for (auto & s : tmpFgdPaths)
 				{
-					if (s[0] != '\0')
-						g_settings.fgdPaths.push_back(s.c_str()); // c_str for remove NULL characters
+					std::string s2 = s.c_str();
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					g_settings.fgdPaths.push_back(s2);
+					s = s2;
 				}
 				g_settings.resPaths.clear();
-				for (auto const& s : tmpResPaths)
+				for (auto & s : tmpResPaths)
 				{
-					if (s[0] != '\0')
-						g_settings.resPaths.push_back(s.c_str());
+					std::string s2 = s.c_str();
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					g_settings.resPaths.push_back(s2);
+					s = s2;
 				}
-				app->reloadFgdsAndTextures();
+				app->reloading = true;
+				app->loadFgds();
+				app->postLoadFgds();
+				app->reloading = false;
+				g_settings.save();
 			}
 		}
 
@@ -2758,7 +2939,7 @@ void Gui::drawEntityReport() {
 
 			while (clipper.Step())
 			{
-				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size(); line++)
+				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size() && visibleEnts[line] < map->ents.size(); line++)
 				{
 					int i = line;
 					int entIdx = visibleEnts[i];
@@ -2801,7 +2982,7 @@ void Gui::drawEntityReport() {
 					}
 				}
 			}
-
+			clipper.End();
 			if (ImGui::BeginPopup("ent_report_context"))
 			{
 				if (ImGui::MenuItem("Delete")) {
@@ -3121,11 +3302,84 @@ bool ColorPicker4(float col[4]) {
 	return ColorPicker(col, true);
 }
 
+static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
+
+void ExportLightmaps(BSPFACE face, int size[2], Bsp * map)
+{
+	char fileNam[256];
+
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+			continue;
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		logf("Exporting %s\n", fileNam);
+		createDir(g_settings.gamedir + g_settings.workingdir);
+		lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
+	}
+}
+
+void ImportLightmaps(BSPFACE face, int size[2])
+{
+	char fileNam[256];
+
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
+			continue;
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		unsigned int w = size[0], h = size[1];
+		logf("Importing %s\n", fileNam);
+		unsigned char* image_bytes = nullptr;
+		auto error = lodepng_decode24_file(&image_bytes, &w, &h, fileNam);
+		if (error == 0 && w > 0 && h > 0 && image_bytes != nullptr)
+		{
+			if (w == size[0] && h == size[1])
+			{
+				memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
+				currentlightMap[i]->upload(GL_RGB, true);
+			}
+			else
+			{
+				logf("Invalid lightmap image width/height!\n");
+			}
+			free(image_bytes);
+		}
+		else
+		{
+			logf("Invalid lightmap image format. Need 24bit png!\n");
+		}
+	}
+}
+
+void UpdateLightmaps(BSPFACE face, int size[2], Bsp * map, int& lightmaps)
+{
+	for (int i = 0; i < MAXLIGHTMAPS; i++)
+	{
+		if (currentlightMap[i] != nullptr)
+			delete currentlightMap[i];
+		currentlightMap[i] = nullptr;
+	}
+
+	for (int i = 0; i < MAXLIGHTMAPS; i++) {
+		if (face.nStyles[i] == 255)
+			continue;
+		currentlightMap[i] = new Texture(size[0], size[1]);
+		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		int offset = face.nLightmapOffset + i * lightmapSz;
+		memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
+		currentlightMap[i]->upload(GL_RGB, true);
+		lightmaps++;
+		//logf("upload %d style at offset %d\n", i, offset);
+	}
+}
 
 void Gui::drawLightMapTool() {
-	static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 	static float colourPatch[3];
 
+	
 	static int windowWidth = 550;
 	static int windowHeight = 520;
 	static int lightmaps = 0;
@@ -3154,7 +3408,7 @@ void Gui::drawLightMapTool() {
 			ImGui::PopTextWrapPos();
 			ImGui::EndTooltip();
 		}
-		
+
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
 		{
@@ -3162,29 +3416,10 @@ void Gui::drawLightMapTool() {
 			BSPFACE& face = map->faces[faceIdx];
 			int size[2];
 			GetFaceLightmapSize(map, faceIdx, size);
-
-
 			if (showLightmapEditorUpdate)
 			{
 				lightmaps = 0;
-				for (int i = 0; i < MAXLIGHTMAPS; i++)
-				{
-					if (currentlightMap[i] != nullptr)
-						delete currentlightMap[i];
-					currentlightMap[i] = nullptr;
-				}
-
-				for (int i = 0; i < MAXLIGHTMAPS; i++) {
-					if (face.nStyles[i] == 255)
-						continue;
-					currentlightMap[i] = new Texture(size[0], size[1]);
-					int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-					int offset = face.nLightmapOffset + i * lightmapSz;
-					memcpy(currentlightMap[i]->data, map->lightdata + offset, lightmapSz);
-					currentlightMap[i]->upload(GL_RGB, true);
-					lightmaps++;
-					//logf("upload %d style at offset %d\n", i, offset);
-				}
+				UpdateLightmaps(face, size, map, lightmaps);
 				windowWidth = lightmaps > 1 ? 550 : 250;
 				showLightmapEditorUpdate = false;
 			}
@@ -3237,7 +3472,7 @@ void Gui::drawLightMapTool() {
 						picker_pos.x += 208;
 					}
 					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
-					
+
 
 					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
 					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
@@ -3289,7 +3524,6 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
 				}
-
 				app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 			}
 			ImGui::SameLine();
@@ -3297,30 +3531,19 @@ void Gui::drawLightMapTool() {
 			{
 				showLightmapEditorUpdate = true;
 			}
-			/* 
-					TODO: Export and import from file
-				ImGui::Separator();
-				if (ImGui::Button("Export", ImVec2(120, 0)))
-				{
-				
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Import", ImVec2(120, 0)))
-				{
-					showLightmapEditorUpdate = true;
-				}
-					TODO: Export/import all lightmaps from files
-				ImGui::Separator();
-				if (ImGui::Button("Export ALL", ImVec2(120, 0)))
-				{
-
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Import ALL", ImVec2(120, 0)))
-				{
-					
-				}
-			*/
+			
+			ImGui::Separator();
+			if (ImGui::Button("Export", ImVec2(120, 0)))
+			{
+				logf("Export lightmaps to png files...\n");
+				ExportLightmaps(face, size, map);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Import", ImVec2(120, 0)))
+			{
+				logf("Import lightmaps from png files...\n");
+				ImportLightmaps(face, size);
+			}
 		}
 		else
 		{
