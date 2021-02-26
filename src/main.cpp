@@ -673,6 +673,13 @@ void print_help(string command) {
 		"Example: bspguy unembed c1a0.bsp\n"
 	);
 	}
+	else if (command == "testnew") {
+	logf(
+		"testnew - Create test map.\n\n"
+
+		"Usage:   bspguy -testnew\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
