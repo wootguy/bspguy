@@ -117,6 +117,9 @@ void DeleteEntityCommand::execute() {
 	map->ents.erase(map->ents.begin() + entIdx);
 
 	refresh();
+
+	map->update_ent_lump();
+	map->update_lump_pointers();
 }
 
 void DeleteEntityCommand::undo() {
@@ -131,6 +134,9 @@ void DeleteEntityCommand::undo() {
 	map->ents.insert(map->ents.begin() + entIdx, newEnt);
 
 	refresh();
+
+	map->update_ent_lump();
+	map->update_lump_pointers();
 }
 
 void DeleteEntityCommand::refresh() {
