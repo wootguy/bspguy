@@ -27,19 +27,22 @@ Bsp::Bsp() {
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		header.lump[i].nOffset = 0;
-		switch (i)
+		if (i == LUMP_TEXTURES)
 		{
-		case LUMP_TEXTURES:
+			lumps[i] = new byte[4];
 			header.lump[i].nLength = 4;
 			memset(lumps[i], 0, header.lump[i].nLength);
-			break;
-		case LUMP_LIGHTING:
+		}
+		else if (i == LUMP_LIGHTING)
+		{
+			lumps[i] = new byte[4096];
 			header.lump[i].nLength = 4096;
 			memset(lumps[i], 255, header.lump[i].nLength);
-			break;
-		default:
+		}
+		else 
+		{
+			lumps[i] = new byte[0];
 			header.lump[i].nLength = 0;
-			break;
 		}
 	}
 
