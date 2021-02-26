@@ -26,34 +26,25 @@ Bsp::Bsp() {
 	header.nVersion = 30;
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-
 		header.lump[i].nOffset = 0;
 		switch (i)
 		{
-		case LUMP_ENTITIES:
-			header.lump[i].nLength = 1;
-			break;
-		case LUMP_PLANES:
-			break;
 		case LUMP_TEXTURES:
 			header.lump[i].nLength = 4;
 			break;
 		case LUMP_LIGHTING:
-			header.lump[i].nLength = 512;
+			header.lump[i].nLength = 204800;
 			break;
 		default:
 			header.lump[i].nLength = 0;
 			break;
 		}
 	
-		lumps[i] = new byte[header.lump[i].nLength];
-		if (header.lump[i].nLength > 0)
-		{
-			if (i == LUMP_LIGHTING)
-				memset(lumps[i], 255, header.lump[i].nLength);
-			else
-				memset(lumps[i], 0, header.lump[i].nLength);
-		}
+		lumps[i] = new byte[header.lump[i].nLength + 4];
+		if (i == LUMP_LIGHTING)
+			memset(lumps[i], 255, header.lump[i].nLength + 4);
+		else
+			memset(lumps[i], 0, header.lump[i].nLength + 4);
 	}
 
 	update_lump_pointers();
@@ -1897,9 +1888,17 @@ bool Bsp::load_lumps(string fpath)
 		return false;
 
 	fin.read((char*)&header.nVersion, sizeof(int));
+#ifndef NDEBUG
+	logf("Bsp version: %d\n", header.nVersion);
+#endif
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
+	{
 		fin.read((char*)&header.lump[i], sizeof(BSPLUMP));
+#ifndef NDEBUG
+		logf("Read lump id: %d. Len: %d. Offset %d.\n", i,header.lump[i].nLength,header.lump[i].nOffset);
+#endif
+	}
 
 	lumps = new byte*[HEADER_LUMPS];
 	memset(lumps, 0, sizeof(byte*)*HEADER_LUMPS);
@@ -2962,7 +2961,7 @@ int Bsp::create_leaf(int contents) {
 	newLeaf.nContents = contents;
 
 	int newLeafIdx = leafCount;
-
+	
 	replace_lump(LUMP_LEAVES, newLeaves, (leafCount+1) * sizeof(BSPLEAF));
 
 	return newLeafIdx;

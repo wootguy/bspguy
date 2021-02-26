@@ -208,6 +208,8 @@ public:
 
 	BSPMIPTEX * find_embedded_texture(const char * name);
 
+	void update_lump_pointers();
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -247,5 +249,4 @@ private:
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
-	void update_lump_pointers();
 };

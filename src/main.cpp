@@ -125,35 +125,47 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	if (map != "new" && !fileExists(map)) {
+	if (map != "-testnew" && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
 	}
 	Renderer renderer = Renderer();
-	if (map == "new")
+	if (map == "-testnew")
 	{
 		logf("Create new bsp: %s", map.c_str());
 		Bsp* newBsp = new Bsp();
-		newBsp->path = "new.bsp";
-		newBsp->name = "new.bsp";
+		newBsp->path = "testnew.bsp";
+		newBsp->name = "testnew.bsp";
+		// Create wordlspawn entity with default wad
 		Entity * tmpEntity = new Entity("worldspawn");
+		tmpEntity->addKeyvalue("wad", "halflife.wad;");
+		newBsp->ents.push_back(tmpEntity);
+		// Add and clean two textures
 		byte* tex_dat = NULL;
 		uint w, h;
 		lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
 		newBsp->add_texture("aaatrigger", tex_dat, w, h);
-		int aaatriggerIdx = newBsp->add_texture("texture", tex_dat, w, h);
-		delete[] tex_dat;
-		newBsp->create_leaf(CONTENTS_SOLID);
-		newBsp->create_solid(vec3(64,64, -64), vec3(-64, -64, 64), aaatriggerIdx);
-		newBsp->ents.push_back(tmpEntity);
-		newBsp->ents[0]->cachedModelIdx = -1;
+		int aaatriggerIdx = newBsp->add_texture("XCRATE7C", tex_dat, w, h);
+		newBsp->delete_embedded_textures();
+		// Make out of map is empty
+		newBsp->create_leaf(CONTENTS_EMPTY);
+		// Create test cube with 64 size
+		int size = 64;
+		vec3 mins = vec3(-size, -size, -size);
+		vec3 maxs = vec3(size, size, size);
+		newBsp->create_solid(mins,maxs, aaatriggerIdx);
+		// Set cube faces lightmap
 		BSPFACE* thisFaces = (BSPFACE*)newBsp->lumps[LUMP_FACES];
 		int thisFaceCount = newBsp->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 		for (int i = 0; i < thisFaceCount; i++)
 		{
 			thisFaces[i].nStyles[0] = 0;
-			thisFaces[i].nLightmapOffset = 0;
+			thisFaces[i].nLightmapOffset = 768 * (i + 1);
 		}
+		// Update all lumps
+		newBsp->update_ent_lump();
+		newBsp->update_lump_pointers();
+		// Render map
 		renderer.addMap(newBsp);
 	}
 	else 
@@ -700,6 +712,13 @@ int main(int argc, char* argv[])
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
 		logf(g_version_string);
+		return 0;
+	}
+
+	if (cli.command == "-testnew")
+	{
+		logf("Test create empty working map.\n");
+		start_viewer("-testnew");
 		return 0;
 	}
 
