@@ -573,6 +573,7 @@ void Gui::drawMenuBar() {
 					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
 					createDir(g_settings.gamedir + g_settings.workingdir);
 					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
+					map->update_ent_lump();
 					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
 					{
 						std::string entities = std::string(map->lumps[LUMP_ENTITIES], map->lumps[LUMP_ENTITIES] + map->header.lump[LUMP_ENTITIES].nLength - 1);
