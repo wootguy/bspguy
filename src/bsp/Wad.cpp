@@ -177,6 +177,10 @@ WADTEX * Wad::readTexture( const string& texname )
 
 	return tex;
 }
+bool Wad::write(WADTEX** textures, int numTex)
+{
+	return write(filename, textures, numTex);
+}
 
 bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 {

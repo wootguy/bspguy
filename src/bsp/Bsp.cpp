@@ -6,6 +6,7 @@
 #include "rad.h"
 #include "vis.h"
 #include "remap.h"
+#include "Renderer.h"
 #include <set>
 
 typedef map< string, vec3 > mapStringToVector;
@@ -25,9 +26,24 @@ Bsp::Bsp() {
 	header.nVersion = 30;
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		header.lump[i].nLength = 0;
 		header.lump[i].nOffset = 0;
-		lumps[i] = NULL;
+		if (i == LUMP_TEXTURES)
+		{
+			lumps[i] = new byte[4];
+			header.lump[i].nLength = 4;
+			memset(lumps[i], 0, header.lump[i].nLength);
+		}
+		else if (i == LUMP_LIGHTING)
+		{
+			lumps[i] = new byte[4096];
+			header.lump[i].nLength = 4096;
+			memset(lumps[i], 255, header.lump[i].nLength);
+		}
+		else 
+		{
+			lumps[i] = new byte[0];
+			header.lump[i].nLength = 0;
+		}
 	}
 
 	update_lump_pointers();
@@ -1826,9 +1842,26 @@ void Bsp::write(string path) {
 		offset += header.lump[i].nLength;
 	}
 
+	// Make single backup
+	if (g_settings.backUpMap && fileExists(path) && !fileExists(path + ".bak"))
+	{
+		int len;
+		char* oldfile = loadFile(path, len);
+		ofstream file(path + ".bak", ios::out | ios::binary | ios::trunc);
+		if (!file.is_open()) {
+			logf("Failed to open backup file for writing:\n%s\n", path.c_str());
+			return;
+		}
+		logf("Writing backup to %s\n", (path + ".bak").c_str());
+
+		file.write(oldfile, len);
+		delete[] oldfile;
+	}
+
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
 	if (!file.is_open()) {
 		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
+		return;
 	}
 
 	logf("Writing %s\n", path.c_str());
@@ -1854,9 +1887,17 @@ bool Bsp::load_lumps(string fpath)
 		return false;
 
 	fin.read((char*)&header.nVersion, sizeof(int));
+#ifndef NDEBUG
+	logf("Bsp version: %d\n", header.nVersion);
+#endif
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
+	{
 		fin.read((char*)&header.lump[i], sizeof(BSPLUMP));
+#ifndef NDEBUG
+		logf("Read lump id: %d. Len: %d. Offset %d.\n", i,header.lump[i].nLength,header.lump[i].nOffset);
+#endif
+	}
 
 	lumps = new byte*[HEADER_LUMPS];
 	memset(lumps, 0, sizeof(byte*)*HEADER_LUMPS);
@@ -1928,7 +1969,10 @@ void Bsp::load_ents()
 			if (ent == NULL)
 				continue;
 
-			ents.push_back(ent);
+			if (ent->keyvalues.count("classname"))
+				ents.push_back(ent);
+			else
+				logf("Found unknown classname entity. Skip it.\n");
 			ent = NULL;
 
 			// you can end/start an ent on the same line, you know
@@ -1943,6 +1987,22 @@ void Bsp::load_ents()
 			Keyvalue k(line);
 			if (k.key.length() && k.value.length())
 				ent->addKeyvalue(k);
+		}
+	}
+
+	if (ents.size() > 1)
+	{
+		if (ents[0]->keyvalues["classname"] != "worldspawn")
+		{
+			logf("First entity has classname different from 'woldspawn', we do fixup it\n");
+			for (int i = 1; i < ents.size(); i++)
+			{
+				if (ents[i]->keyvalues["classname"] == "worldspawn")
+				{
+					std::swap(ents[0], ents[i]);
+					break;
+				}
+			}
 		}
 	}
 
@@ -2731,6 +2791,20 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 	logf("");
 }
 
+BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
+	if (!name || name[0] == '\0')
+		return nullptr;
+	for (int i = 0; i < textureCount; i++) {
+		int32_t oldOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX* oldTex = (BSPMIPTEX*)(textures + oldOffset);
+		if (strcmp(name, oldTex->szName) == 0)
+		{
+			return oldTex;
+		}
+	}
+	return nullptr;
+}
+
 int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	if (width % 16 != 0 || height % 16 != 0) {
 		logf("Dimensions not divisible by 16");
@@ -2739,6 +2813,19 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	if (width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION) {
 		logf("Width/height too large");
 		return -1;
+	}
+
+	BSPMIPTEX* oldtex = find_embedded_texture(name);
+
+	if (oldtex)
+	{
+		logf("Texture with name %s found in map. Just replace it.\n", name);
+		if (oldtex->nWidth != width || oldtex->nHeight != height)
+		{
+			sprintf(oldtex->szName, "%s", "-unused_texture");
+			logf("Warning! Texture size different. Need rename old texture.\n");
+			oldtex = NULL;
+		}
 	}
 
 	COLOR3 palette[256];
@@ -2802,6 +2889,19 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		}
 	}
 
+	if (oldtex != nullptr)
+	{
+		memcpy((byte*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
+		memcpy((byte*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
+		memcpy((byte*)oldtex + oldtex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
+		memcpy((byte*)oldtex + oldtex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
+		memcpy((byte*)oldtex + (oldtex->nOffsets[3] + (width >> 3) * (height >> 3) + 2), palette, sizeof(COLOR3) * 256);
+		for (int i = 0; i < MIPLEVELS; i++) {
+			delete[] mip[i];
+		}
+		return 0;
+	}
+
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
 	byte* newTexData = new byte[newTexLumpSize];
 	memset(newTexData, 0, sizeof(newTexLumpSize));
@@ -2861,7 +2961,7 @@ int Bsp::create_leaf(int contents) {
 	newLeaf.nContents = contents;
 
 	int newLeafIdx = leafCount;
-
+	
 	replace_lump(LUMP_LEAVES, newLeaves, (leafCount+1) * sizeof(BSPLEAF));
 
 	return newLeafIdx;
@@ -3952,7 +4052,6 @@ void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
 	delete[] lumps[lumpIdx];
 	lumps[lumpIdx] = (byte*)newData;
 	header.lump[lumpIdx].nLength = newLength;
-
 	update_lump_pointers();
 }
 

@@ -115,7 +115,6 @@ void DeleteEntityCommand::execute() {
 
 	delete map->ents[entIdx];
 	map->ents.erase(map->ents.begin() + entIdx);
-
 	refresh();
 }
 
@@ -129,7 +128,6 @@ void DeleteEntityCommand::undo() {
 	Entity* newEnt = new Entity();
 	*newEnt = *entData;
 	map->ents.insert(map->ents.begin() + entIdx, newEnt);
-
 	refresh();
 }
 
@@ -165,7 +163,6 @@ void CreateEntityCommand::execute() {
 	Entity* newEnt = new Entity();
 	*newEnt = *entData;
 	map->ents.push_back(newEnt);
-
 	refresh();
 }
 
@@ -177,7 +174,6 @@ void CreateEntityCommand::undo() {
 	}
 	delete map->ents[map->ents.size() - 1];
 	map->ents.pop_back();
-
 	refresh();
 }
 

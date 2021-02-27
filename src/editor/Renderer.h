@@ -49,6 +49,7 @@ struct AppSettings {
 	int maximized;
 	int fontSize;
 	string gamedir;
+	string workingdir;
 	bool valid;
 	int undoLevels;
 	bool verboseLogs;
@@ -69,6 +70,7 @@ struct AppSettings {
 	int render_flags;
 	bool vsync;
 	bool show_transform_axes;
+	bool backUpMap;
 
 	vector<string> fgdPaths;
 	vector<string> resPaths;
@@ -111,7 +113,8 @@ public:
 	void addMap(Bsp* map);
 
 	void renderLoop();
-	void reloadFgdsAndTextures();
+	void postLoadFgdsAndTextures();
+	void postLoadFgds();
 	void reloadMaps();
 	void saveSettings();
 	void loadSettings();

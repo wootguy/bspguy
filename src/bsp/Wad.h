@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "bsplimits.h"
+#include "bsptypes.h"
 
 typedef unsigned char byte;
 typedef unsigned int uint;
@@ -57,6 +58,20 @@ struct WADTEX
 	uint32_t nWidth, nHeight;
 	uint32_t nOffsets[MIPLEVELS];
 	byte * data; // all mip-maps and pallete
+	WADTEX()
+	{
+		szName[0] = '\0';
+		data = nullptr;
+	}
+	WADTEX(BSPMIPTEX* tex)
+	{
+		sprintf(szName, "%s", tex->szName);
+		nWidth = tex->nWidth;
+		nHeight = tex->nHeight;
+		for (int i = 0; i < MIPLEVELS; i++)
+			nOffsets[i] = tex->nOffsets[i];
+		data = (byte * )(((byte*)tex) + tex->nOffsets[0]);
+	}
 };
 
 class Wad
@@ -74,7 +89,8 @@ public:
 	bool readInfo();
 	bool hasTexture(std::string name);
 
-	bool write(std::string filename, WADTEX ** textures, int numTex);
+	bool write(std::string filename, WADTEX** textures, int numTex);
+	bool write(WADTEX** textures, int numTex);
 
 
 	WADTEX * readTexture(int dirIndex);
