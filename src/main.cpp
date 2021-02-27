@@ -151,10 +151,14 @@ void start_viewer(string map) {
 		vec3 mins = vec3(-size, -size, -size2);
 		vec3 maxs = vec3(size, size, size2);
 		newBsp->create_solid(mins, maxs, testTexID);
-		mins += 128;
+		mins += 256;
 		maxs += 256;
 		newBsp->create_solid(mins, maxs, testTexID);
-		
+		mins -= 512;
+		maxs -= 512;
+		newBsp->create_solid(mins, maxs, testTexID);
+
+		logf("%d %d %d\n", newBsp->models[0].nFaces, newBsp->models[1].nFaces, newBsp->models[2].nFaces);
 		newBsp->merge_models();
 		
 		// Set cube faces lightmap
@@ -170,6 +174,7 @@ void start_viewer(string map) {
 		{
 			newBsp->texinfos[i].nFlags = 0;
 		}
+
 
 		newBsp->remove_unused_model_structures().print_delete_stats(1);
 		// Update all lumps
