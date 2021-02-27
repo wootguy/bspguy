@@ -139,9 +139,10 @@ void start_viewer(string map) {
 		tmpEntity->addKeyvalue("wad", "halflife.wad;");
 		newBsp->ents.push_back(tmpEntity);
 		// Add and clean two textures
-		byte* tex_dat = new byte[4];
-		int testTexID = newBsp->add_texture("XCRATE7C", tex_dat, 1, 1);
+		byte* tex_dat = new byte[400];
+		int testTexID = newBsp->add_texture("XCRATE7C", tex_dat, 16, 16);
 		newBsp->delete_embedded_textures();
+		delete[] tex_dat;
 		// Make out of map is empty
 		newBsp->create_leaf(CONTENTS_SOLID);
 		// Create test cube with 64 size
