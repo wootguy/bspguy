@@ -210,6 +210,8 @@ public:
 
 	void update_lump_pointers();
 
+	void merge_models();
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves

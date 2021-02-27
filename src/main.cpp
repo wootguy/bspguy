@@ -123,12 +123,62 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	if (!fileExists(map)) {
+	if (map != "-testnew" && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
 	}
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map));
+	if (map == "-testnew")
+	{
+		logf("Create new bsp: %s", map.c_str());
+		Bsp* newBsp = new Bsp();
+		newBsp->path = "testnew.bsp";
+		newBsp->name = "testnew.bsp";
+		// Create wordlspawn entity with default wad
+		Entity * tmpEntity = new Entity("worldspawn");
+		tmpEntity->addKeyvalue("wad", "halflife.wad;");
+		newBsp->ents.push_back(tmpEntity);
+		// Add and clean two textures
+		byte* tex_dat = new byte[4];
+		int testTexID = newBsp->add_texture("XCRATE7C", tex_dat, 1, 1);
+		newBsp->delete_embedded_textures();
+		// Make out of map is empty
+		newBsp->create_leaf(CONTENTS_SOLID);
+		// Create test cube with 64 size
+		int size = 64;
+		int size2 = 32;
+		vec3 mins = vec3(-size, -size, -size2);
+		vec3 maxs = vec3(size, size, size2);
+		newBsp->create_solid(mins, maxs, testTexID);
+		mins += 128;
+		maxs += 256;
+		newBsp->create_solid(mins, maxs, testTexID);
+		
+		newBsp->merge_models();
+		
+		// Set cube faces lightmap
+		BSPFACE* thisFaces = (BSPFACE*)newBsp->lumps[LUMP_FACES];
+		int thisFaceCount = newBsp->header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
+		for (int i = 0; i < thisFaceCount; i++)
+		{
+			thisFaces[i].nStyles[0] = 0;
+			thisFaces[i].nLightmapOffset = 0;
+		}
+
+		for (int i = 0; i < newBsp->texinfoCount; i++)
+		{
+			newBsp->texinfos[i].nFlags = 0;
+		}
+
+		newBsp->remove_unused_model_structures().print_delete_stats(1);
+		// Update all lumps
+		newBsp->update_ent_lump();
+		newBsp->update_lump_pointers();
+		// Render map
+		renderer.addMap(newBsp);
+	}
+	else 
+		renderer.addMap(new Bsp(map));
 	hideConsoleWindow();
 	renderer.renderLoop();
 }
@@ -632,6 +682,13 @@ void print_help(string command) {
 		"Example: bspguy unembed c1a0.bsp\n"
 	);
 	}
+	else if (command == "testnew") {
+	logf(
+		"testnew - Create test map.\n\n"
+
+		"Usage:   bspguy -testnew\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -671,6 +728,13 @@ int main(int argc, char* argv[])
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
 		logf(g_version_string);
+		return 0;
+	}
+
+	if (cli.command == "-testnew")
+	{
+		logf("Test create empty working map.\n");
+		start_viewer("-testnew");
 		return 0;
 	}
 

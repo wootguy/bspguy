@@ -4048,6 +4048,32 @@ void Bsp::update_lump_pointers() {
 	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!\n");
 }
 
+void Bsp::merge_models()
+{
+	if (modelCount > 1)
+	{
+		BSPMODEL tmpBSPMODEL = BSPMODEL();
+		tmpBSPMODEL = models[0];
+		for (int i = 1; i < modelCount; i++)
+		{
+			vec3 amin = tmpBSPMODEL.nMins;
+			vec3 bmin = models[i].nMins;
+			vec3 amax = tmpBSPMODEL.nMaxs;
+			vec3 bmax = models[i].nMaxs;
+			tmpBSPMODEL.nMins = { min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) };
+			tmpBSPMODEL.nMaxs = { max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) };
+			tmpBSPMODEL.nFaces += models[i].nFaces;
+			tmpBSPMODEL.nVisLeafs = tmpBSPMODEL.nVisLeafs + models[i].nVisLeafs;
+		}
+		modelCount = 1;
+
+		int newLen = sizeof(BSPMODEL);
+		byte* newModelData = new byte[newLen];
+		memcpy(newModelData, &tmpBSPMODEL, newLen);
+		replace_lump(LUMP_MODELS, newModelData, newLen);
+	}
+}
+
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
 	delete[] lumps[lumpIdx];
 	lumps[lumpIdx] = (byte*)newData;
