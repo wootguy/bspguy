@@ -4068,19 +4068,18 @@ void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 
 void Bsp::ExportToObjWIP(std::string path)
 {
-	Bsp* map = this;
 	FILE* f;
 	logf("Export to %s\n", path.c_str());
 	fopen_s(&f, path.c_str(), "wb");
-	if (f && map)
+	if (f )
 	{
 		fprintf(f, "# Object Export\n");
 		fprintf(f, "# Scale: 1");
 		int currentgroup = -1;
-		for (int i = 0; i < map->faceCount; i++)
+		for (int i = 0; i < faceCount; i++)
 		{
 			int mdlid = get_model_from_face(i);
-			Winding* wind = new Winding(map, map->faces[i]);
+			Winding* wind = new Winding(this, faces[i]);
 			if (mdlid != currentgroup)
 			{
 				currentgroup = mdlid;
@@ -4107,5 +4106,4 @@ void Bsp::ExportToObjWIP(std::string path)
 	{
 		logf("Error file access!'n");
 	}
-	delete map;
 }
