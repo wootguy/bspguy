@@ -633,6 +633,14 @@ void print_help(string command) {
 		"Example: bspguy unembed c1a0.bsp\n"
 	);
 	}
+	else if (command == "exportobj") {
+	logf(
+		"exportobj - Export bsp geometry to obj [WIP].\n\n"
+
+		"Usage:   bspguy exportobj <mapname>\n"
+		"Example: bspguy exportobj c1a0.bsp\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -647,6 +655,7 @@ void print_help(string command) {
 			"  simplify  : Simplify BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
 			"  unembed   : Deletes embedded texture data\n"
+			"  exportobj   : Export bsp geometry to obj [WIP]\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
@@ -678,6 +687,7 @@ void ExportToObjWIP(std::string path)
 			{
 				fprintf(f, " %i", ((n + 1) * -1));
 			}
+			delete wind;
 		}
 		fclose(f);
 	}
@@ -685,6 +695,7 @@ void ExportToObjWIP(std::string path)
 	{
 		logf("Error file access!'n");
 	}
+	delete map;
 }
 
 int main(int argc, char* argv[])
