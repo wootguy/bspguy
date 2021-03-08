@@ -397,7 +397,13 @@ void Renderer::renderLoop() {
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
 			lastTitleTime = glfwGetTime( );
-			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
+			if (BspRenderer * tmpRend = getMapContainingCamera())
+			{
+				if (tmpRend->map && tmpRend->map->name.size())
+				{
+					glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + tmpRend->map->name + ".bsp").c_str());
+				}
+			}
 		}
 		glfwPollEvents();
 

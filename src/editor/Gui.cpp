@@ -604,7 +604,7 @@ void Gui::drawMenuBar() {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
 				{
-					map->ExportToObjWIP(g_settings.gamedir + g_settings.workingdir + map->name + ".wad");
+					map->ExportToObjWIP(g_settings.gamedir + g_settings.workingdir + map->name + ".obj");
 				}
 			}
 

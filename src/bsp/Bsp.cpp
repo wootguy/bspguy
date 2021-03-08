@@ -4070,8 +4070,9 @@ void Bsp::ExportToObjWIP(std::string path)
 {
 	Bsp* map = this;
 	FILE* f;
+	logf("Export to %s\n", path.c_str());
 	fopen_s(&f, path.c_str(), "wb");
-	if (f)
+	if (f && map)
 	{
 		fprintf(f, "# Object Export\n");
 		fprintf(f, "# Scale: 1");
