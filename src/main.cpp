@@ -6,6 +6,7 @@
 #include "CommandLine.h"
 #include "remap.h"
 #include "Renderer.h"
+#include "winding.h"
 
 // super todo:
 // gui scale not accurate and mostly broken
@@ -52,8 +53,7 @@
 // Add tooltips for everything
 // first-time launch help window or something
 // make .bsp extension optional when opening editor
-// export embedded textures
-// texture browser/import
+// texture browser
 
 // minor todo:
 // warn about game_playerjoin and other special names
@@ -94,7 +94,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v4 WIP (November 2020)";
+const char* g_version_string = "bspguy v4 WIP (March, 2021)";
 
 bool g_verbose = false;
 
@@ -546,7 +546,8 @@ void print_help(string command) {
 			"                 entities, and some ents might not spawn properly. The benefit\n"
 			"                 to this flag is that you don't have deal with script setup.\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
-			"  -v           : Verbose console output.\n"
+			"  -v\n"
+			"  -verbose     : Verbose console output.\n"
 			);
 	}
 	else if (command == "info") {
@@ -654,6 +655,38 @@ void print_help(string command) {
 	}
 }
 
+void ExportToObjWIP(std::string path)
+{
+	Bsp* map = new Bsp(path);
+	FILE* f;
+	fopen_s(&f, (path + ".obj").c_str(), "wb");
+	if (f)
+	{
+		fprintf(f, "# Object Export\n");
+		fprintf(f, "# Scale: 1");
+		for (int i = 0; i < map->faceCount; i++)
+		{
+			Winding* wind = new Winding(map, map->faces[i]);
+
+			fprintf(f, "\n\ng solid_%i\n", i);
+			for (int n = 0; n < wind->m_NumPoints; n++)
+			{
+				fprintf(f, "v %f %f %f\n", wind->m_Points[n][0], wind->m_Points[n][1], wind->m_Points[n][2]);
+			}
+			fprintf(f, "%s", "f");
+			for (int n = 0; n < wind->m_NumPoints; n++)
+			{
+				fprintf(f, " %i", ((n + 1) * -1));
+			}
+		}
+		fclose(f);
+	}
+	else
+	{
+		logf("Error file access!'n");
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	#ifdef WIN32
@@ -669,51 +702,49 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
+	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version") {
 		logf(g_version_string);
 		return 0;
 	}
 
-	if (argc == 2) {
-		start_viewer(argv[1]);
-	}
-	else
-	{
-		if (cli.bspfile.empty()) {
-			logf("ERROR: no map specified\n"); 
-			return 1;
-		}
-
-		if (cli.hasOption("-v")) {
-			g_verbose = true;
-		}
-
-		if (cli.command == "info") {
-			return print_info(cli);
-		}
-		else if (cli.command == "noclip") {
-			return noclip(cli);
-		}
-		else if (cli.command == "simplify") {
-			return simplify(cli);
-		}
-		else if (cli.command == "delete") {
-			return deleteCmd(cli);
-		}
-		else if (cli.command == "transform") {
-			return transform(cli);
-		}
-		else if (cli.command == "merge") {
-			return merge_maps(cli);
-		}
-		else if (cli.command == "unembed") {
-			return unembed(cli);
-		}
-		else {
-			logf("unrecognized command: %d\n", cli.command.c_str());
-		}
+	if (cli.bspfile.empty()) {
+		logf("ERROR: no map specified\n"); 
+		return 1;
 	}
 
+	if (cli.command == "exportobj") {
+		ExportToObjWIP(cli.bspfile);
+		return 0;
+	}
+
+	if (cli.hasOption("-v") || cli.hasOption("-verbose")) {
+		g_verbose = true;
+	}
+
+	if (cli.command == "info") {
+		return print_info(cli);
+	}
+	else if (cli.command == "noclip") {
+		return noclip(cli);
+	}
+	else if (cli.command == "simplify") {
+		return simplify(cli);
+	}
+	else if (cli.command == "delete") {
+		return deleteCmd(cli);
+	}
+	else if (cli.command == "transform") {
+		return transform(cli);
+	}
+	else if (cli.command == "merge") {
+		return merge_maps(cli);
+	}
+	else if (cli.command == "unembed") {
+		return unembed(cli);
+	}
+	else {
+		start_viewer(cli.bspfile);
+	}
 	return 0;
 }
 
