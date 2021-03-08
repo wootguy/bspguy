@@ -599,6 +599,15 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
+
+			if (ImGui::MenuItem("Wavefront (.obj)", NULL)) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					map->ExportToObjWIP(g_settings.gamedir + g_settings.workingdir + map->name + ".wad");
+				}
+			}
+
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Import")) {

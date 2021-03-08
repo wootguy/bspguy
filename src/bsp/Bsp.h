@@ -210,6 +210,7 @@ public:
 
 	void update_lump_pointers();
 
+	void ExportToObjWIP(std::string path);
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -248,5 +249,4 @@ private:
 	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
-
 };

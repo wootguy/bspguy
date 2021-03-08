@@ -664,49 +664,6 @@ void print_help(string command) {
 	}
 }
 
-void ExportToObjWIP(std::string path)
-{
-	Bsp* map = new Bsp(path);
-	FILE* f;
-	fopen_s(&f, (path + ".obj").c_str(), "wb");
-	if (f)
-	{
-		fprintf(f, "# Object Export\n");
-		fprintf(f, "# Scale: 1");
-		int currentgroup = -1;
-		for (int i = 0; i < map->faceCount; i++)
-		{	
-			int mdlid = map->get_model_from_face(i);
-			Winding* wind = new Winding(map, map->faces[i]);
-			if (mdlid != currentgroup)
-			{
-				currentgroup = mdlid;
-				fprintf(f, "\n\ng solid_%i\n", currentgroup);
-			}
-			else
-			{
-				fprintf(f, "\n\n", mdlid);
-			}
-			for (int n = 0; n < wind->m_NumPoints; n++)
-			{
-				fprintf(f, "v %f %f %f\n", wind->m_Points[n][0], wind->m_Points[n][1], wind->m_Points[n][2]);
-			}
-			fprintf(f, "%s", "f");
-			for (int n = 0; n < wind->m_NumPoints; n++)
-			{
-				fprintf(f, " %i", ((n + 1) * -1));
-			}
-			delete wind;
-		}
-		fclose(f);
-	}
-	else
-	{
-		logf("Error file access!'n");
-	}
-	delete map;
-}
-
 int main(int argc, char* argv[])
 {
 	#ifdef WIN32
@@ -733,7 +690,9 @@ int main(int argc, char* argv[])
 	}
 
 	if (cli.command == "exportobj") {
-		ExportToObjWIP(cli.bspfile);
+		Bsp* tmpBsp = new Bsp(cli.bspfile);
+		tmpBsp->ExportToObjWIP(cli.bspfile + ".obj");
+		delete tmpBsp;
 		return 0;
 	}
 
