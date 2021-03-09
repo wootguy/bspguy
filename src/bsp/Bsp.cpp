@@ -86,6 +86,29 @@ Bsp::Bsp(std::string fpath)
 		load_ents();
 		update_lump_pointers();
 
+		std::set<int> used_models; // Protected map
+		used_models.insert(0);
+
+		for (auto const& s : ents)
+		{
+			int ent_mdl_id = s->getBspModelIdx();
+			if (ent_mdl_id >= 0)
+			{
+				if (!used_models.count(ent_mdl_id))
+				{
+					used_models.insert(ent_mdl_id);
+				}
+			}
+		}
+
+		for (int i = 0; i < modelCount; i++)
+		{
+			if (!used_models.count(i))
+			{
+				logf("Warning: found unused model: %d.\n", i);
+			}
+		}
+
 		valid = true;
 	}
 }
