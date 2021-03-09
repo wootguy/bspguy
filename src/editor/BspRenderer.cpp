@@ -1240,7 +1240,9 @@ uint BspRenderer::getFaceTextureId(int faceIdx) {
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {
 	BSPMODEL& world = map->models[0];
-	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
+	map->OffsetChanged = true;
+	map->mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
+	mapOffset = map->mapOffset;
 	vec3 renderOffset = mapOffset.flip();
 
 	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
@@ -1350,6 +1352,10 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 }
 
 void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
+	if (modelIdx >= numRenderModels)
+	{
+		return;
+	}
 
 	if (edgesOnly) {
 		for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {

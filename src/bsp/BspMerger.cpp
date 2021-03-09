@@ -128,7 +128,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 		maps[i]->get_bounding_box(block.mins, block.maxs);
 
 		block.size = block.maxs - block.mins;
-		block.offset = vec3(0, 0, 0);
+		block.offset = maps[i]->OffsetChanged ? maps[i]->mapOffset : vec3(0,0,0);
 		block.map = maps[i];
 	
 
@@ -204,8 +204,11 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 			vector<MAPBLOCK> row;
 			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
 				MAPBLOCK& block = blocks[blockIdx];
-
-				block.offset = targetMins - block.mins;
+				
+				if (!block.map->OffsetChanged)
+				{
+					block.offset = targetMins - block.mins;
+				}
 				//logf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
 				//logf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
 

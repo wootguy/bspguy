@@ -58,6 +58,8 @@ private:
 	bool showSettingsWidget = false;
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
+	bool showImportMapWidget = false;
+	bool showMergeMapWidget = false;
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
 	bool showLightmapEditorWidget = false;
@@ -119,6 +121,8 @@ private:
 	void drawSettings();
 	void drawHelp();
 	void drawAbout();
+	void drawImportMapWidget();
+	void drawMergeWindow();
 	void drawLimits();
 	void drawLightMapTool();
 	void drawTextureTool();

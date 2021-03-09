@@ -110,12 +110,14 @@ public:
 	Renderer();
 	~Renderer();
 
-	void addMap(Bsp* map);
+	bool foundRealMap = false;
+	void addMap(Bsp* map, bool real = true);
 
 	void renderLoop();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
+	void clearMaps();
 	void saveSettings();
 	void loadSettings();
 

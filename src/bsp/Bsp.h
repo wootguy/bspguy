@@ -25,7 +25,8 @@ public:
 	BSPHEADER header = BSPHEADER();
 	byte ** lumps;
 	bool valid;
-
+	vec3 mapOffset = vec3();
+	bool OffsetChanged = false;
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
 	byte* textures;
@@ -61,6 +62,8 @@ public:
 	Bsp();
 	Bsp(std::string fname);
 	~Bsp();
+
+	void init_empty_bsp();
 
 	// if modelIdx=0, the world is moved and all entities along with it
 	bool move(vec3 offset, int modelIdx=0);

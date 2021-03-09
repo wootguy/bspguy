@@ -21,7 +21,8 @@ vec3 default_hull_extents[MAX_MAP_HULLS] = {
 
 int g_sort_mode = SORT_CLIPNODES;
 
-Bsp::Bsp() {
+void Bsp::init_empty_bsp()
+{
 	lumps = new byte * [HEADER_LUMPS];
 
 	header.nVersion = 30;
@@ -40,9 +41,9 @@ Bsp::Bsp() {
 			header.lump[i].nLength = 4096;
 			memset(lumps[i], 255, header.lump[i].nLength);
 		}
-		else 
+		else
 		{
-			lumps[i] = new byte[0];
+			lumps[i] = new byte[4]; // fix crash at replace_lump delete[]
 			header.lump[i].nLength = 0;
 		}
 	}
@@ -52,30 +53,41 @@ Bsp::Bsp() {
 	valid = true;
 }
 
+Bsp::Bsp() {
+	this->init_empty_bsp();
+}
+
 Bsp::Bsp(std::string fpath)
 {
-	if (fpath.size() < 4 || fpath.rfind(".bsp") != fpath.size() - 4) {
-		fpath = fpath + ".bsp";
+	if (fpath.size() == 0)
+	{
+		this->init_empty_bsp();
 	}
-	this->path = fpath;
-	this->name = stripExt(basename(fpath));
-	valid = false;
+	else
+	{
+		if (fpath.size() < 4 || fpath.rfind(".bsp") != fpath.size() - 4) {
+			fpath = fpath + ".bsp";
+		}
+		this->path = fpath;
+		this->name = stripExt(basename(fpath));
+		valid = false;
 
-	bool exists = true;
-	if (!fileExists(fpath)) {
-		logf("ERROR: %s not found\n", fpath.c_str());
-		return;
+		bool exists = true;
+		if (!fileExists(fpath)) {
+			logf("ERROR: %s not found\n", fpath.c_str());
+			return;
+		}
+
+		if (!load_lumps(fpath)) {
+			logf("%s is not a valid BSP file\n", fpath.c_str());
+			return;
+		}
+
+		load_ents();
+		update_lump_pointers();
+
+		valid = true;
 	}
-
-	if (!load_lumps(fpath)) {
-		logf("%s is not a valid BSP file\n", fpath.c_str());
-		return;
-	}
-
-	load_ents();
-	update_lump_pointers();
-
-	valid = true;
 }
 
 Bsp::~Bsp()
@@ -89,14 +101,23 @@ Bsp::~Bsp()
 		delete ents[i];
 }
 
+
+
 void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
-	BSPMODEL& thisWorld = models[0];
+	if (modelCount)
+	{
+		BSPMODEL& thisWorld = models[0];
 
-	// the model bounds are little bigger than the actual vertices bounds in the map,
-	// but if you go by the vertices then there will be collision problems.
+		// the model bounds are little bigger than the actual vertices bounds in the map,
+		// but if you go by the vertices then there will be collision problems.
 
-	mins = thisWorld.nMins;
-	maxs = thisWorld.nMaxs;
+		mins = thisWorld.nMins;
+		maxs = thisWorld.nMaxs;
+	}
+	else
+	{
+		mins = maxs = vec3();
+	}
 }
 
 void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
@@ -4028,7 +4049,7 @@ void Bsp::update_lump_pointers() {
 	marksurfCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16_t);
 	surfedgeCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
 	edgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
-	textureCount = *((int32_t*)(lumps[LUMP_TEXTURES]));
+	textureCount = *((int32_t*)(textures));
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 

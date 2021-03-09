@@ -123,12 +123,12 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	if (!fileExists(map)) {
+	if (map.size() > 0 && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
 	}
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map));
+	renderer.addMap(new Bsp(map), map.size() > 0);
 	hideConsoleWindow();
 	renderer.renderLoop();
 }
@@ -641,6 +641,15 @@ void print_help(string command) {
 		"Example: bspguy exportobj c1a0.bsp\n"
 	);
 	}
+	else if (command == "editor" || command == "empty") {
+	logf(
+		"editor -\n"
+		"empty - Open empty bspguy window.\n\n"
+
+		"Usage:   bspguy editor\n"
+		"Usage:   bspguy empty\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -656,6 +665,7 @@ void print_help(string command) {
 			"  transform : Apply 3D transformations to the BSP\n"
 			"  unembed   : Deletes embedded texture data\n"
 			"  exportobj   : Export bsp geometry to obj [WIP]\n"
+			"  editor, empty   : Open empty bspguy window\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
@@ -681,6 +691,11 @@ int main(int argc, char* argv[])
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version") {
 		logf(g_version_string);
+		return 0;
+	}
+
+	if (cli.command == "editor" || cli.command == "empty") {
+		start_viewer(std::string());
 		return 0;
 	}
 

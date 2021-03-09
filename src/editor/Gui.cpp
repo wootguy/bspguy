@@ -6,6 +6,7 @@
 #include "Renderer.h"
 #include <lodepng.h>
 #include <algorithm>
+#include "BspMerger.h"
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -96,6 +97,12 @@ void Gui::draw() {
 	}
 	if (showAboutWidget) {
 		drawAbout();
+	}
+	if (showImportMapWidget) {
+		drawImportMapWidget();
+	}
+	if (showMergeMapWidget) {
+		drawMergeWindow();
 	}
 	if (showLimitsWidget) {
 		drawLimits();
@@ -480,8 +487,9 @@ void Gui::draw3dContextMenus() {
 	}
 }
 
-void ExportWad(Bsp* map)
+bool ExportWad(Bsp* map)
 {
+	bool retval = true;
 	if (map->textureCount > 0)
 	{
 		Wad* tmpWad = new Wad(map->path);
@@ -500,7 +508,10 @@ void ExportWad(Bsp* map)
 			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
 		}
 		else
+		{
+			retval = false;
 			logf("Not found any textures in bsp file.");
+		}
 		for (int i = 0; i < tmpWadTex.size(); i++) {
 			if (tmpWadTex[i] != nullptr)
 				delete tmpWadTex[i];
@@ -509,8 +520,10 @@ void ExportWad(Bsp* map)
 	}
 	else
 	{
+		retval = false;
 		logf("No textures for export.\n");
 	}
+	return retval;
 }
 
 void ImportWad(Bsp* map, Renderer* app)
@@ -586,15 +599,17 @@ void Gui::drawMenuBar() {
 				if (map)
 				{
 					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-					ExportWad(map);
-					logf("Remove all embedded textures\n");
-					map->delete_embedded_textures();
-					if (map->ents.size())
+					if (ExportWad(map))
 					{
-						std::string wadstr = map->ents[0]->keyvalues["wad"];
-						if (wadstr.find(map->name + ".wad" + ";") == std::string::npos)
+						logf("Remove all embedded textures\n");
+						map->delete_embedded_textures();
+						if (map->ents.size())
 						{
-							map->ents[0]->keyvalues["wad"] += map->name + ".wad" + ";";
+							std::string wadstr = map->ents[0]->keyvalues["wad"];
+							if (wadstr.find(map->name + ".wad" + ";") == std::string::npos)
+							{
+								map->ents[0]->keyvalues["wad"] += map->name + ".wad" + ";";
+							}
 						}
 					}
 				}
@@ -611,6 +626,11 @@ void Gui::drawMenuBar() {
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Import")) {
+			if (ImGui::MenuItem("Map file", NULL)) {
+				showImportMapWidget = !showImportMapWidget;
+			}
+
+
 			if (ImGui::MenuItem("Entity file", NULL)) {
 				Bsp* map = app->getMapContainingCamera()->map;
 				if (map)
@@ -923,6 +943,9 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
 			showLightmapEditorWidget = !showLightmapEditorWidget;
 			showLightmapEditorUpdate = true;
+		}
+		if (ImGui::MenuItem("Map merge", "", showMergeMapWidget)) {
+			showMergeMapWidget = !showMergeMapWidget;
 		}
 		if (ImGui::MenuItem("Log", "", showLogWidget)) {
 			showLogWidget = !showLogWidget;
@@ -2623,6 +2646,121 @@ void Gui::drawAbout() {
 		ImGui::InputText("Contact", url, strlen(url), ImGuiInputTextFlags_ReadOnly);
 	}
 
+	ImGui::End();
+}
+
+void Gui::drawMergeWindow() {
+	ImGui::SetNextWindowSize(ImVec2(500, 240), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 240), ImVec2(500, 240));
+	static char Path[256];
+	static bool DeleteUnusedInfo = true;
+	static bool Optimize = false;
+	static bool DeleteHull2 = false;
+	static bool NoRipent = false;
+	static bool NoScript = true;
+	if (ImGui::Begin("Merge maps", &showMergeMapWidget)) {
+		ImGui::InputText("output .bsp file", Path, 256);
+		ImGui::Checkbox("Delete unused info", &DeleteUnusedInfo);
+		ImGui::Checkbox("Optimize", &Optimize);
+		ImGui::Checkbox("No hull 2", &DeleteHull2);
+		ImGui::Checkbox("No ripent", &NoRipent);
+		ImGui::Checkbox("No script", &NoScript);
+
+		if (ImGui::Button("Merge maps", ImVec2(120, 0)))
+		{
+			vector<Bsp*> maps;
+			for (auto const& s : g_app->mapRenderers)
+			{
+				maps.push_back(s->map);
+			}
+			if (maps.size() < 2)
+			{
+				logf("ERROR: at least 2 input maps are required\n");
+			}
+			else
+			{
+				for (int i = 0; i < maps.size(); i++) {
+					logf("Preprocessing %s:\n", maps[i]->name.c_str());
+					if (DeleteUnusedInfo)
+					{
+						logf("    Deleting unused data...\n");
+						STRUCTCOUNT removed = maps[i]->remove_unused_model_structures();
+						g_progress.clear();
+						removed.print_delete_stats(2);
+					}
+
+					if (DeleteHull2 || (Optimize && !maps[i]->has_hull2_ents())) {
+						logf("    Deleting hull 2...\n");
+						maps[i]->delete_hull(2, 1);
+						maps[i]->remove_unused_model_structures().print_delete_stats(2);
+					}
+
+					if (Optimize) {
+						logf("    Optmizing...\n");
+						maps[i]->delete_unused_hulls().print_delete_stats(2);
+					}
+
+					logf("\n");
+				}
+
+				BspMerger merger;
+				Bsp* result = merger.merge(maps, vec3(), Path, NoRipent, NoScript);
+
+				logf("\n");
+				if (result->isValid()) result->write(Path);
+				logf("\n");
+				result->print_info(false, 0, 0);
+
+				g_app->clearMaps();
+
+				if (fileExists(Path))
+				{
+					result = new Bsp(Path);
+					g_app->addMap(result);
+				}
+				else
+				{
+					logf("Error while map merge!\n");
+					g_app->addMap(new Bsp());
+				}
+			}
+			showMergeMapWidget = false;
+		}
+	}
+
+	ImGui::End();
+}
+
+void Gui::drawImportMapWidget() {
+	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 140), ImVec2(500, 140));
+	static char Path[256];
+	if (ImGui::Begin("Import new map", &showImportMapWidget)) {
+		ImGui::InputText(".bsp file", Path, 256);
+		if (ImGui::Button("Import", ImVec2(120, 0)))
+		{
+			if (fileExists(Path))
+			{
+				logf("Loading new map file from %s path.\n", Path);
+				showImportMapWidget = false;
+				if (!g_app->foundRealMap)
+				{
+					g_app->clearMaps();
+					g_app->reloading = true;
+					g_app->reloadingGameDir = true;
+					g_app->loadFgds();
+					g_app->postLoadFgds();
+					g_app->reloading = false;
+					g_app->reloadingGameDir = false;
+				}
+				g_app->addMap(new Bsp(Path));
+			}
+			else
+			{
+				logf("No file found! Try again!\n");
+			}
+		}
+	}
 	ImGui::End();
 }
 
