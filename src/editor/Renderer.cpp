@@ -146,7 +146,6 @@ void AppSettings::load() {
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 		}
 
-		g_settings.valid = true;
 
 	}
 	else {
@@ -187,12 +186,17 @@ void AppSettings::load() {
 		resPaths.push_back("/svencoop_downloads/");
 		resPaths.push_back("/svencoop_hd/");
 	}
+
+	g_settings.valid = true;
 }
 
 void AppSettings::save() {
 	if (!dirExists(g_config_dir)) {
 		createDir(g_config_dir);
 	}
+
+	if (!valid) // Settings not loaded. If save it can be broken!
+		return;
 
 	g_app->saveSettings();
 
@@ -589,6 +593,8 @@ void Renderer::reloadMaps() {
 }
 
 void Renderer::saveSettings() {
+	if (!gui->settingLoaded)
+		return;
 	g_settings.debug_open = gui->showDebugWidget;
 	g_settings.keyvalue_open = gui->showKeyvalueWidget;
 	g_settings.transform_open = gui->showTransformWidget;
@@ -635,6 +641,8 @@ void Renderer::loadSettings() {
 	gui->shouldReloadFonts = true;
 
 	glfwSwapInterval(gui->vsync ? 1 : 0);
+
+	gui->settingLoaded = true;
 }
 
 void Renderer::loadFgds() {

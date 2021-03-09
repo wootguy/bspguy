@@ -50,7 +50,7 @@ struct AppSettings {
 	int fontSize;
 	string gamedir;
 	string workingdir;
-	bool valid;
+	bool valid; // Settings loaded
 	int undoLevels;
 	bool verboseLogs;
 

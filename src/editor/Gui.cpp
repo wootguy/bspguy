@@ -2396,7 +2396,7 @@ void Gui::drawSettings() {
 
 		int pathWidth = ImGui::GetWindowWidth() - 60;
 		int delWidth = 50;
-
+		
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
@@ -2411,6 +2411,7 @@ void Gui::drawSettings() {
 			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 				ImGui::BeginTooltip();
 				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
+				ImGui::EndTooltip();
 			}
 		}
 		else if (settingsTab == 1) {
@@ -2557,9 +2558,7 @@ void Gui::drawSettings() {
 			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 		}
 
-
 		ImGui::EndChild();
-
 		ImGui::EndChild();
 
 		if (settingsTab <= 2) {
@@ -2599,6 +2598,7 @@ void Gui::drawSettings() {
 				g_settings.save();
 			}
 		}
+
 
 		ImGui::EndGroup();
 	}

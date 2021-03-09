@@ -78,6 +78,7 @@ private:
 	int fontSize = 22;
 	bool shouldReloadFonts = false;
 	bool shouldReloadTextureInfo = false;
+	bool settingLoaded = false;
 
 	Texture* objectIconTexture;
 	Texture* faceIconTexture;
