@@ -694,7 +694,7 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 	return inside;
 }
 
-void tga_write(const char* filename, uint32_t width, uint32_t height, uint8_t* data, uint8_t dataChannels = 4, uint8_t fileChannels = 3)
+void tga_write(const char* filename, uint32_t width, uint32_t height, uint8_t* data, uint8_t dataChannels, uint8_t fileChannels)
 {
 	FILE* fp = NULL;
 	// MSVC prefers fopen_s, but it's not portable
