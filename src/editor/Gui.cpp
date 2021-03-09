@@ -623,6 +623,40 @@ void Gui::drawMenuBar() {
 				}
 			}
 
+			if (ImGui::BeginMenu("Models")) {
+				Bsp* map = app->getMapContainingCamera()->map;
+				if (map)
+				{
+					for (int i = 0; i < map->modelCount; i++)
+					{
+						if (ImGui::MenuItem(("Export " + std::to_string(i) + " model (.bsp)").c_str(), NULL)) {
+							if (fileExists(map->path))
+							{
+								Bsp* tmpMap = new Bsp(map->path);
+								tmpMap->modelCount = 1;
+								tmpMap->models[0] = map->models[i];
+								STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
+
+								if (!removed.allZero())
+									removed.print_delete_stats(1);
+
+								Entity * tmpEnt = tmpMap->ents[0];
+								for (int i = 1; i < tmpMap->ents.size(); i++)
+									delete tmpMap->ents[i];
+								tmpMap->ents.clear();
+								tmpMap->ents.push_back(tmpEnt);
+								tmpMap->delete_unused_hulls();
+								tmpMap->update_ent_lump();
+								tmpMap->update_lump_pointers();
+								tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp");
+								delete tmpMap;
+							}
+						}
+					}
+				}
+				ImGui::EndMenu();
+			}
+
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Import")) {
