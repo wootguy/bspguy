@@ -399,9 +399,9 @@ void Renderer::renderLoop() {
 			lastTitleTime = glfwGetTime( );
 			if (BspRenderer * tmpRend = getMapContainingCamera())
 			{
-				if (tmpRend->map && tmpRend->map->name.size())
+				if (tmpRend->map && tmpRend->map->path.size())
 				{
-					glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + tmpRend->map->name + ".bsp").c_str());
+					glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + tmpRend->map->path).c_str());
 				}
 			}
 		}

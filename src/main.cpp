@@ -737,6 +737,7 @@ int main(int argc, char* argv[])
 		return unembed(cli);
 	}
 	else {
+		logf("%s\n", ("Start bspguy editor with map: " + cli.bspfile).c_str() );
 		start_viewer(cli.bspfile);
 	}
 	return 0;
