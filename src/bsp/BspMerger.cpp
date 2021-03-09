@@ -828,8 +828,8 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 
 	BSPPLANE separationPlane = separate(mapA, mapB);
 	if (separationPlane.nType == -1) {
-		logf("No separating axis found. The maps overlap and can't be merged.\n");
-		return false;
+		logf("Warning! No separating axis found. The maps be overlap.\n");
+		//return false;
 	}
 
 	thisWorldLeafCount = mapA.models[0].nVisLeafs; // excludes solid leaf 0
