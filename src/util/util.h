@@ -121,3 +121,10 @@ enum class FIXUPPATH_SLASH
 
 void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
+/// <summary> Writes an uncompressed 24 or 32 bit .tga image to the indicated file! </summary>
+/// <param name='filename'>I'd recommended you add a '.tga' to the end of this filename.</param>
+/// <param name='dataBGRA'>A chunk of color data, one channel per byte, ordered as BGRA. Size should be width*height*dataChanels.</param>
+/// <param name='dataChannels'>The number of channels in the color data. Use 1 for grayscale, 3 for BGR, and 4 for BGRA.</param>
+/// <param name='fileChannels'>The number of color channels to write to file. Must be 3 for BGR, or 4 for BGRA. Does NOT need to match dataChannels.</param>
+void tga_write(const char* filename, uint32_t width, uint32_t height, uint8_t* data, uint8_t dataChannels = 4, uint8_t fileChannels = 3);

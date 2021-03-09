@@ -4068,18 +4068,80 @@ void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 
 void Bsp::ExportToObjWIP(std::string path)
 {
+	if (!dirExists(path))
+	{
+		if (!createDir(path))
+		{
+			logf("Error output path directory can't be created!\n");
+			return;
+		}
+	}
 	FILE* f;
-	logf("Export to %s\n", path.c_str());
-	fopen_s(&f, path.c_str(), "wb");
-	if (f )
+	logf("Export %s to %s\n", (name + ".obj").c_str(), path.c_str());
+	f = fopen((path + name + ".obj").c_str(), "wb");
+	if (f)
 	{
 		fprintf(f, "# Object Export\n");
 		fprintf(f, "# Scale: 1");
 		int currentgroup = -1;
+
+		std::set<BSPMIPTEX*> texture_list;
+
 		for (int i = 0; i < faceCount; i++)
 		{
 			int mdlid = get_model_from_face(i);
 			Winding* wind = new Winding(this, faces[i]);
+			BSPFACE& face = faces[i];
+			BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+			int32_t texOffset = ((int32_t*)textures)[texinfo.iMiptex + 1];
+			BSPMIPTEX * tex = ((BSPMIPTEX*)(textures + texOffset));
+			if (!fileExists(path + tex->szName + std::string(".obj")))
+			{
+				if (tex->nOffsets[0] > 0)
+				{
+
+				}
+				else
+				{
+					vector<Wad*> wads;
+
+					/*for (int k = 0; k < wads.size(); k++) {
+						if (wads[k]->hasTexture(tex.szName)) {
+							foundInWad = true;
+
+							wadTex = wads[k]->readTexture(tex.szName);
+							palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+							src = wadTex->data;
+
+							wadTexCount++;
+							break;
+						}
+					}
+
+					for (int i = 0; i < tmpWad->numTex; i++)
+					{
+						WADTEX* wadTex = tmpWad->readTexture(i);
+						int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+						COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+						byte* src = wadTex->data;
+
+						COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+						int sz = wadTex->nWidth * wadTex->nHeight;
+
+						for (int k = 0; k < sz; k++) {
+							imageData[k] = palette[src[k]];
+						}
+
+						map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+
+						delete[] imageData;
+						delete wadTex;
+					}*/
+				}
+				//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (byte*)tex + tex->nOffsets[0], 3, 3);
+			}
 			if (mdlid != currentgroup)
 			{
 				currentgroup = mdlid;

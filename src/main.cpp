@@ -691,7 +691,7 @@ int main(int argc, char* argv[])
 
 	if (cli.command == "exportobj") {
 		Bsp* tmpBsp = new Bsp(cli.bspfile);
-		tmpBsp->ExportToObjWIP(cli.bspfile + ".obj");
+		tmpBsp->ExportToObjWIP(cli.bspfile);
 		delete tmpBsp;
 		return 0;
 	}

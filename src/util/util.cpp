@@ -694,6 +694,28 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 	return inside;
 }
 
+void tga_write(const char* filename, uint32_t width, uint32_t height, uint8_t* data, uint8_t dataChannels = 4, uint8_t fileChannels = 3)
+{
+	FILE* fp = NULL;
+	// MSVC prefers fopen_s, but it's not portable
+	//fp = fopen(filename, "wb");
+	fp = fopen(filename, "wb");
+	if (!fp) return;
+
+	// You can find details about TGA headers here: http://www.paulbourke.net/dataformats/tga/
+	uint8_t header[18] = { 0,0,2,0,0,0,0,0,0,0,0,0, (uint8_t)(width % 256), (uint8_t)(width / 256), (uint8_t)(height % 256), (uint8_t)(height / 256), (uint8_t)(fileChannels * 8), 0x20 };
+	fwrite(&header, 18, 1, fp);
+
+	for (uint32_t i = 0; i < width * height; i++)
+	{
+		for (uint32_t b = 0; b < fileChannels; b++)
+		{
+			fputc(data[(i * dataChannels) + (b % dataChannels)], fp);
+		}
+	}
+	fclose(fp);
+}
+
 bool dirExists(const string& dirName_in)
 {
 #ifdef USE_FILESYSTEM

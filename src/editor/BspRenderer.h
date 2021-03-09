@@ -99,6 +99,7 @@ public:
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
 	int showLightFlag = -1;
+	vector<Wad*> wads;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
