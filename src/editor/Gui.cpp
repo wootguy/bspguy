@@ -417,6 +417,30 @@ void Gui::draw3dContextMenus() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
+				if (ImGui::MenuItem("Export BSP model", 0, false, !app->isLoading)) {
+					if (app->pickInfo.modelIdx)
+					{
+						Bsp* tmpMap = new Bsp(map->path);
+						tmpMap->modelCount = 1;
+						tmpMap->models[0] = map->models[app->pickInfo.modelIdx];
+						STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
+
+						if (!removed.allZero())
+							removed.print_delete_stats(1);
+
+						Entity* tmpEnt = tmpMap->ents[0];
+						for (int i = 1; i < tmpMap->ents.size(); i++)
+							delete tmpMap->ents[i];
+						tmpMap->ents.clear();
+						tmpMap->ents.push_back(tmpEnt);
+						tmpMap->delete_unused_hulls();
+						tmpMap->update_ent_lump();
+						tmpMap->update_lump_pointers();
+						logf("Export model %d to %s\n", app->pickInfo.modelIdx, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(app->pickInfo.modelIdx) + ".bsp").c_str());
+						tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(app->pickInfo.modelIdx) + ".bsp");
+						delete tmpMap;
+					}
+				}
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted("Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
@@ -629,7 +653,7 @@ void Gui::drawMenuBar() {
 				{
 					for (int i = 0; i < map->modelCount; i++)
 					{
-						if (ImGui::MenuItem(("Export " + std::to_string(i) + " model (.bsp)").c_str(), NULL)) {
+						if (ImGui::MenuItem(("Export " + std::to_string(i) + " model (.bsp)").c_str(), NULL, app->pickInfo.modelIdx == i)) {
 							if (fileExists(map->path))
 							{
 								Bsp* tmpMap = new Bsp(map->path);
@@ -648,6 +672,7 @@ void Gui::drawMenuBar() {
 								tmpMap->delete_unused_hulls();
 								tmpMap->update_ent_lump();
 								tmpMap->update_lump_pointers();
+								logf("Export model %d to %s\n", i, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp").c_str());
 								tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp");
 								delete tmpMap;
 							}
