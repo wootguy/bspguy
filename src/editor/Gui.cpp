@@ -420,25 +420,7 @@ void Gui::draw3dContextMenus() {
 				if (ImGui::MenuItem("Export BSP model", 0, false, !app->isLoading)) {
 					if (app->pickInfo.modelIdx)
 					{
-						Bsp* tmpMap = new Bsp(map->path);
-						tmpMap->modelCount = 1;
-						tmpMap->models[0] = map->models[app->pickInfo.modelIdx];
-						STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
-
-						if (!removed.allZero())
-							removed.print_delete_stats(1);
-
-						Entity* tmpEnt = tmpMap->ents[0];
-						for (int i = 1; i < tmpMap->ents.size(); i++)
-							delete tmpMap->ents[i];
-						tmpMap->ents.clear();
-						tmpMap->ents.push_back(tmpEnt);
-						tmpMap->delete_unused_hulls();
-						tmpMap->update_ent_lump();
-						tmpMap->update_lump_pointers();
-						logf("Export model %d to %s\n", app->pickInfo.modelIdx, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(app->pickInfo.modelIdx) + ".bsp").c_str());
-						tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(app->pickInfo.modelIdx) + ".bsp");
-						delete tmpMap;
+						ExportModel(map, app->pickInfo.modelIdx);
 					}
 				}
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
@@ -588,6 +570,30 @@ void ImportWad(Bsp* map, Renderer* app)
 	delete tmpWad;
 }
 
+void ExportModel(Bsp * map,int id)
+{
+	Bsp* tmpMap = new Bsp(map->path);
+	BSPMODEL tmpModel = map->models[id];
+
+	tmpMap->modelCount = 1;
+	tmpMap->models[0] = tmpModel;
+	Entity* tmpEnt = tmpMap->ents[0];
+	for (int i = 1; i < tmpMap->ents.size(); i++)
+		delete tmpMap->ents[i];
+	tmpMap->ents.clear();
+	tmpMap->ents.push_back(tmpEnt);
+	tmpMap->update_ent_lump();
+	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
+	if (!removed.allZero())
+		removed.print_delete_stats(1);
+
+	tmpMap->delete_unused_hulls();
+	tmpMap->update_lump_pointers();
+	logf("Export model %d to %s\n", i, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp").c_str());
+	tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp");
+	delete tmpMap;
+}
+
 void Gui::drawMenuBar() {
 	ImGuiContext& g = *GImGui;
 
@@ -661,25 +667,7 @@ void Gui::drawMenuBar() {
 								if (ImGui::MenuItem(("Export " + std::to_string(i) + " model (.bsp)").c_str(), NULL, app->pickInfo.modelIdx == i)) {
 									if (fileExists(map->path))
 									{
-										Bsp* tmpMap = new Bsp(map->path);
-										tmpMap->modelCount = 1;
-										tmpMap->models[0] = map->models[i];
-										STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
-
-										if (!removed.allZero())
-											removed.print_delete_stats(1);
-
-										Entity* tmpEnt = tmpMap->ents[0];
-										for (int i = 1; i < tmpMap->ents.size(); i++)
-											delete tmpMap->ents[i];
-										tmpMap->ents.clear();
-										tmpMap->ents.push_back(tmpEnt);
-										tmpMap->delete_unused_hulls();
-										tmpMap->update_ent_lump();
-										tmpMap->update_lump_pointers();
-										logf("Export model %d to %s\n", i, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp").c_str());
-										tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp");
-										delete tmpMap;
+										ExportModel(map,i);
 									}
 								}
 							}
