@@ -229,6 +229,31 @@ void Gui::pasteLightmap() {
 	app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
 }
 
+
+void ExportModel(Bsp* map, int id)
+{
+	Bsp* tmpMap = new Bsp(map->path);
+	BSPMODEL tmpModel = map->models[id];
+
+	tmpMap->modelCount = 1;
+	tmpMap->models[0] = tmpModel;
+	Entity* tmpEnt = tmpMap->ents[0];
+	for (int i = 1; i < tmpMap->ents.size(); i++)
+		delete tmpMap->ents[i];
+	tmpMap->ents.clear();
+	tmpMap->ents.push_back(tmpEnt);
+	tmpMap->update_ent_lump();
+	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
+	if (!removed.allZero())
+		removed.print_delete_stats(1);
+
+	//tmpMap->delete_unused_hulls();
+	tmpMap->update_lump_pointers();
+	logf("Export model %d to %s\n", id, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp").c_str());
+	tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp");
+	delete tmpMap;
+}
+
 void Gui::draw3dContextMenus() {
 	ImGuiContext& g = *GImGui;
 
@@ -570,29 +595,6 @@ void ImportWad(Bsp* map, Renderer* app)
 	delete tmpWad;
 }
 
-void ExportModel(Bsp * map,int id)
-{
-	Bsp* tmpMap = new Bsp(map->path);
-	BSPMODEL tmpModel = map->models[id];
-
-	tmpMap->modelCount = 1;
-	tmpMap->models[0] = tmpModel;
-	Entity* tmpEnt = tmpMap->ents[0];
-	for (int i = 1; i < tmpMap->ents.size(); i++)
-		delete tmpMap->ents[i];
-	tmpMap->ents.clear();
-	tmpMap->ents.push_back(tmpEnt);
-	tmpMap->update_ent_lump();
-	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
-	if (!removed.allZero())
-		removed.print_delete_stats(1);
-
-	tmpMap->delete_unused_hulls();
-	tmpMap->update_lump_pointers();
-	logf("Export model %d to %s\n", i, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp").c_str());
-	tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(i) + ".bsp");
-	delete tmpMap;
-}
 
 void Gui::drawMenuBar() {
 	ImGuiContext& g = *GImGui;
@@ -2713,6 +2715,7 @@ void Gui::drawMergeWindow() {
 	static bool DeleteHull2 = false;
 	static bool NoRipent = false;
 	static bool NoScript = true;
+	
 	if (ImGui::Begin("Merge maps", &showMergeMapWidget)) {
 		ImGui::InputText("output .bsp file", Path, 256);
 		ImGui::Checkbox("Delete unused info", &DeleteUnusedInfo);
@@ -2720,6 +2723,7 @@ void Gui::drawMergeWindow() {
 		ImGui::Checkbox("No hull 2", &DeleteHull2);
 		ImGui::Checkbox("No ripent", &NoRipent);
 		ImGui::Checkbox("No script", &NoScript);
+		ImGui::Checkbox("No worldspawn", &MergeSecondsMapAsModel);
 
 		if (ImGui::Button("Merge maps", ImVec2(120, 0)))
 		{
