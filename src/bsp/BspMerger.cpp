@@ -18,28 +18,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
+
 	logf("\nArranging maps so that they don't overlap:\n");
-
-	for (int z = 0; z < blocks.size(); z++) {
-		for (int y = 0; y < blocks[z].size(); y++) {
-			for (int x = 0; x < blocks[z][y].size(); x++) {
-				MAPBLOCK& block = blocks[z][y][x];
-
-				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
-					logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n",
-						block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
-					block.map->move(block.offset);
-				}
-
-				if (!noripent && !MergeSecondsMapAsModel) {
-					// tag ents with the map they belong to
-					for (int i = 0; i < block.map->ents.size(); i++) {
-						block.map->ents[i]->addKeyvalue("$s_bspguy_map_source", toLowerCase(block.map->name));
-					}
-				}
-			}
-		}
-	}
 
 	// Merge order matters. 
 	// The bounding box of a merged map is expanded to contain both maps, and bounding boxes cannot overlap.
@@ -47,6 +27,39 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 	//       Not worth it until more than 27 maps are merged together (merge cube bigger than 3x3x3)
 
 	logf("\nMerging %d maps:\n", maps.size());
+
+	if (!MergeSecondsMapAsModel)
+	{
+		for (int z = 0; z < blocks.size(); z++) {
+			for (int y = 0; y < blocks[z].size(); y++) {
+				for (int x = 0; x < blocks[z][y].size(); x++) {
+					MAPBLOCK& block = blocks[z][y][x];
+
+					if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
+						logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n",
+							block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
+						block.map->move(block.offset);
+					}
+
+					if (!noripent) {
+						// tag ents with the map they belong to
+						for (int i = 0; i < block.map->ents.size(); i++) {
+							block.map->ents[i]->addKeyvalue("$s_bspguy_map_source", toLowerCase(block.map->name));
+						}
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		Bsp* basemap = maps[0];
+		for(int i = 1; i < maps.size();i++)
+		{
+			merge(*basemap,*maps[i]);
+		}
+		return basemap;
+	}
 
 	// merge maps along X axis to form rows of maps
 	int rowId = 0;
@@ -96,7 +109,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 
 	Bsp* output = layerStart.map;
 
-	if (!noripent) {
+	if (!noripent && !MergeSecondsMapAsModel) {
 		vector<MAPBLOCK> flattenedBlocks;
 		for (int z = 0; z < blocks.size(); z++)
 			for (int y = 0; y < blocks[z].size(); y++)
@@ -130,7 +143,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 		maps[i]->get_bounding_box(block.mins, block.maxs);
 
 		block.size = block.maxs - block.mins;
-		block.offset = maps[i]->OffsetChanged ? maps[i]->mapOffset : vec3(0, 0, 0);
+		block.offset = maps[i]->OffsetChanged && !MergeSecondsMapAsModel ? maps[i]->mapOffset : vec3(0, 0, 0);
 		block.map = maps[i];
 
 
@@ -207,7 +220,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
 				MAPBLOCK& block = blocks[blockIdx];
 
-				if (!block.map->OffsetChanged)
+				if (!block.map->OffsetChanged && !MergeSecondsMapAsModel)
 				{
 					block.offset = targetMins - block.mins;
 				}
@@ -234,8 +247,7 @@ typedef map< string, MAPBLOCK > mapStringToMapBlock;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps,
 	vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript) {
-	if (MergeSecondsMapAsModel)
-		return;
+	
 	int originalEntCount = mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
@@ -831,25 +843,13 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	// TODO: Create a new map and store result there. Don't break mapA.
 
 	BSPPLANE separationPlane = separate(mapA, mapB);
-	if (separationPlane.nType == -1) {
-		logf("Warning! No separating axis found. The maps be overlap.\n");
-		//return false;
-	}
-	if (MergeSecondsMapAsModel)
+	if (!MergeSecondsMapAsModel)
 	{
-		mapB.modelCount = 2;
-		BSPMODEL tmpModel = mapB.models[0];
-		mapB.models = new BSPMODEL[2];
-		mapB.models[1] = tmpModel;
-		tmpModel = BSPMODEL();
-		tmpModel.iHeadnodes[0] = tmpModel.iHeadnodes[1]
-			= tmpModel.iHeadnodes[2] = tmpModel.iHeadnodes[3] = CONTENTS_EMPTY;
-		tmpModel.iFirstFace = 0;
-		tmpModel.nFaces = 0;
-		tmpModel.nVisLeafs = 0;
-		mapB.models[0] = tmpModel;
+		if (separationPlane.nType == -1) {
+			logf("Warning! No separating axis found. The maps be overlap.\n");
+			return false;
+		}
 	}
-
 	thisWorldLeafCount = mapA.models[0].nVisLeafs; // excludes solid leaf 0
 	otherWorldLeafCount = mapB.models[0].nVisLeafs; // excluding solid leaf 0
 
@@ -1546,6 +1546,11 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 
 	// other map's submodels
 	int i = 1;
+	if (MergeSecondsMapAsModel)
+	{
+		i = 0;
+	}
+
 	for (; i < mapB.modelCount; i++) {
 		BSPMODEL model = mapB.models[i];
 		if (model.iHeadnodes[0] >= 0)
@@ -1576,21 +1581,24 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	}
 
 	// update world head nodes
+	if (!MergeSecondsMapAsModel)
+	{
+		mergedModels[0].iHeadnodes[0] = 0;
+		mergedModels[0].iHeadnodes[1] = 0;
+		mergedModels[0].iHeadnodes[2] = 1;
+		mergedModels[0].iHeadnodes[3] = 2;
 
-	mergedModels[0].iHeadnodes[0] = 0;
-	mergedModels[0].iHeadnodes[1] = 0;
-	mergedModels[0].iHeadnodes[2] = 1;
-	mergedModels[0].iHeadnodes[3] = 2;
-
-	mergedModels[0].nVisLeafs = mapA.models[0].nVisLeafs + mapB.models[0].nVisLeafs;
-	mergedModels[0].nFaces = mapA.models[0].nFaces + mapB.models[0].nFaces;
-
-	vec3 amin = mapA.models[0].nMins;
-	vec3 bmin = mapB.models[0].nMins;
-	vec3 amax = mapA.models[0].nMaxs;
-	vec3 bmax = mapB.models[0].nMaxs;
-	mergedModels[0].nMins = { min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) };
-	mergedModels[0].nMaxs = { max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) };
+	
+		mergedModels[0].nVisLeafs = mapA.models[0].nVisLeafs + mapB.models[0].nVisLeafs;
+		mergedModels[0].nFaces = mapA.models[0].nFaces + mapB.models[0].nFaces;
+	
+		vec3 amin = mapA.models[0].nMins;
+		vec3 bmin = mapB.models[0].nMins;
+		vec3 amax = mapA.models[0].nMaxs;
+		vec3 bmax = mapB.models[0].nMaxs;
+		mergedModels[0].nMins = { min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) };
+		mergedModels[0].nMaxs = { max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) };
+	}
 
 	int newLen = mergedModels.size() * sizeof(BSPMODEL);
 
