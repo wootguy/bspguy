@@ -134,8 +134,11 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
 
 vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 gap) {
 	vector<MAPBLOCK> blocks;
+	
 
 	vector<vector<vector<MAPBLOCK>>> orderedBlocks;
+	if (MergeSecondsMapAsModel)
+		return orderedBlocks;
 
 	vec3 maxDims = vec3(0, 0, 0);
 	for (int i = 0; i < maps.size(); i++) {
@@ -143,7 +146,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 		maps[i]->get_bounding_box(block.mins, block.maxs);
 
 		block.size = block.maxs - block.mins;
-		block.offset = maps[i]->OffsetChanged && !MergeSecondsMapAsModel ? maps[i]->mapOffset : vec3(0, 0, 0);
+		block.offset = maps[i]->OffsetChanged ? maps[i]->mapOffset : vec3(0, 0, 0);
 		block.map = maps[i];
 
 
@@ -220,7 +223,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
 				MAPBLOCK& block = blocks[blockIdx];
 
-				if (!block.map->OffsetChanged && !MergeSecondsMapAsModel)
+				if (!block.map->OffsetChanged)
 				{
 					block.offset = targetMins - block.mins;
 				}
@@ -952,6 +955,20 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 	BSPPLANE separationPlane;
 	memset(&separationPlane, 0, sizeof(BSPPLANE));
 
+	if (MergeSecondsMapAsModel)
+	{
+		separationPlane.nType = -1; // no simple separating axis
+
+		logf("Bounding boxes for each map:\n");
+		logf("(%6.0f, %6.0f, %6.0f)", amin.x, amin.y, amin.z);
+		logf(" - (%6.0f, %6.0f, %6.0f) %s\n", amax.x, amax.y, amax.z, mapA.name.c_str());
+
+		logf("(%6.0f, %6.0f, %6.0f)", bmin.x, bmin.y, bmin.z);
+		logf(" - (%6.0f, %6.0f, %6.0f) %s\n", bmax.x, bmax.y, bmax.z, mapB.name.c_str());
+
+		return separationPlane;
+	}
+
 	// separating plane points toward the other map (b)
 	if (bmin.x >= amax.x) {
 		separationPlane.nType = PLANE_X;
@@ -1545,11 +1562,11 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	mergedModels.push_back(mapA.models[0]);
 
 	// other map's submodels
-	int i = 1;
+	int i = 1;/*
 	if (MergeSecondsMapAsModel)
 	{
 		i = 0;
-	}
+	}*/
 
 	for (; i < mapB.modelCount; i++) {
 		BSPMODEL model = mapB.models[i];
@@ -1581,7 +1598,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	}
 
 	// update world head nodes
-	if (!MergeSecondsMapAsModel)
+	//if (!MergeSecondsMapAsModel)
 	{
 		mergedModels[0].iHeadnodes[0] = 0;
 		mergedModels[0].iHeadnodes[1] = 0;
@@ -1637,6 +1654,8 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 		otherWorldLeafCount, otherLeafCount, totalVisLeaves);
 
 	// shift mapB's world leaves after mapA's world leaves
+
+
 	for (int i = 0; i < otherWorldLeafCount; i++) {
 		shiftVis(decompressedOtherVis + i * newVisRowSize, newVisRowSize, 0, thisWorldLeafCount);
 		g_progress.tick();
@@ -1731,21 +1750,24 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 
 	// planes with negative normals mess up VIS and lighting stuff, so swap children instead
 	bool swapNodeChildren = separationPlane.vNormal.x < 0 || separationPlane.vNormal.y < 0 || separationPlane.vNormal.z < 0;
+
 	if (swapNodeChildren)
 		separationPlane.vNormal = separationPlane.vNormal.invert();
 
-	//logf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
+	logf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
 
 	// write separating plane
 
-	BSPPLANE* newThisPlanes = new BSPPLANE[mapA.planeCount + 1];
-	memcpy(newThisPlanes, mapA.planes, mapA.planeCount * sizeof(BSPPLANE));
-	newThisPlanes[mapA.planeCount] = separationPlane;
-
-	mapA.replace_lump(LUMP_PLANES, newThisPlanes, (mapA.planeCount + 1) * sizeof(BSPPLANE));
-
 	int separationPlaneIdx = mapA.planeCount - 1;
 
+	if (!MergeSecondsMapAsModel)
+	{
+		BSPPLANE* newThisPlanes = new BSPPLANE[mapA.planeCount + 1];
+		memcpy(newThisPlanes, mapA.planes, mapA.planeCount * sizeof(BSPPLANE));
+		newThisPlanes[mapA.planeCount] = separationPlane;
+
+		mapA.replace_lump(LUMP_PLANES, newThisPlanes, (mapA.planeCount + 1) * sizeof(BSPPLANE));
+	}
 
 	// write new head node (visible BSP)
 	{
