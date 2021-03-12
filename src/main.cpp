@@ -128,7 +128,8 @@ void start_viewer(string map) {
 		return;
 	}
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map), map.size() > 0);
+	if (map.size())
+		renderer.addMap(new Bsp(map));
 	hideConsoleWindow();
 	renderer.renderLoop();
 }
@@ -644,7 +645,7 @@ void print_help(string command) {
 	else if (command == "editor" || command == "empty") {
 	logf(
 		"editor -\n"
-		"empty - Open empty bspguy window.\n\n"
+		"empty - Open bspguy editor window.\n\n"
 
 		"Usage:   bspguy editor\n"
 		"Usage:   bspguy empty\n"

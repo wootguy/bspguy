@@ -1567,7 +1567,8 @@ BspRenderer* Renderer::getMapContainingCamera() {
 			return mapRenderers[i];
 		}
 	}
-	return mapRenderers[0];
+
+	return mapRenderers.size() ? mapRenderers[0] : NULL;
 }
 
 void Renderer::setupView() {
@@ -1583,14 +1584,10 @@ void Renderer::setupView() {
 	view.translate(-cameraOrigin.x, -cameraOrigin.z, cameraOrigin.y);
 }
 
-void Renderer::addMap(Bsp* map, bool real) {
+void Renderer::addMap(Bsp* map) {
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);
-	if (real)
-	{
-		foundRealMap = true;
-	}
 
 	gui->checkValidHulls();
 
