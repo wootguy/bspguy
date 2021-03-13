@@ -142,6 +142,7 @@ public:
 	void updateFaceUVs(int faceIdx);
 	uint getFaceTextureId(int faceIdx);
 
+	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -200,6 +201,5 @@ private:
 	void deleteLightmapTextures();
 	void deleteFaceMaths();
 	void delayLoadData();
-	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
 };

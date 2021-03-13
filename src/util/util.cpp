@@ -704,9 +704,9 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 #define MAX_NUMBER_OF_COLORS 0
 #define ALL_COLORS_REQUIRED 0
 
-void WriteImage(const char* fileName, byte* pixels, int width, int height, int bytesPerPixel)
+void WriteImage(std::string fileName, byte* pixels, int width, int height, int bytesPerPixel)
 {
-	FILE* outputFile = fopen(fileName, "wb");
+	FILE* outputFile = fopen(fileName.c_str(), "wb");
 	//*****HEADER************//
 	const char* BM = "BM";
 	fwrite(&BM[0], 1, 1, outputFile);

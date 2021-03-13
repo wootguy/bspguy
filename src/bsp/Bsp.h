@@ -10,6 +10,8 @@
 #include <set>
 #include "bsptypes.h"
 
+class BspRenderer;
+
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -210,6 +212,8 @@ public:
 	BSPMIPTEX * find_embedded_texture(const char * name);
 
 	void update_lump_pointers();
+
+	BspRenderer* GetBspRender();
 
 	void ExportToObjWIP(std::string path);
 private:

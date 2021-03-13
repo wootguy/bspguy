@@ -7,8 +7,11 @@
 #include "vis.h"
 #include "remap.h"
 #include "Renderer.h"
+#include "BspRenderer.h"
 #include <set>
 #include <winding.h>
+#include "Wad.h"
+#include <vector>
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -4126,90 +4129,207 @@ void Bsp::ExportToObjWIP(std::string path)
 	if (f)
 	{
 		fprintf(f, "# Object Export\n");
-		fprintf(f, "# Scale: 1");
+		fprintf(f, "# Scale: 1\n\n");
+
+		fprintf(f, "s off\n");
+
+		fprintf(f, "mtllib materials.mtl\n");
 		int currentgroup = -1;
 
 		std::set<BSPMIPTEX*> texture_list;
+		BspRenderer* bsprend = GetBspRender();
+
+		createDir(path + "textures");
+		std::vector<string> materials;
+		std::vector<string> matnames;
+
+		int vertoffset = 1;
+
+		int materialid = 0;
+		int lastmaterialid = -1;
 
 		for (int i = 0; i < faceCount; i++)
 		{
-			int mdlid = get_model_from_face(i);
-			Winding* wind = new Winding(this, faces[i]);
+			RenderFace* rface;
+			RenderGroup* rgroup;
+			if (!bsprend->getRenderPointers(i, &rface, &rgroup)) {
+				logf("Bad face index\n");
+				return;
+			}
+
 			BSPFACE& face = faces[i];
 			BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
 			int32_t texOffset = ((int32_t*)textures)[texinfo.iMiptex + 1];
-			BSPMIPTEX * tex = ((BSPMIPTEX*)(textures + texOffset));
-			if (!fileExists(path + tex->szName + std::string(".obj")))
+			BSPMIPTEX* tex = ((BSPMIPTEX*)(textures + texOffset));
+
+			int mdlid = get_model_from_face(i);
+			materialid = -1;
+			for (int m = 0; m < matnames.size(); m++)
+			{
+				if (matnames[m] == tex->szName)
+					materialid = m;
+			}
+			if (materialid == -1)
+			{
+				materialid = matnames.size();
+				materials.push_back("newmtl textures" + std::to_string(materialid));
+				materials.push_back("map_Kd " + std::string("textures/") + tex->szName + std::string(".bmp"));
+				materials.push_back("");
+				matnames.push_back(tex->szName);
+			}
+
+			if (!fileExists(path + std::string("textures/") + tex->szName + std::string(".bmp")))
 			{
 				if (tex->nOffsets[0] > 0)
 				{
+					WADTEX wadTex = tex;
+					int lastMipSize = (wadTex.nWidth / 8) * (wadTex.nHeight / 8);
 
+					COLOR3* palette = (COLOR3*)(wadTex.data + wadTex.nOffsets[3] + lastMipSize + 2 - 40);
+					byte* src = wadTex.data;
+
+					COLOR3* imageData = new COLOR3[wadTex.nWidth * wadTex.nHeight];
+
+					int sz = wadTex.nWidth * wadTex.nHeight;
+
+					for (int k = 0; k < sz; k++) {
+						imageData[k] = palette[src[k]];
+					}
+					//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (byte*)tex + tex->nOffsets[0], 3, 3);
+					WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (byte*)imageData, wadTex.nWidth, wadTex.nHeight, 3);
 				}
 				else
 				{
-					vector<Wad*> wads;
+					bool foundInWad = false;
+					for (int r = 0; r < g_app->mapRenderers.size() && !foundInWad; r++)
+					{
+						Renderer* rend = g_app;
+						for (int k = 0; k < rend->mapRenderers[r]->wads.size() && !foundInWad; k++) {
+							if (rend->mapRenderers[r]->wads[k]->hasTexture(tex->szName)) {
+								foundInWad = true;
 
-					/*for (int k = 0; k < wads.size(); k++) {
-						if (wads[k]->hasTexture(tex.szName)) {
-							foundInWad = true;
+								WADTEX* wadTex = rend->mapRenderers[r]->wads[k]->readTexture(tex->szName);
+								int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+								COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+								byte* src = wadTex->data;
+								COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
-							wadTex = wads[k]->readTexture(tex.szName);
-							palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-							src = wadTex->data;
+								int sz = wadTex->nWidth * wadTex->nHeight;
 
-							wadTexCount++;
-							break;
+								for (int k = 0; k < sz; k++) {
+									imageData[k] = palette[src[k]];
+								}
+								WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (byte*)imageData, wadTex->nWidth, wadTex->nHeight, 3);
+								break;
+							}
 						}
 					}
-
-					for (int i = 0; i < tmpWad->numTex; i++)
-					{
-						WADTEX* wadTex = tmpWad->readTexture(i);
-						int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
-
-						COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-						byte* src = wadTex->data;
-
-						COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
-
-						int sz = wadTex->nWidth * wadTex->nHeight;
-
-						for (int k = 0; k < sz; k++) {
-							imageData[k] = palette[src[k]];
-						}
-
-						map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
-
-						delete[] imageData;
-						delete wadTex;
-					}*/
 				}
-				//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (byte*)tex + tex->nOffsets[0], 3, 3);
 			}
 			if (mdlid != currentgroup)
 			{
 				currentgroup = mdlid;
-				fprintf(f, "\n\ng solid_%i\n", currentgroup);
+				fprintf(f, "\ng Group%i\n\n", currentgroup);
 			}
 			else
 			{
 				fprintf(f, "\n\n");
 			}
-			for (int n = 0; n < wind->m_NumPoints; n++)
+
+
+
+			if (lastmaterialid != materialid)
+				fprintf(f, "usemtl textures%i\n", materialid);
+			lastmaterialid = materialid;
+
+			for (int n = 0; n < rface->vertCount; n++)
 			{
-				fprintf(f, "v %f %f %f\n", wind->m_Points[n][0], wind->m_Points[n][1], wind->m_Points[n][2]);
+				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+				vec3 pos = vec3(vert.x, -vert.z, vert.y);
+
+				float tw = 1.0f / (float)tex->nWidth;
+				float th = 1.0f / (float)tex->nHeight;
+				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
+				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
+				vert.u = fU * tw;
+				vert.v = fV * th;
+
+				BSPPLANE& plane = planes[face.iPlane];
+
+				fprintf(f, "v %f %f %f\n", pos.x, pos.y, pos.z);
 			}
-			fprintf(f, "%s", "f");
-			for (int n = 0; n < wind->m_NumPoints; n++)
+			for (int n = 0; n < rface->vertCount; n++)
 			{
-				fprintf(f, " %i", ((n + 1) * -1));
+				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+				vec3 pos = vec3(vert.x, -vert.z, vert.y);
+
+				float tw = 1.0f / (float)tex->nWidth;
+				float th = 1.0f / (float)tex->nHeight;
+				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
+				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
+				vert.u = fU * tw;
+				vert.v = fV * th;
+
+				BSPPLANE& plane = planes[face.iPlane];
+
+				fprintf(f, "vt %f %f\n", vert.u, vert.v);
 			}
-			delete wind;
+			for (int n = 0; n < rface->vertCount; n++)
+			{
+				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+				vec3 pos = vec3(vert.x, -vert.z, vert.y);
+
+				float tw = 1.0f / (float)tex->nWidth;
+				float th = 1.0f / (float)tex->nHeight;
+				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
+				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
+				vert.u = fU * tw;
+				vert.v = fV * th;
+
+				BSPPLANE& plane = planes[face.iPlane];
+
+				//fprintf(f, "vn %f %f %f\n", plane.vNormal.x, -plane.vNormal.z, plane.vNormal.y);
+				fprintf(f, "vn %f %f %f\n", plane.vNormal.x, plane.vNormal.y, plane.vNormal.z);
+			}
+
+			fprintf(f, "%s", "\nf");
+			for (int n = 0; n < rface->vertCount; n++)
+			{
+				int id = vertoffset + n;
+
+				fprintf(f, " %i/%i/%i", id, id, id);
+				//fprintf(f, " %i/%i", id, id);
+			}
+
+			vertoffset += rface->vertCount;
+
+			/*for (int n = 0 ; n < rface->vertCount; n++)
+			{
+				int id = (n + 1) * -1;
+
+				fprintf(f, " %i/%i/", id, id);
+			}*/
+			fprintf(f, "%s", "\n");
+			//delete wind;
 		}
+
+		std::ofstream output_file(path + "materials.mtl");
+		std::ostream_iterator<std::string> output_iterator(output_file, "\n");
+		std::copy(materials.begin(), materials.end(), output_iterator);
+
 		fclose(f);
 	}
 	else
 	{
 		logf("Error file access!'n");
 	}
+}
+
+
+BspRenderer* Bsp::GetBspRender()
+{
+	for (int i = 0; i < g_app->mapRenderers.size(); i++)
+		if (g_app->mapRenderers[i]->map == this)
+			return g_app->mapRenderers[i];
+	return NULL;
 }
