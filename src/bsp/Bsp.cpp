@@ -43,7 +43,7 @@ void Bsp::init_empty_bsp()
 		}
 		else
 		{
-			lumps[i] = new byte[4]; // fix crash at replace_lump delete[]
+			lumps[i] = new byte[0]; // fix crash at replace_lump delete[]
 			header.lump[i].nLength = 0;
 		}
 	}
