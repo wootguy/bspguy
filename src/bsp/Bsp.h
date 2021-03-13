@@ -25,7 +25,6 @@ public:
 	BSPHEADER header = BSPHEADER();
 	byte ** lumps;
 	bool valid;
-
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
 	byte* textures;
@@ -61,6 +60,8 @@ public:
 	Bsp();
 	Bsp(std::string fname);
 	~Bsp();
+
+	void init_empty_bsp();
 
 	// if modelIdx=0, the world is moved and all entities along with it
 	bool move(vec3 offset, int modelIdx=0);
@@ -210,6 +211,7 @@ public:
 
 	void update_lump_pointers();
 
+	void ExportToObjWIP(std::string path);
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -248,5 +250,4 @@ private:
 	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
-
 };

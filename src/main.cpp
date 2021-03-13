@@ -6,6 +6,7 @@
 #include "CommandLine.h"
 #include "remap.h"
 #include "Renderer.h"
+#include "winding.h"
 
 // super todo:
 // gui scale not accurate and mostly broken
@@ -52,8 +53,7 @@
 // Add tooltips for everything
 // first-time launch help window or something
 // make .bsp extension optional when opening editor
-// export embedded textures
-// texture browser/import
+// texture browser
 
 // minor todo:
 // warn about game_playerjoin and other special names
@@ -94,7 +94,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v4 WIP (November 2020)";
+const char* g_version_string = "bspguy v4 WIP (March, 2021)";
 
 bool g_verbose = false;
 
@@ -123,12 +123,13 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(string map) {
-	if (!fileExists(map)) {
+	if (map.size() > 0 && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
 	}
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map));
+	if (map.size())
+		renderer.addMap(new Bsp(map));
 	hideConsoleWindow();
 	renderer.renderLoop();
 }
@@ -546,7 +547,8 @@ void print_help(string command) {
 			"                 entities, and some ents might not spawn properly. The benefit\n"
 			"                 to this flag is that you don't have deal with script setup.\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
-			"  -v           : Verbose console output.\n"
+			"  -v\n"
+			"  -verbose     : Verbose console output.\n"
 			);
 	}
 	else if (command == "info") {
@@ -632,6 +634,23 @@ void print_help(string command) {
 		"Example: bspguy unembed c1a0.bsp\n"
 	);
 	}
+	else if (command == "exportobj") {
+	logf(
+		"exportobj - Export bsp geometry to obj [WIP].\n\n"
+
+		"Usage:   bspguy exportobj <mapname>\n"
+		"Example: bspguy exportobj c1a0.bsp\n"
+	);
+	}
+	else if (command == "editor" || command == "empty") {
+	logf(
+		"editor -\n"
+		"empty - Open bspguy editor window.\n\n"
+
+		"Usage:   bspguy editor\n"
+		"Usage:   bspguy empty\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -646,6 +665,8 @@ void print_help(string command) {
 			"  simplify  : Simplify BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
 			"  unembed   : Deletes embedded texture data\n"
+			"  exportobj   : Export bsp geometry to obj [WIP]\n"
+			"  editor, empty   : Open empty bspguy window\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
@@ -669,51 +690,57 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version" || cli.command == "-v") {
+	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version") {
 		logf(g_version_string);
 		return 0;
 	}
 
-	if (argc == 2) {
-		start_viewer(argv[1]);
-	}
-	else
-	{
-		if (cli.bspfile.empty()) {
-			logf("ERROR: no map specified\n"); 
-			return 1;
-		}
-
-		if (cli.hasOption("-v")) {
-			g_verbose = true;
-		}
-
-		if (cli.command == "info") {
-			return print_info(cli);
-		}
-		else if (cli.command == "noclip") {
-			return noclip(cli);
-		}
-		else if (cli.command == "simplify") {
-			return simplify(cli);
-		}
-		else if (cli.command == "delete") {
-			return deleteCmd(cli);
-		}
-		else if (cli.command == "transform") {
-			return transform(cli);
-		}
-		else if (cli.command == "merge") {
-			return merge_maps(cli);
-		}
-		else if (cli.command == "unembed") {
-			return unembed(cli);
-		}
-		else {
-			logf("unrecognized command: %d\n", cli.command.c_str());
-		}
+	if (cli.command == "editor" || cli.command == "empty") {
+		start_viewer(std::string());
+		return 0;
 	}
 
+	if (cli.bspfile.empty()) {
+		logf("ERROR: no map specified\n"); 
+		return 1;
+	}
+
+	if (cli.command == "exportobj") {
+		Bsp* tmpBsp = new Bsp(cli.bspfile);
+		tmpBsp->ExportToObjWIP(cli.bspfile);
+		delete tmpBsp;
+		return 0;
+	}
+
+	if (cli.hasOption("-v") || cli.hasOption("-verbose")) {
+		g_verbose = true;
+	}
+
+	if (cli.command == "info") {
+		return print_info(cli);
+	}
+	else if (cli.command == "noclip") {
+		return noclip(cli);
+	}
+	else if (cli.command == "simplify") {
+		return simplify(cli);
+	}
+	else if (cli.command == "delete") {
+		return deleteCmd(cli);
+	}
+	else if (cli.command == "transform") {
+		return transform(cli);
+	}
+	else if (cli.command == "merge") {
+		return merge_maps(cli);
+	}
+	else if (cli.command == "unembed") {
+		return unembed(cli);
+	}
+	else {
+		logf("%s\n", ("Start bspguy editor with map: " + cli.bspfile).c_str() );
+		start_viewer(cli.bspfile);
+	}
 	return 0;
 }
 

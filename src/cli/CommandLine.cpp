@@ -3,6 +3,7 @@
 CommandLine::CommandLine(int argc, char* argv[]) {
 
 	askingForHelp = argc <= 1;
+
 	for (int i = 0; i < argc; i++)
 	{
 		string arg = argv[i];
@@ -37,6 +38,12 @@ CommandLine::CommandLine(int argc, char* argv[]) {
 		else {
 			optionVals[opt] = "";
 		}
+	}
+
+	if (argc == 2)
+	{
+		bspfile = argv[1];
+		return;
 	}
 }
 

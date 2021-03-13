@@ -118,6 +118,8 @@ enum class FIXUPPATH_SLASH
 	FIXUPPATH_SLASH_SKIP,
 	FIXUPPATH_SLASH_REMOVE
 };
-
+void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash);
 void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
+void WriteImage(const char* fileName, byte* pixels, int width, int height, int bytesPerPixel);

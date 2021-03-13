@@ -50,7 +50,7 @@ struct AppSettings {
 	int fontSize;
 	string gamedir;
 	string workingdir;
-	bool valid;
+	bool settingLoaded; // Settings loaded
 	int undoLevels;
 	bool verboseLogs;
 
@@ -116,6 +116,7 @@ public:
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
+	void clearMaps();
 	void saveSettings();
 	void loadSettings();
 

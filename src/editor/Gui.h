@@ -58,6 +58,9 @@ private:
 	bool showSettingsWidget = false;
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
+	bool showImportMapWidget_Import = false;
+	bool showImportMapWidget = false;
+	bool showMergeMapWidget = false;
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
 	bool showLightmapEditorWidget = false;
@@ -76,6 +79,7 @@ private:
 	int fontSize = 22;
 	bool shouldReloadFonts = false;
 	bool shouldReloadTextureInfo = false;
+	bool settingLoaded = false;
 
 	Texture* objectIconTexture;
 	Texture* faceIconTexture;
@@ -119,6 +123,8 @@ private:
 	void drawSettings();
 	void drawHelp();
 	void drawAbout();
+	void drawImportMapWidget();
+	void drawMergeWindow();
 	void drawLimits();
 	void drawLightMapTool();
 	void drawTextureTool();

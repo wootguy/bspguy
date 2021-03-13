@@ -57,6 +57,8 @@ void window_close_callback(GLFWwindow* window)
 
 void AppSettings::loadDefault() 
 {
+	settingLoaded = false;
+
 	windowWidth = 800;
 	windowHeight = 600;
 	windowX = 0;
@@ -69,10 +71,8 @@ void AppSettings::loadDefault()
 	fontSize = 22;
 	gamedir = std::string();
 	workingdir = "/bspguy_work/";
-	valid = false;
 	undoLevels = 64;
 	verboseLogs = false;
-
 	debug_open = false;
 	keyvalue_open = false;
 	transform_open = false;
@@ -146,7 +146,6 @@ void AppSettings::load() {
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 		}
 
-		g_settings.valid = true;
 
 	}
 	else {
@@ -187,12 +186,17 @@ void AppSettings::load() {
 		resPaths.push_back("/svencoop_downloads/");
 		resPaths.push_back("/svencoop_hd/");
 	}
+
+	g_settings.settingLoaded = true;
 }
 
 void AppSettings::save() {
 	if (!dirExists(g_config_dir)) {
 		createDir(g_config_dir);
 	}
+
+	if (!settingLoaded) // Settings not loaded. If save it can be broken!
+		return;
 
 	g_app->saveSettings();
 
@@ -260,7 +264,7 @@ Renderer::Renderer() {
 
 	window = glfwCreateWindow(g_settings.windowWidth, g_settings.windowHeight, "bspguy", NULL, NULL);
 	
-	if (g_settings.valid) {
+	if (g_settings.settingLoaded) {
 		glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
 		
 		// setting size again to fix issue where window is too small because it was
@@ -397,7 +401,13 @@ void Renderer::renderLoop() {
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
 			lastTitleTime = glfwGetTime( );
-			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
+			if (BspRenderer * tmpRend = getMapContainingCamera())
+			{
+				if (tmpRend->map && tmpRend->map->path.size())
+				{
+					glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + tmpRend->map->path).c_str());
+				}
+			}
 		}
 		glfwPollEvents();
 
@@ -552,6 +562,18 @@ void Renderer::postLoadFgdsAndTextures() {
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 }
 
+void Renderer::clearMaps() {
+	for (int i = 0; i < mapRenderers.size(); i++) {
+		delete mapRenderers[i];
+	}
+	mapRenderers.clear();
+	pickInfo.valid = false;
+	clearUndoCommands();
+	clearRedoCommands();
+
+	logf("Cleared map list\n");
+}
+
 void Renderer::reloadMaps() {
 	vector<string> reloadPaths;
 	for (int i = 0; i < mapRenderers.size(); i++) {
@@ -571,6 +593,8 @@ void Renderer::reloadMaps() {
 }
 
 void Renderer::saveSettings() {
+	if (!gui->settingLoaded)
+		return;
 	g_settings.debug_open = gui->showDebugWidget;
 	g_settings.keyvalue_open = gui->showKeyvalueWidget;
 	g_settings.transform_open = gui->showTransformWidget;
@@ -617,6 +641,8 @@ void Renderer::loadSettings() {
 	gui->shouldReloadFonts = true;
 
 	glfwSwapInterval(gui->vsync ? 1 : 0);
+
+	gui->settingLoaded = true;
 }
 
 void Renderer::loadFgds() {
@@ -1541,7 +1567,8 @@ BspRenderer* Renderer::getMapContainingCamera() {
 			return mapRenderers[i];
 		}
 	}
-	return mapRenderers[0];
+
+	return mapRenderers.size() ? mapRenderers[0] : NULL;
 }
 
 void Renderer::setupView() {

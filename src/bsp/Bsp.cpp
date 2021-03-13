@@ -8,6 +8,7 @@
 #include "remap.h"
 #include "Renderer.h"
 #include <set>
+#include <winding.h>
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -20,7 +21,8 @@ vec3 default_hull_extents[MAX_MAP_HULLS] = {
 
 int g_sort_mode = SORT_CLIPNODES;
 
-Bsp::Bsp() {
+void Bsp::init_empty_bsp()
+{
 	lumps = new byte * [HEADER_LUMPS];
 
 	header.nVersion = 30;
@@ -39,9 +41,9 @@ Bsp::Bsp() {
 			header.lump[i].nLength = 4096;
 			memset(lumps[i], 255, header.lump[i].nLength);
 		}
-		else 
+		else
 		{
-			lumps[i] = new byte[0];
+			lumps[i] = new byte[4]; // fix crash at replace_lump delete[]
 			header.lump[i].nLength = 0;
 		}
 	}
@@ -51,8 +53,18 @@ Bsp::Bsp() {
 	valid = true;
 }
 
+Bsp::Bsp() {
+	this->init_empty_bsp();
+}
+
 Bsp::Bsp(std::string fpath)
 {
+	if (fpath.size() == 0)
+	{
+		this->init_empty_bsp();
+		return;
+	}
+	
 	if (fpath.size() < 4 || fpath.rfind(".bsp") != fpath.size() - 4) {
 		fpath = fpath + ".bsp";
 	}
@@ -74,7 +86,31 @@ Bsp::Bsp(std::string fpath)
 	load_ents();
 	update_lump_pointers();
 
+	std::set<int> used_models; // Protected map
+	used_models.insert(0);
+
+	for (auto const& s : ents)
+	{
+		int ent_mdl_id = s->getBspModelIdx();
+		if (ent_mdl_id >= 0)
+		{
+			if (!used_models.count(ent_mdl_id))
+			{
+				used_models.insert(ent_mdl_id);
+			}
+		}
+	}
+
+	for (int i = 0; i < modelCount; i++)
+	{
+		if (!used_models.count(i))
+		{
+			logf("Warning: found unused model: %d.\n", i);
+		}
+	}
+
 	valid = true;
+
 }
 
 Bsp::~Bsp()
@@ -88,14 +124,23 @@ Bsp::~Bsp()
 		delete ents[i];
 }
 
+
+
 void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
-	BSPMODEL& thisWorld = models[0];
+	if (modelCount)
+	{
+		BSPMODEL& thisWorld = models[0];
 
-	// the model bounds are little bigger than the actual vertices bounds in the map,
-	// but if you go by the vertices then there will be collision problems.
+		// the model bounds are little bigger than the actual vertices bounds in the map,
+		// but if you go by the vertices then there will be collision problems.
 
-	mins = thisWorld.nMins;
-	maxs = thisWorld.nMaxs;
+		mins = thisWorld.nMins;
+		maxs = thisWorld.nMaxs;
+	}
+	else
+	{
+		mins = maxs = vec3();
+	}
 }
 
 void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
@@ -4027,7 +4072,7 @@ void Bsp::update_lump_pointers() {
 	marksurfCount = header.lump[LUMP_MARKSURFACES].nLength / sizeof(uint16_t);
 	surfedgeCount = header.lump[LUMP_SURFEDGES].nLength / sizeof(int32_t);
 	edgeCount = header.lump[LUMP_EDGES].nLength / sizeof(BSPEDGE);
-	textureCount = *((int32_t*)(lumps[LUMP_TEXTURES]));
+	textureCount = *((int32_t*)(textures));
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 
@@ -4063,4 +4108,108 @@ void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 	memcpy(newLump + oldLen, newData, appendLength);
 
 	replace_lump(lumpIdx, newLump, oldLen + appendLength);
+}
+
+void Bsp::ExportToObjWIP(std::string path)
+{
+	if (!dirExists(path))
+	{
+		if (!createDir(path))
+		{
+			logf("Error output path directory can't be created!\n");
+			return;
+		}
+	}
+	FILE* f;
+	logf("Export %s to %s\n", (name + ".obj").c_str(), path.c_str());
+	f = fopen((path + name + ".obj").c_str(), "wb");
+	if (f)
+	{
+		fprintf(f, "# Object Export\n");
+		fprintf(f, "# Scale: 1");
+		int currentgroup = -1;
+
+		std::set<BSPMIPTEX*> texture_list;
+
+		for (int i = 0; i < faceCount; i++)
+		{
+			int mdlid = get_model_from_face(i);
+			Winding* wind = new Winding(this, faces[i]);
+			BSPFACE& face = faces[i];
+			BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+			int32_t texOffset = ((int32_t*)textures)[texinfo.iMiptex + 1];
+			BSPMIPTEX * tex = ((BSPMIPTEX*)(textures + texOffset));
+			if (!fileExists(path + tex->szName + std::string(".obj")))
+			{
+				if (tex->nOffsets[0] > 0)
+				{
+
+				}
+				else
+				{
+					vector<Wad*> wads;
+
+					/*for (int k = 0; k < wads.size(); k++) {
+						if (wads[k]->hasTexture(tex.szName)) {
+							foundInWad = true;
+
+							wadTex = wads[k]->readTexture(tex.szName);
+							palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+							src = wadTex->data;
+
+							wadTexCount++;
+							break;
+						}
+					}
+
+					for (int i = 0; i < tmpWad->numTex; i++)
+					{
+						WADTEX* wadTex = tmpWad->readTexture(i);
+						int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+						COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+						byte* src = wadTex->data;
+
+						COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+						int sz = wadTex->nWidth * wadTex->nHeight;
+
+						for (int k = 0; k < sz; k++) {
+							imageData[k] = palette[src[k]];
+						}
+
+						map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+
+						delete[] imageData;
+						delete wadTex;
+					}*/
+				}
+				//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (byte*)tex + tex->nOffsets[0], 3, 3);
+			}
+			if (mdlid != currentgroup)
+			{
+				currentgroup = mdlid;
+				fprintf(f, "\n\ng solid_%i\n", currentgroup);
+			}
+			else
+			{
+				fprintf(f, "\n\n");
+			}
+			for (int n = 0; n < wind->m_NumPoints; n++)
+			{
+				fprintf(f, "v %f %f %f\n", wind->m_Points[n][0], wind->m_Points[n][1], wind->m_Points[n][2]);
+			}
+			fprintf(f, "%s", "f");
+			for (int n = 0; n < wind->m_NumPoints; n++)
+			{
+				fprintf(f, " %i", ((n + 1) * -1));
+			}
+			delete wind;
+		}
+		fclose(f);
+	}
+	else
+	{
+		logf("Error file access!'n");
+	}
 }

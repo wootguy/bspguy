@@ -84,7 +84,12 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 }
 
 void BspRenderer::loadTextures() {
-	vector<Wad*> wads;
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	wads.clear();
+
 	vector<string> wadNames;
 	for (int i = 0; i < map->ents.size(); i++) {
 		if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
@@ -193,11 +198,6 @@ void BspRenderer::loadTextures() {
 
 		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
 	}
-
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
-	}
-
 	if (wadTexCount)
 		debugf("Loaded %d wad textures\n", wadTexCount);
 	if (embedCount)
@@ -1080,6 +1080,11 @@ BspRenderer::~BspRenderer() {
 		logf("ERROR: Deleted bsp renderer while it was loading\n");
 	}
 
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	wads.clear();
+
 	if (lightmaps != NULL) {
 		delete[] lightmaps;
 	}
@@ -1345,6 +1350,10 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 }
 
 void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
+	if (modelIdx >= numRenderModels)
+	{
+		return;
+	}
 
 	if (edgesOnly) {
 		for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {
