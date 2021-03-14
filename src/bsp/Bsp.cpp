@@ -554,7 +554,7 @@ bool Bsp::vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVert
 	return true;
 }
 
-bool Bsp::move(vec3 offset, int modelIdx) {
+bool Bsp::move(vec3 offset, int modelIdx, bool onlyModel) {
 	if (modelIdx < 0 || modelIdx >= modelCount) {
 		logf("Invalid modelIdx moved");
 		return false;
@@ -563,7 +563,7 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 	BSPMODEL& target = models[modelIdx];
 
 	// all ents should be moved if the world is being moved
-	bool movingWorld = modelIdx == 0;
+	bool movingWorld = modelIdx == 0 && !onlyModel;
 
 	// Submodels don't use leaves like the world model does. Only the contents of a leaf matters
 	// for submodels. All other data is ignored. bspguy will reuse world leaves in submodels to 

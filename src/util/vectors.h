@@ -23,6 +23,13 @@ struct vec3
 	void operator*=(float f);
 	void operator/=(float f);
 
+	vec3 operator-() {
+		x *= -1;
+		y *= -1;
+		z *= -1;
+		return *this;
+	}
+
 	float operator [] (int i) const {
 		switch (i)
 		{

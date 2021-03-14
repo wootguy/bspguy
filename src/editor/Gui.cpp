@@ -237,29 +237,27 @@ void ExportModel(Bsp* map, int id)
 	Bsp* tmpMap = new Bsp(map->path);
 
 	BSPMODEL tmpModel = map->models[id];
-	
-	//for (int i = 0; i < tmpMap->leafCount; i++)
-	//{
-	//	BSPLEAF& tmpLeaf = tmpMap->leaves[i];
-	//	tmpLeaf.nVisOffset = -1;
-	//	for (int n = 0; n < 3; n++)
-	//	{
-	//		tmpLeaf.nMins[n] = tmpModel.nMins[n];
-	//		tmpLeaf.nMaxs[n] = tmpModel.nMaxs[n];
-	//	}
-	//}
 
 	Entity* tmpEnt = new Entity(*map->ents[0]);
 
-	vec3 origin = vec3(0,0,0);
+	vec3 EntOffset = vec3();
+
 	for (int i = 0; i < map->ents.size(); i++)
 	{
 		if (map->ents[i]->getBspModelIdx() == id)
 		{
-			origin = map->ents[i]->getOrigin();
-			logf("Save model origin: %f %f %f to worldpsawn entity\n", map->ents[i]->getOrigin().x, map->ents[i]->getOrigin().y, map->ents[i]->getOrigin().z);
+			EntOffset = map->ents[i]->getOrigin();
+			break;
 		}
 	}
+
+	vec3 modelOrigin = map->get_model_center(id);
+
+	tmpMap->modelCount = 1;
+	tmpMap->models[0] = tmpModel;
+
+	// Move model to 0 0 0
+	tmpMap->move(-modelOrigin, 0, true);
 
 	for (int i = 1; i < tmpMap->ents.size(); i++)
 	{
@@ -267,23 +265,42 @@ void ExportModel(Bsp* map, int id)
 	}
 
 	tmpMap->ents.clear();
-	if (origin != vec3(0,0,0))
-		tmpEnt->setOrAddKeyvalue("origin", origin.toKeyvalueString());
-	tmpMap->ents.push_back(tmpEnt);
-	tmpMap->update_ent_lump();
 
-	tmpMap->modelCount = 1;
-	tmpMap->models[0] = tmpModel;
+	tmpEnt->setOrAddKeyvalue("origin", (-(modelOrigin - EntOffset)).toKeyvalueString());
+	tmpEnt->setOrAddKeyvalue("compiler", g_version_string);
+	tmpMap->ents.push_back(tmpEnt);
+
+	tmpMap->update_ent_lump();
 
 	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
 	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
 	tmpMap->update_lump_pointers();
 
+	//for (int i = 0; i < tmpMap->leafCount; i++)
+	//{
+	//	BSPLEAF& tmpLeaf = tmpMap->leaves[i];
+	//	tmpLeaf.nVisOffset = -1; // Make all is visibled ?
+	//	//tmpLeaf.nContents = CONTENTS_SOLID;
+	//	for (int n = 0; n < 3; n++)
+	//	{
+	//		tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
+	//		tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
+	//	}
+	//}
+
 	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
+
+	//tmpMap->delete_unused_hulls();
+
+	//tmpMap->delete_unused_hulls(true);
+
 	tmpMap->update_lump_pointers();
+
+	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
+		createDir(g_settings.gamedir + g_settings.workingdir);
 	logf("Export model %d to %s\n", id, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp").c_str());
 	tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp");
 	delete tmpMap;
@@ -664,7 +681,12 @@ void Gui::drawMenuBar() {
 		}
 
 		if (ImGui::MenuItem("Open", NULL)) {
-			showImportMapWidget_Import = false;
+			showImportMapWidget_Type = SHOW_IMPORT_OPEN;
+			showImportMapWidget = !showImportMapWidget;
+		}
+
+		if (ImGui::MenuItem("Add map", NULL)) {
+			showImportMapWidget_Type = SHOW_IMPORT_ADD_NEW;
 			showImportMapWidget = !showImportMapWidget;
 		}
 
@@ -790,7 +812,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::BeginMenu("Import")) {
 
 			if (ImGui::MenuItem(".bsp Model", NULL)) {
-				showImportMapWidget_Import = true;
+				showImportMapWidget_Type = SHOW_IMPORT_MODEL;
 				showImportMapWidget = !showImportMapWidget;
 			}
 
@@ -2846,7 +2868,6 @@ void Gui::drawMergeWindow() {
 		ImGui::Checkbox("No hull 2", &DeleteHull2);
 		ImGui::Checkbox("No ripent", &NoRipent);
 		ImGui::Checkbox("No script", &NoScript);
-		ImGui::Checkbox("Merge second map as model", &MergeSecondsMapAsModel);
 
 		if (ImGui::Button("Merge maps", ImVec2(120, 0)))
 		{
@@ -2919,9 +2940,13 @@ void Gui::drawImportMapWidget() {
 	static char Path[256];
 	const char* title = "Import .bsp model as entity";
 
-	if (!showImportMapWidget_Import)
+	if (showImportMapWidget_Type == SHOW_IMPORT_OPEN)
 	{
-		title = "Open new map";
+		title = "Open map";
+	}
+	else if (showImportMapWidget_Type == SHOW_IMPORT_ADD_NEW)
+	{
+		title = "Add map to renderer";
 	}
 
 	if (ImGui::Begin(title, &showImportMapWidget)) {
@@ -2933,8 +2958,13 @@ void Gui::drawImportMapWidget() {
 			{
 				logf("Loading new map file from %s path.\n", Path);
 				showImportMapWidget = false;
-				if (!showImportMapWidget_Import)
+				if (showImportMapWidget_Type == SHOW_IMPORT_ADD_NEW)
 				{
+					g_app->addMap(new Bsp(Path));
+				}
+				else if (showImportMapWidget_Type == SHOW_IMPORT_OPEN)
+				{
+					g_app->clearMaps();
 					g_app->addMap(new Bsp(Path));
 				}
 				else

@@ -30,6 +30,10 @@ struct StatInfo {
 
 class Renderer;
 
+#define SHOW_IMPORT_OPEN 1
+#define SHOW_IMPORT_ADD_NEW 2
+#define SHOW_IMPORT_MODEL 3
+
 class Gui {
 	friend class Renderer;
 
@@ -58,7 +62,7 @@ private:
 	bool showSettingsWidget = false;
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
-	bool showImportMapWidget_Import = false;
+	int showImportMapWidget_Type = 0;
 	bool showImportMapWidget = false;
 	bool showMergeMapWidget = false;
 	bool showLimitsWidget = true;

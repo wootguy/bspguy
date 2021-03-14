@@ -3,8 +3,6 @@
 #include <map>
 #include <set>
 #include "vis.h"
-bool MergeSecondsMapAsModel = false;
-
 
 BspMerger::BspMerger() {
 
@@ -14,15 +12,6 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 	if (maps.size() < 1) {
 		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
-	}
-	if (MergeSecondsMapAsModel)
-	{
-		Bsp* basemap = maps[0];
-		for (int i = 1; i < maps.size(); i++)
-		{
-			merge(*basemap, *maps[i]);
-		}
-		return basemap;
 	}
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
 
@@ -107,7 +96,7 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 
 	Bsp* output = layerStart.map;
 
-	if (!noripent && !MergeSecondsMapAsModel) {
+	if (!noripent) {
 		vector<MAPBLOCK> flattenedBlocks;
 		for (int z = 0; z < blocks.size(); z++)
 			for (int y = 0; y < blocks[z].size(); y++)
@@ -943,14 +932,6 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 	BSPPLANE separationPlane;
 	memset(&separationPlane, 0, sizeof(BSPPLANE));
 
-	if (MergeSecondsMapAsModel)
-	{
-		separationPlane.nType = PLANE_X;
-		separationPlane.vNormal = { -1, 0, 0 };
-		separationPlane.fDist = bmax.x + (amin.x - bmax.x) * 0.5f;
-		return separationPlane;
-	}
-
 	// separating plane points toward the other map (b)
 	if (bmin.x >= amax.x) {
 		separationPlane.nType = PLANE_X;
@@ -1731,7 +1712,6 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 	BSPPLANE* newThisPlanes = new BSPPLANE[mapA.planeCount + 1];
 	memcpy(newThisPlanes, mapA.planes, mapA.planeCount * sizeof(BSPPLANE));
 	newThisPlanes[mapA.planeCount] = separationPlane;
-
 	mapA.replace_lump(LUMP_PLANES, newThisPlanes, (mapA.planeCount + 1) * sizeof(BSPPLANE));
 
 	int separationPlaneIdx = mapA.planeCount - 1;
@@ -1742,8 +1722,8 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 		BSPNODE headNode = {
 			separationPlaneIdx,			// plane idx
 			{mapA.nodeCount + 1, 1},		// child nodes
-			{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
-			{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs
+			{ bmin.x, bmin.y, bmin.z },	// mins
+			{ bmax.x, bmax.y, bmax.z },	// maxs
 			0, // first face
 			0  // n faces (none since this plane is in the void)
 		};

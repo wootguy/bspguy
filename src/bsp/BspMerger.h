@@ -1,7 +1,6 @@
 #include "util.h"
 #include "Bsp.h"
 
-extern bool MergeSecondsMapAsModel;
 // bounding box for a map, used for arranging maps for merging
 struct MAPBLOCK
 {

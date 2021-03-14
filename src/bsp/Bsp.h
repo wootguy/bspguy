@@ -66,7 +66,7 @@ public:
 	void init_empty_bsp();
 
 	// if modelIdx=0, the world is moved and all entities along with it
-	bool move(vec3 offset, int modelIdx=0);
+	bool move(vec3 offset, int modelIdx=0, bool onlyModel = false);
 
 	void move_texinfo(int idx, vec3 offset);
 	void write(string path);
