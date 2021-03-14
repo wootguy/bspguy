@@ -16,6 +16,8 @@
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
+static bool filterNeeded = true;
+
 string iniPath = getConfigDir() + "imgui.ini";
 
 Gui::Gui(Renderer* app) {
@@ -681,16 +683,19 @@ void Gui::drawMenuBar() {
 		}
 
 		if (ImGui::MenuItem("Open", NULL)) {
+			filterNeeded = true;
 			showImportMapWidget_Type = SHOW_IMPORT_OPEN;
 			showImportMapWidget = !showImportMapWidget;
 		}
 
 		if (ImGui::MenuItem("Add map", NULL)) {
+			filterNeeded = true;
 			showImportMapWidget_Type = SHOW_IMPORT_ADD_NEW;
 			showImportMapWidget = !showImportMapWidget;
 		}
 
 		if (ImGui::BeginMenu("Close")) {
+			filterNeeded = true;
 			for (int r = 0; r < app->mapRenderers.size(); r++)
 			{
 				if (!app->mapRenderers[r]->map)
@@ -811,7 +816,7 @@ void Gui::drawMenuBar() {
 		}
 		if (ImGui::BeginMenu("Import")) {
 
-			if (ImGui::MenuItem(".bsp Model", NULL)) {
+			if (ImGui::MenuItem(".bsp model as func_breakable", NULL)) {
 				showImportMapWidget_Type = SHOW_IMPORT_MODEL;
 				showImportMapWidget = !showImportMapWidget;
 			}
@@ -2938,7 +2943,7 @@ void Gui::drawImportMapWidget() {
 	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 140), ImVec2(500, 140));
 	static char Path[256];
-	const char* title = "Import .bsp model as entity";
+	const char* title = "Import .bsp model as func_breakable entity";
 
 	if (showImportMapWidget_Type == SHOW_IMPORT_OPEN)
 	{
@@ -2980,18 +2985,15 @@ void Gui::drawImportMapWidget() {
 						else
 						{
 							Bsp* map = g_app->mapRenderers[0]->map;
-							logf("Adding cycler_sprite at pos -8000 -8000 -8000 to precache model.\n");
-							Entity* tmpEnt = new Entity("cycler_sprite");
-							tmpEnt->setOrAddKeyvalue("origin", vec3(-8000, -8000, -8000).toKeyvalueString());
-							tmpEnt->setOrAddKeyvalue("model", "models/" + basename(Path));
-							map->ents.push_back(tmpEnt);
-							logf("Attaching model to func_wall.\n");
-							tmpEnt = new Entity("func_wall");
+							logf("Binding .bsp model to func_breakable.\n");
+							Entity* tmpEnt = new Entity("func_breakable");
 							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
+							tmpEnt->setOrAddKeyvalue("gibmodel", "models/" + basename(Path));
 							tmpEnt->setOrAddKeyvalue("model", "models/" + basename(Path));
+							tmpEnt->setOrAddKeyvalue("health", "999" + basename(Path));
 							map->ents.push_back(tmpEnt);
-							logf("Success! Now you needs copy model to path: %s\n", ("models/" + basename(Path)).c_str());
 							map->update_ent_lump();
+							logf("Success! Now you needs copy model to path: %s\n", ("models/" + basename(Path)).c_str());
 							delete model;
 						}
 					}
@@ -3251,7 +3253,6 @@ void Gui::drawEntityReport() {
 			static int lastSelect = -1;
 			static string classFilter = "(none)";
 			static bool partialMatches = true;
-			static bool filterNeeded = true;
 			static vector<int> visibleEnts;
 			static vector<bool> selectedItems;
 
