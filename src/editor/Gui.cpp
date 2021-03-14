@@ -3228,8 +3228,14 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
-
+	
 	Bsp* map = app->pickInfo.valid ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+
+	if (!map)
+	{
+		return;
+	}
+
 	string title = map ? "Entity Report - " + map->name : "Entity Report";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
@@ -3238,7 +3244,7 @@ void Gui::drawEntityReport() {
 		}
 		else {
 			ImGui::BeginGroup();
-
+			static int lastmapidx = -1;
 			const int MAX_FILTERS = 1;
 			static char keyFilter[MAX_FILTERS][MAX_KEY_LEN];
 			static char valueFilter[MAX_FILTERS][MAX_VAL_LEN];
@@ -3253,6 +3259,9 @@ void Gui::drawEntityReport() {
 
 			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
+
+			filterNeeded = app->pickInfo.mapIdx != lastmapidx;
+			lastmapidx = app->pickInfo.mapIdx;
 
 			if (filterNeeded) {
 				visibleEnts.clear();

@@ -1323,7 +1323,9 @@ void Renderer::pickObject() {
 	int oldEntIdx = pickInfo.entIdx;
 	memset(&pickInfo, 0, sizeof(PickInfo));
 	pickInfo.bestDist = FLT_MAX;
+
 	for (int i = 0; i < mapRenderers.size(); i++) {
+		mapRenderers[i]->preRenderEnts();
 		if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, pickInfo)) {
 			pickInfo.mapIdx = i;
 		}
