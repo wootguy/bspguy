@@ -2990,11 +2990,18 @@ void Gui::drawImportMapWidget() {
 							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
 							tmpEnt->setOrAddKeyvalue("gibmodel", "models/" + basename(Path));
 							tmpEnt->setOrAddKeyvalue("model", "models/" + basename(Path));
-							tmpEnt->setOrAddKeyvalue("health", "9999");
+							tmpEnt->setOrAddKeyvalue("spawnflags", "1");
 							map->ents.push_back(tmpEnt);
 							map->update_ent_lump();
-							logf("Success! Now you needs copy model to path: %s\n", ("models/" + basename(Path)).c_str());
+							logf("Success! Now you needs to copy model to path: %s\n", ("models/" + basename(Path)).c_str());
 							delete model;
+
+							if (app->pickInfo.map->GetBspRender())
+							{
+								app->pickInfo.map->GetBspRender()->preRenderEnts();
+								app->updateEntConnections();
+								app->updateEntConnectionPositions();
+							}
 						}
 					}
 				}

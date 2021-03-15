@@ -2928,6 +2928,12 @@ void Renderer::undo() {
 	undoCommand->undo();
 	undoHistory.pop_back();
 	redoHistory.push_back(undoCommand);
+	if (pickInfo.map->GetBspRender())
+	{
+		pickInfo.map->GetBspRender()->preRenderEnts();
+		updateEntConnections();
+		updateEntConnectionPositions();
+	}
 }
 
 void Renderer::redo() {
@@ -2944,6 +2950,12 @@ void Renderer::redo() {
 	redoCommand->execute();
 	redoHistory.pop_back();
 	undoHistory.push_back(redoCommand);
+	if (pickInfo.map->GetBspRender())
+	{
+		pickInfo.map->GetBspRender()->preRenderEnts();
+		updateEntConnections();
+		updateEntConnectionPositions();
+	}
 }
 
 void Renderer::clearUndoCommands() {
