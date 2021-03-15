@@ -1548,7 +1548,8 @@ void Gui::drawKeyvalueEditor() {
 				ImGui::Separator();
 
 				vector<FgdGroup>* targetGroup = &app->fgd->pointEntGroups;
-				if (ent->getBspModelIdx() != -1) {
+
+				if (ent->hasKey("model")) {
 					targetGroup = &app->fgd->solidEntGroups;
 				}
 
