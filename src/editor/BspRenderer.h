@@ -83,7 +83,7 @@ struct RenderClipnodes {
 };
 
 struct PickInfo {
-	int mapIdx;
+	//int mapIdx;
 	int entIdx;
 	int modelIdx;
 	int faceIdx;

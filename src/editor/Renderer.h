@@ -182,7 +182,7 @@ private:
 	bool anyVertSelected = false;
 
 	vector<int> selectedFaces;
-	int selectMapIdx = -1;
+	int selectMapIdx = 0;
 
 	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts
@@ -252,7 +252,11 @@ private:
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
+	
 	BspRenderer* getMapContainingCamera();
+	BspRenderer* getSelectedMap();
+	int getSelectedMapId() { return selectMapIdx; }
+	void setSelectedMap(int id);
 
 	void drawModelVerts();
 	void drawModelOrigin();
