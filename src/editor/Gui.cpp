@@ -732,9 +732,9 @@ void Gui::drawMenuBar() {
 
 					if (map)
 					{
-						logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
+						logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent"));
 						createDir(g_settings.gamedir + g_settings.workingdir);
-						ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
+						ofstream entFile(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"), ios::out | ios::trunc);
 						map->update_ent_lump();
 						if (map->header.lump[LUMP_ENTITIES].nLength > 0)
 						{
@@ -829,10 +829,10 @@ void Gui::drawMenuBar() {
 
 					if (map)
 					{
-						logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
-						if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
+						logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent"));
+						if (fileExists(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent")))
 						{
-							std::ifstream t(g_settings.gamedir + g_settings.workingdir + "entities.ent");
+							std::ifstream t(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"));
 							std::string str((std::istreambuf_iterator<char>(t)),
 								std::istreambuf_iterator<char>());
 							byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
