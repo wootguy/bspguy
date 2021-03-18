@@ -280,16 +280,16 @@ void ExportModel(Bsp* map, int id)
 	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
 	tmpMap->update_lump_pointers();
 
-	for (int i = 0; i < tmpMap->leafCount; i++)
-	{
-		BSPLEAF& tmpLeaf = tmpMap->leaves[i];
-		tmpLeaf.nVisOffset = -1; // Make all is visibled ?
-		for (int n = 0; n < 3; n++)
-		{
-			tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
-			tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
-		}
-	}
+	//for (int i = 0; i < tmpMap->leafCount; i++)
+	//{
+	//	BSPLEAF& tmpLeaf = tmpMap->leaves[i];
+	//	tmpLeaf.nVisOffset = -1; // Make all is visibled ?
+	//	for (int n = 0; n < 3; n++)
+	//	{
+	//		tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
+	//		tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
+	//	}
+	//}
 
 	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
 	if (!removed.allZero())
@@ -3014,7 +3014,6 @@ void Gui::drawImportMapWidget() {
 				if (showImportMapWidget_Type == SHOW_IMPORT_ADD_NEW)
 				{
 					g_app->addMap(new Bsp(Path));
-					g_app->setSelectedMap(g_app->mapRenderers.size() - 1);
 				}
 				else if (showImportMapWidget_Type == SHOW_IMPORT_OPEN)
 				{
@@ -4020,7 +4019,7 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
-		BspRenderer* mapRenderer = app->selectMapIdx >= 0 && app->selectMapIdx < app->mapRenderers.size() ? app->mapRenderers[app->selectMapIdx] : NULL;
+		BspRenderer* mapRenderer = app->getSelectedMap();
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{

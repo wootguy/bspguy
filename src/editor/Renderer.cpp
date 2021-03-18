@@ -444,7 +444,7 @@ void Renderer::renderLoop() {
 				highlightEnt = pickInfo.entIdx;
 			}
 			
-			if (curMap && curMap->ents.size())
+			if (curMap && curMap->ents.size() && !isLoading)
 			{
 				if (curMap->is_model)
 				{
@@ -1377,7 +1377,7 @@ void Renderer::pickObject() {
 		transformTarget = TRANSFORM_OBJECT;
 	}
 
-	if ((pickMode == PICK_OBJECT || !anyCtrlPressed) && selectMapIdx != -1) {
+	if ((pickMode == PICK_OBJECT || !anyCtrlPressed) && getSelectedMapId() != -1) {
 		deselectFaces();
 	}
 
@@ -1588,11 +1588,38 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 }
 
 BspRenderer* Renderer::getSelectedMap() {
-	return selectMapIdx >= 0 && selectMapIdx < mapRenderers.size() ? mapRenderers[selectMapIdx] : NULL;
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		BspRenderer* s = mapRenderers[i];
+		if (s->map && s->map->is_selected)
+		{
+			return s;
+		}
+	}
+	return mapRenderers.size() ? mapRenderers[0] : NULL;
+}
+
+int Renderer::getSelectedMapId() {
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		BspRenderer* s = mapRenderers[i];
+		if (s->map && s->map->is_selected)
+		{
+			return i;
+		}
+	}
+	return 0;
 }
 
 void Renderer::setSelectedMap(int id) {
-	selectMapIdx = id;
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		BspRenderer* s = mapRenderers[i];
+		if (s->map)
+		{
+			mapRenderers[id]->map->is_selected = i == id;
+		}
+	}
 }
 
 BspRenderer* Renderer::getMapContainingCamera() {
@@ -1627,6 +1654,49 @@ void Renderer::setupView() {
 void Renderer::reloadBspModels()
 {
 	in_reloading = true;
+
+	if (!mapRenderers.size())
+	{
+		in_reloading = false;
+		return;
+	}
+
+	int modelcount = 0;
+
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		if (mapRenderers[i]->map->is_model)
+		{
+			modelcount++;
+		}
+	}
+
+	if (modelcount == mapRenderers.size())
+	{
+		in_reloading = false;
+		return;
+	}
+
+	std::vector<BspRenderer*> sorted_renders;
+
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		if (!mapRenderers[i]->map->is_model)
+		{
+			sorted_renders.push_back(mapRenderers[i]);
+		}
+	}
+
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		if (mapRenderers[i]->map->is_model)
+		{
+			sorted_renders.push_back(mapRenderers[i]);
+		}
+	}
+
+	mapRenderers = sorted_renders;
+
 	for (int i = 0; i < mapRenderers.size(); i++)
 	{
 		if (mapRenderers[i]->map->is_model)
@@ -1636,17 +1706,16 @@ void Renderer::reloadBspModels()
 		}
 	}
 
-	std::vector<BspRenderer*> renders;
-	for (int r = 0; r < mapRenderers.size(); r++)
+	sorted_renders.clear();
+	for (int i = 0; i < mapRenderers.size(); i++)
 	{
-		if (mapRenderers[r]->map)
-			renders.push_back(mapRenderers[r]);
+		if (mapRenderers[i]->map)
+			sorted_renders.push_back(mapRenderers[i]);
 		else
-			delete mapRenderers[r];
+			delete mapRenderers[i];
 	}
 
-	mapRenderers = renders;
-
+	mapRenderers = sorted_renders;
 	//pickInfo = PickInfo();
 
 	vector<string> tryPaths = {
@@ -1685,6 +1754,14 @@ void Renderer::reloadBspModels()
 }
 
 void Renderer::addMap(Bsp* map) {
+	if (!map->is_model)
+	{
+		for (int i = 0; i < mapRenderers.size(); i++)
+		{
+			mapRenderers[i]->map->is_selected = false;
+		}
+		map->is_selected = true;
+	}
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);
@@ -2857,7 +2934,7 @@ void Renderer::deselectObject() {
 
 void Renderer::deselectFaces() {
 	for (int i = 0; i < selectedFaces.size(); i++) {
-		mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
+		getSelectedMap()->highlightFace(selectedFaces[i], false);
 	}
 	selectedFaces.clear();
 }
