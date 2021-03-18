@@ -446,10 +446,8 @@ void Renderer::renderLoop() {
 			
 			if (curMap && curMap->ents.size())
 			{
-				if (curMap->ents[0]->hasKey("message") &&
-					curMap->ents[0]->keyvalues["message"] == "bsp model")
+				if (curMap->is_model)
 				{
-					forceRender = true;
 					for (int n = 0; n < mapRenderers.size(); n++)
 					{
 						if (n == i)
@@ -474,7 +472,7 @@ void Renderer::renderLoop() {
 				}
 			}
 
-			if (getSelectedMapId() == i || forceRender)
+			if (getSelectedMapId() == i || curMap->is_model)
 				mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
@@ -1626,6 +1624,66 @@ void Renderer::setupView() {
 	view.translate(-cameraOrigin.x, -cameraOrigin.z, cameraOrigin.y);
 }
 
+void Renderer::reloadBspModels()
+{
+	in_reloading = true;
+	for (int i = 0; i < mapRenderers.size(); i++)
+	{
+		if (mapRenderers[i]->map->is_model)
+		{
+			delete mapRenderers[i]->map;
+			mapRenderers[i]->map = NULL;
+		}
+	}
+
+	std::vector<BspRenderer*> renders;
+	for (int r = 0; r < mapRenderers.size(); r++)
+	{
+		if (mapRenderers[r]->map)
+			renders.push_back(mapRenderers[r]);
+		else
+			delete mapRenderers[r];
+	}
+
+	mapRenderers = renders;
+
+	//pickInfo = PickInfo();
+
+	vector<string> tryPaths = {
+		"./"
+	};
+
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+
+	for (auto const& bsprend : mapRenderers)
+	{
+		for (auto const& entity : bsprend->map->ents)
+		{
+			if (entity->hasKey("model"))
+			{
+				std::string modelPath = entity->keyvalues["model"];
+				if (modelPath.find(".bsp") != std::string::npos)
+				{
+					for (int i = 0; i < tryPaths.size(); i++) {
+						string tryPath = tryPaths[i] + modelPath;
+						string tryPath_full = g_settings.gamedir + tryPaths[i] + modelPath;
+						if (fileExists(tryPath)) {
+							addMap(new Bsp(tryPath));
+							break;
+						}
+						if (fileExists(tryPath_full)) {
+							addMap(new Bsp(tryPath_full));
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	in_reloading = false;
+}
+
 void Renderer::addMap(Bsp* map) {
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
 
@@ -1656,6 +1714,11 @@ void Renderer::addMap(Bsp* map) {
 		}
 		*/
 	}
+
+	if (in_reloading)
+		return;
+
+	reloadBspModels();
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {

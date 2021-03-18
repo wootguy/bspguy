@@ -42,6 +42,8 @@ public:
 	uint16* marksurfs;
 	byte* visdata;
 
+	bool is_model = false;
+
 	int planeCount;
 	int texinfoCount;
 	int leafCount;

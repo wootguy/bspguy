@@ -106,12 +106,14 @@ public:
 	vec3 debugVec3;
 
 	bool hideGui = false;
+	bool in_reloading = false;
 
 	Renderer();
 	~Renderer();
 
 	void addMap(Bsp* map);
 
+	void reloadBspModels();
 	void renderLoop();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();

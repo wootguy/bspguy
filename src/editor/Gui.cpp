@@ -1165,16 +1165,41 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Windows", !app->isLoading))
 	{
+		bool found_model = false;
 		for (int r = 0; r < app->mapRenderers.size(); r++)
 		{
 			if (!app->mapRenderers[r]->map)
 				continue;
-			if (ImGui::MenuItem((std::string("Map ") + app->mapRenderers[r]->map->name + ".bsp").c_str(),0, r == app->getSelectedMapId()))
+			if (app->mapRenderers[r]->map->is_model)
+			{
+				found_model = true;
+				continue;
+			}
+			if (ImGui::MenuItem((std::string("Map ") + app->mapRenderers[r]->map->name + ".bsp").c_str(), 0, r == app->getSelectedMapId()))
 			{
 				app->setSelectedMap(r);
 				app->pickInfo = PickInfo();
 			}
 		}
+
+		if (found_model && ImGui::BeginMenu("Models"))
+		{
+			for (int r = 0; r < app->mapRenderers.size(); r++)
+			{
+				if (!app->mapRenderers[r]->map)
+					continue;
+				if (!app->mapRenderers[r]->map->is_model)
+					continue;
+				if (ImGui::MenuItem((std::string("Model ") + app->mapRenderers[r]->map->name + ".bsp").c_str(), 0, r == app->getSelectedMapId()))
+				{
+					app->setSelectedMap(r);
+					app->pickInfo = PickInfo();
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMenu();
 	}
 
@@ -1867,6 +1892,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				ent->renameKey(inputData->idx, data->Buf);
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
 				if (key == "model" || string(data->Buf) == "model") {
+					g_app->reloadBspModels();
 					inputData->bspRenderer->preRenderEnts();
 					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
@@ -1885,6 +1911,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 				ent->setOrAddKeyvalue(key, data->Buf);
 				inputData->bspRenderer->refreshEnt(inputData->entIdx);
 				if (key == "model") {
+					g_app->reloadBspModels();
 					inputData->bspRenderer->preRenderEnts();
 					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
@@ -2897,7 +2924,8 @@ void Gui::drawMergeWindow() {
 			vector<Bsp*> maps;
 			for (auto const& s : g_app->mapRenderers)
 			{
-				maps.push_back(s->map);
+				if (!s->map->is_model)
+					maps.push_back(s->map);
 			}
 			if (maps.size() < 2)
 			{
@@ -2938,6 +2966,8 @@ void Gui::drawMergeWindow() {
 				result->print_info(false, 0, 0);
 
 				g_app->clearMaps();
+
+				fixupPath(Path, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP);
 
 				if (fileExists(Path))
 				{

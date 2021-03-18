@@ -108,8 +108,14 @@ Bsp::Bsp(std::string fpath)
 	{
 		if (!used_models.count(i))
 		{
-			logf("Warning: found unused model: %d.\n", i);
+			logf("Warning: in map %s found unused model: %d.\n", name, i);
 		}
+	}
+
+	if (ents[0]->hasKey("message") &&
+		ents[0]->keyvalues["message"] == "bsp model")
+	{
+		is_model = true;
 	}
 
 	valid = true;
