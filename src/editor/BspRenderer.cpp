@@ -498,6 +498,9 @@ void BspRenderer::deleteFaceMaths() {
 }
 
 int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
+	if (modelIdx < 0)
+		return 0;
+
 	BSPMODEL& model = map->models[modelIdx];
 	RenderModel* renderModel = &renderModels[modelIdx];
 

@@ -238,8 +238,6 @@ void AppSettings::save() {
 	file << "font_size=" << g_settings.fontSize << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
 	file << "savebackup=" << g_settings.backUpMap << endl;
-	file.flush();
-	file.close();
 }
 
 int g_scroll = 0;

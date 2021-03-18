@@ -782,6 +782,7 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
+
 			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 				ImGui::BeginTooltip();
 				ImGui::TextUnformatted("Export map geometry without textures");
