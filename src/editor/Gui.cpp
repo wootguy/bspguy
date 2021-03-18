@@ -268,8 +268,10 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->ents.clear();
 
-	tmpEnt->setOrAddKeyvalue("origin", (-(modelOrigin - EntOffset)).toKeyvalueString());
+	//tmpEnt->setOrAddKeyvalue("origin", (-(modelOrigin - EntOffset)).toKeyvalueString());
+	tmpEnt->setOrAddKeyvalue("origin", vec3(0,0,0).toKeyvalueString());
 	tmpEnt->setOrAddKeyvalue("compiler", g_version_string);
+	tmpEnt->setOrAddKeyvalue("message", "bsp model");
 	tmpMap->ents.push_back(tmpEnt);
 
 	tmpMap->update_ent_lump();

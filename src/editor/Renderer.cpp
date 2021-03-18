@@ -437,15 +437,50 @@ void Renderer::renderLoop() {
 
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
+			Bsp* curMap = mapRenderers[i]->map;
+			bool forceRender = false;
+
 			if (pickInfo.valid && g_app->getSelectedMapId() == i && pickMode == PICK_OBJECT) {
 				highlightEnt = pickInfo.entIdx;
 			}
-			if (getSelectedMapId() == i)
+			
+			if (curMap && curMap->ents.size())
+			{
+				if (curMap->ents[0]->hasKey("message") &&
+					curMap->ents[0]->keyvalues["message"] == "bsp model")
+				{
+					forceRender = true;
+					for (int n = 0; n < mapRenderers.size(); n++)
+					{
+						if (n == i)
+							continue;
+
+						Bsp* anotherMap = mapRenderers[n]->map;
+						if (anotherMap && anotherMap->ents.size())
+						{
+							for (auto const& s : anotherMap->ents)
+							{
+								if (s->hasKey("model"))
+								{
+									if (basename(s->keyvalues["model"]) == basename(curMap->path))
+									{
+										curMap->ents[0]->setOrAddKeyvalue("origin", s->getOrigin().toKeyvalueString());
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (getSelectedMapId() == i || forceRender)
 				mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
 			}
+
 		}
 
 		model.loadIdentity();
