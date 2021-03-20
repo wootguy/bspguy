@@ -1774,7 +1774,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						InputData* inputData = (InputData*)data->UserData;
 						Entity* ent = inputData->entRef;
-
+						
 						string newVal = data->Buf;
 						if (newVal.empty()) {
 							if (inputData->defaultValue.length()) {
@@ -1783,13 +1783,19 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							else {
 								ent->removeKeyvalue(inputData->key);
 							}
-
 						}
 						else {
 							ent->setOrAddKeyvalue(inputData->key, newVal);
 						}
 						inputData->bspRenderer->refreshEnt(inputData->entIdx);
 						g_app->updateEntConnections();
+
+
+						if (!g_app->reloading && !g_app->in_reloading && inputData->key == "model")
+						{
+							//g_app->reloadBspModels();
+						}
+
 						return 1;
 					}
 				};
@@ -3053,7 +3059,7 @@ void Gui::drawImportMapWidget() {
 						}
 						else
 						{
-							Bsp* map = g_app->mapRenderers[0]->map;
+							Bsp* map = g_app->getSelectedMap()->map;
 							logf("Binding .bsp model to func_breakable.\n");
 							Entity* tmpEnt = new Entity("func_breakable");
 							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
@@ -3063,7 +3069,6 @@ void Gui::drawImportMapWidget() {
 							map->ents.push_back(tmpEnt);
 							map->update_ent_lump();
 							logf("Success! Now you needs to copy model to path: %s\n", ("models/" + basename(Path)).c_str());
-							delete model;
 
 							if (app->pickInfo.map->GetBspRender())
 							{
@@ -3071,6 +3076,8 @@ void Gui::drawImportMapWidget() {
 								app->updateEntConnections();
 								app->updateEntConnectionPositions();
 							}
+							
+							app->reloadBspModels();
 						}
 					}
 				}
