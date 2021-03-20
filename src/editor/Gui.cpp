@@ -1682,6 +1682,27 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 		static InputData inputData[128];
 		static int lastPickCount = 0;
 
+		if (ent->hasKey("model"))
+		{
+			bool foundmodel = false;
+			for (int i = 0; i < fgdClass->keyvalues.size(); i++) {
+				KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
+				string key = keyvalue.name;
+				if (key == "model") 
+				{
+					foundmodel = true;
+				}
+			}
+			if (!foundmodel)
+			{
+				KeyvalueDef keyvalue = KeyvalueDef();
+				keyvalue.name = "model";
+				keyvalue.description = "Model";
+				keyvalue.iType = FGD_KEY_STRING;
+				fgdClass->keyvalues.push_back(keyvalue);
+			}
+		}
+
 		for (int i = 0; i < fgdClass->keyvalues.size() && i < 128; i++) {
 			KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
 			string key = keyvalue.name;
@@ -1695,8 +1716,8 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 				value = keyvalue.defaultValue;
 			}
 
-			strcpy(keyNames[i], niceName.c_str());
-			strcpy(keyValues[i], value.c_str());
+			strncpy(keyNames[i], niceName.c_str(), 64);
+			strncpy(keyValues[i], value.c_str(), 64);
 
 			inputData[i].key = key;
 			inputData[i].defaultValue = keyvalue.defaultValue;
