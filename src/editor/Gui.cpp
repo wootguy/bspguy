@@ -1776,6 +1776,16 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 						Entity* ent = inputData->entRef;
 						
 						string newVal = data->Buf;
+
+						bool needReloadModel = false;
+
+						if (!g_app->reloading && !g_app->in_reloading && inputData->key == "model")
+						{
+							if (ent->hasKey("model") && ent->keyvalues["model"] != newVal)
+							{
+								needReloadModel = true;
+							}
+						}
 						if (newVal.empty()) {
 							if (inputData->defaultValue.length()) {
 								ent->setOrAddKeyvalue(inputData->key, inputData->defaultValue);
@@ -1787,14 +1797,11 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 						else {
 							ent->setOrAddKeyvalue(inputData->key, newVal);
 						}
+
 						inputData->bspRenderer->refreshEnt(inputData->entIdx);
+						if (needReloadModel)
+							g_app->reloadBspModels();
 						g_app->updateEntConnections();
-
-
-						if (!g_app->reloading && !g_app->in_reloading && inputData->key == "model")
-						{
-							//g_app->reloadBspModels();
-						}
 
 						return 1;
 					}
