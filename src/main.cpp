@@ -130,6 +130,7 @@ void start_viewer(string map) {
 	Renderer renderer = Renderer();
 	if (map.size())
 		renderer.addMap(new Bsp(map));
+	renderer.reloadBspModels();
 	hideConsoleWindow();
 	renderer.renderLoop();
 }

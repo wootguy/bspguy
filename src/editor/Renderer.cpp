@@ -435,6 +435,7 @@ void Renderer::renderLoop() {
 
 		isLoading = reloading;
 
+		int modelidskip = -1;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
 			Bsp* curMap = mapRenderers[i]->map;
@@ -456,14 +457,19 @@ void Renderer::renderLoop() {
 						Bsp* anotherMap = mapRenderers[n]->map;
 						if (anotherMap && anotherMap->ents.size())
 						{
-							for (auto const& s : anotherMap->ents)
+							for (int s = 0; s < anotherMap->ents.size(); s++)
 							{
-								if (s->hasKey("model"))
+								Entity* tmpEnt = anotherMap->ents[s];
+								if (tmpEnt->hasKey("model"))
 								{
-									if (basename(s->keyvalues["model"]) == basename(curMap->path))
+									if (s > modelidskip)
 									{
-										curMap->ents[0]->setOrAddKeyvalue("origin", s->getOrigin().toKeyvalueString());
-										break;
+										if (basename(tmpEnt->keyvalues["model"]) == basename(curMap->path))
+										{
+											curMap->ents[0]->setOrAddKeyvalue("origin", tmpEnt->getOrigin().toKeyvalueString());
+											modelidskip = s;
+											break;
+										}
 									}
 								}
 							}
@@ -1685,38 +1691,13 @@ void Renderer::reloadBspModels()
 		{
 			sorted_renders.push_back(mapRenderers[i]);
 		}
-	}
-
-	for (int i = 0; i < mapRenderers.size(); i++)
-	{
-		if (mapRenderers[i]->map->is_model)
-		{
-			sorted_renders.push_back(mapRenderers[i]);
-		}
-	}
-
-	mapRenderers = sorted_renders;
-
-	for (int i = 0; i < mapRenderers.size(); i++)
-	{
-		if (mapRenderers[i]->map->is_model)
-		{
-			delete mapRenderers[i]->map;
-			mapRenderers[i]->map = NULL;
-		}
-	}
-
-	sorted_renders.clear();
-	for (int i = 0; i < mapRenderers.size(); i++)
-	{
-		if (mapRenderers[i]->map)
-			sorted_renders.push_back(mapRenderers[i]);
 		else
+		{
 			delete mapRenderers[i];
+		}
 	}
 
 	mapRenderers = sorted_renders;
-	//pickInfo = PickInfo();
 
 	vector<string> tryPaths = {
 		"./"
@@ -1737,11 +1718,23 @@ void Renderer::reloadBspModels()
 						string tryPath = tryPaths[i] + modelPath;
 						string tryPath_full = g_settings.gamedir + tryPaths[i] + modelPath;
 						if (fileExists(tryPath)) {
-							addMap(new Bsp(tryPath));
+							Bsp* tmpBsp = new Bsp(tryPath);
+							tmpBsp->is_model = true;
+							if (tmpBsp->valid)
+							{
+								BspRenderer* mapRenderer = new BspRenderer(tmpBsp, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
+								mapRenderers.push_back(mapRenderer);
+							}
 							break;
 						}
 						if (fileExists(tryPath_full)) {
-							addMap(new Bsp(tryPath_full));
+							Bsp* tmpBsp = new Bsp(tryPath_full);
+							tmpBsp->is_model = true;
+							if (tmpBsp->valid)
+							{
+								BspRenderer* mapRenderer = new BspRenderer(tmpBsp, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
+								mapRenderers.push_back(mapRenderer);
+							}
 							break;
 						}
 					}
@@ -1791,11 +1784,6 @@ void Renderer::addMap(Bsp* map) {
 		}
 		*/
 	}
-
-	if (in_reloading)
-		return;
-
-	reloadBspModels();
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {

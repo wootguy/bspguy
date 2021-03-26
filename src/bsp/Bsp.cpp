@@ -112,14 +112,7 @@ Bsp::Bsp(std::string fpath)
 		}
 	}
 
-	if (ents[0]->hasKey("message") &&
-		ents[0]->keyvalues["message"] == "bsp model")
-	{
-		is_model = true;
-	}
-
 	valid = true;
-
 }
 
 Bsp::~Bsp()
@@ -2155,7 +2148,6 @@ bool Bsp::isValid() {
 		&& lightDataLength < MAX_MAP_LIGHTDATA
 		&& visDataLength < MAX_MAP_VISDATA
 		&& ents.size() < MAX_MAP_ENTS;
-
 }
 
 bool Bsp::validate() {
