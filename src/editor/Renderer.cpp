@@ -435,7 +435,7 @@ void Renderer::renderLoop() {
 
 		isLoading = reloading;
 
-		int modelidskip = -1;
+		std::set<int> modelidskip;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
 			Bsp* curMap = mapRenderers[i]->map;
@@ -462,12 +462,12 @@ void Renderer::renderLoop() {
 								Entity* tmpEnt = anotherMap->ents[s];
 								if (tmpEnt->hasKey("model"))
 								{
-									if (s > modelidskip)
+									if (!modelidskip.count(s))
 									{
 										if (basename(tmpEnt->keyvalues["model"]) == basename(curMap->path))
 										{
 											curMap->ents[0]->setOrAddKeyvalue("origin", tmpEnt->getOrigin().toKeyvalueString());
-											modelidskip = s;
+											modelidskip.insert(s);
 											break;
 										}
 									}
