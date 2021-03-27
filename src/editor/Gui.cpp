@@ -322,6 +322,14 @@ void ExportModel(Bsp* map, int id)
 	tmpMap->lumps[LUMP_LEAVES] = (BYTE*)tmpMap->leaves;
 	tmpMap->update_lump_pointers();
 
+
+	if (!tmpMap->validate())
+	{
+		logf("Failed to export model %d\n", id);
+		delete tmpMap;
+		return;
+	}
+
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
 		createDir(g_settings.gamedir + g_settings.workingdir);
 	logf("Export model %d to %s\n", id, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp").c_str());
