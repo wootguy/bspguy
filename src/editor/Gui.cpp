@@ -51,7 +51,7 @@ void Gui::init() {
 	clearLog();
 
 	// load icons
-	byte* icon_data = NULL;
+	BYTE* icon_data = NULL;
 	uint w, h;
 
 	lodepng_decode32(&icon_data, &w, &h, object_icon, sizeof(object_icon));
@@ -196,7 +196,7 @@ void Gui::copyLightmap() {
 	copiedLightmap.width = size[0];
 	copiedLightmap.height = size[1];
 	copiedLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
-	//copiedLightmap.luxelFlags = new byte[size[0] * size[1]];
+	//copiedLightmap.luxelFlags = new BYTE[size[0] * size[1]];
 	//qrad_get_lightmap_flags(map, app->pickInfo.faceIdx, copiedLightmap.luxelFlags);
 }
 
@@ -237,6 +237,7 @@ void ExportModel(Bsp* map, int id)
 	map->update_ent_lump();
 
 	Bsp* tmpMap = new Bsp(map->path);
+	tmpMap->is_model = true;
 
 	BSPMODEL tmpModel = map->models[id];
 
@@ -268,7 +269,6 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->ents.clear();
 
-	//tmpEnt->setOrAddKeyvalue("origin", (-(modelOrigin - EntOffset)).toKeyvalueString());
 	tmpEnt->setOrAddKeyvalue("origin", vec3(0,0,0).toKeyvalueString());
 	tmpEnt->setOrAddKeyvalue("compiler", g_version_string);
 	tmpEnt->setOrAddKeyvalue("message", "bsp model");
@@ -276,25 +276,50 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->update_ent_lump();
 
-	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
+	tmpMap->lumps[LUMP_MODELS] = (BYTE*)tmpMap->models;
 	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
 	tmpMap->update_lump_pointers();
 
-	//for (int i = 0; i < tmpMap->leafCount; i++)
-	//{
-	//	BSPLEAF& tmpLeaf = tmpMap->leaves[i];
-	//	tmpLeaf.nVisOffset = -1; // Make all is visibled ?
-	//	for (int n = 0; n < 3; n++)
-	//	{
-	//		tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
-	//		tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
-	//	}
-	//}
+	/*for (int i = 0; i < tmpMap->leafCount; i++)
+	{
+		BSPLEAF& tmpLeaf = tmpMap->leaves[i];
+		tmpLeaf.nVisOffset = -1; 
+		for (int n = 0; n < 3; n++)
+		{
+			tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
+			tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
+		}
+	}*/
 
 	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
+	if (!tmpMap->validate())
+	{
+		int markid = 0;
+		for (int i = 0; i < tmpMap->leafCount; i++)
+		{
+			BSPLEAF& tmpLeaf = tmpMap->leaves[i];
+			tmpLeaf.iFirstMarkSurface = markid;
+			markid += tmpLeaf.nMarkSurfaces;
+		}
+
+		while (tmpMap->models[0].nVisLeafs >= tmpMap->leafCount)
+			tmpMap->create_leaf(-2);
+	}
+	/*
+	if (tmpMap->models[0].iHeadnodes[0] < 0)
+		tmpMap->regenerate_clipnodes(0, 0);
+	if (tmpMap->models[0].iHeadnodes[1] < 0)
+		tmpMap->regenerate_clipnodes(0, 1);
+	if (tmpMap->models[0].iHeadnodes[2] < 0)
+		tmpMap->regenerate_clipnodes(0, 2);
+	if (tmpMap->models[0].iHeadnodes[3] < 0)
+		tmpMap->regenerate_clipnodes(0, 3);
+	*/
+
+	tmpMap->lumps[LUMP_LEAVES] = (BYTE*)tmpMap->leaves;
 	tmpMap->update_lump_pointers();
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
@@ -630,7 +655,7 @@ void ImportWad(Bsp* map, Renderer* app)
 			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-			byte* src = wadTex->data;
+			BYTE* src = wadTex->data;
 
 			COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
@@ -640,7 +665,7 @@ void ImportWad(Bsp* map, Renderer* app)
 				imageData[k] = palette[src[k]];
 			}
 
-			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+			map->add_texture(wadTex->szName, (BYTE*)imageData, wadTex->nWidth, wadTex->nHeight);
 
 			delete[] imageData;
 			delete wadTex;
@@ -838,7 +863,7 @@ void Gui::drawMenuBar() {
 							std::ifstream t(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"));
 							std::string str((std::istreambuf_iterator<char>(t)),
 								std::istreambuf_iterator<char>());
-							byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
+							BYTE* newlump = new BYTE[str.size() + 1]{ 0x20,0 };
 							memcpy(newlump, &str[0], str.size());
 							map->replace_lump(LUMP_ENTITIES, newlump, str.size());
 							map->load_ents();
@@ -2506,10 +2531,10 @@ void Gui::addLog(const char* s)
 
 void Gui::loadFonts() {
 	// data copied to new array so that ImGui doesn't delete static data
-	byte* smallFontData = new byte[sizeof(robotomedium)];
-	byte* largeFontData = new byte[sizeof(robotomedium)];
-	byte* consoleFontData = new byte[sizeof(robotomono)];
-	byte* consoleFontLargeData = new byte[sizeof(robotomono)];
+	BYTE* smallFontData = new BYTE[sizeof(robotomedium)];
+	BYTE* largeFontData = new BYTE[sizeof(robotomedium)];
+	BYTE* consoleFontData = new BYTE[sizeof(robotomono)];
+	BYTE* consoleFontLargeData = new BYTE[sizeof(robotomono)];
 	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
 	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
 	memcpy(consoleFontData, robotomono, sizeof(robotomono));
@@ -2925,10 +2950,10 @@ void Gui::drawAbout() {
 	if (ImGui::Begin("About", &showAboutWidget)) {
 		ImGui::InputText("Version", (char*)g_version_string, strlen(g_version_string), ImGuiInputTextFlags_ReadOnly);
 
-		static char* author = "w00tguy";
+		static char author[] = "w00tguy";
 		ImGui::InputText("Author", author, strlen(author), ImGuiInputTextFlags_ReadOnly);
 
-		static char* url = "https://github.com/wootguy/bspguy";
+		static char url[] = "https://github.com/wootguy/bspguy";
 		ImGui::InputText("Contact", url, strlen(url), ImGuiInputTextFlags_ReadOnly);
 	}
 

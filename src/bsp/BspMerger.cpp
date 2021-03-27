@@ -853,7 +853,7 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 		else if (!mapA.lumps[i]) {
 			logf("Replacing %s lump\n", g_lump_names[i]);
 			mapA.header.lump[i].nLength = mapB.header.lump[i].nLength;
-			mapA.lumps[i] = new byte[mapB.header.lump[i].nLength];
+			mapA.lumps[i] = new BYTE[mapB.header.lump[i].nLength];
 			memcpy(mapA.lumps[i], mapB.lumps[i], mapB.header.lump[i].nLength);
 
 			// process the lump here (TODO: faster to just copy wtv needs copying)
@@ -1094,7 +1094,7 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 
 	//logf("\nRemoved %d duplicate planes\n", duplicates);
 
-	byte* newPlanes = new byte[newLen];
+	BYTE* newPlanes = new BYTE[newLen];
 	memcpy(newPlanes, &mergedPlanes[0], newLen);
 
 	mapA.replace_lump(LUMP_PLANES, newPlanes, newLen);
@@ -1105,9 +1105,9 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 	// temporary buffer for holding miptex + embedded textures (too big but doesn't matter)
 	uint maxMipTexDataSize = mapA.header.lump[LUMP_TEXTURES].nLength + mapB.header.lump[LUMP_TEXTURES].nLength;
-	byte* newMipTexData = new byte[maxMipTexDataSize];
+	BYTE* newMipTexData = new BYTE[maxMipTexDataSize];
 
-	byte* mipTexWritePtr = newMipTexData;
+	BYTE* mipTexWritePtr = newMipTexData;
 
 	// offsets relative to the start of the mipmap data, not the lump
 	uint32_t* mipTexOffsets = new uint32_t[mapA.textureCount + mapB.textureCount];
@@ -1179,7 +1179,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 	uint texHeaderSize = (newTexCount + 1) * sizeof(int32_t);
 	uint newLen = (mipTexWritePtr - newMipTexData) + texHeaderSize;
-	byte* newTextureData = new byte[newLen];
+	BYTE* newTextureData = new BYTE[newLen];
 
 	// write texture lump header
 	uint32_t* texHeader = (uint32_t*)(newTextureData);
@@ -1244,7 +1244,7 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 	int newLen = mergedInfo.size() * sizeof(BSPTEXTUREINFO);
 	int duplicates = mergedInfo.size() - (mapA.texinfoCount + mapB.texinfoCount);
 
-	byte* newTexinfoData = new byte[newLen];
+	BYTE* newTexinfoData = new BYTE[newLen];
 	memcpy(newTexinfoData, &mergedInfo[0], newLen);
 
 	mapA.replace_lump(LUMP_TEXINFO, newTexinfoData, newLen);
@@ -1341,7 +1341,7 @@ void BspMerger::merge_leaves(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedLeaves.size() * sizeof(BSPLEAF);
 
-	byte* newLeavesData = new byte[newLen];
+	BYTE* newLeavesData = new BYTE[newLen];
 	memcpy(newLeavesData, &mergedLeaves[0], newLen);
 
 	mapA.replace_lump(LUMP_LEAVES, newLeavesData, newLen);
@@ -1467,7 +1467,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedNodes.size() * sizeof(BSPNODE);
 
-	byte* newNodeData = new byte[newLen];
+	BYTE* newNodeData = new BYTE[newLen];
 	memcpy(newNodeData, &mergedNodes[0], newLen);
 
 	mapA.replace_lump(LUMP_NODES, newNodeData, newLen);
@@ -1509,7 +1509,7 @@ void BspMerger::merge_clipnodes(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedNodes.size() * sizeof(BSPCLIPNODE);
 
-	byte* newClipnodeData = new byte[newLen];
+	BYTE* newClipnodeData = new BYTE[newLen];
 	memcpy(newClipnodeData, &mergedNodes[0], newLen);
 
 	mapA.replace_lump(LUMP_CLIPNODES, newClipnodeData, newLen);
@@ -1571,7 +1571,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedModels.size() * sizeof(BSPMODEL);
 
-	byte* newModelData = new byte[newLen];
+	BYTE* newModelData = new BYTE[newLen];
 	memcpy(newModelData, &mergedModels[0], newLen);
 
 	mapA.replace_lump(LUMP_MODELS, newModelData, newLen);
@@ -1592,7 +1592,7 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	g_progress.update("Merging visibility", thisWorldLeafCount + otherWorldLeafCount * 2 + mergedWorldLeafCount);
 	g_progress.tick();
 
-	byte* decompressedVis = new byte[decompressedVisSize];
+	BYTE* decompressedVis = new BYTE[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 
 	// decompress this map's world leaves
@@ -1601,7 +1601,7 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 		thisWorldLeafCount, thisVisLeaves, totalVisLeaves);
 
 	// decompress other map's world-leaf vis data (skip empty first leaf, which now only the first map should have)
-	byte* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
+	BYTE* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
 	decompress_vis_lump(allLeaves + thisWorldLeafCount, mapB.visdata, decompressedOtherVis,
 		otherWorldLeafCount, otherLeafCount, totalVisLeaves);
 
@@ -1614,12 +1614,12 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	}
 
 	// recompress the combined vis data
-	byte* compressedVis = new byte[decompressedVisSize];
+	BYTE* compressedVis = new BYTE[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
 	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, mergedWorldLeafCount, decompressedVisSize);
 	int oldLen = mapA.header.lump[LUMP_VISIBILITY].nLength;
 
-	byte* compressedVisResize = new byte[newVisLen];
+	BYTE* compressedVisResize = new BYTE[newVisLen];
 	memcpy(compressedVisResize, compressedVis, newVisLen);
 
 	mapA.replace_lump(LUMP_VISIBILITY, compressedVisResize, newVisLen);
@@ -1645,7 +1645,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 		thisColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
 		totalColorCount += thisColorCount;
 		int sz = thisColorCount * sizeof(COLOR3);
-		mapA.lumps[LUMP_LIGHTING] = new byte[sz];
+		mapA.lumps[LUMP_LIGHTING] = new BYTE[sz];
 		mapA.header.lump[LUMP_LIGHTING].nLength = sz;
 		thisRad = (COLOR3*)mapA.lumps[LUMP_LIGHTING];
 
@@ -1677,7 +1677,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 	memcpy(newRad, thisRad, thisColorCount * sizeof(COLOR3));
 
 	g_progress.tick();
-	memcpy((byte*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
+	memcpy((BYTE*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
 	if (freemem)
 	{
 		delete[] otherRad;

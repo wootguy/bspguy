@@ -47,7 +47,7 @@ struct VertexAttr
 class VertexBuffer
 {
 public:
-	byte* data = NULL;
+	BYTE* data = NULL;
 	vector<VertexAttr> attribs;
 	int elementSize;
 	int numVerts;

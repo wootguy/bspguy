@@ -25,22 +25,22 @@ public:
 	string path;
 	string name;
 	BSPHEADER header = BSPHEADER();
-	byte ** lumps;
+	BYTE ** lumps;
 	bool valid;
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
-	byte* textures;
+	BYTE* textures;
 	BSPLEAF* leaves;
 	BSPMODEL* models;
 	BSPNODE* nodes;
 	BSPCLIPNODE* clipnodes;
 	BSPFACE* faces;
 	vec3* verts;
-	byte* lightdata;
+	BYTE* lightdata;
 	int32_t* surfedges;
 	BSPEDGE* edges;
 	uint16* marksurfs;
-	byte* visdata;
+	BYTE* visdata;
 
 	bool is_model = false;
 	bool is_selected = false;
@@ -170,7 +170,7 @@ public:
 	
 	// create a new texture from raw RGB data, and embeds into the bsp. 
 	// Returns -1 on failure, else the new texture index
-	int add_texture(const char* name, byte* data, int width, int height);
+	int add_texture(const char* name, BYTE* data, int width, int height);
 
 	void replace_lump(int lumpIdx, void* newData, int newLength);
 	void append_lump(int lumpIdx, void* newData, int appendLength);

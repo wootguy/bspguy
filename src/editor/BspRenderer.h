@@ -119,7 +119,7 @@ public:
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
-	void updateClipnodeOpacity(byte newValue);
+	void updateClipnodeOpacity(BYTE newValue);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();

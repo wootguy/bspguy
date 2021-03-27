@@ -3,7 +3,7 @@
 #include "bsplimits.h"
 #include "bsptypes.h"
 
-typedef unsigned char byte;
+typedef unsigned char BYTE;
 typedef unsigned int uint;
 
 #define MAXTEXELS 262144
@@ -13,19 +13,19 @@ typedef unsigned int uint;
 #pragma pack(push, 1)
 struct COLOR3
 {
-	byte r, g, b;
+	BYTE r, g, b;
 
 	COLOR3() {}
-	COLOR3(byte r, byte g, byte b) : r(r), g(g), b(b) {}
+	COLOR3(BYTE r, BYTE g, BYTE b) : r(r), g(g), b(b) {}
 };
 #pragma pack(pop)
 struct COLOR4
 {
-	byte r, g, b, a;
+	BYTE r, g, b, a;
 
 	COLOR4() {}
-	COLOR4(byte r, byte g, byte b, byte a) : r(r), g(g), b(b), a(a) {}
-	COLOR4(COLOR3 c, byte a) : r(c.r), g(c.g), b(c.b), a(a) {}
+	COLOR4(BYTE r, BYTE g, BYTE b, BYTE a) : r(r), g(g), b(b), a(a) {}
+	COLOR4(COLOR3 c, BYTE a) : r(c.r), g(c.g), b(c.b), a(a) {}
 };
 
 COLOR3 operator*(COLOR3 v, float f);
@@ -57,7 +57,7 @@ struct WADTEX
 	char szName[MAXTEXTURENAME];
 	uint32_t nWidth, nHeight;
 	uint32_t nOffsets[MIPLEVELS];
-	byte * data; // all mip-maps and pallete
+	BYTE * data; // all mip-maps and pallete
 	WADTEX()
 	{
 		szName[0] = '\0';
@@ -70,7 +70,7 @@ struct WADTEX
 		nHeight = tex->nHeight;
 		for (int i = 0; i < MIPLEVELS; i++)
 			nOffsets[i] = tex->nOffsets[i];
-		data = (byte * )(((byte*)tex) + tex->nOffsets[0]);
+		data = (BYTE * )(((BYTE*)tex) + tex->nOffsets[0]);
 	}
 };
 

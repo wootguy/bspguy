@@ -26,7 +26,7 @@ int g_sort_mode = SORT_CLIPNODES;
 
 void Bsp::init_empty_bsp()
 {
-	lumps = new byte * [HEADER_LUMPS];
+	lumps = new BYTE * [HEADER_LUMPS];
 
 	header.nVersion = 30;
 
@@ -34,19 +34,19 @@ void Bsp::init_empty_bsp()
 		header.lump[i].nOffset = 0;
 		if (i == LUMP_TEXTURES)
 		{
-			lumps[i] = new byte[4];
+			lumps[i] = new BYTE[4];
 			header.lump[i].nLength = 4;
 			memset(lumps[i], 0, header.lump[i].nLength);
 		}
 		else if (i == LUMP_LIGHTING)
 		{
-			lumps[i] = new byte[4096];
+			lumps[i] = new BYTE[4096];
 			header.lump[i].nLength = 4096;
 			memset(lumps[i], 255, header.lump[i].nLength);
 		}
 		else
 		{
-			lumps[i] = new byte[0]; // fix crash at replace_lump delete[]
+			lumps[i] = new BYTE[0]; // fix crash at replace_lump delete[]
 			header.lump[i].nLength = 0;
 		}
 	}
@@ -601,7 +601,7 @@ bool Bsp::move(vec3 offset, int modelIdx, bool onlyModel) {
 			bool skipResize = i < target.iFirstFace || i >= target.iFirstFace + target.nFaces;
 
 			if (!skipResize) {
-				oldLightmaps[i].luxelFlags = new byte[size[0] * size[1]];
+				oldLightmaps[i].luxelFlags = new BYTE[size[0] * size[1]];
 				qrad_get_lightmap_flags(this, i, oldLightmaps[i].luxelFlags);
 			}
 
@@ -863,11 +863,11 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 			bool lightmapResized = oldLight.width != newLight.width || oldLight.height != newLight.height;
 
 			if (!faceMoved || !lightmapResized) {
-				memcpy((byte*)newLightData + lightmapOffset, (byte*)lightdata + face.nLightmapOffset, oldSz);
+				memcpy((BYTE*)newLightData + lightmapOffset, (BYTE*)lightdata + face.nLightmapOffset, oldSz);
 				newLight.luxelFlags = NULL;
 			}
 			else {
-				newLight.luxelFlags = new byte[newLight.width * newLight.height];
+				newLight.luxelFlags = new BYTE[newLight.width * newLight.height];
 				qrad_get_lightmap_flags(this, i, newLight.luxelFlags);
 
 				int maxWidth = min(newLight.width, oldLight.width);
@@ -1062,7 +1062,7 @@ LumpState Bsp::duplicate_lumps(int targets) {
 			state.lumpLen[i] = 0;
 			continue;
 		}
-		state.lumps[i] = new byte[header.lump[i].nLength];
+		state.lumps[i] = new BYTE[header.lump[i].nLength];
 		state.lumpLen[i] = header.lump[i].nLength;
 		memcpy(state.lumps[i], lumps[i], header.lump[i].nLength);
 	}
@@ -1073,7 +1073,7 @@ LumpState Bsp::duplicate_lumps(int targets) {
 int Bsp::delete_embedded_textures() {
 	uint headerSz = (textureCount+1) * sizeof(int32_t);
 	uint newTexDataSize = headerSz + (textureCount * sizeof(BSPMIPTEX));
-	byte* newTextureData = new byte[newTexDataSize];
+	BYTE* newTextureData = new BYTE[newTexDataSize];
 	
 	BSPMIPTEX* mips = (BSPMIPTEX*)(newTextureData + headerSz);
 	
@@ -1110,7 +1110,7 @@ void Bsp::replace_lumps(LumpState& state) {
 		}
 
 		delete[] lumps[i];
-		lumps[i] = new byte[state.lumpLen[i]];
+		lumps[i] = new BYTE[state.lumpLen[i]];
 		memcpy(lumps[i], state.lumps[i], state.lumpLen[i]);
 		header.lump[i].nLength = state.lumpLen[i];
 
@@ -1150,8 +1150,8 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 
 	int newStructCount = oldStructCount - removeCount;
 
-	byte* oldStructs = lumps[lumpIdx];
-	byte* newStructs = new byte[newStructCount*structSize];
+	BYTE* oldStructs = lumps[lumpIdx];
+	BYTE* newStructs = new BYTE[newStructCount*structSize];
 
 	for (int i = 0, k = 0; i < oldStructCount; i++) {
 		if (!usedStructs[i]) {
@@ -1195,7 +1195,7 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 	}
 
 	int newTexCount = oldTexCount - removeCount;
-	byte* newTexData = new byte[header.lump[LUMP_TEXTURES].nLength - removeSize];
+	BYTE* newTexData = new BYTE[header.lump[LUMP_TEXTURES].nLength - removeSize];
 
 	uint32_t* texHeader = (uint32_t*)newTexData;
 	texHeader[0] = newTexCount;
@@ -1241,7 +1241,7 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 		}
 	}
 
-	byte* newColorData = new byte[newLightDataSize];
+	BYTE* newColorData = new BYTE[newLightDataSize];
 
 	int offset = 0;
 	for (int i = 0; i < faceCount; i++) {
@@ -1275,14 +1275,14 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	uint newVisRowSize = ((newVisLeafCount + 63) & ~63) >> 3;
 
 	int decompressedVisSize = oldLeafCount * oldVisRowSize;
-	byte* decompressedVis = new byte[decompressedVisSize];
+	BYTE* decompressedVis = new BYTE[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, 
 		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
 
 	if (oldVisRowSize != newVisRowSize) {
 		int newDecompressedVisSize = oldLeafCount * newVisRowSize;
-		byte* newDecompressedVis = new byte[decompressedVisSize];
+		BYTE* newDecompressedVis = new BYTE[decompressedVisSize];
 		memset(newDecompressedVis, 0, newDecompressedVisSize);
 
 		int minRowSize = min(oldVisRowSize, newVisRowSize);
@@ -1294,11 +1294,11 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 		decompressedVis = newDecompressedVis;
 	}
 
-	byte* compressedVis = new byte[decompressedVisSize];
+	BYTE* compressedVis = new BYTE[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
 	int newVisLen = CompressAll(leaves, decompressedVis, compressedVis, newVisLeafCount, newWorldLeaves, decompressedVisSize);
 
-	byte* compressedVisResized = new byte[newVisLen];
+	BYTE* compressedVisResized = new BYTE[newVisLen];
 	memcpy(compressedVisResized, compressedVis, newVisLen);
 
 	replace_lump(LUMP_VISIBILITY, compressedVisResized, newVisLen);
@@ -1341,7 +1341,7 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 
 	usedStructures.edges[0] = true; // first edge is never used but maps break without it?
 
-	byte* oldLeaves = new byte[header.lump[LUMP_LEAVES].nLength];
+	BYTE* oldLeaves = new BYTE[header.lump[LUMP_LEAVES].nLength];
 	memcpy(oldLeaves, lumps[LUMP_LEAVES], header.lump[LUMP_LEAVES].nLength);
 
 	if (lightDataLength)
@@ -1845,7 +1845,7 @@ void Bsp::update_ent_lump(bool stripNodes) {
 
 	string str_data = ent_data.str();
 
-	byte* newEntData = new byte[str_data.size() + 1];
+	BYTE* newEntData = new BYTE[str_data.size() + 1];
 	memcpy(newEntData, str_data.c_str(), str_data.size());
 	newEntData[str_data.size()] = 0; // null terminator required too(?)
 
@@ -1946,8 +1946,8 @@ bool Bsp::load_lumps(string fpath)
 #endif
 	}
 
-	lumps = new byte*[HEADER_LUMPS];
-	memset(lumps, 0, sizeof(byte*)*HEADER_LUMPS);
+	lumps = new BYTE*[HEADER_LUMPS];
+	memset(lumps, 0, sizeof(BYTE*)*HEADER_LUMPS);
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
@@ -1963,7 +1963,7 @@ bool Bsp::load_lumps(string fpath)
 		}
 		else
 		{
-			lumps[i] = new byte[header.lump[i].nLength];
+			lumps[i] = new BYTE[header.lump[i].nLength];
 			fin.read((char*)lumps[i], header.lump[i].nLength);
 		}
 	}	
@@ -2336,7 +2336,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		vector<STRUCTUSAGE*> modelStructs = get_sorted_model_infos(sortMode);
 
 		int maxCount;
-		char* countName;
+		const char* countName;
 
 		switch (g_sort_mode) {
 		case SORT_VERTS:		maxCount = vertCount; countName = "  Verts";  break;
@@ -2780,10 +2780,10 @@ void Bsp::delete_hull(int hull_number, int modelIdx, int redirect) {
 }
 
 void Bsp::delete_model(int modelIdx) {
-	byte* oldModels = (byte*)models;
+	BYTE* oldModels = (BYTE*)models;
 
 	int newSize = (modelCount - 1) * sizeof(BSPMODEL);
-	byte* newModels = new byte[newSize];
+	BYTE* newModels = new BYTE[newSize];
 
 	memcpy(newModels, oldModels, modelIdx * sizeof(BSPMODEL));
 	memcpy(newModels + modelIdx * sizeof(BSPMODEL), 
@@ -2851,7 +2851,7 @@ BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 	return nullptr;
 }
 
-int Bsp::add_texture(const char* name, byte* data, int width, int height) {
+int Bsp::add_texture(const char* name, BYTE* data, int width, int height) {
 	if (width % 16 != 0 || height % 16 != 0) {
 		logf("Dimensions not divisible by 16");
 		return -1;
@@ -2879,8 +2879,8 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	int colorCount = 0;
 
 	// create pallete and full-rez mipmap
-	byte* mip[MIPLEVELS];
-	mip[0] = new byte[width * height];
+	BYTE* mip[MIPLEVELS];
+	mip[0] = new BYTE[width * height];
 	COLOR3* src = (COLOR3*)data;
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -2915,7 +2915,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		int mipWidth = width / div;
 		int mipHeight = height / div;
 		texDataSize += mipWidth * height;
-		mip[i] = new byte[mipWidth * mipHeight];
+		mip[i] = new BYTE[mipWidth * mipHeight];
 
 		src = (COLOR3*)data;
 		for (int y = 0; y < mipHeight; y++) {
@@ -2937,11 +2937,11 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 
 	if (oldtex != nullptr)
 	{
-		memcpy((byte*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
-		memcpy((byte*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
-		memcpy((byte*)oldtex + oldtex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
-		memcpy((byte*)oldtex + oldtex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
-		memcpy((byte*)oldtex + (oldtex->nOffsets[3] + (width >> 3) * (height >> 3) + 2), palette, sizeof(COLOR3) * 256);
+		memcpy((BYTE*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
+		memcpy((BYTE*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
+		memcpy((BYTE*)oldtex + oldtex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
+		memcpy((BYTE*)oldtex + oldtex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
+		memcpy((BYTE*)oldtex + (oldtex->nOffsets[3] + (width >> 3) * (height >> 3) + 2), palette, sizeof(COLOR3) * 256);
 		for (int i = 0; i < MIPLEVELS; i++) {
 			delete[] mip[i];
 		}
@@ -2949,7 +2949,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	}
 
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
-	byte* newTexData = new byte[newTexLumpSize];
+	BYTE* newTexData = new BYTE[newTexLumpSize];
 	memset(newTexData, 0, sizeof(newTexLumpSize));
 
 	// create new texture lump header
@@ -3846,7 +3846,7 @@ void Bsp::dump_lightmap(int faceIdx, string outputPath) {
 
 	int lightmapSz = extents[0] * extents[1];
 
-	lodepng_encode24_file(outputPath.c_str(), (byte*)lightdata + face.nLightmapOffset, extents[0], extents[1]);
+	lodepng_encode24_file(outputPath.c_str(), (BYTE*)lightdata + face.nLightmapOffset, extents[0], extents[1]);
 }
 
 void Bsp::dump_lightmap_atlas(string outputPath) {
@@ -3890,7 +3890,7 @@ void Bsp::dump_lightmap_atlas(string outputPath) {
 		}
 	}
 
-	lodepng_encode24_file(outputPath.c_str(), (byte*)pngData, atlasDim, atlasDim);
+	lodepng_encode24_file(outputPath.c_str(), (BYTE*)pngData, atlasDim, atlasDim);
 }
 
 void Bsp::write_csg_outputs(string path) {
@@ -3909,7 +3909,7 @@ void Bsp::write_csg_outputs(string path) {
 		newPlanes[numPlanes + i] = flipped;
 	}
 	delete [] lumps[LUMP_PLANES];
-	lumps[LUMP_PLANES] = (byte*)newPlanes;
+	lumps[LUMP_PLANES] = (BYTE*)newPlanes;
 	numPlanes *= 2;
 	header.lump[LUMP_PLANES].nLength = numPlanes * sizeof(BSPPLANE);
 	thisPlanes = newPlanes;
@@ -4095,15 +4095,16 @@ void Bsp::update_lump_pointers() {
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
-	delete[] lumps[lumpIdx];
-	lumps[lumpIdx] = (byte*)newData;
+	//if (!is_model) // HEAP CORRUPTION WHEN DELETE [] AT MODEL EXPORT...
+		delete[] lumps[lumpIdx];
+	lumps[lumpIdx] = (BYTE*)newData;
 	header.lump[lumpIdx].nLength = newLength;
 	update_lump_pointers();
 }
 
 void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 	int oldLen = header.lump[lumpIdx].nLength;
-	byte* newLump = new byte[oldLen + appendLength];
+	BYTE* newLump = new BYTE[oldLen + appendLength];
 	
 	memcpy(newLump, lumps[lumpIdx], oldLen);
 	memcpy(newLump + oldLen, newData, appendLength);
@@ -4184,7 +4185,7 @@ void Bsp::ExportToObjWIP(std::string path)
 					int lastMipSize = (wadTex.nWidth / 8) * (wadTex.nHeight / 8);
 
 					COLOR3* palette = (COLOR3*)(wadTex.data + wadTex.nOffsets[3] + lastMipSize + 2 - 40);
-					byte* src = wadTex.data;
+					BYTE* src = wadTex.data;
 
 					COLOR3* imageData = new COLOR3[wadTex.nWidth * wadTex.nHeight];
 
@@ -4193,8 +4194,8 @@ void Bsp::ExportToObjWIP(std::string path)
 					for (int k = 0; k < sz; k++) {
 						imageData[k] = palette[src[k]];
 					}
-					//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (byte*)tex + tex->nOffsets[0], 3, 3);
-					WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (byte*)imageData, wadTex.nWidth, wadTex.nHeight, 3);
+					//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (BYTE*)tex + tex->nOffsets[0], 3, 3);
+					WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex.nWidth, wadTex.nHeight, 3);
 				}
 				else
 				{
@@ -4209,7 +4210,7 @@ void Bsp::ExportToObjWIP(std::string path)
 								WADTEX* wadTex = rend->mapRenderers[r]->wads[k]->readTexture(tex->szName);
 								int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 								COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-								byte* src = wadTex->data;
+								BYTE* src = wadTex->data;
 								COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
 								int sz = wadTex->nWidth * wadTex->nHeight;
@@ -4217,7 +4218,7 @@ void Bsp::ExportToObjWIP(std::string path)
 								for (int k = 0; k < sz; k++) {
 									imageData[k] = palette[src[k]];
 								}
-								WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (byte*)imageData, wadTex->nWidth, wadTex->nHeight, 3);
+								WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex->nWidth, wadTex->nHeight, 3);
 								break;
 							}
 						}
