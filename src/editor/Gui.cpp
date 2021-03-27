@@ -4077,6 +4077,8 @@ void Gui::drawLightMapTool() {
 	ImGui::End();
 }
 void Gui::drawTextureTool() {
+
+
 	ImGui::SetNextWindowSize(ImVec2(300, 570), ImGuiCond_FirstUseEver);
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
 	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
@@ -4092,6 +4094,12 @@ void Gui::drawTextureTool() {
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
 			ImGui::Text("No face selected");
+			ImGui::End();
+			return;
+		}
+		if (!mapRenderer->texturesLoaded)
+		{
+			ImGui::Text("Loading textures...");
 			ImGui::End();
 			return;
 		}
@@ -4260,6 +4268,36 @@ void Gui::drawTextureTool() {
 						validTexture = true;
 						newMiptex = i;
 						break;
+					}
+				}
+
+				if (!validTexture)
+				{
+					for (auto & s : mapRenderer->wads)
+					{
+						if (s->hasTexture(textureName))
+						{
+							WADTEX* wadTex = s->readTexture(textureName);
+							int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
+
+							COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+							BYTE* src = wadTex->data;
+
+							COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
+
+							int sz = wadTex->nWidth * wadTex->nHeight;
+
+							for (int k = 0; k < sz; k++) {
+								imageData[k] = palette[src[k]];
+							}
+							map->add_texture(textureName, (BYTE *)imageData, wadTex->nWidth, wadTex->nHeight);
+							delete[] imageData;
+							delete wadTex;
+							mapRenderer->reloadTextures();
+							textureChanged = true;
+							ImGui::End();
+							return;
+						}
 					}
 				}
 			}

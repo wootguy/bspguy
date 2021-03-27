@@ -100,6 +100,8 @@ public:
 	vec3 mapOffset;
 	int showLightFlag = -1;
 	vector<Wad*> wads;
+	bool texturesLoaded = false;
+
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
@@ -182,7 +184,6 @@ private:
 	bool lightmapsUploaded = false;
 	future<void> lightmapFuture;
 
-	bool texturesLoaded = false;
 	future<void> texturesFuture;
 
 	bool clipnodesLoaded = false;
