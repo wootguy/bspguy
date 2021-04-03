@@ -719,6 +719,7 @@ bool dirExists(const string& dirName_in)
 #ifndef WIN32
 // mkdir_p for linux from https://gist.github.com/ChisholmKyle/0cbedcd3e64132243a39
 int mkdir_p(const char* dir, const mode_t mode) {
+	const int PATH_MAX_STRING_SIZE = 256;
 	char tmp[PATH_MAX_STRING_SIZE];
 	char* p = NULL;
 	struct stat sb;
