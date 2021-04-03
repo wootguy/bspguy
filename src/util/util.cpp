@@ -7,6 +7,7 @@
 #include <string.h>
 #include "Wad.h"
 #include <stdarg.h>
+#include <cfloat>
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
