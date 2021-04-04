@@ -160,7 +160,7 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 
 void VertexBuffer::setData( const void * data, int numVerts )
 {
-	this->data = (byte*)data;
+	this->data = (BYTE*)data;
 	this->numVerts = numVerts;
 }
 

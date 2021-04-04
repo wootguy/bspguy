@@ -69,7 +69,7 @@ enum lump_copy_targets {
 // maximum x/y hull dimension a pushable can have before it starts using hull 2
 #define MAX_HULL1_SIZE_PUSHABLE 34.0f
 
-static char* g_lump_names[HEADER_LUMPS] = {
+static const char* g_lump_names[HEADER_LUMPS] = {
 	"ENTITIES",
 	"PLANES",
 	"TEXTURES",
@@ -108,7 +108,7 @@ struct BSPHEADER
 };
 
 struct LumpState {
-	byte* lumps[HEADER_LUMPS];
+	BYTE* lumps[HEADER_LUMPS];
 	int lumpLen[HEADER_LUMPS];
 };
 

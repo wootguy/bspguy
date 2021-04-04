@@ -32,7 +32,7 @@ BspRenderer* Command::getBspRenderer() {
 // Edit entity
 //
 EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc, g_app->getSelectedMapId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->oldEntData = new Entity();
 	this->newEntData = new Entity();
@@ -91,7 +91,7 @@ int EditEntityCommand::memoryUsage() {
 // Delete entity
 //
 DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc, g_app->getSelectedMapId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->entData = new Entity();
 	*this->entData = *pickInfo.ent;
@@ -192,7 +192,7 @@ int CreateEntityCommand::memoryUsage() {
 // Duplicate BSP Model command
 //
 DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc, g_app->getSelectedMapId()) {
 	this->oldModelIdx = pickInfo.modelIdx;
 	this->newModelIdx = -1;
 	this->entIdx = pickInfo.entIdx;
@@ -381,14 +381,14 @@ int CreateBspModelCommand::getDefaultTextureIdx() {
 
 int CreateBspModelCommand::addDefaultTexture() {
 	Bsp* map = getBsp();
-	byte* tex_dat = NULL;
+	BYTE* tex_dat = NULL;
 	uint w, h;
 
 	lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
 	int aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
 	//renderer->reloadTextures();
 
-	lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
+	lodepng_encode24_file("test.png", (BYTE*)tex_dat, w, h);
 	delete[] tex_dat;
 
 	return aaatriggerIdx;
@@ -399,7 +399,7 @@ int CreateBspModelCommand::addDefaultTexture() {
 // Edit BSP model
 //
 EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
-		vec3 oldOrigin) : Command(desc, pickInfo.mapIdx) {
+		vec3 oldOrigin) : Command(desc, g_app->getSelectedMapId()) {
 	this->modelIdx = pickInfo.modelIdx;
 	this->entIdx = pickInfo.entIdx;
 	this->oldLumps = oldLumps;

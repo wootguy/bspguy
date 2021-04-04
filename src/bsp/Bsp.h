@@ -10,6 +10,8 @@
 #include <set>
 #include "bsptypes.h"
 
+class BspRenderer;
+
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -23,23 +25,25 @@ public:
 	string path;
 	string name;
 	BSPHEADER header = BSPHEADER();
-	byte ** lumps;
+	BYTE ** lumps;
 	bool valid;
-
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
-	byte* textures;
+	BYTE* textures;
 	BSPLEAF* leaves;
 	BSPMODEL* models;
 	BSPNODE* nodes;
 	BSPCLIPNODE* clipnodes;
 	BSPFACE* faces;
 	vec3* verts;
-	byte* lightdata;
+	BYTE* lightdata;
 	int32_t* surfedges;
 	BSPEDGE* edges;
 	uint16* marksurfs;
-	byte* visdata;
+	BYTE* visdata;
+
+	bool is_model = false;
+	bool is_selected = false;
 
 	int planeCount;
 	int texinfoCount;
@@ -62,8 +66,10 @@ public:
 	Bsp(std::string fname);
 	~Bsp();
 
+	void init_empty_bsp();
+
 	// if modelIdx=0, the world is moved and all entities along with it
-	bool move(vec3 offset, int modelIdx=0);
+	bool move(vec3 offset, int modelIdx=0, bool onlyModel = false);
 
 	void move_texinfo(int idx, vec3 offset);
 	void write(string path);
@@ -164,7 +170,7 @@ public:
 	
 	// create a new texture from raw RGB data, and embeds into the bsp. 
 	// Returns -1 on failure, else the new texture index
-	int add_texture(const char* name, byte* data, int width, int height);
+	int add_texture(const char* name, BYTE* data, int width, int height);
 
 	void replace_lump(int lumpIdx, void* newData, int newLength);
 	void append_lump(int lumpIdx, void* newData, int appendLength);
@@ -210,6 +216,9 @@ public:
 
 	void update_lump_pointers();
 
+	BspRenderer* GetBspRender();
+
+	void ExportToObjWIP(std::string path);
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -248,5 +257,4 @@ private:
 	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
-
 };

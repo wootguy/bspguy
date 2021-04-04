@@ -83,7 +83,7 @@ struct RenderClipnodes {
 };
 
 struct PickInfo {
-	int mapIdx;
+	//int mapIdx;
 	int entIdx;
 	int modelIdx;
 	int faceIdx;
@@ -99,6 +99,9 @@ public:
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
 	int showLightFlag = -1;
+	vector<Wad*> wads;
+	bool texturesLoaded = false;
+
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
@@ -118,7 +121,7 @@ public:
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
-	void updateClipnodeOpacity(byte newValue);
+	void updateClipnodeOpacity(BYTE newValue);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();
@@ -141,6 +144,7 @@ public:
 	void updateFaceUVs(int faceIdx);
 	uint getFaceTextureId(int faceIdx);
 
+	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -180,7 +184,6 @@ private:
 	bool lightmapsUploaded = false;
 	future<void> lightmapFuture;
 
-	bool texturesLoaded = false;
 	future<void> texturesFuture;
 
 	bool clipnodesLoaded = false;
@@ -199,6 +202,5 @@ private:
 	void deleteLightmapTextures();
 	void deleteFaceMaths();
 	void delayLoadData();
-	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
 };

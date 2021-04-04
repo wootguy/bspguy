@@ -42,7 +42,7 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	blackTex->upload(GL_RGB);
 	blueTex->upload(GL_RGB);
 
-	byte* img_dat = NULL;
+	BYTE* img_dat = NULL;
 	uint w, h;
 	lodepng_decode24(&img_dat, &w, &h, missing_dat, sizeof(missing_dat));
 	missingTex = new Texture(w, h, img_dat);
@@ -84,7 +84,12 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 }
 
 void BspRenderer::loadTextures() {
-	vector<Wad*> wads;
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	wads.clear();
+
 	vector<string> wadNames;
 	for (int i = 0; i < map->ents.size(); i++) {
 		if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
@@ -143,7 +148,7 @@ void BspRenderer::loadTextures() {
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 		COLOR3* palette;
-		byte* src;
+		BYTE* src;
 		WADTEX* wadTex = NULL;
 
 		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
@@ -193,11 +198,6 @@ void BspRenderer::loadTextures() {
 
 		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
 	}
-
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
-	}
-
 	if (wadTexCount)
 		debugf("Loaded %d wad textures\n", wadTexCount);
 	if (embedCount)
@@ -336,7 +336,7 @@ void BspRenderer::loadLightmaps() {
 					}
 					else {
 						bool checkers = x % 2 == 0 != y % 2 == 0;
-						lightDst[dst] = { (byte)(checkers ? 255 : 0), 0, (byte)(checkers ? 255 : 0) };
+						lightDst[dst] = { (BYTE)(checkers ? 255 : 0), 0, (BYTE)(checkers ? 255 : 0) };
 					}
 				}
 			}
@@ -498,6 +498,9 @@ void BspRenderer::deleteFaceMaths() {
 }
 
 int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
+	if (modelIdx < 0)
+		return 0;
+
 	BSPMODEL& model = map->models[modelIdx];
 	RenderModel* renderModel = &renderModels[modelIdx];
 
@@ -915,7 +918,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	}
 }
 
-void BspRenderer::updateClipnodeOpacity(byte newValue) {
+void BspRenderer::updateClipnodeOpacity(BYTE newValue) {
 	for (int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (renderClipnodes[i].clipnodeBuffer[k]) {
@@ -1079,6 +1082,11 @@ BspRenderer::~BspRenderer() {
 		clipnodesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready) {
 		logf("ERROR: Deleted bsp renderer while it was loading\n");
 	}
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	wads.clear();
 
 	if (lightmaps != NULL) {
 		delete[] lightmaps;
@@ -1345,6 +1353,10 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 }
 
 void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
+	if (modelIdx >= numRenderModels)
+	{
+		return;
+	}
 
 	if (edgesOnly) {
 		for (int i = 0; i < renderModels[modelIdx].groupCount; i++) {

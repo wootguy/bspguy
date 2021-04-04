@@ -50,7 +50,7 @@ struct AppSettings {
 	int fontSize;
 	string gamedir;
 	string workingdir;
-	bool valid;
+	bool settingLoaded; // Settings loaded
 	int undoLevels;
 	bool verboseLogs;
 
@@ -106,16 +106,19 @@ public:
 	vec3 debugVec3;
 
 	bool hideGui = false;
+	bool in_reloading = false;
 
 	Renderer();
 	~Renderer();
 
 	void addMap(Bsp* map);
 
+	void reloadBspModels();
 	void renderLoop();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
+	void clearMaps();
 	void saveSettings();
 	void loadSettings();
 
@@ -181,7 +184,6 @@ private:
 	bool anyVertSelected = false;
 
 	vector<int> selectedFaces;
-	int selectMapIdx = -1;
 
 	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts
@@ -251,7 +253,11 @@ private:
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
+	
 	BspRenderer* getMapContainingCamera();
+	BspRenderer* getSelectedMap();
+	int getSelectedMapId();
+	void setSelectedMap(int id);
 
 	void drawModelVerts();
 	void drawModelOrigin();

@@ -13,8 +13,8 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
 	}
-
 	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
+
 
 	logf("\nArranging maps so that they don't overlap:\n");
 
@@ -24,9 +24,9 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 				MAPBLOCK& block = blocks[z][y][x];
 
 				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
-					logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n", 
-						block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
-					block.map->move(block.offset);
+				logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n",
+					block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
+				block.map->move(block.offset);
 				}
 
 				if (!noripent) {
@@ -39,12 +39,14 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 		}
 	}
 
+
 	// Merge order matters. 
 	// The bounding box of a merged map is expanded to contain both maps, and bounding boxes cannot overlap.
 	// TODO: Don't merge linearly. Merge gradually bigger chunks to minimize BSP tree depth.
 	//       Not worth it until more than 27 maps are merged together (merge cube bigger than 3x3x3)
 
 	logf("\nMerging %d maps:\n", maps.size());
+
 
 	// merge maps along X axis to form rows of maps
 	int rowId = 0;
@@ -119,7 +121,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
 
 vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 gap) {
 	vector<MAPBLOCK> blocks;
-
+	
 	vector<vector<vector<MAPBLOCK>>> orderedBlocks;
 
 	vec3 maxDims = vec3(0, 0, 0);
@@ -130,7 +132,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 		block.size = block.maxs - block.mins;
 		block.offset = vec3(0, 0, 0);
 		block.map = maps[i];
-	
+
 
 		if (block.size.x > maxDims.x) {
 			maxDims.x = block.size.x;
@@ -190,7 +192,7 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	logf("Merged map size:   %dx%dx%d maps\n", actualWidth, actualLength, actualHeight);
 
 	logf("Merged map bounds: min=(%.0f, %.0f, %.0f)\n"
-		 "                   max=(%.0f, %.0f, %.0f)\n",
+		"                   max=(%.0f, %.0f, %.0f)\n",
 		mergedMapMin.x, mergedMapMin.y, mergedMapMin.z,
 		mergedMapMax.x, mergedMapMax.y, mergedMapMax.z);
 
@@ -227,8 +229,8 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 typedef map< string, set<string> > mapStringToSet;
 typedef map< string, MAPBLOCK > mapStringToMapBlock;
 
-void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, 
-		vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript) {
+void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps,
+	vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript) {
 	int originalEntCount = mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
@@ -345,7 +347,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		Entity* relay = new Entity();
 		string mapname = toLowerCase(mapOrder[i]->name);
 		string equip_name = "equip_" + mapname;
-		
+
 		equip->addKeyvalue("origin", equip_origin.toKeyvalueString());
 		equip->addKeyvalue("targetname", "equip_" + mapname);
 		equip->addKeyvalue("respawn_equip_mode", "1"); // always equip respawning players
@@ -424,7 +426,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				ent->addKeyvalue("targetname", "bspguy_autos_" + source_map);
 				ent->keyvalues["classname"] = "trigger_relay";
 			}
-			if (cname.find("monster_") == 0 && cname.rfind("_dead") != cname.size()-5) {
+			if (cname.find("monster_") == 0 && cname.rfind("_dead") != cname.size() - 5) {
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;
@@ -828,7 +830,6 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 		logf("No separating axis found. The maps overlap and can't be merged.\n");
 		return false;
 	}
-
 	thisWorldLeafCount = mapA.models[0].nVisLeafs; // excludes solid leaf 0
 	otherWorldLeafCount = mapB.models[0].nVisLeafs; // excluding solid leaf 0
 
@@ -852,7 +853,7 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 		else if (!mapA.lumps[i]) {
 			logf("Replacing %s lump\n", g_lump_names[i]);
 			mapA.header.lump[i].nLength = mapB.header.lump[i].nLength;
-			mapA.lumps[i] = new byte[mapB.header.lump[i].nLength];
+			mapA.lumps[i] = new BYTE[mapB.header.lump[i].nLength];
 			memcpy(mapA.lumps[i], mapB.lumps[i], mapB.header.lump[i].nLength);
 
 			// process the lump here (TODO: faster to just copy wtv needs copying)
@@ -1093,7 +1094,7 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 
 	//logf("\nRemoved %d duplicate planes\n", duplicates);
 
-	byte* newPlanes = new byte[newLen];
+	BYTE* newPlanes = new BYTE[newLen];
 	memcpy(newPlanes, &mergedPlanes[0], newLen);
 
 	mapA.replace_lump(LUMP_PLANES, newPlanes, newLen);
@@ -1104,9 +1105,9 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 	// temporary buffer for holding miptex + embedded textures (too big but doesn't matter)
 	uint maxMipTexDataSize = mapA.header.lump[LUMP_TEXTURES].nLength + mapB.header.lump[LUMP_TEXTURES].nLength;
-	byte* newMipTexData = new byte[maxMipTexDataSize];
+	BYTE* newMipTexData = new BYTE[maxMipTexDataSize];
 
-	byte* mipTexWritePtr = newMipTexData;
+	BYTE* mipTexWritePtr = newMipTexData;
 
 	// offsets relative to the start of the mipmap data, not the lump
 	uint32_t* mipTexOffsets = new uint32_t[mapA.textureCount + mapB.textureCount];
@@ -1138,7 +1139,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	uint otherMergeSz = (mapB.textureCount + 1) * sizeof(int32_t);
 	for (int i = 0; i < mapB.textureCount; i++) {
 		int32_t offset = ((int32_t*)mapB.textures)[i + 1];
-		
+
 		if (offset != -1) {
 			bool isUnique = true;
 			BSPMIPTEX* tex = (BSPMIPTEX*)(mapB.textures + offset);
@@ -1178,7 +1179,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 
 	uint texHeaderSize = (newTexCount + 1) * sizeof(int32_t);
 	uint newLen = (mipTexWritePtr - newMipTexData) + texHeaderSize;
-	byte* newTextureData = new byte[newLen];
+	BYTE* newTextureData = new BYTE[newLen];
 
 	// write texture lump header
 	uint32_t* texHeader = (uint32_t*)(newTextureData);
@@ -1243,7 +1244,7 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 	int newLen = mergedInfo.size() * sizeof(BSPTEXTUREINFO);
 	int duplicates = mergedInfo.size() - (mapA.texinfoCount + mapB.texinfoCount);
 
-	byte* newTexinfoData = new byte[newLen];
+	BYTE* newTexinfoData = new BYTE[newLen];
 	memcpy(newTexinfoData, &mergedInfo[0], newLen);
 
 	mapA.replace_lump(LUMP_TEXINFO, newTexinfoData, newLen);
@@ -1340,7 +1341,7 @@ void BspMerger::merge_leaves(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedLeaves.size() * sizeof(BSPLEAF);
 
-	byte* newLeavesData = new byte[newLen];
+	BYTE* newLeavesData = new BYTE[newLen];
 	memcpy(newLeavesData, &mergedLeaves[0], newLen);
 
 	mapA.replace_lump(LUMP_LEAVES, newLeavesData, newLen);
@@ -1466,7 +1467,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedNodes.size() * sizeof(BSPNODE);
 
-	byte* newNodeData = new byte[newLen];
+	BYTE* newNodeData = new BYTE[newLen];
 	memcpy(newNodeData, &mergedNodes[0], newLen);
 
 	mapA.replace_lump(LUMP_NODES, newNodeData, newLen);
@@ -1508,7 +1509,7 @@ void BspMerger::merge_clipnodes(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedNodes.size() * sizeof(BSPCLIPNODE);
 
-	byte* newClipnodeData = new byte[newLen];
+	BYTE* newClipnodeData = new BYTE[newLen];
 	memcpy(newClipnodeData, &mergedNodes[0], newLen);
 
 	mapA.replace_lump(LUMP_CLIPNODES, newClipnodeData, newLen);
@@ -1560,7 +1561,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	mergedModels[0].iHeadnodes[3] = 2;
 	mergedModels[0].nVisLeafs = mapA.models[0].nVisLeafs + mapB.models[0].nVisLeafs;
 	mergedModels[0].nFaces = mapA.models[0].nFaces + mapB.models[0].nFaces;
-
+	
 	vec3 amin = mapA.models[0].nMins;
 	vec3 bmin = mapB.models[0].nMins;
 	vec3 amax = mapA.models[0].nMaxs;
@@ -1570,7 +1571,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 
 	int newLen = mergedModels.size() * sizeof(BSPMODEL);
 
-	byte* newModelData = new byte[newLen];
+	BYTE* newModelData = new BYTE[newLen];
 	memcpy(newModelData, &mergedModels[0], newLen);
 
 	mapA.replace_lump(LUMP_MODELS, newModelData, newLen);
@@ -1582,16 +1583,16 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 	int thisVisLeaves = thisLeafCount - 1; // VIS ignores the shared solid leaf 0
 	int otherVisLeaves = otherLeafCount; // already does not include the solid leaf (see merge_leaves)
 	int totalVisLeaves = thisVisLeaves + otherVisLeaves;
-	
+
 	int mergedWorldLeafCount = thisWorldLeafCount + otherWorldLeafCount;
 
 	uint newVisRowSize = ((totalVisLeaves + 63) & ~63) >> 3;
 	int decompressedVisSize = totalVisLeaves * newVisRowSize;
 
-	g_progress.update("Merging visibility", thisWorldLeafCount + otherWorldLeafCount*2 + mergedWorldLeafCount);
+	g_progress.update("Merging visibility", thisWorldLeafCount + otherWorldLeafCount * 2 + mergedWorldLeafCount);
 	g_progress.tick();
 
-	byte* decompressedVis = new byte[decompressedVisSize];
+	BYTE* decompressedVis = new BYTE[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 
 	// decompress this map's world leaves
@@ -1600,23 +1601,25 @@ void BspMerger::merge_vis(Bsp& mapA, Bsp& mapB) {
 		thisWorldLeafCount, thisVisLeaves, totalVisLeaves);
 
 	// decompress other map's world-leaf vis data (skip empty first leaf, which now only the first map should have)
-	byte* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
+	BYTE* decompressedOtherVis = decompressedVis + thisWorldLeafCount * newVisRowSize;
 	decompress_vis_lump(allLeaves + thisWorldLeafCount, mapB.visdata, decompressedOtherVis,
 		otherWorldLeafCount, otherLeafCount, totalVisLeaves);
 
 	// shift mapB's world leaves after mapA's world leaves
+
+
 	for (int i = 0; i < otherWorldLeafCount; i++) {
 		shiftVis(decompressedOtherVis + i * newVisRowSize, newVisRowSize, 0, thisWorldLeafCount);
 		g_progress.tick();
 	}
 
 	// recompress the combined vis data
-	byte* compressedVis = new byte[decompressedVisSize];
+	BYTE* compressedVis = new BYTE[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
 	int newVisLen = CompressAll(allLeaves, decompressedVis, compressedVis, totalVisLeaves, mergedWorldLeafCount, decompressedVisSize);
 	int oldLen = mapA.header.lump[LUMP_VISIBILITY].nLength;
 
-	byte* compressedVisResize = new byte[newVisLen];
+	BYTE* compressedVisResize = new BYTE[newVisLen];
 	memcpy(compressedVisResize, compressedVis, newVisLen);
 
 	mapA.replace_lump(LUMP_VISIBILITY, compressedVisResize, newVisLen);
@@ -1642,7 +1645,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 		thisColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
 		totalColorCount += thisColorCount;
 		int sz = thisColorCount * sizeof(COLOR3);
-		mapA.lumps[LUMP_LIGHTING] = new byte[sz];
+		mapA.lumps[LUMP_LIGHTING] = new BYTE[sz];
 		mapA.header.lump[LUMP_LIGHTING].nLength = sz;
 		thisRad = (COLOR3*)mapA.lumps[LUMP_LIGHTING];
 
@@ -1669,12 +1672,12 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 	g_progress.tick();
 	COLOR3* newRad = new COLOR3[totalColorCount];
-	
+
 	g_progress.tick();
 	memcpy(newRad, thisRad, thisColorCount * sizeof(COLOR3));
-	
+
 	g_progress.tick();
-	memcpy((byte*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
+	memcpy((BYTE*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
 	if (freemem)
 	{
 		delete[] otherRad;
@@ -1709,10 +1712,9 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 	BSPPLANE* newThisPlanes = new BSPPLANE[mapA.planeCount + 1];
 	memcpy(newThisPlanes, mapA.planes, mapA.planeCount * sizeof(BSPPLANE));
 	newThisPlanes[mapA.planeCount] = separationPlane;
-
 	mapA.replace_lump(LUMP_PLANES, newThisPlanes, (mapA.planeCount + 1) * sizeof(BSPPLANE));
 
-	int separationPlaneIdx = mapA.planeCount-1;
+	int separationPlaneIdx = mapA.planeCount - 1;
 
 
 	// write new head node (visible BSP)
@@ -1720,8 +1722,8 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 		BSPNODE headNode = {
 			separationPlaneIdx,			// plane idx
 			{mapA.nodeCount + 1, 1},		// child nodes
-			{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
-			{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs
+			{ bmin.x, bmin.y, bmin.z },	// mins
+			{ bmax.x, bmax.y, bmax.z },	// maxs
 			0, // first face
 			0  // n faces (none since this plane is in the void)
 		};
@@ -1761,7 +1763,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 			if (thisWorld.iHeadnodes[i + 1] < 0) {
 				newHeadNodes[i].iChildren[1] = CONTENTS_EMPTY;
 			}
-			
+
 
 			if (swapNodeChildren) {
 				int16_t temp = newHeadNodes[i].iChildren[0];
