@@ -3,6 +3,7 @@
 namespace bspguy {
 	array<dictionary> g_ent_defs;
 	bool noscript = false; // true if this script shouldn't be used but is loaded anyway
+	int survival_is_restarting = 0;
 	
 	dictionary no_delete_ents; // entity classes that don't work right if spawned late
 	dictionary map_loaded;
@@ -16,6 +17,7 @@ namespace bspguy {
 	void delay_respawn() {
 		println("[bspguy] Respawning everyone");
 		g_PlayerFuncs.RespawnAllPlayers(true, true);
+		survival_is_restarting = 0;
 	}
 	
 	void delay_trigger(EHandle h_ent) {
@@ -503,6 +505,59 @@ namespace bspguy {
 		
 		no_delete_ents["multi_manager"] = true; // never triggers anything if spawned late
 		no_delete_ents["path_track"] = true; // messes up track_train if spawned late
+		no_delete_ents["soundcache"] = true; // plugin entity
+	}
+	
+	// restart the current section, rather than the entire map
+	void survival_restart_check() {
+		if (!g_SurvivalMode.IsActive() || count_living_players() > 0) {
+			survival_is_restarting = 0;
+			return;
+		}
+		
+		survival_is_restarting += 1;
+		if (survival_is_restarting < 5 || survival_is_restarting > 5) {
+			// Wait a few seconds to be sure a restart is coming.
+			// The ForceSurvival plugin might respawn everyone instead.
+			return;
+		}
+		
+		g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "This is a merged map. The current section will reload shortly.\n");	
+		g_Scheduler.SetTimeout("restart_survival_section", 3);
+	}
+	
+	int count_living_players() {
+		int totalLiving = 0;
+		
+		CBaseEntity@ ent = null;
+		do {
+			@ent = g_EntityFuncs.FindEntityByClassname(ent, "player");
+			if (ent !is null && ent.IsAlive()) {
+				totalLiving += 1;
+			}
+		} while (ent !is null);	
+		
+		return totalLiving;
+	}
+	
+	void restart_survival_section() {		
+		if (count_living_players() > 0) {
+			return;
+		}
+		
+		string thisMap = map_order[current_map_idx];
+		string loadMap = "";
+		
+		for (uint i = 0; i < map_order.size(); i++) {			
+			if (map_loaded.exists(map_order[i])) {
+				if (loadMap.Length() == 0) {
+					loadMap = map_order[i];
+				}
+				clean_map_no_repeat(map_order[i]);
+			}
+		}
+		
+		mapchange_internal(loadMap, loadMap, true);
 	}
 	
 	void MapActivate() {	
@@ -564,6 +619,7 @@ namespace bspguy {
 		map_cleaned.clear();
 		
 		g_Scheduler.SetTimeout("delay_fire_targets", 0.0f, "bspguy_start_" + firstMapName);
+		g_Scheduler.SetInterval("survival_restart_check", 1.0f, -1);
 	}
 
 	void printMapSections(EHandle h_plr) {
