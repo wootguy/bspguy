@@ -712,7 +712,7 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
 			filterNeeded = true;
-			showImportMapWidget_Type = SHOW_IMPORT_ADD_NEW;
+			showImportMapWidget_Type = SHOW_IMPORT_OPEN;
 			showImportMapWidget = !showImportMapWidget;
 		}
 
@@ -722,17 +722,6 @@ void Gui::drawMenuBar() {
 			ImGui::EndTooltip();
 		}
 
-		/*if (ImGui::MenuItem("Open", NULL)) {
-			filterNeeded = true;
-			showImportMapWidget_Type = SHOW_IMPORT_OPEN;
-			showImportMapWidget = !showImportMapWidget;
-		}
-
-		if (ImGui::MenuItem("Add map", NULL)) {
-			filterNeeded = true;
-			showImportMapWidget_Type = SHOW_IMPORT_ADD_NEW;
-			showImportMapWidget = !showImportMapWidget;
-		}*/
 
 		if (ImGui::MenuItem("Close")) {
 			filterNeeded = true;
@@ -1196,7 +1185,7 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	if (ImGui::BeginMenu("Windows", !app->isLoading))
+	/*if (ImGui::BeginMenu("Windows", !app->isLoading))
 	{
 		bool found_model = false;
 		for (int r = 0; r < app->mapRenderers.size(); r++)
@@ -1235,6 +1224,7 @@ void Gui::drawMenuBar() {
 
 		ImGui::EndMenu();
 	}
+	*/
 
 	if (ImGui::BeginMenu("Help"))
 	{
