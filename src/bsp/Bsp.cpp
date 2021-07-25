@@ -12,6 +12,7 @@
 #include <winding.h>
 #include "Wad.h"
 #include <vector>
+#include <iterator>
 
 typedef map< string, vec3 > mapStringToVector;
 
