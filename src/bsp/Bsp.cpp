@@ -4318,7 +4318,7 @@ void Bsp::ExportToObjWIP(std::string path)
 		{
 			for (auto const& s : materials)
 			{
-				fprintf_s(fmat, "%s\n", s.c_str());
+				fprintf(fmat, "%s\n", s.c_str());
 			}
 			fclose(fmat);
 		}
