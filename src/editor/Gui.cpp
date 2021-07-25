@@ -693,21 +693,18 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("File"))
 	{
-		if (ImGui::BeginMenu("Save", !app->isLoading)) {
+		if (ImGui::MenuItem("Save", NULL, false, !app->isLoading)) {
 			BspRenderer* mapRenderer = app->getSelectedMap();
 			if (mapRenderer)
 			{
 				Bsp* map = mapRenderer->map;
 				if (map)
 				{
-					if (ImGui::MenuItem((std::string("Map ") + map->name + ".bsp").c_str())) {
-						map->update_ent_lump();
-						map->update_lump_pointers();
-						map->write(map->path);
-					}
+					map->update_ent_lump();
+					map->update_lump_pointers();
+					map->write(map->path);
 				}
 			}
-			ImGui::EndMenu();
 		}
 
 		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
@@ -1573,7 +1570,8 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.valid && app->pickInfo.ent && app->fgd) {
+		if (app->pickInfo.valid && app->pickInfo.ent && app->fgd 
+			&& !app->isLoading && !app->isModelsReloading && !app->reloading) {
 			Bsp* map = app->pickInfo.map;
 			Entity* ent = app->pickInfo.ent;
 			BSPMODEL& model = map->models[app->pickInfo.modelIdx];
@@ -1802,7 +1800,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						bool needReloadModel = false;
 
-						if (!g_app->reloading && !g_app->in_reloading && inputData->key == "model")
+						if (!g_app->reloading && !g_app->isModelsReloading && inputData->key == "model")
 						{
 							if (ent->hasKey("model") && ent->keyvalues["model"] != newVal)
 							{

@@ -1659,11 +1659,11 @@ void Renderer::setupView() {
 
 void Renderer::reloadBspModels()
 {
-	in_reloading = true;
+	isModelsReloading = true;
 
 	if (!mapRenderers.size())
 	{
-		in_reloading = false;
+		isModelsReloading = false;
 		return;
 	}
 
@@ -1679,7 +1679,7 @@ void Renderer::reloadBspModels()
 
 	if (modelcount == mapRenderers.size())
 	{
-		in_reloading = false;
+		isModelsReloading = false;
 		return;
 	}
 
@@ -1743,7 +1743,7 @@ void Renderer::reloadBspModels()
 		}
 	}
 
-	in_reloading = false;
+	isModelsReloading = false;
 }
 
 void Renderer::addMap(Bsp* map) {

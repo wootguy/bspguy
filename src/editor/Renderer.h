@@ -106,7 +106,7 @@ public:
 	vec3 debugVec3;
 
 	bool hideGui = false;
-	bool in_reloading = false;
+	bool isModelsReloading = false;
 
 	Renderer();
 	~Renderer();
