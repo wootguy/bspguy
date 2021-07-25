@@ -12,7 +12,6 @@
 #include <winding.h>
 #include "Wad.h"
 #include <vector>
-#include <iterator>
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -4313,9 +4312,16 @@ void Bsp::ExportToObjWIP(std::string path)
 			//delete wind;
 		}
 
-		std::ofstream output_file((path + "materials.mtl").c_str());
-		std::ostream_iterator<std::string> output_iterator(output_file, "\n");
-		std::copy(materials.begin(), materials.end(), output_iterator);
+		FILE* fmat;
+		fopen_s(&fmat, (path + "materials.mtl").c_str(), "wt");
+		if (fmat)
+		{
+			for (auto const& s : materials)
+			{
+				fprintf_s(fmat, "%s\n", s.c_str());
+			}
+			fclose(fmat);
+		}
 
 		fclose(f);
 	}
