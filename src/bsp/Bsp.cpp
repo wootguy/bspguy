@@ -4313,7 +4313,7 @@ void Bsp::ExportToObjWIP(std::string path)
 			//delete wind;
 		}
 
-		std::ofstream output_file(path + "materials.mtl");
+		std::ofstream output_file((path + "materials.mtl").c_str());
 		std::ostream_iterator<std::string> output_iterator(output_file, "\n");
 		std::copy(materials.begin(), materials.end(), output_iterator);
 
