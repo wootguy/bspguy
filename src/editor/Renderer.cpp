@@ -200,7 +200,7 @@ void AppSettings::save() {
 
 	g_app->saveSettings();
 
-	ofstream file(g_settings_path, ios::out || ios::trunc);
+	ofstream file(g_settings_path.c_str(), ios::out || ios::trunc);
 	file << "window_width=" << g_settings.windowWidth << endl;
 	file << "window_height=" << g_settings.windowHeight << endl;
 	file << "window_x=" << g_settings.windowX << endl;
