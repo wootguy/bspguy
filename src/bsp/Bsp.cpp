@@ -4312,8 +4312,8 @@ void Bsp::ExportToObjWIP(std::string path)
 			//delete wind;
 		}
 
-		FILE* fmat;
-		fopen_s(&fmat, (path + "materials.mtl").c_str(), "wt");
+		FILE* fmat = fopen((path + "materials.mtl").c_str(), "wt");
+		
 		if (fmat)
 		{
 			for (auto const& s : materials)
