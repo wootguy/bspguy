@@ -122,4 +122,4 @@ void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-void WriteImage(std::string fileName, BYTE* pixels, int width, int height, int bytesPerPixel);
+void WriteBMP(std::string fileName, BYTE* pixels, int width, int height, int bytesPerPixel);

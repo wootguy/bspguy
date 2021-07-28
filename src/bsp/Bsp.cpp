@@ -4195,7 +4195,7 @@ void Bsp::ExportToObjWIP(std::string path)
 						imageData[k] = palette[src[k]];
 					}
 					//tga_write((path + tex->szName + std::string(".obj")).c_str(), tex->nWidth, tex->nWidth, (BYTE*)tex + tex->nOffsets[0], 3, 3);
-					WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex.nWidth, wadTex.nHeight, 3);
+					WriteBMP(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex.nWidth, wadTex.nHeight, 3);
 				}
 				else
 				{
@@ -4218,7 +4218,7 @@ void Bsp::ExportToObjWIP(std::string path)
 								for (int k = 0; k < sz; k++) {
 									imageData[k] = palette[src[k]];
 								}
-								WriteImage(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex->nWidth, wadTex->nHeight, 3);
+								WriteBMP(path + std::string("textures/") + tex->szName + std::string(".bmp"), (BYTE*)imageData, wadTex->nWidth, wadTex->nHeight, 3);
 								break;
 							}
 						}
