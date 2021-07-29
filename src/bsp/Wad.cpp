@@ -161,7 +161,7 @@ WADTEX * Wad::readTexture( const string& texname )
 	int sz4 = sz3 / 4; // miptex 3
 	int szAll = sz + sz2 + sz3 + sz4 + 2 + 256*3 + 2;
 
-	BYTE * data = new BYTE[szAll];
+	byte * data = new byte[szAll];
 	fin.read((char*)data, szAll);		
 	
 	fin.close();

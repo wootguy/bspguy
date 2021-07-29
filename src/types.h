@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include "vectors.h"
 
-typedef unsigned char BYTE;
+typedef unsigned char byte;
 typedef unsigned int uint;
 
 typedef int64_t int64;

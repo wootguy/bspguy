@@ -108,7 +108,7 @@ struct BSPHEADER
 };
 
 struct LumpState {
-	BYTE* lumps[HEADER_LUMPS];
+	byte* lumps[HEADER_LUMPS];
 	int lumpLen[HEADER_LUMPS];
 };
 

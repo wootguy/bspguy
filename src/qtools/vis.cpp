@@ -3,9 +3,9 @@
 
 bool g_debug_shift = false;
 
-void printVisRow(BYTE* vis, int len, int offsetLeaf, int mask) {
+void printVisRow(byte* vis, int len, int offsetLeaf, int mask) {
 	for (int i = 0; i < len; i++) {
-		BYTE bits = vis[i];
+		byte bits = vis[i];
 		for (int b = 0; b < 8; b++) {
 			int leafIdx = i * 8 + b;
 			if (leafIdx == offsetLeaf) {
@@ -25,13 +25,13 @@ void printVisRow(BYTE* vis, int len, int offsetLeaf, int mask) {
 	logf("\n");
 }
 
-bool shiftVis(BYTE* vis, int len, int offsetLeaf, int shift) {
+bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 	if (shift == 0)
 		return false;
 
-	BYTE bitsPerStep = 8;
-	BYTE offsetBit = offsetLeaf % bitsPerStep;
-	BYTE mask = 0; // part of the BYTE that shouldn't be shifted
+	byte bitsPerStep = 8;
+	byte offsetBit = offsetLeaf % bitsPerStep;
+	byte mask = 0; // part of the byte that shouldn't be shifted
 	for (int i = 0; i < offsetBit; i++) {
 		mask |= 1 << i;
 	}
@@ -39,7 +39,7 @@ bool shiftVis(BYTE* vis, int len, int offsetLeaf, int shift) {
 	int byteShifts = abs(shift) / 8;
 	int bitShifts = abs(shift) % 8;
 
-	// shift until offsetLeaf isn't sharing a BYTE with the leaves that come before it
+	// shift until offsetLeaf isn't sharing a byte with the leaves that come before it
 	// then we can do a much faster memcpy on the section that needs to be shifted
 	if ((offsetLeaf % 8) + bitShifts < 8 && byteShifts > 0) {
 		byteShifts -= 1;
@@ -118,15 +118,15 @@ bool shiftVis(BYTE* vis, int len, int offsetLeaf, int shift) {
 
 	if (byteShifts > 0) {
 		// TODO: detect overflows here too
-		static BYTE temp[MAX_MAP_LEAVES / 8];
+		static byte temp[MAX_MAP_LEAVES / 8];
 
 		if (shift > 0) {
 			int startByte = (offsetLeaf + bitShifts) / 8;
 			int moveSize = len - (startByte + byteShifts);
 
-			memcpy(temp, (BYTE*)vis + startByte, moveSize);
-			memset((BYTE*)vis + startByte, 0, byteShifts);
-			memcpy((BYTE*)vis + startByte + byteShifts, temp, moveSize);
+			memcpy(temp, (byte*)vis + startByte, moveSize);
+			memset((byte*)vis + startByte, 0, byteShifts);
+			memcpy((byte*)vis + startByte + byteShifts, temp, moveSize);
 		}
 		else {
 			// TODO LOL
@@ -141,18 +141,18 @@ bool shiftVis(BYTE* vis, int len, int offsetLeaf, int shift) {
 // iterationLeaves = number of leaves to decompress vis for
 // visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
 // newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
-void decompress_vis_lump(BSPLEAF* leafLump, BYTE* visLump, BYTE* output,
+void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 	int iterationLeaves, int visDataLeafCount, int newNumLeaves)
 {
-	BYTE* dest;
+	byte* dest;
 	uint oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
 	uint newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
 	int len = 0;
 
 	// calculate which bits of an uncompressed visibility row are used/unused
-	BYTE lastChunkMask = 0;
+	byte lastChunkMask = 0;
 	int lastUsedIdx = (iterationLeaves / 8);
-	for (BYTE k = 0; k < iterationLeaves % 8; k++) {
+	for (byte k = 0; k < iterationLeaves % 8; k++) {
 		lastChunkMask = lastChunkMask | (1 << k);
 	}
 
@@ -168,7 +168,7 @@ void decompress_vis_lump(BSPLEAF* leafLump, BYTE* visLump, BYTE* output,
 				continue;
 			}
 
-			DecompressVis((const BYTE*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
+			DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
 
 			// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
 			// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
@@ -191,11 +191,11 @@ void decompress_vis_lump(BSPLEAF* leafLump, BYTE* visLump, BYTE* output,
 // BEGIN COPIED QVIS CODE
 //
 
-void DecompressVis(const BYTE* src, BYTE* const dest, const unsigned int dest_length, uint numLeaves)
+void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_length, uint numLeaves)
 {
 	unsigned int    current_length = 0;
 	int             c;
-	BYTE* out;
+	byte* out;
 	int             row;
 
 	row = (numLeaves + 7) >> 3; // same as the length used by VIS program in CompressVis
@@ -236,10 +236,10 @@ void DecompressVis(const BYTE* src, BYTE* const dest, const unsigned int dest_le
 	} while (out - dest < row);
 }
 
-int CompressVis(const BYTE* const src, const unsigned int src_length, BYTE* dest, unsigned int dest_length)
+int CompressVis(const byte* const src, const unsigned int src_length, byte* dest, unsigned int dest_length)
 {
 	unsigned int    j;
-	BYTE* dest_p = dest;
+	byte* dest_p = dest;
 	unsigned int    current_length = 0;
 
 	for (j = 0; j < src_length; j++)
@@ -279,26 +279,26 @@ int CompressVis(const BYTE* const src, const unsigned int src_length, BYTE* dest
 	return dest_p - dest;
 }
 
-int CompressAll(BSPLEAF* leafs, BYTE* uncompressed, BYTE* output, int numLeaves, int iterLeaves, int bufferSize)
+int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves, int iterLeaves, int bufferSize)
 {
 	int x = 0;
-	BYTE* dest;
-	BYTE* src;
-	BYTE compressed[MAX_MAP_LEAVES / 8];
+	byte* dest;
+	byte* src;
+	byte compressed[MAX_MAP_LEAVES / 8];
 	uint g_bitbytes = ((numLeaves + 63) & ~63) >> 3;
 
-	BYTE* vismap_p = output;
+	byte* vismap_p = output;
 
 	int* sharedRows = new int[iterLeaves];
 	for (int i = 0; i < iterLeaves; i++) {
-		BYTE* src = uncompressed + i * g_bitbytes;
+		byte* src = uncompressed + i * g_bitbytes;
 
 		sharedRows[i] = i;
 		for (int k = 0; k < i; k++) {
 			if (sharedRows[k] != k) {
 				continue; // already compared in an earlier row
 			}
-			BYTE* previous = uncompressed + k * g_bitbytes;
+			byte* previous = uncompressed + k * g_bitbytes;
 			if (memcmp(src, previous, g_bitbytes) == 0) {
 				sharedRows[i] = k;
 				break;

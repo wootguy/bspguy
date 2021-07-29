@@ -381,14 +381,14 @@ int CreateBspModelCommand::getDefaultTextureIdx() {
 
 int CreateBspModelCommand::addDefaultTexture() {
 	Bsp* map = getBsp();
-	BYTE* tex_dat = NULL;
+	byte* tex_dat = NULL;
 	uint w, h;
 
 	lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
 	int aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
 	//renderer->reloadTextures();
 
-	lodepng_encode24_file("test.png", (BYTE*)tex_dat, w, h);
+	lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
 	delete[] tex_dat;
 
 	return aaatriggerIdx;

@@ -9,7 +9,7 @@ Texture::Texture(int width, int height) {
 	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
-	this->data = new BYTE[width*height*sizeof(COLOR3)];
+	this->data = new byte[width*height*sizeof(COLOR3)];
 }
 
 Texture::Texture( int width, int height, void * data )
@@ -18,7 +18,7 @@ Texture::Texture( int width, int height, void * data )
 	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
-	this->data = (BYTE*)data;
+	this->data = (byte*)data;
 }
 
 Texture::~Texture()

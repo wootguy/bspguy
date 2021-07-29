@@ -51,7 +51,7 @@ void Gui::init() {
 	clearLog();
 
 	// load icons
-	BYTE* icon_data = NULL;
+	byte* icon_data = NULL;
 	uint w, h;
 
 	lodepng_decode32(&icon_data, &w, &h, object_icon, sizeof(object_icon));
@@ -196,7 +196,7 @@ void Gui::copyLightmap() {
 	copiedLightmap.width = size[0];
 	copiedLightmap.height = size[1];
 	copiedLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
-	//copiedLightmap.luxelFlags = new BYTE[size[0] * size[1]];
+	//copiedLightmap.luxelFlags = new byte[size[0] * size[1]];
 	//qrad_get_lightmap_flags(map, app->pickInfo.faceIdx, copiedLightmap.luxelFlags);
 }
 
@@ -276,7 +276,7 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->update_ent_lump();
 
-	tmpMap->lumps[LUMP_MODELS] = (BYTE*)tmpMap->models;
+	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
 	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
 	tmpMap->update_lump_pointers();
 
@@ -319,7 +319,7 @@ void ExportModel(Bsp* map, int id)
 		tmpMap->regenerate_clipnodes(0, 3);
 	*/
 
-	tmpMap->lumps[LUMP_LEAVES] = (BYTE*)tmpMap->leaves;
+	tmpMap->lumps[LUMP_LEAVES] = (byte*)tmpMap->leaves;
 	tmpMap->update_lump_pointers();
 
 
@@ -663,7 +663,7 @@ void ImportWad(Bsp* map, Renderer* app)
 			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-			BYTE* src = wadTex->data;
+			byte* src = wadTex->data;
 
 			COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
@@ -673,7 +673,7 @@ void ImportWad(Bsp* map, Renderer* app)
 				imageData[k] = palette[src[k]];
 			}
 
-			map->add_texture(wadTex->szName, (BYTE*)imageData, wadTex->nWidth, wadTex->nHeight);
+			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
 
 			delete[] imageData;
 			delete wadTex;
@@ -857,7 +857,7 @@ void Gui::drawMenuBar() {
 							std::ifstream t(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"));
 							std::string str((std::istreambuf_iterator<char>(t)),
 								std::istreambuf_iterator<char>());
-							BYTE* newlump = new BYTE[str.size() + 1]{ 0x20,0 };
+							byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
 							memcpy(newlump, &str[0], str.size());
 							map->replace_lump(LUMP_ENTITIES, newlump, str.size());
 							map->load_ents();
@@ -2527,10 +2527,10 @@ void Gui::addLog(const char* s)
 
 void Gui::loadFonts() {
 	// data copied to new array so that ImGui doesn't delete static data
-	BYTE* smallFontData = new BYTE[sizeof(robotomedium)];
-	BYTE* largeFontData = new BYTE[sizeof(robotomedium)];
-	BYTE* consoleFontData = new BYTE[sizeof(robotomono)];
-	BYTE* consoleFontLargeData = new BYTE[sizeof(robotomono)];
+	byte* smallFontData = new byte[sizeof(robotomedium)];
+	byte* largeFontData = new byte[sizeof(robotomedium)];
+	byte* consoleFontData = new byte[sizeof(robotomono)];
+	byte* consoleFontLargeData = new byte[sizeof(robotomono)];
 	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
 	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
 	memcpy(consoleFontData, robotomono, sizeof(robotomono));
@@ -4269,7 +4269,7 @@ void Gui::drawTextureTool() {
 							int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 							COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-							BYTE* src = wadTex->data;
+							byte* src = wadTex->data;
 
 							COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
@@ -4278,7 +4278,7 @@ void Gui::drawTextureTool() {
 							for (int k = 0; k < sz; k++) {
 								imageData[k] = palette[src[k]];
 							}
-							map->add_texture(textureName, (BYTE *)imageData, wadTex->nWidth, wadTex->nHeight);
+							map->add_texture(textureName, (byte *)imageData, wadTex->nWidth, wadTex->nHeight);
 							delete[] imageData;
 							delete wadTex;
 							mapRenderer->reloadTextures();

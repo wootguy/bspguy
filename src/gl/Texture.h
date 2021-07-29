@@ -6,7 +6,7 @@ class Texture
 public:	
 	uint id; // OpenGL texture ID
 	uint height, width;
-	BYTE * data; // RGB(A) data
+	byte * data; // RGB(A) data
 	int nearFilter;
 	int farFilter;
 	uint format; // format of the data

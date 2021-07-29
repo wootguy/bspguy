@@ -178,7 +178,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 			vector<string> nums = splitString(getValueInParens(typeParts[i]), " ");
 
 			if (nums.size() == 3) {
-				fgdClass.color = { (BYTE)atoi(nums[0].c_str()), (BYTE)atoi(nums[1].c_str()), (BYTE)atoi(nums[2].c_str()) };
+				fgdClass.color = { (byte)atoi(nums[0].c_str()), (byte)atoi(nums[1].c_str()), (byte)atoi(nums[2].c_str()) };
 			}
 			else {
 				logf("ERROR: Expected 3 components in color() property (line %d)\n", lineNum);

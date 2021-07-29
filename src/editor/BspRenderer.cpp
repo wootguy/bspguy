@@ -42,7 +42,7 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	blackTex->upload(GL_RGB);
 	blueTex->upload(GL_RGB);
 
-	BYTE* img_dat = NULL;
+	byte* img_dat = NULL;
 	uint w, h;
 	lodepng_decode24(&img_dat, &w, &h, missing_dat, sizeof(missing_dat));
 	missingTex = new Texture(w, h, img_dat);
@@ -148,7 +148,7 @@ void BspRenderer::loadTextures() {
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 		COLOR3* palette;
-		BYTE* src;
+		byte* src;
 		WADTEX* wadTex = NULL;
 
 		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
@@ -336,7 +336,7 @@ void BspRenderer::loadLightmaps() {
 					}
 					else {
 						bool checkers = x % 2 == 0 != y % 2 == 0;
-						lightDst[dst] = { (BYTE)(checkers ? 255 : 0), 0, (BYTE)(checkers ? 255 : 0) };
+						lightDst[dst] = { (byte)(checkers ? 255 : 0), 0, (byte)(checkers ? 255 : 0) };
 					}
 				}
 			}
@@ -918,7 +918,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	}
 }
 
-void BspRenderer::updateClipnodeOpacity(BYTE newValue) {
+void BspRenderer::updateClipnodeOpacity(byte newValue) {
 	for (int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (renderClipnodes[i].clipnodeBuffer[k]) {
