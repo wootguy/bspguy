@@ -3098,12 +3098,7 @@ void Gui::drawImportMapWidget() {
 							map->update_ent_lump();
 							logf("Success! Now you needs to copy model to path: %s\n", ("models/" + basename(Path)).c_str());
 
-							if (app->pickInfo.map->GetBspRender())
-							{
-								app->pickInfo.map->GetBspRender()->preRenderEnts();
-								app->updateEntConnections();
-								app->updateEntConnectionPositions();
-							}
+							app->updateEnts();
 							
 							app->reloadBspModels();
 						}

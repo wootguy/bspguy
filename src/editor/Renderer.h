@@ -309,7 +309,7 @@ private:
 	void clearUndoCommands();
 	void clearRedoCommands();
 	void calcUndoMemoryUsage();
-
+	void updateEnts();
 	void updateEntityState(Entity* ent);
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
 

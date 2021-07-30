@@ -3094,12 +3094,7 @@ void Renderer::undo() {
 	undoCommand->undo();
 	undoHistory.pop_back();
 	redoHistory.push_back(undoCommand);
-	if (pickInfo.map->GetBspRender())
-	{
-		pickInfo.map->GetBspRender()->preRenderEnts();
-		updateEntConnections();
-		updateEntConnectionPositions();
-	}
+	updateEnts();
 }
 
 void Renderer::redo() {
@@ -3116,12 +3111,7 @@ void Renderer::redo() {
 	redoCommand->execute();
 	redoHistory.pop_back();
 	undoHistory.push_back(redoCommand);
-	if (pickInfo.map->GetBspRender())
-	{
-		pickInfo.map->GetBspRender()->preRenderEnts();
-		updateEntConnections();
-		updateEntConnectionPositions();
-	}
+	updateEnts();
 }
 
 void Renderer::clearUndoCommands() {
@@ -3150,5 +3140,14 @@ void Renderer::calcUndoMemoryUsage() {
 	}
 	for (int i = 0; i < redoHistory.size(); i++) {
 		undoMemoryUsage += redoHistory[i]->memoryUsage();
+	}
+}
+
+void Renderer::updateEnts() {
+	if (pickInfo.map->GetBspRender())
+	{
+		pickInfo.map->GetBspRender()->preRenderEnts();
+		updateEntConnections();
+		updateEntConnectionPositions();
 	}
 }
