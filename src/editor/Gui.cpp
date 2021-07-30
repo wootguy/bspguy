@@ -1158,46 +1158,6 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	/*if (ImGui::BeginMenu("Windows", !app->isLoading))
-	{
-		bool found_model = false;
-		for (int r = 0; r < app->mapRenderers.size(); r++)
-		{
-			if (!app->mapRenderers[r]->map)
-				continue;
-			if (app->mapRenderers[r]->map->is_model)
-			{
-				found_model = true;
-				continue;
-			}
-			if (ImGui::MenuItem((std::string("Map ") + app->mapRenderers[r]->map->name + ".bsp").c_str(), 0, r == app->getSelectedMapId()))
-			{
-				app->setSelectedMap(r);
-				app->pickInfo = PickInfo();
-			}
-		}
-
-		if (found_model && ImGui::BeginMenu("Models"))
-		{
-			for (int r = 0; r < app->mapRenderers.size(); r++)
-			{
-				if (!app->mapRenderers[r]->map)
-					continue;
-				if (!app->mapRenderers[r]->map->is_model)
-					continue;
-				if (ImGui::MenuItem((std::string("Model ") + app->mapRenderers[r]->map->name + ".bsp").c_str(), 0, r == app->getSelectedMapId()))
-				{
-					app->setSelectedMap(r);
-					app->pickInfo = PickInfo();
-				}
-			}
-
-			ImGui::EndMenu();
-		}
-
-		ImGui::EndMenu();
-	}
-	*/
 
 	if (ImGui::BeginMenu("Help"))
 	{
