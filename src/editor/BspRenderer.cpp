@@ -1353,7 +1353,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 }
 
 void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
-	if (modelIdx >= numRenderModels)
+	if (modelIdx < 0 || modelIdx >= numRenderModels)
 	{
 		return;
 	}

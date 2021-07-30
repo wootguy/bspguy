@@ -276,20 +276,7 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->update_ent_lump();
 
-	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
-	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
-	tmpMap->update_lump_pointers();
-
-	/*for (int i = 0; i < tmpMap->leafCount; i++)
-	{
-		BSPLEAF& tmpLeaf = tmpMap->leaves[i];
-		tmpLeaf.nVisOffset = -1; 
-		for (int n = 0; n < 3; n++)
-		{
-			tmpLeaf.nMins[n] = tmpLeaf.nMins[n] < tmpModel.nMins[n] ? tmpModel.nMins[n] : tmpLeaf.nMins[n];
-			tmpLeaf.nMaxs[n] = tmpLeaf.nMaxs[n] > tmpModel.nMaxs[n] ? tmpModel.nMaxs[n] : tmpLeaf.nMaxs[n];
-		}
-	}*/
+	tmpMap->replace_lump(LUMP_MODELS, tmpMap->models, sizeof(tmpModel));
 
 	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
 	if (!removed.allZero())
@@ -307,21 +294,10 @@ void ExportModel(Bsp* map, int id)
 
 		while (tmpMap->models[0].nVisLeafs >= tmpMap->leafCount)
 			tmpMap->create_leaf(-2);
+
+		tmpMap->lumps[LUMP_LEAVES] = (byte*)tmpMap->leaves;
+		tmpMap->update_lump_pointers();
 	}
-	/*
-	if (tmpMap->models[0].iHeadnodes[0] < 0)
-		tmpMap->regenerate_clipnodes(0, 0);
-	if (tmpMap->models[0].iHeadnodes[1] < 0)
-		tmpMap->regenerate_clipnodes(0, 1);
-	if (tmpMap->models[0].iHeadnodes[2] < 0)
-		tmpMap->regenerate_clipnodes(0, 2);
-	if (tmpMap->models[0].iHeadnodes[3] < 0)
-		tmpMap->regenerate_clipnodes(0, 3);
-	*/
-
-	tmpMap->lumps[LUMP_LEAVES] = (byte*)tmpMap->leaves;
-	tmpMap->update_lump_pointers();
-
 
 	if (!tmpMap->validate())
 	{

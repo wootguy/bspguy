@@ -43,7 +43,6 @@ CommandLine::CommandLine(int argc, char* argv[]) {
 	if (argc == 2)
 	{
 		bspfile = argv[1];
-		return;
 	}
 }
 
