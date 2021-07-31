@@ -123,6 +123,16 @@ public:
 	void saveSettings();
 	void loadSettings();
 
+
+
+	BspRenderer* getMapContainingCamera();
+	BspRenderer* getSelectedRender();
+	Bsp* getSelectedMap();
+	int getSelectedRenderId();
+	void selectMapId(int id);
+	void selectMap(Bsp* map);
+	void deselectMap(Bsp* map);
+
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
@@ -254,11 +264,6 @@ private:
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
-	
-	BspRenderer* getMapContainingCamera();
-	BspRenderer* getSelectedMap();
-	int getSelectedMapId();
-	void setSelectedMap(int id);
 
 	void drawModelVerts();
 	void drawModelOrigin();

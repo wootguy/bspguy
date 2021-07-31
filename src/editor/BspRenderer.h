@@ -83,13 +83,11 @@ struct RenderClipnodes {
 };
 
 struct PickInfo {
-	//int mapIdx;
 	int entIdx;
 	int modelIdx;
 	int faceIdx;
 	float bestDist;
 	bool valid;
-	Bsp* map = NULL;
 	Entity* ent = NULL;
 };
 

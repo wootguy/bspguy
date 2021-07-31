@@ -32,7 +32,7 @@ BspRenderer* Command::getBspRenderer() {
 // Edit entity
 //
 EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
-		: Command(desc, g_app->getSelectedMapId()) {
+		: Command(desc, g_app->getSelectedRenderId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->oldEntData = new Entity();
 	this->newEntData = new Entity();
@@ -91,7 +91,7 @@ int EditEntityCommand::memoryUsage() {
 // Delete entity
 //
 DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
-		: Command(desc, g_app->getSelectedMapId()) {
+		: Command(desc, g_app->getSelectedRenderId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->entData = new Entity();
 	*this->entData = *pickInfo.ent;
@@ -192,7 +192,7 @@ int CreateEntityCommand::memoryUsage() {
 // Duplicate BSP Model command
 //
 DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
-		: Command(desc, g_app->getSelectedMapId()) {
+		: Command(desc, g_app->getSelectedRenderId()) {
 	this->oldModelIdx = pickInfo.modelIdx;
 	this->newModelIdx = -1;
 	this->entIdx = pickInfo.entIdx;
@@ -399,7 +399,7 @@ int CreateBspModelCommand::addDefaultTexture() {
 // Edit BSP model
 //
 EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
-		vec3 oldOrigin) : Command(desc, g_app->getSelectedMapId()) {
+		vec3 oldOrigin) : Command(desc, g_app->getSelectedRenderId()) {
 	this->modelIdx = pickInfo.modelIdx;
 	this->entIdx = pickInfo.entIdx;
 	this->oldLumps = oldLumps;

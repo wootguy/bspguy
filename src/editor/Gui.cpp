@@ -173,7 +173,7 @@ void Gui::copyTexture() {
 	if (!app->pickInfo.valid) {
 		return;
 	}
-	Bsp* map = app->pickInfo.map;
+	Bsp* map = app->getSelectedMap();
 	BSPTEXTUREINFO& texinfo = map->texinfos[map->faces[app->pickInfo.faceIdx].iTextureInfo];
 	copiedMiptex = texinfo.iMiptex;
 }
@@ -187,7 +187,7 @@ void Gui::copyLightmap() {
 		return;
 	}
 
-	Bsp* map = app->pickInfo.map;
+	Bsp* map = app->getSelectedMap();
 
 	copiedLightmapFace = app->pickInfo.faceIdx;
 
@@ -205,7 +205,7 @@ void Gui::pasteLightmap() {
 		return;
 	}
 
-	Bsp* map = app->pickInfo.map;
+	Bsp* map = app->getSelectedMap();
 
 	int size[2];
 	GetFaceLightmapSize(map, app->pickInfo.faceIdx, size);
@@ -228,7 +228,7 @@ void Gui::pasteLightmap() {
 	dst.nLightmapOffset = src.nLightmapOffset;
 	memcpy(dst.nStyles, src.nStyles, 4);
 
-	app->getSelectedMap()->reloadLightmaps();
+	app->getSelectedRender()->reloadLightmaps();
 }
 
 
@@ -319,13 +319,13 @@ void Gui::draw3dContextMenus() {
 	if (app->originHovered) {
 		if (ImGui::BeginPopup("ent_context") || ImGui::BeginPopup("empty_context")) {
 			if (ImGui::MenuItem("Center", "")) {
-				app->transformedOrigin = app->getEntOrigin(app->pickInfo.map, app->pickInfo.ent);
+				app->transformedOrigin = app->getEntOrigin(app->getSelectedMap(), app->pickInfo.ent);
 				app->applyTransform();
 				app->pickCount++; // force gui refresh
 			}
 
-			if (app->pickInfo.map && app->pickInfo.ent && ImGui::BeginMenu("Align")) {
-				BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.ent->getBspModelIdx()];
+			if (app->getSelectedMap() && app->pickInfo.ent && ImGui::BeginMenu("Align")) {
+				BSPMODEL& model = app->getSelectedMap()->models[app->pickInfo.ent->getBspModelIdx()];
 
 				if (ImGui::MenuItem("Top")) {
 					app->transformedOrigin.z = app->oldOrigin.z + model.nMaxs.z;
@@ -381,8 +381,8 @@ void Gui::draw3dContextMenus() {
 			}
 			ImGui::Separator();
 			if (app->pickInfo.modelIdx > 0) {
-				Bsp* map = app->pickInfo.map;
-				BSPMODEL& model = app->pickInfo.map->models[app->pickInfo.modelIdx];
+				Bsp* map = app->getSelectedMap();
+				BSPMODEL& model = app->getSelectedMap()->models[app->pickInfo.modelIdx];
 
 				if (ImGui::BeginMenu("Create Hull", !app->invalidSolid && app->isTransformableSolid)) {
 					if (ImGui::MenuItem("Clipnodes")) {
@@ -411,7 +411,7 @@ void Gui::draw3dContextMenus() {
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
 						map->delete_hull(2, app->pickInfo.modelIdx, -1);
 						map->delete_hull(3, app->pickInfo.modelIdx, -1);
-						app->getSelectedMap()->refreshModel(app->pickInfo.modelIdx);
+						app->getSelectedRender()->refreshModel(app->pickInfo.modelIdx);
 						checkValidHulls();
 						logf("Deleted all hulls on model %d\n", app->pickInfo.modelIdx);
 					}
@@ -419,7 +419,7 @@ void Gui::draw3dContextMenus() {
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
 						map->delete_hull(2, app->pickInfo.modelIdx, -1);
 						map->delete_hull(3, app->pickInfo.modelIdx, -1);
-						app->getSelectedMap()->refreshModelClipnodes(app->pickInfo.modelIdx);
+						app->getSelectedRender()->refreshModelClipnodes(app->pickInfo.modelIdx);
 						checkValidHulls();
 						logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
 					}
@@ -433,9 +433,9 @@ void Gui::draw3dContextMenus() {
 							map->delete_hull(i, app->pickInfo.modelIdx, -1);
 							checkValidHulls();
 							if (i == 0)
-								app->getSelectedMap()->refreshModel(app->pickInfo.modelIdx);
+								app->getSelectedRender()->refreshModel(app->pickInfo.modelIdx);
 							else
-								app->getSelectedMap()->refreshModelClipnodes(app->pickInfo.modelIdx);
+								app->getSelectedRender()->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -448,7 +448,7 @@ void Gui::draw3dContextMenus() {
 						map->simplify_model_collision(app->pickInfo.modelIdx, 1);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 2);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 3);
-						app->getSelectedMap()->refreshModelClipnodes(app->pickInfo.modelIdx);
+						app->getSelectedRender()->refreshModelClipnodes(app->pickInfo.modelIdx);
 						logf("Replaced hulls 1-3 on model %d with a box-shaped hull\n", app->pickInfo.modelIdx);
 					}
 
@@ -459,7 +459,7 @@ void Gui::draw3dContextMenus() {
 
 						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
 							map->simplify_model_collision(app->pickInfo.modelIdx, 1);
-							app->getSelectedMap()->refreshModelClipnodes(app->pickInfo.modelIdx);
+							app->getSelectedRender()->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Replaced hull %d on model %d with a box-shaped hull\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -481,7 +481,7 @@ void Gui::draw3dContextMenus() {
 
 								if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
 									model.iHeadnodes[i] = model.iHeadnodes[k];
-									app->getSelectedMap()->refreshModelClipnodes(app->pickInfo.modelIdx);
+									app->getSelectedRender()->refreshModelClipnodes(app->pickInfo.modelIdx);
 									checkValidHulls();
 									logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
 								}
@@ -553,7 +553,7 @@ void Gui::draw3dContextMenus() {
 		}
 	}
 	else if (app->pickMode == PICK_FACE && app->pickInfo.valid) {
-		Bsp* map = app->pickInfo.map;
+		Bsp* map = app->getSelectedMap();
 
 		if (ImGui::BeginPopup("face_context"))
 		{
@@ -670,7 +670,7 @@ void Gui::drawMenuBar() {
 	if (ImGui::BeginMenu("File"))
 	{
 		if (ImGui::MenuItem("Save", NULL, false, !app->isLoading)) {
-			BspRenderer* mapRenderer = app->getSelectedMap();
+			BspRenderer* mapRenderer = app->getSelectedRender();
 			if (mapRenderer)
 			{
 				Bsp* map = mapRenderer->map;
@@ -698,7 +698,7 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("Close")) {
 			filterNeeded = true;
-			BspRenderer* mapRenderer = app->getSelectedMap();
+			BspRenderer* mapRenderer = app->getSelectedRender();
 			if (mapRenderer)
 			{
 				Bsp* map = mapRenderer->map;
@@ -787,7 +787,7 @@ void Gui::drawMenuBar() {
 			}
 
 			if (ImGui::BeginMenu(".bsp model")) {
-				BspRenderer* mapRenderer = app->getSelectedMap();
+				BspRenderer* mapRenderer = app->getSelectedRender();
 				if (mapRenderer)
 				{
 					Bsp* map = mapRenderer->map;
@@ -956,7 +956,7 @@ void Gui::drawMenuBar() {
 		bool canUndo = undoCmd && (!app->isLoading || undoCmd->allowedDuringLoad);
 		bool canRedo = redoCmd && (!app->isLoading || redoCmd->allowedDuringLoad);
 		bool entSelected = app->pickInfo.valid && app->pickInfo.ent;
-		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
+		bool mapSelected = app->pickInfo.valid && app->getSelectedMap();
 		bool nonWorldspawnEntSelected = entSelected && app->pickInfo.entIdx != 0;
 
 		if (ImGui::MenuItem(undoTitle.c_str(), "Ctrl+Z", false, canUndo)) {
@@ -1023,18 +1023,18 @@ void Gui::drawMenuBar() {
 
 		ImGui::Separator();
 
-		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
-		Bsp* map = mapSelected ? app->pickInfo.map : NULL;
+		bool mapSelected = app->pickInfo.valid && app->getSelectedMap();
+		Bsp* map = mapSelected ? app->getSelectedMap() : NULL;
 
 		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading && mapSelected)) {
-			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->getSelectedMapId(), app->undoLumpState);
+			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->getSelectedRenderId(), app->undoLumpState);
 			g_app->saveLumpState(map, 0xffffffff, false);
 			command->execute();
 			app->pushUndoCommand(command);
 		}
 
 		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
-			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->getSelectedMapId(), app->undoLumpState);
+			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->getSelectedRenderId(), app->undoLumpState);
 			g_app->saveLumpState(map, 0xffffffff, false);
 			command->execute();
 			app->pushUndoCommand(command);
@@ -1086,9 +1086,9 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Create"))
 	{
-		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
-		Bsp* map = mapSelected ? app->getSelectedMap()->map : NULL;
-		BspRenderer* renderer = mapSelected ? app->getSelectedMap() : NULL;
+		bool mapSelected = app->pickInfo.valid && app->getSelectedMap();
+		Bsp* map = mapSelected ? app->getSelectedRender()->map : NULL;
+		BspRenderer* renderer = mapSelected ? app->getSelectedRender() : NULL;
 
 		if (ImGui::MenuItem("Entity", 0, false, mapSelected)) {
 			Entity* newEnt = new Entity();
@@ -1098,7 +1098,7 @@ void Gui::drawMenuBar() {
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "info_player_deathmatch");
 
-			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->getSelectedMapId(), newEnt);
+			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->getSelectedRenderId(), newEnt);
 			delete newEnt;
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
@@ -1118,7 +1118,7 @@ void Gui::drawMenuBar() {
 				snapSize = 16;
 			}
 
-			CreateBspModelCommand* command = new CreateBspModelCommand("Create Model", app->getSelectedMapId(), newEnt, snapSize);
+			CreateBspModelCommand* command = new CreateBspModelCommand("Create Model", app->getSelectedRenderId(), newEnt, snapSize);
 			command->execute();
 			delete newEnt;
 			app->pushUndoCommand(command);
@@ -1214,8 +1214,8 @@ void Gui::drawToolbar() {
 		ImGui::SameLine();
 		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
 			if (app->pickInfo.valid && app->pickInfo.modelIdx >= 0) {
-				Bsp* map = app->pickInfo.map;
-				BspRenderer* mapRenderer = app->getSelectedMap();
+				Bsp* map = app->getSelectedMap();
+				BspRenderer* mapRenderer = app->getSelectedRender();
 				BSPMODEL& model = map->models[app->pickInfo.modelIdx];
 				for (int i = 0; i < model.nFaces; i++) {
 					int faceIdx = model.iFirstFace + i;
@@ -1386,7 +1386,7 @@ void Gui::drawDebugWidget() {
 		}
 
 		if (app->pickInfo.valid) {
-			Bsp* map = app->pickInfo.map;
+			Bsp* map = app->getSelectedMap();
 			Entity* ent = app->pickInfo.ent;
 
 			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1435,9 +1435,9 @@ void Gui::drawDebugWidget() {
 			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 
 				if (app->pickInfo.modelIdx >= 0) {
-					Bsp* map = app->pickInfo.map;
+					Bsp* map = app->getSelectedMap();
 
-					vec3 localCamera = app->cameraOrigin - app->getSelectedMap()->mapOffset;
+					vec3 localCamera = app->cameraOrigin - app->getSelectedRender()->mapOffset;
 
 					static ImVec4 hullColors[] = {
 						ImVec4(1, 1, 1, 1),
@@ -1507,7 +1507,7 @@ void Gui::drawKeyvalueEditor() {
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
 		if (app->pickInfo.valid && app->pickInfo.ent && app->fgd 
 			&& !app->isLoading && !app->isModelsReloading && !app->reloading) {
-			Bsp* map = app->pickInfo.map;
+			Bsp* map = app->getSelectedMap();
 			Entity* ent = app->pickInfo.ent;
 			BSPMODEL& model = map->models[app->pickInfo.modelIdx];
 			BSPFACE& face = map->faces[app->pickInfo.faceIdx];
@@ -1558,7 +1558,7 @@ void Gui::drawKeyvalueEditor() {
 						for (int k = 0; k < group.classes.size(); k++) {
 							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
 								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
-								app->getSelectedMap()->refreshEnt(app->pickInfo.entIdx);
+								app->getSelectedRender()->refreshEnt(app->pickInfo.entIdx);
 								app->pushEntityUndoState("Change Class");
 							}
 						}
@@ -1679,7 +1679,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			inputData[i].defaultValue = keyvalue.defaultValue;
 			inputData[i].entIdx = app->pickInfo.entIdx;
 			inputData[i].entRef = ent;
-			inputData[i].bspRenderer = app->getSelectedMap();
+			inputData[i].bspRenderer = app->getSelectedRender();
 
 			ImGui::SetNextItemWidth(inputWidth);
 			ImGui::AlignTextToFramePadding();
@@ -1708,7 +1708,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						if (ImGui::Selectable(choice.name.c_str(), selected)) {
 							ent->setOrAddKeyvalue(key, choice.svalue);
-							app->getSelectedMap()->refreshEnt(app->pickInfo.entIdx);
+							app->getSelectedRender()->refreshEnt(app->pickInfo.entIdx);
 							app->updateEntConnections();
 							app->pushEntityUndoState("Edit Keyvalue");
 						}
@@ -2001,7 +2001,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			keyIds[i].idx = i;
 			keyIds[i].entIdx = app->pickInfo.entIdx;
 			keyIds[i].entRef = ent;
-			keyIds[i].bspRenderer = app->getSelectedMap();
+			keyIds[i].bspRenderer = app->getSelectedRender();
 
 			if (invalidKey) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
@@ -2026,7 +2026,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			valueIds[i].idx = i;
 			valueIds[i].entIdx = app->pickInfo.entIdx;
 			valueIds[i].entRef = ent;
-			valueIds[i].bspRenderer = app->getSelectedMap();
+			valueIds[i].bspRenderer = app->getSelectedRender();
 
 			if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
@@ -2047,9 +2047,9 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
 			if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
 				ent->removeKeyvalue(key);
-				app->getSelectedMap()->refreshEnt(app->pickInfo.entIdx);
+				app->getSelectedRender()->refreshEnt(app->pickInfo.entIdx);
 				if (key == "model")
-					app->getSelectedMap()->preRenderEnts();
+					app->getSelectedRender()->preRenderEnts();
 				ignoreErrors = 2;
 				g_app->updateEntConnections();
 				g_app->pushEntityUndoState("Delete Keyvalue");
@@ -2081,7 +2081,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			keyName = baseKeyName + "#" + to_string(i + 2);
 		}
 		ent->addKeyvalue(keyName, "");
-		app->getSelectedMap()->refreshEnt(app->pickInfo.entIdx);
+		app->getSelectedRender()->refreshEnt(app->pickInfo.entIdx);
 		app->updateEntConnections();
 		ignoreErrors = 2;
 		app->pushEntityUndoState("Add Keyvalue");
@@ -2148,8 +2148,8 @@ void Gui::drawTransformWidget() {
 	Entity* ent = NULL;
 	BspRenderer* bspRenderer = NULL;
 	if (transformingEnt) {
-		bspRenderer = app->getSelectedMap();
-		Bsp* map = app->pickInfo.map;
+		bspRenderer = app->getSelectedRender();
+		Bsp* map = app->getSelectedMap();
 		ent = app->pickInfo.ent;
 	}
 
@@ -2431,7 +2431,7 @@ void Gui::drawTransformWidget() {
 				else if (app->transformTarget == TRANSFORM_OBJECT) {
 					int modelIdx = ent->getBspModelIdx();
 					app->scaleSelectedObject(sx, sy, sz);
-					app->getSelectedMap()->refreshModel(ent->getBspModelIdx());
+					app->getSelectedRender()->refreshModel(ent->getBspModelIdx());
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					logf("Scaling has no effect on origins\n");
@@ -3022,7 +3022,7 @@ void Gui::drawImportMapWidget() {
 						}
 						else
 						{
-							Bsp* map = g_app->getSelectedMap()->map;
+							Bsp* map = g_app->getSelectedRender()->map;
 							logf("Binding .bsp model to func_breakable.\n");
 							Entity* tmpEnt = new Entity("func_breakable");
 							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
@@ -3052,7 +3052,7 @@ void Gui::drawImportMapWidget() {
 void Gui::drawLimits() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
-	Bsp* map = app->pickInfo.valid ? app->getSelectedMap()->map : NULL;
+	Bsp* map = app->pickInfo.valid ? app->getSelectedRender()->map : NULL;
 	string title = map ? "Limits - " + map->name : "Limits";
 
 	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
@@ -3272,7 +3272,7 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 	
-	Bsp* map = app->getSelectedMap() ? app->getSelectedMap()->map : NULL;
+	Bsp* map = app->getSelectedRender() ? app->getSelectedRender()->map : NULL;
 
 	if (!map)
 	{
@@ -3302,8 +3302,8 @@ void Gui::drawEntityReport() {
 			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
 
-			filterNeeded = app->getSelectedMapId() != lastmapidx;
-			lastmapidx = app->getSelectedMapId();
+			filterNeeded = app->getSelectedRenderId() != lastmapidx;
+			lastmapidx = app->getSelectedRenderId();
 
 			if (filterNeeded) {
 				visibleEnts.clear();
@@ -3445,7 +3445,7 @@ void Gui::drawEntityReport() {
 					}
 					map->ents = newEnts;
 					app->deselectObject();
-					app->getSelectedMap()->preRenderEnts();
+					app->getSelectedRender()->preRenderEnts();
 					reloadLimits();
 					filterNeeded = true;
 				}
@@ -3850,8 +3850,8 @@ void Gui::drawLightMapTool() {
 			ImGui::EndTooltip();
 		}
 
-		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
-		if (map && app->selectedFaces.size() && app->getSelectedMapId() != -1)
+		Bsp* map = app->pickInfo.valid ? app->getSelectedMap() : NULL;
+		if (map && app->selectedFaces.size() && app->getSelectedRenderId() != -1)
 		{
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
@@ -3954,7 +3954,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			ImGui::SetNextItemWidth(100.f);
 			ImGui::Combo(" Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
-			app->getSelectedMap()->showLightFlag = type - 1;
+			app->getSelectedRender()->showLightFlag = type - 1;
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
 			{
@@ -3965,7 +3965,7 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
 				}
-				app->getSelectedMap()->reloadLightmaps();
+				app->getSelectedRender()->reloadLightmaps();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reload", ImVec2(120, 0)))
@@ -4007,8 +4007,8 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
-		BspRenderer* mapRenderer = app->getSelectedMap();
-		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
+		BspRenderer* mapRenderer = app->getSelectedRender();
+		Bsp* map = app->pickInfo.valid ? app->getSelectedMap() : NULL;
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
 			ImGui::Text("No face selected");
@@ -4404,7 +4404,7 @@ void Gui::checkFaceErrors() {
 	if (!app->pickInfo.valid)
 		return;
 
-	Bsp* map = app->pickInfo.map;
+	Bsp* map = app->getSelectedMap();
 
 	for (int i = 0; i < app->selectedFaces.size(); i++) {
 		int size[2];
