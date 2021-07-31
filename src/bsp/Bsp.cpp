@@ -1894,7 +1894,7 @@ void Bsp::write(string path) {
 	{
 		int len;
 		char* oldfile = loadFile(path, len);
-		ofstream file(path + ".bak", ios::out | ios::binary | ios::trunc);
+		ofstream file(path + ".bak", ios::trunc | ios::binary);
 		if (!file.is_open()) {
 			logf("Failed to open backup file for writing:\n%s\n", path.c_str());
 			return;
@@ -1905,7 +1905,7 @@ void Bsp::write(string path) {
 		delete[] oldfile;
 	}
 
-	ofstream file(path, ios::out | ios::binary | ios::trunc);
+	ofstream file(path, ios::trunc | ios::binary);
 	if (!file.is_open()) {
 		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
 		return;
@@ -3914,7 +3914,7 @@ void Bsp::write_csg_outputs(string path) {
 	header.lump[LUMP_PLANES].nLength = numPlanes * sizeof(BSPPLANE);
 	thisPlanes = newPlanes;
 
-	ofstream pln_file(path + name + ".pln", ios::out | ios::binary | ios::trunc);
+	ofstream pln_file(path + name + ".pln", ios::trunc | ios::binary);
 	for (int i = 0; i < numPlanes; i++) {
 		BSPPLANE& p = thisPlanes[i];
 		CSGPLANE csgplane = {
@@ -3944,14 +3944,14 @@ void Bsp::write_csg_outputs(string path) {
 		fclose(detailfile);
 	}
 
-	ofstream hsz_file(path + name + ".hsz", ios::out | ios::binary | ios::trunc);
+	ofstream hsz_file(path + name + ".hsz", ios::trunc | ios::binary);
 	const char* hullSizes = "0 0 0 0 0 0\n"
 							"-16 -16 -36 16 16 36\n"
 							"-32 -32 -32 32 32 32\n"
 							"-16 -16 -18 16 16 18\n";
 	hsz_file.write(hullSizes, strlen(hullSizes));
 
-	ofstream bsp_file(path + name + "_new.bsp", ios::out | ios::binary | ios::trunc);
+	ofstream bsp_file(path + name + "_new.bsp", ios::trunc | ios::binary);
 	// calculate lump offsets
 	int offset = sizeof(BSPHEADER);
 	for (int i = 0; i < HEADER_LUMPS; i++) {

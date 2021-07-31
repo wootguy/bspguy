@@ -8,8 +8,9 @@
 #include <map>
 
 AppSettings g_settings;
-string g_config_dir = getConfigDir();
-string g_settings_path = g_config_dir + "bspguy.cfg";
+string g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
+string g_config_dir = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() : getConfigDir();
+
 Renderer* g_app = NULL;
 
 // everything except VIS, ENTITIES, MARKSURFS
@@ -55,7 +56,7 @@ void window_close_callback(GLFWwindow* window)
 	logf("adios\n");
 }
 
-void AppSettings::loadDefault() 
+void AppSettings::loadDefault()
 {
 	settingLoaded = false;
 
@@ -141,7 +142,7 @@ void AppSettings::load() {
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "workingdir") { g_settings.workingdir = val; }
-			else if (key == "fgd") { fgdPaths.push_back(val);  }
+			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 		}
@@ -190,17 +191,9 @@ void AppSettings::load() {
 	g_settings.settingLoaded = true;
 }
 
-void AppSettings::save() {
-	if (!dirExists(g_config_dir)) {
-		createDir(g_config_dir);
-	}
-
-	if (!settingLoaded) // Settings not loaded. If save it can be broken!
-		return;
-
-	g_app->saveSettings();
-
-	ofstream file(g_settings_path.c_str(), ios::out || ios::trunc);
+void AppSettings::save(std::string path)
+{
+	ofstream file(g_settings_path, ios::trunc);
 	file << "window_width=" << g_settings.windowWidth << endl;
 	file << "window_height=" << g_settings.windowHeight << endl;
 	file << "window_x=" << g_settings.windowX << endl;
@@ -240,6 +233,30 @@ void AppSettings::save() {
 	file << "savebackup=" << g_settings.backUpMap << endl;
 }
 
+void AppSettings::save() {
+
+	if (!dirExists(g_config_dir)) {
+		createDir(g_config_dir);
+	}
+
+	if (!settingLoaded) // Settings not loaded. If save it can be broken!
+		return;
+
+	g_app->saveSettings();
+
+	save(g_settings_path);
+
+	ifstream file(g_settings_path);
+	if (!file.is_open())
+	{
+		logf("Error: No access to config file %s. Using WorkingDir instead\n", g_settings_path.c_str());
+		g_settings_path = GetCurrentWorkingDir() + "bspguy.cfg";
+		logf("New config path:%s\n", g_settings_path.c_str());
+		g_config_dir = GetCurrentWorkingDir();
+		save(g_settings_path);
+	}
+}
+
 int g_scroll = 0;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -263,10 +280,10 @@ Renderer::Renderer() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
 	window = glfwCreateWindow(g_settings.windowWidth, g_settings.windowHeight, "bspguy", NULL, NULL);
-	
+
 	if (g_settings.settingLoaded) {
 		glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
-		
+
 		// setting size again to fix issue where window is too small because it was
 		// moved to a monitor with a different DPI than the one it was created for
 		glfwSetWindowSize(window, g_settings.windowWidth, g_settings.windowHeight);
@@ -315,7 +332,7 @@ Renderer::Renderer() {
 	uint colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
 	glUniform4f(colorMultId, 1, 1, 1, 1);
 
-	
+
 	pickInfo.valid = false;
 
 
@@ -398,10 +415,10 @@ void Renderer::renderLoop() {
 	float lastTitleTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
-		if (glfwGetTime( ) - lastTitleTime > 0.1)
+		if (glfwGetTime() - lastTitleTime > 0.1)
 		{
-			lastTitleTime = glfwGetTime( );
-			if (BspRenderer * tmpRend = getSelectedMap())
+			lastTitleTime = glfwGetTime();
+			if (BspRenderer* tmpRend = getSelectedMap())
 			{
 				if (tmpRend->map && tmpRend->map->path.size())
 				{
@@ -414,7 +431,7 @@ void Renderer::renderLoop() {
 		float frameDelta = glfwGetTime() - lastFrameTime;
 		frameTimeScale = 0.05f / frameDelta;
 		float fps = 1.0f / frameDelta;
-		
+
 		//FIXME : frameTimeScale = 0.05f / frameDelta ???
 		frameTimeScale = 144.0f / fps;
 
@@ -424,7 +441,7 @@ void Renderer::renderLoop() {
 		model.loadIdentity();
 		model.rotateZ(spin);
 		model.rotateX(spin);
-		
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		setupView();
@@ -444,7 +461,7 @@ void Renderer::renderLoop() {
 			if (pickInfo.valid && g_app->getSelectedMapId() == i && pickMode == PICK_OBJECT) {
 				highlightEnt = pickInfo.entIdx;
 			}
-			
+
 			if (curMap && curMap->ents.size() && !isLoading)
 			{
 				if (curMap->is_model)
@@ -496,7 +513,7 @@ void Renderer::renderLoop() {
 				glDisable(GL_CULL_FACE);
 				int currentPlane = 0;
 				drawClipnodes(pickInfo.map, pickModel.iHeadnodes[1], currentPlane, debugInt);
-				debugIntMax = currentPlane-1;
+				debugIntMax = currentPlane - 1;
 				glEnable(GL_CULL_FACE);
 			}
 
@@ -626,7 +643,7 @@ void Renderer::reloadMaps() {
 	for (int i = 0; i < reloadPaths.size(); i++) {
 		addMap(new Bsp(reloadPaths[i]));
 	}
-	
+
 	clearUndoCommands();
 	clearRedoCommands();
 
@@ -717,7 +734,7 @@ void Renderer::drawModelVerts() {
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	Bsp* map = g_app->getSelectedMap()->map;
-	Entity* ent = map->ents[pickInfo.entIdx];	
+	Entity* ent = map->ents[pickInfo.entIdx];
 	vec3 mapOffset = g_app->getSelectedMap()->mapOffset;
 	vec3 renderOffset = mapOffset.flip();
 	vec3 localCameraOrigin = cameraOrigin - mapOffset;
@@ -870,7 +887,7 @@ void Renderer::controls() {
 
 	if (!io.WantCaptureKeyboard)
 		cameraOrigin += getMoveDir() * frameTimeScale;
-	
+
 	moveGrabbedEnt();
 
 	static bool oldWantTextInput = false;
@@ -1013,7 +1030,7 @@ void Renderer::cameraPickingControls() {
 				if (modelIdx >= 0)
 					g_app->getSelectedMap()->refreshModel(modelIdx);
 			}
-			
+
 			pickObject();
 			pickCount++;
 		}
@@ -1085,7 +1102,7 @@ void Renderer::applyTransform(bool forceUpdate) {
 				vec3 delta = transformedOrigin - oldOrigin;
 
 				g_progress.hide = true;
-				pickInfo.map->move(delta*-1, pickInfo.modelIdx);
+				pickInfo.map->move(delta * -1, pickInfo.modelIdx);
 				g_progress.hide = false;
 
 				oldOrigin = transformedOrigin;
@@ -1098,7 +1115,7 @@ void Renderer::applyTransform(bool forceUpdate) {
 						g_app->getSelectedMap()->refreshEnt(i);
 					}
 				}
-				
+
 				updateModelVerts();
 				//g_app->getSelectedMap()->reloadLightmaps();
 
@@ -1122,8 +1139,8 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 		}
 		else {
 			vec2 drag = mousePos - lastMousePos;
-			cameraAngles.z += drag.x * rotationSpeed*0.1f;
-			cameraAngles.x += drag.y * rotationSpeed*0.1f;
+			cameraAngles.z += drag.x * rotationSpeed * 0.1f;
+			cameraAngles.x += drag.y * rotationSpeed * 0.1f;
 
 			totalMouseDrag += vec2(fabs(drag.x), fabs(drag.y));
 
@@ -1164,7 +1181,7 @@ void Renderer::cameraObjectHovering() {
 		vertPick.bestDist = FLT_MAX;
 
 		vec3 entOrigin = pickInfo.ent->getOrigin();
-		
+
 		hoverEdge = -1;
 		if (!(anyVertSelected && !anyEdgeSelected)) {
 			for (int i = 0; i < modelEdges.size(); i++) {
@@ -1288,7 +1305,7 @@ void Renderer::moveGrabbedEnt() {
 		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOrigin) : newOrigin;
 
 		transformedOrigin = this->oldOrigin = rounded;
-		
+
 		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 		g_app->getSelectedMap()->refreshEnt(pickInfo.entIdx);
 		updateEntConnectionPositions();
@@ -1400,7 +1417,7 @@ void Renderer::pickObject() {
 		pickInfo.entIdx = -1;
 		gui->showLightmapEditorUpdate = true;
 
-		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {		
+		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {
 			bool select = true;
 			for (int i = 0; i < selectedFaces.size(); i++) {
 				if (selectedFaces[i] == pickInfo.faceIdx) {
@@ -1414,7 +1431,7 @@ void Renderer::pickObject() {
 
 			if (select)
 				selectedFaces.push_back(pickInfo.faceIdx);
-			
+
 		}
 	}
 
@@ -1496,7 +1513,7 @@ bool Renderer::transformAxisControls() {
 
 				//g_app->getSelectedMap()->refreshEnt(pickInfo.entIdx);
 			}
-			
+
 		}
 		else {
 			if (ent->isBspModel() && delta.length() != 0) {
@@ -1594,15 +1611,14 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 }
 
 BspRenderer* Renderer::getSelectedMap() {
-	for (int i = 0; i < mapRenderers.size(); i++)
+	for (auto const& s : mapRenderers)
 	{
-		BspRenderer* s = mapRenderers[i];
 		if (s->map && s->map->is_selected)
 		{
 			return s;
 		}
 	}
-	return mapRenderers.size() ? mapRenderers[0] : NULL;
+	return NULL;
 }
 
 int Renderer::getSelectedMapId() {
@@ -1623,7 +1639,7 @@ void Renderer::setSelectedMap(int id) {
 		BspRenderer* s = mapRenderers[i];
 		if (s->map)
 		{
-			mapRenderers[id]->map->is_selected = i == id;
+			s->map->is_selected = i == id;
 		}
 	}
 }
@@ -1637,11 +1653,11 @@ BspRenderer* Renderer::getMapContainingCamera() {
 
 		if (cameraOrigin.x > mins.x && cameraOrigin.y > mins.y && cameraOrigin.z > mins.z &&
 			cameraOrigin.x < maxs.x && cameraOrigin.y < maxs.y && cameraOrigin.z < maxs.z) {
-			return mapRenderers[i];
+			return map->GetBspRender();
 		}
 	}
 
-	return mapRenderers.size() ? mapRenderers[0] : NULL;
+	return NULL;
 }
 
 void Renderer::setupView() {
@@ -1762,7 +1778,7 @@ void Renderer::addMap(Bsp* map) {
 	gui->checkValidHulls();
 
 	// Pick default map
-	if (!pickInfo.map) 
+	if (!pickInfo.map)
 	{
 		pickInfo.modelIdx = -1;
 		pickInfo.faceIdx = -1;
@@ -1877,7 +1893,7 @@ void Renderer::updateDragAxes() {
 	Entity* ent = NULL;
 	vec3 mapOffset;
 
-	if (pickInfo.valid && 
+	if (pickInfo.valid &&
 		g_app->getSelectedMapId() >= 0 && g_app->getSelectedMapId() < mapRenderers.size() &&
 		pickInfo.entIdx >= 0 && pickInfo.entIdx < g_app->getSelectedMap()->map->ents.size()) {
 		map = g_app->getSelectedMap()->map;
@@ -1947,8 +1963,8 @@ void Renderer::updateDragAxes() {
 
 	float baseScale = (activeAxes.origin - localCameraOrigin).length() * 0.005f;
 	float s = baseScale;
-	float s2 = baseScale*2;
-	float d = baseScale*32;
+	float s2 = baseScale * 2;
+	float d = baseScale * 32;
 
 	// create the meshes
 	if (transformMode == TRANSFORM_SCALE) {
@@ -1970,7 +1986,7 @@ void Renderer::updateDragAxes() {
 			vec3(s, 0, s) + vec3(0,entMin.y,0), // y-
 			vec3(s, s, 0) + vec3(0,0,entMin.z)  // z-
 		};
-		
+
 		scaleAxes.model[0] = cCube(axisMins[0], axisMaxs[0], scaleAxes.dimColor[0]);
 		scaleAxes.model[1] = cCube(axisMins[1], axisMaxs[1], scaleAxes.dimColor[1]);
 		scaleAxes.model[2] = cCube(axisMins[2], axisMaxs[2], scaleAxes.dimColor[2]);
@@ -1981,13 +1997,13 @@ void Renderer::updateDragAxes() {
 
 		// flip to HL coords
 		cVert* verts = (cVert*)scaleAxes.model;
-		for (int i = 0; i < 6*6*6; i++) {
+		for (int i = 0; i < 6 * 6 * 6; i++) {
 			float tmp = verts[i].z;
 			verts[i].z = -verts[i].y;
 			verts[i].y = tmp;
 		}
 
- 		// larger mins/maxs so you can be less precise when selecting them
+		// larger mins/maxs so you can be less precise when selecting them
 		s *= 4;
 		vec3 grabAxisMins[6] = {
 			vec3(0, -s, -s) + vec3(entMax.x,0,0), // x+
@@ -2034,7 +2050,7 @@ void Renderer::updateDragAxes() {
 		activeAxes.maxs[2] = vec3(s, s, d);
 		activeAxes.maxs[3] = vec3(s2, s2, s2);
 	}
-	
+
 
 	if (draggingAxis >= 0 && draggingAxis < activeAxes.numAxes) {
 		activeAxes.model[draggingAxis].setColor(activeAxes.hoverColor[draggingAxis]);
@@ -2069,9 +2085,9 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 	// and ignores the plane being moved
 	int bestMovementPlane = 0;
 	switch (draggingAxis % 3) {
-		case 0: bestMovementPlane = dots[1] > dots[2] ? 1 : 2; break;
-		case 1: bestMovementPlane = dots[0] > dots[2] ? 0 : 2; break;
-		case 2: bestMovementPlane = dots[1] > dots[0] ? 1 : 0; break;
+	case 0: bestMovementPlane = dots[1] > dots[2] ? 1 : 2; break;
+	case 1: bestMovementPlane = dots[0] > dots[2] ? 0 : 2; break;
+	case 2: bestMovementPlane = dots[1] > dots[0] ? 1 : 0; break;
 	}
 
 	float fDist = ((float*)&origin)[bestMovementPlane];
@@ -2117,7 +2133,7 @@ void Renderer::updateModelVerts() {
 	if (pickInfo.ent) {
 		transformedOrigin = oldOrigin = pickInfo.ent->getOrigin();
 	}
-	
+
 	modelOriginBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, &modelOriginCube, 6 * 6);
 
 	updateSelectionSize();
@@ -2153,7 +2169,7 @@ void Renderer::updateSelectionSize() {
 	if (!pickInfo.valid || !pickInfo.map) {
 		return;
 	}
-	
+
 	if (pickInfo.modelIdx == 0) {
 		vec3 mins, maxs;
 		pickInfo.map->get_bounding_box(mins, maxs);
@@ -2205,7 +2221,7 @@ void Renderer::updateEntConnections() {
 
 			if (k == pickInfo.entIdx)
 				continue;
-			
+
 			bool isTarget = false;
 			if (ent->hasKey("targetname")) {
 				string tname = ent->keyvalues["targetname"];
@@ -2227,7 +2243,7 @@ void Renderer::updateEntConnections() {
 			}
 			else if (isCaller) {
 				callers.push_back(ent);
-			}			
+			}
 		}
 
 		if (targets.empty() && callers.empty() && callerAndTarget.empty()) {
@@ -2247,7 +2263,7 @@ void Renderer::updateEntConnections() {
 		int idx = 0;
 		int cidx = 0;
 		float s = 1.5f;
-		vec3 extent = vec3(s,s,s);
+		vec3 extent = vec3(s, s, s);
 
 		for (int i = 0; i < targets.size(); i++) {
 			vec3 ori = getEntOrigin(map, targets[i]).flip();
@@ -2481,7 +2497,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 
 	minDist = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	maxDist = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
-	
+
 	for (int i = 0; i < modelFaceVerts.size(); i++) {
 		expandBoundingBox(modelFaceVerts[i].pos, minDist, maxDist);
 	}
@@ -2517,9 +2533,9 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 			if (k == 2) refDist = scaleFromDist.z;
 
 			vec3 texFromDir;
-			if (k == 0) texFromDir = dir * vec3(1,0,0);
-			if (k == 1) texFromDir = dir * vec3(0,1,0);
-			if (k == 2) texFromDir = dir * vec3(0,0,1);
+			if (k == 0) texFromDir = dir * vec3(1, 0, 0);
+			if (k == 1) texFromDir = dir * vec3(0, 1, 0);
+			if (k == 2) texFromDir = dir * vec3(0, 0, 1);
 
 			float dotS = dotProduct(oldinfo.oldS.normalize(), stretchDir);
 			float dotT = dotProduct(oldinfo.oldT.normalize(), stretchDir);
@@ -2650,7 +2666,7 @@ void Renderer::splitFace() {
 		}
 
 		for (int i = 0; i < 2; i++)
-			splitPoints[i] += normal*4;
+			splitPoints[i] += normal * 4;
 	}
 
 	// replace split plane with 2 new slightly-angled planes
@@ -2785,7 +2801,7 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 
 		if (modelVerts[i].selected) {
 			vec3 delta = modelVerts[i].startPos - fromOrigin;
-			modelVerts[i].pos = fromOrigin + delta*vec3(x,y,z);
+			modelVerts[i].pos = fromOrigin + delta * vec3(x, y, z);
 			if (gridSnappingEnabled)
 				modelVerts[i].pos = snapToGrid(modelVerts[i].pos);
 			if (modelVerts[i].ptr)
@@ -2815,7 +2831,7 @@ vec3 Renderer::getCentroid(vector<TransformVert>& hullVerts) {
 vec3 Renderer::snapToGrid(vec3 pos) {
 	float snapSize = pow(2.0, gridSnapLevel);
 	float halfSnap = snapSize * 0.5f;
-	
+
 	int x = round((pos.x) / snapSize) * snapSize;
 	int y = round((pos.y) / snapSize) * snapSize;
 	int z = round((pos.z) / snapSize) * snapSize;
@@ -2845,7 +2861,7 @@ void Renderer::cutEnt() {
 	Bsp* map = g_app->getSelectedMap()->map;
 	copiedEnt = new Entity();
 	*copiedEnt = *map->ents[pickInfo.entIdx];
-	
+
 	DeleteEntityCommand* deleteCommand = new DeleteEntityCommand("Cut Entity", pickInfo);
 	deleteCommand->execute();
 	pushUndoCommand(deleteCommand);
@@ -3030,7 +3046,7 @@ void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
 	if (!pickInfo.valid || !pickInfo.ent || pickInfo.modelIdx <= 0) {
 		return;
 	}
-	
+
 	LumpState newLumps = pickInfo.map->duplicate_lumps(targetLumps);
 
 	bool differences[HEADER_LUMPS] = { false };
@@ -3044,7 +3060,7 @@ void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
 			}
 		}
 	}
-	
+
 	if (!anyDifference) {
 		logf("No differences detected\n");
 		return;

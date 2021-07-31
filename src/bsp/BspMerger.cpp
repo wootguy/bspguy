@@ -763,7 +763,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	mergedMap->update_ent_lump();
 
 	if (!noscript) {
-		ofstream entFile(output_name + ".ent", ios::out | ios::trunc);
+		ofstream entFile(output_name + ".ent", ios::trunc);
 		entFile.write((const char*)mergedMap->lumps[LUMP_ENTITIES], mergedMap->header.lump[LUMP_ENTITIES].nLength - 1);
 	}
 }

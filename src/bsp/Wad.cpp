@@ -184,7 +184,7 @@ bool Wad::write(WADTEX** textures, int numTex)
 
 bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 {
-	ofstream myFile(filename, ios::out | ios::binary | ios::trunc);
+	ofstream myFile(filename, ios::trunc | ios::binary);
 
 	header.szMagic[0] = 'W';
 	header.szMagic[1] = 'A';

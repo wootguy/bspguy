@@ -15,6 +15,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
+#include <stdio.h>
+#ifdef WIN32
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#endif
 
 #ifdef WIN32
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
@@ -101,7 +109,7 @@ char* loadFile(const string& fileName, int& length)
 
 bool writeFile(const string& fileName, const char* data, int len)
 {
-	ofstream file(fileName, ios::out | ios::binary | ios::trunc);
+	ofstream file(fileName, ios::trunc | ios::binary);
 	if (!file.is_open()) {
 		return false;
 	}
@@ -889,6 +897,7 @@ void fixupPath(char * path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash
 	fixupPath(tmpPath, startslash, endslash);
 	sprintf(path, "%s", tmpPath.c_str());
 }
+
 void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 {
 	if (path.empty())
@@ -951,6 +960,15 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 #endif
 }
 
+std::string GetCurrentWorkingDir() {
+	char buff[FILENAME_MAX];
+	GetCurrentDir(buff, FILENAME_MAX);
+#ifdef WIN32
+	return std::string(buff) + "\\";
+#else 
+	return std::string(buff) + "/";
+#endif
+}
 
 #ifdef WIN32
 void print_color(int colors)

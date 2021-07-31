@@ -78,6 +78,7 @@ struct AppSettings {
 	void loadDefault();
 	void load();
 	void save();
+	void save(std::string path);
 };
 
 class Renderer;

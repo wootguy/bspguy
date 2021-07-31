@@ -711,8 +711,8 @@ void Gui::drawMenuBar() {
 					{
 						if (app->mapRenderers[r]->map)
 							renders.push_back(app->mapRenderers[r]);
-						else
-							delete app->mapRenderers[r];
+						/*else
+							delete app->mapRenderers[r];*/
 					}
 					app->mapRenderers = renders;
 					app->pickInfo = PickInfo();
@@ -729,9 +729,9 @@ void Gui::drawMenuBar() {
 
 					if (map)
 					{
-						logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent"));
+						logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent").c_str());
 						createDir(g_settings.gamedir + g_settings.workingdir);
-						ofstream entFile(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"), ios::out | ios::trunc);
+						ofstream entFile(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"), ios::trunc);
 						map->update_ent_lump();
 						if (map->header.lump[LUMP_ENTITIES].nLength > 0)
 						{
@@ -903,7 +903,7 @@ void Gui::drawMenuBar() {
 					map->write(mapPath);
 					map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
 
-					ofstream entFile(entPath, ios::out | ios::trunc);
+					ofstream entFile(entPath, ios::trunc);
 					if (entFile.is_open()) {
 						logf("Writing %s\n", entPath.c_str());
 						entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
@@ -1157,7 +1157,6 @@ void Gui::drawMenuBar() {
 		}
 		ImGui::EndMenu();
 	}
-
 
 	if (ImGui::BeginMenu("Help"))
 	{
@@ -2788,7 +2787,7 @@ void Gui::drawSettings() {
 				for (auto & s : tmpFgdPaths)
 				{
 					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
 					g_settings.fgdPaths.push_back(s2);
 					s = s2;
 				}
@@ -2796,7 +2795,7 @@ void Gui::drawSettings() {
 				for (auto & s : tmpResPaths)
 				{
 					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
 					g_settings.resPaths.push_back(s2);
 					s = s2;
 				}
@@ -3386,9 +3385,9 @@ void Gui::drawEntityReport() {
 					int i = line;
 					int entIdx = visibleEnts[i];
 					Entity* ent = map->ents[entIdx];
-					string cname = ent->keyvalues["classname"];
+					string cname = ent->hasKey("classname") ? ent->keyvalues["classname"] : "";
 
-					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
+					if (cname.length() && ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
 						if (expected_key_mod_flags & ImGuiKeyModFlags_Ctrl) {
 							selectedItems[i] = !selectedItems[i];
 							lastSelect = i;
