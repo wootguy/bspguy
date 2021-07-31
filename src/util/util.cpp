@@ -6,6 +6,7 @@
 #include <cctype>
 #include <string.h>
 #include "Wad.h"
+#include <cfloat> 
 #include <stdarg.h>
 #ifdef WIN32
 #include <Windows.h>
