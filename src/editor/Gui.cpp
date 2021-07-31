@@ -2169,277 +2169,284 @@ void Gui::drawTransformWidget() {
 
 
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
-		ImGuiStyle& style = ImGui::GetStyle();
+		if (!ent)
+		{
+			ImGui::Text("No entity selected");
+		}
+		else
+		{
+			ImGuiStyle& style = ImGui::GetStyle();
 
-		bool shouldUpdateUi = lastPickCount != app->pickCount ||
-			app->draggingAxis != -1 ||
-			app->movingEnt ||
-			oldSnappingEnabled != app->gridSnappingEnabled ||
-			lastVertPickCount != app->vertPickCount ||
-			oldTransformTarget != app->transformTarget;
+			bool shouldUpdateUi = lastPickCount != app->pickCount ||
+				app->draggingAxis != -1 ||
+				app->movingEnt ||
+				oldSnappingEnabled != app->gridSnappingEnabled ||
+				lastVertPickCount != app->vertPickCount ||
+				oldTransformTarget != app->transformTarget;
 
-		TransformAxes& activeAxes = *(app->transformMode == TRANSFORM_SCALE ? &app->scaleAxes : &app->moveAxes);
+			TransformAxes& activeAxes = *(app->transformMode == TRANSFORM_SCALE ? &app->scaleAxes : &app->moveAxes);
 
-		if (shouldUpdateUi) {
-			if (transformingEnt) {
-				if (app->transformTarget == TRANSFORM_VERTEX) {
-					x = fx = last_fx = activeAxes.origin.x;
-					y = fy = last_fy = activeAxes.origin.y;
-					z = fz = last_fz = activeAxes.origin.z;
+			if (shouldUpdateUi) {
+				if (transformingEnt) {
+					if (app->transformTarget == TRANSFORM_VERTEX) {
+						x = fx = last_fx = activeAxes.origin.x;
+						y = fy = last_fy = activeAxes.origin.y;
+						z = fz = last_fz = activeAxes.origin.z;
+					}
+					else {
+						vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+						if (app->originSelected) {
+							ori = app->transformedOrigin;
+						}
+						x = fx = ori.x;
+						y = fy = ori.y;
+						z = fz = ori.z;
+					}
+
 				}
 				else {
-					vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-					if (app->originSelected) {
-						ori = app->transformedOrigin;
-					}
-					x = fx = ori.x;
-					y = fy = ori.y;
-					z = fz = ori.z;
+					x = fx = 0;
+					y = fy = 0;
+					z = fz = 0;
 				}
+				sx = sy = sz = 1;
+			}
 
+			oldTransformTarget = app->transformTarget;
+			oldSnappingEnabled = app->gridSnappingEnabled;
+			lastVertPickCount = app->vertPickCount;
+			lastPickCount = app->pickCount;
+
+			bool scaled = false;
+			bool originChanged = false;
+			guiHoverAxis = -1;
+
+			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
+			float inputWidth4 = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.25f;
+
+			static bool inputsWereDragged = false;
+			bool inputsAreDragging = false;
+
+			ImGui::Text("Move");
+			ImGui::PushItemWidth(inputWidth);
+
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 0;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
+				ImGui::SameLine();
+
+				if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 1;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
+				ImGui::SameLine();
+
+				if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 2;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
 			}
 			else {
-				x = fx = 0;
-				y = fy = 0;
-				z = fz = 0;
+				if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 0;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
+				ImGui::SameLine();
+
+				if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 1;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
+				ImGui::SameLine();
+
+				if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
+				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+					guiHoverAxis = 2;
+				if (ImGui::IsItemActive())
+					inputsAreDragging = true;
 			}
-			sx = sy = sz = 1;
-		}
 
-		oldTransformTarget = app->transformTarget;
-		oldSnappingEnabled = app->gridSnappingEnabled;
-		lastVertPickCount = app->vertPickCount;
-		lastPickCount = app->pickCount;
+			ImGui::PopItemWidth();
 
-		bool scaled = false;
-		bool originChanged = false;
-		guiHoverAxis = -1;
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 
-		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
-		float inputWidth4 = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.25f;
+			ImGui::Text("Scale");
+			ImGui::PushItemWidth(inputWidth);
 
-		static bool inputsWereDragged = false;
-		bool inputsAreDragging = false;
-
-		ImGui::Text("Move");
-		ImGui::PushItemWidth(inputWidth);
-
-		if (app->gridSnappingEnabled) {
-			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+			if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
 			ImGui::SameLine();
 
-			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+			if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
 			ImGui::SameLine();
 
-			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+			if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-		}
-		else {
-			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 0;
-			if (ImGui::IsItemActive())
-				inputsAreDragging = true;
-			ImGui::SameLine();
 
-			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 1;
-			if (ImGui::IsItemActive())
-				inputsAreDragging = true;
-			ImGui::SameLine();
+			if (inputsWereDragged && !inputsAreDragging) {
+				if (app->undoEntityState->getOrigin() != ent->getOrigin()) {
+					app->pushEntityUndoState("Move Entity");
+				}
 
-			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
-			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-				guiHoverAxis = 2;
-			if (ImGui::IsItemActive())
-				inputsAreDragging = true;
-		}
+				if (transformingEnt) {
+					app->applyTransform(true);
 
-		ImGui::PopItemWidth();
-
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-
-		ImGui::Text("Scale");
-		ImGui::PushItemWidth(inputWidth);
-
-		if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 0;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::SameLine();
-
-		if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 1;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::SameLine();
-
-		if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 2;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-
-		if (inputsWereDragged && !inputsAreDragging) {
-			if (app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
-				app->pushEntityUndoState("Move Entity");
+					if (app->gridSnappingEnabled) {
+						fx = last_fx = x;
+						fy = last_fy = y;
+						fz = last_fz = z;
+					}
+					else {
+						x = last_fx = fx;
+						y = last_fy = fy;
+						z = last_fz = fz;
+					}
+				}
 			}
+
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y * 3));
+			ImGui::PopItemWidth();
+
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y));
+			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
+
+
+			ImGui::Columns(4, 0, false);
+			ImGui::SetColumnWidth(0, inputWidth4);
+			ImGui::SetColumnWidth(1, inputWidth4);
+			ImGui::SetColumnWidth(2, inputWidth4);
+			ImGui::SetColumnWidth(3, inputWidth4);
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text("Target: "); ImGui::NextColumn();
+
+			ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
+			ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
+			ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
+
+			ImGui::Text("3D Axes: "); ImGui::NextColumn();
+			if (ImGui::RadioButton("Hide", &app->transformMode, TRANSFORM_NONE))
+				app->showDragAxes = false;
+
+			ImGui::NextColumn();
+			if (ImGui::RadioButton("Move", &app->transformMode, TRANSFORM_MOVE))
+				app->showDragAxes = true;
+
+			ImGui::NextColumn();
+			if (ImGui::RadioButton("Scale", &app->transformMode, TRANSFORM_SCALE))
+				app->showDragAxes = true;
+
+			ImGui::Columns(1);
+
+			const int grid_snap_modes = 11;
+			const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
+			static int current_element = app->gridSnapLevel + 1;
+
+			ImGui::Columns(2, 0, false);
+			ImGui::SetColumnWidth(0, inputWidth4);
+			ImGui::SetColumnWidth(1, inputWidth4 * 3);
+			ImGui::Text("Grid Snap:"); ImGui::NextColumn();
+			ImGui::SetNextItemWidth(inputWidth4 * 3);
+			if (ImGui::SliderInt("##gridsnap", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
+				app->gridSnapLevel = current_element - 1;
+				app->gridSnappingEnabled = current_element != 0;
+				originChanged = true;
+			}
+			ImGui::Columns(1);
+
+			ImGui::PushItemWidth(inputWidth);
+			ImGui::Checkbox("Texture lock", &app->textureLock);
+			ImGui::SameLine();
+			ImGui::TextDisabled("(WIP)");
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				ImGui::TextUnformatted("Doesn't work for angled faces yet. Applies to scaling only.");
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+			ImGui::PopItemWidth();
+
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
+			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
+			ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(false, "w ", "l ", "h")).c_str());
 
 			if (transformingEnt) {
-				app->applyTransform(true);
+				if (originChanged) {
+					if (app->transformTarget == TRANSFORM_VERTEX) {
+						vec3 delta;
+						if (app->gridSnappingEnabled) {
+							delta = vec3(x - last_fx, y - last_fy, z - last_fz);
+						}
+						else {
+							delta = vec3(fx - last_fx, fy - last_fy, fz - last_fz);
+						}
 
-				if (app->gridSnappingEnabled) {
-					fx = last_fx = x;
-					fy = last_fy = y;
-					fz = last_fz = z;
+						app->moveSelectedVerts(delta);
+					}
+					else if (app->transformTarget == TRANSFORM_OBJECT) {
+						vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+						newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
+
+						if (app->gridSnappingEnabled) {
+							fx = x;
+							fy = y;
+							fz = z;
+						}
+						else {
+							x = fx;
+							y = fy;
+							z = fz;
+						}
+
+						ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
+						bspRenderer->refreshEnt(app->pickInfo.entIdx);
+						app->updateEntConnectionPositions();
+					}
+					else if (app->transformTarget == TRANSFORM_ORIGIN) {
+						vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
+						newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
+
+						app->transformedOrigin = newOrigin;
+					}
 				}
-				else {
-					x = last_fx = fx;
-					y = last_fy = fy;
-					z = last_fz = fz;
+				if (scaled && ent->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
+					if (app->transformTarget == TRANSFORM_VERTEX) {
+						app->scaleSelectedVerts(sx, sy, sz);
+					}
+					else if (app->transformTarget == TRANSFORM_OBJECT) {
+						int modelIdx = ent->getBspModelIdx();
+						app->scaleSelectedObject(sx, sy, sz);
+						app->getSelectedRender()->refreshModel(ent->getBspModelIdx());
+					}
+					else if (app->transformTarget == TRANSFORM_ORIGIN) {
+						logf("Scaling has no effect on origins\n");
+					}
 				}
 			}
+
+			inputsWereDragged = inputsAreDragging;
 		}
-
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 3));
-		ImGui::PopItemWidth();
-
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-
-
-		ImGui::Columns(4, 0, false);
-		ImGui::SetColumnWidth(0, inputWidth4);
-		ImGui::SetColumnWidth(1, inputWidth4);
-		ImGui::SetColumnWidth(2, inputWidth4);
-		ImGui::SetColumnWidth(3, inputWidth4);
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text("Target: "); ImGui::NextColumn();
-
-		ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
-		ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
-		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
-
-		ImGui::Text("3D Axes: "); ImGui::NextColumn();
-		if (ImGui::RadioButton("Hide", &app->transformMode, TRANSFORM_NONE))
-			app->showDragAxes = false;
-
-		ImGui::NextColumn();
-		if (ImGui::RadioButton("Move", &app->transformMode, TRANSFORM_MOVE))
-			app->showDragAxes = true;
-
-		ImGui::NextColumn();
-		if (ImGui::RadioButton("Scale", &app->transformMode, TRANSFORM_SCALE))
-			app->showDragAxes = true;
-
-		ImGui::Columns(1);
-
-		const int grid_snap_modes = 11;
-		const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
-		static int current_element = app->gridSnapLevel + 1;
-
-		ImGui::Columns(2, 0, false);
-		ImGui::SetColumnWidth(0, inputWidth4);
-		ImGui::SetColumnWidth(1, inputWidth4 * 3);
-		ImGui::Text("Grid Snap:"); ImGui::NextColumn();
-		ImGui::SetNextItemWidth(inputWidth4 * 3);
-		if (ImGui::SliderInt("##gridsnap", &current_element, 0, grid_snap_modes - 1, element_names[current_element])) {
-			app->gridSnapLevel = current_element - 1;
-			app->gridSnappingEnabled = current_element != 0;
-			originChanged = true;
-		}
-		ImGui::Columns(1);
-
-		ImGui::PushItemWidth(inputWidth);
-		ImGui::Checkbox("Texture lock", &app->textureLock);
-		ImGui::SameLine();
-		ImGui::TextDisabled("(WIP)");
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::BeginTooltip();
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted("Doesn't work for angled faces yet. Applies to scaling only.");
-			ImGui::PopTextWrapPos();
-			ImGui::EndTooltip();
-		}
-		ImGui::PopItemWidth();
-
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(false, "w ", "l ", "h")).c_str());
-
-		if (transformingEnt) {
-			if (originChanged) {
-				if (app->transformTarget == TRANSFORM_VERTEX) {
-					vec3 delta;
-					if (app->gridSnappingEnabled) {
-						delta = vec3(x - last_fx, y - last_fy, z - last_fz);
-					}
-					else {
-						delta = vec3(fx - last_fx, fy - last_fy, fz - last_fz);
-					}
-
-					app->moveSelectedVerts(delta);
-				}
-				else if (app->transformTarget == TRANSFORM_OBJECT) {
-					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
-
-					if (app->gridSnappingEnabled) {
-						fx = x;
-						fy = y;
-						fz = z;
-					}
-					else {
-						x = fx;
-						y = fy;
-						z = fz;
-					}
-
-					ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
-					bspRenderer->refreshEnt(app->pickInfo.entIdx);
-					app->updateEntConnectionPositions();
-				}
-				else if (app->transformTarget == TRANSFORM_ORIGIN) {
-					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
-					newOrigin = app->gridSnappingEnabled ? app->snapToGrid(newOrigin) : newOrigin;
-
-					app->transformedOrigin = newOrigin;
-				}
-			}
-			if (scaled && ent->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
-				if (app->transformTarget == TRANSFORM_VERTEX) {
-					app->scaleSelectedVerts(sx, sy, sz);
-				}
-				else if (app->transformTarget == TRANSFORM_OBJECT) {
-					int modelIdx = ent->getBspModelIdx();
-					app->scaleSelectedObject(sx, sy, sz);
-					app->getSelectedRender()->refreshModel(ent->getBspModelIdx());
-				}
-				else if (app->transformTarget == TRANSFORM_ORIGIN) {
-					logf("Scaling has no effect on origins\n");
-				}
-			}
-		}
-
-		inputsWereDragged = inputsAreDragging;
 	}
 	ImGui::End();
 }
@@ -3850,8 +3857,8 @@ void Gui::drawLightMapTool() {
 			ImGui::EndTooltip();
 		}
 
-		Bsp* map = app->pickInfo.valid ? app->getSelectedMap() : NULL;
-		if (map && app->selectedFaces.size() && app->getSelectedRenderId() != -1)
+		Bsp* map = app->getSelectedMap();
+		if (map && app->selectedFaces.size())
 		{
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
@@ -4007,15 +4014,16 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
-		BspRenderer* mapRenderer = app->getSelectedRender();
-		Bsp* map = app->pickInfo.valid ? app->getSelectedMap() : NULL;
-		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
+		
+		Bsp* map = app->getSelectedMap();
+		if (map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
 			ImGui::Text("No face selected");
 			ImGui::End();
 			return;
 		}
-		if (!mapRenderer->texturesLoaded)
+		BspRenderer* mapRenderer = map->GetBspRender();
+		if (mapRenderer == NULL || !mapRenderer->texturesLoaded)
 		{
 			ImGui::Text("Loading textures...");
 			ImGui::End();
