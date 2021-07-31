@@ -27,11 +27,11 @@
 
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 
-#if (defined(_MSC_VER) && defined(__cpp_lib_filesystem)) || ((defined(__GNUC__) && (7 <= __GNUC_MAJOR__)))
+#if defined(__cpp_lib_filesystem) || ((defined(__GNUC__) && (7 <= __GNUC_MAJOR__)))
 #include <filesystem>
 namespace fs = std::filesystem;
 #define USE_FILESYSTEM
-#else
+#elif _MSC_VER > 1920
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #define USE_FILESYSTEM
