@@ -25,9 +25,7 @@
 #define GetCurrentDir getcwd
 #endif
 
-#ifdef WIN32
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-#endif
 
 #if (defined(_MSC_VER) && defined(__cpp_lib_filesystem)) || ((defined(__GNUC__) && (7 <= __GNUC_MAJOR__)))
 #include <filesystem>
