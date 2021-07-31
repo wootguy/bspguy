@@ -3026,8 +3026,8 @@ void Gui::drawImportMapWidget() {
 							logf("Binding .bsp model to func_breakable.\n");
 							Entity* tmpEnt = new Entity("func_breakable");
 							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
-							tmpEnt->setOrAddKeyvalue("gibmodel", "models/" + basename(Path));
-							tmpEnt->setOrAddKeyvalue("model", "models/" + basename(Path));
+							tmpEnt->setOrAddKeyvalue("gibmodel", ("models/" + basename(Path)));
+							tmpEnt->setOrAddKeyvalue("model", ("models/" + basename(Path)));
 							tmpEnt->setOrAddKeyvalue("spawnflags", "1");
 							map->ents.push_back(tmpEnt);
 							map->update_ent_lump();
