@@ -1562,7 +1562,6 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 				pickInfo.faceIdx = -1;
 				g_app->selectMap(map);
 				pickInfo.ent = map->ents[i];
-				pickInfo.valid = true;
 				foundBetterPick = true;
 			};
 		}
@@ -1593,7 +1592,6 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 		float t = pickInfo.bestDist;
 		if (pickFaceMath(start, dir, faceMath, t)) {
 			foundBetterPick = true;
-			pickInfo.valid = true;
 			pickInfo.bestDist = t;
 			pickInfo.faceIdx = model.iFirstFace + k;
 		}
@@ -1614,7 +1612,6 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 			float t = pickInfo.bestDist;
 			if (pickFaceMath(start, dir, faceMath, t)) {
 				foundBetterPick = true;
-				pickInfo.valid = true;
 				pickInfo.bestDist = t;
 				pickInfo.faceIdx = -1;
 			}

@@ -128,11 +128,12 @@ public:
 	BspRenderer* getMapContainingCamera();
 	BspRenderer* getSelectedRender();
 	Bsp* getSelectedMap();
-	int getSelectedRenderId();
+	int getSelectedMapId();
 	void selectMapId(int id);
 	void selectMap(Bsp* map);
 	void deselectMap(Bsp* map);
-
+	void clearSelection();
+	bool hasValidSelection();
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;

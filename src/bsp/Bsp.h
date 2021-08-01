@@ -43,7 +43,6 @@ public:
 	byte* visdata;
 
 	bool is_model = false;
-	bool is_selected = false;
 
 	int planeCount;
 	int texinfoCount;

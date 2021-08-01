@@ -87,8 +87,15 @@ struct PickInfo {
 	int modelIdx;
 	int faceIdx;
 	float bestDist;
-	bool valid;
-	Entity* ent = NULL;
+	Entity* ent;
+	Bsp* map;
+	PickInfo()
+	{
+		bestDist = 0.0f;
+		entIdx = modelIdx = faceIdx = -1;
+		ent = NULL;
+		map = NULL;
+	}
 };
 
 class BspRenderer {
