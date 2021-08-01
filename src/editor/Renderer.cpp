@@ -1189,7 +1189,7 @@ void Renderer::cameraObjectHovering() {
 		getPickRay(pickStart, pickDir);
 		PickInfo vertPick;
 		memset(&vertPick, 0, sizeof(PickInfo));
-		vertPick.bestDist = FLT_MAX;
+		vertPick.bestDist = FLT_MAX_COORD;
 
 		vec3 entOrigin = pickInfo.ent->getOrigin();
 
@@ -1225,7 +1225,7 @@ void Renderer::cameraObjectHovering() {
 		getPickRay(pickStart, pickDir);
 		PickInfo vertPick;
 		memset(&vertPick, 0, sizeof(PickInfo));
-		vertPick.bestDist = FLT_MAX;
+		vertPick.bestDist = FLT_MAX_COORD;
 
 		vec3 ori = transformedOrigin + mapOffset;
 		float s = (ori - cameraOrigin).length() * vertExtentFactor * 2.0f;
@@ -1245,7 +1245,7 @@ void Renderer::cameraObjectHovering() {
 		getPickRay(pickStart, pickDir);
 		PickInfo axisPick;
 		memset(&axisPick, 0, sizeof(PickInfo));
-		axisPick.bestDist = FLT_MAX;
+		axisPick.bestDist = FLT_MAX_COORD;
 
 		if (g_app->getSelectedRender() != NULL)
 		{
@@ -1261,7 +1261,7 @@ void Renderer::cameraObjectHovering() {
 
 			// center cube gets priority for selection (hard to select from some angles otherwise)
 			if (transformMode == TRANSFORM_MOVE) {
-				float bestDist = FLT_MAX;
+				float bestDist = FLT_MAX_COORD;
 				if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[3], origin + activeAxes.maxs[3], bestDist)) {
 					hoverAxis = 3;
 				}
@@ -1279,7 +1279,7 @@ void Renderer::cameraContextMenus() {
 
 		PickInfo tempPick;
 		memset(&tempPick, 0, sizeof(PickInfo));
-		tempPick.bestDist = FLT_MAX;
+		tempPick.bestDist = FLT_MAX_COORD;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, tempPick)) {
 
@@ -1392,7 +1392,7 @@ void Renderer::pickObject() {
 	getPickRay(pickStart, pickDir);
 	clearSelection();
 	int oldEntIdx = pickInfo.entIdx;
-	pickInfo.bestDist = FLT_MAX;
+	pickInfo.bestDist = FLT_MAX_COORD;
 
 	for (int i = 0; i < mapRenderers.size(); i++) {
 		mapRenderers[i]->preRenderEnts();
@@ -1954,8 +1954,8 @@ void Renderer::updateDragAxes() {
 
 		if (transformTarget == TRANSFORM_VERTEX) {
 			vec3 entOrigin = ent ? ent->getOrigin() : vec3();
-			vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-			vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+			vec3 min(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+			vec3 max(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 			int selectTotal = 0;
 			for (int i = 0; i < modelVerts.size(); i++) {
 				if (modelVerts[i].selected) {
@@ -2445,8 +2445,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 
 	bool scaleFromOrigin = fromDir.x == 0 && fromDir.y == 0 && fromDir.z == 0;
 
-	vec3 minDist = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	vec3 maxDist = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 minDist = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+	vec3 maxDist = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 
 	for (int i = 0; i < modelVerts.size(); i++) {
 		expandBoundingBox(modelVerts[i].startPos, minDist, maxDist);
@@ -2510,8 +2510,8 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	if (!textureLock)
 		return;
 
-	minDist = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	maxDist = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	minDist = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+	maxDist = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 
 	for (int i = 0; i < modelFaceVerts.size(); i++) {
 		expandBoundingBox(modelFaceVerts[i].pos, minDist, maxDist);
@@ -2750,7 +2750,7 @@ void Renderer::splitFace() {
 		for (int i = 0; i < newSolid.faces.size(); i++) {
 			Face& solidFace = newSolid.faces[i];
 			BSPFACE* bestMatch = NULL;
-			float bestdot = FLT_MIN;
+			float bestdot = FLT_MIN_COORD;
 			for (int k = 0; k < oldModel.nFaces; k++) {
 				BSPFACE& bspface = map->faces[oldModel.iFirstFace + k];
 				BSPPLANE& plane = map->planes[bspface.iPlane];
@@ -2792,8 +2792,8 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 	vec3 fromOrigin = activeAxes.origin;
 
-	vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-	vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 min(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+	vec3 max(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 	int selectTotal = 0;
 	for (int i = 0; i < modelVerts.size(); i++) {
 		if (modelVerts[i].selected) {

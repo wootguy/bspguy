@@ -417,8 +417,8 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 }
 
 vec2 getCenter(vector<vec2>& verts) {
-	vec2 maxs = vec2(FLT_MIN, FLT_MIN);
-	vec2 mins = vec2(FLT_MAX, FLT_MAX);
+	vec2 maxs = vec2(FLT_MIN_COORD, FLT_MIN_COORD);
+	vec2 mins = vec2(FLT_MAX_COORD, FLT_MAX_COORD);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -428,8 +428,8 @@ vec2 getCenter(vector<vec2>& verts) {
 }
 
 vec3 getCenter(vector<vec3>& verts) {
-	vec3 maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
-	vec3 mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	vec3 maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
+	vec3 mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -439,8 +439,8 @@ vec3 getCenter(vector<vec3>& verts) {
 }
 
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
-	maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
-	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
+	mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 
 	for (int i = 0; i < verts.size(); i++) {
 		expandBoundingBox(verts[i], mins, maxs);
@@ -638,7 +638,7 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
 	localVerts.erase(localVerts.begin() + 0);
 	for (int k = 0, sz = remainingVerts.size(); k < sz; k++) {
 		int bestIdx = 0;
-		float bestAngle = FLT_MAX;
+		float bestAngle = FLT_MAX_COORD;
 
 		for (int i = 0; i < remainingVerts.size(); i++) {
 			vec2 a = lastVert;
