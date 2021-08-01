@@ -133,7 +133,6 @@ public:
 	void selectMap(Bsp* map);
 	void deselectMap(Bsp* map);
 	void clearSelection();
-	bool hasValidSelection();
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
