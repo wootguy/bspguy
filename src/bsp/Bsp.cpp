@@ -56,6 +56,34 @@ void Bsp::init_empty_bsp()
 	valid = true;
 }
 
+void Bsp::selectModelEnt()
+{
+	if (!is_model || !ents.size())
+		return;
+	for (int i = 0; i < g_app->mapRenderers.size(); i++)
+	{
+		BspRenderer* mapRender = g_app->mapRenderers[i];
+		if (!mapRender)
+			continue;
+		Bsp* map = mapRender->map;
+		if (map && map != this)
+		{
+			vec3 worldOrigin = map->ents[0]->getOrigin();
+			for (int n = 1; n < map->ents.size(); n++)
+			{
+				if (map->ents[n]->hasKey("model") && (map->ents[n]->getOrigin() + worldOrigin) == ents[0]->getOrigin())
+				{
+					g_app->clearSelection();
+					g_app->selectMap(map);
+					g_app->pickInfo.ent = map->ents[n];
+					g_app->pickInfo.entIdx = n;
+					return;
+				}
+			}
+		}
+	}
+}
+
 Bsp::Bsp() {
 	this->init_empty_bsp();
 }
@@ -4095,8 +4123,7 @@ void Bsp::update_lump_pointers() {
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
-	//if (!is_model) // HEAP CORRUPTION WHEN DELETE [] AT MODEL EXPORT...
-		delete[] lumps[lumpIdx];
+	delete[] lumps[lumpIdx];
 	lumps[lumpIdx] = (byte*)newData;
 	header.lump[lumpIdx].nLength = newLength;
 	update_lump_pointers();

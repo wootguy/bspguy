@@ -2159,13 +2159,14 @@ void Gui::drawTransformWidget() {
 	BspRenderer* bspRenderer = app->getSelectedRender();
 	if (bspRenderer)
 	{
-		ent = app->pickInfo.ent;
 		Bsp* map = app->getSelectedMap();
-		if (map != NULL)
+		if (map)
 		{
-			transformingEnt = ( app->pickInfo.entIdx > 0 || map->is_model);
+			ent = app->pickInfo.ent;
+			transformingEnt = app->pickInfo.entIdx > 0;
 		}
 	}
+
 	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 
@@ -3045,10 +3046,10 @@ void Gui::drawImportMapWidget() {
 							Bsp* map = g_app->getSelectedRender()->map;
 							logf("Binding .bsp model to func_breakable.\n");
 							Entity* tmpEnt = new Entity("func_breakable");
-							tmpEnt->setOrAddKeyvalue("origin", model->ents[0]->getOrigin().toKeyvalueString());
 							tmpEnt->setOrAddKeyvalue("gibmodel", std::string("models/") + basename(Path));
 							tmpEnt->setOrAddKeyvalue("model", std::string("models/") + basename(Path));
 							tmpEnt->setOrAddKeyvalue("spawnflags", "1");
+							tmpEnt->setOrAddKeyvalue("origin", g_app->cameraOrigin.toKeyvalueString());
 							map->ents.push_back(tmpEnt);
 							map->update_ent_lump();
 							logf("Success! Now you needs to copy model to path: %s\n", (std::string("models/") + basename(Path)).c_str());
@@ -3076,7 +3077,7 @@ void Gui::drawLimits() {
 
 	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
 
-		if (map == NULL) {
+		if (!map) {
 			ImGui::Text("No map selected");
 		}
 		else {
@@ -3300,7 +3301,7 @@ void Gui::drawEntityReport() {
 	string title = map ? "Entity Report - " + map->name : "Entity Report";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
-		if (map == NULL) {
+		if (!map) {
 			ImGui::Text("No map selected");
 		}
 		else {
@@ -4027,7 +4028,7 @@ void Gui::drawTextureTool() {
 		static bool validTexture = true;
 
 		Bsp* map = app->getSelectedMap();
-		if (map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
+		if (!map || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
 			ImGui::Text("No face selected");
 			ImGui::End();

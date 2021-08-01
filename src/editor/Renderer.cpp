@@ -473,6 +473,7 @@ void Renderer::renderLoop() {
 						Bsp* anotherMap = mapRenderers[n]->map;
 						if (anotherMap && anotherMap->ents.size())
 						{
+							vec3 anotherMapOrigin = anotherMap->ents[0]->getOrigin();
 							for (int s = 0; s < anotherMap->ents.size(); s++)
 							{
 								Entity* tmpEnt = anotherMap->ents[s];
@@ -482,7 +483,7 @@ void Renderer::renderLoop() {
 									{
 										if (basename(tmpEnt->keyvalues["model"]) == basename(curMap->path))
 										{
-											curMap->ents[0]->setOrAddKeyvalue("origin", tmpEnt->getOrigin().toKeyvalueString());
+											curMap->ents[0]->setOrAddKeyvalue("origin", (tmpEnt->getOrigin() + anotherMapOrigin).toKeyvalueString());
 											modelidskip.insert(s);
 											break;
 										}
@@ -552,10 +553,22 @@ void Renderer::renderLoop() {
 		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
 		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
 		bool isTransformingWorld = pickInfo.entIdx == 0 && transformTarget != TRANSFORM_OBJECT;
-		if (showDragAxes && !movingEnt && !isTransformingWorld && pickInfo.entIdx >= 0  && (isTransformingValid || isMovingOrigin)) {
-			drawTransformAxes();
+		if (showDragAxes) {
+			if (!movingEnt && !isTransformingWorld && pickInfo.entIdx >= 0 && (isTransformingValid || isMovingOrigin))
+			{
+				drawTransformAxes();
+			} 
 		}
-
+		if (pickInfo.entIdx == 0)
+		{
+			Bsp* map = getSelectedMap();
+			if (map->is_model)
+			{
+				map->selectModelEnt();
+				if (pickInfo.entIdx == 0)
+					pickInfo.entIdx = -1;
+			}
+		}
 		if ( pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
 			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
 				drawModelVerts();
@@ -1273,7 +1286,7 @@ void Renderer::cameraContextMenus() {
 			}
 		}
 
-		if (tempPick.entIdx != 0 || (tempPick.map && tempPick.map->is_model) && tempPick.entIdx == pickInfo.entIdx) {
+		if (tempPick.entIdx != 0 && tempPick.entIdx == pickInfo.entIdx) {
 			selectMap(tempPick.map);
 			gui->openContextMenu(pickInfo.entIdx);
 		}
@@ -1383,12 +1396,12 @@ void Renderer::pickObject() {
 
 	for (int i = 0; i < mapRenderers.size(); i++) {
 		mapRenderers[i]->preRenderEnts();
-		if (mapRenderers[i]->map != NULL && mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, pickInfo)) {
+		if (mapRenderers[i]->map && mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, pickInfo)) {
 
 		}
 	}
 
-	if (pickInfo.map != NULL)
+	if (pickInfo.map)
 		selectMap(pickInfo.map);
 
 	if (movingEnt && oldEntIdx != pickInfo.entIdx) {
@@ -1750,19 +1763,10 @@ void Renderer::reloadBspModels()
 				{
 					for (int i = 0; i < tryPaths.size(); i++) {
 						string tryPath = tryPaths[i] + modelPath;
-						string tryPath_full = g_settings.gamedir + tryPaths[i] + modelPath;
+						if (!fileExists(tryPath))
+							tryPath = g_settings.gamedir + tryPaths[i] + modelPath;
 						if (fileExists(tryPath)) {
 							Bsp* tmpBsp = new Bsp(tryPath);
-							tmpBsp->is_model = true;
-							if (tmpBsp->valid)
-							{
-								BspRenderer* mapRenderer = new BspRenderer(tmpBsp, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
-								mapRenderers.push_back(mapRenderer);
-							}
-							break;
-						}
-						if (fileExists(tryPath_full)) {
-							Bsp* tmpBsp = new Bsp(tryPath_full);
 							tmpBsp->is_model = true;
 							if (tmpBsp->valid)
 							{

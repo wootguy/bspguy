@@ -125,6 +125,7 @@ public:
 
 
 
+	PickInfo pickInfo = PickInfo();
 	BspRenderer* getMapContainingCamera();
 	BspRenderer* getSelectedRender();
 	Bsp* getSelectedMap();
@@ -133,6 +134,7 @@ public:
 	void selectMap(Bsp* map);
 	void deselectMap(Bsp* map);
 	void clearSelection();
+
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
@@ -229,7 +231,6 @@ private:
 	bool anyAltPressed;
 	bool anyShiftPressed;
 
-	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 
