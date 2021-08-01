@@ -2160,16 +2160,20 @@ void Gui::drawGOTOWidget() {
 	ImGui::End();
 }
 void Gui::drawTransformWidget() {
-	bool transformingEnt = app->hasValidSelection() && app->pickInfo.entIdx > 0;
-
+	
+	bool transformingEnt = false;
 	Entity* ent = NULL;
 	BspRenderer* bspRenderer = NULL;
-	if (transformingEnt) {
+	if (app->hasValidSelection())
+	{
 		bspRenderer = app->getSelectedRender();
-		Bsp* map = app->getSelectedMap();
 		ent = app->pickInfo.ent;
+		Bsp* map = app->getSelectedMap();
+		if (map != NULL)
+		{
+			transformingEnt = app->hasValidSelection() && ( app->pickInfo.entIdx > 0 || map->is_model);
+		}
 	}
-
 	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 

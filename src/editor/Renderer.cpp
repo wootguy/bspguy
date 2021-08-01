@@ -494,8 +494,8 @@ void Renderer::renderLoop() {
 				}
 			}
 
-			if (getSelectedRender() == curMap->GetBspRender() || curMap->is_model)
-				mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
+			//if (getSelectedRender() == curMap->GetBspRender() || curMap->is_model)
+			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
@@ -1793,7 +1793,7 @@ void Renderer::reloadBspModels()
 void Renderer::addMap(Bsp* map) {
 	if (!map->is_model)
 	{
-		deselectMap(NULL);
+		clearSelection();
 		selectMap(map);
 	}
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
