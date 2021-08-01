@@ -551,7 +551,7 @@ void Renderer::renderLoop() {
 
 		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
 		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
-		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
 		bool isTransformingWorld = pickInfo.entIdx == 0 && transformTarget != TRANSFORM_OBJECT;
 		if (showDragAxes) {
 			if (!movingEnt && !isTransformingWorld && pickInfo.entIdx >= 0 && (isTransformingValid || isMovingOrigin))
@@ -1925,6 +1925,7 @@ void Renderer::updateDragAxes() {
 	// set origin of the axes
 	if (transformMode == TRANSFORM_SCALE) {
 		if (ent != NULL && ent->isBspModel()) {
+
 			map->get_model_vertex_bounds(ent->getBspModelIdx(), entMin, entMax);
 			vec3 modelOrigin = entMin + (entMax - entMin) * 0.5f;
 

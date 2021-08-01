@@ -1515,8 +1515,8 @@ void Gui::drawDebugWidget() {
 			ImGui::Text("isTransformingValid %d", isTransformingValid);
 			ImGui::Text("isTransformingWorld %d", isTransformingWorld);
 
-			ImGui::Text("showDragAxes %d\nmovingEnt %d\n",
-				g_app->showDragAxes, g_app->movingEnt);
+			ImGui::Text("showDragAxes %d\nmovingEnt %d\ncanTransform %d",
+				g_app->showDragAxes, g_app->movingEnt,g_app->canTransform);
 
 
 		}

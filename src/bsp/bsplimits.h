@@ -27,3 +27,7 @@
 #define MAX_VAL_LEN 4096 // not sure if this includes the null char
 
 #define MAXLIGHTMAPS    4
+
+
+#define FLT_MAX_COORD (MAX_MAP_COORD * 1.0)
+#define FLT_MIN_COORD (MAX_MAP_COORD * -1.0)

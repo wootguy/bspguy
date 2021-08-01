@@ -174,11 +174,40 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 }
 
 void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
-	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+	maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 
 	BSPMODEL& model = models[modelIdx];
+	/*auto verts = getModelVerts(modelIdx);
+	for (auto const& s : verts)
+	{
+		if (s.pos.x < mins.x)
+		{
+			mins.x = s.pos.x;
+		}
+		if (s.pos.y < mins.y)
+		{
+			mins.y = s.pos.y;
+		}
+		if (s.pos.z < mins.z)
+		{
+			mins.z = s.pos.z;
+		}
 
+		if (s.pos.x > maxs.x)
+		{
+			maxs.x = s.pos.x;
+		}
+		if (s.pos.y > maxs.y)
+		{
+			maxs.y = s.pos.y;
+		}
+		if (s.pos.z > maxs.z)
+		{
+			maxs.z = s.pos.z;
+		}
+	}
+	*/
 	for (int i = 0; i < model.nFaces; i++) {
 		BSPFACE& face = faces[model.iFirstFace + i];
 
@@ -3250,8 +3279,8 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	targetModel->iFirstFace = startFace;
 	targetModel->nFaces = 6;
 
-	targetModel->nMaxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
-	targetModel->nMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	targetModel->nMaxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
+	targetModel->nMins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 	for (int i = 0; i < 8; i++) {
 		vec3 v = verts[startVert + i];
 
@@ -3424,8 +3453,8 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 	targetModel->iFirstFace = startFace;
 	targetModel->nFaces = solid.faces.size();
 
-	targetModel->nMaxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
-	targetModel->nMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	targetModel->nMaxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
+	targetModel->nMins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 	for (int i = 0; i < solid.hullVerts.size(); i++) {
 		vec3 v = verts[startVert + i];
 		expandBoundingBox(v, targetModel->nMins, targetModel->nMaxs);
@@ -3526,8 +3555,8 @@ void Bsp::simplify_model_collision(int modelIdx, int hullIdx) {
 		return;
 	}
 
-	vec3 vertMin(FLT_MAX, FLT_MAX, FLT_MAX);
-	vec3 vertMax(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 vertMin(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
+	vec3 vertMax(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 	get_model_vertex_bounds(modelIdx, vertMin, vertMax);
 
 	create_clipnode_box(vertMin, vertMax, &model, hullIdx, true);
