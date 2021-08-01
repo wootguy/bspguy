@@ -1502,7 +1502,23 @@ void Gui::drawDebugWidget() {
 			ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", app->debugVec3.x, app->debugVec3.y, app->debugVec3.z);
 
 			float mb = app->undoMemoryUsage / (1024.0f * 1024.0f);
-			ImGui::Text("Undo Memory Usage: %.2f MB\n", mb);
+			ImGui::Text("Undo Memory Usage: %.2f MB", mb);
+
+
+			bool isScalingObject = g_app->transformMode == TRANSFORM_SCALE && g_app->transformTarget == TRANSFORM_OBJECT;
+			bool isMovingOrigin = g_app->transformMode == TRANSFORM_MOVE && g_app->transformTarget == TRANSFORM_ORIGIN && g_app->originSelected;
+			bool isTransformingValid = ((g_app->isTransformableSolid && !g_app->modelUsesSharedStructures) || !isScalingObject) && g_app->transformTarget != TRANSFORM_ORIGIN;
+			bool isTransformingWorld = g_app->pickInfo.entIdx == 0 && g_app->transformTarget != TRANSFORM_OBJECT;
+			
+			ImGui::Text("isScalingObject %d", isScalingObject);
+			ImGui::Text("isMovingOrigin %d",  isMovingOrigin);
+			ImGui::Text("isTransformingValid %d", isTransformingValid);
+			ImGui::Text("isTransformingWorld %d", isTransformingWorld);
+
+			ImGui::Text("showDragAxes %d\nmovingEnt %d\n",
+				g_app->showDragAxes, g_app->movingEnt);
+
+
 		}
 	}
 	ImGui::End();
