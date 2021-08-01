@@ -269,14 +269,16 @@ void ExportModel(Bsp* map, int id)
 
 	tmpMap->ents.clear();
 
-	tmpEnt->setOrAddKeyvalue("origin", vec3(0,0,0).toKeyvalueString());
+	tmpEnt->setOrAddKeyvalue("origin", vec3(0, 0, 0).toKeyvalueString());
 	tmpEnt->setOrAddKeyvalue("compiler", g_version_string);
 	tmpEnt->setOrAddKeyvalue("message", "bsp model");
 	tmpMap->ents.push_back(tmpEnt);
 
 	tmpMap->update_ent_lump();
 
-	tmpMap->replace_lump(LUMP_MODELS, tmpMap->models, sizeof(tmpModel));
+	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
+	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
+	tmpMap->update_lump_pointers();
 
 	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
 	if (!removed.allZero())
@@ -626,7 +628,7 @@ bool ExportWad(Bsp* map)
 void ImportWad(Bsp* map, Renderer* app)
 {
 	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
-	
+
 	if (!tmpWad->readInfo())
 	{
 		logf("Parsing wad file failed!\n");
@@ -719,7 +721,7 @@ void Gui::drawMenuBar() {
 				}
 			}
 		}
-		
+
 		if (ImGui::BeginMenu("Export", !app->isLoading)) {
 			if (ImGui::MenuItem("Entity file", NULL)) {
 				BspRenderer* render = app->getMapContainingCamera();
@@ -850,8 +852,8 @@ void Gui::drawMenuBar() {
 				}
 			}
 
-			
-			
+
+
 			if (ImGui::MenuItem("Merge with .wad", NULL)) {
 				BspRenderer* render = app->getMapContainingCamera();
 				if (render)
@@ -880,7 +882,7 @@ void Gui::drawMenuBar() {
 					}
 				}
 			}
-		
+
 			ImGui::EndMenu();
 		}
 
@@ -1215,12 +1217,15 @@ void Gui::drawToolbar() {
 		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
 			if (app->hasValidSelection() && app->pickInfo.modelIdx >= 0) {
 				Bsp* map = app->getSelectedMap();
-				BspRenderer* mapRenderer = app->getSelectedRender();
-				BSPMODEL& model = map->models[app->pickInfo.modelIdx];
-				for (int i = 0; i < model.nFaces; i++) {
-					int faceIdx = model.iFirstFace + i;
-					mapRenderer->highlightFace(faceIdx, true);
-					app->selectedFaces.push_back(faceIdx);
+				if (map)
+				{
+					BspRenderer* mapRenderer = map->GetBspRender( );
+					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
+					for (int i = 0; i < model.nFaces; i++) {
+						int faceIdx = model.iFirstFace + i;
+						mapRenderer->highlightFace(faceIdx, true);
+						app->selectedFaces.push_back(faceIdx);
+					}
 				}
 			}
 			app->deselectObject();
@@ -1388,43 +1393,49 @@ void Gui::drawDebugWidget() {
 		if (app->hasValidSelection()) {
 			Bsp* map = app->getSelectedMap();
 			Entity* ent = app->pickInfo.ent;
-
-			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
+			if (!map || !ent)
 			{
-				ImGui::Text("Name: %s", map->name.c_str());
+				ImGui::Text("No map selected");
 			}
-
-			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
+			else
 			{
-				ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
-
-				if (app->pickInfo.modelIdx > 0) {
-					ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
-					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
-
-					ImGui::Checkbox("Debug nodes", &app->debugNodes);
-					ImGui::SliderInt("Node", &app->debugNode, 0, app->debugNodeMax);
+				if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::Text("Name: %s", map->name.c_str());
 				}
 
-				if (app->pickInfo.faceIdx != -1) {
-					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
-					BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+				if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
 
-					ImGui::Text("Model ID: %d", app->pickInfo.modelIdx);
-					ImGui::Text("Model polies: %d", model.nFaces);
+					if (app->pickInfo.modelIdx > 0) {
+						ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
+						ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
 
-					ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
-					ImGui::Text("Plane ID: %d", face.iPlane);
-
-					if (face.iTextureInfo < map->texinfoCount) {
-						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-						int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
-						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-						ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
-						ImGui::Text("Texture ID: %d", info.iMiptex);
-						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
+						ImGui::Checkbox("Debug nodes", &app->debugNodes);
+						ImGui::SliderInt("Node", &app->debugNode, 0, app->debugNodeMax);
 					}
-					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
+
+					if (app->pickInfo.faceIdx != -1) {
+						BSPMODEL& model = map->models[app->pickInfo.modelIdx];
+						BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+
+						ImGui::Text("Model ID: %d", app->pickInfo.modelIdx);
+						ImGui::Text("Model polies: %d", model.nFaces);
+
+						ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
+						ImGui::Text("Plane ID: %d", face.iPlane);
+
+						if (face.iTextureInfo < map->texinfoCount) {
+							BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+							int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+							BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+							ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
+							ImGui::Text("Texture ID: %d", info.iMiptex);
+							ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
+						}
+						ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
+					}
 				}
 			}
 
@@ -1436,41 +1447,47 @@ void Gui::drawDebugWidget() {
 
 				if (app->pickInfo.modelIdx >= 0) {
 					Bsp* map = app->getSelectedMap();
+					if (!map)
+					{
+						ImGui::Text("No map selected");
+					}
+					else 
+					{
+						vec3 localCamera = app->cameraOrigin - map->GetBspRender()->mapOffset;
 
-					vec3 localCamera = app->cameraOrigin - app->getSelectedRender()->mapOffset;
+						static ImVec4 hullColors[] = {
+							ImVec4(1, 1, 1, 1),
+							ImVec4(0.3, 1, 1, 1),
+							ImVec4(1, 0.3, 1, 1),
+							ImVec4(1, 1, 0.3, 1),
+						};
 
-					static ImVec4 hullColors[] = {
-						ImVec4(1, 1, 1, 1),
-						ImVec4(0.3, 1, 1, 1),
-						ImVec4(1, 0.3, 1, 1),
-						ImVec4(1, 1, 0.3, 1),
-					};
+						for (int i = 0; i < MAX_MAP_HULLS; i++) {
+							vector<int> nodeBranch;
+							int leafIdx;
+							int childIdx = -1;
+							int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
+							int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
 
-					for (int i = 0; i < MAX_MAP_HULLS; i++) {
-						vector<int> nodeBranch;
-						int leafIdx;
-						int childIdx = -1;
-						int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
-						int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
+							ImGui::PushStyleColor(ImGuiCol_Text, hullColors[i]);
+							if (ImGui::TreeNode(("HULL " + to_string(i)).c_str()))
+							{
+								ImGui::Indent();
+								ImGui::Text("Contents: %s", map->getLeafContentsName(contents));
+								if (i == 0) {
+									ImGui::Text("Leaf: %d", leafIdx);
+								}
+								ImGui::Text("Parent Node: %d (child %d)",
+									nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
+									childIdx);
+								ImGui::Text("Head Node: %d", headNode);
+								ImGui::Text("Depth: %d", nodeBranch.size());
 
-						ImGui::PushStyleColor(ImGuiCol_Text, hullColors[i]);
-						if (ImGui::TreeNode(("HULL " + to_string(i)).c_str()))
-						{
-							ImGui::Indent();
-							ImGui::Text("Contents: %s", map->getLeafContentsName(contents));
-							if (i == 0) {
-								ImGui::Text("Leaf: %d", leafIdx);
+								ImGui::Unindent();
+								ImGui::TreePop();
 							}
-							ImGui::Text("Parent Node: %d (child %d)",
-								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
-								childIdx);
-							ImGui::Text("Head Node: %d", headNode);
-							ImGui::Text("Depth: %d", nodeBranch.size());
-
-							ImGui::Unindent();
-							ImGui::TreePop();
+							ImGui::PopStyleColor();
 						}
-						ImGui::PopStyleColor();
 					}
 				}
 				else {
@@ -1505,7 +1522,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->hasValidSelection() && app->pickInfo.ent && app->fgd 
+		if (app->hasValidSelection() && app->pickInfo.ent && app->fgd
 			&& !app->isLoading && !app->isModelsReloading && !app->reloading) {
 			Bsp* map = app->getSelectedMap();
 			Entity* ent = app->pickInfo.ent;
@@ -1598,8 +1615,8 @@ void Gui::drawKeyvalueEditor() {
 		else {
 			if (!app->hasValidSelection() || !app->pickInfo.ent)
 				ImGui::Text("No entity selected");
-			else 
-				ImGui::Text("No fgd loaded"); 
+			else
+				ImGui::Text("No fgd loaded");
 		}
 
 	}
@@ -1644,7 +1661,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			for (int i = 0; i < fgdClass->keyvalues.size(); i++) {
 				KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
 				string key = keyvalue.name;
-				if (key == "model") 
+				if (key == "model")
 				{
 					foundmodel = true;
 				}
@@ -1730,7 +1747,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						InputData* inputData = (InputData*)data->UserData;
 						Entity* ent = inputData->entRef;
-						
+
 						string newVal = data->Buf;
 
 						bool needReloadModel = false;
@@ -2611,7 +2628,7 @@ void Gui::drawSettings() {
 
 		int pathWidth = ImGui::GetWindowWidth() - 60;
 		int delWidth = 50;
-		
+
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
@@ -2791,7 +2808,7 @@ void Gui::drawSettings() {
 				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
 
 				g_settings.fgdPaths.clear();
-				for (auto & s : tmpFgdPaths)
+				for (auto& s : tmpFgdPaths)
 				{
 					std::string s2 = s.c_str();
 					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
@@ -2799,7 +2816,7 @@ void Gui::drawSettings() {
 					s = s2;
 				}
 				g_settings.resPaths.clear();
-				for (auto & s : tmpResPaths)
+				for (auto& s : tmpResPaths)
 				{
 					std::string s2 = s.c_str();
 					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
@@ -2907,7 +2924,7 @@ void Gui::drawMergeWindow() {
 	static bool DeleteHull2 = false;
 	static bool NoRipent = false;
 	static bool NoScript = true;
-	
+
 	if (ImGui::Begin("Merge maps", &showMergeMapWidget)) {
 		ImGui::InputText("output .bsp file", Path, 256);
 		ImGui::Checkbox("Delete unused info", &DeleteUnusedInfo);
@@ -3041,7 +3058,6 @@ void Gui::drawImportMapWidget() {
 							logf("Success! Now you needs to copy model to path: %s\n", (std::string("models/") + basename(Path)).c_str());
 
 							app->updateEnts();
-							
 							app->reloadBspModels();
 						}
 					}
@@ -3059,7 +3075,7 @@ void Gui::drawImportMapWidget() {
 void Gui::drawLimits() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
-	Bsp* map = app->hasValidSelection() ? app->getSelectedRender()->map : NULL;
+	Bsp* map = app->getSelectedRender() ? app->getSelectedRender()->map : NULL;
 	string title = map ? "Limits - " + map->name : "Limits";
 
 	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
@@ -3277,7 +3293,7 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
-	
+
 	Bsp* map = app->getSelectedRender() ? app->getSelectedRender()->map : NULL;
 
 	if (!map)
@@ -3751,7 +3767,7 @@ bool ColorPicker4(float col[4]) {
 
 static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 
-void ExportLightmaps(BSPFACE face, int size[2], Bsp * map)
+void ExportLightmaps(BSPFACE face, int size[2], Bsp* map)
 {
 	char fileNam[256];
 
@@ -3801,7 +3817,7 @@ void ImportLightmaps(BSPFACE face, int size[2])
 	}
 }
 
-void UpdateLightmaps(BSPFACE face, int size[2], Bsp * map, int& lightmaps)
+void UpdateLightmaps(BSPFACE face, int size[2], Bsp* map, int& lightmaps)
 {
 	for (int i = 0; i < MAXLIGHTMAPS; i++)
 	{
@@ -3826,7 +3842,7 @@ void UpdateLightmaps(BSPFACE face, int size[2], Bsp * map, int& lightmaps)
 void Gui::drawLightMapTool() {
 	static float colourPatch[3];
 
-	
+
 	static int windowWidth = 550;
 	static int windowHeight = 520;
 	static int lightmaps = 0;
@@ -3978,7 +3994,7 @@ void Gui::drawLightMapTool() {
 			{
 				showLightmapEditorUpdate = true;
 			}
-			
+
 			ImGui::Separator();
 			if (ImGui::Button("Export", ImVec2(120, 0)))
 			{
@@ -4013,7 +4029,7 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
-		
+
 		Bsp* map = app->getSelectedMap();
 		if (map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
@@ -4198,7 +4214,7 @@ void Gui::drawTextureTool() {
 
 				if (!validTexture)
 				{
-					for (auto & s : mapRenderer->wads)
+					for (auto& s : mapRenderer->wads)
 					{
 						if (s->hasTexture(textureName))
 						{
@@ -4215,7 +4231,7 @@ void Gui::drawTextureTool() {
 							for (int k = 0; k < sz; k++) {
 								imageData[k] = palette[src[k]];
 							}
-							map->add_texture(textureName, (byte *)imageData, wadTex->nWidth, wadTex->nHeight);
+							map->add_texture(textureName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
 							delete[] imageData;
 							delete wadTex;
 							mapRenderer->reloadTextures();

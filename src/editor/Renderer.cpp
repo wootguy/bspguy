@@ -1235,21 +1235,24 @@ void Renderer::cameraObjectHovering() {
 		memset(&axisPick, 0, sizeof(PickInfo));
 		axisPick.bestDist = FLT_MAX;
 
-		Bsp* map = g_app->getSelectedRender()->map;
-		vec3 origin = activeAxes.origin;
+		if (g_app->getSelectedRender() != NULL)
+		{
+			Bsp* map = g_app->getSelectedRender()->map;
+			vec3 origin = activeAxes.origin;
 
-		int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
-		for (int i = 0; i < axisChecks; i++) {
-			if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[i], origin + activeAxes.maxs[i], axisPick.bestDist)) {
-				hoverAxis = i;
+			int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
+			for (int i = 0; i < axisChecks; i++) {
+				if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[i], origin + activeAxes.maxs[i], axisPick.bestDist)) {
+					hoverAxis = i;
+				}
 			}
-		}
 
-		// center cube gets priority for selection (hard to select from some angles otherwise)
-		if (transformMode == TRANSFORM_MOVE) {
-			float bestDist = FLT_MAX;
-			if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[3], origin + activeAxes.maxs[3], bestDist)) {
-				hoverAxis = 3;
+			// center cube gets priority for selection (hard to select from some angles otherwise)
+			if (transformMode == TRANSFORM_MOVE) {
+				float bestDist = FLT_MAX;
+				if (pickAABB(pickStart, pickDir, origin + activeAxes.mins[3], origin + activeAxes.maxs[3], bestDist)) {
+					hoverAxis = 3;
+				}
 			}
 		}
 	}
@@ -1267,11 +1270,12 @@ void Renderer::cameraContextMenus() {
 		tempPick.bestDist = FLT_MAX;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, tempPick)) {
-				
+
 			}
 		}
 
 		if (tempPick.entIdx != 0 && tempPick.entIdx == pickInfo.entIdx) {
+			selectMap(tempPick.map);
 			gui->openContextMenu(pickInfo.entIdx);
 		}
 		else {
@@ -1374,9 +1378,8 @@ void Renderer::pickObject() {
 
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
-
+	clearSelection();
 	int oldEntIdx = pickInfo.entIdx;
-	memset(&pickInfo, 0, sizeof(PickInfo));
 	pickInfo.bestDist = FLT_MAX;
 
 	for (int i = 0; i < mapRenderers.size(); i++) {
@@ -1385,6 +1388,9 @@ void Renderer::pickObject() {
 
 		}
 	}
+
+	if (pickInfo.map != NULL)
+		selectMap(pickInfo.map);
 
 	if (movingEnt && oldEntIdx != pickInfo.entIdx) {
 		ungrabEnt();
@@ -1425,8 +1431,8 @@ void Renderer::pickObject() {
 					break;
 				}
 			}
-
-			g_app->getSelectedRender()->highlightFace(pickInfo.faceIdx, select);
+			if (g_app->getSelectedRender() != NULL)
+				g_app->getSelectedRender()->highlightFace(pickInfo.faceIdx, select);
 
 			if (select)
 				selectedFaces.push_back(pickInfo.faceIdx);
@@ -1635,7 +1641,7 @@ void Renderer::selectMapId(int id) {
 	for (int i = 0; i < mapRenderers.size(); i++)
 	{
 		BspRenderer* s = mapRenderers[i];
-		if (s->map)
+		if (s->map )
 		{
 			pickInfo.map = s->map;
 			return;
@@ -1653,7 +1659,7 @@ void Renderer::deselectMap(Bsp* map) {
 }
 
 void Renderer::clearSelection() {
-	
+
 	pickInfo = PickInfo();
 }
 
