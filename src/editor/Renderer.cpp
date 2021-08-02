@@ -506,7 +506,7 @@ void Renderer::renderLoop() {
 		model.loadIdentity();
 		colorShader->bind();
 
-		if (true) {
+		if (g_app->getSelectedMap()) {
 			if (debugClipnodes  && pickInfo.modelIdx > 0) {
 				BSPMODEL& pickModel = getSelectedMap()->models[pickInfo.modelIdx];
 				glDisable(GL_CULL_FACE);
@@ -525,7 +525,7 @@ void Renderer::renderLoop() {
 				glEnable(GL_CULL_FACE);
 			}
 
-			if (g_render_flags & RENDER_ORIGIN) {
+			if (g_render_flags & RENDER_ORIGIN ) {
 				colorShader->bind();
 				model.loadIdentity();
 				colorShader->pushMatrix(MAT_MODEL);
@@ -551,7 +551,7 @@ void Renderer::renderLoop() {
 
 		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
 		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
-		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+		bool isTransformingValid = !modelUsesSharedStructures && (isTransformableSolid || isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
 		bool isTransformingWorld = pickInfo.entIdx == 0 && transformTarget != TRANSFORM_OBJECT;
 		if (showDragAxes) {
 			if (!movingEnt && !isTransformingWorld && pickInfo.entIdx >= 0 && (isTransformingValid || isMovingOrigin))
@@ -562,14 +562,14 @@ void Renderer::renderLoop() {
 		if (pickInfo.entIdx == 0)
 		{
 			Bsp* map = getSelectedMap();
-			if (map->is_model)
+			if (map && map->is_model)
 			{
 				map->selectModelEnt();
 				if (pickInfo.entIdx == 0)
 					pickInfo.entIdx = -1;
 			}
 		}
-		if ( pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT) {
+		if ( pickInfo.modelIdx > 0 && pickMode == PICK_OBJECT ) {
 			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
 				drawModelVerts();
 			}

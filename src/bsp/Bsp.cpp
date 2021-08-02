@@ -136,7 +136,7 @@ Bsp::Bsp(std::string fpath)
 	{
 		if (!used_models.count(i))
 		{
-			logf("Warning: in map %s found unused model: %d.\n", name, i);
+			logf("Warning: in map %s found unused model: %d.\n", name.c_str(), i);
 		}
 	}
 
