@@ -94,7 +94,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v4 WIP (August, 2021)";
+char* g_version_string = "bspguy v4 WIP (August, 2021)";
 
 bool g_verbose = false;
 
@@ -388,7 +388,10 @@ int noclip(CommandLine& cli) {
 int simplify(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
+    {
+        delete map;
 		return 1;
+    }
 
 	int hull = 0;
 
@@ -451,8 +454,10 @@ int simplify(CommandLine& cli) {
 int deleteCmd(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
+    {
+        delete map;
 		return 1;
-
+    }
 	remove_unused_data(map);
 
 	if (cli.hasOption("-model")) {
@@ -481,7 +486,10 @@ int deleteCmd(CommandLine& cli) {
 int transform(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
+    {
+        delete map;
 		return 1;
+    }
 
 	vec3 move;
 
@@ -511,7 +519,10 @@ int transform(CommandLine& cli) {
 int unembed(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
+    {
+        delete map;
 		return 1;
+    }
 
 	int deleted = map->delete_embedded_textures();
 	logf("Deleted %d embedded textures\n", deleted);

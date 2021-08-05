@@ -16,6 +16,7 @@ map<string, int> fgdKeyTypes{
 Fgd::Fgd(string path) {
 	this->path = path;
 	this->name = stripExt(basename(path));
+    this->lineNum = 0;
 }
 
 Fgd::~Fgd() {

@@ -29,5 +29,5 @@
 #define MAXLIGHTMAPS    4
 
 
-#define FLT_MAX_COORD (MAX_MAP_COORD * 1.0)
-#define FLT_MIN_COORD (MAX_MAP_COORD * -1.0)
+#define FLT_MAX_COORD 32767.f
+#define FLT_MIN_COORD -32767.f

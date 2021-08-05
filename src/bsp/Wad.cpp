@@ -10,6 +10,7 @@
 
 Wad::Wad(void)
 {
+    numTex = -1;
 	dirEntries = NULL;
 }
 

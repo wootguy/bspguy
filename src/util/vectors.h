@@ -24,9 +24,9 @@ struct vec3
 	void operator/=(float f);
 
 	vec3 operator-() {
-		x *= -1;
-		y *= -1;
-		z *= -1;
+		x *= -1.f;
+		y *= -1.f;
+		z *= -1.f;
 		return *this;
 	}
 

@@ -234,8 +234,8 @@ void ExportModel(Bsp* map, int id)
 {
 	map->update_ent_lump();
 
-	Bsp* tmpMap = new Bsp(map->path);
-	tmpMap->is_model = true;
+	Bsp tmpMap = Bsp(map->path);
+	tmpMap.is_model = true;
 
 	BSPMODEL tmpModel = map->models[id];
 
@@ -254,63 +254,61 @@ void ExportModel(Bsp* map, int id)
 
 	vec3 modelOrigin = map->get_model_center(id);
 
-	tmpMap->modelCount = 1;
-	tmpMap->models[0] = tmpModel;
+	tmpMap.modelCount = 1;
+	tmpMap.models[0] = tmpModel;
 
 	// Move model to 0 0 0
-	tmpMap->move(-modelOrigin, 0, true);
+	tmpMap.move(-modelOrigin, 0, true);
 
-	for (int i = 1; i < tmpMap->ents.size(); i++)
+	for (int i = 1; i < tmpMap.ents.size(); i++)
 	{
-		delete tmpMap->ents[i];
+		delete tmpMap.ents[i];
 	}
 
-	tmpMap->ents.clear();
+	tmpMap.ents.clear();
 
 	tmpEnt->setOrAddKeyvalue("origin", vec3(0, 0, 0).toKeyvalueString());
 	tmpEnt->setOrAddKeyvalue("compiler", g_version_string);
 	tmpEnt->setOrAddKeyvalue("message", "bsp model");
-	tmpMap->ents.push_back(tmpEnt);
+	tmpMap.ents.push_back(tmpEnt);
 
-	tmpMap->update_ent_lump();
+	tmpMap.update_ent_lump();
 
-	tmpMap->lumps[LUMP_MODELS] = (byte*)tmpMap->models;
-	tmpMap->header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
-	tmpMap->update_lump_pointers();
+	tmpMap.lumps[LUMP_MODELS] = (byte*)tmpMap.models;
+	tmpMap.header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
+	tmpMap.update_lump_pointers();
 
-	STRUCTCOUNT removed = tmpMap->remove_unused_model_structures();
+	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures();
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
-	if (!tmpMap->validate())
+	if (!tmpMap.validate())
 	{
 		int markid = 0;
-		for (int i = 0; i < tmpMap->leafCount; i++)
+		for (int i = 0; i < tmpMap.leafCount; i++)
 		{
-			BSPLEAF& tmpLeaf = tmpMap->leaves[i];
+			BSPLEAF& tmpLeaf = tmpMap.leaves[i];
 			tmpLeaf.iFirstMarkSurface = markid;
 			markid += tmpLeaf.nMarkSurfaces;
 		}
 
-		while (tmpMap->models[0].nVisLeafs >= tmpMap->leafCount)
-			tmpMap->create_leaf(-2);
+		while (tmpMap.models[0].nVisLeafs >= tmpMap.leafCount)
+			tmpMap.create_leaf(-2);
 
-		tmpMap->lumps[LUMP_LEAVES] = (byte*)tmpMap->leaves;
-		tmpMap->update_lump_pointers();
+		tmpMap.lumps[LUMP_LEAVES] = (byte*)tmpMap.leaves;
+		tmpMap.update_lump_pointers();
 	}
 
-	if (!tmpMap->validate())
+	if (!tmpMap.validate())
 	{
 		logf("Failed to export model %d\n", id);
-		delete tmpMap;
 		return;
 	}
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
 		createDir(g_settings.gamedir + g_settings.workingdir);
 	logf("Export model %d to %s\n", id, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp").c_str());
-	tmpMap->write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp");
-	delete tmpMap;
+	tmpMap.write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp");
 }
 
 void Gui::draw3dContextMenus() {
@@ -613,6 +611,7 @@ bool ExportWad(Bsp* map)
 				delete tmpWadTex[i];
 		}
 		tmpWadTex.clear();
+        delete tmpWad;
 	}
 	else
 	{
@@ -624,17 +623,17 @@ bool ExportWad(Bsp* map)
 
 void ImportWad(Bsp* map, Renderer* app)
 {
-	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+	Wad tmpWad = Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
 
-	if (!tmpWad->readInfo())
+	if (!tmpWad.readInfo())
 	{
 		logf("Parsing wad file failed!\n");
 	}
 	else
 	{
-		for (int i = 0; i < tmpWad->numTex; i++)
+		for (int i = 0; i < tmpWad.numTex; i++)
 		{
-			WADTEX* wadTex = tmpWad->readTexture(i);
+			WADTEX* wadTex = tmpWad.readTexture(i);
 			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
@@ -657,7 +656,6 @@ void ImportWad(Bsp* map, Renderer* app)
 			app->mapRenderers[i]->reloadTextures();
 		}
 	}
-	delete tmpWad;
 }
 
 
@@ -826,7 +824,7 @@ void Gui::drawMenuBar() {
 
 					if (map)
 					{
-						logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent"));
+						logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent").c_str());
 						if (fileExists(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent")))
 						{
 							std::ifstream t(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"));
@@ -1355,7 +1353,6 @@ void Gui::drawStatusMessage() {
 
 			ImGui::PushFont(consoleFontLarge);
 			switch (loadTick) {
-			default:
 			case 0: ImGui::Text("Loading |"); break;
 			case 1: ImGui::Text("Loading /"); break;
 			case 2: ImGui::Text("Loading -"); break;
@@ -1364,6 +1361,7 @@ void Gui::drawStatusMessage() {
 			case 5: ImGui::Text("Loading /"); break;
 			case 6: ImGui::Text("Loading -"); break;
 			case 7: ImGui::Text("Loading \\"); break;
+			default:  break;
 			}
 			ImGui::PopFont();
 
@@ -2916,7 +2914,7 @@ void Gui::drawHelp() {
 void Gui::drawAbout() {
 	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("About", &showAboutWidget)) {
-		ImGui::InputText("Version", (char*)g_version_string, strlen(g_version_string), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("Version", g_version_string, strlen(g_version_string), ImGuiInputTextFlags_ReadOnly);
 
 		static char author[] = "w00tguy";
 		ImGui::InputText("Author", author, strlen(author), ImGuiInputTextFlags_ReadOnly);
@@ -3055,7 +3053,6 @@ void Gui::drawImportMapWidget() {
 						if (!model->ents.size())
 						{
 							logf("Error! No worldspawn found!\n");
-							delete model;
 						}
 						else
 						{
@@ -3069,10 +3066,10 @@ void Gui::drawImportMapWidget() {
 							map->ents.push_back(tmpEnt);
 							map->update_ent_lump();
 							logf("Success! Now you needs to copy model to path: %s\n", (std::string("models/") + basename(Path)).c_str());
-
 							app->updateEnts();
 							app->reloadBspModels();
 						}
+                        delete model;
 					}
 				}
 			}
@@ -3195,7 +3192,7 @@ void Gui::drawLimits() {
 void Gui::drawLimitTab(Bsp* map, int sortMode) {
 
 	int maxCount;
-	const char* countName;
+	const char* countName = "None";
 	switch (sortMode) {
 	case SORT_VERTS:		maxCount = map->vertCount; countName = "Vertexes";  break;
 	case SORT_NODES:		maxCount = map->nodeCount; countName = "Nodes";  break;
@@ -4096,7 +4093,7 @@ void Gui::drawTextureTool() {
 					if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
 					if (shiftX != texinfo2.shiftS) shiftX = 0;
 					if (shiftY != texinfo2.shiftT) shiftY = 0;
-					if (isSpecial != texinfo2.nFlags & TEX_SPECIAL) isSpecial = false;
+					if (isSpecial != (texinfo2.nFlags & TEX_SPECIAL)) isSpecial = false;
 					if (texinfo2.iMiptex != miptex) {
 						validTexture = false;
 						textureId = NULL;
@@ -4342,7 +4339,7 @@ StatInfo Gui::calcStat(string name, uint val, uint max, bool isMem) {
 
 	static char tmp[256];
 
-	string out;
+    //string out;
 
 	stat.name = name;
 

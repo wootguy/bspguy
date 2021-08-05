@@ -144,8 +144,8 @@ void BspRenderer::loadTextures() {
 		}
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
-		COLOR3* palette;
-		byte* src;
+		COLOR3* palette = NULL;
+		byte* src = NULL;
 		WADTEX* wadTex = NULL;
 
 		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
@@ -182,10 +182,12 @@ void BspRenderer::loadTextures() {
 
 		int sz = tex.nWidth * tex.nHeight;
 		
-		for (int k = 0; k < sz; k++) {
-			imageData[k] = palette[src[k]];
-		}
-
+        if (src && palette)
+        {
+            for (int k = 0; k < sz; k++) {
+                imageData[k] = palette[src[k]];
+            }
+        }
 		if (wadTex) {
 			delete[] wadTex->data;
 			delete wadTex;
@@ -193,7 +195,7 @@ void BspRenderer::loadTextures() {
 
 		// map->textures + texOffset + tex.nOffsets[0]
 
-		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
+		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, (byte*)imageData);
 	}
 	if (wadTexCount)
 		debugf("Loaded %d wad textures\n", wadTexCount);

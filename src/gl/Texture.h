@@ -14,7 +14,7 @@ public:
 	bool uploaded = false;
 
 	Texture(int width, int height);
-	Texture(int width, int height, void * data);
+	Texture(int width, int height, byte* data);
 	~Texture();
 
 	// upload the texture with the specified settings

@@ -2,7 +2,7 @@
 #include "remap.h"
 #include "Bsp.h"
 
-STRUCTCOUNT::STRUCTCOUNT() {}
+STRUCTCOUNT::STRUCTCOUNT() = default;
 
 STRUCTCOUNT::STRUCTCOUNT(Bsp* map) {
 	planes = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);

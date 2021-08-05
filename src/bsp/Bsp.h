@@ -172,8 +172,8 @@ public:
 	// Returns -1 on failure, else the new texture index
 	int add_texture(const char* name, byte* data, int width, int height);
 
-	void replace_lump(int lumpIdx, void* newData, int newLength);
-	void append_lump(int lumpIdx, void* newData, int appendLength);
+	void replace_lump(int lumpIdx, void * newData, int newLength);
+	void append_lump(int lumpIdx, void * newData, int appendLength);
 
 	bool is_invisible_solid(Entity* ent);
 

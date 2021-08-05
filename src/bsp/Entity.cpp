@@ -370,7 +370,7 @@ vector<string> Entity::getTargets() {
 		for (int i = 0; i < keyOrder.size(); i++) {
 			string tname = keyOrder[i];
 			size_t hashPos = tname.find("#");
-			string suffix;
+			// string suffix;
 
 			// duplicate targetnames have a #X suffix to differentiate them
 			if (hashPos != string::npos) {

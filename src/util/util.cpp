@@ -369,12 +369,12 @@ bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& in
 	float dot = dotProduct(dir, normal);
 
 	// don't select backfaces or parallel faces
-	if (dot == 0) {
+	if (dot == 0.f) {
 		return false;
 	}
 	intersectDist = dotProduct((normal * fdist) - start, normal) / dot;
 
-	if (intersectDist < 0) {
+	if (intersectDist < 0.f) {
 		return false; // intersection behind ray
 	}
 

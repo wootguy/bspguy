@@ -346,7 +346,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		Entity* equip = new Entity();
 		Entity* relay = new Entity();
 		string mapname = toLowerCase(mapOrder[i]->name);
-		string equip_name = "equip_" + mapname;
+		//string equip_name = "equip_" + mapname;
 
 		equip->addKeyvalue("origin", equip_origin.toKeyvalueString());
 		equip->addKeyvalue("targetname", "equip_" + mapname);

@@ -10,7 +10,7 @@ struct tVert
 	float u, v;
 	float x, y, z;
 
-	tVert() {}
+	tVert() = default;
 	tVert(float x, float y, float z, float u, float v) : u(u), v(v), x(x), y(y), z(z) {}
 	tVert(vec3 p, float u, float v) : u(u), v(v), x(p.x), y(p.y), z(p.z) {}
 	tVert(vec3 p, vec2 uv) : u(uv.x), v(uv.y), x(p.x), y(p.y), z(p.z) {}

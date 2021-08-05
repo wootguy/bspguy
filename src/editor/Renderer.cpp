@@ -1752,8 +1752,8 @@ void Renderer::reloadBspModels()
 
 	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
 
-	for (auto const& bsprend : mapRenderers)
-	{
+    for (auto bsprend : mapRenderers)
+    { 
 		for (auto const& entity : bsprend->map->ents)
 		{
 			if (entity->hasKey("model"))

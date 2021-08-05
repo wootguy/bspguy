@@ -236,8 +236,7 @@ vector<TransformVert> Bsp::getModelVerts(int modelIdx) {
 			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
 
 			if (visited.find(vertIdx) == visited.end()) {
-				TransformVert vert;
-				memset(&vert, 0, sizeof(TransformVert));
+				TransformVert vert = TransformVert();
 				vert.startPos = vert.undoPos = vert.pos = verts[vertIdx];
 				vert.ptr = &verts[vertIdx];
 
@@ -1501,7 +1500,7 @@ bool Bsp::has_hull2_ents() {
 
 	for (int i = 0; i < ents.size(); i++) {
 		string cname = ents[i]->keyvalues["classname"];
-		string tname = ents[i]->keyvalues["targetname"];
+		//string tname = ents[i]->keyvalues["targetname"];
 
 		if (cname.find("monster_") == 0) {
 			vec3 minhull;
@@ -2393,7 +2392,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		vector<STRUCTUSAGE*> modelStructs = get_sorted_model_infos(sortMode);
 
 		int maxCount;
-		const char* countName;
+		const char* countName = "None";
 
 		switch (g_sort_mode) {
 		case SORT_VERTS:		maxCount = vertCount; countName = "  Verts";  break;
@@ -3799,7 +3798,8 @@ int16 Bsp::regenerate_clipnodes_from_nodes(int iNode, int hullIdx) {
 	BSPNODE& node = nodes[iNode];
 
 	switch (planes[node.iPlane].nType) {
-		case PLANE_X: case PLANE_Y: case PLANE_Z: {
+		case PLANE_X: case PLANE_Y: case PLANE_Z: 
+        {
 			// Skip this node. Bounding box clipnodes should have already been generated.
 			// Only works for convex models.
 			int childContents[2] = { 0, 0 };
@@ -4151,7 +4151,7 @@ void Bsp::update_lump_pointers() {
 	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!\n");
 }
 
-void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {
+void Bsp::replace_lump(int lumpIdx, void * newData, int newLength) {
 	delete[] lumps[lumpIdx];
 	lumps[lumpIdx] = (byte*)newData;
 	header.lump[lumpIdx].nLength = newLength;
@@ -4191,7 +4191,7 @@ void Bsp::ExportToObjWIP(std::string path)
 		fprintf(f, "mtllib materials.mtl\n");
 		int currentgroup = -1;
 
-		std::set<BSPMIPTEX*> texture_list;
+		//std::set<BSPMIPTEX*> texture_list;
 		BspRenderer* bsprend = GetBspRender();
 
 		createDir(path + "textures");
@@ -4209,7 +4209,7 @@ void Bsp::ExportToObjWIP(std::string path)
 			RenderGroup* rgroup;
 			if (!bsprend->getRenderPointers(i, &rface, &rgroup)) {
 				logf("Bad face index\n");
-				return;
+				break;
 			}
 
 			BSPFACE& face = faces[i];
