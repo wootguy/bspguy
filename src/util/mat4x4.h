@@ -1,5 +1,6 @@
 #pragma once
 #include "vectors.h"
+#include <string.h>
 
 // A row-major 4x4 matrix for use in OpenGL shader programs
 struct mat4x4
