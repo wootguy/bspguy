@@ -1,6 +1,6 @@
 #include "bsptypes.h"
 #include <math.h>
-#include <string>
+#include <string.h>
 
 BSPEDGE::BSPEDGE() = default;
 
