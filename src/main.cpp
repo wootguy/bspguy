@@ -94,7 +94,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-char* g_version_string = "bspguy v4 WIP (August, 2021)";
+char g_version_string[] = "bspguy v4 WIP (August, 2021)";
 
 bool g_verbose = false;
 
@@ -122,7 +122,7 @@ void hideConsoleWindow() {
 #endif
 }
 
-void start_viewer(string map) {
+void start_viewer(std::string map) {
 	if (map.size() > 0 && !fileExists(map)) {
 		logf("ERROR: File not found: %s", map.c_str());
 		return;
@@ -139,10 +139,10 @@ int test() {
 	//start_viewer("hl_c09.bsp");
 	//return 0;
 
-	vector<Bsp*> maps;
+	std::vector<Bsp*> maps;
 	
 	for (int i = 1; i < 22; i++) {
-		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? to_string(i) : "") + ".bsp");
+		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? std::to_string(i) : "") + ".bsp");
 		maps.push_back(map);
 	}
 
@@ -188,14 +188,14 @@ int test() {
 }
 
 int merge_maps(CommandLine& cli) {
-	vector<string> input_maps = cli.getOptionList("-maps");
+	std::vector<std::string> input_maps = cli.getOptionList("-maps");
 
 	if (input_maps.size() < 2) {
 		logf("ERROR: at least 2 input maps are required\n");
 		return 1;
 	}
 
-	vector<Bsp*> maps;
+	std::vector<Bsp*> maps;
 
 	for (int i = 0; i < input_maps.size(); i++) {
 		Bsp* map = new Bsp(input_maps[i]);
@@ -228,7 +228,7 @@ int merge_maps(CommandLine& cli) {
 	
 	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
 
-	string output_name = cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile;
+	std::string output_name = cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile;
 
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, gap, output_name, cli.hasOption("-noripent"), cli.hasOption("-noscript"));
@@ -255,7 +255,7 @@ int print_info(CommandLine& cli) {
 	int sortMode = SORT_CLIPNODES;
 
 	if (cli.hasOption("-limit")) {
-		string limitName = cli.getOption("-limit");
+		std::string limitName = cli.getOption("-limit");
 			
 		limitMode = true;
 		if (limitName == "clipnodes") {
@@ -533,7 +533,7 @@ int unembed(CommandLine& cli) {
 	return 0;
 }
 
-void print_help(string command) {
+void print_help(std::string command) {
 	if (command == "merge") {
 		logf(
 			"merge - Merges two or more maps together\n\n"

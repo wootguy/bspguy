@@ -3,13 +3,11 @@
 #include "util.h"
 #include <algorithm>
 
-using namespace std;
-
 Entity::Entity(void)
 {
 }
 
-Entity::Entity(const string& classname)
+Entity::Entity(const std::string& classname)
 {
 	addKeyvalue("classname", classname);
 }
@@ -29,7 +27,7 @@ void Entity::addKeyvalue( Keyvalue& k )
 	{
 		while (true)
 		{
-			string newKey = k.key + '#' + to_string((long long)dup);
+			std::string newKey = k.key + '#' + std::to_string((long long)dup);
 			if (keyvalues.find(newKey) == keyvalues.end())
 			{
 				//println("wrote dup key " + newKey);
@@ -74,7 +72,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 	targetsCached = false;
 }
 
-bool Entity::renameKey(int idx, string newName) {
+bool Entity::renameKey(int idx, std::string newName) {
 	if (idx < 0 || idx >= keyOrder.size() || newName.empty()) {
 		return false;
 	}
@@ -99,7 +97,7 @@ void Entity::clearAllKeyvalues() {
 }
 
 void Entity::clearEmptyKeyvalues() {
-	vector<string> newKeyOrder;
+	std::vector<std::string> newKeyOrder;
 	for (int i = 0; i < keyOrder.size(); i++) {
 		if (!keyvalues[keyOrder[i]].empty()) {
 			newKeyOrder.push_back(keyOrder[i]);
@@ -125,13 +123,13 @@ int Entity::getBspModelIdx() {
 		return -1;
 	}
 
-	string model = keyvalues["model"];
+	std::string model = keyvalues["model"];
 	if (model.size() <= 1 || model[0] != '*') {
 		cachedModelIdx = -1;
 		return -1;
 	}
 
-	string modelIdxStr = model.substr(1);
+	std::string modelIdxStr = model.substr(1);
 	if (!isNumeric(modelIdxStr)) {
 		cachedModelIdx = -1;
 		return -1;
@@ -351,12 +349,12 @@ const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {
 
 // This needs to be kept in sync with the FGD
 
-vector<string> Entity::getTargets() {
+std::vector<std::string> Entity::getTargets() {
 	if (targetsCached) {
 		return cachedTargets;
 	}
 
-	vector<string> targets;
+	std::vector<std::string> targets;
 
 	for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
 		const char* key = potential_tergetname_keys[i];
@@ -368,12 +366,12 @@ vector<string> Entity::getTargets() {
 	if (keyvalues["classname"] == "multi_manager") {
 		// multi_manager is a special case where the targets are in the key names
 		for (int i = 0; i < keyOrder.size(); i++) {
-			string tname = keyOrder[i];
+			std::string tname = keyOrder[i];
 			size_t hashPos = tname.find("#");
-			// string suffix;
+			// std::string suffix;
 
 			// duplicate targetnames have a #X suffix to differentiate them
-			if (hashPos != string::npos) {
+			if (hashPos != std::string::npos) {
 				tname = tname.substr(0, hashPos);
 			}
 			targets.push_back(tname);
@@ -390,8 +388,8 @@ vector<string> Entity::getTargets() {
 	return targets;
 }
 
-bool Entity::hasTarget(string checkTarget) {
-	vector<string> targets = getTargets();
+bool Entity::hasTarget(std::string checkTarget) {
+	std::vector<std::string> targets = getTargets();
 	for (int i = 0; i < targets.size(); i++) {
 		if (targets[i] == checkTarget) {
 			return true;
@@ -401,7 +399,7 @@ bool Entity::hasTarget(string checkTarget) {
 	return false;
 }
 
-void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) {
+void Entity::renameTargetnameValues(std::string oldTargetname, std::string newTargetname) {
 	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {
 		const char* key = potential_tergetname_keys[i];
 		if (keyvalues.find(key) != keyvalues.end() && keyvalues[key] == oldTargetname) {
@@ -412,18 +410,18 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 	if (keyvalues["classname"] == "multi_manager") {
 		// multi_manager is a special case where the targets are in the key names
 		for (int i = 0; i < keyOrder.size(); i++) {
-			string tname = keyOrder[i];
+			std::string tname = keyOrder[i];
 			size_t hashPos = tname.find("#");
-			string suffix;
+			std::string suffix;
 
 			// duplicate targetnames have a #X suffix to differentiate them
-			if (hashPos != string::npos) {
+			if (hashPos != std::string::npos) {
 				tname = keyOrder[i].substr(0, hashPos);
 				suffix = keyOrder[i].substr(hashPos);
 			}
 
 			if (tname == oldTargetname) {
-				string newKey = newTargetname + suffix;
+				std::string newKey = newTargetname + suffix;
 				keyvalues[newKey] = keyvalues[keyOrder[i]];
 				keyOrder[i] = newKey;
 			}

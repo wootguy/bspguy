@@ -8,15 +8,15 @@
 #include <map>
 
 AppSettings g_settings;
-string g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
-string g_config_dir = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() : getConfigDir();
+std::string g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
+std::string g_config_dir = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() : getConfigDir();
 
 Renderer* g_app = NULL;
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
 
-future<void> Renderer::fgdFuture;
+std::future<void> Renderer::fgdFuture;
 
 void error_callback(int error, const char* description)
 {
@@ -101,21 +101,21 @@ void AppSettings::loadDefault()
 }
 
 void AppSettings::load() {
-	ifstream file(g_settings_path);
+	std::ifstream file(g_settings_path);
 	if (file.is_open()) {
 
-		string line = "";
+		std::string line = "";
 		while (getline(file, line)) {
 			if (line.empty())
 				continue;
 
 			size_t eq = line.find("=");
-			if (eq == string::npos) {
+			if (eq == std::string::npos) {
 				continue;
 			}
 
-			string key = trimSpaces(line.substr(0, eq));
-			string val = trimSpaces(line.substr(eq + 1));
+			std::string key = trimSpaces(line.substr(0, eq));
+			std::string val = trimSpaces(line.substr(eq + 1));
 
 			if (key == "window_width") { g_settings.windowWidth = atoi(val.c_str()); }
 			else if (key == "window_height") { g_settings.windowHeight = atoi(val.c_str()); }
@@ -193,44 +193,44 @@ void AppSettings::load() {
 
 void AppSettings::save(std::string path)
 {
-	ofstream file(g_settings_path, ios::trunc);
-	file << "window_width=" << g_settings.windowWidth << endl;
-	file << "window_height=" << g_settings.windowHeight << endl;
-	file << "window_x=" << g_settings.windowX << endl;
-	file << "window_y=" << g_settings.windowY << endl;
-	file << "window_maximized=" << g_settings.maximized << endl;
+	std::ofstream file(g_settings_path, std::ios::trunc);
+	file << "window_width=" << g_settings.windowWidth << std::endl;
+	file << "window_height=" << g_settings.windowHeight << std::endl;
+	file << "window_x=" << g_settings.windowX << std::endl;
+	file << "window_y=" << g_settings.windowY << std::endl;
+	file << "window_maximized=" << g_settings.maximized << std::endl;
 
-	file << "debug_open=" << g_settings.debug_open << endl;
-	file << "keyvalue_open=" << g_settings.keyvalue_open << endl;
-	file << "transform_open=" << g_settings.transform_open << endl;
-	file << "log_open=" << g_settings.log_open << endl;
-	file << "settings_open=" << g_settings.settings_open << endl;
-	file << "limits_open=" << g_settings.limits_open << endl;
-	file << "entreport_open=" << g_settings.entreport_open << endl;
+	file << "debug_open=" << g_settings.debug_open << std::endl;
+	file << "keyvalue_open=" << g_settings.keyvalue_open << std::endl;
+	file << "transform_open=" << g_settings.transform_open << std::endl;
+	file << "log_open=" << g_settings.log_open << std::endl;
+	file << "settings_open=" << g_settings.settings_open << std::endl;
+	file << "limits_open=" << g_settings.limits_open << std::endl;
+	file << "entreport_open=" << g_settings.entreport_open << std::endl;
 
-	file << "settings_tab=" << g_settings.settings_tab << endl;
+	file << "settings_tab=" << g_settings.settings_tab << std::endl;
 
-	file << "gamedir=" << g_settings.gamedir << endl;
-	file << "workingdir=" << g_settings.workingdir << endl;
+	file << "gamedir=" << g_settings.gamedir << std::endl;
+	file << "workingdir=" << g_settings.workingdir << std::endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
-		file << "fgd=" << g_settings.fgdPaths[i] << endl;
+		file << "fgd=" << g_settings.fgdPaths[i] << std::endl;
 	}
 
 	for (int i = 0; i < resPaths.size(); i++) {
-		file << "res=" << g_settings.resPaths[i] << endl;
+		file << "res=" << g_settings.resPaths[i] << std::endl;
 	}
 
-	file << "vsync=" << g_settings.vsync << endl;
-	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
-	file << "verbose_logs=" << g_settings.verboseLogs << endl;
-	file << "fov=" << g_settings.fov << endl;
-	file << "zfar=" << g_settings.zfar << endl;
-	file << "move_speed=" << g_settings.moveSpeed << endl;
-	file << "rot_speed=" << g_settings.rotSpeed << endl;
-	file << "render_flags=" << g_settings.render_flags << endl;
-	file << "font_size=" << g_settings.fontSize << endl;
-	file << "undo_levels=" << g_settings.undoLevels << endl;
-	file << "savebackup=" << g_settings.backUpMap << endl;
+	file << "vsync=" << g_settings.vsync << std::endl;
+	file << "show_transform_axes=" << g_settings.show_transform_axes << std::endl;
+	file << "verbose_logs=" << g_settings.verboseLogs << std::endl;
+	file << "fov=" << g_settings.fov << std::endl;
+	file << "zfar=" << g_settings.zfar << std::endl;
+	file << "move_speed=" << g_settings.moveSpeed << std::endl;
+	file << "rot_speed=" << g_settings.rotSpeed << std::endl;
+	file << "render_flags=" << g_settings.render_flags << std::endl;
+	file << "font_size=" << g_settings.fontSize << std::endl;
+	file << "undo_levels=" << g_settings.undoLevels << std::endl;
+	file << "savebackup=" << g_settings.backUpMap << std::endl;
 }
 
 void AppSettings::save() {
@@ -246,7 +246,7 @@ void AppSettings::save() {
 
 	save(g_settings_path);
 
-	ifstream file(g_settings_path);
+	std::ifstream file(g_settings_path);
 	if (!file.is_open())
 	{
 		logf("Error: No access to config file %s. Using WorkingDir instead\n", g_settings_path.c_str());
@@ -348,7 +348,7 @@ Renderer::Renderer() {
 	loadSettings();
 
 	reloading = true;
-	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+	fgdFuture = std::async(std::launch::async, &Renderer::loadFgds, this);
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
 
@@ -407,8 +407,7 @@ void Renderer::renderLoop() {
 
 	updateDragAxes();
 
-	float s = 1.0f;
-	cCube vertCube(vec3(-s, -s, -s), vec3(s, s, s), { 0, 128, 255, 255 });
+	cCube vertCube(vec3(-1.0, -1.0, -1.0), vec3(1.0, 1.0, 1.0), { 0, 128, 255, 255 });
 	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
 
 	float lastFrameTime = glfwGetTime();
@@ -589,7 +588,7 @@ void Renderer::renderLoop() {
 
 		glfwSwapBuffers(window);
 
-		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
+		if (reloading && fgdFuture.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
 			postLoadFgds();
 			reloading = reloadingGameDir = false;
 		}
@@ -628,7 +627,7 @@ void Renderer::postLoadFgdsAndTextures() {
 		return;
 	}
 	reloading = reloadingGameDir = true;
-	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+	fgdFuture = std::async(std::launch::async, &Renderer::loadFgds, this);
 }
 
 void Renderer::clearMaps() {
@@ -644,7 +643,7 @@ void Renderer::clearMaps() {
 }
 
 void Renderer::reloadMaps() {
-	vector<string> reloadPaths;
+	std::vector<std::string> reloadPaths;
 	for (int i = 0; i < mapRenderers.size(); i++) {
 		reloadPaths.push_back(mapRenderers[i]->map->path);
 		delete mapRenderers[i];
@@ -744,7 +743,7 @@ void Renderer::drawModelVerts() {
 		return;
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	Entity* ent = map->ents[pickInfo.entIdx];
 	vec3 mapOffset = g_app->getSelectedRender()->mapOffset;
 	vec3 renderOffset = mapOffset.flip();
@@ -818,7 +817,7 @@ void Renderer::drawModelOrigin() {
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	vec3 mapOffset = g_app->getSelectedRender()->mapOffset;
 	Entity* ent = map->ents[pickInfo.entIdx];
 
@@ -1249,7 +1248,7 @@ void Renderer::cameraObjectHovering() {
 
 		if (g_app->getSelectedRender() != NULL)
 		{
-			Bsp* map = g_app->getSelectedRender()->map;
+			Bsp* map = g_app->getSelectedMap();
 			vec3 origin = activeAxes.origin;
 
 			int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
@@ -1309,7 +1308,7 @@ void Renderer::moveGrabbedEnt() {
 			grabDist += 16 * moveScale;
 		}
 
-		Bsp* map = g_app->getSelectedRender()->map;
+		Bsp* map = g_app->getSelectedMap();
 		vec3 mapOffset = g_app->getSelectedRender()->mapOffset;
 		vec3 delta = ((cameraOrigin - mapOffset) + cameraForward * grabDist) - grabStartOrigin;
 		Entity* ent = map->ents[pickInfo.entIdx];
@@ -1430,8 +1429,6 @@ void Renderer::pickObject() {
 		}
 	}
 	else if (pickMode == PICK_FACE) {
-		pickInfo.ent = NULL;
-		pickInfo.entIdx = -1;
 		gui->showLightmapEditorUpdate = true;
 
 		if (pickInfo.modelIdx >= 0 && pickInfo.faceIdx >= 0) {
@@ -1462,8 +1459,8 @@ void Renderer::pickObject() {
 
 	updateEntConnections();
 
-	if ( getSelectedMap() && pickInfo.ent) {
-		selectEnt(getSelectedMap(), pickInfo.entIdx);
+	if (pickInfo.map && pickInfo.ent) {
+		selectEnt(pickInfo.map, pickInfo.entIdx);
 	}
 }
 
@@ -1479,7 +1476,7 @@ bool Renderer::transformAxisControls() {
 	if (showDragAxes && !movingEnt && hoverAxis != -1 && draggingAxis == -1) {
 		draggingAxis = hoverAxis;
 
-		Bsp* map = g_app->getSelectedRender()->map;
+		Bsp* map = g_app->getSelectedMap();
 		Entity* ent = map->ents[pickInfo.entIdx];
 
 		axisDragEntOriginStart = getEntOrigin(map, ent);
@@ -1609,8 +1606,8 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 	makeVectors(cameraAngles, forward, right, up);
 
 	vec3 view = forward.normalize(1.0f);
-	vec3 h = crossProduct(view, up).normalize(1.0f); // 3D float vector
-	vec3 v = crossProduct(h, view).normalize(1.0f); // 3D float vector
+	vec3 h = crossProduct(view, up).normalize(1.0f); // 3D float std::vector
+	vec3 v = crossProduct(h, view).normalize(1.0f); // 3D float std::vector
 
 	// convert fovy to radians 
 	float rad = fov * PI / 180.0f;
@@ -1746,7 +1743,7 @@ void Renderer::reloadBspModels()
 
 	mapRenderers = sorted_renders;
 
-	vector<string> tryPaths = {
+	std::vector<std::string> tryPaths = {
 		"./"
 	};
 
@@ -1762,7 +1759,7 @@ void Renderer::reloadBspModels()
 				if (modelPath.find(".bsp") != std::string::npos)
 				{
 					for (int i = 0; i < tryPaths.size(); i++) {
-						string tryPath = tryPaths[i] + modelPath;
+						std::string tryPath = tryPaths[i] + modelPath;
 						if (!fileExists(tryPath))
 							tryPath = g_settings.gamedir + tryPaths[i] + modelPath;
 						if (fileExists(tryPath)) {
@@ -1909,8 +1906,8 @@ void Renderer::updateDragAxes() {
 
 	if (
 		g_app->getSelectedRender() != NULL &&
-		pickInfo.entIdx >= 0 && pickInfo.entIdx < g_app->getSelectedRender()->map->ents.size()) {
-		map = g_app->getSelectedRender()->map;
+		pickInfo.entIdx >= 0 && pickInfo.entIdx < g_app->getSelectedMap()->ents.size()) {
+		map = g_app->getSelectedMap();
 		ent = map->ents[pickInfo.entIdx];
 		mapOffset = g_app->getSelectedRender()->mapOffset;
 	}
@@ -2138,7 +2135,7 @@ void Renderer::updateModelVerts() {
 		return;
 	}
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	int modelIdx = map->ents[pickInfo.entIdx]->getBspModelIdx();
 
 	if (modelOriginBuff) {
@@ -2222,11 +2219,11 @@ void Renderer::updateEntConnections() {
 
 	if ( getSelectedMap() && pickInfo.ent) {
 		Bsp* map = getSelectedMap();
-		vector<string> targetNames = pickInfo.ent->getTargets();
-		vector<Entity*> targets;
-		vector<Entity*> callers;
-		vector<Entity*> callerAndTarget; // both a target and a caller
-		string thisName;
+		std::vector<std::string> targetNames = pickInfo.ent->getTargets();
+		std::vector<Entity*> targets;
+		std::vector<Entity*> callers;
+		std::vector<Entity*> callerAndTarget; // both a target and a caller
+		std::string thisName;
 		if (pickInfo.ent->hasKey("targetname")) {
 			thisName = pickInfo.ent->keyvalues["targetname"];
 		}
@@ -2239,7 +2236,7 @@ void Renderer::updateEntConnections() {
 
 			bool isTarget = false;
 			if (ent->hasKey("targetname")) {
-				string tname = ent->keyvalues["targetname"];
+				std::string tname = ent->keyvalues["targetname"];
 				for (int i = 0; i < targetNames.size(); i++) {
 					if (tname == targetNames[i]) {
 						isTarget = true;
@@ -2292,7 +2289,7 @@ void Renderer::updateEntConnections() {
 			lines[idx++] = cVert(srcPos, callerColor);
 			lines[idx++] = cVert(ori, callerColor);
 		}
-		for (int i = 0; i < callerAndTarget.size(); i++) {
+		for (int i = 0; i < callerAndTarget.size() && cidx < numPoints && idx < numVerts; i++) {
 			vec3 ori = getEntOrigin(map, callerAndTarget[i]).flip();
 			points[cidx++] = cCube(ori - extent, ori + extent, bothColor);
 			lines[idx++] = cVert(srcPos, bothColor);
@@ -2319,14 +2316,14 @@ void Renderer::updateEntConnectionPositions() {
 	}
 }
 
-bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
+bool Renderer::getModelSolid(std::vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
 	outSolid.faces.clear();
 	outSolid.hullEdges.clear();
 	outSolid.hullVerts.clear();
 	outSolid.hullVerts = hullVerts;
 
 	// get verts for each plane
-	std::map<int, vector<int>> planeVerts;
+	std::map<int, std::vector<int>> planeVerts;
 	for (int i = 0; i < hullVerts.size(); i++) {
 		for (int k = 0; k < hullVerts[i].iPlanes.size(); k++) {
 			int iPlane = hullVerts[i].iPlanes[k];
@@ -2339,19 +2336,19 @@ bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& 
 	// sort verts CCW on each plane to get edges
 	for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
 		int iPlane = it->first;
-		vector<int> verts = it->second;
+		std::vector<int> verts = it->second;
 		BSPPLANE& plane = map->planes[iPlane];
 		if (verts.size() < 2) {
 			logf("Plane with less than 2 verts!?\n"); // hl_c00 pipe in green water place
 			return false;
 		}
 
-		vector<vec3> tempVerts(verts.size());
+		std::vector<vec3> tempVerts(verts.size());
 		for (int i = 0; i < verts.size(); i++) {
 			tempVerts[i] = hullVerts[verts[i]].pos;
 		}
 
-		vector<int> orderedVerts = getSortedPlanarVertOrder(tempVerts);
+		std::vector<int> orderedVerts = getSortedPlanarVertOrder(tempVerts);
 		for (int i = 0; i < orderedVerts.size(); i++) {
 			orderedVerts[i] = verts[orderedVerts[i]];
 			tempVerts[i] = hullVerts[orderedVerts[i]].pos;
@@ -2392,11 +2389,11 @@ bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& 
 			vec3 midPoint = getEdgeControlPoint(hullVerts, edge);
 			int planeCount = 0;
 			for (auto it2 = planeVerts.begin(); it2 != planeVerts.end(); ++it2) {
-				int iPlane = it2->first;
-				BSPPLANE& p = map->planes[iPlane];
+				int iPlane2 = it2->first;
+				BSPPLANE& p = map->planes[iPlane2];
 				float dist = dotProduct(midPoint, p.vNormal) - p.fDist;
 				if (fabs(dist) < EPSILON) {
-					edge.planes[planeCount % 2] = iPlane;
+					edge.planes[planeCount % 2] = iPlane2;
 					planeCount++;
 				}
 			}
@@ -2441,7 +2438,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	if (pickInfo.modelIdx <= 0)
 		return;
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 
 	bool scaleFromOrigin = fromDir.x == 0 && fromDir.y == 0 && fromDir.z == 0;
 
@@ -2604,7 +2601,7 @@ void Renderer::splitFace() {
 	Bsp* map = getSelectedMap();
 
 	// find the pseudo-edge to split with
-	vector<int> selectedEdges;
+	std::vector<int> selectedEdges;
 	for (int i = 0; i < modelEdges.size(); i++) {
 		if (modelEdges[i].selected) {
 			selectedEdges.push_back(i);
@@ -2641,7 +2638,7 @@ void Renderer::splitFace() {
 		getEdgeControlPoint(modelVerts, edge2)
 	};
 
-	vector<int> modelPlanes;
+	std::vector<int> modelPlanes;
 	BSPMODEL& model = map->models[pickInfo.ent->getBspModelIdx()];
 	getSelectedMap()->getNodePlanes(model.iHeadnodes[0], modelPlanes);
 
@@ -2713,7 +2710,7 @@ void Renderer::splitFace() {
 	}
 
 	// create a new model from the new set of planes
-	vector<TransformVert> newHullVerts;
+	std::vector<TransformVert> newHullVerts;
 	if (!map->getModelPlaneIntersectVerts(pickInfo.ent->getBspModelIdx(), modelPlanes, newHullVerts)) {
 		logf("Can't split here because the model would not be convex\n");
 		return;
@@ -2727,7 +2724,7 @@ void Renderer::splitFace() {
 
 	// test that all planes have at least 3 verts
 	{
-		std::map<int, vector<vec3>> planeVerts;
+		std::map<int, std::vector<vec3>> planeVerts;
 		for (int i = 0; i < newHullVerts.size(); i++) {
 			for (int k = 0; k < newHullVerts[i].iPlanes.size(); k++) {
 				int iPlane = newHullVerts[i].iPlanes[k];
@@ -2735,7 +2732,7 @@ void Renderer::splitFace() {
 			}
 		}
 		for (auto it = planeVerts.begin(); it != planeVerts.end(); ++it) {
-			vector<vec3>& verts = it->second;
+			std::vector<vec3>& verts = it->second;
 
 			if (verts.size() < 3) {
 				logf("Can't split here because a face with less than 3 verts would be created\n");
@@ -2829,13 +2826,13 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	updateSelectionSize();
 }
 
-vec3 Renderer::getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& edge) {
+vec3 Renderer::getEdgeControlPoint(std::vector<TransformVert>& hullVerts, HullEdge& edge) {
 	vec3 v0 = hullVerts[edge.verts[0]].pos;
 	vec3 v1 = hullVerts[edge.verts[1]].pos;
 	return v0 + (v1 - v0) * 0.5f;
 }
 
-vec3 Renderer::getCentroid(vector<TransformVert>& hullVerts) {
+vec3 Renderer::getCentroid(std::vector<TransformVert>& hullVerts) {
 	vec3 centroid;
 	for (int i = 0; i < hullVerts.size(); i++) {
 		centroid += hullVerts[i].pos;
@@ -2858,7 +2855,7 @@ void Renderer::grabEnt() {
 	if (pickInfo.entIdx <= 0)
 		return;
 	movingEnt = true;
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	vec3 mapOffset = g_app->getSelectedRender()->mapOffset;
 	vec3 localCamOrigin = cameraOrigin - mapOffset;
 	grabDist = (getEntOrigin(map, map->ents[pickInfo.entIdx]) - localCamOrigin).length();
@@ -2873,7 +2870,7 @@ void Renderer::cutEnt() {
 	if (copiedEnt != NULL)
 		delete copiedEnt;
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	copiedEnt = new Entity();
 	*copiedEnt = *map->ents[pickInfo.entIdx];
 
@@ -2889,7 +2886,7 @@ void Renderer::copyEnt() {
 	if (copiedEnt != NULL)
 		delete copiedEnt;
 
-	Bsp* map = g_app->getSelectedRender()->map;
+	Bsp* map = g_app->getSelectedMap();
 	copiedEnt = new Entity();
 	*copiedEnt = *map->ents[pickInfo.entIdx];
 }
@@ -3022,7 +3019,7 @@ void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 	undoLumpState = map->duplicate_lumps(targetLumps);
 }
 
-void Renderer::pushEntityUndoState(string actionDesc) {
+void Renderer::pushEntityUndoState(std::string actionDesc) {
 	if (!pickInfo.ent) {
 		logf("Invalid entity undo state push\n");
 		return;
@@ -3032,14 +3029,14 @@ void Renderer::pushEntityUndoState(string actionDesc) {
 	if (undoEntityState->keyOrder.size() == pickInfo.ent->keyOrder.size()) {
 		bool keyvaluesDifferent = false;
 		for (int i = 0; i < undoEntityState->keyOrder.size(); i++) {
-			string oldKey = undoEntityState->keyOrder[i];
-			string newKey = pickInfo.ent->keyOrder[i];
+			std::string oldKey = undoEntityState->keyOrder[i];
+			std::string newKey = pickInfo.ent->keyOrder[i];
 			if (oldKey != newKey) {
 				keyvaluesDifferent = true;
 				break;
 			}
-			string oldVal = undoEntityState->keyvalues[oldKey];
-			string newVal = pickInfo.ent->keyvalues[oldKey];
+			std::string oldVal = undoEntityState->keyvalues[oldKey];
+			std::string newVal = pickInfo.ent->keyvalues[oldKey];
 			if (oldVal != newVal) {
 				keyvaluesDifferent = true;
 				break;
@@ -3057,7 +3054,7 @@ void Renderer::pushEntityUndoState(string actionDesc) {
 	updateEntityState(pickInfo.ent);
 }
 
-void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
+void Renderer::pushModelUndoState(std::string actionDesc, int targetLumps) {
 	if (!pickInfo.ent || pickInfo.modelIdx <= 0) {
 		return;
 	}

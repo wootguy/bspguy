@@ -2,7 +2,7 @@
 #include "util.h"
 #include <iostream>
 #include <fstream>
-#include <string.h>
+#include <string>
 
 #ifdef WIN32
 	#define strcasecmp _stricmp
@@ -14,7 +14,7 @@ Wad::Wad(void)
 	dirEntries = NULL;
 }
 
-Wad::Wad( const string& file )
+Wad::Wad( const std::string& file )
 {
 	this->filename = file;
 	numTex = -1;
@@ -29,7 +29,7 @@ Wad::~Wad(void)
 
 bool Wad::readInfo()
 {
-	string file = filename;
+	std::string file = filename;
 
 	if (!fileExists(file))
 	{
@@ -37,15 +37,15 @@ bool Wad::readInfo()
 		return false;
 	}
 
-	ifstream fin(file, ifstream::in|ios::binary);
+	std::ifstream fin(file, std::ios::binary);
 	if (!fin.good())
 		return false;
 
 	uint begin = fin.tellg();
-	fin.seekg (0, ios::end);
+	fin.seekg(0, std::ios::end);
 	uint end = fin.tellg();
 	uint sz = end - begin;
-	fin.seekg(0, ios::beg);
+	fin.seekg(0, std::ios::beg);
 
 	if (sz < sizeof(WADHEADER))
 	{
@@ -58,7 +58,7 @@ bool Wad::readInfo()
 	//
 	fin.read((char*)&header, sizeof(WADHEADER)); 
 
-	if (string(header.szMagic).find("WAD3") != 0)
+	if (std::string(header.szMagic).find("WAD3") != 0)
 	{
 		fin.close();
 		return false;
@@ -99,7 +99,7 @@ bool Wad::readInfo()
 	return true;
 }
 
-bool Wad::hasTexture(string name)
+bool Wad::hasTexture(std::string name)
 {
 	for (int d = 0; d < header.nDir; d++)
 		if (strcasecmp(name.c_str(), dirEntries[d].szName) == 0)
@@ -116,16 +116,16 @@ WADTEX * Wad::readTexture( int dirIndex )
 	}
 	//if (cache != NULL)
 		//return cache[dirIndex];
-	string name = string(dirEntries[dirIndex].szName);
+	std::string name = std::string(dirEntries[dirIndex].szName);
 	return readTexture(name);
 }
 
-WADTEX * Wad::readTexture( const string& texname )
+WADTEX * Wad::readTexture( const std::string& texname )
 {
-	string path = filename;
+	std::string path = filename;
 	const char * file = (path.c_str());
 
-	ifstream fin(file, ifstream::in|ios::binary);
+	std::ifstream fin(file, std::ios::binary);
 	if (!fin.good())
 		return NULL;
 
@@ -185,7 +185,7 @@ bool Wad::write(WADTEX** textures, int numTex)
 
 bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 {
-	ofstream myFile(filename, ios::trunc | ios::binary);
+	std::ofstream myFile(filename, std::ios::trunc | std::ios::binary);
 
 	header.szMagic[0] = 'W';
 	header.szMagic[1] = 'A';

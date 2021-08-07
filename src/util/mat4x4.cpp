@@ -1,6 +1,6 @@
 #include "mat4x4.h"
 #include "util.h"
-#include <string.h>
+#include <string>
 
 void mat4x4::loadIdentity()
 {

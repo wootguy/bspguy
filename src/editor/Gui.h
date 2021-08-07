@@ -11,19 +11,19 @@
 #include "qtools/rad.h"
 
 struct ModelInfo {
-	string classname;
-	string targetname;
-	string model;
-	string val;
-	string usage;
+	std::string classname;
+	std::string targetname;
+	std::string model;
+	std::string val;
+	std::string usage;
 	int entIdx;
 };
 
 struct StatInfo {
-	string name;
-	string val;
-	string max;
-	string fullness;
+	std::string name;
+	std::string val;
+	std::string max;
+	std::string fullness;
 	float progress;
 	ImVec4 color;
 };
@@ -92,9 +92,9 @@ private:
 	bool lightmapTooLarge = false;
 
 	bool loadedLimit[SORT_MODES] = { false };
-	vector<ModelInfo> limitModels[SORT_MODES];
+	std::vector<ModelInfo> limitModels[SORT_MODES];
 	bool loadedStats = false;
-	vector<StatInfo> stats;
+	std::vector<StatInfo> stats;
 
 	bool anyHullValid[MAX_MAP_HULLS] = { false };
 
@@ -134,7 +134,7 @@ private:
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);
 	void drawEntityReport();
-	StatInfo calcStat(string name, uint val, uint max, bool isMem);
+	StatInfo calcStat(std::string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void checkValidHulls();
 	void reloadLimits();

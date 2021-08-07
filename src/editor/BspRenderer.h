@@ -41,7 +41,7 @@ struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
 	vec3 normal;
 	float fdist;
-	vector<vec2> localVerts;
+	std::vector<vec2> localVerts;
 };
 
 struct RenderEnt {
@@ -79,7 +79,7 @@ struct RenderModel {
 struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
 	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
-	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
+	std::vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
 struct PickInfo {
@@ -104,7 +104,7 @@ public:
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
 	int showLightFlag = -1;
-	vector<Wad*> wads;
+	std::vector<Wad*> wads;
 	bool texturesLoaded = false;
 
 
@@ -187,13 +187,13 @@ private:
 
 	bool lightmapsGenerated = false;
 	bool lightmapsUploaded = false;
-	future<void> lightmapFuture;
+	std::future<void> lightmapFuture;
 
-	future<void> texturesFuture;
+	std::future<void> texturesFuture;
 
 	bool clipnodesLoaded = false;
 	int clipnodeLeafCount = 0;
-	future<void> clipnodesFuture;
+	std::future<void> clipnodesFuture;
 
 	void loadLightmaps();
 	void genRenderFaces(int& renderModelCount);

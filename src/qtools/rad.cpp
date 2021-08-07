@@ -265,8 +265,8 @@ bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]) {
 	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
 	{
 		//logf("Bad surface extents (%d x %d)\n", size[0], size[1]);
-		size[0] = min(size[0], MAX_SURFACE_EXTENT);
-		size[1] = min(size[1], MAX_SURFACE_EXTENT);
+		size[0] = std::min(size[0], MAX_SURFACE_EXTENT);
+		size[1] = std::min(size[1], MAX_SURFACE_EXTENT);
 		badSurfaceExtents = true;
 	}
 
@@ -300,8 +300,8 @@ void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2])
 
 	f = &bsp->faces[facenum];
 
-	mins[0] = mins[1] = 999999;
-	maxs[0] = maxs[1] = -999999;
+	mins[0] = mins[1] = FLT_MAX_COORD;
+	maxs[0] = maxs[1] = FLT_MIN_COORD;
 
 	tex = &bsp->texinfos[f->iTextureInfo];
 
@@ -358,8 +358,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 
 	s = l->face;
 
-	mins[0] = mins[1] = 99999999;
-	maxs[0] = maxs[1] = -99999999;
+	mins[0] = mins[1] = FLT_MAX_COORD;
+	maxs[0] = maxs[1] = FLT_MIN_COORD;
 
 	tex = &bsp->texinfos[s->iTextureInfo];
 
@@ -410,8 +410,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 			)
 		{
 			//logf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
-			l->texsize[0] = min(l->texsize[0], MAX_SURFACE_EXTENT);
-			l->texsize[1] = min(l->texsize[1], MAX_SURFACE_EXTENT);
+			l->texsize[0] = std::min(l->texsize[0], MAX_SURFACE_EXTENT);
+			l->texsize[1] = std::min(l->texsize[1], MAX_SURFACE_EXTENT);
 		}
 	}
 }

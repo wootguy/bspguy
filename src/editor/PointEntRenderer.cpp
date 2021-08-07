@@ -1,6 +1,6 @@
 #include "PointEntRenderer.h"
 #include "primitives.h"
-#include <string.h>
+#include <string>
 
 PointEntRenderer::PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader) {
 	this->fgd = fgd;
@@ -18,7 +18,7 @@ PointEntRenderer::~PointEntRenderer() {
 }
 
 EntCube* PointEntRenderer::getEntCube(Entity* ent) {
-	string cname = ent->keyvalues["classname"];
+	std::string cname = ent->keyvalues["classname"];
 
 	if (cubeMap.find(cname) != cubeMap.end()) {
 		return cubeMap[cname];

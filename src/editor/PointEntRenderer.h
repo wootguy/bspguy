@@ -24,8 +24,8 @@ public:
 
 private:
 	ShaderProgram* colorShader;
-	map<string, EntCube*> cubeMap;
-	vector<EntCube*> entCubes;
+	std::map<std::string, EntCube*> cubeMap;
+	std::vector<EntCube*> entCubes;
 
 	void genPointEntCubes();
 	EntCube* getCubeMatchingProps(EntCube* cube);

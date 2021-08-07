@@ -1,6 +1,9 @@
 #define MAX_MAP_HULLS	4
 #define MAX_MAP_COORD 32767 // stuff breaks past this point
 
+#define FLT_MAX_COORD MAX_MAP_COORD.f
+#define FLT_MIN_COORD -MAX_MAP_COORD.f
+
 #define MAX_MAP_MODELS 4096
 #define MAX_MAP_PLANES 65535
 #define MAX_MAP_VERTS 65535
@@ -29,5 +32,3 @@
 #define MAXLIGHTMAPS    4
 
 
-#define FLT_MAX_COORD 32767.f
-#define FLT_MIN_COORD -32767.f

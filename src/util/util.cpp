@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
-#include <string.h>
+#include <string>
 #include "Wad.h"
 #include <cfloat> 
 #include <stdarg.h>
@@ -39,8 +39,8 @@ namespace fs = std::experimental::filesystem;
 
 ProgressMeter g_progress;
 int g_render_flags;
-vector<string> g_log_buffer;
-mutex g_log_mutex;
+std::vector<std::string> g_log_buffer;
+std::mutex g_log_mutex;
 
 static char log_line[4096];
 
@@ -76,7 +76,7 @@ void debugf(const char* format, ...) {
 	g_log_mutex.unlock();
 }
 
-bool fileExists(const string& fileName)
+bool fileExists(const std::string& fileName)
 {
 #ifdef USE_FILESYSTEM
 	return fs::exists(fileName) && !fs::is_directory(fileName);
@@ -90,25 +90,25 @@ bool fileExists(const string& fileName)
 #endif
 }
 
-char* loadFile(const string& fileName, int& length)
+char* loadFile(const std::string& fileName, int& length)
 {
 	if (!fileExists(fileName))
 		return NULL;
-	ifstream fin(fileName.c_str(), ifstream::in | ios::binary);
+	std::ifstream fin(fileName.c_str(), std::ios::binary);
 	long long begin = fin.tellg();
-	fin.seekg(0, ios::end);
+	fin.seekg(0, std::ios::end);
 	uint size = (uint)((int)fin.tellg() - begin);
 	char* buffer = new char[size];
-	fin.seekg(0);
+	fin.seekg(0, std::ios::beg);
 	fin.read(buffer, size);
 	fin.close();
 	length = (int)size; // surely models will never exceed 2 GB
 	return buffer;
 }
 
-bool writeFile(const string& fileName, const char* data, int len)
+bool writeFile(const std::string& fileName, const char* data, int len)
 {
-	ofstream file(fileName, ios::trunc | ios::binary);
+	std::ofstream file(fileName, std::ios::trunc | std::ios::binary);
 	if (!file.is_open()) {
 		return false;
 	}
@@ -116,7 +116,7 @@ bool writeFile(const string& fileName, const char* data, int len)
 	return true;
 }
 
-bool removeFile(const string& fileName)
+bool removeFile(const std::string& fileName)
 {
 #ifdef USE_FILESYSTEM
 	return fs::exists(fileName) && fs::remove(fileName);
@@ -127,7 +127,7 @@ bool removeFile(const string& fileName)
 #endif
 }
 
-std::streampos fileSize(const string& filePath) {
+std::streampos fileSize(const std::string& filePath) {
 
 	std::streampos fsize = 0;
 	std::ifstream file(filePath, std::ios::binary);
@@ -140,15 +140,15 @@ std::streampos fileSize(const string& filePath) {
 	return fsize;
 }
 
-vector<string> splitString(string str, const char* delimitters)
+std::vector<std::string> splitString(std::string str, const char* delimitters)
 {
-	vector<string> split;
+	std::vector<std::string> split;
 	if (str.size() == 0)
 		return split;
 
 	// somehow plain assignment doesn't create a copy and even modifies the parameter that was passed by value (WTF!?!)
-	//string copy = str; 
-	string copy;
+	//std::string copy = str; 
+	std::string copy;
 	for (int i = 0; i < str.length(); i++)
 		copy += str[i];
 
@@ -162,18 +162,18 @@ vector<string> splitString(string str, const char* delimitters)
 	return split;
 }
 
-string basename(string path) {
+std::string basename(std::string path) {
 
 	int lastSlash = path.find_last_of("\\/");
-	if (lastSlash != string::npos) {
+	if (lastSlash != std::string::npos) {
 		return path.substr(lastSlash + 1);
 	}
 	return path;
 }
 
-string stripExt(string path) {
+std::string stripExt(std::string path) {
 	int lastDot = path.find_last_of(".");
-	if (lastDot != string::npos) {
+	if (lastDot != std::string::npos) {
 		return path.substr(0, lastDot);
 	}
 	return path;
@@ -189,22 +189,22 @@ bool isNumeric(const std::string& s)
 	return !s.empty() && it == s.end();
 }
 
-string toLowerCase(string str)
+std::string toLowerCase(std::string str)
 {
 	transform(str.begin(), str.end(), str.begin(), ::tolower);
 	return str;
 }
 
-string trimSpaces(string s)
+std::string trimSpaces(std::string s)
 {
 	// Remove white space indents
 	int lineStart = s.find_first_not_of(" \t\n\r");
-	if (lineStart == string::npos)
+	if (lineStart == std::string::npos)
 		return "";
 
 	// Remove spaces after the last character
 	int lineEnd = s.find_last_not_of(" \t\n\r");
-	if (lineEnd != string::npos && lineEnd < s.length() - 1)
+	if (lineEnd != std::string::npos && lineEnd < s.length() - 1)
 		s = s.substr(lineStart, (lineEnd + 1) - lineStart);
 	else
 		s = s.substr(lineStart);
@@ -234,12 +234,12 @@ float clamp(float val, float min, float max) {
 	return val;
 }
 
-vec3 parseVector(string s) {
+vec3 parseVector(std::string s) {
 	vec3 v;
-	vector<string> parts = splitString(s, " ");
+	std::vector<std::string> parts = splitString(s, " ");
 
 	if (parts.size() != 3) {
-		logf("Not enough coordinates in vector %s\n", s.c_str());
+		logf("Not enough coordinates in std::vector %s\n", s.c_str());
 		return v;
 	}
 
@@ -386,7 +386,7 @@ float getDistAlongAxis(vec3 axis, vec3 p)
 	return dotProduct(axis, p) / sqrt(dotProduct(axis, axis));
 }
 
-bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
+bool getPlaneFromVerts(std::vector<vec3>& verts, vec3& outNormal, float& outDist) {
 	const float tolerance = 0.00001f; // normals more different than this = non-planar face
 
 	int numVerts = verts.size();
@@ -416,7 +416,7 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 	return true;
 }
 
-vec2 getCenter(vector<vec2>& verts) {
+vec2 getCenter(std::vector<vec2>& verts) {
 	vec2 maxs = vec2(FLT_MIN_COORD, FLT_MIN_COORD);
 	vec2 mins = vec2(FLT_MAX_COORD, FLT_MAX_COORD);
 
@@ -427,7 +427,7 @@ vec2 getCenter(vector<vec2>& verts) {
 	return mins + (maxs - mins) * 0.5f;
 }
 
-vec3 getCenter(vector<vec3>& verts) {
+vec3 getCenter(std::vector<vec3>& verts) {
 	vec3 maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 	vec3 mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 
@@ -438,7 +438,7 @@ vec3 getCenter(vector<vec3>& verts) {
 	return mins + (maxs - mins) * 0.5f;
 }
 
-void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
+void getBoundingBox(std::vector<vec3>& verts, vec3& mins, vec3& maxs) {
 	maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 	mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 
@@ -465,8 +465,8 @@ void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs) {
 	if (v.y < mins.y) mins.y = v.y;
 }
 
-vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes) {
-	vector<vec3> intersectVerts;
+std::vector<vec3> getPlaneIntersectVerts(std::vector<BSPPLANE>& planes) {
+	std::vector<vec3> intersectVerts;
 
 	// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
 	int numPlanes = planes.size();
@@ -516,7 +516,7 @@ vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes) {
 	return intersectVerts;
 }
 
-bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane) {
+bool vertsAllOnOneSide(std::vector<vec3>& verts, BSPPLANE& plane) {
 	// check that all verts are on one side of the plane.
 	int planeSide = 0;
 	for (int k = 0; k < verts.size(); k++) {
@@ -538,7 +538,7 @@ bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane) {
 	return true;
 }
 
-vector<vec3> getTriangularVerts(vector<vec3>& verts) {
+std::vector<vec3> getTriangularVerts(std::vector<vec3>& verts) {
 	int i0 = 0;
 	int i1 = -1;
 	int i2 = -1;
@@ -554,7 +554,7 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 
 	if (i1 == -1) {
 		//logf("Only 1 unique vert!\n");
-		return vector<vec3>();
+		return std::vector<vec3>();
 	}
 
 	for (int i = 1; i < verts.size(); i++) {
@@ -575,14 +575,14 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 
 	if (i2 == -1) {
 		//logf("All verts are colinear!\n");
-		return vector<vec3>();
+		return std::vector<vec3>();
 	}
 
 	return { verts[i0], verts[i1], verts[i2] };
 }
 
-vec3 getNormalFromVerts(vector<vec3>& verts) {
-	vector<vec3> triangularVerts = getTriangularVerts(verts);
+vec3 getNormalFromVerts(std::vector<vec3>& verts) {
+	std::vector<vec3> triangularVerts = getTriangularVerts(verts);
 
 	if (triangularVerts.empty())
 		return vec3();
@@ -594,11 +594,11 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 	return vertsNormal;
 }
 
-vector<vec2> localizeVerts(vector<vec3>& verts) {
-	vector<vec3> triangularVerts = getTriangularVerts(verts);
+std::vector<vec2> localizeVerts(std::vector<vec3>& verts) {
+	std::vector<vec3> triangularVerts = getTriangularVerts(verts);
 
 	if (triangularVerts.empty()) {
-		return vector<vec2>();
+		return std::vector<vec2>();
 	}
 
 	vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
@@ -610,7 +610,7 @@ vector<vec2> localizeVerts(vector<vec3>& verts) {
 
 	mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 
-	vector<vec2> localVerts(verts.size());
+	std::vector<vec2> localVerts(verts.size());
 	for (int e = 0; e < verts.size(); e++) {
 		localVerts[e] = (worldToLocal * vec4(verts[e], 1)).xy();
 	}
@@ -618,15 +618,15 @@ vector<vec2> localizeVerts(vector<vec3>& verts) {
 	return localVerts;
 }
 
-vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
-	vector<vec2> localVerts = localizeVerts(verts);
+std::vector<int> getSortedPlanarVertOrder(std::vector<vec3>& verts) {
+	std::vector<vec2> localVerts = localizeVerts(verts);
 	if (localVerts.empty()) {
-		return vector<int>();
+		return std::vector<int>();
 	}
 
 	vec2 center = getCenter(localVerts);
-	vector<int> orderedVerts;
-	vector<int> remainingVerts;
+	std::vector<int> orderedVerts;
+	std::vector<int> remainingVerts;
 
 	for (int i = 0; i < localVerts.size(); i++) {
 		remainingVerts.push_back(i);
@@ -664,11 +664,11 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
 	return orderedVerts;
 }
 
-vector<vec3> getSortedPlanarVerts(vector<vec3>& verts) {
-	vector<vec3> outVerts(verts.size());
-	vector<int> vertOrder = getSortedPlanarVertOrder(verts);
+std::vector<vec3> getSortedPlanarVerts(std::vector<vec3>& verts) {
+	std::vector<vec3> outVerts(verts.size());
+	std::vector<int> vertOrder = getSortedPlanarVertOrder(verts);
 	if (vertOrder.empty()) {
-		return vector<vec3>();
+		return std::vector<vec3>();
 	}
 	for (int i = 0; i < vertOrder.size(); i++) {
 		outVerts[i] = verts[vertOrder[i]];
@@ -676,7 +676,7 @@ vector<vec3> getSortedPlanarVerts(vector<vec3>& verts) {
 	return outVerts;
 }
 
-bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
+bool pointInsidePolygon(std::vector<vec2>& poly, vec2 p) {
 	// https://stackoverflow.com/a/34689268
 	bool inside = true;
 	float lastd = 0;
@@ -760,7 +760,7 @@ void WriteBMP(std::string fileName, byte* pixels, int width, int height, int byt
 }
 
 
-bool dirExists(const string& dirName)
+bool dirExists(const std::string& dirName)
 {
 #ifdef USE_FILESYSTEM
 	return fs::exists(dirName) && fs::is_directory(dirName);
@@ -843,7 +843,7 @@ int mkdir_p(const char* dir, const mode_t mode) {
 }
 #endif 
 
-bool createDir(const string& dirName)
+bool createDir(const std::string& dirName)
 {
 #ifdef USE_FILESYSTEM
 	return fs::create_directories(dirName);
@@ -873,7 +873,7 @@ bool createDir(const string& dirName)
 #endif
 }
 
-void removeDir(const string& dirName)
+void removeDir(const std::string& dirName)
 {
 #ifdef USE_FILESYSTEM
 	std::error_code e;
@@ -978,11 +978,11 @@ void print_color(int colors)
 	SetConsoleTextAttribute(console, (WORD)colors);
 }
 
-string getConfigDir()
+std::string getConfigDir()
 {
 	char path[MAX_PATH];
 	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
-	return string(path) + "\\AppData\\Roaming\\bspguy\\";
+	return std::string(path) + "\\AppData\\Roaming\\bspguy\\";
 }
 #else 
 void print_color(int colors)
@@ -1007,8 +1007,8 @@ void print_color(int colors)
 	logf("\x1B[%s;%sm", mode, color);
 }
 
-string getConfigDir()
+std::string getConfigDir()
 {
-	return string("") + getenv("HOME") + "/.config/bspguy/";
+	return std::string("") + getenv("HOME") + "/.config/bspguy/";
 }
 #endif

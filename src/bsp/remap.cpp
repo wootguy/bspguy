@@ -68,7 +68,7 @@ void print_stat(int indent, int stat, const char* data) {
 	for (int i = 0; i < indent; i++)
 		logf("    ");
 	const char* plural = "s";
-	if (string(data) == "vertex") {
+	if (std::string(data) == "vertex") {
 		plural = "es";
 	}
 

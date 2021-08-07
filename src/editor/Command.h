@@ -9,11 +9,11 @@
 
 class Command {
 public:
-	string desc;
+	std::string desc;
 	int mapIdx;
 	bool allowedDuringLoad = false;
 
-	Command(string desc, int mapIdx);
+	Command(std::string desc, int mapIdx);
 	virtual void execute() = 0;
 	virtual void undo() = 0;
 	virtual int memoryUsage() = 0;
@@ -29,7 +29,7 @@ public:
 	Entity* oldEntData;
 	Entity* newEntData;
 
-	EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData);
+	EditEntityCommand(std::string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData);
 	~EditEntityCommand();
 
 	void execute();
@@ -45,7 +45,7 @@ public:
 	int entIdx;
 	Entity* entData;
 
-	DeleteEntityCommand(string desc, PickInfo& pickInfo);
+	DeleteEntityCommand(std::string desc, PickInfo& pickInfo);
 	~DeleteEntityCommand();
 
 	void execute();
@@ -59,7 +59,7 @@ class CreateEntityCommand : public Command {
 public:
 	Entity* entData;
 
-	CreateEntityCommand(string desc, int mapIdx, Entity* entData);
+	CreateEntityCommand(std::string desc, int mapIdx, Entity* entData);
 	~CreateEntityCommand();
 
 	void execute();
@@ -77,7 +77,7 @@ public:
 	LumpState oldLumps = LumpState();
 	bool initialized = false;
 
-	DuplicateBspModelCommand(string desc, PickInfo& pickInfo);
+	DuplicateBspModelCommand(std::string desc, PickInfo& pickInfo);
 	~DuplicateBspModelCommand();
 
 	void execute();
@@ -93,7 +93,7 @@ public:
 	bool initialized = false;
 	float size;
 
-	CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size);
+	CreateBspModelCommand(std::string desc, int mapIdx, Entity* entData, float size);
 	~CreateBspModelCommand();
 
 	void execute();
@@ -115,7 +115,7 @@ public:
 	LumpState oldLumps = LumpState();
 	LumpState newLumps = LumpState();
 
-	EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, vec3 oldOrigin);
+	EditBspModelCommand(std::string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, vec3 oldOrigin);
 	~EditBspModelCommand();
 
 	void execute();
@@ -129,7 +129,7 @@ class CleanMapCommand : public Command {
 public:
 	LumpState oldLumps = LumpState();
 
-	CleanMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	CleanMapCommand(std::string desc, int mapIdx, LumpState oldLumps);
 	~CleanMapCommand();
 
 	void execute();
@@ -143,7 +143,7 @@ class OptimizeMapCommand : public Command {
 public:
 	LumpState oldLumps = LumpState();
 
-	OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	OptimizeMapCommand(std::string desc, int mapIdx, LumpState oldLumps);
 	~OptimizeMapCommand();
 
 	void execute();

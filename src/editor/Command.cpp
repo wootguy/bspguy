@@ -5,7 +5,7 @@
 
 #include "icons/aaatrigger.h"
 
-Command::Command(string desc, int mapIdx) {
+Command::Command(std::string desc, int mapIdx) {
 	this->desc = desc;
 	this->mapIdx = mapIdx;
 	debugf("New undo command added: %s\n", desc.c_str());
@@ -31,7 +31,7 @@ BspRenderer* Command::getBspRenderer() {
 //
 // Edit entity
 //
-EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
+EditEntityCommand::EditEntityCommand(std::string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
 		: Command(desc, g_app->getSelectedMapId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->oldEntData = new Entity();
@@ -90,7 +90,7 @@ int EditEntityCommand::memoryUsage() {
 //
 // Delete entity
 //
-DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
+DeleteEntityCommand::DeleteEntityCommand(std::string desc, PickInfo& pickInfo)
 		: Command(desc, g_app->getSelectedMapId()) {
 	this->entIdx = pickInfo.entIdx;
 	this->entData = new Entity();
@@ -145,7 +145,7 @@ int DeleteEntityCommand::memoryUsage() {
 //
 // Create Entity
 //
-CreateEntityCommand::CreateEntityCommand(string desc, int mapIdx, Entity* entData) : Command(desc, mapIdx) {
+CreateEntityCommand::CreateEntityCommand(std::string desc, int mapIdx, Entity* entData) : Command(desc, mapIdx) {
 	this->entData = new Entity();
 	*this->entData = *entData;
 	this->allowedDuringLoad = true;
@@ -191,7 +191,7 @@ int CreateEntityCommand::memoryUsage() {
 //
 // Duplicate BSP Model command
 //
-DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
+DuplicateBspModelCommand::DuplicateBspModelCommand(std::string desc, PickInfo& pickInfo) 
 		: Command(desc, g_app->getSelectedMapId()) {
 	this->oldModelIdx = pickInfo.modelIdx;
 	this->newModelIdx = -1;
@@ -220,7 +220,7 @@ void DuplicateBspModelCommand::execute() {
 	}
 
 	newModelIdx = map->duplicate_model(oldModelIdx);
-	ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));	
+	ent->setOrAddKeyvalue("model", "*" + std::to_string(newModelIdx));
 
 	renderer->updateLightmapInfos();
 	renderer->calcFaceMaths();
@@ -245,7 +245,7 @@ void DuplicateBspModelCommand::undo() {
 
 	Entity* ent = map->ents[entIdx];
 	map->replace_lumps(oldLumps);
-	ent->setOrAddKeyvalue("model", "*" + to_string(oldModelIdx));
+	ent->setOrAddKeyvalue("model", "*" + std::to_string(oldModelIdx));
 
 	if (g_app->pickInfo.modelIdx == newModelIdx) {
 		g_app->pickInfo.modelIdx = oldModelIdx;
@@ -281,7 +281,7 @@ int DuplicateBspModelCommand::memoryUsage() {
 //
 // Create BSP model
 //
-CreateBspModelCommand::CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size) : Command(desc, mapIdx) {
+CreateBspModelCommand::CreateBspModelCommand(std::string desc, int mapIdx, Entity* entData, float size) : Command(desc, mapIdx) {
 	this->entData = new Entity();
 	*this->entData = *entData;
 	this->size = size;
@@ -326,7 +326,7 @@ void CreateBspModelCommand::execute() {
 	int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
 
 	if (!initialized) {
-		entData->addKeyvalue("model", "*" + to_string(modelIdx));
+		entData->addKeyvalue("model", "*" + std::to_string(modelIdx));
 	}
 
 	Entity* newEnt = new Entity();
@@ -398,7 +398,7 @@ int CreateBspModelCommand::addDefaultTexture() {
 //
 // Edit BSP model
 //
-EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
+EditBspModelCommand::EditBspModelCommand(std::string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
 		vec3 oldOrigin) : Command(desc, g_app->getSelectedMapId()) {
 	this->modelIdx = pickInfo.modelIdx;
 	this->entIdx = pickInfo.entIdx;
@@ -472,7 +472,7 @@ int EditBspModelCommand::memoryUsage() {
 //
 // Clean Map
 //
-CleanMapCommand::CleanMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+CleanMapCommand::CleanMapCommand(std::string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 }
@@ -527,7 +527,7 @@ int CleanMapCommand::memoryUsage() {
 //
 // Optimize Map
 //
-OptimizeMapCommand::OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+OptimizeMapCommand::OptimizeMapCommand(std::string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 }
