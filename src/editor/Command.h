@@ -32,11 +32,11 @@ public:
 	EditEntityCommand(std::string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData);
 	~EditEntityCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	Entity* getEnt();
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };
 
 
@@ -48,10 +48,10 @@ public:
 	DeleteEntityCommand(std::string desc, PickInfo& pickInfo);
 	~DeleteEntityCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };
 
 
@@ -62,10 +62,10 @@ public:
 	CreateEntityCommand(std::string desc, int mapIdx, Entity* entData);
 	~CreateEntityCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };
 
 
@@ -80,9 +80,9 @@ public:
 	DuplicateBspModelCommand(std::string desc, PickInfo& pickInfo);
 	~DuplicateBspModelCommand();
 
-	void execute();
-	void undo();
-	int memoryUsage();
+	void execute() override;
+	void undo() override;
+	int memoryUsage() override;
 };
 
 
@@ -96,9 +96,9 @@ public:
 	CreateBspModelCommand(std::string desc, int mapIdx, Entity* entData, float size);
 	~CreateBspModelCommand();
 
-	void execute();
-	void undo();
-	int memoryUsage();
+	void execute() override;
+	void undo() override;
+	int memoryUsage() override;
 
 private:
 	int getDefaultTextureIdx();
@@ -118,10 +118,10 @@ public:
 	EditBspModelCommand(std::string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, vec3 oldOrigin);
 	~EditBspModelCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };
 
 
@@ -132,10 +132,10 @@ public:
 	CleanMapCommand(std::string desc, int mapIdx, LumpState oldLumps);
 	~CleanMapCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };
 
 
@@ -146,8 +146,8 @@ public:
 	OptimizeMapCommand(std::string desc, int mapIdx, LumpState oldLumps);
 	~OptimizeMapCommand();
 
-	void execute();
-	void undo();
+	void execute() override;
+	void undo() override;
 	void refresh();
-	int memoryUsage();
+	int memoryUsage() override;
 };

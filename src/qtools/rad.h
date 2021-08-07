@@ -115,6 +115,6 @@ const BSPPLANE getPlaneFromFace(Bsp* bsp, const BSPFACE* const face);
 
 bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]);
 int GetFaceLightmapSizeBytes(Bsp* bsp, int facenum);
-void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int extents_out[2]);
+void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2]);
 void CalcFaceExtents(Bsp* bsp, lightinfo_t* l);
 void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags);

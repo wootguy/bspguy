@@ -36,7 +36,7 @@ struct cVert
 	COLOR4 c;
 	float x, y, z;
 
-	cVert() {}
+	cVert() = default;
 	cVert(float x, float y, float z, COLOR4 c) : c(c), x(x), y(y), z(z) {}
 	cVert(vec3 p, COLOR4 c) : c(c), x(p.x), y(p.y), z(p.z) {}
 };
@@ -45,7 +45,7 @@ struct tTri
 {
 	tVert v1, v2, v3;
 
-	tTri() {}
+	tTri() = default;
 	tTri(tVert v1, tVert v2, tVert v3) : v1(v1), v2(v2), v3(v3) {}
 };
 
@@ -63,7 +63,7 @@ struct tQuad
 	tVert v1, v2, v3;
 	tVert v4, v5, v6;
 
-	tQuad() {}
+	tQuad() = default;
 	tQuad(float x, float y, float w, float h);
 	tQuad(float x, float y, float w, float h, float uu1, float vv1, float uu2, float vv2);
 	tQuad(tVert v1, tVert v2, tVert v3, tVert v4);
@@ -75,7 +75,7 @@ struct cQuad
 	cVert v1, v2, v3;
 	cVert v4, v5, v6;
 
-	cQuad() {}
+	cQuad() = default;
 	cQuad(cVert v1, cVert v2, cVert v3, cVert v4);
 
 	void setColor(COLOR4 c); // color for the entire quad
@@ -99,7 +99,7 @@ struct cCube
 	cQuad top, bottom;
 	cQuad front, back;
 
-	cCube() {}
+	cCube() = default;
 	cCube(vec3 mins, vec3 maxs, COLOR4 c);
 
 	void setColor(COLOR4 c); // set color for the entire cube

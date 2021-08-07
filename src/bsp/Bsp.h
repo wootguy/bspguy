@@ -257,4 +257,6 @@ private:
 	void remap_model_structures(int modelIdx, STRUCTREMAP* remap);
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
+
+	BspRenderer* renderer;
 };

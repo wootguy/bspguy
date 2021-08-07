@@ -299,7 +299,7 @@ private:
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
-	vec3 getEdgeControlPoint(std::vector<TransformVert>& hullVerts, HullEdge& iEdge);
+	vec3 getEdgeControlPoint(std::vector<TransformVert>& hullVerts, HullEdge& edge);
 	vec3 getCentroid(std::vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
 	void deselectFaces();

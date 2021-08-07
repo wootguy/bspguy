@@ -38,7 +38,7 @@ public:
 
 	std::vector<std::string> getTargets();
 
-	bool hasTarget(std::string tname);
+	bool hasTarget(std::string checkTarget);
 
 	void renameTargetnameValues(std::string oldTargetname, std::string newTargetname);
 

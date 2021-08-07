@@ -64,9 +64,9 @@ void PointEntRenderer::genPointEntCubes() {
 	debugf("Generated %d entity cubes\n", entCubes.size());
 }
 
-EntCube* PointEntRenderer::getCubeMatchingProps(EntCube* cube) {
+EntCube* PointEntRenderer::getCubeMatchingProps(EntCube* entCube) {
 	for (int i = 0; i < entCubes.size(); i++) {
-		if (memcmp(cube, entCubes[i], sizeof(EntCube) - sizeof(VertexBuffer*)*3) == 0) {
+		if (memcmp(entCube, entCubes[i], sizeof(EntCube) - sizeof(VertexBuffer*)*3) == 0) {
 			return entCubes[i];
 		}
 	}

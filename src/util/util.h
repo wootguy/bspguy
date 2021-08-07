@@ -56,7 +56,7 @@ void print_color(int colors);
 
 std::string getConfigDir();
 
-bool dirExists(const std::string& dirName_in);
+bool dirExists(const std::string& dirName);
 
 bool createDir(const std::string& dirName);
 
@@ -74,7 +74,7 @@ vec3 parseVector(std::string s);
 
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 
-bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectPoint);
+bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectDist);
 
 float getDistAlongAxis(vec3 axis, vec3 p);
 
@@ -117,7 +117,7 @@ enum class FIXUPPATH_SLASH
 	FIXUPPATH_SLASH_REMOVE
 };
 void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash);
-void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
+void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
 void WriteBMP(std::string fileName, byte* pixels, int width, int height, int bytesPerPixel);

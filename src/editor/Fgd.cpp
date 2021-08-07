@@ -127,6 +127,11 @@ bool Fgd::parse() {
 void Fgd::parseClassHeader(FgdClass& fgdClass) {
 	std::vector<std::string> headerParts = splitString(line, "=");
 
+	if (headerParts.size() == 0) {
+		logf("ERROR: Unexpected end of class header (line %d)\n", lineNum);
+		return;
+	}
+
 	// group parts enclosed in parens or quotes
 	std::vector<std::string> typeParts = splitString(trimSpaces(headerParts[0]), " ");
 	typeParts = groupParts(typeParts);
@@ -207,11 +212,10 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 		}
 	}
 
-	if (headerParts.size() == 0) {
+	if (headerParts.size() == 1) {
 		logf("ERROR: Unexpected end of class header (line %d)\n", lineNum);
 		return;
 	}
-
 	std::vector<std::string> nameParts = splitStringIgnoringQuotes(headerParts[1], ":");
 
 	if (nameParts.size() >= 2) {

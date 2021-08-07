@@ -284,7 +284,6 @@ void BspRenderer::loadLightmaps() {
 			continue;
 
 		int size[2];
-		int dummy[2];
 		int imins[2];
 		int imaxs[2];
 		GetFaceLightmapSize(map, i, size);

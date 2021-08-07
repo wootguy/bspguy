@@ -108,7 +108,7 @@ public:
 	bool texturesLoaded = false;
 
 
-	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
+	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer);
 	~BspRenderer();
 
 	void render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull);
@@ -200,7 +200,7 @@ private:
 	void loadClipnodes();
 	void generateClipnodeBuffer(int modelIdx);
 	void deleteRenderModel(RenderModel* renderModel);
-	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
+	void deleteRenderModelClipnodes(RenderClipnodes* renderClip);
 	void deleteRenderClipnodes();
 	void deleteRenderFaces();
 	void deleteTextures();

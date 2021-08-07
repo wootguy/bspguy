@@ -22,8 +22,8 @@ VertexAttr commonAttr[VBUF_FLAGBITS] =
 	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, ""), // POS_3F
 };
 
-VertexAttr::VertexAttr( int numValues, int valueType, int handle, int normalized, const char* varName)
-	: numValues(numValues), valueType(valueType), handle(handle), normalized(normalized), varName(varName)
+VertexAttr::VertexAttr( int numValues, int valueType, int vhandle, int normalized, const char* varName)
+	: numValues(numValues), valueType(valueType), handle(vhandle), normalized(normalized), varName(varName)
 {
 	switch(valueType)
 	{
@@ -172,11 +172,11 @@ void VertexBuffer::upload() {
 	glBindBuffer(GL_ARRAY_BUFFER, vboId);
 	glBufferData(GL_ARRAY_BUFFER, elementSize * numVerts, data, GL_STATIC_DRAW);
 
-	int offset = 0;
+	unsigned long offset = 0;
 	for (int i = 0; i < attribs.size(); i++)
 	{
 		VertexAttr& a = attribs[i];
-		void* ptr = ((char*)0) + offset;
+		void* ptr = (void*)	offset;
 		offset += a.size;
 		if (a.handle == -1) {
 			continue;

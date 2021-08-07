@@ -54,6 +54,7 @@ void Bsp::init_empty_bsp()
 	update_lump_pointers();
 	name = "merged";
 	valid = true;
+	renderer = NULL;
 }
 
 void Bsp::selectModelEnt()
@@ -139,7 +140,7 @@ Bsp::Bsp(std::string fpath)
 			logf("Warning: in map %s found unused model: %d.\n", name.c_str(), i);
 		}
 	}
-
+	renderer = NULL;
 	valid = true;
 }
 
@@ -4390,8 +4391,9 @@ void Bsp::ExportToObjWIP(std::string path)
 
 BspRenderer* Bsp::GetBspRender()
 {
+	if (!renderer)
 	for (int i = 0; i < g_app->mapRenderers.size(); i++)
 		if (g_app->mapRenderers[i]->map == this)
-			return g_app->mapRenderers[i];
-	return NULL;
+			renderer = g_app->mapRenderers[i];
+	return renderer;
 }

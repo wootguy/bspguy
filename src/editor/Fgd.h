@@ -110,7 +110,7 @@ private:
 	int lineNum;
 	std::string line; // current line being parsed
 
-	void parseClassHeader(FgdClass& outClass);
+	void parseClassHeader(FgdClass& fgdClass);
 	void parseKeyvalue(FgdClass& outClass);
 	void parseChoicesOrFlags(KeyvalueDef& outKey);
 

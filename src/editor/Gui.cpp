@@ -1743,14 +1743,14 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							return 1;
 						}
 
-						InputData* inputData = (InputData*)data->UserData;
-						Entity* ent = inputData->entRef;
+						InputData* linputData = (InputData*)data->UserData;
+						Entity* ent = linputData->entRef;
 
 						std::string newVal = data->Buf;
 
 						bool needReloadModel = false;
 
-						if (!g_app->reloading && !g_app->isModelsReloading && inputData->key == "model")
+						if (!g_app->reloading && !g_app->isModelsReloading && linputData->key == "model")
 						{
 							if (ent->hasKey("model") && ent->keyvalues["model"] != newVal)
 							{
@@ -1758,18 +1758,18 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 							}
 						}
 						if (newVal.empty()) {
-							if (inputData->defaultValue.length()) {
-								ent->setOrAddKeyvalue(inputData->key, inputData->defaultValue);
+							if (linputData->defaultValue.length()) {
+								ent->setOrAddKeyvalue(linputData->key, linputData->defaultValue);
 							}
 							else {
-								ent->removeKeyvalue(inputData->key);
+								ent->removeKeyvalue(linputData->key);
 							}
 						}
 						else {
-							ent->setOrAddKeyvalue(inputData->key, newVal);
+							ent->setOrAddKeyvalue(linputData->key, newVal);
 						}
 
-						inputData->bspRenderer->refreshEnt(inputData->entIdx);
+						linputData->bspRenderer->refreshEnt(linputData->entIdx);
 						if (needReloadModel)
 							g_app->reloadBspModels();
 						g_app->updateEntConnections();
@@ -3293,11 +3293,6 @@ void Gui::drawEntityReport() {
 
 	Bsp* map = app->getSelectedMap();
 
-	if (!map)
-	{
-		return;
-	}
-
 	std::string title = map ? "Entity Report - " + map->name : "Entity Report";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
@@ -3751,7 +3746,7 @@ static bool ColorPicker(float* col, bool alphabar)
 				}
 		}
 	}
-	return value_changed | widget_used;
+	return value_changed || widget_used;
 }
 
 bool ColorPicker3(float col[3]) {
@@ -4042,7 +4037,7 @@ void Gui::drawTextureTool() {
 			return;
 		}
 		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
-			if (app->selectedFaces.size() && mapRenderer != NULL) {
+			if (app->selectedFaces.size()) {
 				int faceIdx = app->selectedFaces[0];
 				BSPFACE& face = map->faces[faceIdx];
 				BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
@@ -4374,8 +4369,6 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 
 	const float meg = 1024 * 1024;
 	float percent = (val / (float)max) * 100;
-
-	std::string out;
 
 	if (isMem) {
 		sprintf(tmp, "%8.1f", val / meg);

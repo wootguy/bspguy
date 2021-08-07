@@ -37,9 +37,19 @@ struct mat4x4
 	{
 		return m[idx];
 	}
+	mat4x4() = default;
+	mat4x4(const float newm[16])
+	{
+		memcpy(m, newm, 16 * sizeof(float));
+	}
+	mat4x4 operator*(float newm[16])
+	{
+		mult(newm);
+		return *this;
+	}
 
 private:
-	void mult(float m[16]);
+	void mult(float mat[16]);
 };
 
 mat4x4 operator*(mat4x4 m1, mat4x4 m2 );

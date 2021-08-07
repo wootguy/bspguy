@@ -28,6 +28,6 @@ private:
 	std::vector<EntCube*> entCubes;
 
 	void genPointEntCubes();
-	EntCube* getCubeMatchingProps(EntCube* cube);
-	void genCubeBuffers(EntCube* cube);
+	EntCube* getCubeMatchingProps(EntCube* entCube);
+	void genCubeBuffers(EntCube* entCube);
 };

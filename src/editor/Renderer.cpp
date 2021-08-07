@@ -460,7 +460,7 @@ void Renderer::renderLoop() {
 				highlightEnt = pickInfo.entIdx;
 			}
 
-			if (curMap && curMap->ents.size() && !isLoading)
+			if (curMap->ents.size() && !isLoading)
 			{
 				if (curMap->is_model)
 				{
@@ -607,7 +607,7 @@ void Renderer::postLoadFgds()
 	delete pointEntRenderer;
 	delete fgd;
 
-	pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
+	pointEntRenderer = swapPointEntRenderer;
 	fgd = pointEntRenderer->fgd;
 
 	for (int i = 0; i < mapRenderers.size(); i++) {
@@ -1186,8 +1186,7 @@ void Renderer::cameraObjectHovering() {
 	if (transformTarget == TRANSFORM_VERTEX  && pickInfo.entIdx > 0) {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
-		PickInfo vertPick;
-		memset(&vertPick, 0, sizeof(PickInfo));
+		PickInfo vertPick = PickInfo( );
 		vertPick.bestDist = FLT_MAX_COORD;
 
 		vec3 entOrigin = pickInfo.ent->getOrigin();
@@ -1222,8 +1221,7 @@ void Renderer::cameraObjectHovering() {
 	if (transformTarget == TRANSFORM_ORIGIN  && pickInfo.modelIdx > 0) {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
-		PickInfo vertPick;
-		memset(&vertPick, 0, sizeof(PickInfo));
+		PickInfo vertPick = PickInfo( );
 		vertPick.bestDist = FLT_MAX_COORD;
 
 		vec3 ori = transformedOrigin + mapOffset;
@@ -1242,8 +1240,7 @@ void Renderer::cameraObjectHovering() {
 	if (showDragAxes && !movingEnt  && hoverVert == -1 && hoverEdge == -1) {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
-		PickInfo axisPick;
-		memset(&axisPick, 0, sizeof(PickInfo));
+		PickInfo axisPick = PickInfo( );
 		axisPick.bestDist = FLT_MAX_COORD;
 
 		if (g_app->getSelectedRender() != NULL)
@@ -1276,8 +1273,7 @@ void Renderer::cameraContextMenus() {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
 
-		PickInfo tempPick;
-		memset(&tempPick, 0, sizeof(PickInfo));
+		PickInfo tempPick = PickInfo( );
 		tempPick.bestDist = FLT_MAX_COORD;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			if (mapRenderers[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, tempPick)) {
@@ -1751,26 +1747,29 @@ void Renderer::reloadBspModels()
 
     for (auto bsprend : mapRenderers)
     { 
-		for (auto const& entity : bsprend->map->ents)
+		if (bsprend)
 		{
-			if (entity->hasKey("model"))
+			for (auto const& entity : bsprend->map->ents)
 			{
-				std::string modelPath = entity->keyvalues["model"];
-				if (modelPath.find(".bsp") != std::string::npos)
+				if (entity->hasKey("model"))
 				{
-					for (int i = 0; i < tryPaths.size(); i++) {
-						std::string tryPath = tryPaths[i] + modelPath;
-						if (!fileExists(tryPath))
-							tryPath = g_settings.gamedir + tryPaths[i] + modelPath;
-						if (fileExists(tryPath)) {
-							Bsp* tmpBsp = new Bsp(tryPath);
-							tmpBsp->is_model = true;
-							if (tmpBsp->valid)
-							{
-								BspRenderer* mapRenderer = new BspRenderer(tmpBsp, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
-								mapRenderers.push_back(mapRenderer);
+					std::string modelPath = entity->keyvalues["model"];
+					if (modelPath.find(".bsp") != std::string::npos)
+					{
+						for (int i = 0; i < tryPaths.size(); i++) {
+							std::string tryPath = tryPaths[i] + modelPath;
+							if (!fileExists(tryPath))
+								tryPath = g_settings.gamedir + tryPaths[i] + modelPath;
+							if (fileExists(tryPath)) {
+								Bsp* tmpBsp = new Bsp(tryPath);
+								tmpBsp->is_model = true;
+								if (tmpBsp->valid)
+								{
+									BspRenderer* mapRenderer = new BspRenderer(tmpBsp, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
+									mapRenderers.push_back(mapRenderer);
+								}
+								break;
 							}
-							break;
 						}
 					}
 				}

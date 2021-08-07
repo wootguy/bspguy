@@ -903,6 +903,7 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 	if (path.empty())
 		return;
 	replaceAll(path, "\"", "");
+	replaceAll(path, "\'", "");
 #ifdef WIN32
 	replaceAll(path, "/", "\\");
 	replaceAll(path, "\\\\", "\\");
@@ -931,7 +932,8 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 
 	if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
 	{
-		if (path.empty() || ( path[path.size() - 1] != '\\' && path[path.size() - 1] != '/') )
+		std::string s = path;
+		if (path.empty() || ( path.back() != '\\' && path.back() != '/') )
 		{
 #ifdef WIN32
 			path = path + "\\";
@@ -945,7 +947,7 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 		if (path.empty())
 			return;
 
-		if (path[path.size() - 1] == '\\' || path[path.size() - 1] == '/')
+		if (path.back() == '\\' || path.back() == '/')
 		{
 			path.pop_back();
 		}
