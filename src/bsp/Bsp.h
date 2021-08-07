@@ -5,7 +5,7 @@
 #include "Entity.h"
 #include "bsplimits.h"
 #include "rad.h"
-#include <string>
+#include <string.h>
 #include "remap.h"
 #include <set>
 #include "bsptypes.h"
