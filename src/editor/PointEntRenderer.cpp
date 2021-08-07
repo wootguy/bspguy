@@ -1,6 +1,6 @@
 #include "PointEntRenderer.h"
 #include "primitives.h"
-#include <string>
+#include <string.h>
 
 PointEntRenderer::PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader) {
 	this->fgd = fgd;
