@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
-#include <string>
+#include <string.h>
 #include "Wad.h"
 #include <cfloat> 
 #include <stdarg.h>
