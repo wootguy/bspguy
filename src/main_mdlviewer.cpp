@@ -15,11 +15,10 @@
 
 // Default Libraries
 #include <stdio.h>
-#include <windows.h>
 
 #include "mdlviewer/studio_render.h"
 
-char g_version_string[] = " = ";
+char g_version_string[] = " TEST MDLVIEWER ";
 bool g_verbose = true;
 
 
@@ -74,7 +73,7 @@ void mdlviewer_display()
 	tempmodel.SetBlending(1, 0.0);
 
 	static float prev;
-	float curr = GetTickCount() / 1000.0;
+	float curr = glfwGetTime() / 1000.0;
 	tempmodel.AdvanceFrame(curr - prev);
 	prev = curr;
 
