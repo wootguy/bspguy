@@ -65,7 +65,6 @@ set(SOURCE_FILES
 	src/util/lodepng.cpp
 	
 	# 3D model viewer
-	src/mdlviewer/steamtypes.h
 	src/mdlviewer/mathlib.h			src/mdlviewer/mathlib.c
 	src/mdlviewer/cmdlib.h			src/mdlviewer/cmdlib.c
 	src/mdlviewer/studio_event.h
@@ -185,8 +184,7 @@ if(MSVC)
 													imgui/backends/imgui_impl_opengl3.cpp
 													src/util/lodepng.cpp)
 																									
-	source_group("Header Files\\mdlviewer" FILES	src/mdlviewer/steamtypes.h
-													src/mdlviewer/mathlib.h
+	source_group("Header Files\\mdlviewer" FILES	src/mdlviewer/mathlib.h
 													src/mdlviewer/cmdlib.h
 													src/mdlviewer/studio_event.h
 													src/mdlviewer/studio.h
