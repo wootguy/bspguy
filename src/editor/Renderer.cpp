@@ -6,6 +6,7 @@
 #include "Gui.h"
 #include <algorithm>
 #include <map>
+#include "mdlviewer/studio_render.h"
 
 AppSettings g_settings;
 std::string g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
@@ -412,6 +413,17 @@ void Renderer::renderLoop() {
 
 	float lastFrameTime = glfwGetTime();
 	float lastTitleTime = glfwGetTime();
+
+	/*StudioModel* tempmodel = new StudioModel();
+	tempmodel->Init("d:\\SteamLibrary\\steamapps\\common\\Half-Life\\cstrike\\models\\player.mdl");
+	tempmodel->SetSequence(0);
+
+	tempmodel->SetController(0, 0.0);
+	tempmodel->SetController(1, 0.0);
+	tempmodel->SetController(2, 0.0);
+	tempmodel->SetController(3, 0.0);
+	tempmodel->SetMouth(0);*/
+
 	while (!glfwWindowShouldClose(window))
 	{
 		if (glfwGetTime() - lastTitleTime > 0.5)
@@ -495,6 +507,7 @@ void Renderer::renderLoop() {
 			}
 
 			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
+
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
