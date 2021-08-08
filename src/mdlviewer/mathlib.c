@@ -39,7 +39,7 @@ int VectorCompare (vec3_t v1, vec3_t v2)
 	int		i;
 	
 	for (i=0 ; i<3 ; i++)
-		if (fabs(v1[i]-v2[i]) > EQUAL_EPSILON)
+		if (fabs(v1[i]-v2[i]) > mEQUAL_EPSILON)
 			return false;
 			
 	return true;
@@ -238,9 +238,9 @@ void R_ConcatTransforms (const float in1[3][4], const float in2[3][4], float out
 
 void VectorRotate (const vec3_t in1, const float in2[3][4], vec3_t out)
 {
-	out[0] = DotProduct(in1, in2[0]);
-	out[1] = DotProduct(in1, in2[1]);
-	out[2] = DotProduct(in1, in2[2]);
+	out[0] = mDotProduct(in1, in2[0]);
+	out[1] = mDotProduct(in1, in2[1]);
+	out[2] = mDotProduct(in1, in2[2]);
 }
 
 
@@ -255,9 +255,9 @@ void VectorIRotate (const vec3_t in1, const float in2[3][4], vec3_t out)
 
 void VectorTransform (const vec3_t in1, const float in2[3][4], vec3_t out)
 {
-	out[0] = DotProduct(in1, in2[0]) + in2[0][3];
-	out[1] = DotProduct(in1, in2[1]) +	in2[1][3];
-	out[2] = DotProduct(in1, in2[2]) +	in2[2][3];
+	out[0] = mDotProduct(in1, in2[0]) + in2[0][3];
+	out[1] = mDotProduct(in1, in2[1]) +	in2[1][3];
+	out[2] = mDotProduct(in1, in2[2]) +	in2[2][3];
 }
 
 

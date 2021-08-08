@@ -411,7 +411,7 @@ void StudioModel::Lighting (float *lv, int bone, int flags, vec3_t normal)
 	else 
 	{
 		float r;
-		lightcos = DotProduct (normal, g_blightvec[bone]); // -1 colinear, 1 opposite
+		lightcos = mDotProduct (normal, g_blightvec[bone]); // -1 colinear, 1 opposite
 
 		if (lightcos > 1.0)
 			lightcos = 1;
@@ -446,7 +446,7 @@ void StudioModel::Chrome (int *pchrome, int bone, vec3_t normal)
 		vec3_t chromeupvec;		// g_chrome t vector in world reference frame
 		vec3_t chromerightvec;	// g_chrome s vector in world reference frame
 		vec3_t tmp;				// vector pointing at bone in world reference frame
-		VectorScale( m_origin, -1, tmp );
+		mVectorScale( m_origin, -1, tmp );
 		tmp[0] += g_bonetransform[bone][0][3];
 		tmp[1] += g_bonetransform[bone][1][3];
 		tmp[2] += g_bonetransform[bone][2][3];
@@ -463,11 +463,11 @@ void StudioModel::Chrome (int *pchrome, int bone, vec3_t normal)
 	}
 
 	// calc s coord
-	n = DotProduct( normal, g_chromeright[bone] );
+	n = mDotProduct( normal, g_chromeright[bone] );
 	pchrome[0] = (n + 1.0) * 32; // FIX: make this a float
 
 	// calc t coord
-	n = DotProduct( normal, g_chromeup[bone] );
+	n = mDotProduct( normal, g_chromeup[bone] );
 	pchrome[1] = (n + 1.0) * 32; // FIX: make this a float
 }
 
@@ -725,11 +725,6 @@ void StudioModel::DrawPoints ( )
 }
 
 
-
-#pragma warning( disable : 4244 ) // double to float
-
-static int g_texnum = 1;
-
 void StudioModel::UploadTexture(mstudiotexture_t* ptexture, unsigned char* data, unsigned char* pal)
 {
 	// unsigned *in, int inwidth, int inheight, unsigned *out,  int outwidth, int outheight;
@@ -782,7 +777,8 @@ void StudioModel::UploadTexture(mstudiotexture_t* ptexture, unsigned char* data,
 			out[3] = 0xFF;
 		}
 	}
-
+	GLuint g_texnum;
+	glGenTextures(1, &g_texnum);
 	glBindTexture(GL_TEXTURE_2D, g_texnum);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3/*??*/, outwidth, outheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
