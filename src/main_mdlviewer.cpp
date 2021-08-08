@@ -73,7 +73,7 @@ void mdlviewer_display()
 	tempmodel.SetBlending(1, 0.0);
 
 	static float prev;
-	float curr = glfwGetTime() / 1000.0;
+	float curr = glfwGetTime() ;
 	tempmodel.AdvanceFrame(curr - prev);
 	prev = curr;
 
