@@ -1,7 +1,7 @@
 #include "Keyvalue.h"
 #include "util.h"
 
-Keyvalue::Keyvalue(string line)
+Keyvalue::Keyvalue(std::string line)
 {
 	int begin = -1;
 	int end = -1;

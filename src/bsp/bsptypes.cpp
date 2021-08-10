@@ -2,7 +2,7 @@
 #include <math.h>
 #include <string.h>
 
-BSPEDGE::BSPEDGE() {}
+BSPEDGE::BSPEDGE() = default;
 
 BSPEDGE::BSPEDGE(uint16_t v1, uint16_t v2) { 
 	iVertex[0] = v1;

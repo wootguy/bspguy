@@ -63,6 +63,13 @@ set(SOURCE_FILES
 	imgui/backends/imgui_impl_opengl3.cpp
 	src/util/lodepng.h
 	src/util/lodepng.cpp
+	
+	# 3D model viewer
+	src/mdlviewer/mathlib.h			src/mdlviewer/mathlib.c
+	src/mdlviewer/cmdlib.h			src/mdlviewer/cmdlib.c
+	src/mdlviewer/studio_event.h
+	src/mdlviewer/studio.h
+	src/mdlviewer/studio_render.h		src/mdlviewer/studio_render.cpp
 )
 
 include_directories(src)
@@ -176,9 +183,26 @@ if(MSVC)
 													imgui/backends/imgui_impl_glfw.cpp
 													imgui/backends/imgui_impl_opengl3.cpp
 													src/util/lodepng.cpp)
+													
+	source_group("Header Files\\mdlviewer" FILES	
+													#src/mdlviewer/steamtypes.h
+													src/mdlviewer/mathlib.h
+													src/mdlviewer/cmdlib.h
+													src/mdlviewer/studio_event.h
+													src/mdlviewer/studio.h
+													src/mdlviewer/studio_render.h)
+	
+	source_group("Source Files\\mdlviewer" FILES	src/mdlviewer/mathlib.c
+													src/mdlviewer/cmdlib.c
+													src/mdlviewer/studio_render.cpp)
 
 else()
 	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs)
+	if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.1")
+		set (CMAKE_CXX_STANDARD 11)
+		set (CMAKE_CXX_STANDARD_REQUIRED ON)
+		add_definitions(-DUSE_EXPERIMENTAL_FILESYSTEM)
+	endif ()
 	set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 	set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 	set(CMAKE_CXX_FLAGS_RELEASE "-Os -fno-exceptions -w -Wfatal-errors")

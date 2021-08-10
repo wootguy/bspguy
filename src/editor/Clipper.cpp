@@ -6,7 +6,7 @@ Clipper::Clipper() {
 
 }
 
-CMesh Clipper::clip(vector<BSPPLANE>& clips) {
+CMesh Clipper::clip(std::vector<BSPPLANE>& clips) {
 	CMesh mesh = createMaxSizeVolume();
 
 	for (int i = 0; i < clips.size(); i++) {

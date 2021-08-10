@@ -8,10 +8,10 @@ class Entity
 {
 public:
 	hashmap keyvalues;
-	vector<string> keyOrder;
+	std::vector<std::string> keyOrder;
 
 	int cachedModelIdx = -2; // -2 = not cached
-	vector<string> cachedTargets;
+	std::vector<std::string> cachedTargets;
 	bool targetsCached = false;
 
 	Entity(void);
@@ -21,7 +21,7 @@ public:
 	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
-	bool renameKey(int idx, string newName);
+	bool renameKey(int idx, std::string newName);
 	void clearAllKeyvalues();
 	void clearEmptyKeyvalues();
 
@@ -36,11 +36,11 @@ public:
 
 	bool hasKey(const std::string& key);
 
-	vector<string> getTargets();
+	std::vector<std::string> getTargets();
 
-	bool hasTarget(string tname);
+	bool hasTarget(std::string checkTarget);
 
-	void renameTargetnameValues(string oldTargetname, string newTargetname);
+	void renameTargetnameValues(std::string oldTargetname, std::string newTargetname);
 
 	int getMemoryUsage(); // aproximate
 };

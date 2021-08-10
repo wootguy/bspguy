@@ -41,7 +41,7 @@ struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
 	vec3 normal;
 	float fdist;
-	vector<vec2> localVerts;
+	std::vector<vec2> localVerts;
 };
 
 struct RenderEnt {
@@ -79,18 +79,23 @@ struct RenderModel {
 struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
 	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
-	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
+	std::vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
 struct PickInfo {
-	int mapIdx;
 	int entIdx;
 	int modelIdx;
 	int faceIdx;
 	float bestDist;
-	bool valid;
-	Bsp* map = NULL;
-	Entity* ent = NULL;
+	Entity* ent;
+	Bsp* map;
+	PickInfo()
+	{
+		bestDist = 0.0f;
+		entIdx = modelIdx = faceIdx = -1;
+		ent = NULL;
+		map = NULL;
+	}
 };
 
 class BspRenderer {
@@ -99,8 +104,11 @@ public:
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
 	int showLightFlag = -1;
+	std::vector<Wad*> wads;
+	bool texturesLoaded = false;
 
-	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
+
+	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* pointEntRenderer);
 	~BspRenderer();
 
 	void render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull);
@@ -141,6 +149,7 @@ public:
 	void updateFaceUVs(int faceIdx);
 	uint getFaceTextureId(int faceIdx);
 
+	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -178,27 +187,25 @@ private:
 
 	bool lightmapsGenerated = false;
 	bool lightmapsUploaded = false;
-	future<void> lightmapFuture;
+	std::future<void> lightmapFuture;
 
-	bool texturesLoaded = false;
-	future<void> texturesFuture;
+	std::future<void> texturesFuture;
 
 	bool clipnodesLoaded = false;
 	int clipnodeLeafCount = 0;
-	future<void> clipnodesFuture;
+	std::future<void> clipnodesFuture;
 
 	void loadLightmaps();
 	void genRenderFaces(int& renderModelCount);
 	void loadClipnodes();
 	void generateClipnodeBuffer(int modelIdx);
 	void deleteRenderModel(RenderModel* renderModel);
-	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
+	void deleteRenderModelClipnodes(RenderClipnodes* renderClip);
 	void deleteRenderClipnodes();
 	void deleteRenderFaces();
 	void deleteTextures();
 	void deleteLightmapTextures();
 	void deleteFaceMaths();
 	void delayLoadData();
-	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
 };

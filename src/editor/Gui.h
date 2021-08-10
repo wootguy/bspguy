@@ -11,24 +11,28 @@
 #include "qtools/rad.h"
 
 struct ModelInfo {
-	string classname;
-	string targetname;
-	string model;
-	string val;
-	string usage;
+	std::string classname;
+	std::string targetname;
+	std::string model;
+	std::string val;
+	std::string usage;
 	int entIdx;
 };
 
 struct StatInfo {
-	string name;
-	string val;
-	string max;
-	string fullness;
+	std::string name;
+	std::string val;
+	std::string max;
+	std::string fullness;
 	float progress;
 	ImVec4 color;
 };
 
 class Renderer;
+
+#define SHOW_IMPORT_OPEN 1
+#define SHOW_IMPORT_ADD_NEW 2
+#define SHOW_IMPORT_MODEL 3
 
 class Gui {
 	friend class Renderer;
@@ -58,6 +62,9 @@ private:
 	bool showSettingsWidget = false;
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
+	int showImportMapWidget_Type = 0;
+	bool showImportMapWidget = false;
+	bool showMergeMapWidget = false;
 	bool showLimitsWidget = true;
 	bool showTextureWidget = false;
 	bool showLightmapEditorWidget = false;
@@ -76,6 +83,7 @@ private:
 	int fontSize = 22;
 	bool shouldReloadFonts = false;
 	bool shouldReloadTextureInfo = false;
+	bool settingLoaded = false;
 
 	Texture* objectIconTexture;
 	Texture* faceIconTexture;
@@ -84,9 +92,9 @@ private:
 	bool lightmapTooLarge = false;
 
 	bool loadedLimit[SORT_MODES] = { false };
-	vector<ModelInfo> limitModels[SORT_MODES];
+	std::vector<ModelInfo> limitModels[SORT_MODES];
 	bool loadedStats = false;
-	vector<StatInfo> stats;
+	std::vector<StatInfo> stats;
 
 	bool anyHullValid[MAX_MAP_HULLS] = { false };
 
@@ -119,12 +127,14 @@ private:
 	void drawSettings();
 	void drawHelp();
 	void drawAbout();
+	void drawImportMapWidget();
+	void drawMergeWindow();
 	void drawLimits();
 	void drawLightMapTool();
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);
 	void drawEntityReport();
-	StatInfo calcStat(string name, uint val, uint max, bool isMem);
+	StatInfo calcStat(std::string name, uint val, uint max, bool isMem);
 	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void checkValidHulls();
 	void reloadLimits();

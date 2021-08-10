@@ -6,7 +6,7 @@ struct MAPBLOCK
 {
 	vec3 mins, maxs, size, offset;
 	Bsp* map;
-	string merge_name;
+	std::string merge_name;
 
 	bool intersects(MAPBLOCK& other) {
 		return (mins.x <= other.maxs.x && maxs.x >= other.mins.x) &&
@@ -22,25 +22,25 @@ public:
 	// merges all maps into one
 	// noripent - don't change any entity logic
 	// noscript - don't add support for the bspguy map script (worse performance + buggy, but simpler)
-	Bsp* merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript);
+	Bsp* merge(std::vector<Bsp*> maps, vec3 gap, std::string output_name, bool noripent, bool noscript);
 
 private:
 	int merge_ops = 0;
 
 	// wrapper around BSP data merging for nicer console output
-	void merge(MAPBLOCK& dst, MAPBLOCK& src, string resultName);
+	void merge(MAPBLOCK& dst, MAPBLOCK& src, std::string resultName);
 
 	// merge BSP data
 	bool merge(Bsp& mapA, Bsp& mapB);
 
-	vector<vector<vector<MAPBLOCK>>> separate(vector<Bsp*>& maps, vec3 gap);
+	std::vector<std::vector<std::vector<MAPBLOCK>>> separate(std::vector<Bsp*>& maps, vec3 gap);
 
 	// for maps in a series:
 	// - changelevels should be replaced with teleports or respawn triggers
 	// - monsters should spawn only when the current map is active
 	// - entities might need map name prefixes
 	// - entities in previous levels should be cleaned up
-	void update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript);
+	void update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBLOCK>& sourceMaps, std::vector<Bsp*>& mapOrder, std::string output_name, std::string firstMapName, bool noscript);
 
 	// renames any entity that shares a name with an entity in another map
 	int force_unique_ent_names_per_map(Bsp* mergedMap);
@@ -67,13 +67,13 @@ private:
 
 
 	// remapped structure indexes for mapB when merging
-	vector<int> texRemap;
-	vector<int> texInfoRemap;
-	vector<int> planeRemap;
-	vector<int> leavesRemap;
+	std::vector<int> texRemap;
+	std::vector<int> texInfoRemap;
+	std::vector<int> planeRemap;
+	std::vector<int> leavesRemap;
 
 	// remapped leaf indexes for mapA's submodel leaves
-	vector<int> modelLeafRemap;
+	std::vector<int> modelLeafRemap;
 
 	int thisLeafCount;
 	int otherLeafCount;
