@@ -127,7 +127,6 @@ public:
 
 	PickInfo pickInfo = PickInfo();
 	BspRenderer* getMapContainingCamera();
-	BspRenderer* getSelectedRender();
 	Bsp* getSelectedMap();
 	int getSelectedMapId();
 	void selectMapId(int id);

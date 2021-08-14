@@ -916,7 +916,7 @@ void Bsp::resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps) {
 
 			totalLightmaps++;
 
-			bool faceMoved = oldLightmaps[i].luxelFlags != NULL;
+			bool faceMoved = oldLightmaps[i].luxelFlags;
 			bool lightmapResized = oldLight.width != newLight.width || oldLight.height != newLight.height;
 
 			if (!faceMoved || !lightmapResized) {
@@ -1162,7 +1162,7 @@ int Bsp::delete_embedded_textures() {
 
 void Bsp::replace_lumps(LumpState& state) {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		if (state.lumps[i] == NULL) {
+		if (!state.lumps[i]) {
 			continue;
 		}
 
@@ -2060,7 +2060,7 @@ void Bsp::load_ents()
 			}
 			lastBracket = 0;
 
-			if (ent != NULL)
+			if (ent)
 				delete ent;
 			ent = new Entity();
 		}
@@ -2070,7 +2070,7 @@ void Bsp::load_ents()
 				logf("%s.bsp ent data (line %d): Unexpected '}'\n", path.c_str(), lineNum);
 			lastBracket = 1;
 
-			if (ent == NULL)
+			if (!ent)
 				continue;
 
 			if (ent->keyvalues.count("classname"))
@@ -2086,7 +2086,7 @@ void Bsp::load_ents()
 				lastBracket = 0;
 			}
 		}
-		else if (lastBracket == 0 && ent != NULL) // currently defining an entity
+		else if (lastBracket == 0 && ent) // currently defining an entity
 		{
 			Keyvalue k(line);
 			if (k.key.length() && k.value.length())
@@ -2110,7 +2110,7 @@ void Bsp::load_ents()
 		}
 	}
 
-	if (ent != NULL)
+	if (ent)
 		delete ent;
 }
 
@@ -2896,7 +2896,7 @@ void Bsp::add_model(Bsp* sourceMap, int modelIdx) {
 
 BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 	if (!name || name[0] == '\0')
-		return nullptr;
+		return NULL;
 	for (int i = 0; i < textureCount; i++) {
 		int32_t oldOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX* oldTex = (BSPMIPTEX*)(textures + oldOffset);
@@ -2905,7 +2905,7 @@ BSPMIPTEX * Bsp::find_embedded_texture(const char* name) {
 			return oldTex;
 		}
 	}
-	return nullptr;
+	return NULL;
 }
 
 int Bsp::add_texture(const char* name, byte* data, int width, int height) {
@@ -2992,7 +2992,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		}
 	}
 
-	if (oldtex != nullptr)
+	if (oldtex)
 	{
 		memcpy((byte*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
 		memcpy((byte*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
@@ -4193,7 +4193,7 @@ void Bsp::ExportToObjWIP(std::string path)
 		int currentgroup = -1;
 
 		//std::set<BSPMIPTEX*> texture_list;
-		BspRenderer* bsprend = GetBspRender();
+		BspRenderer* bsprend = getBspRender();
 
 		createDir(path + "textures");
 		std::vector<std::string> materials;
@@ -4389,7 +4389,7 @@ void Bsp::ExportToObjWIP(std::string path)
 }
 
 
-BspRenderer* Bsp::GetBspRender()
+BspRenderer* Bsp::getBspRender()
 {
 	if (!renderer)
 	for (int i = 0; i < g_app->mapRenderers.size(); i++)

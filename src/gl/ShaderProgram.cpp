@@ -85,13 +85,13 @@ void ShaderProgram::updateMatrixes()
 
 void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * modelViewProjMat )
 {
-	if (modelViewMat != NULL)
+	if (modelViewMat)
 	{
 		modelViewID = glGetUniformLocation(ID, modelViewMat);
 		if (modelViewID == -1)
 			logf("Could not find modelView uniform: %s\n", modelViewMat);
 	}
-	if (modelViewProjMat != NULL)
+	if (modelViewProjMat)
 	{
 		modelViewProjID = glGetUniformLocation(ID, modelViewProjMat);
 		if (modelViewProjID == -1)
@@ -101,17 +101,17 @@ void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * mode
 
 void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * colorAtt, const char * texAtt )
 {
-	if (posAtt != NULL)
+	if (posAtt)
 	{
 		vposID = glGetAttribLocation(ID, posAtt);
 		if (vposID == -1) logf("Could not find vposition attribute: %s\n", posAtt);
 	}
-	if (colorAtt != NULL)
+	if (colorAtt)
 	{
 		vcolorID = glGetAttribLocation(ID, colorAtt);
 		if (vcolorID == -1) logf("Could not find vcolor attribute: %s\n", colorAtt);
 	}
-	if (texAtt != NULL)
+	if (texAtt)
 	{
 		vtexID = glGetAttribLocation(ID, texAtt);
 		if (vtexID == -1) logf("Could not find vtexture attribute: %s\n", texAtt); 

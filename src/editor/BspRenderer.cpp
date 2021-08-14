@@ -224,7 +224,7 @@ void BspRenderer::reloadLightmaps() {
 	lightmapsGenerated = false;
 	lightmapsUploaded = false;
 	deleteLightmapTextures();
-	if (lightmaps != NULL) {
+	if (lightmaps) {
 		delete[] lightmaps;
 	}
 	lightmapFuture = std::async(std::launch::async, &BspRenderer::loadLightmaps, this);
@@ -415,7 +415,7 @@ void BspRenderer::genRenderFaces(int& renderModelCount) {
 }
 
 void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
-	if (renderModel == NULL || renderModel->renderGroups == NULL || renderModel->renderFaces == NULL) {
+	if (!renderModel || !renderModel->renderGroups || !renderModel->renderFaces) {
 		return;
 	}
 	for (int k = 0; k < renderModel->groupCount; k++) {
@@ -431,7 +431,7 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 }
 
 void BspRenderer::deleteRenderClipnodes() {
-	if (renderClipnodes != NULL) {
+	if (renderClipnodes) {
 		for (int i = 0; i < numRenderClipnodes; i++) {
 			deleteRenderModelClipnodes(&renderClipnodes[i]);
 		}
@@ -453,7 +453,7 @@ void BspRenderer::deleteRenderModelClipnodes(RenderClipnodes* renderClip) {
 }
 
 void BspRenderer::deleteRenderFaces() {
-	if (renderModels != NULL) {
+	if (renderModels) {
 		for (int i = 0; i < numRenderModels; i++) {
 			deleteRenderModel(&renderModels[i]);
 		}
@@ -464,7 +464,7 @@ void BspRenderer::deleteRenderFaces() {
 }
 
 void BspRenderer::deleteTextures() {
-	if (glTextures != NULL) {
+	if (glTextures) {
 		for (int i = 0; i < numLoadedTextures; i++) {
 			if (glTextures[i] != missingTex)
 				delete glTextures[i];
@@ -476,7 +476,7 @@ void BspRenderer::deleteTextures() {
 }
 
 void BspRenderer::deleteLightmapTextures() {
-	if (glLightmapTextures != NULL) {
+	if (glLightmapTextures) {
 		for (int i = 0; i < numLightmapAtlases; i++) {
 			if (glLightmapTextures[i])
 				delete glLightmapTextures[i];
@@ -488,7 +488,7 @@ void BspRenderer::deleteLightmapTextures() {
 }
 
 void BspRenderer::deleteFaceMaths() {
-	if (faceMaths != NULL) {
+	if (faceMaths) {
 		delete[] faceMaths;
 	}
 
@@ -932,7 +932,7 @@ void BspRenderer::updateClipnodeOpacity(byte newValue) {
 }
 
 void BspRenderer::preRenderEnts() {
-	if (renderEnts != NULL) {
+	if (renderEnts) {
 		delete[] renderEnts;
 		delete pointEnts;
 	}
@@ -1086,13 +1086,13 @@ BspRenderer::~BspRenderer() {
 	}
 	wads.clear();
 
-	if (lightmaps != NULL) {
+	if (lightmaps) {
 		delete[] lightmaps;
 	}
-	if (renderEnts != NULL) {
+	if (renderEnts) {
 		delete[] renderEnts;
 	}
-	if (pointEnts != NULL) {
+	if (pointEnts) {
 		delete pointEnts;
 	}
 

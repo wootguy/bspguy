@@ -176,7 +176,7 @@ int test() {
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, vec3(1, 1, 1), "yabma_move", false, false);
 	logf("\n");
-	if (result != NULL) {
+	if (result) {
 		result->write("yabma_move.bsp");
 		result->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 		result->print_info(false, 0, false);

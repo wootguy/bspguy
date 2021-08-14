@@ -216,7 +216,7 @@ public:
 
 	void update_lump_pointers();
 
-	BspRenderer* GetBspRender();
+	BspRenderer* getBspRender();
 
 	void ExportToObjWIP(std::string path);
 private:

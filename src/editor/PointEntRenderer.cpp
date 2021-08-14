@@ -35,7 +35,7 @@ void PointEntRenderer::genPointEntCubes() {
 	genCubeBuffers(defaultCube);
 	entCubes.push_back(defaultCube);
 
-	if (fgd == NULL) {
+	if (!fgd) {
 		return;
 	}
 
@@ -49,7 +49,7 @@ void PointEntRenderer::genPointEntCubes() {
 
 			EntCube* matchingCube = getCubeMatchingProps(cube);
 
-			if (matchingCube == NULL) {
+			if (!matchingCube) {
 				genCubeBuffers(cube);
 				entCubes.push_back(cube);
 				cubeMap[fgdClass->name] = cube;

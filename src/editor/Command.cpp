@@ -294,10 +294,10 @@ CreateBspModelCommand::~CreateBspModelCommand() {
 		if (oldLumps.lumps[i])
 			delete[] oldLumps.lumps[i];
 	}
-	if (entData != nullptr)
+	if (entData)
 	{
 		delete entData;
-		entData = nullptr;
+		entData = NULL;
 	}
 }
 

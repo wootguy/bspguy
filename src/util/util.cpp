@@ -154,7 +154,7 @@ std::vector<std::string> splitString(std::string str, const char* delimitters)
 
 	char* tok = strtok((char*)copy.c_str(), delimitters);
 
-	while (tok != NULL)
+	while (tok)
 	{
 		split.push_back(tok);
 		tok = strtok(NULL, delimitters);

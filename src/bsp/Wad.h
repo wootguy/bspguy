@@ -60,7 +60,7 @@ struct WADTEX
 	WADTEX()
 	{
 		szName[0] = '\0';
-		data = nullptr;
+		data = NULL;
 	}
 	WADTEX(BSPMIPTEX* tex)
 	{

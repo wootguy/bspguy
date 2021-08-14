@@ -882,7 +882,7 @@ studiohdr_t* StudioModel::LoadModel(char* modelname)
 	void* buffer;
 
 	// load the model
-	if ((fp = fopen(modelname, "rb")) == NULL)
+	if (!(fp = fopen(modelname, "rb")))
 	{
 		printf("unable to open %s\n", modelname);
 		exit(1);
@@ -928,7 +928,7 @@ studioseqhdr_t* StudioModel::LoadDemandSequences(char* modelname)
 	void* buffer;
 
 	// load the model
-	if ((fp = fopen(modelname, "rb")) == NULL)
+	if (!(fp = fopen(modelname, "rb")))
 	{
 		printf("unable to open %s\n", modelname);
 		exit(1);
