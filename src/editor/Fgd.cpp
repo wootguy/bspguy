@@ -67,7 +67,7 @@ bool Fgd::parse() {
 	FgdClass* fgdClass = new FgdClass();
 	int bracketNestLevel = 0;
 
-	line = "";
+	line.clear();
 	while (getline(in, line)) {
 		lineNum++;
 
@@ -96,7 +96,7 @@ bool Fgd::parse() {
 			bracketNestLevel--;
 			if (bracketNestLevel == 0) {
 				classes.push_back(fgdClass);
-				fgdClass = new FgdClass();
+				fgdClass = new FgdClass(); //memory leak
 			}
 		}
 
@@ -206,8 +206,8 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 		else if (lpart.find("decal(") == 0) {
 			fgdClass.isDecal = true;
 		}
-		else if (typeParts[i].find("(") != std::string::npos) {
-			std::string typeName = typeParts[i].substr(0, typeParts[i].find("("));
+		else if (typeParts[i].find('(') != std::string::npos) {
+			std::string typeName = typeParts[i].substr(0, typeParts[i].find('('));
 			logf("WARNING: Unrecognized type %s (line %d)\n", typeName.c_str(), lineNum);
 		}
 	}
@@ -224,7 +224,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 	if (nameParts.size() >= 1) {
 		fgdClass.name = trimSpaces(nameParts[0]);
 		// strips brackets if they're there
-		fgdClass.name = fgdClass.name.substr(0, fgdClass.name.find(" "));
+		fgdClass.name = fgdClass.name.substr(0, fgdClass.name.find(' '));
 	}
 }
 
@@ -233,7 +233,7 @@ void Fgd::parseKeyvalue(FgdClass& outClass) {
 
 	KeyvalueDef def;
 
-	def.name = keyParts[0].substr(0, keyParts[0].find("("));
+	def.name = keyParts[0].substr(0, keyParts[0].find('('));
 	def.valueType = toLowerCase(getValueInParens(keyParts[0]));
 
 	def.iType = FGD_KEY_STRING;
@@ -252,10 +252,10 @@ void Fgd::parseKeyvalue(FgdClass& outClass) {
 	}
 
 	if (keyParts.size() > 2) {
-		if (keyParts[2].find("=") != std::string::npos) { // choice
-			def.defaultValue = trimSpaces(keyParts[2].substr(0, keyParts[2].find("=")));
+		if (keyParts[2].find('=') != std::string::npos) { // choice
+			def.defaultValue = trimSpaces(keyParts[2].substr(0, keyParts[2].find('=')));
 		}
-		else if (keyParts[2].find("\"") != std::string::npos) { // std::string
+		else if (keyParts[2].find('\"') != std::string::npos) { // std::string
 			def.defaultValue = getValueInQuotes(keyParts[2]);
 		}
 		else { // integer
@@ -273,7 +273,7 @@ void Fgd::parseChoicesOrFlags(KeyvalueDef& outKey) {
 
 	KeyvalueChoice def;
 
-	if (keyParts[0].find("\"") != std::string::npos) {
+	if (keyParts[0].find('\"') != std::string::npos) {
 		def.svalue = getValueInQuotes(keyParts[0]);
 		def.ivalue = 0;
 		def.isInteger = false;
@@ -316,13 +316,13 @@ std::vector<std::string> Fgd::groupParts(std::vector<std::string>& ungrouped) {
 }
 
 bool Fgd::stringGroupStarts(std::string s) {
-	if (s.find("(") != std::string::npos) {
-		return s.find(")") == std::string::npos;
+	if (s.find('(') != std::string::npos) {
+		return s.find(')') == std::string::npos;
 	}
 	
-	size_t startStringPos = s.find("\"");
+	size_t startStringPos = s.find('\"');
 	if (startStringPos != std::string::npos) {
-		size_t endStringPos = s.rfind("\"");
+		size_t endStringPos = s.rfind('\"');
 		return endStringPos == startStringPos || endStringPos == std::string::npos;
 	}
 	
@@ -330,18 +330,18 @@ bool Fgd::stringGroupStarts(std::string s) {
 }
 
 bool Fgd::stringGroupEnds(std::string s) {
-	return s.find(")") != std::string::npos || s.find("\"") != std::string::npos;
+	return s.find(')') != std::string::npos || s.find('\"') != std::string::npos;
 }
 
 std::string Fgd::getValueInParens(std::string s) {
-	s = s.substr(s.find("(") + 1);
-	s = s.substr(0, s.rfind(")"));
+	s = s.substr(s.find('(') + 1);
+	s = s.substr(0, s.rfind(')'));
 	return trimSpaces(s);
 }
 
 std::string Fgd::getValueInQuotes(std::string s) {
-	s = s.substr(s.find("\"") + 1);
-	s = s.substr(0, s.rfind("\""));
+	s = s.substr(s.find('\"') + 1);
+	s = s.substr(0, s.rfind('\"'));
 	return s;
 }
 
@@ -407,7 +407,7 @@ void Fgd::processClassInheritance() {
 				}
 			}
 
-			classes[i]->keyvalues = newKeyvalues;
+			classes[i]->keyvalues = std::move(newKeyvalues);
 
 			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
 				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
@@ -440,7 +440,7 @@ void Fgd::createEntGroups() {
 		if (classes[i]->classType == FGD_CLASS_BASE || classes[i]->name == "worldspawn")
 			continue;
 		std::string cname = classes[i]->name;
-		std::string groupName = cname.substr(0, cname.find("_"));
+		std::string groupName = cname.substr(0, cname.find('_'));
 
 		bool isPointEnt = classes[i]->classType == FGD_CLASS_POINT;
 

@@ -191,42 +191,42 @@ CMesh Clipper::createMaxSizeVolume() {
 	CMesh mesh;
 
 	{
-		mesh.verts.push_back(CVertex(vec3(min.x, min.y, min.z))); // 0 front-left-bottom
-		mesh.verts.push_back(CVertex(vec3(max.x, min.y, min.z))); // 1 front-right-bottom
-		mesh.verts.push_back(CVertex(vec3(max.x, max.y, min.z))); // 2 back-right-bottom
-		mesh.verts.push_back(CVertex(vec3(min.x, max.y, min.z))); // 3 back-left-bottom
+		mesh.verts.emplace_back(CVertex(vec3(min.x, min.y, min.z))); // 0 front-left-bottom
+		mesh.verts.emplace_back(CVertex(vec3(max.x, min.y, min.z))); // 1 front-right-bottom
+		mesh.verts.emplace_back(CVertex(vec3(max.x, max.y, min.z))); // 2 back-right-bottom
+		mesh.verts.emplace_back(CVertex(vec3(min.x, max.y, min.z))); // 3 back-left-bottom
 
-		mesh.verts.push_back(CVertex(vec3(min.x, min.y, max.z))); // 4 front-left-top
-		mesh.verts.push_back(CVertex(vec3(max.x, min.y, max.z))); // 5 front-right-top
-		mesh.verts.push_back(CVertex(vec3(max.x, max.y, max.z))); // 6 back-right-top
-		mesh.verts.push_back(CVertex(vec3(min.x, max.y, max.z))); // 7 back-left-top
+		mesh.verts.emplace_back(CVertex(vec3(min.x, min.y, max.z))); // 4 front-left-top
+		mesh.verts.emplace_back(CVertex(vec3(max.x, min.y, max.z))); // 5 front-right-top
+		mesh.verts.emplace_back(CVertex(vec3(max.x, max.y, max.z))); // 6 back-right-top
+		mesh.verts.emplace_back(CVertex(vec3(min.x, max.y, max.z))); // 7 back-left-top
 	}
 
 	{
-		mesh.edges.push_back(CEdge(0, 1,  0, 5)); // 0 front bottom
-		mesh.edges.push_back(CEdge(0, 4,  0, 2)); // 1 front left
-		mesh.edges.push_back(CEdge(4, 5,  0, 4)); // 2 front top
-		mesh.edges.push_back(CEdge(5, 1,  0, 3)); // 3 front right
+		mesh.edges.emplace_back(CEdge(0, 1,  0, 5)); // 0 front bottom
+		mesh.edges.emplace_back(CEdge(0, 4,  0, 2)); // 1 front left
+		mesh.edges.emplace_back(CEdge(4, 5,  0, 4)); // 2 front top
+		mesh.edges.emplace_back(CEdge(5, 1,  0, 3)); // 3 front right
 
-		mesh.edges.push_back(CEdge(3, 2,  1, 5)); // 4 back bottom
-		mesh.edges.push_back(CEdge(3, 7,  1, 2)); // 5 back left
-		mesh.edges.push_back(CEdge(6, 7,  1, 4)); // 6 back top
-		mesh.edges.push_back(CEdge(2, 6,  1, 3)); // 7 back right
+		mesh.edges.emplace_back(CEdge(3, 2,  1, 5)); // 4 back bottom
+		mesh.edges.emplace_back(CEdge(3, 7,  1, 2)); // 5 back left
+		mesh.edges.emplace_back(CEdge(6, 7,  1, 4)); // 6 back top
+		mesh.edges.emplace_back(CEdge(2, 6,  1, 3)); // 7 back right
 
-		mesh.edges.push_back(CEdge(0, 3,  2, 5)); // 8 left bottom
-		mesh.edges.push_back(CEdge(4, 7,  2, 4)); // 9 left top
+		mesh.edges.emplace_back(CEdge(0, 3,  2, 5)); // 8 left bottom
+		mesh.edges.emplace_back(CEdge(4, 7,  2, 4)); // 9 left top
 
-		mesh.edges.push_back(CEdge(1, 2,  3, 5)); // 10 right bottom
-		mesh.edges.push_back(CEdge(5, 6,  3, 4)); // 11 right top
+		mesh.edges.emplace_back(CEdge(1, 2,  3, 5)); // 10 right bottom
+		mesh.edges.emplace_back(CEdge(5, 6,  3, 4)); // 11 right top
 	}
 
 	{
-		mesh.faces.push_back(CFace({ 0, 1, 2, 3 },   vec3( 0, -1,  0)));	// 0 front
-		mesh.faces.push_back(CFace({ 4, 5, 6, 7 },   vec3( 0,  1,  0)));	// 1 back
-		mesh.faces.push_back(CFace({ 1, 5, 8, 9 },   vec3(-1,  0,  0)));	// 2 left
-		mesh.faces.push_back(CFace({ 3, 7, 10, 11 }, vec3( 1,  0,  0)));	// 3 right
-		mesh.faces.push_back(CFace({ 2, 6, 9, 11 },  vec3( 0,  0,  1)));	// 4 top
-		mesh.faces.push_back(CFace({ 0, 4, 8, 10 },  vec3( 0,  0, -1)));	// 5 bottom
+		mesh.faces.emplace_back(CFace({ 0, 1, 2, 3 },   vec3( 0, -1,  0)));	// 0 front
+		mesh.faces.emplace_back(CFace({ 4, 5, 6, 7 },   vec3( 0,  1,  0)));	// 1 back
+		mesh.faces.emplace_back(CFace({ 1, 5, 8, 9 },   vec3(-1,  0,  0)));	// 2 left
+		mesh.faces.emplace_back(CFace({ 3, 7, 10, 11 }, vec3( 1,  0,  0)));	// 3 right
+		mesh.faces.emplace_back(CFace({ 2, 6, 9, 11 },  vec3( 0,  0,  1)));	// 4 top
+		mesh.faces.emplace_back(CFace({ 0, 4, 8, 10 },  vec3( 0,  0, -1)));	// 5 bottom
 	}
 
 	return mesh;

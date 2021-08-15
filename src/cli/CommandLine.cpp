@@ -36,7 +36,7 @@ CommandLine::CommandLine(int argc, char* argv[]) {
 			optionVals[opt] = options[i + 1];
 		}
 		else {
-			optionVals[opt] = "";
+			optionVals[opt].clear();
 		}
 	}
 

@@ -172,7 +172,7 @@ std::string basename(std::string path) {
 }
 
 std::string stripExt(std::string path) {
-	int lastDot = path.find_last_of(".");
+	int lastDot = path.find_last_of('.');
 	if (lastDot != std::string::npos) {
 		return path.substr(0, lastDot);
 	}
@@ -932,7 +932,6 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 
 	if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
 	{
-		std::string s = path;
 		if (path.empty() || ( path.back() != '\\' && path.back() != '/') )
 		{
 #ifdef WIN32

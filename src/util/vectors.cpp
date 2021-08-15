@@ -199,7 +199,7 @@ std::string vec3::toKeyvalueString(bool truncate, std::string suffix_x, std::str
 	// remove trailing zeros to save some space
 	for (int i = 0; i < 3; i++) {
 		if (truncate) {
-			parts[i] = parts[i].substr(0, parts[i].find(".")+3);
+			parts[i] = parts[i].substr(0, parts[i].find('.')+3);
 		}
 
 		parts[i].erase(parts[i].find_last_not_of('0') + 1, std::string::npos);

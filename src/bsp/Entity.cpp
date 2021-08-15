@@ -3,17 +3,9 @@
 #include "util.h"
 #include <algorithm>
 
-Entity::Entity(void)
-{
-}
-
 Entity::Entity(const std::string& classname)
 {
 	addKeyvalue("classname", classname);
-}
-
-Entity::~Entity(void)
-{
 }
 
 void Entity::addKeyvalue( Keyvalue& k )
@@ -103,7 +95,7 @@ void Entity::clearEmptyKeyvalues() {
 			newKeyOrder.push_back(keyOrder[i]);
 		}
 	}
-	keyOrder = newKeyOrder;
+	keyOrder = std::move(newKeyOrder);
 	cachedModelIdx = -2;
 	targetsCached = false;
 }
@@ -367,7 +359,7 @@ std::vector<std::string> Entity::getTargets() {
 		// multi_manager is a special case where the targets are in the key names
 		for (int i = 0; i < keyOrder.size(); i++) {
 			std::string tname = keyOrder[i];
-			size_t hashPos = tname.find("#");
+			size_t hashPos = tname.find('#');
 			// std::string suffix;
 
 			// duplicate targetnames have a #X suffix to differentiate them

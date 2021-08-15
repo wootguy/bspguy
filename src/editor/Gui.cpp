@@ -704,7 +704,7 @@ void Gui::drawMenuBar() {
 					/*else
 						delete app->mapRenderers[r];*/
 				}
-				app->mapRenderers = renders;
+				app->mapRenderers = std::move(renders);
 				app->pickInfo = PickInfo();
 			}
 		}
@@ -1843,8 +1843,8 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 
 	struct InputData {
 		int idx;
-		Entity* entRef;
 		int entIdx;
+		Entity* entRef;
 		BspRenderer* bspRenderer;
 	};
 
@@ -1897,7 +1897,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	if (dragNames[0].empty()) {
 		for (int i = 0; i < MAX_KEYS_PER_ENT; i++) {
 			std::string name = "::##drag" + std::to_string(i);
-			dragNames[i] = name;
+			dragNames[i] = std::move(name);
 		}
 	}
 
@@ -2627,7 +2627,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add fgd path")) {
 				numFgds++;
-				tmpFgdPaths.push_back(std::string());
+				tmpFgdPaths.emplace_back(std::string());
 			}
 		}
 		else if (settingsTab == 2) {
@@ -2651,7 +2651,7 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Add res path")) {
 				numRes++;
-				tmpResPaths.push_back(std::string());
+				tmpResPaths.emplace_back(std::string());
 			}
 		}
 		else if (settingsTab == 3) {
@@ -3297,7 +3297,7 @@ void Gui::drawEntityReport() {
 					}
 
 					for (int k = 0; k < MAX_FILTERS; k++) {
-						if (strlen(keyFilter[k]) > 0) {
+						if (keyFilter[k][0] != '\0') {
 							std::string searchKey = trimSpaces(toLowerCase(keyFilter[k]));
 
 							bool foundKey = false;
@@ -3306,7 +3306,7 @@ void Gui::drawEntityReport() {
 								std::string key = toLowerCase(ent->keyOrder[c]);
 								if (key == searchKey || (partialMatches && key.find(searchKey) != std::string::npos)) {
 									foundKey = true;
-									actualKey = key;
+									actualKey = std::move(key);
 									break;
 								}
 							}
@@ -3324,7 +3324,7 @@ void Gui::drawEntityReport() {
 								}
 							}
 						}
-						else if (strlen(valueFilter[k]) > 0) {
+						else if (valueFilter[k][0] != '\0') {
 							std::string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
 							bool foundMatch = false;
 							for (int c = 0; c < ent->keyOrder.size(); c++) {
@@ -3420,7 +3420,7 @@ void Gui::drawEntityReport() {
 							newEnts.push_back(map->ents[i]);
 						}
 					}
-					map->ents = newEnts;
+					map->ents = std::move(newEnts);
 					app->deselectObject();
 					map->getBspRender()->preRenderEnts();
 					reloadLimits();
@@ -4287,7 +4287,7 @@ StatInfo Gui::calcStat(std::string name, uint val, uint max, bool isMem) {
 
     //std::string out;
 
-	stat.name = name;
+	stat.name = std::move(name);
 
 	if (isMem) {
 		sprintf(tmp, "%8.2f", val / meg);
@@ -4325,8 +4325,8 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 		}
 	}
 
-	stat.classname = classname;
-	stat.targetname = targetname;
+	stat.classname = std::move(classname);
+	stat.targetname = std::move(targetname);
 
 	static char tmp[256];
 

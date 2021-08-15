@@ -545,6 +545,9 @@ inputs:
 */
 void StudioModel::DrawModel()
 {
+	if (!m_pstudiohdr || m_pstudiohdr->numbodyparts == 0)
+		return;
+
 	int i;
 
 	g_smodels_total++; // render data cache cookie
@@ -552,8 +555,6 @@ void StudioModel::DrawModel()
 	g_pxformverts = &g_xformverts[0];
 	g_pvlightvalues = &g_lightvalues[0];
 
-	if (m_pstudiohdr->numbodyparts == 0)
-		return;
 
 	glPushMatrix();
 

@@ -4,9 +4,6 @@
 #include <set>
 #include "vis.h"
 
-BspMerger::BspMerger() {
-
-}
 
 Bsp* BspMerger::merge(std::vector<Bsp*> maps, vec3 gap, std::string output_name, bool noripent, bool noscript) {
 	if (maps.size() < 1) {
@@ -113,7 +110,7 @@ Bsp* BspMerger::merge(std::vector<Bsp*> maps, vec3 gap, std::string output_name,
 void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, std::string resultType) {
 	std::string thisName = dst.merge_name.size() ? dst.merge_name : dst.map->name;
 	std::string otherName = src.merge_name.size() ? src.merge_name : src.map->name;
-	dst.merge_name = resultType;
+	dst.merge_name = std::move(resultType);
 	logf("    %-8s = %s + %s\n", dst.merge_name.c_str(), thisName.c_str(), otherName.c_str());
 
 	merge(*dst.map, *src.map);
@@ -299,8 +296,8 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBL
 		}
 	}
 
-	std::string lastSky = startingSky;
-	std::string lastSkyColor = startingSkyColor;
+	std::string lastSky = std::move(startingSky);
+	std::string lastSkyColor = std::move(startingSkyColor);
 	for (int i = 1; i < mapOrder.size(); i++) {
 		std::string skyname = "desert";
 		std::string skyColor = "0 0 0 0";
@@ -334,8 +331,8 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBL
 			changesky->addKeyvalue("classname", "trigger_changesky");
 			mergedMap->ents.push_back(changesky);
 			changesky_origin.z += 18;
-			lastSky = skyname;
-			lastSkyColor = skyColor;
+			lastSky = std::move(skyname);
+			lastSkyColor = std::move(skyColor);
 		}
 	}
 
@@ -1038,7 +1035,7 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 				}
 			}
 
-			worldspawn->keyvalues["wad"] = "";
+			worldspawn->keyvalues["wad"].clear();
 			for (int j = 0; j < thisWads.size(); j++) {
 				worldspawn->keyvalues["wad"] += thisWads[j] + ";";
 			}

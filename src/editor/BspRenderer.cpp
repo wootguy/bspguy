@@ -115,7 +115,7 @@ void BspRenderer::loadTextures() {
 			if (!fileExists(tryPath)) 
 				tryPath = g_settings.gamedir + tryPaths[k] + wadNames[i];
 			if (fileExists(tryPath)) {
-				path = tryPath;
+				path = std::move(tryPath);
 				break;
 			}
 		}
@@ -668,8 +668,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
 			}
 			renderGroups.push_back(newGroup);
-			renderGroupVerts.push_back(std::vector<lightmapVert>());
-			renderGroupWireframeVerts.push_back(std::vector<lightmapVert>());
+			renderGroupVerts.emplace_back(std::vector<lightmapVert>());
+			renderGroupWireframeVerts.emplace_back(std::vector<lightmapVert>());
 			groupIdx = renderGroups.size() - 1;
 		}
 
@@ -761,6 +761,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
 
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		if (renderClip->clipnodeBuffer[i])
+			delete renderClip->clipnodeBuffer[i];
+		if (renderClip->wireframeClipnodeBuffer[i])
+			delete renderClip->wireframeClipnodeBuffer[i];
 		renderClip->clipnodeBuffer[i] = NULL;
 		renderClip->wireframeClipnodeBuffer[i] = NULL;
 	}
@@ -869,8 +873,8 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 					COLOR4 wireframeColor = { 0, 0, 0, 255 };
 					for (int k = 0; k < faceVerts.size(); k++) {
-						wireframeVerts.push_back(cVert(faceVerts[k], wireframeColor));
-						wireframeVerts.push_back(cVert(faceVerts[(k + 1) % faceVerts.size()], wireframeColor));
+						wireframeVerts.emplace_back(cVert(faceVerts[k], wireframeColor));
+						wireframeVerts.emplace_back(cVert(faceVerts[(k + 1) % faceVerts.size()], wireframeColor));
 					}
 
 					vec3 lightDir = vec3(1, 1, -1).normalize();
@@ -882,9 +886,9 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 					// convert from TRIANGLE_FAN style verts to TRIANGLES
 					for (int k = 2; k < faceVerts.size(); k++) {
-						allVerts.push_back(cVert(faceVerts[0], faceColor));
-						allVerts.push_back(cVert(faceVerts[k - 1], faceColor));
-						allVerts.push_back(cVert(faceVerts[k], faceColor));
+						allVerts.emplace_back(cVert(faceVerts[0], faceColor));
+						allVerts.emplace_back(cVert(faceVerts[k - 1], faceColor));
+						allVerts.emplace_back(cVert(faceVerts[k], faceColor));
 					}
 				}
 			}
@@ -901,6 +905,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		}
 
 		if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+			if (renderClip->clipnodeBuffer[i])
+				delete renderClip->clipnodeBuffer[i];
+			if (renderClip->wireframeClipnodeBuffer[i])
+				delete renderClip->wireframeClipnodeBuffer[i];
 			renderClip->clipnodeBuffer[i] = NULL;
 			renderClip->wireframeClipnodeBuffer[i] = NULL;
 			continue;
@@ -912,7 +920,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
 		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
 
-		renderClip->faceMaths[i] = faceMaths;
+		renderClip->faceMaths[i] = std::move(faceMaths);
 	}
 }
 
@@ -1110,7 +1118,6 @@ BspRenderer::~BspRenderer() {
 	delete blackTex;
 	delete blueTex;
 	delete missingTex;
-
 	delete map;
 }
 

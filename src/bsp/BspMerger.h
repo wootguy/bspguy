@@ -17,7 +17,7 @@ struct MAPBLOCK
 
 class BspMerger {
 public:
-	BspMerger();
+	BspMerger() = default;
 
 	// merges all maps into one
 	// noripent - don't change any entity logic

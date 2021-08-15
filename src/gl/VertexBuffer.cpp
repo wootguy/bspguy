@@ -47,8 +47,6 @@ VertexAttr::VertexAttr( int numValues, int valueType, int vhandle, int normalize
 	}
 }
 
-
-
 VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const void * dat, int numVerts )
 {
 	this->shaderProgram = shaderProgram;
@@ -128,7 +126,7 @@ void VertexBuffer::setShader(ShaderProgram* program, bool hideErrors) {
 	attributesBound = false;
 	for (int i = 0; i < attribs.size(); i++)
 	{
-		if (strlen(attribs[i].varName) > 0) {
+		if (attribs[i].varName[0] != '\0') {
 			attribs[i].handle = -1;
 		}
 	}
@@ -172,7 +170,7 @@ void VertexBuffer::upload() {
 	glBindBuffer(GL_ARRAY_BUFFER, vboId);
 	glBufferData(GL_ARRAY_BUFFER, elementSize * numVerts, data, GL_STATIC_DRAW);
 
-	unsigned long offset = 0;
+	size_t offset = 0;
 	for (int i = 0; i < attribs.size(); i++)
 	{
 		VertexAttr& a = attribs[i];

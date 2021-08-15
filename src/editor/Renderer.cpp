@@ -105,12 +105,12 @@ void AppSettings::load() {
 	std::ifstream file(g_settings_path);
 	if (file.is_open()) {
 
-		std::string line = "";
+		std::string line;
 		while (getline(file, line)) {
 			if (line.empty())
 				continue;
 
-			size_t eq = line.find("=");
+			size_t eq = line.find('=');
 			if (eq == std::string::npos) {
 				continue;
 			}
@@ -316,15 +316,15 @@ Renderer::Renderer() {
 
 	gui = new Gui(this);
 
-	bspShader = new ShaderProgram(g_shader_multitexture_vertex, g_shader_multitexture_fragment);
+	bspShader = new ShaderProgram(Shaders::g_shader_multitexture_vertex, Shaders::g_shader_multitexture_fragment);
 	bspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	bspShader->setMatrixNames(NULL, "modelViewProjection");
 
-	fullBrightBspShader = new ShaderProgram(g_shader_fullbright_vertex, g_shader_fullbright_fragment);
+	fullBrightBspShader = new ShaderProgram(Shaders::g_shader_fullbright_vertex, Shaders::g_shader_fullbright_fragment);
 	fullBrightBspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	fullBrightBspShader->setMatrixNames(NULL, "modelViewProjection");
 
-	colorShader = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
+	colorShader = new ShaderProgram(Shaders::g_shader_cVert_vertex, Shaders::g_shader_cVert_fragment);
 	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
 	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
@@ -1187,12 +1187,9 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 
 void Renderer::cameraObjectHovering() {
 	originHovered = false;
-
-	if (modelUsesSharedStructures && (transformTarget != TRANSFORM_OBJECT || transformMode != TRANSFORM_MOVE))
-		return;
-
 	Bsp* map = getSelectedMap();
-
+	if (!map || (modelUsesSharedStructures && (transformTarget != TRANSFORM_OBJECT || transformMode != TRANSFORM_MOVE)))
+		return;
 
 	vec3 mapOffset;
 	if ( map->getBspRender())
@@ -1743,7 +1740,7 @@ void Renderer::reloadBspModels()
 		}
 	}
 
-	mapRenderers = sorted_renders;
+	mapRenderers = std::move(sorted_renders);
 
 	std::vector<std::string> tryPaths = {
 		"./"
@@ -2960,6 +2957,10 @@ void Renderer::deselectObject() {
 }
 
 void Renderer::deselectFaces() {
+	Bsp* map = getSelectedMap();
+	if (!map)
+		return;
+
 	for (int i = 0; i < selectedFaces.size(); i++) {
 		getSelectedMap()->getBspRender()->highlightFace(selectedFaces[i], false);
 	}

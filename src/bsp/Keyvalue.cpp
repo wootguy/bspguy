@@ -6,8 +6,8 @@ Keyvalue::Keyvalue(std::string line)
 	int begin = -1;
 	int end = -1;
 
-	key = "";
-	value = "";
+    key.clear();
+    value.clear();
 	int comment = 0;
 
 	for (uint i = 0; i < line.length(); i++)
@@ -16,7 +16,8 @@ Keyvalue::Keyvalue(std::string line)
 		{
 			if (++comment >= 2)
 			{
-				key = value = "";
+                key.clear();
+                value.clear();
 				break;
 			}
 		}
@@ -46,18 +47,14 @@ Keyvalue::Keyvalue(std::string line)
 
 Keyvalue::Keyvalue(void)
 {
-	key = value = "";
+	key.clear();
+	value.clear();
 }
 
 Keyvalue::Keyvalue( std::string key, std::string value )
 {
-	this->key = key;
-	this->value = value;
-}
-
-
-Keyvalue::~Keyvalue(void)
-{
+	this->key = std::move(key);
+	this->value = std::move(value);
 }
 
 vec3 Keyvalue::getVector()

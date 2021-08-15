@@ -53,7 +53,7 @@ struct cTri
 {
 	cVert v1, v2, v3;
 
-	cTri() {}
+	cTri() = default;
 	cTri(cVert v1, cVert v2, cVert v3) : v1(v1), v2(v2), v3(v3) {}
 };
 

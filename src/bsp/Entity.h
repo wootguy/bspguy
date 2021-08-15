@@ -14,9 +14,9 @@ public:
 	std::vector<std::string> cachedTargets;
 	bool targetsCached = false;
 
-	Entity(void);
+	Entity(void) = default;
 	Entity(const std::string& classname);
-	~Entity(void);
+	~Entity(void) = default;
 
 	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);

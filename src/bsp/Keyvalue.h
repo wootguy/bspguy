@@ -10,7 +10,7 @@ public:
 	Keyvalue(std::string line);
 	Keyvalue(std::string key, std::string value);
 	Keyvalue(void);
-	~Keyvalue(void);
+	~Keyvalue(void) = default;
 
 	vec3 getVector();
 };

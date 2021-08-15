@@ -199,8 +199,8 @@ bool CanFindFacePosition(Bsp* bsp, int facenum)
 
 static bool TestSampleFrag(Bsp* bsp, int facenum, vec_t s, vec_t t, const vec_t square[2][2], int maxsize)
 {
-	const vec3_t v_s = { 1, 0, 0 };
-	const vec3_t v_t = { 0, 1, 0 };
+	const vec3_t v_s = { s, 0, 0 };
+	const vec3_t v_t = { 0, t, 0 };
 
 	samplefrag_t head;
 

@@ -6,12 +6,10 @@ class Texture
 public:	
 	uint id; // OpenGL texture ID
 	uint height, width;
-	byte * data; // RGB(A) data
 	int nearFilter;
 	int farFilter;
 	uint format; // format of the data
 	uint iformat; // format of the data when uploaded to GL
-	bool uploaded = false;
 
 	Texture(int width, int height);
 	Texture(int width, int height, byte* data);
@@ -22,4 +20,8 @@ public:
 
 	// use this texture for rendering
 	void bind();
+
+	byte * data; // RGB(A) data
+
+	bool uploaded = false;
 };

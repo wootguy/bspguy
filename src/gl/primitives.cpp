@@ -25,26 +25,14 @@ tQuad::tQuad(float x, float y, float w, float h, float uu1, float vv1, float uu2
 	v6 = tVert(x+w, y,   0, uu2, vv1);
 }
 
-tQuad::tQuad(tVert v1, tVert v2, tVert v3, tVert v4)
+tQuad::tQuad(tVert _v1, tVert _v2, tVert _v3, tVert _v4) : v1(_v1), v2(_v2), v3(_v3), v4(_v4), v5(_v3), v6(_v4)
 {
-	this->v1 = v1;
-	this->v2 = v2;
-	this->v3 = v3;
 
-	this->v4 = v1;
-	this->v5 = v3;
-	this->v6 = v4;
 }
 
-cQuad::cQuad(cVert v1, cVert v2, cVert v3, cVert v4)
+cQuad::cQuad(cVert _v1, cVert _v2, cVert _v3, cVert _v4) : v1(_v1), v2(_v2), v3(_v3), v4(_v1), v5(_v3), v6(_v4)
 {
-	this->v1 = v1;
-	this->v2 = v2;
-	this->v3 = v3;
 
-	this->v4 = v1;
-	this->v5 = v3;
-	this->v6 = v4;
 }
 
 void cQuad::setColor(COLOR4 c )

@@ -1607,7 +1607,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		monsterOnlyTriggers.insert("func_monsterclip");
 		monsterOnlyTriggers.insert("trigger_monsterjump");
 
-		std::string uses = "";
+		std::string uses;
 		bool needsPlayerHulls = false; // HULL 1 + HULL 3
 		bool needsMonsterHulls = false; // All HULLs
 		bool needsVisibleHull = false; // HULL 0
@@ -2044,7 +2044,7 @@ void Bsp::load_ents()
 	int lastBracket = -1;
 	Entity* ent = NULL;
 
-	std::string line = "";
+	std::string line;
 	while (std::getline(in, line))
 	{
 		lineNum++;
@@ -4228,7 +4228,7 @@ void Bsp::ExportToObjWIP(std::string path)
 			if (materialid == -1)
 			{
 				materialid = matnames.size();
-				materials.push_back("newmtl textures" + std::to_string(materialid));
+				materials.emplace_back("newmtl textures" + std::to_string(materialid));
 				materials.push_back("map_Kd " + std::string("textures/") + tex->szName + std::string(".bmp"));
 				materials.push_back("");
 				matnames.push_back(tex->szName);

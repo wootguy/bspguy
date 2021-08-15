@@ -15,7 +15,7 @@ struct COLOR3
 {
 	byte r, g, b;
 
-	COLOR3() {}
+	COLOR3() = default;
 	COLOR3(byte r, byte g, byte b) : r(r), g(g), b(b) {}
 };
 #pragma pack(pop)

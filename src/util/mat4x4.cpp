@@ -290,9 +290,8 @@ mat4x4 mat4x4::invert()
 
 void mat4x4::mult( float mat[16] )
 {
-	mat4x4 other = mat;
-	std::string s = "asdfasdf";
-	*this = *this * other;
+	mat4x4 _other = mat;
+	*this = *this * _other;
 }
 
 mat4x4 operator*( mat4x4 m1, mat4x4 m2 )

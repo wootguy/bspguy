@@ -70,10 +70,10 @@ struct RenderFace {
 };
 
 struct RenderModel {
-	RenderGroup* renderGroups;
 	int groupCount;
-	RenderFace* renderFaces;
 	int renderFaceCount;
+	RenderFace* renderFaces;
+	RenderGroup* renderGroups;
 };
 
 struct RenderClipnodes {

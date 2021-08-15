@@ -200,7 +200,10 @@ int merge_maps(CommandLine& cli) {
 	for (int i = 0; i < input_maps.size(); i++) {
 		Bsp* map = new Bsp(input_maps[i]);
 		if (!map->valid)
-			return 1;
+        {
+            delete map;
+            return 1;
+        }
 		maps.push_back(map);
 	}
 
@@ -248,7 +251,10 @@ int merge_maps(CommandLine& cli) {
 int print_info(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-		return 1;
+    {		
+        delete map;
+        return 1;
+    }
 
 	bool limitMode = false;
 	int listLength = 10;
@@ -289,7 +295,10 @@ int print_info(CommandLine& cli) {
 int noclip(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-		return 1;
+    {
+        delete map;
+        return 1;
+    }
 
 	int model = -1;
 	int hull = -1;
@@ -503,6 +512,7 @@ int transform(CommandLine& cli) {
 	}
 	else {
 		logf("ERROR: at least one transformation option is required\n");
+        delete map;
 		return 1;
 	}
 	

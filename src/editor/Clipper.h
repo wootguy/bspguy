@@ -40,7 +40,7 @@ struct CFace {
 	vec3 normal;
 
 	CFace(std::vector<int> edges, vec3 normal) {
-		this->edges = edges;
+		this->edges = std::move(edges);
 		this->normal = normal;
 	}
 };
