@@ -64,15 +64,17 @@ Run 'bspguy <command> help' to read about a specific command.
     cmake ..
     cmake --build . --config Release
     ```
+    (you can open a command-prompt in the current folder by typing `cmd` into the address bar of the explorer window)
 
 ### Linux users:
-1. Install Git, CMake, X11, GLFW, and GLEW.
-    * Debian: `sudo apt install git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libglew-dev`
+1. Install Git, CMake, X11, GLFW, GLEW, and a compiler.
+    * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev`
 1. Download the source: `git clone https://github.com/wootguy/bspguy.git`
 1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract next to the `src` folder. Rename to `imgui`.
-1. Open a shell in the `bspguy` folder and run these commands:
+1. Open a terminal in the `bspguy` folder and run these commands:
     ```
     mkdir build; cd build
     cmake .. -DCMAKE_BUILD_TYPE=RELEASE
     make
     ```
+    (a terminal can _usually_ be opened by pressing F4 with the file manager window in focus)
