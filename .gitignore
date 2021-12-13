@@ -6,3 +6,12 @@ msvc
 /release
 /imgui
 /qhull
+build/.vs/bspguy/v17/.suo
+*.bin
+*.db
+*.ipch
+*.obj
+*.recipe
+*.log
+*.lastbuildstate
+*.tlog

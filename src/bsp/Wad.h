@@ -64,7 +64,12 @@ struct WADTEX
 	}
 	WADTEX(BSPMIPTEX* tex)
 	{
+#ifdef WIN32
+		sprintf_s(szName,MAXTEXTURENAME, "%s", tex->szName);
+#else 
 		sprintf(szName, "%s", tex->szName);
+#endif
+
 		nWidth = tex->nWidth;
 		nHeight = tex->nHeight;
 		for (int i = 0; i < MIPLEVELS; i++)

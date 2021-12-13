@@ -1,0 +1,300 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\CommandLine.cpp">
+      <Filter>Source Files\cli</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\ProgressMeter.cpp">
+      <Filter>Source Files\cli</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\BspMerger.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Bsp.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsptypes.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Entity.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Keyvalue.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Wad.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\remap.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\util.cpp">
+      <Filter>Source Files\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\vectors.cpp">
+      <Filter>Source Files\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\mat4x4.cpp">
+      <Filter>Source Files\util</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\shaders.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\primitives.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Shader.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\ShaderProgram.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\VertexBuffer.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Texture.cpp">
+      <Filter>Source Files\gl</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\LightmapNode.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Renderer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Gui.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\BspRenderer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\PointEntRenderer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Fgd.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Clipper.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Command.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\rad.cpp">
+      <Filter>Source Files\qtools</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\vis.cpp">
+      <Filter>Source Files\qtools</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\winding.cpp">
+      <Filter>Source Files\qtools</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_tables.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_draw.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_demo.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\backends\imgui_impl_glfw.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\backends\imgui_impl_opengl3.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\lodepng.cpp">
+      <Filter>Source Files\util\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\mathlib.c">
+      <Filter>Source Files\mdlviewer</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\cmdlib.c">
+      <Filter>Source Files\mdlviewer</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.cpp">
+      <Filter>Source Files\mdlviewer</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\CommandLine.h">
+      <Filter>Header Files\cli</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\ProgressMeter.h">
+      <Filter>Header Files\cli</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\BspMerger.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Bsp.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsplimits.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsptypes.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Entity.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Keyvalue.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Wad.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\remap.h">
+      <Filter>Header Files\bsp</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\util.h">
+      <Filter>Header Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\vectors.h">
+      <Filter>Header Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\mat4x4.h">
+      <Filter>Header Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\shaders.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\primitives.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Shader.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\ShaderProgram.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\VertexBuffer.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Texture.h">
+      <Filter>Header Files\gl</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\LightmapNode.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Renderer.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Gui.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\BspRenderer.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\PointEntRenderer.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Fgd.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Clipper.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Command.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\rad.h">
+      <Filter>Header Files\qtools</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\vis.h">
+      <Filter>Header Files\qtools</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\winding.h">
+      <Filter>Header Files\qtools</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\lodepng.h">
+      <Filter>Header Files\util\lib</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\mathlib.h">
+      <Filter>Header Files\mdlviewer</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\cmdlib.h">
+      <Filter>Header Files\mdlviewer</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_event.h">
+      <Filter>Header Files\mdlviewer</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio.h">
+      <Filter>Header Files\mdlviewer</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.h">
+      <Filter>Header Files\mdlviewer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Projects\CounterStrikeTools\bspguy\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{C09879EB-61FD-3200-896A-5A951468767D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\bsp">
+      <UniqueIdentifier>{84F737F0-E5C6-30DA-81CB-057F701B76F5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cli">
+      <UniqueIdentifier>{2C6381FA-231D-39D1-8D44-C1568BF68D8A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\editor">
+      <UniqueIdentifier>{5C3A38C8-0036-3043-9923-1DE03F1C55BC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gl">
+      <UniqueIdentifier>{7AA05D34-9834-3301-95A9-7F5C1B939675}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\mdlviewer">
+      <UniqueIdentifier>{9C3E22B5-E39E-3489-8928-20EB7E65D4BB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\qtools">
+      <UniqueIdentifier>{79B8287D-E473-3511-A799-C596BAD5A298}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\util">
+      <UniqueIdentifier>{78FA482C-F2F6-3FC1-8243-170D9F444FE2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\util\lib">
+      <UniqueIdentifier>{CB76AABD-0ED2-3B56-A0D0-0B6DC0512C6B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{1ACD1AAE-AEEC-3BFA-90B8-EB6984CC927A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\bsp">
+      <UniqueIdentifier>{7717312B-7A21-319A-9ADA-7B4A8EF1B6B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cli">
+      <UniqueIdentifier>{355691EC-ABA5-33BE-A620-44B6D7C39561}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\editor">
+      <UniqueIdentifier>{4CB935D8-D7A3-3485-8042-7A7A3E096C66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\gl">
+      <UniqueIdentifier>{61AAB120-9236-37F5-A89F-FB8942B20514}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\mdlviewer">
+      <UniqueIdentifier>{CFF41CC4-CB8D-359A-BAC8-0E6D2005B1E4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\qtools">
+      <UniqueIdentifier>{BE2331F8-D6D2-3BC8-A728-0B3B7F7E154C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\util">
+      <UniqueIdentifier>{772472A7-BCA8-31CC-AA55-A650B7E1CD87}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\util\lib">
+      <UniqueIdentifier>{D1CF10C9-0D97-3B0E-9AAE-15E260C5D95A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

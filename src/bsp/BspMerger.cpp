@@ -228,7 +228,7 @@ typedef std::map< std::string, MAPBLOCK > mapStringToMapBlock;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBLOCK>& sourceMaps,
 	std::vector<Bsp*>& mapOrder, std::string output_name, std::string firstMapName, bool noscript) {
-	int originalEntCount = mergedMap->ents.size();
+	int originalEntCount = (int) mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
 	g_progress.update("Processing entities", originalEntCount);
@@ -792,7 +792,7 @@ int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 
 	int renameCount = 0;
 	for (auto it = entsToRename.begin(); it != entsToRename.end(); ++it)
-		renameCount += it->second.size();
+		renameCount += (int)it->second.size();
 
 	g_progress.update("Renaming entities", renameCount);
 
@@ -976,7 +976,7 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 
 void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 {
-	g_progress.update("Merging entities", mapA.ents.size() + mapB.ents.size());
+	g_progress.update("Merging entities", (int) (mapA.ents.size() + mapB.ents.size()));
 
 	int oldEntCount = mapA.ents.size();
 

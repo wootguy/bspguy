@@ -1,0 +1,10 @@
+C:/Projects/CounterStrikeTools/bspguy/build/CMakeFiles/bspguy.dir
+C:/Projects/CounterStrikeTools/bspguy/build/CMakeFiles/INSTALL.dir
+C:/Projects/CounterStrikeTools/bspguy/build/CMakeFiles/ALL_BUILD.dir
+C:/Projects/CounterStrikeTools/bspguy/build/CMakeFiles/ZERO_CHECK.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/CMakeFiles/uninstall.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/CMakeFiles/INSTALL.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/CMakeFiles/ALL_BUILD.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/src/CMakeFiles/glfw.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/src/CMakeFiles/update_mappings.dir
+C:/Projects/CounterStrikeTools/bspguy/build/glfw/src/CMakeFiles/INSTALL.dir

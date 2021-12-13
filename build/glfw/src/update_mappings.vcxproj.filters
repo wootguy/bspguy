@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Projects\CounterStrikeTools\bspguy\build\CMakeFiles\4cafe2771aff6c2307158c7af9d86723\update_mappings.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\mappings.h.in">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="C:\Projects\CounterStrikeTools\bspguy\glfw\CMake\GenerateMappings.cmake" />
+    <None Include="C:\Projects\CounterStrikeTools\bspguy\build\glfw\src\CMakeFiles\update_mappings" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{1B185187-ADA6-3AE4-9D79-F32376529612}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{C09879EB-61FD-3200-896A-5A951468767D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
