@@ -22,8 +22,7 @@ struct COLOR3
 struct COLOR4
 {
 	byte r, g, b, a;
-
-	COLOR4() {}
+	COLOR4() = default;
 	COLOR4(byte r, byte g, byte b, byte a) : r(r), g(g), b(b), a(a) {}
 	COLOR4(COLOR3 c, byte a) : r(c.r), g(c.g), b(c.b), a(a) {}
 };

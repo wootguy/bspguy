@@ -69,7 +69,7 @@ enum lump_copy_targets {
 // maximum x/y hull dimension a pushable can have before it starts using hull 2
 #define MAX_HULL1_SIZE_PUSHABLE 34.0f
 
-static char* g_lump_names[HEADER_LUMPS] = {
+static const char* g_lump_names[HEADER_LUMPS] = {
 	"ENTITIES",
 	"PLANES",
 	"TEXTURES",
@@ -212,7 +212,7 @@ struct ScalableTexinfo {
 struct TransformVert {
 	vec3 pos;
 	vec3* ptr; // face vertex to move with (null for invisible faces)
-	vector<int> iPlanes;
+	std::vector<int> iPlanes;
 	vec3 startPos; // for dragging
 	vec3 undoPos; // for undoing invalid solid stuff
 	bool selected;
@@ -225,21 +225,20 @@ struct HullEdge {
 };
 
 struct Face {
-	vector<int> verts; // index into hullVerts
+	std::vector<int> verts; // index into hullVerts
 	BSPPLANE plane;
 	int planeSide;
 	int iTextureInfo;
 };
 
 struct Solid {
-	vector<Face> faces;
-
-	vector<TransformVert> hullVerts; // control points for hull 0
-	vector<HullEdge> hullEdges; // for vertex manipulation (holds indexes into hullVerts)
+	std::vector<Face> faces;
+	std::vector<TransformVert> hullVerts; // control points for hull 0
+	std::vector<HullEdge> hullEdges; // for vertex manipulation (holds indexes into hullVerts)
 };
 
 // used to construct bounding volumes for solid leaves
 struct NodeVolumeCuts {
 	int nodeIdx;
-	vector<BSPPLANE> cuts; // cuts which define the leaf boundaries when applied to a bounding box, in order.
+	std::vector<BSPPLANE> cuts; // cuts which define the leaf boundaries when applied to a bounding box, in order.
 };

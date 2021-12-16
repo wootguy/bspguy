@@ -10,6 +10,8 @@
 #include <set>
 #include "bsptypes.h"
 
+class BspRenderer;
+
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -20,12 +22,11 @@ struct membuf : std::streambuf
 class Bsp
 {
 public:
-	string path;
-	string name;
+	std::string path;
+	std::string name;
 	BSPHEADER header = BSPHEADER();
 	byte ** lumps;
 	bool valid;
-
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
 	byte* textures;
@@ -40,6 +41,9 @@ public:
 	BSPEDGE* edges;
 	uint16* marksurfs;
 	byte* visdata;
+
+	bool is_model = false;
+	void selectModelEnt();
 
 	int planeCount;
 	int texinfoCount;
@@ -56,23 +60,25 @@ public:
 	int lightDataLength;
 	int visDataLength;
 	
-	vector<Entity*> ents;
+	std::vector<Entity*> ents;
 
 	Bsp();
 	Bsp(std::string fname);
 	~Bsp();
 
+	void init_empty_bsp();
+
 	// if modelIdx=0, the world is moved and all entities along with it
-	bool move(vec3 offset, int modelIdx=0);
+	bool move(vec3 offset, int modelIdx=0, bool onlyModel = false);
 
 	void move_texinfo(int idx, vec3 offset);
-	void write(string path);
+	void write(std::string path);
 
 	void print_info(bool perModelStats, int perModelLimit, int sortMode);
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(int16_t node, int depth);
-	int32_t pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx);
+	int32_t pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx);
 	int32_t pointContents(int iNode, vec3 p, int hull);
 	const char* getLeafContentsName(int32_t contents);
 
@@ -84,10 +90,10 @@ public:
 	// and redirects to the given hull, if redirect>0
 	void delete_hull(int hull_number, int redirect);
 
-	void dump_lightmap(int faceIdx, string outputPath);
-	void dump_lightmap_atlas(string outputPath);
+	void dump_lightmap(int faceIdx, std::string outputPath);
+	void dump_lightmap_atlas(std::string outputPath);
 
-	void write_csg_outputs(string path);
+	void write_csg_outputs(std::string path);
 
 	// get the bounding box for the world
 	void get_bounding_box(vec3& mins, vec3& maxs);
@@ -97,30 +103,30 @@ public:
 
 	// get all verts used by this model
 	// TODO: split any verts shared with other models!
-	vector<TransformVert> getModelVerts(int modelIdx);
+	std::vector<TransformVert> getModelVerts(int modelIdx);
 
 	// gets verts formed by plane intersections with the nodes in this model
-	bool getModelPlaneIntersectVerts(int modelIdx, vector<TransformVert>& outVerts);
-	bool getModelPlaneIntersectVerts(int modelIdx, const vector<int>& planes, vector<TransformVert>& outVerts);
-	void getNodePlanes(int iNode, vector<int>& nodePlanes);
+	bool getModelPlaneIntersectVerts(int modelIdx, std::vector<TransformVert>& outVerts);
+	bool getModelPlaneIntersectVerts(int modelIdx, const std::vector<int>& planes, std::vector<TransformVert>& outVerts);
+	void getNodePlanes(int iNode, std::vector<int>& nodePlanes);
 	bool is_convex(int modelIdx);
 	bool is_node_hull_convex(int iNode);
 
 	// get cuts required to create bounding volumes for each solid leaf in the model
-	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx);
-	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
-	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
+	std::vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx);
+	void get_clipnode_leaf_cuts(int iNode, std::vector<BSPPLANE>& clipOrder, std::vector<NodeVolumeCuts>& output);
+	void get_node_leaf_cuts(int iNode, std::vector<BSPPLANE>& clipOrder, std::vector<NodeVolumeCuts>& output);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
 	// Scaling/stretching really only needs 3 verts _anywhere_ on the plane to calculate new normals/origins.
-	vector<ScalableTexinfo> getScalableTexinfos(int modelIdx); // for scaling
+	std::vector<ScalableTexinfo> getScalableTexinfos(int modelIdx); // for scaling
 	int addTextureInfo(BSPTEXTUREINFO& copy);
 
 	// fixes up the model planes/nodes after vertex posisions have been modified
 	// returns false if the model has non-planar faces
 	// TODO: split any planes shared with other models
-	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly, bool regenClipnodes);
+	bool vertex_manipulation_sync(int modelIdx, std::vector<TransformVert>& hullVerts, bool convexCheckOnly, bool regenClipnodes);
 
 	void load_ents();
 
@@ -166,8 +172,8 @@ public:
 	// Returns -1 on failure, else the new texture index
 	int add_texture(const char* name, byte* data, int width, int height);
 
-	void replace_lump(int lumpIdx, void* newData, int newLength);
-	void append_lump(int lumpIdx, void* newData, int appendLength);
+	void replace_lump(int lumpIdx, void * newData, int newLength);
+	void append_lump(int lumpIdx, void * newData, int appendLength);
 
 	bool is_invisible_solid(Entity* ent);
 
@@ -191,7 +197,7 @@ public:
 
 	int get_model_from_face(int faceIdx);
 
-	vector<STRUCTUSAGE*> get_sorted_model_infos(int sortMode);
+	std::vector<STRUCTUSAGE*> get_sorted_model_infos(int sortMode);
 
 	// split structures that are shared between the target and other models
 	void split_shared_model_structures(int modelIdx);
@@ -210,6 +216,9 @@ public:
 
 	void update_lump_pointers();
 
+	BspRenderer* GetBspRender();
+
+	void ExportToObjWIP(std::string path);
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -218,7 +227,7 @@ private:
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
-	bool load_lumps(string fname);
+	bool load_lumps(std::string fname);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
 	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according
@@ -228,11 +237,11 @@ private:
 	void print_model_bsp(int modelIdx);
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
-	void print_stat(string name, uint val, uint max, bool isMem);
+	void print_stat(std::string name, uint val, uint max, bool isMem);
 	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 
-	string get_model_usage(int modelIdx);
-	vector<Entity*> get_model_ents(int modelIdx);
+	std::string get_model_usage(int modelIdx);
+	std::vector<Entity*> get_model_ents(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
@@ -249,4 +258,5 @@ private:
 	void remap_node_structures(int iNode, STRUCTREMAP* remap);
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
+	BspRenderer* renderer;
 };

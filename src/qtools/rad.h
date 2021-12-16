@@ -33,12 +33,7 @@
 #define VectorAdd(a,b,c)         { (c)[0]=(a)[0]+(b)[0]; (c)[1]=(a)[1]+(b)[1]; (c)[2]=(a)[2]+(b)[2]; }
 #define VectorScale(a,b,c)       { (c)[0]=(a)[0]*(b);(c)[1]=(a)[1]*(b);(c)[2]=(a)[2]*(b); }
 #define VectorCopy(a,b) { (b)[0]=(a)[0]; (b)[1]=(a)[1]; (b)[2]=(a)[2]; }
-#define VectorMA(a, scale, b, dest) \
-{ \
-    (dest)[0] = (a)[0] + (scale) * (b)[0]; \
-    (dest)[1] = (a)[1] + (scale) * (b)[1]; \
-    (dest)[2] = (a)[2] + (scale) * (b)[2]; \
-}
+#define VectorMA(a, scale, b, dest) { (dest)[0] = (a)[0] + (scale) * (b)[0]; (dest)[1] = (a)[1] + (scale) * (b)[1];  (dest)[2] = (a)[2] + (scale) * (b)[2]; }
 
 typedef float vec_t;
 typedef vec_t  vec3_t[3]; // x,y,z
@@ -115,6 +110,6 @@ const BSPPLANE getPlaneFromFace(Bsp* bsp, const BSPFACE* const face);
 
 bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]);
 int GetFaceLightmapSizeBytes(Bsp* bsp, int facenum);
-void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int extents_out[2]);
+void GetFaceExtents(Bsp* bsp, int facenum, int mins_out[2], int maxs_out[2]);
 void CalcFaceExtents(Bsp* bsp, lightinfo_t* l);
 void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags);

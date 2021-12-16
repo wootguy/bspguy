@@ -10,6 +10,8 @@
 
 Winding& Winding::operator=(const Winding& other)
 {
+	if (&other == this)
+		return *this;
     delete[] m_Points;
     m_NumPoints = other.m_NumPoints;
     m_MaxPoints = (m_NumPoints + 3) & ~3;   // groups of 4

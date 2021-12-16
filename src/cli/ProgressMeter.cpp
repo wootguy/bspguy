@@ -1,5 +1,5 @@
 #include "ProgressMeter.h"
-#include <string.h>
+#include <string>
 #include <stdio.h> 
 #include "util.h"
 
@@ -13,7 +13,7 @@ void ProgressMeter::update(const char* newTitle, int totalProgressTicks) {
 	progress = 0;
 	progress_total = totalProgressTicks;
 	if (simpleMode && !hide) {
-		logf((string(newTitle) + "\n").c_str());
+		logf((std::string(newTitle) + "\n").c_str());
 	}
 }
 

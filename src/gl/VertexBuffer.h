@@ -48,7 +48,7 @@ class VertexBuffer
 {
 public:
 	byte* data = NULL;
-	vector<VertexAttr> attribs;
+	std::vector<VertexAttr> attribs;
 	int elementSize;
 	int numVerts;
 	bool ownData = false; // set to true if buffer should delete data on destruction

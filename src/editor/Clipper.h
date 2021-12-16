@@ -35,20 +35,20 @@ struct CEdge {
 };
 
 struct CFace {
-	vector<int> edges;
+	std::vector<int> edges;
 	bool visible = true;
 	vec3 normal;
 
-	CFace(vector<int> edges, vec3 normal) {
+	CFace(std::vector<int> edges, vec3 normal) {
 		this->edges = edges;
 		this->normal = normal;
 	}
 };
 
 struct CMesh {
-	vector<CVertex> verts;
-	vector<CEdge> edges;
-	vector<CFace> faces;
+	std::vector<CVertex> verts;
+	std::vector<CEdge> edges;
+	std::vector<CFace> faces;
 };
 
 class Clipper {
@@ -57,7 +57,7 @@ public:
 	Clipper();
 
 	// clips a box against the list of clipping planes, in order, to create a convex volume
-	CMesh clip(vector<BSPPLANE>& clips);
+	CMesh clip(std::vector<BSPPLANE>& clips);
 
 private:
 

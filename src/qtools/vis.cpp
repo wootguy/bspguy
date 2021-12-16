@@ -291,7 +291,7 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 	int* sharedRows = new int[iterLeaves];
 	for (int i = 0; i < iterLeaves; i++) {
-		byte* src = uncompressed + i * g_bitbytes;
+		src = uncompressed + i * g_bitbytes;
 
 		sharedRows[i] = i;
 		for (int k = 0; k < i; k++) {

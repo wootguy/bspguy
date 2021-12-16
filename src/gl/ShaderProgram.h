@@ -28,7 +28,7 @@ public:
 	mat4x4* modelMat;
 
 	// Creates a shader program to replace the fixed-function pipeline
-	ShaderProgram(const char * vshaderFile, const char * fshaderFile);
+	ShaderProgram( const char * vshaderSource, const char * fshaderSource );
 	~ShaderProgram(void);
 
 	// use this shader program instead of the fixed function pipeline.
@@ -36,7 +36,7 @@ public:
 	// glUseProgramObject(0);
 	void bind();
 
-	void removeShader(int ID);
+	void removeShader( int shaderID );
 
 	void setMatrixes(mat4x4* model, mat4x4* view, mat4x4* proj, mat4x4* modelView, mat4x4* modelViewProj);
 

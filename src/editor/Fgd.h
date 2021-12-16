@@ -24,33 +24,33 @@ enum FGD_KEY_TYPES {
 
 // for both "choice" and "flags" keyvalue types
 struct KeyvalueChoice {
-	string name;
-	string svalue;
+	std::string name;
+	std::string svalue;
 	int ivalue;
 	bool isInteger;
 };
 
 struct KeyvalueDef {
-	string name;
-	string valueType;
+	std::string name;
+	std::string valueType;
 	int iType;
-	string description;
-	string defaultValue;
-	vector<KeyvalueChoice> choices;
+	std::string description;
+	std::string defaultValue;
+	std::vector<KeyvalueChoice> choices;
 };
 
 class Fgd;
 
 struct FgdClass {
 	int classType;
-	string name;
-	string description;
-	vector<KeyvalueDef> keyvalues;
-	vector<string> baseClasses;
-	string spawnFlagNames[32];
-	string model;
-	string sprite;
-	string iconSprite;
+	std::string name;
+	std::string description;
+	std::vector<KeyvalueDef> keyvalues;
+	std::vector<std::string> baseClasses;
+	std::string spawnFlagNames[32];
+	std::string model;
+	std::string sprite;
+	std::string iconSprite;
 	bool isModel;
 	bool isSprite;
 	bool isDecal;
@@ -79,38 +79,38 @@ struct FgdClass {
 	}
 
 	// get parent classes from youngest to oldest, in right-to-left order
-	// reversing the vector changes order to oldest to youngest, left-to-right order
-	void getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList);
+	// reversing the std::vector changes order to oldest to youngest, left-to-right order
+	void getBaseClasses(Fgd* fgd, std::vector<FgdClass*>& inheritanceList);
 };
 
 struct FgdGroup {
-	vector<FgdClass*> classes;
-	string groupName;
+	std::vector<FgdClass*> classes;
+	std::string groupName;
 };
 
 class Fgd {
 public:
-	string path;
-	string name;
-	vector<FgdClass*> classes;
-	map<string, FgdClass*> classMap;
+	std::string path;
+	std::string name;
+	std::vector<FgdClass*> classes;
+	std::map<std::string, FgdClass*> classMap;
 
-	vector<FgdGroup> pointEntGroups;
-	vector<FgdGroup> solidEntGroups;
+	std::vector<FgdGroup> pointEntGroups;
+	std::vector<FgdGroup> solidEntGroups;
 
-	Fgd(string path);
+	Fgd(std::string path);
 	~Fgd();
 
 	bool parse();
 	void merge(Fgd* other);
 
-	FgdClass* getFgdClass(string cname);
+	FgdClass* getFgdClass(std::string cname);
 
 private:
 	int lineNum;
-	string line; // current line being parsed
+	std::string line; // current line being parsed
 
-	void parseClassHeader(FgdClass& outClass);
+	void parseClassHeader(FgdClass& fgdClass);
 	void parseKeyvalue(FgdClass& outClass);
 	void parseChoicesOrFlags(KeyvalueDef& outKey);
 
@@ -120,18 +120,18 @@ private:
 	void setSpawnflagNames();
 
 	// true if value begins a group of strings separated by spaces
-	bool stringGroupStarts(string s);
+	bool stringGroupStarts(std::string s);
 
 	// true if any closing paren or quote is found
-	bool stringGroupEnds(string s);
+	bool stringGroupEnds(std::string s);
 
 	// get the value inside a prefixed set of parens
-	string getValueInParens(string s);
+	std::string getValueInParens(std::string s);
 
 	// groups strings separated by spaces but enclosed in quotes/parens
-	vector<string> groupParts(vector<string>& ungrouped);
+	std::vector<std::string> groupParts(std::vector<std::string>& ungrouped);
 
-	string getValueInQuotes(string s);
+	std::string getValueInQuotes(std::string s);
 
-	vector<string> splitStringIgnoringQuotes(string s, string delimitter);
+	std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string delimitter);
 };

@@ -48,9 +48,9 @@ struct AppSettings {
 	int windowY;
 	int maximized;
 	int fontSize;
-	string gamedir;
-	string workingdir;
-	bool valid;
+	std::string gamedir;
+	std::string workingdir;
+	bool settingLoaded; // Settings loaded
 	int undoLevels;
 	bool verboseLogs;
 
@@ -72,12 +72,13 @@ struct AppSettings {
 	bool show_transform_axes;
 	bool backUpMap;
 
-	vector<string> fgdPaths;
-	vector<string> resPaths;
+	std::vector<std::string> fgdPaths;
+	std::vector<std::string> resPaths;
 
 	void loadDefault();
 	void load();
 	void save();
+	void save(std::string path);
 };
 
 class Renderer;
@@ -97,7 +98,7 @@ class Renderer {
 	friend class OptimizeMapCommand;
 
 public:
-	vector<BspRenderer*> mapRenderers;
+	std::vector<BspRenderer*> mapRenderers;
 
 	vec3 debugPoint;
 	vec3 debugVec0;
@@ -106,18 +107,33 @@ public:
 	vec3 debugVec3;
 
 	bool hideGui = false;
+	bool isModelsReloading = false;
 
 	Renderer();
 	~Renderer();
 
 	void addMap(Bsp* map);
 
+	void reloadBspModels();
 	void renderLoop();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
+	void clearMaps();
 	void saveSettings();
 	void loadSettings();
+
+
+
+	PickInfo pickInfo = PickInfo();
+	BspRenderer* getMapContainingCamera();
+	BspRenderer* getSelectedRender();
+	Bsp* getSelectedMap();
+	int getSelectedMapId();
+	void selectMapId(int id);
+	void selectMap(Bsp* map);
+	void deselectMap(Bsp* map);
+	void clearSelection();
 
 private:
 	GLFWwindow* window;
@@ -128,7 +144,7 @@ private:
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
 
-	static future<void> fgdFuture;
+	static std::future<void> fgdFuture;
 	bool reloading = false;
 	bool reloadingGameDir = false;
 	bool isLoading = false;
@@ -172,7 +188,7 @@ private:
 	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
 	vec3 axisDragStart;
 	vec3 axisDragEntOriginStart;
-	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
+	std::vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	bool textureLock = false;
 	bool invalidSolid = false;
 	bool isTransformableSolid = true;
@@ -180,12 +196,11 @@ private:
 	bool anyEdgeSelected = false;
 	bool anyVertSelected = false;
 
-	vector<int> selectedFaces;
-	int selectMapIdx = -1;
+	std::vector<int> selectedFaces;
 
-	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
-	vector<TransformVert> modelFaceVerts; // control points for visible face verts
-	vector<HullEdge> modelEdges;
+	std::vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
+	std::vector<TransformVert> modelFaceVerts; // control points for visible face verts
+	std::vector<HullEdge> modelEdges;
 	cCube* modelVertCubes = NULL;
 	cCube modelOriginCube = cCube();
 	VertexBuffer* modelVertBuff = NULL;
@@ -216,7 +231,6 @@ private:
 	bool anyAltPressed;
 	bool anyShiftPressed;
 
-	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 
@@ -230,8 +244,8 @@ private:
 
 	int undoLevels = 64;
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history
-	vector<Command*> undoHistory;
-	vector<Command*> redoHistory;
+	std::vector<Command*> undoHistory;
+	std::vector<Command*> redoHistory;
 	Entity* undoEntityState = NULL;
 	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
@@ -251,7 +265,6 @@ private:
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
-	BspRenderer* getMapContainingCamera();
 
 	void drawModelVerts();
 	void drawModelOrigin();
@@ -272,7 +285,7 @@ private:
 	void updateSelectionSize();
 	void updateEntConnections();
 	void updateEntConnectionPositions(); // only updates positions in the buffer
-	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
+	bool getModelSolid(std::vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
 	void splitFace();
 
@@ -286,8 +299,8 @@ private:
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
-	vec3 getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& iEdge);
-	vec3 getCentroid(vector<TransformVert>& hullVerts);
+	vec3 getEdgeControlPoint(std::vector<TransformVert>& hullVerts, HullEdge& edge);
+	vec3 getCentroid(std::vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
 	void deselectFaces();
 	void selectEnt(Bsp* map, int entIdx);
@@ -295,15 +308,15 @@ private:
 	void goToCoords(float x, float y, float z);
 	void ungrabEnt();
 
-	void pushEntityUndoState(string actionDesc);
-	void pushModelUndoState(string actionDesc, int targetLumps);
+	void pushEntityUndoState(std::string actionDesc);
+	void pushModelUndoState(std::string actionDesc, int targetLumps);
 	void pushUndoCommand(Command* cmd);
 	void undo();
 	void redo();
 	void clearUndoCommands();
 	void clearRedoCommands();
 	void calcUndoMemoryUsage();
-
+	void updateEnts();
 	void updateEntityState(Entity* ent);
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
 
