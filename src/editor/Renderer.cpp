@@ -911,11 +911,38 @@ void Renderer::controls() {
 	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
 
-	if (!io.WantCaptureKeyboard)
-		cameraOrigin += getMoveDir() * frameTimeScale;
-
-	moveGrabbedEnt();
-
+	if (anyCtrlPressed && oldPressed[GLFW_KEY_A] && released[GLFW_KEY_A])
+	{
+		Bsp* map;
+		if (map = getSelectedMap())
+		{
+			if (pickMode == PICK_FACE)
+			{
+				if (selectedFaces.size())
+				{
+					BSPFACE& selface = map->faces[selectedFaces[0]];
+					BSPTEXTUREINFO& seltexinfo = map->texinfos[selface.iTextureInfo];
+					deselectFaces();
+					for (int i = 0; i < map->faceCount; i++) {
+						BSPFACE& face = map->faces[i];
+						BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+						if (texinfo.iMiptex == seltexinfo.iMiptex)
+						{
+							if (map && map->getBspRender())
+								map->getBspRender()->highlightFace(i, true);
+							selectedFaces.push_back(i);
+						}
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		if (!io.WantCaptureKeyboard)
+			cameraOrigin += getMoveDir() * frameTimeScale;
+		moveGrabbedEnt();
+	}
 	static bool oldWantTextInput = false;
 
 	if (!io.WantTextInput && oldWantTextInput) {
@@ -2937,7 +2964,7 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	pushUndoCommand(createCommand);
 
 	clearSelection();
-	selectEnt(map, map->ents.size() - 1);
+	selectEnt(map, map->ents.size()  > 1 ? map->ents.size()  - 1 : 0);
 }
 
 void Renderer::deleteEnt() {
@@ -2976,7 +3003,7 @@ void Renderer::deselectFaces() {
 void Renderer::selectEnt(Bsp* map, int entIdx) {
 	pickInfo.entIdx = entIdx;
 	pickInfo.ent = map->ents[entIdx];
-	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
+	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx() == -1 ? 0 : pickInfo.ent->getBspModelIdx();
 	updateSelectionSize();
 	updateEntConnections();
 	updateEntityState(pickInfo.ent);

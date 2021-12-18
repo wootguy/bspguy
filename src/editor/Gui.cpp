@@ -1204,7 +1204,7 @@ void Gui::drawToolbar() {
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_FACE ? selectColor : dimColor);
 		ImGui::SameLine();
 		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
-			if (app->pickInfo.modelIdx >= 0) {
+			if (app->pickInfo.modelIdx >= 0 && app->pickMode == PICK_FACE) {
 				Bsp* map = app->getSelectedMap();
 				if (map)
 				{
@@ -1217,7 +1217,8 @@ void Gui::drawToolbar() {
 					}
 				}
 			}
-			app->deselectObject();
+			if (app->pickMode != PICK_FACE)
+				app->deselectObject();
 			app->pickMode = PICK_FACE;
 			app->pickCount++; // force texture tool refresh
 			showTextureWidget = true;
