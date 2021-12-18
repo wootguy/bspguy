@@ -1405,10 +1405,10 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) 
 		removeCount.lightdata = remove_unused_lightmaps(usedStructures.faces);
 
 	removeCount.planes = remove_unused_structs(LUMP_PLANES, usedStructures.planes, remap.planes);
+	removeCount.nodes = remove_unused_structs(LUMP_NODES, usedStructures.nodes, remap.nodes); 
 	if (!export_bsp_with_clipnodes)
 	{
 		removeCount.clipnodes = remove_unused_structs(LUMP_CLIPNODES, usedStructures.clipnodes, remap.clipnodes);
-		removeCount.nodes = remove_unused_structs(LUMP_NODES, usedStructures.nodes, remap.nodes);
 	}
 	removeCount.leaves = remove_unused_structs(LUMP_LEAVES, usedStructures.leaves, remap.leaves);
 	removeCount.markSurfs = remove_unused_structs(LUMP_MARKSURFACES, usedStructures.markSurfs, remap.markSurfs);
@@ -2698,8 +2698,7 @@ void Bsp::mark_model_structures(int modelIdx, STRUCTUSAGE* usage, bool skipLeave
 	for (int i = 0; i < model.nFaces; i++) {
 		mark_face_structures(model.iFirstFace + i, usage);
 	}
-
-	if (model.iHeadnodes[0] >= 0 && model.iHeadnodes[0] < nodeCount)
+	if (model.iHeadnodes[0] >= 0 )
 		mark_node_structures(model.iHeadnodes[0], usage, skipLeaves);
 	for (int k = 1; k < MAX_MAP_HULLS; k++) {
 		if (model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] < clipnodeCount)

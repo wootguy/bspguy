@@ -703,6 +703,15 @@ int main(int argc, char* argv[])
 		::ShowWindow(::GetConsoleWindow(), SW_SHOW);
 	#endif
 
+#ifdef USE_FILESYSTEM
+		fs::path ph = argv[0];
+		fs::current_path(ph.parent_path());
+#endif
+
+
+	g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
+	g_config_dir = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() : getConfigDir();
+
 	//return test();
 
 	CommandLine cli(argc, argv);
@@ -761,6 +770,7 @@ int main(int argc, char* argv[])
 	}
 	else {
 		logf("%s\n", ("Start bspguy editor with map: " + cli.bspfile).c_str() );
+		logf("Load settings from : %s\n", g_settings_path.c_str());
 		start_viewer(cli.bspfile);
 	}
 	return 0;

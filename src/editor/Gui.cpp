@@ -230,7 +230,7 @@ void Gui::pasteLightmap() {
 }
 
 
-void ExportModel(Bsp* map, int id)
+void ExportModel(Bsp* map, int id, bool fulloptimized)
 {
 	map->update_ent_lump();
 
@@ -279,13 +279,7 @@ void ExportModel(Bsp* map, int id)
 	tmpMap.update_lump_pointers();
 
 
-
-	/*for (int i = 0; i < 4; i++)
-	{
-		logf("tmpMap.models[0].iHeadnodes[%d] = %d\n", i, tmpMap.models[0].iHeadnodes[i]);
-	}*/
-
-	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(true);
+	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(!fulloptimized);
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
@@ -301,7 +295,7 @@ void ExportModel(Bsp* map, int id)
 		}
 
 		while (tmpMap.models[0].nVisLeafs >= tmpMap.leafCount)
-			tmpMap.create_leaf(-2);
+			tmpMap.create_leaf(CONTENTS_EMPTY);
 
 		tmpMap.lumps[LUMP_LEAVES] = (byte*)tmpMap.leaves;
 		tmpMap.update_lump_pointers();
@@ -313,9 +307,12 @@ void ExportModel(Bsp* map, int id)
 		return;
 	}
 
+	if (!fulloptimized && tmpMap.nodeCount > 0)
+		tmpMap.models[0].iHeadnodes[0] = tmpMap.nodeCount - 1;
+
 	if (tmpMap.models[0].iHeadnodes[0] <= 0)
 	{
-		logf("Warning. Model %d no has clipnodes and can glitches in game!\n", id);
+		logf("Model exported with bad collision because iHeadnodes[0] <= 0\n");
 	}
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
@@ -518,12 +515,21 @@ void Gui::draw3dContextMenus() {
 					ImGui::TextUnformatted("Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
 					ImGui::EndTooltip();
 				}
+				if (ImGui::BeginMenu("Export BSPMODEL", !app->isLoading)) {
 
-				if (ImGui::MenuItem("Export BSP model", 0, false, !app->isLoading)) {
-					if (app->pickInfo.modelIdx)
-					{
-						ExportModel(map, app->pickInfo.modelIdx);
+					/*if (ImGui::MenuItem("Export optimized(bad collision on client)", 0, false, !app->isLoading)) {
+						if (app->pickInfo.modelIdx)
+						{
+							ExportModel(map, app->pickInfo.modelIdx,true);
+						}
+					}*/
+					if (ImGui::MenuItem("Try Export with collision on client", 0, false, !app->isLoading)) {
+						if (app->pickInfo.modelIdx)
+						{
+							ExportModel(map, app->pickInfo.modelIdx,false);
+						}
 					}
+					ImGui::EndMenu();
 				}
 
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
@@ -776,10 +782,10 @@ void Gui::drawMenuBar() {
 					if (ImGui::BeginMenu((std::string("Map ") + map->name + ".bsp").c_str())) {
 						for (int i = 0; i < map->modelCount; i++)
 						{
-							if (ImGui::MenuItem(("Export " + std::to_string(i) + " model (.bsp)").c_str(), NULL, app->pickInfo.modelIdx == i)) {
+							if (ImGui::MenuItem(("Try export " + std::to_string(i) + " model (.bsp) with collision.").c_str(), NULL, app->pickInfo.modelIdx == i)) {
 								if (fileExists(map->path))
 								{
-									ExportModel(map, i);
+									ExportModel(map, i, true);
 								}
 							}
 						}

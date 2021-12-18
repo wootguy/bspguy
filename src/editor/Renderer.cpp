@@ -9,8 +9,8 @@
 #include "mdlviewer/studio_render.h"
 
 AppSettings g_settings;
-std::string g_settings_path = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() + "bspguy.cfg" : getConfigDir() + "bspguy.cfg";
-std::string g_config_dir = fileExists(GetCurrentWorkingDir() + "bspguy.cfg") ? GetCurrentWorkingDir() : getConfigDir();
+std::string g_settings_path = "";
+std::string g_config_dir = "";
 
 Renderer* g_app = NULL;
 

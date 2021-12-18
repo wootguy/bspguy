@@ -11,6 +11,9 @@
 #include <future>
 #include "Command.h"
 
+extern std::string g_settings_path;
+extern std::string g_config_dir;
+
 class Gui;
 
 enum transform_modes {
