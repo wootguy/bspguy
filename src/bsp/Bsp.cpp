@@ -2931,6 +2931,11 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 			logf("Warning! Texture size different. Need rename old texture.\n");
 			oldtex = NULL;
 		}
+		else if (oldtex->nOffsets[0] <= 0)
+		{
+			sprintf(oldtex->szName, "%s", "-unused_texture");
+			logf("Warning! Texture pointer found. Need replace by new texture.\n");
+		}
 	}
 
 	COLOR3 palette[256];
@@ -2994,7 +2999,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		}
 	}
 
-	if (oldtex)
+	if (oldtex && oldtex->nOffsets[0] > 0)
 	{
 		memcpy((byte*)oldtex + oldtex->nOffsets[0], mip[0], width * height);
 		memcpy((byte*)oldtex + oldtex->nOffsets[1], mip[1], (width >> 1) * (height >> 1));
@@ -3005,6 +3010,19 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 			delete[] mip[i];
 		}
 		return 0;
+	}
+	else if (oldtex)
+	{
+		for (int i = 0; i < faceCount; i++)
+		{
+			BSPFACE& face = faces[i];
+			BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+
+			int32_t texOffset = ((int32_t*)textures)[texinfo.iMiptex + 1];
+			BSPMIPTEX* tex = ((BSPMIPTEX*)(textures + texOffset));
+			if (tex == oldtex)
+				texinfo.iMiptex = textureCount ;
+		}
 	}
 
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;

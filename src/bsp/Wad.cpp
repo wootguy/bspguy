@@ -38,8 +38,11 @@ bool Wad::readInfo()
 	}
 
 	std::ifstream fin(file, std::ios::binary);
-	if (!fin.good())
+	if (!fin.is_open())
+	{
+		logf("%s does no access!\n", filename.c_str());
 		return false;
+	}
 
 	uint begin = fin.tellg();
 	fin.seekg(0, std::ios::end);

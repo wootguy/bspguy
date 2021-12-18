@@ -14,6 +14,8 @@
 #include "icons/object.h"
 #include "icons/face.h"
 
+#include <Windows.h>
+
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 static bool filterNeeded = true;
@@ -686,11 +688,9 @@ void ImportWad(Bsp* map, Renderer* app, std::string path)
 			int sz = wadTex->nWidth * wadTex->nHeight;
 			COLOR3* imageData = new COLOR3[sz];
 
-
 			for (int k = 0; k < sz; k++) {
 				imageData[k] = palette[src[k]];
 			}
-
 			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
 
 			delete[] imageData;
