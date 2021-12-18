@@ -12,32 +12,32 @@ set(SOURCE_FILES
 	src/types.h
 	
 	# command line
-	src/cli/CommandLine.h	src/cli/CommandLine.cpp
-	src/cli/ProgressMeter.h	src/cli/ProgressMeter.cpp
+	src/cli/CommandLine.h			src/cli/CommandLine.cpp
+	src/cli/ProgressMeter.h			src/cli/ProgressMeter.cpp
 	
 	# BSP and related structures
-	src/bsp/BspMerger.h		src/bsp/BspMerger.cpp
-	src/bsp/Bsp.h			src/bsp/Bsp.cpp
+	src/bsp/BspMerger.h				src/bsp/BspMerger.cpp
+	src/bsp/Bsp.h					src/bsp/Bsp.cpp
 	src/bsp/bsplimits.h
-	src/bsp/bsptypes.h		src/bsp/bsptypes.cpp
-	src/bsp/Entity.h		src/bsp/Entity.cpp
-	src/bsp/Keyvalue.h		src/bsp/Keyvalue.cpp
-	src/bsp/Wad.h			src/bsp/Wad.cpp
-	src/bsp/remap.h			src/bsp/remap.cpp
+	src/bsp/bsptypes.h				src/bsp/bsptypes.cpp
+	src/bsp/Entity.h				src/bsp/Entity.cpp
+	src/bsp/Keyvalue.h				src/bsp/Keyvalue.cpp
+	src/bsp/Wad.h					src/bsp/Wad.cpp
+	src/bsp/remap.h					src/bsp/remap.cpp
 	
 	# Math and stuff
-	src/util/util.h			src/util/util.cpp
-	src/util/vectors.h		src/util/vectors.cpp
-	src/util/mat4x4.h		src/util/mat4x4.cpp
+	src/util/util.h					src/util/util.cpp
+	src/util/vectors.h				src/util/vectors.cpp
+	src/util/mat4x4.h				src/util/mat4x4.cpp
 	
 	# OpenGL rendering
-	src/gl/shaders.h			src/gl/shaders.cpp
-	src/gl/primitives.h			src/gl/primitives.cpp
-	src/gl/Shader.h				src/gl/Shader.cpp
-	src/gl/ShaderProgram.h		src/gl/ShaderProgram.cpp
-	src/gl/VertexBuffer.h		src/gl/VertexBuffer.cpp
-	src/gl/Texture.h			src/gl/Texture.cpp
-	src/editor/LightmapNode.h	src/editor/LightmapNode.cpp
+	src/gl/shaders.h				src/gl/shaders.cpp
+	src/gl/primitives.h				src/gl/primitives.cpp
+	src/gl/Shader.h					src/gl/Shader.cpp
+	src/gl/ShaderProgram.h			src/gl/ShaderProgram.cpp
+	src/gl/VertexBuffer.h			src/gl/VertexBuffer.cpp
+	src/gl/Texture.h				src/gl/Texture.cpp
+	src/editor/LightmapNode.h		src/editor/LightmapNode.cpp
 	
 	# 3D editor
 	src/editor/Renderer.h			src/editor/Renderer.cpp
@@ -49,9 +49,9 @@ set(SOURCE_FILES
 	src/editor/Command.h			src/editor/Command.cpp
 	
 	# map compiler code
-	src/qtools/rad.h		src/qtools/rad.cpp
-	src/qtools/vis.h		src/qtools/vis.cpp
-	src/qtools/winding.h	src/qtools/winding.cpp
+	src/qtools/rad.h				src/qtools/rad.cpp
+	src/qtools/vis.h				src/qtools/vis.cpp
+	src/qtools/winding.h			src/qtools/winding.cpp
 	
 	# library files
 	imgui/imgui.cpp
@@ -69,7 +69,12 @@ set(SOURCE_FILES
 	src/mdlviewer/cmdlib.h			src/mdlviewer/cmdlib.c
 	src/mdlviewer/studio_event.h
 	src/mdlviewer/studio.h
-	src/mdlviewer/studio_render.h		src/mdlviewer/studio_render.cpp
+	src/mdlviewer/studio_render.h	src/mdlviewer/studio_render.cpp
+	
+	# OPENFILEDIALOG
+	src/filedialog/stb_image.h
+	src/filedialog/ImFileDialog.h	src/filedialog/ImFileDialog.cpp
+	
 )
 
 include_directories(src)
@@ -77,9 +82,11 @@ include_directories(src/bsp)
 include_directories(src/cli)
 include_directories(src/data)
 include_directories(src/editor)
+include_directories(src/filedialog)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
+include_directories(src/mdlviewer)
 include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(imgui/backends)
@@ -195,15 +202,21 @@ if(MSVC)
 	source_group("Source Files\\mdlviewer" FILES	src/mdlviewer/mathlib.c
 													src/mdlviewer/cmdlib.c
 													src/mdlviewer/studio_render.cpp)
-
+													
+	source_group("Header Files\\filedialog" FILES	
+													src/filedialog/stb_image.h
+													src/filedialog/ImFileDialog.h)
+	
+	source_group("Source Files\\filedialog" FILES	src/filedialog/ImFileDialog.c)
+	add_definitions(-DUSE_FILESYSTEM)
 else()
 	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs)
 	if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.1")
-		set (CMAKE_CXX_STANDARD 11)
+		set (CMAKE_CXX_STANDARD 17)
 		set (CMAKE_CXX_STANDARD_REQUIRED ON)
-		add_definitions(-DUSE_EXPERIMENTAL_FILESYSTEM)
 	endif ()
-	set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
+	add_definitions(-DUSE_FILESYSTEM)
+	set(CMAKE_CXX_FLAGS "-Wall -std=c++17")
 	set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 	set(CMAKE_CXX_FLAGS_RELEASE "-Os -fno-exceptions -w -Wfatal-errors")
 endif()

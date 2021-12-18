@@ -46,7 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -56,7 +56,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>

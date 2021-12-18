@@ -53,6 +53,7 @@ struct AppSettings {
 	int fontSize;
 	std::string gamedir;
 	std::string workingdir;
+	std::string lastdir;
 	bool settingLoaded; // Settings loaded
 	int undoLevels;
 	bool verboseLogs;

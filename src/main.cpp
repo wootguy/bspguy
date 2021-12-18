@@ -716,24 +716,16 @@ int main(int argc, char* argv[])
 
 	CommandLine cli(argc, argv);
 
-	if (cli.askingForHelp) {
-		print_help(cli.command);
+	if (cli.command == "help" || cli.command == "--help" || cli.command == "-help" ||
+		cli.command == "h" || cli.command == "--h" || cli.command == "-h"
+		|| cli.command == "/?") {
+		logf(g_version_string);
 		return 0;
 	}
 
 	if (cli.command == "version" || cli.command == "--version" || cli.command == "-version") {
 		logf(g_version_string);
 		return 0;
-	}
-
-	if (cli.command == "editor" || cli.command == "empty") {
-		start_viewer(std::string());
-		return 0;
-	}
-
-	if (cli.bspfile.empty()) {
-		logf("ERROR: no map specified\n"); 
-		return 1;
 	}
 
 	if (cli.command == "exportobj") {

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include "mdlviewer/studio_render.h"
+#include "filedialog/ImFileDialog.h"
 
 AppSettings g_settings;
 std::string g_settings_path = "";
@@ -73,6 +74,8 @@ void AppSettings::loadDefault()
 	fontSize = 22;
 	gamedir = std::string();
 	workingdir = "/bspguy_work/";
+
+	lastdir = "";
 	undoLevels = 64;
 	verboseLogs = false;
 	debug_open = false;
@@ -90,7 +93,7 @@ void AppSettings::loadDefault()
 		| RENDER_ENT_CLIPNODES;
 
 	vsync = true;
-	backUpMap = false;
+	backUpMap = true;
 
 	moveSpeed = 4.0f;
 	fov = 75.0f;
@@ -143,6 +146,7 @@ void AppSettings::load() {
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "workingdir") { g_settings.workingdir = val; }
+			else if (key == "lastdir") { g_settings.lastdir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
@@ -213,6 +217,7 @@ void AppSettings::save(std::string path)
 
 	file << "gamedir=" << g_settings.gamedir << std::endl;
 	file << "workingdir=" << g_settings.workingdir << std::endl;
+	file << "lastdir=" << g_settings.lastdir << std::endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << std::endl;
 	}
@@ -313,6 +318,7 @@ Renderer::Renderer() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glfwSwapBuffers(window);
 	glfwSwapInterval(1);
+
 
 	gui = new Gui(this);
 

@@ -124,6 +124,9 @@
     <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.cpp">
       <Filter>Source Files\mdlviewer</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\ImFileDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\types.h">
@@ -237,9 +240,12 @@
     <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="C:\Projects\CounterStrikeTools\bspguy\CMakeLists.txt" />
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\stb_image.h">
+      <Filter>Header Files\filedialog</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\ImFileDialog.h">
+      <Filter>Header Files\filedialog</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
@@ -253,6 +259,9 @@
     </Filter>
     <Filter Include="Header Files\editor">
       <UniqueIdentifier>{5C3A38C8-0036-3043-9923-1DE03F1C55BC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\filedialog">
+      <UniqueIdentifier>{811702FF-F685-3AB2-BB78-C722C16A45F2}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\gl">
       <UniqueIdentifier>{7AA05D34-9834-3301-95A9-7F5C1B939675}</UniqueIdentifier>

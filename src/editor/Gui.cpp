@@ -7,7 +7,7 @@
 #include <lodepng.h>
 #include <algorithm>
 #include "BspMerger.h"
-
+#include "filedialog/ImFileDialog.h"
 // embedded binary data
 #include "fonts/robotomono.h"
 #include "fonts/robotomedium.h"
@@ -43,6 +43,31 @@ void Gui::init() {
 	ImGui_ImplGlfw_InitForOpenGL(app->window, true);
 	const char* glsl_version = "#version 130";
 	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	//ImGui::StyleColorsLight();
+
+
+	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
+	ifd::FileDialog::Instance().CreateTexture = [](uint8_t* data, int w, int h, char fmt) -> void* {
+		GLuint tex;
+
+		glGenTextures(1, &tex);
+		glBindTexture(GL_TEXTURE_2D, tex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, (fmt == 0) ? GL_BGRA : GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		return (void*)tex;
+	};
+	ifd::FileDialog::Instance().DeleteTexture = [](void* tex) {
+		GLuint texID = (GLuint)((uintptr_t)tex);
+		glDeleteTextures(1, &texID);
+	};
+
 
 	loadFonts();
 
@@ -640,9 +665,9 @@ bool ExportWad(Bsp* map)
 	return retval;
 }
 
-void ImportWad(Bsp* map, Renderer* app)
+void ImportWad(Bsp* map, Renderer* app, std::string path)
 {
-	Wad tmpWad = Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
+	Wad tmpWad = Wad(path);
 
 	if (!tmpWad.readInfo())
 	{
@@ -680,9 +705,29 @@ void ImportWad(Bsp* map, Renderer* app)
 
 void Gui::drawMenuBar() {
 	ImGuiContext& g = *GImGui;
-
 	ImGui::BeginMainMenuBar();
 	Bsp* map = app->getSelectedMap();
+
+
+	if (ifd::FileDialog::Instance().IsDone("WadOpenDialog")) {
+		if (ifd::FileDialog::Instance().HasResult()) {
+			std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
+			ImportWad(map, app, res.u8string());
+			g_settings.lastdir = res.parent_path().u8string();
+		}
+		ifd::FileDialog::Instance().Close();
+	}
+
+	if (ifd::FileDialog::Instance().IsDone("MapOpenDialog")) {
+		if (ifd::FileDialog::Instance().HasResult()) {
+			std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
+			this->app->clearMaps();
+			this->app->addMap(new Bsp(res.u8string()));
+			g_settings.lastdir = res.parent_path().u8string();
+		}
+		ifd::FileDialog::Instance().Close();
+	}
+
 	if (ImGui::BeginMenu("File"))
 	{
 		if (ImGui::MenuItem("Save", NULL, false, !app->isLoading)) {
@@ -697,9 +742,9 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
 			filterNeeded = true;
-			showImportMapWidget_Type = SHOW_IMPORT_OPEN;
-			showImportMapWidget = !showImportMapWidget;
+			ifd::FileDialog::Instance().Open("MapOpenDialog", "Open a map", "Map file (*.bsp){.bsp},.*",false,g_settings.lastdir);
 		}
+
 
 		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 			ImGui::BeginTooltip();
@@ -708,22 +753,11 @@ void Gui::drawMenuBar() {
 		}
 
 
-		if (ImGui::MenuItem("Close")) {
+		if (ImGui::MenuItem("Close All")) {
 			filterNeeded = true;
 			if (map)
 			{
-				BspRenderer* mapRenderer = map->getBspRender();
-				mapRenderer->map = NULL;
-				delete map;
-				std::vector<BspRenderer*> renders;
-				for (int r = 0; r < app->mapRenderers.size(); r++)
-				{
-					if (app->mapRenderers[r]->map)
-						renders.push_back(app->mapRenderers[r]);
-					/*else
-						delete app->mapRenderers[r];*/
-				}
-				app->mapRenderers = std::move(renders);
+				this->app->clearMaps();
 				app->pickInfo = PickInfo();
 			}
 		}
@@ -834,15 +868,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Merge with .wad", NULL)) {
 				if (map)
 				{
-					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-					if (fileExists(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad"))
-					{
-						ImportWad(map, app);
-					}
-					else
-					{
-						logf("Error! No file!\n");
-					}
+					ifd::FileDialog::Instance().Open("WadOpenDialog", "Open a wad", "Wad file (*.wad){.wad},.*", false, g_settings.lastdir);
 				}
 
 				if (map && ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {

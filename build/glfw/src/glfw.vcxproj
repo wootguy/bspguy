@@ -52,7 +52,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -69,10 +69,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_GLFW_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;GLEW_STATIC;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -85,7 +85,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -104,13 +104,14 @@
       <OmitFramePointers>true</OmitFramePointers>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <SDLCheck>false</SDLCheck>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_GLFW_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;GLEW_STATIC;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Projects\CounterStrikeTools\bspguy\src;C:\Projects\CounterStrikeTools\bspguy\src\bsp;C:\Projects\CounterStrikeTools\bspguy\src\cli;C:\Projects\CounterStrikeTools\bspguy\src\data;C:\Projects\CounterStrikeTools\bspguy\src\editor;C:\Projects\CounterStrikeTools\bspguy\src\filedialog;C:\Projects\CounterStrikeTools\bspguy\src\gl;C:\Projects\CounterStrikeTools\bspguy\src\qtools;C:\Projects\CounterStrikeTools\bspguy\src\util;C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer;C:\Projects\CounterStrikeTools\bspguy\imgui;C:\Projects\CounterStrikeTools\bspguy\imgui\examples;C:\Projects\CounterStrikeTools\bspguy\imgui\backends;C:\Projects\CounterStrikeTools\bspguy\glew\include;C:\Projects\CounterStrikeTools\bspguy\glfw\include;C:\Projects\CounterStrikeTools\bspguy\glfw\src;C:\Projects\CounterStrikeTools\bspguy\build\glfw\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -121,37 +122,6 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <CustomBuild Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\CMakeLists.txt">
-      <UseUtf8Encoding>Always</UseUtf8Encoding>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Projects/CounterStrikeTools/bspguy/glfw/src/CMakeLists.txt</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"D:\Program Files\CMake\bin\cmake.exe" -SC:/Projects/CounterStrikeTools/bspguy -BC:/Projects/CounterStrikeTools/bspguy/build --check-stamp-file C:/Projects/CounterStrikeTools/bspguy/build/glfw/src/CMakeFiles/generate.stamp
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Projects\CounterStrikeTools\bspguy\glfw\CMake\glfw3.pc.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Projects\CounterStrikeTools\bspguy\build\glfw\src\CMakeFiles\generate.stamp</Outputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Projects/CounterStrikeTools/bspguy/glfw/src/CMakeLists.txt</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"D:\Program Files\CMake\bin\cmake.exe" -SC:/Projects/CounterStrikeTools/bspguy -BC:/Projects/CounterStrikeTools/bspguy/build --check-stamp-file C:/Projects/CounterStrikeTools/bspguy/build/glfw/src/CMakeFiles/generate.stamp
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Projects\CounterStrikeTools\bspguy\glfw\CMake\glfw3.pc.in;%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Projects\CounterStrikeTools\bspguy\build\glfw\src\CMakeFiles\generate.stamp</Outputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-    </CustomBuild>
-  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\glfw\include\GLFW\glfw3.h" />
     <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\glfw\include\GLFW\glfw3native.h" />
@@ -185,14 +155,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\win32_monitor.c" />
     <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\win32_window.c" />
     <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\glfw\src\wgl_context.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="C:\Projects\CounterStrikeTools\bspguy\build\ZERO_CHECK.vcxproj">
-      <Project>{CD073580-1870-3A2D-AA22-56265E0B53B9}</Project>
-      <Name>ZERO_CHECK</Name>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
