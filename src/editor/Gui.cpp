@@ -278,12 +278,20 @@ void ExportModel(Bsp* map, int id)
 	tmpMap.header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
 	tmpMap.update_lump_pointers();
 
-	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures();
+
+
+	for (int i = 0; i < 4; i++)
+	{
+		logf("tmpMap.models[0].iHeadnodes[%d] = %d\n", i, tmpMap.models[0].iHeadnodes[i]);
+	}
+
+	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(true);
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
 	if (!tmpMap.validate())
 	{
+		logf("Tried to fix model by adding emply missing data %d\n", id);
 		int markid = 0;
 		for (int i = 0; i < tmpMap.leafCount; i++)
 		{
@@ -303,6 +311,12 @@ void ExportModel(Bsp* map, int id)
 	{
 		logf("Failed to export model %d\n", id);
 		return;
+	}
+
+
+	for (int i = 0; i < 4; i++)
+	{
+		logf("tmpMap.models[0].iHeadnodes[%d] = %d\n", i, tmpMap.models[0].iHeadnodes[i]);
 	}
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
@@ -4191,7 +4205,7 @@ void Gui::drawTextureTool() {
 							delete[] imageData;
 							delete wadTex;
 							mapRenderer->reloadTextures();
-							textureChanged = true;
+							textureChanged = false;
 							ImGui::End();
 							return;
 						}

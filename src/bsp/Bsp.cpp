@@ -1366,7 +1366,7 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	return oldVisLength - newVisLen;
 }
 
-STRUCTCOUNT Bsp::remove_unused_model_structures() {
+STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) {
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
 
@@ -1405,8 +1405,11 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 		removeCount.lightdata = remove_unused_lightmaps(usedStructures.faces);
 
 	removeCount.planes = remove_unused_structs(LUMP_PLANES, usedStructures.planes, remap.planes);
-	removeCount.clipnodes = remove_unused_structs(LUMP_CLIPNODES, usedStructures.clipnodes, remap.clipnodes);
-	removeCount.nodes = remove_unused_structs(LUMP_NODES, usedStructures.nodes, remap.nodes);
+	if (!export_bsp_with_clipnodes)
+	{
+		removeCount.clipnodes = remove_unused_structs(LUMP_CLIPNODES, usedStructures.clipnodes, remap.clipnodes);
+		removeCount.nodes = remove_unused_structs(LUMP_NODES, usedStructures.nodes, remap.nodes);
+	}
 	removeCount.leaves = remove_unused_structs(LUMP_LEAVES, usedStructures.leaves, remap.leaves);
 	removeCount.markSurfs = remove_unused_structs(LUMP_MARKSURFACES, usedStructures.markSurfs, remap.markSurfs);
 	removeCount.faces = remove_unused_structs(LUMP_FACES, usedStructures.faces, remap.faces);

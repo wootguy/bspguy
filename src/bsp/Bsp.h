@@ -141,7 +141,7 @@ public:
 	bool isValid(); // check if any lumps are overflowed
 
 	// delete structures not used by the map (needed after deleting models/hulls)
-	STRUCTCOUNT remove_unused_model_structures();
+	STRUCTCOUNT remove_unused_model_structures(bool export_bsp_with_clipnodes = false);
 	void delete_model(int modelIdx);
 
 	// conditionally deletes hulls for entities that aren't using them
