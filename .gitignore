@@ -1,6 +1,6 @@
 
-build/.vs/bspguy/v17/fileList.bin
-build/.vs/bspguy/v17/.suo
+build/.vs/*
+build/CMakeFiles/*
 *.obj
 *.tlog
 *.log

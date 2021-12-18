@@ -280,10 +280,10 @@ void ExportModel(Bsp* map, int id)
 
 
 
-	for (int i = 0; i < 4; i++)
+	/*for (int i = 0; i < 4; i++)
 	{
 		logf("tmpMap.models[0].iHeadnodes[%d] = %d\n", i, tmpMap.models[0].iHeadnodes[i]);
-	}
+	}*/
 
 	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(true);
 	if (!removed.allZero())
@@ -313,10 +313,9 @@ void ExportModel(Bsp* map, int id)
 		return;
 	}
 
-
-	for (int i = 0; i < 4; i++)
+	if (tmpMap.models[0].iHeadnodes[0] <= 0)
 	{
-		logf("tmpMap.models[0].iHeadnodes[%d] = %d\n", i, tmpMap.models[0].iHeadnodes[i]);
+		logf("Warning. Model %d no has clipnodes and can glitches in game!\n", id);
 	}
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
