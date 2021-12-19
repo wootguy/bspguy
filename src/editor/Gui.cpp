@@ -334,13 +334,50 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 		return;
 	}
 
-	if (!fulloptimized && tmpMap.nodeCount > 0)
-		tmpMap.models[0].iHeadnodes[0] = tmpMap.nodeCount - 1;
+	BSPNODE* tmpNode = new BSPNODE[2];
+	tmpNode[0].firstFace = tmpMap.models[0].iFirstFace;
+	tmpNode[0].iPlane = tmpMap.faces[tmpNode[0].firstFace].iPlane;
+	tmpNode[0].nFaces = tmpMap.models[0].nFaces;
+	tmpNode[0].nMaxs[0] = tmpMap.models[0].nMaxs[0];
+	tmpNode[0].nMaxs[1] = tmpMap.models[0].nMaxs[1];
+	tmpNode[0].nMaxs[2] = tmpMap.models[0].nMaxs[2];
+	tmpNode[0].nMins[0] = tmpMap.models[0].nMins[0];
+	tmpNode[0].nMins[1] = tmpMap.models[0].nMins[1];
+	tmpNode[0].nMins[2] = tmpMap.models[0].nMins[2];
 
-	if (tmpMap.models[0].iHeadnodes[0] <= 0)
-	{
-		logf("Model exported with bad collision because iHeadnodes[0] <= 0\n");
+	tmpNode[1].firstFace = tmpMap.models[0].iFirstFace;
+	tmpNode[1].iPlane = tmpMap.faces[tmpNode[1].firstFace].iPlane;
+	tmpNode[1].nFaces = tmpMap.models[0].nFaces;
+	tmpNode[1].nMaxs[0] = tmpMap.models[0].nMaxs[0];
+	tmpNode[1].nMaxs[1] = tmpMap.models[0].nMaxs[1];
+	tmpNode[1].nMaxs[2] = tmpMap.models[0].nMaxs[2];
+	tmpNode[1].nMins[0] = tmpMap.models[0].nMins[0];
+	tmpNode[1].nMins[1] = tmpMap.models[0].nMins[1];
+	tmpNode[1].nMins[2] = tmpMap.models[0].nMins[2];
+
+	int16 sharedSolidLeaf = 0;
+	int16 anyEmptyLeaf = -1;
+	for (int i = 0; i < tmpMap.leafCount; i++) {
+		if (tmpMap.leaves[i].nContents == CONTENTS_EMPTY) {
+			anyEmptyLeaf = i;
+			break;
+		}
 	}
+	if (anyEmptyLeaf < 0)
+	{
+		anyEmptyLeaf = tmpMap.create_leaf(CONTENTS_EMPTY);
+	}
+
+	tmpNode[0].iChildren[0] = ~sharedSolidLeaf;
+	tmpNode[0].iChildren[1] = ~anyEmptyLeaf;
+	tmpNode[1].iChildren[0] = ~sharedSolidLeaf;
+	tmpNode[1].iChildren[1] = ~anyEmptyLeaf;
+
+	tmpMap.lumps[LUMP_NODES] = (byte*)&tmpNode[0];
+	tmpMap.header.lump[LUMP_NODES].nLength = sizeof(BSPNODE) * 2;
+	tmpMap.update_lump_pointers();
+
+	tmpMap.models[0].iHeadnodes[0] = 1;
 
 	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
 		createDir(g_settings.gamedir + g_settings.workingdir);
@@ -542,23 +579,12 @@ void Gui::draw3dContextMenus() {
 					ImGui::TextUnformatted("Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
 					ImGui::EndTooltip();
 				}
-				if (ImGui::BeginMenu("Export BSPMODEL", !app->isLoading)) {
-
-					/*if (ImGui::MenuItem("Export optimized(bad collision on client)", 0, false, !app->isLoading)) {
-						if (app->pickInfo.modelIdx)
-						{
-							ExportModel(map, app->pickInfo.modelIdx,true);
-						}
-					}*/
-					if (ImGui::MenuItem("Try Export with collision on client", 0, false, !app->isLoading)) {
-						if (app->pickInfo.modelIdx)
-						{
-							ExportModel(map, app->pickInfo.modelIdx,false);
-						}
+				if (ImGui::MenuItem("Export .bsp MODEL(true collision)", 0, false, !app->isLoading)) {
+					if (app->pickInfo.modelIdx)
+					{
+						ExportModel(map, app->pickInfo.modelIdx,false);
 					}
-					ImGui::EndMenu();
 				}
-
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted("Create .bsp file with single model. It can be imported to another map.");
@@ -810,17 +836,15 @@ void Gui::drawMenuBar() {
 				ImGui::EndTooltip();
 			}
 
-			if (ImGui::BeginMenu(".bsp model")) {
+			if (ImGui::BeginMenu(".bsp MODEL with true collision")) {
 				if (map)
 				{
 					if (ImGui::BeginMenu((std::string("Map ") + map->name + ".bsp").c_str())) {
 						for (int i = 0; i < map->modelCount; i++)
 						{
-							if (ImGui::MenuItem(("Try export " + std::to_string(i) + " model (.bsp) with collision.").c_str(), NULL, app->pickInfo.modelIdx == i)) {
-								if (fileExists(map->path))
-								{
-									ExportModel(map, i, true);
-								}
+							if (ImGui::MenuItem(("Export Model" + std::to_string(i) + ".bsp").c_str(), NULL, app->pickInfo.modelIdx == i))
+							{
+								ExportModel(map, i, true);
 							}
 						}
 						ImGui::EndMenu();
@@ -1204,7 +1228,7 @@ void Gui::drawToolbar() {
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_FACE ? selectColor : dimColor);
 		ImGui::SameLine();
 		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
-			if (app->pickInfo.modelIdx >= 0 && app->pickMode == PICK_FACE) {
+			if (app->pickInfo.modelIdx > 0 && app->pickMode == PICK_FACE) {
 				Bsp* map = app->getSelectedMap();
 				if (map)
 				{
@@ -4295,6 +4319,7 @@ void Gui::drawTextureTool() {
 
 		if (ImGui::BeginPopupModal("Not Implemented", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 		{
+
 			ImGui::Text("TODO: Texture browser\n\n");
 			ImGui::Separator();
 

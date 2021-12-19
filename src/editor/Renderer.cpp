@@ -911,26 +911,29 @@ void Renderer::controls() {
 	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
 
-	if (anyCtrlPressed && oldPressed[GLFW_KEY_A] && released[GLFW_KEY_A])
+	if (anyCtrlPressed && (oldPressed[GLFW_KEY_A] || pressed[GLFW_KEY_A]))
 	{
-		Bsp* map;
-		if (map = getSelectedMap())
+		if (released[GLFW_KEY_A])
 		{
-			if (pickMode == PICK_FACE)
+			Bsp* map;
+			if (map = getSelectedMap())
 			{
-				if (selectedFaces.size())
+				if (pickMode == PICK_FACE)
 				{
-					BSPFACE& selface = map->faces[selectedFaces[0]];
-					BSPTEXTUREINFO& seltexinfo = map->texinfos[selface.iTextureInfo];
-					deselectFaces();
-					for (int i = 0; i < map->faceCount; i++) {
-						BSPFACE& face = map->faces[i];
-						BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-						if (texinfo.iMiptex == seltexinfo.iMiptex)
-						{
-							if (map && map->getBspRender())
-								map->getBspRender()->highlightFace(i, true);
-							selectedFaces.push_back(i);
+					if (selectedFaces.size())
+					{
+						BSPFACE& selface = map->faces[selectedFaces[0]];
+						BSPTEXTUREINFO& seltexinfo = map->texinfos[selface.iTextureInfo];
+						deselectFaces();
+						for (int i = 0; i < map->faceCount; i++) {
+							BSPFACE& face = map->faces[i];
+							BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+							if (texinfo.iMiptex == seltexinfo.iMiptex)
+							{
+								if (map && map->getBspRender())
+									map->getBspRender()->highlightFace(i, true);
+								selectedFaces.push_back(i);
+							}
 						}
 					}
 				}
@@ -3003,7 +3006,7 @@ void Renderer::deselectFaces() {
 void Renderer::selectEnt(Bsp* map, int entIdx) {
 	pickInfo.entIdx = entIdx;
 	pickInfo.ent = map->ents[entIdx];
-	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx() == -1 ? 0 : pickInfo.ent->getBspModelIdx();
+	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
 	updateSelectionSize();
 	updateEntConnections();
 	updateEntityState(pickInfo.ent);
