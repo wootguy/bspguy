@@ -1056,22 +1056,22 @@ void BspRenderer::refreshEnt(int entIdx) {
 				else
 				{
 					renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 					renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 				}
 			}
 			else
 			{
 				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 				renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 			}
 		}
 		else
 		{
 			renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-			renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 			renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+			renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 		}
 		renderEnts[entIdx].angles = angles;
 	}
