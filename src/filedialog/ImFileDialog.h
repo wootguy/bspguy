@@ -41,13 +41,13 @@ namespace ifd {
 		void AddFavorite(const std::string& path);
 		inline const std::vector<std::string>& GetFavorites() { return m_favorites; }
 
-		inline void SetZoom(float z) { 
-			m_zoom = std::min<float>(25.0f, std::max<float>(1.0f, z)); 
+		inline void SetZoom(float z) {
+			m_zoom = std::min<float>(25.0f, std::max<float>(1.0f, z));
 			m_refreshIconPreview();
 		}
 		inline float GetZoom() { return m_zoom; }
 
-		std::function<void*(uint8_t*, int, int, char)> CreateTexture; // char -> fmt -> { 0 = BGRA, 1 = RGBA }
+		std::function<void* (uint8_t*, int, int, char)> CreateTexture; // char -> fmt -> { 0 = BGRA, 1 = RGBA }
 		std::function<void(void*)> DeleteTexture;
 
 		class FileTreeNode {

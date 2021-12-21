@@ -36,18 +36,18 @@
 
 void _glfwPlatformInitTimer(void)
 {
-    QueryPerformanceFrequency((LARGE_INTEGER*) &_glfw.timer.win32.frequency);
+	QueryPerformanceFrequency((LARGE_INTEGER*)&_glfw.timer.win32.frequency);
 }
 
 uint64_t _glfwPlatformGetTimerValue(void)
 {
-    uint64_t value;
-    QueryPerformanceCounter((LARGE_INTEGER*) &value);
-    return value;
+	uint64_t value;
+	QueryPerformanceCounter((LARGE_INTEGER*)&value);
+	return value;
 }
 
 uint64_t _glfwPlatformGetTimerFrequency(void)
 {
-    return _glfw.timer.win32.frequency;
+	return _glfw.timer.win32.frequency;
 }
 

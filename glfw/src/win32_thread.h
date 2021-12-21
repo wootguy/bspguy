@@ -34,15 +34,15 @@
 //
 typedef struct _GLFWtlsWin32
 {
-    GLFWbool            allocated;
-    DWORD               index;
+	GLFWbool            allocated;
+	DWORD               index;
 } _GLFWtlsWin32;
 
 // Win32-specific mutex data
 //
 typedef struct _GLFWmutexWin32
 {
-    GLFWbool            allocated;
-    CRITICAL_SECTION    section;
+	GLFWbool            allocated;
+	CRITICAL_SECTION    section;
 } _GLFWmutexWin32;
 

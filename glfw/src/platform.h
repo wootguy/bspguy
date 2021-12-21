@@ -28,92 +28,92 @@
 #include "null_platform.h"
 
 #if defined(_GLFW_WIN32)
- #include "win32_platform.h"
+#include "win32_platform.h"
 #else
- #define GLFW_WIN32_WINDOW_STATE
- #define GLFW_WIN32_MONITOR_STATE
- #define GLFW_WIN32_CURSOR_STATE
- #define GLFW_WIN32_LIBRARY_WINDOW_STATE
- #define GLFW_WGL_CONTEXT_STATE
- #define GLFW_WGL_LIBRARY_CONTEXT_STATE
+#define GLFW_WIN32_WINDOW_STATE
+#define GLFW_WIN32_MONITOR_STATE
+#define GLFW_WIN32_CURSOR_STATE
+#define GLFW_WIN32_LIBRARY_WINDOW_STATE
+#define GLFW_WGL_CONTEXT_STATE
+#define GLFW_WGL_LIBRARY_CONTEXT_STATE
 #endif
 
 #if defined(_GLFW_COCOA)
- #include "cocoa_platform.h"
+#include "cocoa_platform.h"
 #else
- #define GLFW_COCOA_WINDOW_STATE
- #define GLFW_COCOA_MONITOR_STATE
- #define GLFW_COCOA_CURSOR_STATE
- #define GLFW_COCOA_LIBRARY_WINDOW_STATE
- #define GLFW_NSGL_CONTEXT_STATE
- #define GLFW_NSGL_LIBRARY_CONTEXT_STATE
+#define GLFW_COCOA_WINDOW_STATE
+#define GLFW_COCOA_MONITOR_STATE
+#define GLFW_COCOA_CURSOR_STATE
+#define GLFW_COCOA_LIBRARY_WINDOW_STATE
+#define GLFW_NSGL_CONTEXT_STATE
+#define GLFW_NSGL_LIBRARY_CONTEXT_STATE
 #endif
 
 #if defined(_GLFW_WAYLAND)
- #include "wl_platform.h"
+#include "wl_platform.h"
 #else
- #define GLFW_WAYLAND_WINDOW_STATE
- #define GLFW_WAYLAND_MONITOR_STATE
- #define GLFW_WAYLAND_CURSOR_STATE
- #define GLFW_WAYLAND_LIBRARY_WINDOW_STATE
+#define GLFW_WAYLAND_WINDOW_STATE
+#define GLFW_WAYLAND_MONITOR_STATE
+#define GLFW_WAYLAND_CURSOR_STATE
+#define GLFW_WAYLAND_LIBRARY_WINDOW_STATE
 #endif
 
 #if defined(_GLFW_X11)
- #include "x11_platform.h"
+#include "x11_platform.h"
 #else
- #define GLFW_X11_WINDOW_STATE
- #define GLFW_X11_MONITOR_STATE
- #define GLFW_X11_CURSOR_STATE
- #define GLFW_X11_LIBRARY_WINDOW_STATE
- #define GLFW_GLX_CONTEXT_STATE
- #define GLFW_GLX_LIBRARY_CONTEXT_STATE
+#define GLFW_X11_WINDOW_STATE
+#define GLFW_X11_MONITOR_STATE
+#define GLFW_X11_CURSOR_STATE
+#define GLFW_X11_LIBRARY_WINDOW_STATE
+#define GLFW_GLX_CONTEXT_STATE
+#define GLFW_GLX_LIBRARY_CONTEXT_STATE
 #endif
 
 #include "null_joystick.h"
 
 #if defined(_GLFW_WIN32)
- #include "win32_joystick.h"
+#include "win32_joystick.h"
 #else
- #define GLFW_WIN32_JOYSTICK_STATE
- #define GLFW_WIN32_LIBRARY_JOYSTICK_STATE
+#define GLFW_WIN32_JOYSTICK_STATE
+#define GLFW_WIN32_LIBRARY_JOYSTICK_STATE
 #endif
 
 #if defined(_GLFW_COCOA)
- #include "cocoa_joystick.h"
+#include "cocoa_joystick.h"
 #else
- #define GLFW_COCOA_JOYSTICK_STATE
- #define GLFW_COCOA_LIBRARY_JOYSTICK_STATE
+#define GLFW_COCOA_JOYSTICK_STATE
+#define GLFW_COCOA_LIBRARY_JOYSTICK_STATE
 #endif
 
 #if (defined(_GLFW_X11) || defined(_GLFW_WAYLAND)) && defined(__linux__)
- #include "linux_joystick.h"
+#include "linux_joystick.h"
 #else
- #define GLFW_LINUX_JOYSTICK_STATE
- #define GLFW_LINUX_LIBRARY_JOYSTICK_STATE
+#define GLFW_LINUX_JOYSTICK_STATE
+#define GLFW_LINUX_LIBRARY_JOYSTICK_STATE
 #endif
 
 #if defined(_WIN32)
- #include "win32_thread.h"
- #define GLFW_POSIX_TLS_STATE
- #define GLFW_POSIX_MUTEX_STATE
+#include "win32_thread.h"
+#define GLFW_POSIX_TLS_STATE
+#define GLFW_POSIX_MUTEX_STATE
 #else
- #include "posix_thread.h"
- #define GLFW_WIN32_TLS_STATE
- #define GLFW_WIN32_MUTEX_STATE
+#include "posix_thread.h"
+#define GLFW_WIN32_TLS_STATE
+#define GLFW_WIN32_MUTEX_STATE
 #endif
 
 #if defined(_WIN32)
- #include "win32_time.h"
- #define GLFW_POSIX_LIBRARY_TIMER_STATE
- #define GLFW_COCOA_LIBRARY_TIMER_STATE
+#include "win32_time.h"
+#define GLFW_POSIX_LIBRARY_TIMER_STATE
+#define GLFW_COCOA_LIBRARY_TIMER_STATE
 #elif defined(__APPLE__)
- #include "cocoa_time.h"
- #define GLFW_WIN32_LIBRARY_TIMER_STATE
- #define GLFW_POSIX_LIBRARY_TIMER_STATE
+#include "cocoa_time.h"
+#define GLFW_WIN32_LIBRARY_TIMER_STATE
+#define GLFW_POSIX_LIBRARY_TIMER_STATE
 #else
- #include "posix_time.h"
- #define GLFW_WIN32_LIBRARY_TIMER_STATE
- #define GLFW_COCOA_LIBRARY_TIMER_STATE
+#include "posix_time.h"
+#define GLFW_WIN32_LIBRARY_TIMER_STATE
+#define GLFW_COCOA_LIBRARY_TIMER_STATE
 #endif
 
 #define GLFW_PLATFORM_WINDOW_STATE \

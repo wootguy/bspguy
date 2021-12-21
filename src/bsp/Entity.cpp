@@ -8,7 +8,7 @@ Entity::Entity(const std::string& classname)
 	addKeyvalue("classname", classname);
 }
 
-void Entity::addKeyvalue( Keyvalue& k )
+void Entity::addKeyvalue(Keyvalue& k)
 {
 	int dup = 1;
 	if (keyvalues.find(k.key) == keyvalues.end()) {

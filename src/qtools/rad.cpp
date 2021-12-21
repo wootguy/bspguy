@@ -117,7 +117,7 @@ void TranslateWorldToTex(Bsp* bsp, int facenum, matrix_t& m)
 {
 	BSPFACE* f;
 	BSPTEXTUREINFO* ti;
-	
+
 	int i;
 
 	f = &bsp->faces[facenum];

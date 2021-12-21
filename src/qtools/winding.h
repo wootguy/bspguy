@@ -25,8 +25,8 @@ public:
 	virtual ~Winding();
 	Winding& operator=(const Winding& other);
 
-    void RemoveColinearPoints(vec_t epsilon = ON_EPSILON);
-    bool Clip(const BSPPLANE& split, bool keepon, vec_t epsilon = ON_EPSILON);
+	void RemoveColinearPoints(vec_t epsilon = ON_EPSILON);
+	bool Clip(const BSPPLANE& split, bool keepon, vec_t epsilon = ON_EPSILON);
 
 
 protected:

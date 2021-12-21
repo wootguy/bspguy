@@ -34,16 +34,16 @@
 
 void* _glfwPlatformLoadModule(const char* path)
 {
-    return LoadLibraryA(path);
+	return LoadLibraryA(path);
 }
 
 void _glfwPlatformFreeModule(void* module)
 {
-    FreeLibrary((HMODULE) module);
+	FreeLibrary((HMODULE)module);
 }
 
 GLFWproc _glfwPlatformGetModuleSymbol(void* module, const char* name)
 {
-    return (GLFWproc) GetProcAddress((HMODULE) module, name);
+	return (GLFWproc)GetProcAddress((HMODULE)module, name);
 }
 

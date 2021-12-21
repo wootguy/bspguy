@@ -25,7 +25,7 @@ public:
 	std::string path;
 	std::string name;
 	BSPHEADER header = BSPHEADER();
-	byte ** lumps;
+	byte** lumps;
 	bool valid;
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
@@ -59,7 +59,7 @@ public:
 	int textureCount;
 	int lightDataLength;
 	int visDataLength;
-	
+
 	std::vector<Entity*> ents;
 
 	Bsp();
@@ -69,7 +69,7 @@ public:
 	void init_empty_bsp();
 
 	// if modelIdx=0, the world is moved and all entities along with it
-	bool move(vec3 offset, int modelIdx=0, bool onlyModel = false);
+	bool move(vec3 offset, int modelIdx = 0, bool onlyModel = false);
 
 	void move_texinfo(int idx, vec3 offset);
 	void write(std::string path);
@@ -131,7 +131,7 @@ public:
 	void load_ents();
 
 	// call this after editing ents
-	void update_ent_lump(bool stripNodes=false);
+	void update_ent_lump(bool stripNodes = false);
 
 	vec3 get_model_center(int modelIdx);
 
@@ -145,11 +145,11 @@ public:
 	void delete_model(int modelIdx);
 
 	// conditionally deletes hulls for entities that aren't using them
-	STRUCTCOUNT delete_unused_hulls(bool noProgress=false);
+	STRUCTCOUNT delete_unused_hulls(bool noProgress = false);
 
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();
-	
+
 	// check for bad indexes
 	bool validate();
 
@@ -157,7 +157,7 @@ public:
 	int create_solid(vec3 mins, vec3 maxs, int textureIdx);
 
 	// creates a new solid from the given solid definition (must be convex).
-	int create_solid(Solid& solid, int targetModelIdx=-1);
+	int create_solid(Solid& solid, int targetModelIdx = -1);
 
 	int create_leaf(int contents);
 	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
@@ -167,13 +167,13 @@ public:
 
 	// copies a model from the sourceMap into this one
 	void add_model(Bsp* sourceMap, int modelIdx);
-	
+
 	// create a new texture from raw RGB data, and embeds into the bsp. 
 	// Returns -1 on failure, else the new texture index
 	int add_texture(const char* name, byte* data, int width, int height);
 
-	void replace_lump(int lumpIdx, void * newData, int newLength);
-	void append_lump(int lumpIdx, void * newData, int appendLength);
+	void replace_lump(int lumpIdx, void* newData, int newLength);
+	void append_lump(int lumpIdx, void* newData, int appendLength);
 
 	bool is_invisible_solid(Entity* ent);
 
@@ -212,7 +212,7 @@ public:
 
 	int delete_embedded_textures();
 
-	BSPMIPTEX * find_embedded_texture(const char * name);
+	BSPMIPTEX* find_embedded_texture(const char* name);
 
 	void update_lump_pointers();
 
@@ -243,7 +243,7 @@ private:
 	std::string get_model_usage(int modelIdx);
 	std::vector<Entity*> get_model_ents(int modelIdx);
 
-	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
+	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
 	// marks all structures that this model uses
 	// TODO: don't mark faces in submodel leaves (unused)

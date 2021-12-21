@@ -20,9 +20,10 @@ float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 static bool filterNeeded = true;
 
-std::string iniPath = getConfigDir() + "imgui.ini";
+std::string iniPath;
 
 Gui::Gui(Renderer* app) {
+	iniPath = getConfigDir() + "imgui.ini";
 	this->app = app;
 	init();
 }
@@ -257,7 +258,7 @@ void Gui::pasteLightmap() {
 }
 
 
-void ExportModel(Bsp* map, int id, bool fulloptimized)
+void ExportModel(Bsp* map, int id, int ExportType)
 {
 	map->update_ent_lump();
 
@@ -306,7 +307,7 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 	tmpMap.update_lump_pointers();
 
 
-	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(!fulloptimized);
+	STRUCTCOUNT removed = tmpMap.remove_unused_model_structures(ExportType != 1);
 	if (!removed.allZero())
 		removed.print_delete_stats(1);
 
@@ -322,9 +323,9 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 		}
 
 		while (tmpMap.models[0].nVisLeafs >= tmpMap.leafCount)
-			tmpMap.create_leaf(CONTENTS_EMPTY);
+			tmpMap.create_leaf(ExportType == 2 ? CONTENTS_WATER : CONTENTS_EMPTY);
 
-		tmpMap.lumps[LUMP_LEAVES] = (byte*)tmpMap.leaves;
+		//tmpMap.lumps[LUMP_LEAVES] = (byte*)tmpMap.leaves;
 		tmpMap.update_lump_pointers();
 	}
 
@@ -356,6 +357,8 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 	tmpNode[1].nMins[2] = tmpMap.models[0].nMins[2];
 
 	int16 sharedSolidLeaf = 0;
+
+
 	int16 anyEmptyLeaf = -1;
 	for (int i = 0; i < tmpMap.leafCount; i++) {
 		if (tmpMap.leaves[i].nContents == CONTENTS_EMPTY) {
@@ -363,9 +366,15 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 			break;
 		}
 	}
+
 	if (anyEmptyLeaf < 0)
 	{
 		anyEmptyLeaf = tmpMap.create_leaf(CONTENTS_EMPTY);
+	}
+
+	if (ExportType == 2)
+	{
+		tmpMap.leaves[0].nContents = CONTENTS_WATER;
 	}
 
 	tmpNode[0].iChildren[0] = ~sharedSolidLeaf;
@@ -379,10 +388,9 @@ void ExportModel(Bsp* map, int id, bool fulloptimized)
 
 	tmpMap.models[0].iHeadnodes[0] = 1;
 
-	if (!dirExists(g_settings.gamedir + g_settings.workingdir))
-		createDir(g_settings.gamedir + g_settings.workingdir);
-	logf("Export model %d to %s\n", id, (g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp").c_str());
-	tmpMap.write(g_settings.gamedir + g_settings.workingdir + "model" + std::to_string(id) + ".bsp");
+	createDir(GetWorkDir());
+	logf("Export model %d to %s\n", id, (GetWorkDir() + "model" + std::to_string(id) + ".bsp").c_str());
+	tmpMap.write(GetWorkDir() + "model" + std::to_string(id) + ".bsp");
 }
 
 void Gui::draw3dContextMenus() {
@@ -582,9 +590,15 @@ void Gui::draw3dContextMenus() {
 				if (ImGui::MenuItem("Export .bsp MODEL(true collision)", 0, false, !app->isLoading)) {
 					if (app->pickInfo.modelIdx)
 					{
-						ExportModel(map, app->pickInfo.modelIdx,false);
+						ExportModel(map, app->pickInfo.modelIdx, 0);
 					}
 				}
+				/*if (ImGui::MenuItem("Export .bsp WATER(true collision)", 0, false, !app->isLoading)) {
+					if (app->pickInfo.modelIdx)
+					{
+						ExportModel(map, app->pickInfo.modelIdx, 2);
+					}
+				}*/
 				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted("Create .bsp file with single model. It can be imported to another map.");
@@ -623,7 +637,7 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 	}
-	else if (app->pickMode == PICK_FACE ) {
+	else if (app->pickMode == PICK_FACE) {
 		if (map && ImGui::BeginPopup("face_context"))
 		{
 			if (ImGui::MenuItem("Copy texture", "Ctrl+C")) {
@@ -670,8 +684,8 @@ bool ExportWad(Bsp* map)
 		}
 		if (tmpWadTex.size() > 0)
 		{
-			createDir(g_settings.gamedir + g_settings.workingdir);
-			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
+			createDir(GetWorkDir());
+			tmpWad->write(GetWorkDir() + map->name + ".wad", &tmpWadTex[0], tmpWadTex.size());
 		}
 		else
 		{
@@ -683,7 +697,7 @@ bool ExportWad(Bsp* map)
 				delete tmpWadTex[i];
 		}
 		tmpWadTex.clear();
-        delete tmpWad;
+		delete tmpWad;
 	}
 	else
 	{
@@ -738,8 +752,22 @@ void Gui::drawMenuBar() {
 	if (ifd::FileDialog::Instance().IsDone("WadOpenDialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {
 			std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
-			ImportWad(map, app, res.u8string());
-			g_settings.lastdir = res.parent_path().u8string();
+			for (int i = 0; i < map->ents.size(); i++) {
+				if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
+					std::vector<std::string> wadNames = splitString(map->ents[i]->keyvalues["wad"], ";");
+					std::string newWadNames;
+					for (int k = 0; k < wadNames.size(); k++) {
+						if (wadNames[k].find(res.filename().string()) == std::string::npos)
+							newWadNames += wadNames[k] + ";";
+					}
+					map->ents[i]->keyvalues["wad"] = newWadNames;
+					break;
+				}
+			}
+			app->updateEnts();
+			ImportWad(map, app, res.string());
+			app->reloadBspModels();
+			g_settings.lastdir = res.parent_path().string();
 		}
 		ifd::FileDialog::Instance().Close();
 	}
@@ -748,8 +776,8 @@ void Gui::drawMenuBar() {
 		if (ifd::FileDialog::Instance().HasResult()) {
 			std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
 			this->app->clearMaps();
-			this->app->addMap(new Bsp(res.u8string()));
-			g_settings.lastdir = res.parent_path().u8string();
+			this->app->addMap(new Bsp(res.string()));
+			g_settings.lastdir = res.parent_path().string();
 		}
 		ifd::FileDialog::Instance().Close();
 	}
@@ -757,7 +785,7 @@ void Gui::drawMenuBar() {
 	if (ImGui::BeginMenu("File"))
 	{
 		if (ImGui::MenuItem("Save", NULL, false, !app->isLoading)) {
-			
+
 			if (map)
 			{
 				map->update_ent_lump();
@@ -768,7 +796,7 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
 			filterNeeded = true;
-			ifd::FileDialog::Instance().Open("MapOpenDialog", "Open a map", "Map file (*.bsp){.bsp},.*",false,g_settings.lastdir);
+			ifd::FileDialog::Instance().Open("MapOpenDialog", "Open a map", "Map file (*.bsp){.bsp},.*", false, g_settings.lastdir);
 		}
 
 
@@ -792,9 +820,9 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Entity file", NULL)) {
 				if (map)
 				{
-					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent").c_str());
-					createDir(g_settings.gamedir + g_settings.workingdir);
-					std::ofstream entFile(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"), std::ios::trunc);
+					logf("Export entities: %s%s\n", GetWorkDir().c_str(), (map->name + ".ent").c_str());
+					createDir(GetWorkDir());
+					std::ofstream entFile(GetWorkDir() + (map->name + ".ent"), std::ios::trunc);
 					map->update_ent_lump();
 					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
 					{
@@ -806,7 +834,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Embedded textures (.wad)", NULL)) {
 				if (map)
 				{
-					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+					logf("Export wad: %s%s\n", GetWorkDir().c_str(), (map->name + ".wad").c_str());
 					if (ExportWad(map))
 					{
 						logf("Remove all embedded textures\n");
@@ -826,7 +854,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Wavefront (.obj) [WIP]", NULL)) {
 				if (map)
 				{
-					map->ExportToObjWIP(g_settings.gamedir + g_settings.workingdir);
+					map->ExportToObjWIP(GetWorkDir());
 				}
 			}
 
@@ -844,7 +872,7 @@ void Gui::drawMenuBar() {
 						{
 							if (ImGui::MenuItem(("Export Model" + std::to_string(i) + ".bsp").c_str(), NULL, app->pickInfo.modelIdx == i))
 							{
-								ExportModel(map, i, true);
+								ExportModel(map, i, 0);
 							}
 						}
 						ImGui::EndMenu();
@@ -865,10 +893,10 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Entity file", NULL)) {
 				if (map)
 				{
-					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".ent").c_str());
-					if (fileExists(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent")))
+					logf("Import entities from: %s%s\n", GetWorkDir().c_str(), (map->name + ".ent").c_str());
+					if (fileExists(GetWorkDir() + (map->name + ".ent")))
 					{
-						std::ifstream t(g_settings.gamedir + g_settings.workingdir + (map->name + ".ent"));
+						std::ifstream t(GetWorkDir() + (map->name + ".ent"));
 						std::string str((std::istreambuf_iterator<char>(t)),
 							std::istreambuf_iterator<char>());
 						byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
@@ -898,7 +926,7 @@ void Gui::drawMenuBar() {
 				if (map && ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 					ImGui::BeginTooltip();
 					char embtextooltip[256];
-					sprintf(embtextooltip, "Embeds textures from %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
+					snprintf(embtextooltip, sizeof(embtextooltip), "Embeds textures from %s%s", GetWorkDir().c_str(), (map->name + ".wad").c_str());
 					ImGui::TextUnformatted(embtextooltip);
 					ImGui::EndTooltip();
 				}
@@ -1064,10 +1092,10 @@ void Gui::drawMenuBar() {
 				if (ImGui::MenuItem(("Hull " + std::to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
 					//for (int k = 0; k < app->mapRenderers.size(); k++) {
 					//	Bsp* map = app->mapRenderers[k]->map;
-						map->delete_hull(i, -1);
-						map->getBspRender()->reloadClipnodes();
+					map->delete_hull(i, -1);
+					map->getBspRender()->reloadClipnodes();
 					//	app->mapRenderers[k]->reloadClipnodes();
-						logf("Deleted hull %d in map %s\n", i, map->name.c_str());
+					logf("Deleted hull %d in map %s\n", i, map->name.c_str());
 					//}
 					checkValidHulls();
 				}
@@ -1084,10 +1112,10 @@ void Gui::drawMenuBar() {
 						if (ImGui::MenuItem(("Hull " + std::to_string(k)).c_str(), "", false, anyHullValid[k])) {
 							//for (int j = 0; j < app->mapRenderers.size(); j++) {
 							//	Bsp* map = app->mapRenderers[j]->map;
-								map->delete_hull(i, k);
-								map->getBspRender()->reloadClipnodes();
+							map->delete_hull(i, k);
+							map->getBspRender()->reloadClipnodes();
 							//	app->mapRenderers[j]->reloadClipnodes();
-								logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
+							logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
 							//}
 							checkValidHulls();
 						}
@@ -1232,7 +1260,7 @@ void Gui::drawToolbar() {
 				Bsp* map = app->getSelectedMap();
 				if (map)
 				{
-					BspRenderer* mapRenderer = map->getBspRender( );
+					BspRenderer* mapRenderer = map->getBspRender();
 					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
 					for (int i = 0; i < model.nFaces; i++) {
 						int faceIdx = model.iFirstFace + i;
@@ -1412,98 +1440,98 @@ void Gui::drawDebugWidget() {
 		}
 		else
 		{
-				if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
-				{
-					ImGui::Text("Name: %s", map->name.c_str());
-				}
-
-				if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
-				{
-					ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
-
-					if (app->pickInfo.modelIdx > 0) {
-						ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
-						ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
-
-						ImGui::Checkbox("Debug nodes", &app->debugNodes);
-						ImGui::SliderInt("Node", &app->debugNode, 0, app->debugNodeMax);
-					}
-
-					if (app->pickInfo.faceIdx != -1) {
-						BSPMODEL& model = map->models[app->pickInfo.modelIdx];
-						BSPFACE& face = map->faces[app->pickInfo.faceIdx];
-
-						ImGui::Text("Model ID: %d", app->pickInfo.modelIdx);
-						ImGui::Text("Model polies: %d", model.nFaces);
-
-						ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
-						ImGui::Text("Plane ID: %d", face.iPlane);
-
-						if (face.iTextureInfo < map->texinfoCount) {
-							BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-							int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
-							BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-							ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
-							ImGui::Text("Texture ID: %d", info.iMiptex);
-							ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
-						}
-						ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
-					}
-				}
+			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Name: %s", map->name.c_str());
 			}
 
-			std::string bspTreeTitle = "BSP Tree";
+			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Entity ID: %d", app->pickInfo.entIdx);
+
+				if (app->pickInfo.modelIdx > 0) {
+					ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
+					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
+
+					ImGui::Checkbox("Debug nodes", &app->debugNodes);
+					ImGui::SliderInt("Node", &app->debugNode, 0, app->debugNodeMax);
+				}
+
+				if (app->pickInfo.faceIdx != -1) {
+					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
+					BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+
+					ImGui::Text("Model ID: %d", app->pickInfo.modelIdx);
+					ImGui::Text("Model polies: %d", model.nFaces);
+
+					ImGui::Text("Face ID: %d", app->pickInfo.faceIdx);
+					ImGui::Text("Plane ID: %d", face.iPlane);
+
+					if (face.iTextureInfo < map->texinfoCount) {
+						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+						int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+						ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
+						ImGui::Text("Texture ID: %d", info.iMiptex);
+						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
+					}
+					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
+				}
+			}
+		}
+
+		std::string bspTreeTitle = "BSP Tree";
+		if (app->pickInfo.modelIdx >= 0) {
+			bspTreeTitle += " (Model " + std::to_string(app->pickInfo.modelIdx) + ")";
+		}
+		if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 			if (app->pickInfo.modelIdx >= 0) {
-				bspTreeTitle += " (Model " + std::to_string(app->pickInfo.modelIdx) + ")";
-			}
-			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-				if (app->pickInfo.modelIdx >= 0) {
-					if (!map)
-					{
-						ImGui::Text("No map selected");
-					}
-					else 
-					{
-						vec3 localCamera = app->cameraOrigin - map->getBspRender()->mapOffset;
+				if (!map)
+				{
+					ImGui::Text("No map selected");
+				}
+				else
+				{
+					vec3 localCamera = app->cameraOrigin - map->getBspRender()->mapOffset;
 
-						static ImVec4 hullColors[] = {
-							ImVec4(1, 1, 1, 1),
-							ImVec4(0.3, 1, 1, 1),
-							ImVec4(1, 0.3, 1, 1),
-							ImVec4(1, 1, 0.3, 1),
-						};
+					static ImVec4 hullColors[] = {
+						ImVec4(1, 1, 1, 1),
+						ImVec4(0.3, 1, 1, 1),
+						ImVec4(1, 0.3, 1, 1),
+						ImVec4(1, 1, 0.3, 1),
+					};
 
-						for (int i = 0; i < MAX_MAP_HULLS; i++) {
-							std::vector<int> nodeBranch;
-							int leafIdx;
-							int childIdx = -1;
-							int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
-							int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
+					for (int i = 0; i < MAX_MAP_HULLS; i++) {
+						std::vector<int> nodeBranch;
+						int leafIdx;
+						int childIdx = -1;
+						int headNode = map->models[app->pickInfo.modelIdx].iHeadnodes[i];
+						int contents = map->pointContents(headNode, localCamera, i, nodeBranch, leafIdx, childIdx);
 
-							ImGui::PushStyleColor(ImGuiCol_Text, hullColors[i]);
-							if (ImGui::TreeNode(("HULL " + std::to_string(i)).c_str()))
-							{
-								ImGui::Indent();
-								ImGui::Text("Contents: %s", map->getLeafContentsName(contents));
-								if (i == 0) {
-									ImGui::Text("Leaf: %d", leafIdx);
-								}
-								ImGui::Text("Parent Node: %d (child %d)",
-									nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
-									childIdx);
-								ImGui::Text("Head Node: %d", headNode);
-								ImGui::Text("Depth: %d", nodeBranch.size());
-
-								ImGui::Unindent();
-								ImGui::TreePop();
+						ImGui::PushStyleColor(ImGuiCol_Text, hullColors[i]);
+						if (ImGui::TreeNode(("HULL " + std::to_string(i)).c_str()))
+						{
+							ImGui::Indent();
+							ImGui::Text("Contents: %s", map->getLeafContentsName(contents));
+							if (i == 0) {
+								ImGui::Text("Leaf: %d", leafIdx);
 							}
-							ImGui::PopStyleColor();
+							ImGui::Text("Parent Node: %d (child %d)",
+								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
+								childIdx);
+							ImGui::Text("Head Node: %d", headNode);
+							ImGui::Text("Depth: %d", nodeBranch.size());
+
+							ImGui::Unindent();
+							ImGui::TreePop();
 						}
+						ImGui::PopStyleColor();
 					}
 				}
-				else {
-					ImGui::Text("No model selected");
-				}
+			}
+			else {
+				ImGui::Text("No model selected");
+			}
 		}
 		else {
 			ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen);
@@ -1525,14 +1553,14 @@ void Gui::drawDebugWidget() {
 			bool isMovingOrigin = g_app->transformMode == TRANSFORM_MOVE && g_app->transformTarget == TRANSFORM_ORIGIN && g_app->originSelected;
 			bool isTransformingValid = ((g_app->isTransformableSolid && !g_app->modelUsesSharedStructures) || !isScalingObject) && g_app->transformTarget != TRANSFORM_ORIGIN;
 			bool isTransformingWorld = g_app->pickInfo.entIdx == 0 && g_app->transformTarget != TRANSFORM_OBJECT;
-			
+
 			ImGui::Text("isScalingObject %d", isScalingObject);
-			ImGui::Text("isMovingOrigin %d",  isMovingOrigin);
+			ImGui::Text("isMovingOrigin %d", isMovingOrigin);
 			ImGui::Text("isTransformingValid %d", isTransformingValid);
 			ImGui::Text("isTransformingWorld %d", isTransformingWorld);
 
 			ImGui::Text("showDragAxes %d\nmovingEnt %d\ncanTransform %d",
-				g_app->showDragAxes, g_app->movingEnt,g_app->canTransform);
+				g_app->showDragAxes, g_app->movingEnt, g_app->canTransform);
 
 
 		}
@@ -2044,7 +2072,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		{
 			bool invalidKey = ignoreErrors == 0 && lastPickCount == app->pickCount && key != keyNames[i];
 
-			strcpy(keyNames[i], key.c_str());
+			strncpy(keyNames[i], key.c_str(), sizeof(keyNames[0]));
 
 			keyIds[i].idx = i;
 			keyIds[i].entIdx = app->pickInfo.entIdx;
@@ -2069,7 +2097,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::NextColumn();
 		}
 		{
-			strcpy(keyValues[i], value.c_str());
+			strncpy(keyValues[i], value.c_str(), sizeof(keyValues[0]));
 
 			valueIds[i].idx = i;
 			valueIds[i].entIdx = app->pickInfo.entIdx;
@@ -2191,7 +2219,7 @@ void Gui::drawGOTOWidget() {
 	ImGui::End();
 }
 void Gui::drawTransformWidget() {
-	
+
 	bool transformingEnt = false;
 	Entity* ent = NULL;
 	Bsp* map = app->getSelectedMap();
@@ -2212,7 +2240,7 @@ void Gui::drawTransformWidget() {
 
 	static int lastPickCount = -1;
 	static int lastVertPickCount = -1;
-	static int oldSnappingEnabled = app->gridSnappingEnabled;
+	static bool oldSnappingEnabled = app->gridSnappingEnabled;
 	static int oldTransformTarget = -1;
 
 
@@ -2660,11 +2688,43 @@ void Gui::drawSettings() {
 		int pathWidth = ImGui::GetWindowWidth() - 60;
 		int delWidth = 50;
 
+
+
+		if (ifd::FileDialog::Instance().IsDone("GameDir")) {
+			if (ifd::FileDialog::Instance().HasResult()) {
+				std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
+				snprintf(gamedir, sizeof(gamedir), "%s", res.parent_path().string().c_str());
+			}
+			ifd::FileDialog::Instance().Close();
+		}
+		if (ifd::FileDialog::Instance().IsDone("WorkingDir")) {
+			if (ifd::FileDialog::Instance().HasResult()) {
+				std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
+				snprintf(workingdir, sizeof(workingdir), "%s", res.parent_path().string().c_str());
+			}
+			ifd::FileDialog::Instance().Close();
+		}
+
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
-			ImGui::InputText("Game Directory", gamedir, 256);
+			ImGui::Text("Game Directory:");
+			ImGui::SetNextItemWidth(pathWidth);
+			ImGui::InputText("##gamedir", gamedir, 256);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(delWidth);
+			if (ImGui::Button("...##gamedir"))
+			{
+				ifd::FileDialog::Instance().Open("GameDir", "Select game dir", std::string(), false, g_settings.lastdir);
+			}
 			ImGui::Text("Import/Export Directory:");
-			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
+			ImGui::SetNextItemWidth(pathWidth);
+			ImGui::InputText("##workdir", workingdir, 256);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(delWidth);
+			if (ImGui::Button("...##workdir"))
+			{
+				ifd::FileDialog::Instance().Open("WorkingDir", "Select working dir", std::string(), false, g_settings.lastdir);
+			}
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
@@ -2832,17 +2892,32 @@ void Gui::drawSettings() {
 				g_settings.workingdir = std::string(workingdir);
 				/* fixup gamedir */
 				fixupPath(g_settings.gamedir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
-				sprintf(gamedir, "%s", g_settings.gamedir.c_str());
+				snprintf(gamedir, sizeof(gamedir), "%s", g_settings.gamedir.c_str());
 
-				/* fixup workingdir */
-				fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
-				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
+				if (g_settings.workingdir.find(':') == std::string::npos)
+				{
+					/* fixup workingdir */
+					fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					snprintf(workingdir, sizeof(workingdir), "%s", g_settings.workingdir.c_str());
+				}
+				else
+				{
+					fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					snprintf(workingdir, sizeof(workingdir), "%s", g_settings.workingdir.c_str());
+				}
 
 				g_settings.fgdPaths.clear();
 				for (auto& s : tmpFgdPaths)
 				{
 					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					if (s2.find(':') == std::string::npos)
+					{
+						fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					}
+					else
+					{
+						fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+					}
 					g_settings.fgdPaths.push_back(s2);
 					s = s2;
 				}
@@ -2850,13 +2925,22 @@ void Gui::drawSettings() {
 				for (auto& s : tmpResPaths)
 				{
 					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					if (s2.find(':') == std::string::npos)
+					{
+						fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					}
+					else
+					{
+						fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
+					}
 					g_settings.resPaths.push_back(s2);
 					s = s2;
 				}
 				app->reloading = true;
+				app->reloadingGameDir = true;
 				app->loadFgds();
 				app->postLoadFgds();
+				app->reloadingGameDir = false;
 				app->reloading = false;
 				g_settings.save();
 			}
@@ -3089,7 +3173,7 @@ void Gui::drawImportMapWidget() {
 							app->updateEnts();
 							app->reloadBspModels();
 						}
-                        delete model;
+						delete model;
 					}
 				}
 			}
@@ -3801,9 +3885,9 @@ void ExportLightmaps(BSPFACE face, int size[2], Bsp* map)
 			continue;
 		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 		int offset = face.nLightmapOffset + i * lightmapSz;
-		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		snprintf(fileNam, sizeof(fileNam), "%s%s-%i.png", GetWorkDir().c_str(), "lightmap", i);
 		logf("Exporting %s\n", fileNam);
-		createDir(g_settings.gamedir + g_settings.workingdir);
+		createDir(GetWorkDir());
 		lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
 	}
 }
@@ -3817,7 +3901,7 @@ void ImportLightmaps(BSPFACE face, int size[2])
 			continue;
 		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 		int offset = face.nLightmapOffset + i * lightmapSz;
-		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
+		snprintf(fileNam, sizeof(fileNam), "%s%s-%i.png", GetWorkDir().c_str(), "lightmap", i);
 		unsigned int w = size[0], h = size[1];
 		logf("Importing %s\n", fileNam);
 		unsigned char* image_bytes = NULL;
@@ -4356,25 +4440,25 @@ StatInfo Gui::calcStat(std::string name, uint val, uint max, bool isMem) {
 
 	static char tmp[256];
 
-    //std::string out;
+	//std::string out;
 
 	stat.name = std::move(name);
 
 	if (isMem) {
-		sprintf(tmp, "%8.2f", val / meg);
+		snprintf(tmp, sizeof(tmp), "%8.2f", val / meg);
 		stat.val = std::string(tmp);
 
-		sprintf(tmp, "%-5.2f MB", max / meg);
+		snprintf(tmp, sizeof(tmp), "%-5.2f MB", max / meg);
 		stat.max = std::string(tmp);
 	}
 	else {
-		sprintf(tmp, "%8u", val);
+		snprintf(tmp, sizeof(tmp), "%8u", val);
 		stat.val = std::string(tmp);
 
-		sprintf(tmp, "%-8u", max);
+		snprintf(tmp, sizeof(tmp), "%-8u", max);
 		stat.max = std::string(tmp);
 	}
-	sprintf(tmp, "%3.1f%%", percent);
+	snprintf(tmp, sizeof(tmp), "%3.1f%%", percent);
 	stat.fullness = std::string(tmp);
 	stat.color = color;
 
@@ -4405,10 +4489,10 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 	float percent = (val / (float)max) * 100;
 
 	if (isMem) {
-		sprintf(tmp, "%8.1f", val / meg);
+		snprintf(tmp, sizeof(tmp), "%8.1f", val / meg);
 		stat.val = std::to_string(val);
 
-		sprintf(tmp, "%-5.1f MB", max / meg);
+		snprintf(tmp, sizeof(tmp), "%-5.1f MB", max / meg);
 		stat.usage = tmp;
 	}
 	else {
@@ -4416,7 +4500,7 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 		stat.val = std::to_string(val);
 	}
 	if (percent >= 0.1f) {
-		sprintf(tmp, "%6.1f%%%%", percent);
+		snprintf(tmp, sizeof(tmp), "%6.1f%%%%", percent);
 		stat.usage = std::string(tmp);
 	}
 

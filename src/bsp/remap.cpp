@@ -4,7 +4,7 @@
 
 STRUCTCOUNT::STRUCTCOUNT() = default;
 
-STRUCTCOUNT::STRUCTCOUNT(Bsp* map) {
+STRUCTCOUNT::STRUCTCOUNT(Bsp * map) {
 	planes = map->header.lump[LUMP_PLANES].nLength / sizeof(BSPPLANE);
 	texInfos = map->header.lump[LUMP_TEXINFO].nLength / sizeof(BSPTEXTUREINFO);
 	leaves = map->header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF);
@@ -21,7 +21,7 @@ STRUCTCOUNT::STRUCTCOUNT(Bsp* map) {
 	visdata = map->header.lump[LUMP_VISIBILITY].nLength;
 }
 
-void STRUCTCOUNT::add(const STRUCTCOUNT& other) {
+void STRUCTCOUNT::add(const STRUCTCOUNT & other) {
 	planes += other.planes;
 	texInfos += other.texInfos;
 	leaves += other.leaves;
@@ -38,7 +38,7 @@ void STRUCTCOUNT::add(const STRUCTCOUNT& other) {
 	visdata += other.visdata;
 }
 
-void STRUCTCOUNT::sub(const STRUCTCOUNT& other) {
+void STRUCTCOUNT::sub(const STRUCTCOUNT & other) {
 	planes -= other.planes;
 	texInfos -= other.texInfos;
 	leaves -= other.leaves;
@@ -100,7 +100,7 @@ void STRUCTCOUNT::print_delete_stats(int indent) {
 	print_stat_mem(indent, visdata, "VIS data");
 }
 
-STRUCTUSAGE::STRUCTUSAGE(Bsp* map) : count(map) {
+STRUCTUSAGE::STRUCTUSAGE(Bsp * map) : count(map) {
 	nodes = new bool[count.nodes];
 	clipnodes = new bool[count.clipnodes];
 	leaves = new bool[count.leaves];
@@ -155,7 +155,7 @@ STRUCTUSAGE::~STRUCTUSAGE() {
 	delete[] edges;
 }
 
-STRUCTREMAP::STRUCTREMAP(Bsp* map) : count(map) {
+STRUCTREMAP::STRUCTREMAP(Bsp * map) : count(map) {
 	nodes = new int[count.nodes];
 	clipnodes = new int[count.clipnodes];
 	leaves = new int[count.leaves];

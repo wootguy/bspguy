@@ -1,7 +1,7 @@
 #include "LightmapNode.h"
 #include "util.h"
 
-LightmapNode::LightmapNode( int offX, int offY, int mapW, int mapH )
+LightmapNode::LightmapNode(int offX, int offY, int mapW, int mapH)
 {
 	child[0] = child[1] = NULL;
 	x = offX;

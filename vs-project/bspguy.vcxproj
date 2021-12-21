@@ -1,0 +1,245 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B66A4AE9-1BB7-3A0F-89E2-535DB5F7A262}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>x64</Platform>
+    <ProjectName>bspguy</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\..\vs-project\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">bspguy.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">bspguy</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\..\vs-project\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">bspguy.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">bspguy</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4244;4018</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;GLEW_STATIC;USE_FILESYSTEM;</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;GLEW_STATIC;USE_FILESYSTEM;</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>glfw\src\Debug\glfw3.lib;opengl32.lib;..\glew\lib\Release\x64\glew32s.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>Debug/bspguy.lib</ImportLibrary>
+      <ProgramDataBaseFile>Debug/bspguy.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DisableSpecificWarnings>4244;4018</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;GLEW_STATIC;NOMINMAX</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <SDLCheck>false</SDLCheck>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <CallingConvention>FastCall</CallingConvention>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;GLEW_STATIC;USE_FILESYSTEM;</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>glfw\src\Release\glfw3.lib;opengl32.lib;..\glew\lib\Release\x64\glew32s.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>Release/bspguy.lib</ImportLibrary>
+      <ProgramDataBaseFile>Release/bspguy.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <SetChecksum>true</SetChecksum>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include=".\..\src\main.cpp" />
+    <ClInclude Include=".\..\src\types.h" />
+    <ClInclude Include=".\..\src\cli\CommandLine.h" />
+    <ClCompile Include=".\..\src\cli\CommandLine.cpp" />
+    <ClInclude Include=".\..\src\cli\ProgressMeter.h" />
+    <ClCompile Include=".\..\src\cli\ProgressMeter.cpp" />
+    <ClInclude Include=".\..\src\bsp\BspMerger.h" />
+    <ClCompile Include=".\..\src\bsp\BspMerger.cpp" />
+    <ClInclude Include=".\..\src\bsp\Bsp.h" />
+    <ClCompile Include=".\..\src\bsp\Bsp.cpp" />
+    <ClInclude Include=".\..\src\bsp\bsplimits.h" />
+    <ClInclude Include=".\..\src\bsp\bsptypes.h" />
+    <ClCompile Include=".\..\src\bsp\bsptypes.cpp" />
+    <ClInclude Include=".\..\src\bsp\Entity.h" />
+    <ClCompile Include=".\..\src\bsp\Entity.cpp" />
+    <ClInclude Include=".\..\src\bsp\Keyvalue.h" />
+    <ClCompile Include=".\..\src\bsp\Keyvalue.cpp" />
+    <ClInclude Include=".\..\src\bsp\Wad.h" />
+    <ClCompile Include=".\..\src\bsp\Wad.cpp" />
+    <ClInclude Include=".\..\src\bsp\remap.h" />
+    <ClCompile Include=".\..\src\bsp\remap.cpp" />
+    <ClInclude Include=".\..\src\util\util.h" />
+    <ClCompile Include=".\..\src\util\util.cpp" />
+    <ClInclude Include=".\..\src\util\vectors.h" />
+    <ClCompile Include=".\..\src\util\vectors.cpp" />
+    <ClInclude Include=".\..\src\util\mat4x4.h" />
+    <ClCompile Include=".\..\src\util\mat4x4.cpp" />
+    <ClInclude Include=".\..\src\gl\shaders.h" />
+    <ClCompile Include=".\..\src\gl\shaders.cpp" />
+    <ClInclude Include=".\..\src\gl\primitives.h" />
+    <ClCompile Include=".\..\src\gl\primitives.cpp" />
+    <ClInclude Include=".\..\src\gl\Shader.h" />
+    <ClCompile Include=".\..\src\gl\Shader.cpp" />
+    <ClInclude Include=".\..\src\gl\ShaderProgram.h" />
+    <ClCompile Include=".\..\src\gl\ShaderProgram.cpp" />
+    <ClInclude Include=".\..\src\gl\VertexBuffer.h" />
+    <ClCompile Include=".\..\src\gl\VertexBuffer.cpp" />
+    <ClInclude Include=".\..\src\gl\Texture.h" />
+    <ClCompile Include=".\..\src\gl\Texture.cpp" />
+    <ClInclude Include=".\..\src\editor\LightmapNode.h" />
+    <ClCompile Include=".\..\src\editor\LightmapNode.cpp" />
+    <ClInclude Include=".\..\src\editor\Renderer.h" />
+    <ClCompile Include=".\..\src\editor\Renderer.cpp" />
+    <ClInclude Include=".\..\src\editor\Gui.h" />
+    <ClCompile Include=".\..\src\editor\Gui.cpp" />
+    <ClInclude Include=".\..\src\editor\BspRenderer.h" />
+    <ClCompile Include=".\..\src\editor\BspRenderer.cpp" />
+    <ClInclude Include=".\..\src\editor\PointEntRenderer.h" />
+    <ClCompile Include=".\..\src\editor\PointEntRenderer.cpp" />
+    <ClInclude Include=".\..\src\editor\Fgd.h" />
+    <ClCompile Include=".\..\src\editor\Fgd.cpp" />
+    <ClInclude Include=".\..\src\editor\Clipper.h" />
+    <ClCompile Include=".\..\src\editor\Clipper.cpp" />
+    <ClInclude Include=".\..\src\editor\Command.h" />
+    <ClCompile Include=".\..\src\editor\Command.cpp" />
+    <ClInclude Include=".\..\src\qtools\rad.h" />
+    <ClCompile Include=".\..\src\qtools\rad.cpp" />
+    <ClInclude Include=".\..\src\qtools\vis.h" />
+    <ClCompile Include=".\..\src\qtools\vis.cpp" />
+    <ClInclude Include=".\..\src\qtools\winding.h" />
+    <ClCompile Include=".\..\src\qtools\winding.cpp" />
+    <ClCompile Include=".\..\imgui\imgui.cpp" />
+    <ClCompile Include=".\..\imgui\imgui_tables.cpp" />
+    <ClCompile Include=".\..\imgui\imgui_widgets.cpp" />
+    <ClCompile Include=".\..\imgui\imgui_draw.cpp" />
+    <ClCompile Include=".\..\imgui\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include=".\..\imgui\backends\imgui_impl_opengl3.cpp" />
+    <ClInclude Include=".\..\src\util\lodepng.h" />
+    <ClCompile Include=".\..\src\util\lodepng.cpp" />
+    <ClInclude Include=".\..\src\mdlviewer\mathlib.h" />
+    <ClCompile Include=".\..\src\mdlviewer\mathlib.c" />
+    <ClInclude Include=".\..\src\mdlviewer\cmdlib.h" />
+    <ClCompile Include=".\..\src\mdlviewer\cmdlib.c" />
+    <ClInclude Include=".\..\src\mdlviewer\studio_event.h" />
+    <ClInclude Include=".\..\src\mdlviewer\studio.h" />
+    <ClInclude Include=".\..\src\mdlviewer\studio_render.h" />
+    <ClCompile Include=".\..\src\mdlviewer\studio_render.cpp" />
+    <ClInclude Include=".\..\src\filedialog\stb_image.h" />
+    <ClInclude Include=".\..\src\filedialog\ImFileDialog.h" />
+    <ClCompile Include=".\..\src\filedialog\ImFileDialog.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include=".\..\vs-project\glfw\src\glfw.vcxproj">
+      <Project>{94C10DCA-6ED7-3AC5-87DF-14B22017E799}</Project>
+      <Name>glfw</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -6,11 +6,11 @@ struct vec3
 {
 	float x, y, z;
 	vec3() : x(), y(), z() {}
-	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
-	vec3 normalize(float length=1.0f);
+	vec3(float x, float y, float z) : x(x), y(y), z(z) {}
+	vec3 normalize(float length = 1.0f);
 	float length();
 	vec3 invert();
-	std::string toKeyvalueString(bool truncate=false, std::string suffix_x=" ", std::string suffix_y=" ", std::string suffix_z="");
+	std::string toKeyvalueString(bool truncate = false, std::string suffix_x = " ", std::string suffix_y = " ", std::string suffix_z = "");
 	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
 
 	void operator-=(vec3 v);

@@ -38,36 +38,36 @@
 //
 typedef struct _GLFWwindowNull
 {
-    int             xpos;
-    int             ypos;
-    int             width;
-    int             height;
-    char*           title;
-    GLFWbool        visible;
-    GLFWbool        iconified;
-    GLFWbool        maximized;
-    GLFWbool        resizable;
-    GLFWbool        decorated;
-    GLFWbool        floating;
-    GLFWbool        transparent;
-    float           opacity;
+	int             xpos;
+	int             ypos;
+	int             width;
+	int             height;
+	char* title;
+	GLFWbool        visible;
+	GLFWbool        iconified;
+	GLFWbool        maximized;
+	GLFWbool        resizable;
+	GLFWbool        decorated;
+	GLFWbool        floating;
+	GLFWbool        transparent;
+	float           opacity;
 } _GLFWwindowNull;
 
 // Null-specific per-monitor data
 //
 typedef struct _GLFWmonitorNull
 {
-    GLFWgammaramp   ramp;
+	GLFWgammaramp   ramp;
 } _GLFWmonitorNull;
 
 // Null-specific global data
 //
 typedef struct _GLFWlibraryNull
 {
-    int             xcursor;
-    int             ycursor;
-    char*           clipboardString;
-    _GLFWwindow*    focusedWindow;
+	int             xcursor;
+	int             ycursor;
+	char* clipboardString;
+	_GLFWwindow* focusedWindow;
 } _GLFWlibraryNull;
 
 void _glfwPollMonitorsNull(void);
@@ -111,7 +111,7 @@ void _glfwSetWindowFloatingNull(_GLFWwindow* window, GLFWbool enabled);
 void _glfwSetWindowMousePassthroughNull(_GLFWwindow* window, GLFWbool enabled);
 float _glfwGetWindowOpacityNull(_GLFWwindow* window);
 void _glfwSetWindowOpacityNull(_GLFWwindow* window, float opacity);
-void _glfwSetRawMouseMotionNull(_GLFWwindow *window, GLFWbool enabled);
+void _glfwSetRawMouseMotionNull(_GLFWwindow* window, GLFWbool enabled);
 GLFWbool _glfwRawMouseMotionSupportedNull(void);
 void _glfwShowWindowNull(_GLFWwindow* window);
 void _glfwRequestWindowAttentionNull(_GLFWwindow* window);

@@ -22,10 +22,10 @@ VertexAttr commonAttr[VBUF_FLAGBITS] =
 	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, ""), // POS_3F
 };
 
-VertexAttr::VertexAttr( int numValues, int valueType, int vhandle, int normalized, const char* varName)
+VertexAttr::VertexAttr(int numValues, int valueType, int vhandle, int normalized, const char* varName)
 	: numValues(numValues), valueType(valueType), handle(vhandle), normalized(normalized), varName(varName)
 {
-	switch(valueType)
+	switch (valueType)
 	{
 	case(GL_BYTE):
 	case(GL_UNSIGNED_BYTE):
@@ -47,7 +47,7 @@ VertexAttr::VertexAttr( int numValues, int valueType, int vhandle, int normalize
 	}
 }
 
-VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const void * dat, int numVerts )
+VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, int numVerts)
 {
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
@@ -55,7 +55,7 @@ VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const v
 	vboId = -1;
 }
 
-VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags )
+VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags)
 {
 	numVerts = 0;
 	data = NULL;
@@ -71,7 +71,7 @@ VertexBuffer::~VertexBuffer() {
 	}
 }
 
-void VertexBuffer::addAttributes( int attFlags )
+void VertexBuffer::addAttributes(int attFlags)
 {
 	elementSize = 0;
 	for (int i = 0; i < VBUF_FLAGBITS; i++)
@@ -156,7 +156,7 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 	attributesBound = true;
 }
 
-void VertexBuffer::setData( const void * data, int numVerts )
+void VertexBuffer::setData(const void* data, int numVerts)
 {
 	this->data = (byte*)data;
 	this->numVerts = numVerts;
@@ -174,7 +174,7 @@ void VertexBuffer::upload() {
 	for (int i = 0; i < attribs.size(); i++)
 	{
 		VertexAttr& a = attribs[i];
-		void* ptr = (void*)	offset;
+		void* ptr = (void*)offset;
 		offset += a.size;
 		if (a.handle == -1) {
 			continue;
@@ -193,7 +193,7 @@ void VertexBuffer::deleteBuffer() {
 	vboId = -1;
 }
 
-void VertexBuffer::drawRange( int primitive, int start, int end )
+void VertexBuffer::drawRange(int primitive, int start, int end)
 {
 	shaderProgram->bind();
 	bindAttributes();
@@ -224,7 +224,7 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	else if (end - start <= 0)
 		logf("Invalid draw range: %d -> %d\n", start, end);
 	else
-		glDrawArrays(primitive, start, end-start);
+		glDrawArrays(primitive, start, end - start);
 
 	if (vboId != -1) {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -239,7 +239,7 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	}
 }
 
-void VertexBuffer::draw( int primitive )
+void VertexBuffer::draw(int primitive)
 {
 	drawRange(primitive, 0, numVerts);
 }

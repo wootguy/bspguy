@@ -56,7 +56,7 @@ struct WADTEX
 	char szName[MAXTEXTURENAME];
 	uint32_t nWidth, nHeight;
 	uint32_t nOffsets[MIPLEVELS];
-	byte * data; // all mip-maps and pallete
+	byte* data; // all mip-maps and pallete
 	WADTEX()
 	{
 		szName[0] = '\0';
@@ -65,16 +65,16 @@ struct WADTEX
 	WADTEX(BSPMIPTEX* tex)
 	{
 #ifdef WIN32
-		sprintf_s(szName,MAXTEXTURENAME, "%s", tex->szName);
+		sprintf_s(szName, MAXTEXTURENAME, "%s", tex->szName);
 #else 
-		sprintf(szName, "%s", tex->szName);
+		snprintf(szName, "%s", tex->szName);
 #endif
 
 		nWidth = tex->nWidth;
 		nHeight = tex->nHeight;
 		for (int i = 0; i < MIPLEVELS; i++)
 			nOffsets[i] = tex->nOffsets[i];
-		data = (byte * )(((byte*)tex) + tex->nOffsets[0]);
+		data = (byte*)(((byte*)tex) + tex->nOffsets[0]);
 	}
 };
 
@@ -83,7 +83,7 @@ class Wad
 public:
 	std::string filename;
 	WADHEADER header = WADHEADER();
-	WADDIRENTRY * dirEntries;
+	WADDIRENTRY* dirEntries;
 	int numTex;
 
 	Wad(const std::string& file);
@@ -97,7 +97,7 @@ public:
 	bool write(WADTEX** textures, int numTex);
 
 
-	WADTEX * readTexture(int dirIndex);
-	WADTEX * readTexture(const std::string& texname);
+	WADTEX* readTexture(int dirIndex);
+	WADTEX* readTexture(const std::string& texname);
 };
 

@@ -14,7 +14,7 @@ void printVisRow(byte* vis, int len, int offsetLeaf, int mask) {
 			else {
 				if (i * 8 < offsetLeaf && i * 8 + 8 > offsetLeaf && (1 << b) & mask) {
 					print_color(PRINT_RED | PRINT_GREEN);
-				} 
+				}
 				else
 					print_color(PRINT_RED | PRINT_GREEN | PRINT_BLUE);
 			}
@@ -87,7 +87,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 		}
 		else {
 			bool carry = 0;
-			for (int i = len-1; i >= 0; i--) {
+			for (int i = len - 1; i >= 0; i--) {
 				uint oldCarry = carry;
 				carry = (vis[i] & 0x01) != 0;
 
@@ -107,8 +107,8 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 			}
 		}
 
-		if (g_debug_shift && k == bitShifts-1) {
-			logf("%2d = ", k+1);
+		if (g_debug_shift && k == bitShifts - 1) {
+			logf("%2d = ", k + 1);
 			printVisRow(vis, len, offsetLeaf, mask);
 		}
 	}
@@ -131,7 +131,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 		else {
 			// TODO LOL
 		}
-		
+
 	}
 
 	return overflow;

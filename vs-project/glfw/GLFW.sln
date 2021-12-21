@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glfw", "src\glfw.vcxproj", "{94C10DCA-6ED7-3AC5-87DF-14B22017E799}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CD073580-1870-3A2D-AA22-56265E0B53B9} = {CD073580-1870-3A2D-AA22-56265E0B53B9}
+	EndProjectSection
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CD073580-1870-3A2D-AA22-56265E0B53B9}.Debug|x64.ActiveCfg = Debug|x64
+		{CD073580-1870-3A2D-AA22-56265E0B53B9}.Debug|x64.Build.0 = Debug|x64
+		{CD073580-1870-3A2D-AA22-56265E0B53B9}.Release|x64.ActiveCfg = Release|x64
+		{CD073580-1870-3A2D-AA22-56265E0B53B9}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{CD073580-1870-3A2D-AA22-56265E0B53B9} = {4BC2D9BA-A9DA-3AD4-BED6-2D2DEDECE3A6}
+	EndGlobalSection
+EndGlobal

@@ -21,9 +21,9 @@ Bsp* BspMerger::merge(std::vector<Bsp*> maps, vec3 gap, std::string output_name,
 				MAPBLOCK& block = blocks[z][y][x];
 
 				if (block.offset.x != 0 || block.offset.y != 0 || block.offset.z != 0) {
-				logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n",
-					block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
-				block.map->move(block.offset);
+					logf("    Apply offset (%6.0f, %6.0f, %6.0f) to %s\n",
+						block.offset.x, block.offset.y, block.offset.z, block.map->name.c_str());
+					block.map->move(block.offset);
 				}
 
 				if (!noripent) {
@@ -118,7 +118,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, std::string resultType) {
 
 std::vector<std::vector<std::vector<MAPBLOCK>>> BspMerger::separate(std::vector<Bsp*>& maps, vec3 gap) {
 	std::vector<MAPBLOCK> blocks;
-	
+
 	std::vector<std::vector<std::vector<MAPBLOCK>>> orderedBlocks;
 
 	vec3 maxDims = vec3(0, 0, 0);
@@ -228,7 +228,7 @@ typedef std::map< std::string, MAPBLOCK > mapStringToMapBlock;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBLOCK>& sourceMaps,
 	std::vector<Bsp*>& mapOrder, std::string output_name, std::string firstMapName, bool noscript) {
-	int originalEntCount = (int) mergedMap->ents.size();
+	int originalEntCount = (int)mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 
 	g_progress.update("Processing entities", originalEntCount);
@@ -976,7 +976,7 @@ BSPPLANE BspMerger::separate(Bsp& mapA, Bsp& mapB) {
 
 void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 {
-	g_progress.update("Merging entities", (int) (mapA.ents.size() + mapB.ents.size()));
+	g_progress.update("Merging entities", (int)(mapA.ents.size() + mapB.ents.size()));
 
 	int oldEntCount = mapA.ents.size();
 
@@ -1561,7 +1561,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	mergedModels[0].iHeadnodes[3] = 2;
 	mergedModels[0].nVisLeafs = mapA.models[0].nVisLeafs + mapB.models[0].nVisLeafs;
 	mergedModels[0].nFaces = mapA.models[0].nFaces + mapB.models[0].nFaces;
-	
+
 	vec3 amin = mapA.models[0].nMins;
 	vec3 bmin = mapB.models[0].nMins;
 	vec3 amax = mapA.models[0].nMaxs;

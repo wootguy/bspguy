@@ -5,7 +5,7 @@
 
 static int g_active_shader_program;
 
-ShaderProgram::ShaderProgram( const char * vshaderSource, const char * fshaderSource )
+ShaderProgram::ShaderProgram(const char* vshaderSource, const char* fshaderSource)
 {
 	modelViewID = modelViewProjID = -1;
 	vShader = new Shader(vshaderSource, GL_VERTEX_SHADER);
@@ -21,20 +21,20 @@ void ShaderProgram::link()
 	glAttachShader(ID, vShader->ID);
 	glAttachShader(ID, fShader->ID);
 
-	glLinkProgram(ID);	
+	glLinkProgram(ID);
 
 	int success;
 	glGetProgramiv(ID, GL_LINK_STATUS, &success);
 	if (success != GL_TRUE)
 	{
-		char * log = new char[1024];
+		char* log = new char[1024];
 		int len;
 		glGetProgramInfoLog(ID, 1024, &len, log);
 		logf("Shader Program Link Failure:\n");
 		logf(log);
 		if (len > 1024)
 			logf("\nLog too big to fit!\n");
-		delete [] log;
+		delete[] log;
 	}
 }
 
@@ -56,12 +56,12 @@ void ShaderProgram::bind()
 	}
 }
 
-void ShaderProgram::removeShader( int shaderID )
+void ShaderProgram::removeShader(int shaderID)
 {
 	glDetachShader(ID, shaderID);
 }
 
-void ShaderProgram::setMatrixes( mat4x4 * model, mat4x4* view, mat4x4* proj, mat4x4* modelView, mat4x4* modelViewProj )
+void ShaderProgram::setMatrixes(mat4x4* model, mat4x4* view, mat4x4* proj, mat4x4* modelView, mat4x4* modelViewProj)
 {
 	modelMat = model;
 	viewMat = view;
@@ -83,7 +83,7 @@ void ShaderProgram::updateMatrixes()
 		glUniformMatrix4fv(modelViewProjID, 1, false, (float*)modelViewProjMat);
 }
 
-void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * modelViewProjMat )
+void ShaderProgram::setMatrixNames(const char* modelViewMat, const char* modelViewProjMat)
 {
 	if (modelViewMat)
 	{
@@ -95,11 +95,11 @@ void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * mode
 	{
 		modelViewProjID = glGetUniformLocation(ID, modelViewProjMat);
 		if (modelViewProjID == -1)
-			logf("Could not find modelViewProjection uniform: %s\n", modelViewProjMat); 
+			logf("Could not find modelViewProjection uniform: %s\n", modelViewProjMat);
 	}
 }
 
-void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * colorAtt, const char * texAtt )
+void ShaderProgram::setVertexAttributeNames(const char* posAtt, const char* colorAtt, const char* texAtt)
 {
 	if (posAtt)
 	{
@@ -114,20 +114,20 @@ void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * c
 	if (texAtt)
 	{
 		vtexID = glGetAttribLocation(ID, texAtt);
-		if (vtexID == -1) logf("Could not find vtexture attribute: %s\n", texAtt); 
+		if (vtexID == -1) logf("Could not find vtexture attribute: %s\n", texAtt);
 	}
 }
 
-void ShaderProgram::pushMatrix( int matType )
+void ShaderProgram::pushMatrix(int matType)
 {
 	if (matType & MAT_MODEL)	  matStack[0].push_back(*modelMat);
 	if (matType & MAT_VIEW)		  matStack[1].push_back(*viewMat);
 	if (matType & MAT_PROJECTION) matStack[2].push_back(*projMat);
 }
 
-void ShaderProgram::popMatrix( int matType )
+void ShaderProgram::popMatrix(int matType)
 {
-	mat4x4 * targets[3] = {modelMat, viewMat, projMat};
+	mat4x4* targets[3] = { modelMat, viewMat, projMat };
 	for (int idx = 0, mask = 1; idx < 3; ++idx, mask <<= 1)
 	{
 		if (matType & mask)
@@ -135,7 +135,7 @@ void ShaderProgram::popMatrix( int matType )
 			std::vector<mat4x4>& stack = matStack[idx];
 			if (!stack.empty())
 			{
-				*targets[idx] = stack[ stack.size()-1 ];
+				*targets[idx] = stack[stack.size() - 1];
 				stack.pop_back();
 			}
 			else

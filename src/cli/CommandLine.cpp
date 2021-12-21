@@ -70,7 +70,7 @@ std::string CommandLine::getOption(std::string optionName) {
 }
 
 int CommandLine::getOptionInt(std::string optionName) {
-	return atoi( optionVals[optionName].c_str() );
+	return atoi(optionVals[optionName].c_str());
 }
 
 vec3 CommandLine::getOptionVector(std::string optionName) {

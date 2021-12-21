@@ -4,9 +4,9 @@
 
 BSPEDGE::BSPEDGE() = default;
 
-BSPEDGE::BSPEDGE(uint16_t v1, uint16_t v2) { 
+BSPEDGE::BSPEDGE(uint16_t v1, uint16_t v2) {
 	iVertex[0] = v1;
-	iVertex[1] = v2; 
+	iVertex[1] = v2;
 }
 
 bool BSPPLANE::update(vec3 newNormal, float fdist) {
@@ -28,11 +28,11 @@ bool BSPPLANE::update(vec3 newNormal, float fdist) {
 		if (newNormal.z < 0) shouldFlip = true;
 	}
 	else {
-		if (fx > fy&& fx > fz) {
+		if (fx > fy && fx > fz) {
 			planeType = PLANE_ANYX;
 			//if (newNormal.x < 0) shouldFlip = true;
 		}
-		else if (fy > fx&& fy > fz) {
+		else if (fy > fx && fy > fz) {
 			planeType = PLANE_ANYY;
 			//if (newNormal.y < 0) shouldFlip = true;
 		}

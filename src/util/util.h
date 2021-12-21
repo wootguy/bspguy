@@ -51,7 +51,7 @@ bool fileExists(const std::string& fileName);
 
 char* loadFile(const std::string& fileName, int& length);
 
-bool writeFile(const std::string& fileName, const char * data, int len);
+bool writeFile(const std::string& fileName, const char* data, int len);
 
 bool removeFile(const std::string& fileName);
 

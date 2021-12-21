@@ -5,16 +5,16 @@
 #include <string.h>
 
 #ifdef WIN32
-	#define strcasecmp _stricmp
+#define strcasecmp _stricmp
 #endif
 
 Wad::Wad(void)
 {
-    numTex = -1;
+	numTex = -1;
 	dirEntries = NULL;
 }
 
-Wad::Wad( const std::string& file )
+Wad::Wad(const std::string& file)
 {
 	this->filename = file;
 	numTex = -1;
@@ -24,7 +24,7 @@ Wad::Wad( const std::string& file )
 Wad::~Wad(void)
 {
 	if (dirEntries)
-		delete [] dirEntries;
+		delete[] dirEntries;
 }
 
 bool Wad::readInfo()
@@ -59,7 +59,7 @@ bool Wad::readInfo()
 	//
 	// WAD HEADER
 	//
-	fin.read((char*)&header, sizeof(WADHEADER)); 
+	fin.read((char*)&header, sizeof(WADHEADER));
 
 	if (std::string(header.szMagic).find("WAD3") != 0)
 	{
@@ -84,20 +84,20 @@ bool Wad::readInfo()
 	for (int i = 0; i < numTex; i++)
 	{
 		if (fin.eof()) { logf("Unexpected end of WAD\n"); return false; }
-		fin.read((char*)&dirEntries[i], sizeof(WADDIRENTRY)); 
+		fin.read((char*)&dirEntries[i], sizeof(WADDIRENTRY));
 		if (dirEntries[i].nType == 0x43) usableTextures = true;
 	}
 	fin.close();
 
 	if (!usableTextures)
 	{
-		delete [] dirEntries;
+		delete[] dirEntries;
 		dirEntries = NULL;
 		header.nDir = 0;
 		logf("%s contains no regular textures\n", filename.c_str());
 		return false; // we can't use these types of textures (see fonts.wad as an example)
 	}
-	
+
 
 	return true;
 }
@@ -110,7 +110,7 @@ bool Wad::hasTexture(std::string name)
 	return false;
 }
 
-WADTEX * Wad::readTexture( int dirIndex )
+WADTEX* Wad::readTexture(int dirIndex)
 {
 	if (dirIndex < 0 || dirIndex >= numTex)
 	{
@@ -123,10 +123,10 @@ WADTEX * Wad::readTexture( int dirIndex )
 	return readTexture(name);
 }
 
-WADTEX * Wad::readTexture( const std::string& texname )
+WADTEX* Wad::readTexture(const std::string& texname)
 {
 	std::string path = filename;
-	const char * file = (path.c_str());
+	const char* file = (path.c_str());
 
 	std::ifstream fin(file, std::ios::binary);
 	if (!fin.good())
@@ -159,18 +159,18 @@ WADTEX * Wad::readTexture( const std::string& texname )
 
 	int w = mtex.nWidth;
 	int h = mtex.nHeight;
-	int sz = w*h;	   // miptex 0
+	int sz = w * h;	   // miptex 0
 	int sz2 = sz / 4;  // miptex 1
 	int sz3 = sz2 / 4; // miptex 2
 	int sz4 = sz3 / 4; // miptex 3
-	int szAll = sz + sz2 + sz3 + sz4 + 2 + 256*3 + 2;
+	int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
 
-	byte * data = new byte[szAll];
-	fin.read((char*)data, szAll);		
-	
+	byte* data = new byte[szAll];
+	fin.read((char*)data, szAll);
+
 	fin.close();
 
-	WADTEX * tex = new WADTEX;
+	WADTEX* tex = new WADTEX;
 	for (int i = 0; i < MAXTEXTURENAME; i++)
 		tex->szName[i] = mtex.szName[i];
 	for (int i = 0; i < MIPLEVELS; i++)
@@ -186,7 +186,7 @@ bool Wad::write(WADTEX** textures, int numTex)
 	return write(filename, textures, numTex);
 }
 
-bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
+bool Wad::write(std::string filename, WADTEX** textures, int numTex)
 {
 	std::ofstream myFile(filename, std::ios::trunc | std::ios::binary);
 
@@ -196,21 +196,21 @@ bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 	header.szMagic[3] = '3';
 	header.nDir = numTex;
 
-	int tSize = sizeof(BSPMIPTEX)*numTex;
+	int tSize = sizeof(BSPMIPTEX) * numTex;
 	for (int i = 0; i < numTex; i++)
 	{
 		int w = textures[i]->nWidth;
 		int h = textures[i]->nHeight;
-		int sz = w*h;	   // miptex 0
+		int sz = w * h;	   // miptex 0
 		int sz2 = sz / 4;  // miptex 1
 		int sz3 = sz2 / 4; // miptex 2
 		int sz4 = sz3 / 4; // miptex 3
-		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256*3 + 2;
+		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
 		tSize += szAll;
 	}
 
 	header.nDirOffset = 12 + tSize;
-	myFile.write ((char*)&header, sizeof(WADHEADER));
+	myFile.write((char*)&header, sizeof(WADHEADER));
 
 	for (int i = 0; i < numTex; i++)
 	{
@@ -220,11 +220,11 @@ bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 
 		int w = textures[i]->nWidth;
 		int h = textures[i]->nHeight;
-		int sz = w*h;	   // miptex 0
+		int sz = w * h;	   // miptex 0
 		int sz2 = sz / 4;  // miptex 1
 		int sz3 = sz2 / 4; // miptex 2
 		int sz4 = sz3 / 4; // miptex 3
-		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256*3 + 2;
+		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
 		miptex.nWidth = w;
 		miptex.nHeight = h;
 		miptex.nOffsets[0] = sizeof(BSPMIPTEX);
@@ -232,8 +232,8 @@ bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 		miptex.nOffsets[2] = sizeof(BSPMIPTEX) + sz + sz2;
 		miptex.nOffsets[3] = sizeof(BSPMIPTEX) + sz + sz2 + sz3;
 
-		myFile.write ((char*)&miptex, sizeof(BSPMIPTEX));
-		myFile.write ((char*)textures[i]->data, szAll);
+		myFile.write((char*)&miptex, sizeof(BSPMIPTEX));
+		myFile.write((char*)textures[i]->data, szAll);
 	}
 
 	int offset = 12;
@@ -243,11 +243,11 @@ bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 		entry.nFilePos = offset;
 		int w = textures[i]->nWidth;
 		int h = textures[i]->nHeight;
-		int sz = w*h;	   // miptex 0
+		int sz = w * h;	   // miptex 0
 		int sz2 = sz / 4;  // miptex 1
 		int sz3 = sz2 / 4; // miptex 2
 		int sz4 = sz3 / 4; // miptex 3
-		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256*3 + 2;
+		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
 		entry.nDiskSize = szAll + sizeof(BSPMIPTEX);
 		entry.nSize = szAll + sizeof(BSPMIPTEX);
 		entry.nType = 0x43; // Texture
@@ -257,9 +257,9 @@ bool Wad::write( std::string filename, WADTEX ** textures, int numTex )
 			entry.szName[k] = textures[i]->szName[k];
 		offset += szAll + sizeof(BSPMIPTEX);
 
-		myFile.write ((char*)&entry, sizeof(WADDIRENTRY));
+		myFile.write((char*)&entry, sizeof(WADDIRENTRY));
 	}
-	
+
 	//myFile.write ((char*)textures[0]->data, szAll);
 	myFile.close();
 

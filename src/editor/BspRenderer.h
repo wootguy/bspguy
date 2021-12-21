@@ -122,7 +122,7 @@ public:
 	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);
-	int refreshModel(int modelIdx, bool refreshClipnodes=true);
+	int refreshModel(int modelIdx, bool refreshClipnodes = true);
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);

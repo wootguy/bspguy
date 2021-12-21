@@ -140,7 +140,7 @@ int test() {
 	//return 0;
 
 	std::vector<Bsp*> maps;
-	
+
 	for (int i = 1; i < 22; i++) {
 		Bsp* map = new Bsp("2nd/saving_the_2nd_amendment" + (i > 1 ? std::to_string(i) : "") + ".bsp");
 		maps.push_back(map);
@@ -200,10 +200,10 @@ int merge_maps(CommandLine& cli) {
 	for (int i = 0; i < input_maps.size(); i++) {
 		Bsp* map = new Bsp(input_maps[i]);
 		if (!map->valid)
-        {
-            delete map;
-            return 1;
-        }
+		{
+			delete map;
+			return 1;
+		}
 		maps.push_back(map);
 	}
 
@@ -228,8 +228,8 @@ int merge_maps(CommandLine& cli) {
 
 		logf("\n");
 	}
-	
-	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0,0,0);
+
+	vec3 gap = cli.hasOption("-gap") ? cli.getOptionVector("-gap") : vec3(0, 0, 0);
 
 	std::string output_name = cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile;
 
@@ -251,10 +251,10 @@ int merge_maps(CommandLine& cli) {
 int print_info(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {		
-        delete map;
-        return 1;
-    }
+	{
+		delete map;
+		return 1;
+	}
 
 	bool limitMode = false;
 	int listLength = 10;
@@ -262,7 +262,7 @@ int print_info(CommandLine& cli) {
 
 	if (cli.hasOption("-limit")) {
 		std::string limitName = cli.getOption("-limit");
-			
+
 		limitMode = true;
 		if (limitName == "clipnodes") {
 			sortMode = SORT_CLIPNODES;
@@ -295,10 +295,10 @@ int print_info(CommandLine& cli) {
 int noclip(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {
-        delete map;
-        return 1;
-    }
+	{
+		delete map;
+		return 1;
+	}
 
 	int model = -1;
 	int hull = -1;
@@ -345,7 +345,7 @@ int noclip(CommandLine& cli) {
 				logf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
 			else
 				logf("Deleting HULL %d from model %d:\n", hull, model);
-			
+
 			map->delete_hull(hull, model, redirect);
 		}
 		else {
@@ -397,10 +397,10 @@ int noclip(CommandLine& cli) {
 int simplify(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {
-        delete map;
+	{
+		delete map;
 		return 1;
-    }
+	}
 
 	int hull = 0;
 
@@ -463,10 +463,10 @@ int simplify(CommandLine& cli) {
 int deleteCmd(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {
-        delete map;
+	{
+		delete map;
 		return 1;
-    }
+	}
 	remove_unused_data(map);
 
 	if (cli.hasOption("-model")) {
@@ -495,10 +495,10 @@ int deleteCmd(CommandLine& cli) {
 int transform(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {
-        delete map;
+	{
+		delete map;
 		return 1;
-    }
+	}
 
 	vec3 move;
 
@@ -512,10 +512,10 @@ int transform(CommandLine& cli) {
 	}
 	else {
 		logf("ERROR: at least one transformation option is required\n");
-        delete map;
+		delete map;
 		return 1;
 	}
-	
+
 	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
 	logf("\n");
 
@@ -529,10 +529,10 @@ int transform(CommandLine& cli) {
 int unembed(CommandLine& cli) {
 	Bsp* map = new Bsp(cli.bspfile);
 	if (!map->valid)
-    {
-        delete map;
+	{
+		delete map;
 		return 1;
-    }
+	}
 
 	int deleted = map->delete_embedded_textures();
 	logf("Deleted %d embedded textures\n", deleted);
@@ -571,7 +571,7 @@ void print_help(std::string command) {
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
 			"  -v\n"
 			"  -verbose     : Verbose console output.\n"
-			);
+		);
 	}
 	else if (command == "info") {
 		logf(
@@ -584,7 +584,7 @@ void print_help(std::string command) {
 			"  -limit <name> : List the models contributing most to the named limit.\n"
 			"                  <name> can be one of: [clipnodes, nodes, faces, vertexes]\n"
 			"  -all          : Show the full list of models when using -limit.\n"
-			);
+		);
 	}
 	else if (command == "noclip") {
 		logf(
@@ -605,7 +605,7 @@ void print_help(std::string command) {
 			"                monsters to function normally instead of falling out of the world.\n"
 			"                Must be used with the -hull option.\n"
 			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
-			);
+		);
 	}
 	else if (command == "simplify") {
 		logf(
@@ -621,7 +621,7 @@ void print_help(std::string command) {
 			"                2 = Large monsters and pushables\n"
 			"                3 = Small monsters, crouching players, and melee attacks\n"
 			"  -o <file>   : Output file. By default, <mapname> is overwritten.\n"
-			);
+		);
 	}
 	else if (command == "delete") {
 		logf(
@@ -634,7 +634,7 @@ void print_help(std::string command) {
 			"  -model #  : Model to delete. Entities that reference the deleted\n"
 			"              model will be updated to use error.mdl instead.\n"
 			"  -o <file> : Output file. By default, <mapname> is overwritten.\n"
-			);
+		);
 	}
 	else if (command == "transform") {
 		logf(
@@ -646,32 +646,32 @@ void print_help(std::string command) {
 			"\n[Options]\n"
 			"  -move \"X,Y,Z\" : Units to move the map on each axis.\n"
 			"  -o <file>     : Output file. By default, <mapname> is overwritten.\n"
-			);
+		);
 	}
 	else if (command == "unembed") {
-	logf(
-		"unembed - Deletes embedded texture data, so that they reference WADs instead.\n\n"
+		logf(
+			"unembed - Deletes embedded texture data, so that they reference WADs instead.\n\n"
 
-		"Usage:   bspguy unembed <mapname>\n"
-		"Example: bspguy unembed c1a0.bsp\n"
-	);
+			"Usage:   bspguy unembed <mapname>\n"
+			"Example: bspguy unembed c1a0.bsp\n"
+		);
 	}
 	else if (command == "exportobj") {
-	logf(
-		"exportobj - Export bsp geometry to obj [WIP].\n\n"
+		logf(
+			"exportobj - Export bsp geometry to obj [WIP].\n\n"
 
-		"Usage:   bspguy exportobj <mapname>\n"
-		"Example: bspguy exportobj c1a0.bsp\n"
-	);
+			"Usage:   bspguy exportobj <mapname>\n"
+			"Example: bspguy exportobj c1a0.bsp\n"
+		);
 	}
 	else if (command == "editor" || command == "empty") {
-	logf(
-		"editor -\n"
-		"empty - Open bspguy editor window.\n\n"
+		logf(
+			"editor -\n"
+			"empty - Open bspguy editor window.\n\n"
 
-		"Usage:   bspguy editor\n"
-		"Usage:   bspguy empty\n"
-	);
+			"Usage:   bspguy editor\n"
+			"Usage:   bspguy empty\n"
+		);
 	}
 	else {
 		logf("%s\n\n", g_version_string);
@@ -693,19 +693,19 @@ void print_help(std::string command) {
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
 			"or run 'bspguy <mapname>'"
-			);
+		);
 	}
 }
 
 int main(int argc, char* argv[])
 {
-	#ifdef WIN32
-		::ShowWindow(::GetConsoleWindow(), SW_SHOW);
-	#endif
+#ifdef WIN32
+	::ShowWindow(::GetConsoleWindow(), SW_SHOW);
+#endif
 
 #ifdef USE_FILESYSTEM
-		fs::path ph = argv[0];
-		fs::current_path(ph.parent_path());
+	fs::path ph = argv[0];
+	fs::current_path(ph.parent_path());
 #endif
 
 
@@ -761,7 +761,7 @@ int main(int argc, char* argv[])
 		return unembed(cli);
 	}
 	else {
-		logf("%s\n", ("Start bspguy editor with map: " + cli.bspfile).c_str() );
+		logf("%s\n", ("Start bspguy editor with map: " + cli.bspfile).c_str());
 		logf("Load settings from : %s\n", g_settings_path.c_str());
 		start_viewer(cli.bspfile);
 	}

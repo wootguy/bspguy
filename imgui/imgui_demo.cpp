@@ -92,7 +92,7 @@ Index of this file:
 
 // Visual Studio warnings
 #ifdef _MSC_VER
-#pragma warning (disable: 4996)     // 'This function or variable may be unsafe': strcpy, strdup, sprintf, vsnprintf, sscanf, fopen
+#pragma warning (disable: 4996)     // 'This function or variable may be unsafe': strncpy, strdup, snprintf, vsnprintf, sscanf, fopen
 #pragma warning (disable: 26451)    // [Static Analyzer] Arithmetic overflow : Using operator 'xxx' on a 4 byte value and then casting the result to a 8 byte value. Cast the value to the wider type before calling operator 'xxx' to avoid overflow(io.2).
 #endif
 
@@ -1192,7 +1192,7 @@ static void ShowDemoWindowWidgets()
             for (int n = 0; n < 5; n++)
             {
                 char buf[32];
-                sprintf(buf, "Object %d", n);
+                snprintf(buf,sizeof(buf), "Object %d", n);
                 if (ImGui::Selectable(buf, selected == n))
                     selected = n;
             }
@@ -1206,7 +1206,7 @@ static void ShowDemoWindowWidgets()
             for (int n = 0; n < 5; n++)
             {
                 char buf[32];
-                sprintf(buf, "Object %d", n);
+                snprintf(buf, "Object %d", n);
                 if (ImGui::Selectable(buf, selection[n]))
                 {
                     if (!ImGui::GetIO().KeyCtrl)    // Clear selection when CTRL is not held
@@ -1237,7 +1237,7 @@ static void ShowDemoWindowWidgets()
                 for (int i = 0; i < 10; i++)
                 {
                     char label[32];
-                    sprintf(label, "Item %d", i);
+                    snprintf(label, sizeof(label), "Item %d", i);
                     ImGui::TableNextColumn();
                     ImGui::Selectable(label, &selected[i]); // FIXME-TABLE: Selection overlap
                 }
@@ -1249,7 +1249,7 @@ static void ShowDemoWindowWidgets()
                 for (int i = 0; i < 10; i++)
                 {
                     char label[32];
-                    sprintf(label, "Item %d", i);
+                    snprintf(label, sizeof(label), "Item %d", i);
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
                     ImGui::Selectable(label, &selected[i], ImGuiSelectableFlags_SpanAllColumns);
@@ -1309,7 +1309,7 @@ static void ShowDemoWindowWidgets()
                 {
                     ImVec2 alignment = ImVec2((float)x / 2.0f, (float)y / 2.0f);
                     char name[32];
-                    sprintf(name, "(%.1f,%.1f)", alignment.x, alignment.y);
+                    snprintf(name, sizeof(name), "(%.1f,%.1f)", alignment.x, alignment.y);
                     if (x > 0) ImGui::SameLine();
                     ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, alignment);
                     ImGui::Selectable(name, &selected[3 * y + x], ImGuiSelectableFlags_None, ImVec2(80, 80));
@@ -1671,7 +1671,7 @@ static void ShowDemoWindowWidgets()
                 average += values[n];
             average /= (float)IM_ARRAYSIZE(values);
             char overlay[32];
-            sprintf(overlay, "avg %f", average);
+            snprintf(overlay, "avg %f", average);
             ImGui::PlotLines("Lines", values, IM_ARRAYSIZE(values), values_offset, overlay, -1.0f, 1.0f, ImVec2(0, 80.0f));
         }
 
@@ -1712,7 +1712,7 @@ static void ShowDemoWindowWidgets()
 
         float progress_saturated = IM_CLAMP(progress, 0.0f, 1.0f);
         char buf[32];
-        sprintf(buf, "%d/%d", (int)(progress_saturated * 1753), 1753);
+        snprintf(buf, "%d/%d", (int)(progress_saturated * 1753), 1753);
         ImGui::ProgressBar(progress, ImVec2(0.f, 0.f), buf);
         ImGui::TreePop();
     }
@@ -2520,7 +2520,7 @@ static void ShowDemoWindowLayout()
                 for (int i = 0; i < 100; i++)
                 {
                     char buf[32];
-                    sprintf(buf, "%03d", i);
+                    snprintf(buf, "%03d", i);
                     ImGui::TableNextColumn();
                     ImGui::Button(buf, ImVec2(-FLT_MIN, 0.0f));
                 }
@@ -3045,7 +3045,7 @@ static void ShowDemoWindowLayout()
                 if (n > 0) ImGui::SameLine();
                 ImGui::PushID(n + line * 1000);
                 char num_buf[16];
-                sprintf(num_buf, "%d", n);
+                snprintf(num_buf, "%d", n);
                 const char* label = (!(n % 15)) ? "FizzBuzz" : (!(n % 3)) ? "Fizz" : (!(n % 5)) ? "Buzz" : num_buf;
                 float hue = n * 0.05f;
                 ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(hue, 0.6f, 0.6f));
@@ -3425,7 +3425,7 @@ static void ShowDemoWindowPopups()
             HelpMarker("Showcase using a popup ID linked to item ID, with the item having a changing label + stable ID using the ### operator.");
             static char name[32] = "Label1";
             char buf[64];
-            sprintf(buf, "Button: %s###Button", name); // ### operator override ID ignoring the preceding label
+            snprintf(buf, "Button: %s###Button", name); // ### operator override ID ignoring the preceding label
             ImGui::Button(buf);
             if (ImGui::BeginPopupContextItem())
             {
@@ -3856,7 +3856,7 @@ static void ShowDemoWindowTables()
                 {
                     ImGui::TableSetColumnIndex(column);
                     char buf[32];
-                    sprintf(buf, "Hello %d,%d", column, row);
+                    snprintf(buf, "Hello %d,%d", column, row);
                     if (contents_type == CT_Text)
                         ImGui::TextUnformatted(buf);
                     else if (contents_type)
@@ -4093,7 +4093,7 @@ static void ShowDemoWindowTables()
                     else
                     {
                         char buf[32];
-                        sprintf(buf, "Hello %d,%d", column, row);
+                        snprintf(buf, "Hello %d,%d", column, row);
                         ImGui::Button(buf, ImVec2(-FLT_MIN, 0.0f));
                     }
                     //if (ImGui::TableGetColumnFlags() & ImGuiTableColumnFlags_IsHovered)
@@ -4133,7 +4133,7 @@ static void ShowDemoWindowTables()
             {
                 ImGui::TableNextColumn();
                 if (init)
-                    strcpy(text_bufs[cell], "edit me");
+                    strncpy(text_bufs[cell], "edit me");
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::PushID(cell);
                 ImGui::InputText("##cell", text_bufs[cell], IM_ARRAYSIZE(text_bufs[cell]));
@@ -4236,7 +4236,7 @@ static void ShowDemoWindowTables()
                 ImGui::PushID(cell);
                 char label[32];
                 static char text_buf[32] = "";
-                sprintf(label, "Hello %d,%d", column, row);
+                snprintf(label, "Hello %d,%d", column, row);
                 switch (contents_type)
                 {
                 case CT_ShortText:  ImGui::TextUnformatted(label); break;
@@ -4861,7 +4861,7 @@ static void ShowDemoWindowTables()
                 for (int column = 0; column < 3; column++)
                 {
                     char buf[32];
-                    sprintf(buf, "Cell %d,%d", column, row);
+                    snprintf(buf, "Cell %d,%d", column, row);
                     ImGui::TableSetColumnIndex(column);
                     ImGui::Selectable(buf, column_selected[column]);
                 }
@@ -4988,7 +4988,7 @@ static void ShowDemoWindowTables()
         for (int n = 0; n < 3; n++)
         {
             char buf[32];
-            sprintf(buf, "Synced Table %d", n);
+            snprintf(buf, "Synced Table %d", n);
             bool open = ImGui::CollapsingHeader(buf, ImGuiTreeNodeFlags_DefaultOpen);
             if (open && ImGui::BeginTable("Table", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings))
             {
@@ -5326,7 +5326,7 @@ static void ShowDemoWindowTables()
                     // For the demo purpose we can select among different type of items submitted in the first column
                     ImGui::TableSetColumnIndex(0);
                     char label[32];
-                    sprintf(label, "%04d", item->ID);
+                    snprintf(label, "%04d", item->ID);
                     if (contents_type == CT_Text)
                         ImGui::TextUnformatted(label);
                     else if (contents_type == CT_Button)
@@ -5439,7 +5439,7 @@ static void ShowDemoWindowColumns()
         for (int n = 0; n < 14; n++)
         {
             char label[32];
-            sprintf(label, "Item %d", n);
+            snprintf(label, "Item %d", n);
             if (ImGui::Selectable(label)) {}
             //if (ImGui::Button(label, ImVec2(-FLT_MIN,0.0f))) {}
             ImGui::NextColumn();
@@ -5461,7 +5461,7 @@ static void ShowDemoWindowColumns()
         for (int i = 0; i < 3; i++)
         {
             char label[32];
-            sprintf(label, "%04d", i);
+            snprintf(label, "%04d", i);
             if (ImGui::Selectable(label, selected == i, ImGuiSelectableFlags_SpanAllColumns))
                 selected = i;
             bool hovered = ImGui::IsItemHovered();
@@ -5802,7 +5802,7 @@ static void ShowDemoWindowMisc()
             for (int i = 0; i < ImGuiMouseCursor_COUNT; i++)
             {
                 char label[32];
-                sprintf(label, "Mouse cursor %d: %s", i, mouse_cursors_names[i]);
+                snprintf(label, "Mouse cursor %d: %s", i, mouse_cursors_names[i]);
                 ImGui::Bullet(); ImGui::Selectable(label, false);
                 if (ImGui::IsItemHovered())
                     ImGui::SetMouseCursor(i);
@@ -6564,7 +6564,7 @@ struct ExampleAppConsole
             Strtrim(s);
             if (s[0])
                 ExecCommand(s);
-            strcpy(s, "");
+            strncpy(s, "");
             reclaim_focus = true;
         }
 
@@ -6921,7 +6921,7 @@ static void ShowExampleAppLayout(bool* p_open)
             {
                 // FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
                 char label[128];
-                sprintf(label, "MyObject %d", i);
+                snprintf(label, "MyObject %d", i);
                 if (ImGui::Selectable(label, selected == i))
                     selected = i;
             }
@@ -7298,7 +7298,7 @@ static void ShowExampleAppWindowTitles(bool*)
 
     // Using "###" to display a changing title but keep a static identifier "AnimatedTitle"
     char buf[128];
-    sprintf(buf, "Animated title %c %d###AnimatedTitle", "|/-\\"[(int)(ImGui::GetTime() / 0.25f) & 3], ImGui::GetFrameCount());
+    snprintf(buf, "Animated title %c %d###AnimatedTitle", "|/-\\"[(int)(ImGui::GetTime() / 0.25f) & 3], ImGui::GetFrameCount());
     ImGui::SetNextWindowPos(ImVec2(base_pos.x + 100, base_pos.y + 300), ImGuiCond_FirstUseEver);
     ImGui::Begin(buf);
     ImGui::Text("This window has a changing title.");
@@ -7598,7 +7598,7 @@ struct MyDocument
             return;
 
         char buf[256];
-        sprintf(buf, "Save %s", doc->Name);
+        snprintf(buf, "Save %s", doc->Name);
         if (ImGui::MenuItem(buf, "CTRL+S", false, doc->Open))
             doc->DoSave();
         if (ImGui::MenuItem("Close", "CTRL+W", false, doc->Open))

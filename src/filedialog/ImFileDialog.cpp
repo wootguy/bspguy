@@ -49,7 +49,8 @@ namespace ifd {
 			if (is_mouse_x_over_arrow) {
 				int* p_opened = window->StateStorage.GetIntRef(id, 0);
 				opened = *p_opened = !*p_opened;
-			} else {
+			}
+			else {
 				clicked = true;
 			}
 		}
@@ -63,11 +64,11 @@ namespace ifd {
 		}
 		if (hovered || active)
 			window->DrawList->AddRectFilled(g.LastItemData.Rect.Min, g.LastItemData.Rect.Max, ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[active ? ImGuiCol_HeaderActive : ImGuiCol_HeaderHovered]));
-		
+
 		// Icon, text
 		float icon_posX = pos.x + g.FontSize + g.Style.FramePadding.y;
 		float text_posX = icon_posX + g.Style.FramePadding.y + ICON_SIZE;
-		ImGui::RenderArrow(window->DrawList, ImVec2(pos.x, pos.y+g.Style.FramePadding.y), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[((hovered && is_mouse_x_over_arrow) || opened) ? ImGuiCol_Text : ImGuiCol_TextDisabled]), opened ? ImGuiDir_Down : ImGuiDir_Right);
+		ImGui::RenderArrow(window->DrawList, ImVec2(pos.x, pos.y + g.Style.FramePadding.y), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[((hovered && is_mouse_x_over_arrow) || opened) ? ImGuiCol_Text : ImGuiCol_TextDisabled]), opened ? ImGuiDir_Down : ImGuiDir_Right);
 		window->DrawList->AddImage(icon, ImVec2(icon_posX, pos.y), ImVec2(icon_posX + ICON_SIZE, pos.y + ICON_SIZE));
 		ImGui::RenderText(ImVec2(text_posX, pos.y + g.Style.FramePadding.y), label);
 		if (opened)
@@ -90,10 +91,10 @@ namespace ifd {
 		// Icon, text
 		window->DrawList->AddImage(icon, ImVec2(pos.x, pos.y), ImVec2(pos.x + ICON_SIZE, pos.y + ICON_SIZE));
 		ImGui::RenderText(ImVec2(pos.x + g.Style.FramePadding.y + ICON_SIZE, pos.y + g.Style.FramePadding.y), label);
-		
+
 		return ret;
 	}
-	bool PathBox(const char* label, std::filesystem::path& path, char* pathBuffer, ImVec2 size_arg) {
+	bool PathBox(const char* label, std::filesystem::path& path, char* pathBuffer, int len, ImVec2 size_arg) {
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if (window->SkipItems)
 			return false;
@@ -101,7 +102,7 @@ namespace ifd {
 		bool ret = false;
 		const ImGuiID id = window->GetID(label);
 		int* state = window->StateStorage.GetIntRef(id, 0);
-		
+
 		ImGui::SameLine();
 
 		ImGuiContext& g = *GImGui;
@@ -110,7 +111,7 @@ namespace ifd {
 		ImVec2 uiPos = ImGui::GetCursorPos();
 		ImVec2 size = ImGui::CalcItemSize(size_arg, 200, GUI_ELEMENT_SIZE);
 		const ImRect bb(pos, pos + size);
-		
+
 		// buttons
 		if (!(*state & 0b001)) {
 			ImGui::PushClipRect(bb.Min, bb.Max, false);
@@ -126,7 +127,7 @@ namespace ifd {
 			std::vector<std::string> btnList;
 			float totalWidth = 0.0f;
 			for (auto comp : path) {
-				std::string section = comp.u8string();
+				std::string section = comp.string();
 				if (section.size() == 1 && (section[0] == '\\' || section[0] == '/'))
 					continue;
 
@@ -182,7 +183,7 @@ namespace ifd {
 
 			// click state
 			if (!anyOtherHC && clicked) {
-				strcpy(pathBuffer, path.u8string().c_str());
+				strncpy(pathBuffer, path.string().c_str(), len);
 				*state |= 0b001;
 				*state &= 0b011; // remove SetKeyboardFocus flag
 			}
@@ -190,9 +191,9 @@ namespace ifd {
 				*state &= 0b110;
 
 			// hover state
-			if (!anyOtherHC && hovered && !clicked) 
+			if (!anyOtherHC && hovered && !clicked)
 				*state |= 0b010;
-			else 
+			else
 				*state &= 0b101;
 
 			ImGui::PopClipRect();
@@ -213,7 +214,7 @@ namespace ifd {
 			if (ImGui::InputTextEx("##pathbox_input", "", pathBuffer, 1024, size_arg, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				std::string tempStr(pathBuffer);
 				if (std::filesystem::exists(tempStr))
-					path = std::filesystem::u8path(tempStr); 
+					path = std::filesystem::u8path(tempStr);
 				ret = true;
 			}
 			if (!skipActiveCheck && !ImGui::IsItemActive())
@@ -229,7 +230,7 @@ namespace ifd {
 
 		ImVec2 pos = window->DC.CursorPos;
 		bool ret = ImGui::InvisibleButton(label, ImVec2(GUI_ELEMENT_SIZE, GUI_ELEMENT_SIZE));
-		
+
 		bool hovered = ImGui::IsItemHovered();
 		bool active = ImGui::IsItemActive();
 
@@ -301,7 +302,7 @@ namespace ifd {
 		float iconPosX = pos.x + (size.x - iconSize) / 2.0f;
 		ImVec2 textSize = ImGui::CalcTextSize(label, 0, true, size.x);
 
-		
+
 		if (hovered || active || isSelected)
 			window->DrawList->AddRectFilled(g.LastItemData.Rect.Min, g.LastItemData.Rect.Max, ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[active ? ImGuiCol_HeaderActive : (isSelected ? ImGuiCol_Header : ImGuiCol_HeaderHovered)]));
 
@@ -316,10 +317,11 @@ namespace ifd {
 			float previewPosY = pos.y + (iconSize - availSize.y) / 2.0f;
 
 			window->DrawList->AddImage(icon, ImVec2(previewPosX, previewPosY), ImVec2(previewPosX + availSize.x, previewPosY + availSize.y));
-		} else
+		}
+		else
 			window->DrawList->AddImage(icon, ImVec2(iconPosX, pos.y), ImVec2(iconPosX + iconSize, pos.y + iconSize));
-		
-		window->DrawList->AddText(g.Font, g.FontSize, ImVec2(pos.x + (size.x-textSize.x) / 2.0f, pos.y + iconSize), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]), label, 0, size.x);
+
+		window->DrawList->AddText(g.Font, g.FontSize, ImVec2(pos.x + (size.x - textSize.x) / 2.0f, pos.y + iconSize), ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]), label, 0, size.x);
 
 
 		float lastButtomPos = ImGui::GetItemRectMax().x;
@@ -337,7 +339,7 @@ namespace ifd {
 		Size = std::filesystem::file_size(path, ec);
 
 		struct stat attr;
-		stat(path.u8string().c_str(), &attr);
+		stat(path.string().c_str(), &attr);
 		DateModified = attr.st_ctime;
 
 		HasIconPreview = false;
@@ -408,13 +410,13 @@ namespace ifd {
 		std::error_code ec;
 
 		// Quick Access
-		struct passwd *pw;
+		struct passwd* pw;
 		uid_t uid;
 		uid = geteuid();
 		pw = getpwuid(uid);
 		if (pw) {
 			std::string homePath = "/home/" + std::string(pw->pw_name);
-			
+
 			if (std::filesystem::exists(homePath, ec))
 				quickAccess->Children.push_back(new FileTreeNode(homePath));
 			if (std::filesystem::exists(homePath + "/Desktop", ec))
@@ -432,7 +434,7 @@ namespace ifd {
 		thisPC->Read = true;
 		for (const auto& entry : std::filesystem::directory_iterator("/", ec)) {
 			if (std::filesystem::is_directory(entry, ec))
-				thisPC->Children.push_back(new FileTreeNode(entry.path().u8string()));
+				thisPC->Children.push_back(new FileTreeNode(entry.path().string()));
 		}
 		m_treeCache.push_back(thisPC);
 #endif
@@ -536,7 +538,7 @@ namespace ifd {
 
 	void FileDialog::RemoveFavorite(const std::string& path)
 	{
-		auto itr = std::find(m_favorites.begin(), m_favorites.end(), m_currentDirectory.u8string());
+		auto itr = std::find(m_favorites.begin(), m_favorites.end(), m_currentDirectory.string());
 
 		if (itr != m_favorites.end())
 			m_favorites.erase(itr);
@@ -561,7 +563,7 @@ namespace ifd {
 			return;
 
 		m_favorites.push_back(path);
-		
+
 		// add to sidebar
 		for (auto& p : m_treeCache)
 			if (p->Path == "Quick Access") {
@@ -569,7 +571,7 @@ namespace ifd {
 				break;
 			}
 	}
-	
+
 	void FileDialog::m_select(const std::filesystem::path& path, bool isCtrlDown)
 	{
 		bool multiselect = isCtrlDown && m_isMultiselect;
@@ -577,7 +579,8 @@ namespace ifd {
 		if (!multiselect) {
 			m_selections.clear();
 			m_selections.push_back(path);
-		} else {
+		}
+		else {
 			auto it = std::find(m_selections.begin(), m_selections.end(), path);
 			if (it != m_selections.end())
 				m_selections.erase(it);
@@ -586,29 +589,29 @@ namespace ifd {
 		}
 
 		if (m_selections.size() == 1) {
-			std::string filename = m_selections[0].filename().u8string();
+			std::string filename = m_selections[0].filename().string();
 			if (filename.size() == 0)
-				filename = m_selections[0].u8string(); // drive
+				filename = m_selections[0].string(); // drive
 
-			strcpy(m_inputTextbox, filename.c_str());
+			strncpy(m_inputTextbox, filename.c_str(), sizeof(m_inputTextbox));
 		}
 		else {
 			std::string textboxVal = "";
 			for (const auto& sel : m_selections) {
-				std::string filename = sel.filename().u8string();
+				std::string filename = sel.filename().string();
 				if (filename.size() == 0)
-					filename = sel.u8string();
+					filename = sel.string();
 
 				textboxVal += "\"" + filename + "\", ";
 			}
-			strcpy(m_inputTextbox, textboxVal.substr(0, textboxVal.size() - 2).c_str());
+			strncpy(m_inputTextbox, textboxVal.substr(0, textboxVal.size() - 2).c_str(), sizeof(m_inputTextbox));
 		}
 	}
 
 	bool FileDialog::m_finalize(const std::string& filename)
 	{
 		bool hasResult = (!filename.empty() && m_type != IFD_DIALOG_DIRECTORY) || m_type == IFD_DIALOG_DIRECTORY;
-		
+
 		if (hasResult) {
 			if (!m_isMultiselect || m_selections.size() <= 1) {
 				std::filesystem::path path = std::filesystem::u8path(filename);
@@ -633,7 +636,7 @@ namespace ifd {
 					}
 				}
 			}
-			
+
 			if (m_type == IFD_DIALOG_SAVE) {
 				// add the extension
 				if (m_filterSelection < m_filterExtensions.size() && m_filterExtensions[m_filterSelection].size() > 0) {
@@ -704,10 +707,10 @@ namespace ifd {
 	void* FileDialog::m_getIcon(const std::filesystem::path& path)
 	{
 #ifdef _WIN32
-		if (m_icons.count(path.u8string()) > 0)
-			return m_icons[path.u8string()];
+		if (m_icons.count(path.string()) > 0)
+			return m_icons[path.string()];
 
-		std::string pathU8 = path.u8string();
+		std::string pathU8 = path.string();
 
 		std::error_code ec;
 		m_icons[pathU8] = nullptr;
@@ -742,7 +745,7 @@ namespace ifd {
 
 		ICONINFO iconInfo = { 0 };
 		GetIconInfo(fileInfo.hIcon, &iconInfo);
-		
+
 		if (iconInfo.hbmColor == nullptr)
 			return nullptr;
 
@@ -762,10 +765,10 @@ namespace ifd {
 
 		return m_icons[pathU8];
 #else
-		if (m_icons.count(path.u8string()) > 0)
-			return m_icons[path.u8string()];
+		if (m_icons.count(path.string()) > 0)
+			return m_icons[path.string()];
 
-		std::string pathU8 = path.u8string();
+		std::string pathU8 = path.string();
 
 		m_icons[pathU8] = nullptr;
 
@@ -803,7 +806,7 @@ namespace ifd {
 			uint8_t* invData = (uint8_t*)malloc(DEFAULT_ICON_SIZE * DEFAULT_ICON_SIZE * 4);
 			for (int y = 0; y < 32; y++) {
 				for (int x = 0; x < 32; x++) {
-					int index = (y* DEFAULT_ICON_SIZE + x) * 4;
+					int index = (y * DEFAULT_ICON_SIZE + x) * 4;
 					invData[index + 0] = 255 - data[index + 0];
 					invData[index + 1] = 255 - data[index + 1];
 					invData[index + 2] = 255 - data[index + 2];
@@ -842,7 +845,8 @@ namespace ifd {
 				m_previewLoaderRunning = true;
 				m_previewLoader = new std::thread(&FileDialog::m_loadPreview, this);
 			}
-		} else
+		}
+		else
 			m_clearIconPreview();
 	}
 	void FileDialog::m_clearIconPreview()
@@ -883,10 +887,10 @@ namespace ifd {
 				continue;
 
 			if (data.Path.has_extension()) {
-				std::string ext = data.Path.extension().u8string();
+				std::string ext = data.Path.extension().string();
 				if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
 					int width, height, nrChannels;
-					unsigned char* image = stbi_load(data.Path.u8string().c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+					unsigned char* image = stbi_load(data.Path.string().c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
 
 					if (image == nullptr || width == 0 || height == 0)
 						continue;
@@ -922,14 +926,14 @@ namespace ifd {
 		m_currentDirectory = p;
 #ifdef _WIN32
 		// drives don't work well without the backslash symbol
-		if (p.u8string().size() == 2 && p.u8string()[1] == ':')
-			m_currentDirectory = std::filesystem::u8path(p.u8string() + "\\");
+		if (p.string().size() == 2 && p.string()[1] == ':')
+			m_currentDirectory = std::filesystem::u8path(p.string() + "\\");
 #endif
 
 		m_clearIconPreview();
 		m_content.clear(); // p == "" after this line, due to reference
 		m_selectedFileItem = -1;
-		
+
 		if (m_type == IFD_DIALOG_DIRECTORY || m_type == IFD_DIALOG_FILE)
 			m_inputTextbox[0] = 0;
 		m_selections.clear();
@@ -939,14 +943,14 @@ namespace ifd {
 			m_clearIcons();
 		}
 
-		if (p.u8string() == "Quick Access") {
+		if (p.string() == "Quick Access") {
 			for (auto& node : m_treeCache) {
 				if (node->Path == p)
 					for (auto& c : node->Children)
 						m_content.push_back(FileData(c->Path));
 			}
-		} 
-		else if (p.u8string() == "This PC") {
+		}
+		else if (p.string() == "This PC") {
 			for (auto& node : m_treeCache) {
 				if (node->Path == p)
 					for (auto& c : node->Children)
@@ -965,7 +969,7 @@ namespace ifd {
 
 					// check if filename matches search query
 					if (m_searchBuffer[0]) {
-						std::string filename = info.Path.u8string();
+						std::string filename = info.Path.string();
 
 						std::string filenameSearch = filename;
 						std::string query(m_searchBuffer);
@@ -981,7 +985,7 @@ namespace ifd {
 						if (m_filterSelection < m_filterExtensions.size()) {
 							const auto& exts = m_filterExtensions[m_filterSelection];
 							if (exts.size() > 0) {
-								std::string extension = info.Path.extension().u8string();
+								std::string extension = info.Path.extension().string();
 
 								// extension not found? skip
 								if (std::count(exts.begin(), exts.end(), extension) == 0)
@@ -1006,7 +1010,7 @@ namespace ifd {
 		// split into directories and files
 		std::partition(m_content.begin(), m_content.end(), [](const FileData& data) {
 			return data.IsDirectory;
-		});
+			});
 
 		if (m_content.size() > 0) {
 			// find where the file list starts
@@ -1019,8 +1023,8 @@ namespace ifd {
 			auto compareFn = [column, sortDirection](const FileData& left, const FileData& right) -> bool {
 				// name
 				if (column == 0) {
-					std::string lName = left.Path.u8string();
-					std::string rName = right.Path.u8string();
+					std::string lName = left.Path.string();
+					std::string rName = right.Path.string();
 
 					std::transform(lName.begin(), lName.end(), lName.begin(), ::tolower);
 					std::transform(rName.begin(), rName.end(), rName.begin(), ::tolower);
@@ -1063,16 +1067,16 @@ namespace ifd {
 		std::error_code ec;
 		ImGui::PushID(node);
 		bool isClicked = false;
-		std::string displayName = node->Path.stem().u8string();
+		std::string displayName = node->Path.stem().string();
 		if (displayName.size() == 0)
-			displayName = node->Path.u8string();
+			displayName = node->Path.string();
 		if (FolderNode(displayName.c_str(), (ImTextureID)m_getIcon(node->Path), isClicked)) {
 			if (!node->Read) {
 				// cache children if it's not already cached
 				if (std::filesystem::exists(node->Path, ec))
 					for (const auto& entry : std::filesystem::directory_iterator(node->Path, ec)) {
 						if (std::filesystem::is_directory(entry, ec))
-							node->Children.push_back(new FileTreeNode(entry.path().u8string()));
+							node->Children.push_back(new FileTreeNode(entry.path().string()));
 					}
 				node->Read = true;
 			}
@@ -1096,27 +1100,27 @@ namespace ifd {
 		if (m_zoom == 1.0f) {
 			if (ImGui::BeginTable("##contentTable", 3, /*ImGuiTableFlags_Resizable |*/ ImGuiTableFlags_Sortable, ImVec2(0, -FLT_MIN))) {
 				// header
-				ImGui::TableSetupColumn("Name##filename", ImGuiTableColumnFlags_WidthStretch, 0.0f -1.0f, 0);
+				ImGui::TableSetupColumn("Name##filename", ImGuiTableColumnFlags_WidthStretch, 0.0f - 1.0f, 0);
 				ImGui::TableSetupColumn("Date modified##filedate", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0.0f, 1);
 				ImGui::TableSetupColumn("Size##filesize", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 0.0f, 2);
-                ImGui::TableSetupScrollFreeze(0, 1);
+				ImGui::TableSetupScrollFreeze(0, 1);
 				ImGui::TableHeadersRow();
 
 				// sort
 				if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
-                    if (sortSpecs->SpecsDirty) {
+					if (sortSpecs->SpecsDirty) {
 						sortSpecs->SpecsDirty = false;
 						m_sortContent(sortSpecs->Specs->ColumnUserID, sortSpecs->Specs->SortDirection);
-                    }
+					}
 				}
 
 				// content
 				int fileId = 0;
 				for (auto& entry : m_content) {
-					std::string filename = entry.Path.filename().u8string();
+					std::string filename = entry.Path.filename().string();
 					if (filename.size() == 0)
-						filename = entry.Path.u8string(); // drive
-					
+						filename = entry.Path.string(); // drive
+
 					bool isSelected = std::count(m_selections.begin(), m_selections.end(), entry.Path);
 
 					ImGui::TableNextRow();
@@ -1133,9 +1137,11 @@ namespace ifd {
 							if (isDir) {
 								m_setDirectory(entry.Path);
 								break;
-							} else
+							}
+							else
 								m_finalize(filename);
-						} else {
+						}
+						else {
 							if ((isDir && m_type == IFD_DIALOG_DIRECTORY) || !isDir)
 								m_select(entry.Path, ImGui::GetIO().KeyCtrl);
 						}
@@ -1153,7 +1159,7 @@ namespace ifd {
 
 					// size
 					ImGui::TableSetColumnIndex(2);
-					ImGui::Text("%.3f KiB", entry.Size/1024.0f);
+					ImGui::Text("%.3f KiB", entry.Size / 1024.0f);
 				}
 
 				ImGui::EndTable();
@@ -1170,9 +1176,9 @@ namespace ifd {
 					entry.IconPreviewData = nullptr;
 				}
 
-				std::string filename = entry.Path.filename().u8string();
+				std::string filename = entry.Path.filename().string();
 				if (filename.size() == 0)
-					filename = entry.Path.u8string(); // drive
+					filename = entry.Path.string(); // drive
 
 				bool isSelected = std::count(m_selections.begin(), m_selections.end(), entry.Path);
 
@@ -1222,7 +1228,7 @@ namespace ifd {
 				ImGui::CloseCurrentPopup();
 			else {
 				const FileData& data = m_content[m_selectedFileItem];
-				ImGui::TextWrapped("Are you sure you want to delete %s?", data.Path.filename().u8string().c_str());
+				ImGui::TextWrapped("Are you sure you want to delete %s?", data.Path.filename().string().c_str());
 				if (ImGui::Button("Yes")) {
 					std::error_code ec;
 					std::filesystem::remove_all(data.Path, ec);
@@ -1281,7 +1287,7 @@ namespace ifd {
 	{
 		/***** TOP BAR *****/
 		bool noBackHistory = m_backHistory.empty(), noForwardHistory = m_forwardHistory.empty();
-		
+
 		ImGui::PushStyleColor(ImGuiCol_Button, 0);
 		if (noBackHistory) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
 		if (ImGui::ArrowButtonEx("##back", ImGuiDir_Left, ImVec2(GUI_ELEMENT_SIZE, GUI_ELEMENT_SIZE), m_backHistory.empty() * ImGuiItemFlags_Disabled)) {
@@ -1293,7 +1299,7 @@ namespace ifd {
 		}
 		if (noBackHistory) ImGui::PopStyleVar();
 		ImGui::SameLine();
-		
+
 		if (noForwardHistory) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
 		if (ImGui::ArrowButtonEx("##forward", ImGuiDir_Right, ImVec2(GUI_ELEMENT_SIZE, GUI_ELEMENT_SIZE), m_forwardHistory.empty() * ImGuiItemFlags_Disabled)) {
 			std::filesystem::path newPath = m_forwardHistory.top();
@@ -1304,22 +1310,22 @@ namespace ifd {
 		}
 		if (noForwardHistory) ImGui::PopStyleVar();
 		ImGui::SameLine();
-		
+
 		if (ImGui::ArrowButtonEx("##up", ImGuiDir_Up, ImVec2(GUI_ELEMENT_SIZE, GUI_ELEMENT_SIZE))) {
 			if (m_currentDirectory.has_parent_path())
 				m_setDirectory(m_currentDirectory.parent_path());
 		}
-		
+
 		std::filesystem::path curDirCopy = m_currentDirectory;
-		if (PathBox("##pathbox", curDirCopy, m_pathBuffer, ImVec2(-250, GUI_ELEMENT_SIZE)))
+		if (PathBox("##pathbox", curDirCopy, m_pathBuffer, sizeof(m_pathBuffer), ImVec2(-250, GUI_ELEMENT_SIZE)))
 			m_setDirectory(curDirCopy);
 		ImGui::SameLine();
-		
-		if (FavoriteButton("##dirfav", std::count(m_favorites.begin(), m_favorites.end(), m_currentDirectory.u8string()))) {
-			if (std::count(m_favorites.begin(), m_favorites.end(), m_currentDirectory.u8string()))
-				RemoveFavorite(m_currentDirectory.u8string());
-			else 
-				AddFavorite(m_currentDirectory.u8string());
+
+		if (FavoriteButton("##dirfav", std::count(m_favorites.begin(), m_favorites.end(), m_currentDirectory.string()))) {
+			if (std::count(m_favorites.begin(), m_favorites.end(), m_currentDirectory.string()))
+				RemoveFavorite(m_currentDirectory.string());
+			else
+				AddFavorite(m_currentDirectory.string());
 		}
 		ImGui::SameLine();
 		ImGui::PopStyleColor();
@@ -1342,11 +1348,11 @@ namespace ifd {
 			for (auto node : m_treeCache)
 				m_renderTree(node);
 			ImGui::EndChild();
-			
+
 			// content on the right side
 			ImGui::TableSetColumnIndex(1);
 			ImGui::BeginChild("##contentContainer", ImVec2(0, -bottomBarHeight));
-				m_renderContent();
+			m_renderContent();
 			ImGui::EndChild();
 			if (ImGui::IsItemHovered() && ImGui::GetIO().KeyCtrl && ImGui::GetIO().MouseWheel != 0.0f) {
 				m_zoom = std::min<float>(25.0f, std::max<float>(1.0f, m_zoom + ImGui::GetIO().MouseWheel));
@@ -1360,7 +1366,7 @@ namespace ifd {
 		}
 
 
-		
+
 		/***** BOTTOM BAR *****/
 		ImGui::Text("File name:");
 		ImGui::SameLine();
@@ -1408,7 +1414,7 @@ namespace ifd {
 
 		int escapeKey = ImGui::GetIO().KeyMap[ImGuiKey_Escape];
 		if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-			 escapeKey >= 0 && ImGui::IsKeyPressed(escapeKey))
+			escapeKey >= 0 && ImGui::IsKeyPressed(escapeKey))
 			m_isOpen = false;
 	}
 }

@@ -2,7 +2,7 @@
 #include "Shader.h"
 #include "util.h"
 
-Shader::Shader( const char * sourceCode, int shaderType )
+Shader::Shader(const char* sourceCode, int shaderType)
 {
 	// Create Shader And Program Objects
 	ID = glCreateShader(shaderType);

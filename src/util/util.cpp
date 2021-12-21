@@ -274,7 +274,7 @@ bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
 
 	bool inside = true;
 	char quadrant[3];
-	register int i;
+	int i;
 	int whichPlane;
 	double maxT[3];
 	double candidatePlane[3];
@@ -879,11 +879,11 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
 		start_pos += to.length();
 	}
 }
-void fixupPath(char * path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
+void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 {
 	std::string tmpPath = path;
 	fixupPath(tmpPath, startslash, endslash);
-	sprintf(path, "%s", tmpPath.c_str());
+	snprintf(path, sizeof(path), "%s", tmpPath.c_str());
 }
 
 void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
@@ -920,7 +920,7 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH en
 
 	if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
 	{
-		if (path.empty() || ( path.back() != '\\' && path.back() != '/') )
+		if (path.empty() || (path.back() != '\\' && path.back() != '/'))
 		{
 #ifdef WIN32
 			path = path + "\\";

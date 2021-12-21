@@ -101,7 +101,7 @@ void Clipper::clipEdges(CMesh& mesh, BSPPLANE& clip) {
 			// the edge is split by the plane. Compute the point of intersection.
 
 			float t = d0 / (d0 - d1);
-			vec3 intersect = v0.pos*(1 - t) + v1.pos * t;
+			vec3 intersect = v0.pos * (1 - t) + v1.pos * t;
 			int idx = mesh.verts.size();
 			mesh.verts.push_back(intersect);
 
@@ -169,7 +169,7 @@ bool Clipper::getOpenPolyline(CMesh& mesh, CFace& face, int& start, int& final) 
 				final = i0;
 			}
 		}
-		
+
 		if (mesh.verts[i1].occurs == 1) {
 			if (start == -1) {
 				start = i1;
@@ -203,30 +203,30 @@ CMesh Clipper::createMaxSizeVolume() {
 	}
 
 	{
-		mesh.edges.emplace_back(CEdge(0, 1,  0, 5)); // 0 front bottom
-		mesh.edges.emplace_back(CEdge(0, 4,  0, 2)); // 1 front left
-		mesh.edges.emplace_back(CEdge(4, 5,  0, 4)); // 2 front top
-		mesh.edges.emplace_back(CEdge(5, 1,  0, 3)); // 3 front right
+		mesh.edges.emplace_back(CEdge(0, 1, 0, 5)); // 0 front bottom
+		mesh.edges.emplace_back(CEdge(0, 4, 0, 2)); // 1 front left
+		mesh.edges.emplace_back(CEdge(4, 5, 0, 4)); // 2 front top
+		mesh.edges.emplace_back(CEdge(5, 1, 0, 3)); // 3 front right
 
-		mesh.edges.emplace_back(CEdge(3, 2,  1, 5)); // 4 back bottom
-		mesh.edges.emplace_back(CEdge(3, 7,  1, 2)); // 5 back left
-		mesh.edges.emplace_back(CEdge(6, 7,  1, 4)); // 6 back top
-		mesh.edges.emplace_back(CEdge(2, 6,  1, 3)); // 7 back right
+		mesh.edges.emplace_back(CEdge(3, 2, 1, 5)); // 4 back bottom
+		mesh.edges.emplace_back(CEdge(3, 7, 1, 2)); // 5 back left
+		mesh.edges.emplace_back(CEdge(6, 7, 1, 4)); // 6 back top
+		mesh.edges.emplace_back(CEdge(2, 6, 1, 3)); // 7 back right
 
-		mesh.edges.emplace_back(CEdge(0, 3,  2, 5)); // 8 left bottom
-		mesh.edges.emplace_back(CEdge(4, 7,  2, 4)); // 9 left top
+		mesh.edges.emplace_back(CEdge(0, 3, 2, 5)); // 8 left bottom
+		mesh.edges.emplace_back(CEdge(4, 7, 2, 4)); // 9 left top
 
-		mesh.edges.emplace_back(CEdge(1, 2,  3, 5)); // 10 right bottom
-		mesh.edges.emplace_back(CEdge(5, 6,  3, 4)); // 11 right top
+		mesh.edges.emplace_back(CEdge(1, 2, 3, 5)); // 10 right bottom
+		mesh.edges.emplace_back(CEdge(5, 6, 3, 4)); // 11 right top
 	}
 
 	{
-		mesh.faces.emplace_back(CFace({ 0, 1, 2, 3 },   vec3( 0, -1,  0)));	// 0 front
-		mesh.faces.emplace_back(CFace({ 4, 5, 6, 7 },   vec3( 0,  1,  0)));	// 1 back
-		mesh.faces.emplace_back(CFace({ 1, 5, 8, 9 },   vec3(-1,  0,  0)));	// 2 left
-		mesh.faces.emplace_back(CFace({ 3, 7, 10, 11 }, vec3( 1,  0,  0)));	// 3 right
-		mesh.faces.emplace_back(CFace({ 2, 6, 9, 11 },  vec3( 0,  0,  1)));	// 4 top
-		mesh.faces.emplace_back(CFace({ 0, 4, 8, 10 },  vec3( 0,  0, -1)));	// 5 bottom
+		mesh.faces.emplace_back(CFace({ 0, 1, 2, 3 }, vec3(0, -1, 0)));	// 0 front
+		mesh.faces.emplace_back(CFace({ 4, 5, 6, 7 }, vec3(0, 1, 0)));	// 1 back
+		mesh.faces.emplace_back(CFace({ 1, 5, 8, 9 }, vec3(-1, 0, 0)));	// 2 left
+		mesh.faces.emplace_back(CFace({ 3, 7, 10, 11 }, vec3(1, 0, 0)));	// 3 right
+		mesh.faces.emplace_back(CFace({ 2, 6, 9, 11 }, vec3(0, 0, 1)));	// 4 top
+		mesh.faces.emplace_back(CFace({ 0, 4, 8, 10 }, vec3(0, 0, -1)));	// 5 bottom
 	}
 
 	return mesh;

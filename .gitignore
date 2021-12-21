@@ -16,3 +16,11 @@ build/CMakeFiles/*
 *.stamp
 *.in
 *.cmake
+vs-project/.vs/bspguy/v17/.suo
+vs-project/.vs/bspguy/v17/fileList.bin
+*.db-shm
+*.db
+*.db-wal
+*.opendb
+*.ipch
+*.pdb

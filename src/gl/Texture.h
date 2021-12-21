@@ -3,7 +3,7 @@
 
 class Texture
 {
-public:	
+public:
 	uint id; // OpenGL texture ID
 	uint height, width;
 	int nearFilter;
@@ -21,7 +21,7 @@ public:
 	// use this texture for rendering
 	void bind();
 
-	byte * data; // RGB(A) data
+	byte* data; // RGB(A) data
 
 	bool uploaded = false;
 };

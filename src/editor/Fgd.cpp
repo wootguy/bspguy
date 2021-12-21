@@ -16,7 +16,7 @@ std::map<std::string, int> fgdKeyTypes{
 Fgd::Fgd(std::string path) {
 	this->path = path;
 	this->name = stripExt(basename(path));
-    this->lineNum = 0;
+	this->lineNum = 0;
 }
 
 Fgd::~Fgd() {
@@ -80,7 +80,7 @@ bool Fgd::parse() {
 
 		if (line.empty())
 			continue;
-		
+
 		if (line[0] == '@') {
 			if (bracketNestLevel) {
 				logf("ERROR: New FGD class definition starts before previous one ends (line %d)\n", lineNum);
@@ -113,7 +113,7 @@ bool Fgd::parse() {
 				logf("ERROR: Choice values begin before any keyvalue are defined (line %d)\n", lineNum);
 				continue;
 			}
-			KeyvalueDef& lastKey = fgdClass->keyvalues[fgdClass->keyvalues.size()-1];
+			KeyvalueDef& lastKey = fgdClass->keyvalues[fgdClass->keyvalues.size() - 1];
 			parseChoicesOrFlags(lastKey);
 		}
 	}
@@ -150,7 +150,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 	else {
 		logf("ERROR: Unrecognized FGD class type '%s'\n", typeParts[0].c_str());
 	}
-	
+
 	// parse constructors/properties
 	for (int i = 1; i < typeParts.size(); i++) {
 		std::string lpart = toLowerCase(typeParts[i]);
@@ -245,9 +245,9 @@ void Fgd::parseKeyvalue(FgdClass& outClass) {
 		def.description = getValueInQuotes(keyParts[1]);
 	else {
 		def.description = def.name;
-		
+
 		// capitalize (infodecal)
-		if ((def.description[0] > 96) && (def.description[0] < 123)) 
+		if ((def.description[0] > 96) && (def.description[0] < 123))
 			def.description[0] = def.description[0] - 32;
 	}
 
@@ -283,7 +283,7 @@ void Fgd::parseChoicesOrFlags(KeyvalueDef& outKey) {
 		def.ivalue = atoi(keyParts[0].c_str());
 		def.isInteger = true;
 	}
-	
+
 	if (keyParts.size() > 1)
 		def.name = getValueInQuotes(keyParts[1]);
 
@@ -319,13 +319,13 @@ bool Fgd::stringGroupStarts(std::string s) {
 	if (s.find('(') != std::string::npos) {
 		return s.find(')') == std::string::npos;
 	}
-	
+
 	size_t startStringPos = s.find('\"');
 	if (startStringPos != std::string::npos) {
 		size_t endStringPos = s.rfind('\"');
 		return endStringPos == startStringPos || endStringPos == std::string::npos;
 	}
-	
+
 	return false;
 }
 
@@ -365,7 +365,7 @@ void Fgd::processClassInheritance() {
 			std::set<std::string> addedKeys;
 			std::set<std::string> addedSpawnflags;
 			//logf << classes[i]->name << " INHERITS FROM: ";
-			for (int k = allBaseClasses.size()-1; k >= 0; k--) {
+			for (int k = allBaseClasses.size() - 1; k >= 0; k--) {
 				if (!classes[i]->colorSet && allBaseClasses[k]->colorSet) {
 					classes[i]->color = allBaseClasses[k]->color;
 				}
@@ -414,15 +414,15 @@ void Fgd::processClassInheritance() {
 					classes[i]->keyvalues[c].choices = newSpawnflags;
 				}
 			}
-			
+
 			//logf << endl;
 		}
-		
+
 	}
 }
 
 void FgdClass::getBaseClasses(Fgd* fgd, std::vector<FgdClass*>& inheritanceList) {
-	for (int i = baseClasses.size()-1; i >= 0; i--) {
+	for (int i = baseClasses.size() - 1; i >= 0; i--) {
 		if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
 			logf("ERROR: Invalid base class %s\n", baseClasses[i].c_str());
 			continue;
@@ -555,7 +555,7 @@ std::vector<std::string> Fgd::splitStringIgnoringQuotes(std::string s, std::stri
 		if (!foundUnquotedDelimitter) {
 			break;
 		}
-		
+
 	}
 
 	return split;

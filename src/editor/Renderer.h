@@ -85,6 +85,8 @@ struct AppSettings {
 	void save(std::string path);
 };
 
+extern std::string GetWorkDir();
+
 class Renderer;
 
 extern AppSettings g_settings;
@@ -265,7 +267,7 @@ private:
 	void globalShortcutControls(); // these work even with the UI selected
 	void pickObject(); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
-	void applyTransform(bool forceUpdate=false);
+	void applyTransform(bool forceUpdate = false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
 

@@ -696,7 +696,7 @@ void StudioModel::DrawPoints()
 
 			for (; i > 0; i--, ptricmds += 4)
 			{
-				
+
 				if (elementsThisStrip++ >= 3) {
 					int v1PosIdx = fanStartVertIdx;
 					int v2PosIdx = vertexIdx - 3 * 1;
@@ -908,8 +908,8 @@ studiohdr_t* StudioModel::LoadModel(char* modelname)
 	{
 		for (i = 0; i < phdr->numtextures; i++)
 		{
-			// strcpy( name, mod->name );
-			// strcpy( name, ptexture[i].name );
+			// strncpy( name, mod->name );
+			// strncpy( name, ptexture[i].name );
 			UploadTexture(&ptexture[i], pin + ptexture[i].index, pin + ptexture[i].width * ptexture[i].height + ptexture[i].index);
 		}
 	}
@@ -956,8 +956,8 @@ void StudioModel::Init(char* modelname)
 	{
 		char texturename[256];
 
-		strcpy(texturename, modelname);
-		strcpy(&texturename[strlen(texturename) - 4], "T.mdl");
+		strncpy(texturename, modelname, sizeof(texturename));
+		strncpy(&texturename[strlen(texturename) - 4], "T.mdl", 5);
 
 		m_ptexturehdr = LoadModel(texturename);
 	}
@@ -973,8 +973,8 @@ void StudioModel::Init(char* modelname)
 		{
 			char seqgroupname[256];
 
-			strcpy(seqgroupname, modelname);
-			sprintf(&seqgroupname[strlen(seqgroupname) - 4], "%02d.mdl", i);
+			strncpy(seqgroupname, modelname, sizeof(seqgroupname));
+			snprintf(&seqgroupname[strlen(seqgroupname) - 4], 20, "%02d.mdl", i);
 
 			m_panimhdr[i] = LoadDemandSequences(seqgroupname);
 		}

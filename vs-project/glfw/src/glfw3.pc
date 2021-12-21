@@ -1,7 +1,7 @@
-prefix=bspguy
+prefix=C:/Program Files (x86)/bspguy
 exec_prefix=${prefix}
-includedir=bspguy/include
-libdir=bspguy/lib
+includedir=C:/Program Files (x86)/bspguy/include
+libdir=C:/Program Files (x86)/bspguy/lib
 
 Name: GLFW
 Description: A multi-platform library for OpenGL, window and input

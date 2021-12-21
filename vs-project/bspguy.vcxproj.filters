@@ -1,249 +1,246 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\main.cpp">
+    <ClCompile Include=".\..\src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\CommandLine.cpp">
+    <ClCompile Include=".\..\src\cli\CommandLine.cpp">
       <Filter>Source Files\cli</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\ProgressMeter.cpp">
+    <ClCompile Include=".\..\src\cli\ProgressMeter.cpp">
       <Filter>Source Files\cli</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\BspMerger.cpp">
+    <ClCompile Include=".\..\src\bsp\BspMerger.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Bsp.cpp">
+    <ClCompile Include=".\..\src\bsp\Bsp.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsptypes.cpp">
+    <ClCompile Include=".\..\src\bsp\bsptypes.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Entity.cpp">
+    <ClCompile Include=".\..\src\bsp\Entity.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Keyvalue.cpp">
+    <ClCompile Include=".\..\src\bsp\Keyvalue.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Wad.cpp">
+    <ClCompile Include=".\..\src\bsp\Wad.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\remap.cpp">
+    <ClCompile Include=".\..\src\bsp\remap.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\util.cpp">
+    <ClCompile Include=".\..\src\util\util.cpp">
       <Filter>Source Files\util</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\vectors.cpp">
+    <ClCompile Include=".\..\src\util\vectors.cpp">
       <Filter>Source Files\util</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\mat4x4.cpp">
+    <ClCompile Include=".\..\src\util\mat4x4.cpp">
       <Filter>Source Files\util</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\shaders.cpp">
+    <ClCompile Include=".\..\src\gl\shaders.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\primitives.cpp">
+    <ClCompile Include=".\..\src\gl\primitives.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Shader.cpp">
+    <ClCompile Include=".\..\src\gl\Shader.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\ShaderProgram.cpp">
+    <ClCompile Include=".\..\src\gl\ShaderProgram.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\VertexBuffer.cpp">
+    <ClCompile Include=".\..\src\gl\VertexBuffer.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Texture.cpp">
+    <ClCompile Include=".\..\src\gl\Texture.cpp">
       <Filter>Source Files\gl</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\LightmapNode.cpp">
+    <ClCompile Include=".\..\src\editor\LightmapNode.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Renderer.cpp">
+    <ClCompile Include=".\..\src\editor\Renderer.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Gui.cpp">
+    <ClCompile Include=".\..\src\editor\Gui.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\BspRenderer.cpp">
+    <ClCompile Include=".\..\src\editor\BspRenderer.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\PointEntRenderer.cpp">
+    <ClCompile Include=".\..\src\editor\PointEntRenderer.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Fgd.cpp">
+    <ClCompile Include=".\..\src\editor\Fgd.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Clipper.cpp">
+    <ClCompile Include=".\..\src\editor\Clipper.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Command.cpp">
+    <ClCompile Include=".\..\src\editor\Command.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\rad.cpp">
+    <ClCompile Include=".\..\src\qtools\rad.cpp">
       <Filter>Source Files\qtools</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\vis.cpp">
+    <ClCompile Include=".\..\src\qtools\vis.cpp">
       <Filter>Source Files\qtools</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\winding.cpp">
+    <ClCompile Include=".\..\src\qtools\winding.cpp">
       <Filter>Source Files\qtools</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui.cpp">
+    <ClCompile Include=".\..\imgui\imgui.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_tables.cpp">
+    <ClCompile Include=".\..\imgui\imgui_tables.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_widgets.cpp">
+    <ClCompile Include=".\..\imgui\imgui_widgets.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_draw.cpp">
+    <ClCompile Include=".\..\imgui\imgui_draw.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\imgui_demo.cpp">
+    <ClCompile Include=".\..\imgui\backends\imgui_impl_glfw.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\backends\imgui_impl_glfw.cpp">
+    <ClCompile Include=".\..\imgui\backends\imgui_impl_opengl3.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\imgui\backends\imgui_impl_opengl3.cpp">
+    <ClCompile Include=".\..\src\util\lodepng.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\util\lodepng.cpp">
-      <Filter>Source Files\util\lib</Filter>
-    </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\mathlib.c">
+    <ClCompile Include=".\..\src\mdlviewer\mathlib.c">
       <Filter>Source Files\mdlviewer</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\cmdlib.c">
+    <ClCompile Include=".\..\src\mdlviewer\cmdlib.c">
       <Filter>Source Files\mdlviewer</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.cpp">
+    <ClCompile Include=".\..\src\mdlviewer\studio_render.cpp">
       <Filter>Source Files\mdlviewer</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\ImFileDialog.cpp">
+    <ClCompile Include=".\..\src\filedialog\ImFileDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\types.h">
+    <ClInclude Include=".\..\src\types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\CommandLine.h">
+    <ClInclude Include=".\..\src\cli\CommandLine.h">
       <Filter>Header Files\cli</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\cli\ProgressMeter.h">
+    <ClInclude Include=".\..\src\cli\ProgressMeter.h">
       <Filter>Header Files\cli</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\BspMerger.h">
+    <ClInclude Include=".\..\src\bsp\BspMerger.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Bsp.h">
+    <ClInclude Include=".\..\src\bsp\Bsp.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsplimits.h">
+    <ClInclude Include=".\..\src\bsp\bsplimits.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\bsptypes.h">
+    <ClInclude Include=".\..\src\bsp\bsptypes.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Entity.h">
+    <ClInclude Include=".\..\src\bsp\Entity.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Keyvalue.h">
+    <ClInclude Include=".\..\src\bsp\Keyvalue.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\Wad.h">
+    <ClInclude Include=".\..\src\bsp\Wad.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\bsp\remap.h">
+    <ClInclude Include=".\..\src\bsp\remap.h">
       <Filter>Header Files\bsp</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\util.h">
+    <ClInclude Include=".\..\src\util\util.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\vectors.h">
+    <ClInclude Include=".\..\src\util\vectors.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\mat4x4.h">
+    <ClInclude Include=".\..\src\util\mat4x4.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\shaders.h">
+    <ClInclude Include=".\..\src\gl\shaders.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\primitives.h">
+    <ClInclude Include=".\..\src\gl\primitives.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Shader.h">
+    <ClInclude Include=".\..\src\gl\Shader.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\ShaderProgram.h">
+    <ClInclude Include=".\..\src\gl\ShaderProgram.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\VertexBuffer.h">
+    <ClInclude Include=".\..\src\gl\VertexBuffer.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\gl\Texture.h">
+    <ClInclude Include=".\..\src\gl\Texture.h">
       <Filter>Header Files\gl</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\LightmapNode.h">
+    <ClInclude Include=".\..\src\editor\LightmapNode.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Renderer.h">
+    <ClInclude Include=".\..\src\editor\Renderer.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Gui.h">
+    <ClInclude Include=".\..\src\editor\Gui.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\BspRenderer.h">
+    <ClInclude Include=".\..\src\editor\BspRenderer.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\PointEntRenderer.h">
+    <ClInclude Include=".\..\src\editor\PointEntRenderer.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Fgd.h">
+    <ClInclude Include=".\..\src\editor\Fgd.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Clipper.h">
+    <ClInclude Include=".\..\src\editor\Clipper.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\editor\Command.h">
+    <ClInclude Include=".\..\src\editor\Command.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\rad.h">
+    <ClInclude Include=".\..\src\qtools\rad.h">
       <Filter>Header Files\qtools</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\vis.h">
+    <ClInclude Include=".\..\src\qtools\vis.h">
       <Filter>Header Files\qtools</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\qtools\winding.h">
+    <ClInclude Include=".\..\src\qtools\winding.h">
       <Filter>Header Files\qtools</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\util\lodepng.h">
+    <ClInclude Include=".\..\src\util\lodepng.h">
       <Filter>Header Files\util\lib</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\mathlib.h">
+    <ClInclude Include=".\..\src\mdlviewer\mathlib.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\cmdlib.h">
+    <ClInclude Include=".\..\src\mdlviewer\cmdlib.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_event.h">
+    <ClInclude Include=".\..\src\mdlviewer\studio_event.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio.h">
+    <ClInclude Include=".\..\src\mdlviewer\studio.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\mdlviewer\studio_render.h">
+    <ClInclude Include=".\..\src\mdlviewer\studio_render.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\stb_image.h">
+    <ClInclude Include=".\..\src\filedialog\stb_image.h">
       <Filter>Header Files\filedialog</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Projects\CounterStrikeTools\bspguy\src\filedialog\ImFileDialog.h">
+    <ClInclude Include=".\..\src\filedialog\ImFileDialog.h">
       <Filter>Header Files\filedialog</Filter>
     </ClInclude>
   </ItemGroup>

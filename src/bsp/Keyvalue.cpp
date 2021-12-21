@@ -6,8 +6,8 @@ Keyvalue::Keyvalue(std::string line)
 	int begin = -1;
 	int end = -1;
 
-    key.clear();
-    value.clear();
+	key.clear();
+	value.clear();
 	int comment = 0;
 
 	for (uint i = 0; i < line.length(); i++)
@@ -16,8 +16,8 @@ Keyvalue::Keyvalue(std::string line)
 		{
 			if (++comment >= 2)
 			{
-                key.clear();
-                value.clear();
+				key.clear();
+				value.clear();
 				break;
 			}
 		}
@@ -32,12 +32,12 @@ Keyvalue::Keyvalue(std::string line)
 				end = i;
 				if (key.length() == 0)
 				{
-					key = line.substr(begin,end-begin);
+					key = line.substr(begin, end - begin);
 					begin = end = -1;
 				}
 				else
 				{
-					value = line.substr(begin,end-begin);
+					value = line.substr(begin, end - begin);
 					break;
 				}
 			}
@@ -51,7 +51,7 @@ Keyvalue::Keyvalue(void)
 	value.clear();
 }
 
-Keyvalue::Keyvalue( std::string key, std::string value )
+Keyvalue::Keyvalue(std::string key, std::string value)
 {
 	this->key = std::move(key);
 	this->value = std::move(value);
