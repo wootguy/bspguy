@@ -2090,6 +2090,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::InputText(("##key" + std::to_string(i) + "_" + std::to_string(app->pickCount)).c_str(), keyNames[i], MAX_KEY_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
 
+
 			if (invalidKey || hoveredDrag[i]) {
 				ImGui::PopStyleColor();
 			}
@@ -2110,6 +2111,27 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::SetNextItemWidth(inputWidth);
 			ImGui::InputText(("##val" + std::to_string(i) + std::to_string(app->pickCount)).c_str(), keyValues[i], MAX_VAL_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
+
+
+
+			if (strcmp(keyNames[i], "angles") == 0 )
+			{
+				ImGui::SetNextItemWidth(inputWidth);
+				if (IsEntNotSupportAngles(ent->keyvalues["classname"]))
+				{
+					ImGui::TextUnformatted("ANGLES NOT SUPPORTED");
+				}
+				else if (ent->keyvalues["classname"] == "env_sprite" )
+				{
+					ImGui::TextUnformatted("ANGLES PARTIALLY SUPPORT");
+				}
+				else if (ent->keyvalues["classname"] == "func_breakable")
+				{
+					ImGui::TextUnformatted("ANGLES Y NOT SUPPORT");
+				}
+			}
+			
+
 			if (hoveredDrag[i]) {
 				ImGui::PopStyleColor();
 			}

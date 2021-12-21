@@ -1039,6 +1039,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 			{
 				// based at cs 1.6 gamedll
 				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateY(0);
 				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 			}
 			else if (IsEntNotSupportAngles(ent->keyvalues["classname"]))
@@ -1051,6 +1052,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 				if (angles.y != 0.0 && angles.z == 0.0)
 				{
 					renderEnts[entIdx].modelMat.rotateZ(-(angles.y * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateY(0);
 					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
 				}
 				else
