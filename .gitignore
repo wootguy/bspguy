@@ -24,3 +24,4 @@ vs-project/.vs/bspguy/v17/fileList.bin
 *.opendb
 *.ipch
 *.pdb
+*.ilk

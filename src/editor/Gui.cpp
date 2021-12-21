@@ -97,10 +97,6 @@ void Gui::draw() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-#ifndef NDEBUG
-	ImGui::ShowDemoWindow();
-#endif
-
 	drawMenuBar();
 
 	drawFpsOverlay();
@@ -4178,49 +4174,52 @@ void Gui::drawTextureTool() {
 		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
 			if (app->selectedFaces.size()) {
 				int faceIdx = app->selectedFaces[0];
-				BSPFACE& face = map->faces[faceIdx];
-				BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-				int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+				if (faceIdx >= 0)
+				{
+					BSPFACE& face = map->faces[faceIdx];
+					BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+					int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
 
-				width = height = 0;
-				if (texOffset != -1) {
-					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-					width = tex.nWidth;
-					height = tex.nHeight;
-					strncpy(textureName, tex.szName, MAXTEXTURENAME);
-				}
-				else {
-					textureName[0] = '\0';
-				}
-
-				int miptex = texinfo.iMiptex;
-
-				scaleX = 1.0f / texinfo.vS.length();
-				scaleY = 1.0f / texinfo.vT.length();
-				shiftX = texinfo.shiftS;
-				shiftY = texinfo.shiftT;
-				isSpecial = texinfo.nFlags & TEX_SPECIAL;
-
-				textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
-				validTexture = true;
-
-				// show default values if not all faces share the same values
-				for (int i = 1; i < app->selectedFaces.size(); i++) {
-					int faceIdx2 = app->selectedFaces[i];
-					BSPFACE& face2 = map->faces[faceIdx2];
-					BSPTEXTUREINFO& texinfo2 = map->texinfos[face2.iTextureInfo];
-
-					if (scaleX != 1.0f / texinfo2.vS.length()) scaleX = 1.0f;
-					if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
-					if (shiftX != texinfo2.shiftS) shiftX = 0;
-					if (shiftY != texinfo2.shiftT) shiftY = 0;
-					if (isSpecial != (texinfo2.nFlags & TEX_SPECIAL)) isSpecial = false;
-					if (texinfo2.iMiptex != miptex) {
-						validTexture = false;
-						textureId = NULL;
-						width = 0;
-						height = 0;
+					width = height = 0;
+					if (texOffset != -1) {
+						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+						width = tex.nWidth;
+						height = tex.nHeight;
+						strncpy(textureName, tex.szName, MAXTEXTURENAME);
+					}
+					else {
 						textureName[0] = '\0';
+					}
+
+					int miptex = texinfo.iMiptex;
+
+					scaleX = 1.0f / texinfo.vS.length();
+					scaleY = 1.0f / texinfo.vT.length();
+					shiftX = texinfo.shiftS;
+					shiftY = texinfo.shiftT;
+					isSpecial = texinfo.nFlags & TEX_SPECIAL;
+
+					textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
+					validTexture = true;
+
+					// show default values if not all faces share the same values
+					for (int i = 1; i < app->selectedFaces.size(); i++) {
+						int faceIdx2 = app->selectedFaces[i];
+						BSPFACE& face2 = map->faces[faceIdx2];
+						BSPTEXTUREINFO& texinfo2 = map->texinfos[face2.iTextureInfo];
+
+						if (scaleX != 1.0f / texinfo2.vS.length()) scaleX = 1.0f;
+						if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
+						if (shiftX != texinfo2.shiftS) shiftX = 0;
+						if (shiftY != texinfo2.shiftT) shiftY = 0;
+						if (isSpecial != (texinfo2.nFlags & TEX_SPECIAL)) isSpecial = false;
+						if (texinfo2.iMiptex != miptex) {
+							validTexture = false;
+							textureId = NULL;
+							width = 0;
+							height = 0;
+							textureName[0] = '\0';
+						}
 					}
 				}
 			}
@@ -4238,12 +4237,12 @@ void Gui::drawTextureTool() {
 		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
 
-		bool scaledX = false;
-		bool scaledY = false;
-		bool shiftedX = false;
-		bool shiftedY = false;
-		bool textureChanged = false;
-		bool toggledFlags = false;
+		static bool scaledX = false;
+		static bool scaledY = false;
+		static bool shiftedX = false;
+		static bool shiftedY = false;
+		static bool textureChanged = false;
+		static bool toggledFlags = false;
 
 		ImGui::PushItemWidth(inputWidth);
 		ImGui::Text("Scale");
@@ -4327,8 +4326,10 @@ void Gui::drawTextureTool() {
 		ImGui::SameLine();
 		ImGui::Text("%dx%d", width, height);
 
-		if ((scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
+		if (!ImGui::IsMouseDown(ImGuiMouseButton_::ImGuiMouseButton_Left) && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
 			uint32_t newMiptex = 0;
+
+			app->saveLumpState(map, 0xffffffff, false);
 			if (textureChanged) {
 				validTexture = false;
 
@@ -4350,6 +4351,7 @@ void Gui::drawTextureTool() {
 					{
 						if (s->hasTexture(textureName))
 						{
+
 							WADTEX* wadTex = s->readTexture(textureName);
 							int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
@@ -4364,10 +4366,10 @@ void Gui::drawTextureTool() {
 								imageData[k] = palette[src[k]];
 							}
 							map->add_texture(textureName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+							BspRenderer* mapRenderer = map->getBspRender();
+							mapRenderer->ReuploadTextures();
 							delete[] imageData;
 							delete wadTex;
-							mapRenderer->reloadTextures();
-							textureChanged = false;
 							ImGui::End();
 							return;
 						}
@@ -4399,9 +4401,10 @@ void Gui::drawTextureTool() {
 						texinfo->iMiptex = newMiptex;
 					modelRefreshes.insert(map->get_model_from_face(faceIdx));
 				}
+				
 				mapRenderer->updateFaceUVs(faceIdx);
 			}
-			if (textureChanged || toggledFlags) {
+			if ((textureChanged || toggledFlags) && app->selectedFaces.size() && app->selectedFaces[0] >= 0) {
 				textureId = (void*)mapRenderer->getFaceTextureId(app->selectedFaces[0]);
 				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
 					mapRenderer->refreshModel(*it);
@@ -4410,8 +4413,21 @@ void Gui::drawTextureTool() {
 					mapRenderer->highlightFace(app->selectedFaces[i], true);
 				}
 			}
-
 			checkFaceErrors();
+			scaledX = false;
+			scaledY = false;
+			shiftedX = false;
+			shiftedY = false;
+			textureChanged = false;
+			toggledFlags = false;
+
+			app->pushModelUndoState("Edit Face", EDIT_MODEL_LUMPS);
+
+			mapRenderer->updateLightmapInfos();
+			mapRenderer->calcFaceMaths();
+			app->updateModelVerts();
+
+			reloadLimits();
 		}
 
 		refreshSelectedFaces = false;

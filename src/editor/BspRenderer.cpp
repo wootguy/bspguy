@@ -1031,7 +1031,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 	}
 
 	if (ent->hasKey("angles")) {
-		mat4x4print(renderEnts[entIdx].modelMat);
+		//mat4x4print(renderEnts[entIdx].modelMat);
 		vec3 angles = parseVector(ent->keyvalues["angles"]);
 		if (ent->hasKey("classname"))
 		{
@@ -1172,6 +1172,25 @@ BspRenderer::~BspRenderer() {
 	delete blueTex;
 	delete missingTex;
 	delete map;
+}
+
+void BspRenderer::ReuploadTextures()
+{
+	deleteTextures();
+
+	loadTextures();
+
+	glTextures = glTexturesSwap;
+
+	for (int i = 0; i < map->textureCount; i++) {
+		if (!glTextures[i]->uploaded)
+			glTextures[i]->upload(GL_RGB);
+	}
+	numLoadedTextures = map->textureCount;
+
+	texturesLoaded = true;
+
+	preRenderFaces();
 }
 
 void BspRenderer::delayLoadData() {

@@ -16,7 +16,6 @@ std::string g_config_dir = "";
 Renderer* g_app = NULL;
 
 // everything except VIS, ENTITIES, MARKSURFS
-#define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
 
 std::future<void> Renderer::fgdFuture;
 
@@ -3113,7 +3112,12 @@ void Renderer::pushEntityUndoState(std::string actionDesc) {
 void Renderer::pushModelUndoState(std::string actionDesc, int targetLumps) {
 	Bsp* map = getSelectedMap();
 
-	if (!map || !pickInfo.ent || pickInfo.modelIdx <= 0) {
+	if (pickInfo.modelIdx <= 0)
+		pickInfo.modelIdx = 0;
+	if (!pickInfo.ent)
+		pickInfo.ent = 0;
+	if (!map) {
+		logf("Impossible, no map, ent or model idx\n");
 		return;
 	}
 

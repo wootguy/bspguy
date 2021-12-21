@@ -10,6 +10,7 @@
 #include <thread>
 #include <future>
 #include "Command.h"
+#define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
 
 extern std::string g_settings_path;
 extern std::string g_config_dir;
@@ -139,6 +140,7 @@ public:
 	void selectMap(Bsp* map);
 	void deselectMap(Bsp* map);
 	void clearSelection();
+	void pushModelUndoState(std::string actionDesc, int targetLumps);
 
 private:
 	GLFWwindow* window;
@@ -314,7 +316,6 @@ private:
 	void ungrabEnt();
 
 	void pushEntityUndoState(std::string actionDesc);
-	void pushModelUndoState(std::string actionDesc, int targetLumps);
 	void pushUndoCommand(Command* cmd);
 	void undo();
 	void redo();
