@@ -22,6 +22,7 @@
 
 #include "mathlib.h"
 #include "studio_render.h"
+#include "util.h"
 
 vec3_t g_vright;		// needs to be set to viewer's right in order for chrome to work
 float g_lambert;		// modifier for pseudo-hemispherical lighting
@@ -88,7 +89,7 @@ void StudioModel::CalcBoneAdj()
 		case STUDIO_XR:
 		case STUDIO_YR:
 		case STUDIO_ZR:
-			m_adj[j] = value * (Q_PI / 180.0);
+			m_adj[j] = value * (PI / 180.0);
 			break;
 		case STUDIO_X:
 		case STUDIO_Y:

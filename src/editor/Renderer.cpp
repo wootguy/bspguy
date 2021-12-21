@@ -527,7 +527,6 @@ void Renderer::renderLoop() {
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
 			}
-
 		}
 
 		model.loadIdentity();
@@ -1660,7 +1659,7 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 	vec3 v = crossProduct(h, view).normalize(1.0f); // 3D float std::vector
 
 	// convert fovy to radians 
-	float rad = fov * PI / 180.0f;
+	float rad = fov * (PI / 180.0f);
 	float vLength = tan(rad / 2.0f) * zNear;
 	float hLength = vLength * (windowWidth / (float)windowHeight);
 

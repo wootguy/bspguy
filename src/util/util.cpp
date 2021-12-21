@@ -238,6 +238,42 @@ vec3 parseVector(std::string s) {
 	return v;
 }
 
+bool IsEntNotSupportAngles(std::string& entname)
+{
+	if (entname == "func_wall" ||
+		entname == "func_illusionary" ||
+		entname == "spark_shower" ||
+		entname == "func_plat" ||
+		entname == "func_door" ||
+		entname == "momentary_door" ||
+		entname == "func_water" ||
+		entname == "func_conveyor" ||
+		entname == "func_rot_button" ||
+		entname == "func_button" ||
+		entname == "env_blood" ||
+		entname == "gibshooter" ||
+		entname == "trigger" ||
+		entname == "trigger_monsterjump" ||
+		entname == "trigger_hurt" ||
+		entname == "trigger_multiple" ||
+		entname == "trigger_push" ||
+		entname == "trigger_teleport" ||
+		entname == "func_bomb_target" ||
+		entname == "func_hostage_rescue" ||
+		entname == "func_escapezone" ||
+		entname == "func_vip_safetyzone" ||
+		entname == "func_escapezone" ||
+		entname == "trigger_autosave" ||
+		entname == "trigger_endsection" ||
+		entname == "trigger_gravity" ||
+		entname == "env_snow" ||
+		entname == "func_snow" ||
+		entname == "env_rain" ||
+		entname == "func_rain")
+		return true;
+	return false;
+}
+
 COLOR3 operator*(COLOR3 c, float scale)
 {
 	c.r *= scale;
@@ -423,6 +459,11 @@ vec3 getCenter(std::vector<vec3>& verts) {
 		expandBoundingBox(verts[i], mins, maxs);
 	}
 
+	return mins + (maxs - mins) * 0.5f;
+}
+
+
+vec3 getCenter(vec3 maxs, vec3 mins) {
 	return mins + (maxs - mins) * 0.5f;
 }
 

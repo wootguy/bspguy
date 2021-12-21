@@ -1015,16 +1015,67 @@ void BspRenderer::refreshPointEnt(int entIdx) {
 
 void BspRenderer::refreshEnt(int entIdx) {
 	Entity* ent = map->ents[entIdx];
+	BSPMODEL mdl = map->models[ent->getBspModelIdx() > 0 ? ent->getBspModelIdx() : 0];
 	renderEnts[entIdx].modelIdx = ent->getBspModelIdx();
 	renderEnts[entIdx].modelMat.loadIdentity();
+	renderEnts[entIdx].modelMatOrigin.loadIdentity();
 	renderEnts[entIdx].offset = vec3(0, 0, 0);
+	renderEnts[entIdx].angles = vec3(0, 0, 0);
 	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
 
 	if (ent->hasKey("origin")) {
 		vec3 origin = parseVector(ent->keyvalues["origin"]);
 		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
+		renderEnts[entIdx].modelMatOrigin.translate(origin.x, origin.z, -origin.y);
 		renderEnts[entIdx].offset = origin;
 	}
+
+	if (ent->hasKey("angles")) {
+		mat4x4print(renderEnts[entIdx].modelMat);
+		vec3 angles = parseVector(ent->keyvalues["angles"]);
+		if (ent->hasKey("classname"))
+		{
+			if (ent->keyvalues["classname"] == "func_breakable")
+			{
+				// based at cs 1.6 gamedll
+				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+			}
+			else if (IsEntNotSupportAngles(ent->keyvalues["classname"]))
+			{
+				// based at cs 1.6 gamedll
+			}
+			else if (ent->keyvalues["classname"] == "env_sprite")
+			{
+				// based at cs 1.6 gamedll
+				if (angles.y != 0.0 && angles.z == 0.0)
+				{
+					renderEnts[entIdx].modelMat.rotateZ(-(angles.y * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+				}
+				else
+				{
+					renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+				}
+			}
+			else
+			{
+				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+			}
+		}
+		else
+		{
+			renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+			renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+			renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
+		}
+		renderEnts[entIdx].angles = angles;
+	}
+
 }
 
 void BspRenderer::calcFaceMaths() {
@@ -1245,13 +1296,13 @@ uint BspRenderer::getFaceTextureId(int faceIdx) {
 	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 	return glTextures[texinfo.iMiptex]->id;
 }
-
+ShaderProgram* activeShader; vec3 renderOffset;
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {
 	BSPMODEL& world = map->models[0];
 	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
-	vec3 renderOffset = mapOffset.flip();
+	renderOffset = mapOffset.flip();
 
-	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
+	activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
 
 	activeShader->bind();
 	activeShader->modelMat->loadIdentity();
@@ -1269,8 +1320,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 			activeShader->updateMatrixes();
 
-			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
-			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
+			drawModel(&renderEnts[highlightEnt], false, true, true);
+			drawModel(&renderEnts[highlightEnt], true, true, true);
 
 			activeShader->popMatrix(MAT_MODEL);
 		}
@@ -1288,7 +1339,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				activeShader->updateMatrixes();
 
-				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, i == highlightEnt, false);
+				drawModel(&renderEnts[i], drawTransparentFaces, i == highlightEnt, false);
 
 				activeShader->popMatrix(MAT_MODEL);
 			}
@@ -1346,8 +1397,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 			activeShader->updateMatrixes();
 
 			glDisable(GL_DEPTH_TEST);
-			drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
-			drawModel(renderEnts[highlightEnt].modelIdx, true, true, true);
+			drawModel(&renderEnts[highlightEnt], false, true, true);
+			drawModel(&renderEnts[highlightEnt], true, true, true);
 			glEnable(GL_DEPTH_TEST);
 
 			activeShader->popMatrix(MAT_MODEL);
@@ -1357,7 +1408,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 	delayLoadData();
 }
 
-void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly) {
+void BspRenderer::drawModel(RenderEnt * ent, bool transparent, bool highlight, bool edgesOnly) {
+	int modelIdx = ent ? ent->modelIdx : 0;
 	if (modelIdx < 0 || modelIdx >= numRenderModels)
 	{
 		return;
@@ -1398,6 +1450,19 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 			continue;
 		}
 
+		if (ent && ent->angles != vec3()) {
+			activeShader->pushMatrix(MAT_MODEL);
+			*activeShader->modelMat = ent->modelMatOrigin;
+			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+			activeShader->updateMatrixes();
+			glActiveTexture(GL_TEXTURE0);
+			yellowTex->bind();
+			glActiveTexture(GL_TEXTURE1);
+			greyTex->bind();
+
+			rgroup.wireframeBuffer->draw(GL_LINES);
+			activeShader->popMatrix(MAT_MODEL);
+		}
 		if (highlight || (g_render_flags & RENDER_WIREFRAME)) {
 			glActiveTexture(GL_TEXTURE0);
 			if (highlight)
@@ -1422,7 +1487,6 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 		else {
 			whiteTex->bind();
 		}
-
 		if (g_render_flags & RENDER_LIGHTMAPS) {
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
 				glActiveTexture(GL_TEXTURE1 + s);
@@ -1454,6 +1518,24 @@ void BspRenderer::drawModel(int modelIdx, bool transparent, bool highlight, bool
 		}
 
 		rgroup.buffer->draw(GL_TRIANGLES);
+
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			glActiveTexture(GL_TEXTURE1 + s);
+			whiteTex->bind();
+		}
+
+		glPushAttrib(GL_ALL_ATTRIB_BITS);
+		glBlendFunc(GL_SRC_ALPHA_SATURATE, GL_SRC_COLOR);
+		glEnable(GL_BLEND);
+		if (ent && ent->angles != vec3()) {
+			activeShader->pushMatrix(MAT_MODEL);
+			*activeShader->modelMat = ent->modelMatOrigin;
+			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+			activeShader->updateMatrixes();
+			rgroup.buffer->draw(GL_TRIANGLES);
+			activeShader->popMatrix(MAT_MODEL);
+		}
+		glPopAttrib();
 	}
 }
 

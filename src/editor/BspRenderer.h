@@ -45,8 +45,10 @@ struct FaceMath {
 };
 
 struct RenderEnt {
-	mat4x4 modelMat; // model matrix for rendering
+	mat4x4 modelMat; // model matrix for rendering with angles
+	mat4x4 modelMatOrigin; // model matrix for render origin
 	vec3 offset; // vertex transformations for picking
+	vec3 angles; // support angles
 	int modelIdx; // -1 = point entity
 	EntCube* pointEntCube;
 };
@@ -113,7 +115,7 @@ public:
 
 	void render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull);
 
-	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
+	void drawModel(RenderEnt* ent, bool transparent, bool highlight, bool edgesOnly);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities(int highlightEnt);
 

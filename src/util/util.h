@@ -85,6 +85,8 @@ float clamp(float val, float min, float max);
 
 vec3 parseVector(std::string s);
 
+bool IsEntNotSupportAngles(std::string& entname);
+
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 
 bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectDist);
@@ -99,6 +101,8 @@ void getBoundingBox(std::vector<vec3>& verts, vec3& mins, vec3& maxs);
 vec2 getCenter(std::vector<vec2>& verts);
 
 vec3 getCenter(std::vector<vec3>& verts);
+
+vec3 getCenter(vec3 maxs, vec3 mins);
 
 void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs);
 
