@@ -1020,7 +1020,7 @@ void print_color(int colors)
 std::string getConfigDir()
 {
 	char path[MAX_PATH];
-	SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, path);
+	SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path);
 	return std::string(path) + "\\AppData\\Roaming\\bspguy\\";
 }
 #else 
