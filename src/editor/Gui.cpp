@@ -3919,7 +3919,7 @@ void DrawImageAtOneBigLightMap(COLOR3* img, int w, int h, int x, int y)
 	}
 }
 
-void DrawOneBigLightMapAtImage(COLOR3* img,unsigned int len, int w, int h, int x, int y)
+void DrawOneBigLightMapAtImage(COLOR3* img, unsigned int len, int w, int h, int x, int y)
 {
 	for (int x1 = 0; x1 < w; x1++)
 	{
@@ -3944,12 +3944,25 @@ void ImportOneBigLightmapFile(Bsp* map)
 {
 	char fileNam[256];
 	colordata = std::vector<COLOR3>();
-	
+
 	int current_x = 0;
 	int current_y = 0;
 	int max_y_found = 0;
 
-	
+	std::vector<int> faces_to_import;
+
+	if (g_app->selectedFaces.size() > 1)
+	{
+		faces_to_import = g_app->selectedFaces;
+	}
+	else
+	{
+		for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+		{
+			faces_to_import.push_back(faceIdx);
+		}
+	}
+
 	for (int lightId = 0; lightId < MAXLIGHTMAPS; lightId++)
 	{
 		snprintf(fileNam, sizeof(fileNam), "%s%sFull%dStyle.png", GetWorkDir().c_str(), "lightmap", lightId);
@@ -3960,12 +3973,12 @@ void ImportOneBigLightmapFile(Bsp* map)
 		{
 			colordata.resize(w2 * h2);
 			memcpy(&colordata[0], image_bytes, w2 * h2 * sizeof(COLOR3));
-			for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+			for (int faceIdx : faces_to_import)
 			{
 				int size[2];
 				GetFaceLightmapSize(map, faceIdx, size);
 				unsigned int x_width = size[0], y_height = size[1];
-				if (map->faces[faceIdx].nStyles[lightId] == 255)
+				if (map->faces[faceIdx].nLightmapOffset < 0 || map->faces[faceIdx].nStyles[lightId] == 255)
 					continue;
 				int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 				int offset = map->faces[faceIdx].nLightmapOffset + lightId * lightmapSz;
@@ -3981,11 +3994,22 @@ void ImportOneBigLightmapFile(Bsp* map)
 				unsigned char* lightmapData = new unsigned char[lightmapSz];
 				DrawOneBigLightMapAtImage((COLOR3*)(lightmapData), lightmapSz, x_width, y_height, current_x, current_y);
 				memcpy((unsigned char*)(map->lightdata + offset), lightmapData, lightmapSz);
-				delete [] lightmapData;
+				delete[] lightmapData;
 			}
 		}
 	}
 }
+
+float RandomFloat(float a, float b) {
+	float random = ((float)rand()) / (float)RAND_MAX;
+	float diff = b - a;
+	float r = random * diff;
+	return a + r;
+}
+
+std::map<float, float> mapx;
+std::map<float, float> mapy;
+std::map<float, float> mapz;
 
 void ExportOneBigLightmap(Bsp* map)
 {
@@ -3997,18 +4021,65 @@ void ExportOneBigLightmap(Bsp* map)
 	int current_x = 0;
 	int current_y = 0;
 
-
 	int max_y_found = 0;
+
+	std::vector<int> faces_to_export;
+
+	if (g_app->selectedFaces.size() > 1)
+	{
+		faces_to_export = g_app->selectedFaces;
+	}
+	else
+	{
+		for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+		{
+			faces_to_export.push_back(faceIdx);
+		}
+	}
+
+	/*std::vector<vec3> verts;
+	for (int i = 0; i < map->vertCount; i++)
+	{
+		verts.push_back(map->verts[i]);
+	}
+	std::reverse(verts.begin(), verts.end());
+	for (int i = 0; i < map->vertCount; i++)
+	{
+		map->verts[i] = verts[i];
+	}*/
+	/*for (int i = 0; i < map->vertCount; i++)
+	{
+		vec3* vector = &map->verts[i];
+		vector->y *= -1;
+		vector->x *= -1;
+		/*if (mapz.find(vector->z) == mapz.end())
+			mapz[vector->z] = RandomFloat(-100, 100);
+		vector->z -= mapz[vector->z];*/
+
+		/*if (mapx.find(vector->x) == mapx.end())
+			mapx[vector->x] = RandomFloat(-50, 50);
+		vector->x += mapx[vector->x];
+
+		if (mapy.find(vector->y) == mapy.end())
+			mapy[vector->y] = RandomFloat(-50, 50);
+		vector->y -= mapy[vector->y];
+
+
+		/*vector->x *= static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		vector->y *= static_cast <float> (rand()) / static_cast <float> (RAND_MAX);*/
+	/* }
+
+	map->update_lump_pointers();*/
 
 
 	for (int lightId = 0; lightId < MAXLIGHTMAPS; lightId++)
 	{
-		for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+		for (int faceIdx : faces_to_export)
 		{
 			int size[2];
 			GetFaceLightmapSize(map, faceIdx, size);
 			unsigned int x_width = size[0], y_height = size[1];
-			if (map->faces[faceIdx].nStyles[lightId] == 255)
+			if (map->faces[faceIdx].nLightmapOffset < 0 || map->faces[faceIdx].nStyles[lightId] == 255)
 				continue;
 			int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
 			int offset = map->faces[faceIdx].nLightmapOffset + lightId * lightmapSz;
@@ -4272,6 +4343,8 @@ void Gui::drawLightMapTool() {
 				showLightmapEditorUpdate = true;
 				map->getBspRender()->reloadLightmaps();
 			}
+			ImGui::Separator();
+			ImGui::Text("WARNING! SAVE MAP BEFORE NEXT ACTION!");
 			ImGui::Separator();
 			if (ImGui::Button("Export ALL", ImVec2(120, 0)))
 			{

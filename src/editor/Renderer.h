@@ -142,6 +142,7 @@ public:
 	void clearSelection();
 	void pushModelUndoState(std::string actionDesc, int targetLumps);
 
+	std::vector<int> selectedFaces;
 private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader;
@@ -203,7 +204,6 @@ private:
 	bool anyEdgeSelected = false;
 	bool anyVertSelected = false;
 
-	std::vector<int> selectedFaces;
 
 	std::vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
 	std::vector<TransformVert> modelFaceVerts; // control points for visible face verts
