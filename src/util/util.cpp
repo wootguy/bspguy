@@ -875,11 +875,17 @@ int mkdir_p(const char* dir, const mode_t mode) {
 bool createDir(const std::string& dirName)
 {
 #ifdef USE_FILESYSTEM
+	std::string fixDirName = dirName;
+	fixupPath(fixDirName, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
+	if (dirExists(dirName))
+		return true;
 	return fs::create_directories(dirName);
 #else
 #ifdef WIN32
 	std::string fixDirName = dirName;
 	fixupPath(fixDirName, FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH_REMOVE);
+	if (dirExists(dirName))
+		return true;
 	int ret = SHCreateDirectoryExA(NULL, dirName.c_str(), NULL);
 	if (ret != ERROR_SUCCESS)
 	{
