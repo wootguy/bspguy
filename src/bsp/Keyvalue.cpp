@@ -1,63 +1,48 @@
 #include "Keyvalue.h"
 #include "util.h"
+#include <sstream>
 
-Keyvalue::Keyvalue(std::string line)
+Keyvalues::Keyvalues(std::string & line)
 {
 	int begin = -1;
 	int end = -1;
 
-	key.clear();
-	value.clear();
-	int comment = 0;
-
-	for (uint i = 0; i < line.length(); i++)
+	keys.clear();
+	values.clear();
+	
+	std::vector<std::string> allstrings = splitString(line,"\"");
+	if (allstrings.size() > 1)
 	{
-		if (line[i] == '/')
+		if (allstrings[0].find("{") != std::string::npos)
 		{
-			if (++comment >= 2)
-			{
-				key.clear();
-				value.clear();
-				break;
-			}
+			allstrings.erase(allstrings.begin());
 		}
-		else
-			comment = 0;
-		if (line[i] == '"')
+		while (allstrings.size() > 2)
 		{
-			if (begin == -1)
-				begin = i + 1;
-			else
-			{
-				end = i;
-				if (key.length() == 0)
-				{
-					key = line.substr(begin, end - begin);
-					begin = end = -1;
-				}
-				else
-				{
-					value = line.substr(begin, end - begin);
-					break;
-				}
-			}
+			std::string tmpkey = allstrings[0];
+			std::string tmpvalue = allstrings[2];
+			allstrings.erase(allstrings.begin());
+			allstrings.erase(allstrings.begin());
+			allstrings.erase(allstrings.begin());
+			if (allstrings.size() > 1)
+				allstrings.erase(allstrings.begin());
+			keys.push_back(tmpkey);
+			values.push_back(tmpvalue);
 		}
 	}
+	line.clear();
+	if (allstrings.size() > 0)
+		line = allstrings[allstrings.size() - 1];
 }
 
-Keyvalue::Keyvalue(void)
+Keyvalues::Keyvalues(void)
 {
-	key.clear();
-	value.clear();
+	keys.clear();
+	values.clear();
 }
 
-Keyvalue::Keyvalue(std::string key, std::string value)
+Keyvalues::Keyvalues(std::string key, std::string value)
 {
-	this->key = std::move(key);
-	this->value = std::move(value);
-}
-
-vec3 Keyvalue::getVector()
-{
-	return parseVector(value);
+	this->keys.push_back(key);
+	this->values.push_back(value);
 }

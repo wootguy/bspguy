@@ -1,17 +1,15 @@
 #pragma once
 #include "util.h"
 
-class Keyvalue
+class Keyvalues
 {
 public:
-	std::string key;
-	std::string value;
+	std::vector<std::string> keys;
+	std::vector<std::string> values;
 
-	Keyvalue(std::string line);
-	Keyvalue(std::string key, std::string value);
-	Keyvalue(void);
-	~Keyvalue(void) = default;
-
-	vec3 getVector();
+	Keyvalues(std::string & line);
+	Keyvalues(std::string key, std::string value);
+	Keyvalues(void);
+	~Keyvalues(void) = default;
 };
 

@@ -18,7 +18,6 @@ public:
 	Entity(const std::string& classname);
 	~Entity(void) = default;
 
-	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
 	bool renameKey(int idx, std::string newName);

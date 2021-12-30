@@ -57,7 +57,7 @@ bool removeFile(const std::string& fileName);
 
 std::streampos fileSize(const std::string& filePath);
 
-std::vector<std::string> splitString(std::string str, const char* delimitters);
+std::vector<std::string> splitString(const std::string & str, const char* delimitters);
 
 std::string basename(std::string path);
 

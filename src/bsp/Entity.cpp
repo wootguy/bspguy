@@ -8,22 +8,22 @@ Entity::Entity(const std::string& classname)
 	addKeyvalue("classname", classname);
 }
 
-void Entity::addKeyvalue(Keyvalue& k)
+void Entity::addKeyvalue(const std::string& key, const std::string& value)
 {
 	int dup = 1;
-	if (keyvalues.find(k.key) == keyvalues.end()) {
-		keyvalues[k.key] = k.value;
-		keyOrder.push_back(k.key);
+	if (keyvalues.find(key) == keyvalues.end()) {
+		keyvalues[key] = value;
+		keyOrder.push_back(key);
 	}
 	else
 	{
 		while (true)
 		{
-			std::string newKey = k.key + '#' + std::to_string((long long)dup);
+			std::string newKey = key + '#' + std::to_string((long long)dup);
 			if (keyvalues.find(newKey) == keyvalues.end())
 			{
 				//println("wrote dup key " + newKey);
-				keyvalues[newKey] = k.value;
+				keyvalues[newKey] = value;
 				keyOrder.push_back(newKey);
 				break;
 			}
@@ -31,15 +31,6 @@ void Entity::addKeyvalue(Keyvalue& k)
 		}
 	}
 
-	cachedModelIdx = -2;
-	targetsCached = false;
-}
-
-void Entity::addKeyvalue(const std::string& key, const std::string& value)
-{
-	keyvalues[key] = value;
-
-	keyOrder.push_back(key);
 	cachedModelIdx = -2;
 	targetsCached = false;
 }

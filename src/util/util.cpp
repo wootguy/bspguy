@@ -128,20 +128,15 @@ std::streampos fileSize(const std::string& filePath) {
 	return fsize;
 }
 
-std::vector<std::string> splitString(std::string str, const char* delimitters)
+std::vector<std::string> splitString(const std::string & str, const char* delimitters)
 {
 	std::vector<std::string> split;
 	if (str.size() == 0)
 		return split;
 
-	// somehow plain assignment doesn't create a copy and even modifies the parameter that was passed by value (WTF!?!)
-	//std::string copy = str; 
-	std::string copy;
-	for (int i = 0; i < str.length(); i++)
-		copy += str[i];
+	std::string copy = std::string(str.c_str());
 
 	char* tok = strtok((char*)copy.c_str(), delimitters);
-
 	while (tok)
 	{
 		split.push_back(tok);

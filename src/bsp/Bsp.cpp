@@ -1511,9 +1511,9 @@ bool Bsp::has_hull2_ents() {
 			vec3 maxhull;
 
 			if (!ents[i]->keyvalues["minhullsize"].empty())
-				minhull = Keyvalue("", ents[i]->keyvalues["minhullsize"]).getVector();
+				minhull = parseVector(ents[i]->keyvalues["minhullsize"]);
 			if (!ents[i]->keyvalues["maxhullsize"].empty())
-				maxhull = Keyvalue("", ents[i]->keyvalues["maxhullsize"]).getVector();
+				maxhull = parseVector(ents[i]->keyvalues["maxhullsize"]);
 
 			if (minhull == vec3(0, 0, 0) && maxhull == vec3(0, 0, 0)) {
 				// monster is using its default hull size
@@ -2051,6 +2051,12 @@ void Bsp::load_ents()
 	while (std::getline(in, line))
 	{
 		lineNum++;
+
+		while (line[0] == '\s' || line[0] == '\t' || line[0] == '\r')
+		{
+			line.erase(line.begin());
+		}
+
 		if (line.length() < 1 || line[0] == '\n')
 			continue;
 
@@ -2062,17 +2068,21 @@ void Bsp::load_ents()
 				continue;
 			}
 			lastBracket = 0;
-
 			if (ent)
 				delete ent;
 			ent = new Entity();
+
+			if (line.find('}') == std::string::npos &&
+				line.find('\"') == std::string::npos)
+			{
+				continue;
+			}
 		}
-		else if (line[0] == '}')
+		if (line[0] == '}')
 		{
 			if (lastBracket == 1)
 				logf("%s.bsp ent data (line %d): Unexpected '}'\n", path.c_str(), lineNum);
 			lastBracket = 1;
-
 			if (!ent)
 				continue;
 
@@ -2080,6 +2090,7 @@ void Bsp::load_ents()
 				ents.push_back(ent);
 			else
 				logf("Found unknown classname entity. Skip it.\n");
+
 			ent = NULL;
 
 			// you can end/start an ent on the same line, you know
@@ -2087,13 +2098,42 @@ void Bsp::load_ents()
 			{
 				ent = new Entity();
 				lastBracket = 0;
+
+				if (line.find("\"") == std::string::npos)
+				{
+					continue;
+				}
+				line.erase(line.begin());
 			}
 		}
-		else if (lastBracket == 0 && ent) // currently defining an entity
+		if (lastBracket == 0 && ent) // currently defining an entity
 		{
-			Keyvalue k(line);
-			if (k.key.length() && k.value.length())
-				ent->addKeyvalue(k);
+			Keyvalues k(line);
+			for (int i = 0; i < k.keys.size(); i++)
+			{
+				ent->addKeyvalue(k.keys[i],k.values[i]);
+			}
+
+			if (line.find("}") != std::string::npos)
+			{
+				if (lastBracket == 1)
+					logf("%s.bsp ent data (line %d): Unexpected '}' #2\n", path.c_str(), lineNum);
+				lastBracket = 1;
+
+				if (!ent)
+					continue;
+
+				if (ent->keyvalues.count("classname"))
+					ents.push_back(ent);
+				else
+					logf("Found unknown classname entity. Skip it.\n");
+				ent = NULL;
+			}
+			if (line.find("{") != std::string::npos)
+			{
+				ent = new Entity();
+				lastBracket = 0;
+			}
 		}
 	}
 
