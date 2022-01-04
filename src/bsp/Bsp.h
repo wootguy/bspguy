@@ -219,6 +219,9 @@ public:
 	BspRenderer* getBspRender();
 
 	void ExportToObjWIP(std::string path);
+
+	bool isModelHasFaceIdx(const BSPMODEL& mdl, int faceid);
+
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
@@ -242,6 +245,7 @@ private:
 
 	std::string get_model_usage(int modelIdx);
 	std::vector<Entity*> get_model_ents(int modelIdx);
+	std::vector<int> get_model_ents_ids(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 

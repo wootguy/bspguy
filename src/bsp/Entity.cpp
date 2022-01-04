@@ -121,6 +121,23 @@ int Entity::getBspModelIdx() {
 	return cachedModelIdx;
 }
 
+int Entity::getBspModelIdxForce() {
+	if (!hasKey("model")) {
+		return -1;
+	}
+
+	std::string model = keyvalues["model"];
+	if (model.size() <= 1 || model[0] != '*') {
+		return -1;
+	}
+
+	std::string modelIdxStr = model.substr(1);
+	if (!isNumeric(modelIdxStr)) {
+		return -1;
+	}
+	return atoi(modelIdxStr.c_str());
+}
+
 bool Entity::isBspModel() {
 	return getBspModelIdx() >= 0;
 }

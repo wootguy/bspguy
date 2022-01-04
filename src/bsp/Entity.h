@@ -28,6 +28,7 @@ public:
 
 	// returns -1 for invalid idx
 	int getBspModelIdx();
+	int getBspModelIdxForce();
 
 	bool isBspModel();
 

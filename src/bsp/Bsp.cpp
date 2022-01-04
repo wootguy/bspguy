@@ -2052,7 +2052,7 @@ void Bsp::load_ents()
 	{
 		lineNum++;
 
-		while (line[0] == '\s' || line[0] == '\t' || line[0] == '\r')
+		while (line[0] == ' ' || line[0] == '	' || line[0] == '\r')
 		{
 			line.erase(line.begin());
 		}
@@ -2547,6 +2547,16 @@ std::vector<Entity*> Bsp::get_model_ents(int modelIdx) {
 	for (int i = 0; i < ents.size(); i++) {
 		if (ents[i]->getBspModelIdx() == modelIdx) {
 			uses.push_back(ents[i]);
+		}
+	}
+	return uses;
+}
+
+std::vector<int> Bsp::get_model_ents_ids(int modelIdx) {
+	std::vector<int> uses;
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->getBspModelIdxForce() == modelIdx) {
+			uses.push_back(i);
 		}
 	}
 	return uses;
@@ -3848,7 +3858,8 @@ BSPTEXTUREINFO* Bsp::get_unique_texinfo(int faceIdx) {
 int Bsp::get_model_from_face(int faceIdx) {
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
-		if (faceIdx >= model.iFirstFace && faceIdx < model.iFirstFace + model.nFaces) {
+		if (isModelHasFaceIdx(model, faceIdx))
+		{
 			return i;
 		}
 	}
@@ -4229,6 +4240,15 @@ void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 	replace_lump(lumpIdx, newLump, oldLen + appendLength);
 }
 
+bool Bsp::isModelHasFaceIdx(const BSPMODEL& mdl, int faceid)
+{
+	if (faceid < mdl.iFirstFace)
+		return false;
+	if (faceid >= mdl.iFirstFace + mdl.nFaces)
+		return false;
+	return true;
+}
+
 void Bsp::ExportToObjWIP(std::string path)
 {
 	if (!createDir(path))
@@ -4241,13 +4261,13 @@ void Bsp::ExportToObjWIP(std::string path)
 	f = fopen((path + name + ".obj").c_str(), "wb");
 	if (f)
 	{
-		fprintf(f, "# Object Export\n");
-		fprintf(f, "# Scale: 1\n\n");
+		fprintf(f, "# Exported using bspguy!\n");
 
 		fprintf(f, "s off\n");
 
 		fprintf(f, "mtllib materials.mtl\n");
-		int currentgroup = -1;
+		
+		std::string groupname = std::string();
 
 		//std::set<BSPMIPTEX*> texture_list;
 		BspRenderer* bsprend = getBspRender();
@@ -4276,6 +4296,13 @@ void Bsp::ExportToObjWIP(std::string path)
 			BSPMIPTEX* tex = ((BSPMIPTEX*)(textures + texOffset));
 
 			int mdlid = get_model_from_face(i);
+			std::vector<int> entIds = get_model_ents_ids(mdlid);
+
+			if (entIds.size() == 0)
+			{
+				entIds.push_back(0);
+			}
+			
 			materialid = -1;
 			for (int m = 0; m < matnames.size(); m++)
 			{
@@ -4286,7 +4313,25 @@ void Bsp::ExportToObjWIP(std::string path)
 			{
 				materialid = matnames.size();
 				materials.emplace_back("newmtl textures" + std::to_string(materialid));
-				materials.push_back("map_Kd " + std::string("textures/") + tex->szName + std::string(".bmp"));
+				if (toLowerCase(tex->szName) == "aaatrigger" ||
+					toLowerCase(tex->szName) == "null" ||
+					toLowerCase(tex->szName) == "sky" ||
+					toLowerCase(tex->szName) == "noclip" ||
+					toLowerCase(tex->szName) == "clip" ||
+					toLowerCase(tex->szName) == "origin" ||
+					toLowerCase(tex->szName) == "bevel" ||
+					toLowerCase(tex->szName) == "hint" ||
+					toLowerCase(tex->szName) == "uhh"
+					)
+				{
+					materials.push_back("illum 4");
+					materials.push_back("map_Kd " + std::string("textures/") + tex->szName + std::string(".bmp"));
+					materials.push_back("map_d " + std::string("textures/") + tex->szName + std::string(".bmp"));
+				}
+				else
+				{
+					materials.push_back("map_Kd " + std::string("textures/") + tex->szName + std::string(".bmp"));
+				}
 				materials.push_back("");
 				matnames.push_back(tex->szName);
 			}
@@ -4339,91 +4384,71 @@ void Bsp::ExportToObjWIP(std::string path)
 					}
 				}
 			}
-			if (mdlid != currentgroup)
+
+
+			for (int e = 0; e < entIds.size();e++)
 			{
-				currentgroup = mdlid;
-				fprintf(f, "\ng Group%i\n\n", currentgroup);
+				int entid = entIds[e];
+				Entity * ent = ents[entid];
+				vec3 origin_offset = ent->getOrigin();
+
+				if ("Model_" + std::to_string(mdlid) + "_ent_" + std::to_string(entid) != groupname)
+				{
+					groupname = "Model_" + std::to_string(mdlid) + "_ent_" + std::to_string(entid);
+					fprintf(f, "\no %s\n\n", groupname.c_str());
+					fprintf(f, "\ng %s\n\n", groupname.c_str());
+				}
+				else
+				{
+					fprintf(f, "\n\n");
+				}
+
+				if (lastmaterialid != materialid)
+					fprintf(f, "usemtl textures%i\n", materialid);
+				lastmaterialid = materialid;
+
+				for (int n = 0; n < rface->vertCount; n++)
+				{
+					lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+					vec3 org_pos = vec3(vert.x + origin_offset.x, vert.y + origin_offset.z, vert.z + -origin_offset.y) ;
+					BSPPLANE& plane = planes[face.iPlane];
+
+					fprintf(f, "v %f %f %f\n", org_pos.x, org_pos.y, org_pos.z);
+				}
+				for (int n = 0; n < rface->vertCount; n++)
+				{
+					lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+					vec3 pos = vec3(vert.x, -vert.z, vert.y);
+
+					float tw = 1.0f / (float)tex->nWidth;
+					float th = 1.0f / (float)tex->nHeight;
+					float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
+					float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
+
+					BSPPLANE& plane = planes[face.iPlane];
+
+					fprintf(f, "vt %f %f\n", fU* tw, fV* th);
+				}
+				for (int n = 0; n < rface->vertCount; n++)
+				{
+					lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
+					BSPPLANE& plane = planes[face.iPlane];
+
+					fprintf(f, "vn %f %f %f\n", plane.vNormal.x, plane.vNormal.z, plane.vNormal.y);
+				}
+
+				fprintf(f, "%s", "\nf");
+				for (int n = 0; n < rface->vertCount; n++)
+				{
+					int id = vertoffset + n;
+
+					fprintf(f, " %i/%i/%i", id, id, id);
+				}
+
+				vertoffset += rface->vertCount;
+				fprintf(f, "%s", "\n");
+
 			}
-			else
-			{
-				fprintf(f, "\n\n");
-			}
-
-
-
-			if (lastmaterialid != materialid)
-				fprintf(f, "usemtl textures%i\n", materialid);
-			lastmaterialid = materialid;
-
-			for (int n = 0; n < rface->vertCount; n++)
-			{
-				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
-				vec3 pos = vec3(vert.x, -vert.z, vert.y);
-
-				float tw = 1.0f / (float)tex->nWidth;
-				float th = 1.0f / (float)tex->nHeight;
-				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
-				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
-				vert.u = fU * tw;
-				vert.v = fV * th;
-
-				BSPPLANE& plane = planes[face.iPlane];
-
-				fprintf(f, "v %f %f %f\n", pos.x, pos.y, pos.z);
-			}
-			for (int n = 0; n < rface->vertCount; n++)
-			{
-				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
-				vec3 pos = vec3(vert.x, -vert.z, vert.y);
-
-				float tw = 1.0f / (float)tex->nWidth;
-				float th = 1.0f / (float)tex->nHeight;
-				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
-				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
-				vert.u = fU * tw;
-				vert.v = fV * th;
-
-				BSPPLANE& plane = planes[face.iPlane];
-
-				fprintf(f, "vt %f %f\n", vert.u, vert.v);
-			}
-			for (int n = 0; n < rface->vertCount; n++)
-			{
-				lightmapVert& vert = rgroup->verts[rface->vertOffset + n];
-				vec3 pos = vec3(vert.x, -vert.z, vert.y);
-
-				float tw = 1.0f / (float)tex->nWidth;
-				float th = 1.0f / (float)tex->nHeight;
-				float fU = dotProduct(texinfo.vS, pos) + texinfo.shiftS;
-				float fV = dotProduct(texinfo.vT, pos) + texinfo.shiftT;
-				vert.u = fU * tw;
-				vert.v = fV * th;
-
-				BSPPLANE& plane = planes[face.iPlane];
-
-				//fprintf(f, "vn %f %f %f\n", plane.vNormal.x, -plane.vNormal.z, plane.vNormal.y);
-				fprintf(f, "vn %f %f %f\n", plane.vNormal.x, plane.vNormal.y, plane.vNormal.z);
-			}
-
-			fprintf(f, "%s", "\nf");
-			for (int n = 0; n < rface->vertCount; n++)
-			{
-				int id = vertoffset + n;
-
-				fprintf(f, " %i/%i/%i", id, id, id);
-				//fprintf(f, " %i/%i", id, id);
-			}
-
-			vertoffset += rface->vertCount;
-
-			/*for (int n = 0 ; n < rface->vertCount; n++)
-			{
-				int id = (n + 1) * -1;
-
-				fprintf(f, " %i/%i/", id, id);
-			}*/
-			fprintf(f, "%s", "\n");
-			//delete wind;
 		}
 
 		FILE* fmat = fopen((path + "materials.mtl").c_str(), "wt");

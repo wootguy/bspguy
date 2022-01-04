@@ -182,6 +182,7 @@ struct BSPMODEL
 	int32_t iFirstFace, nFaces;        // Index and count into faces
 };
 
+
 struct BSPNODE
 {
 	uint32_t iPlane;            // Index into Planes lump
