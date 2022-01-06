@@ -25,3 +25,5 @@ vs-project/.vs/bspguy/v17/fileList.bin
 *.ipch
 *.pdb
 *.ilk
+*.bsp
+*.bak

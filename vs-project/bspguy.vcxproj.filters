@@ -10,6 +10,9 @@
     <ClCompile Include=".\..\src\cli\ProgressMeter.cpp">
       <Filter>Source Files\cli</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\bsp\forcecrc32.cpp">
+      <Filter>Source Files\bsp</Filter>
+    </ClCompile>
     <ClCompile Include=".\..\src\bsp\BspMerger.cpp">
       <Filter>Source Files\bsp</Filter>
     </ClCompile>
@@ -134,6 +137,9 @@
     </ClInclude>
     <ClInclude Include=".\..\src\cli\ProgressMeter.h">
       <Filter>Header Files\cli</Filter>
+    </ClInclude>
+    <ClInclude Include=".\..\src\bsp\forcecrc32.h">
+      <Filter>Header Files\bsp</Filter>
     </ClInclude>
     <ClInclude Include=".\..\src\bsp\BspMerger.h">
       <Filter>Header Files\bsp</Filter>

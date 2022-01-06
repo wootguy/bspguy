@@ -2754,6 +2754,13 @@ void Gui::drawSettings() {
 				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
 				ImGui::EndTooltip();
 			}
+
+			ImGui::Checkbox("Preserve map CRC", &g_settings.preserveCrc32);
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Hack original map CRC after anything edited.");
+				ImGui::EndTooltip();
+			}
 		}
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {

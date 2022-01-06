@@ -77,6 +77,8 @@ struct AppSettings {
 	bool show_transform_axes;
 	bool backUpMap;
 
+	bool preserveCrc32;
+
 	std::vector<std::string> fgdPaths;
 	std::vector<std::string> resPaths;
 

@@ -263,4 +263,5 @@ private:
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
 	BspRenderer* renderer;
+	uint32_t originCrc32 = 0;
 };

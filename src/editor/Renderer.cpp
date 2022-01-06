@@ -102,6 +102,7 @@ void AppSettings::loadDefault()
 
 	vsync = true;
 	backUpMap = true;
+	preserveCrc32 = false;
 
 	moveSpeed = 4.0f;
 	fov = 75.0f;
@@ -158,6 +159,7 @@ void AppSettings::load() {
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
+			else if (key == "save_crc") { g_settings.preserveCrc32 = atoi(val.c_str()) != 0; }
 		}
 
 
@@ -245,6 +247,7 @@ void AppSettings::save(std::string path)
 	file << "font_size=" << g_settings.fontSize << std::endl;
 	file << "undo_levels=" << g_settings.undoLevels << std::endl;
 	file << "savebackup=" << g_settings.backUpMap << std::endl;
+	file << "save_crc=" << g_settings.preserveCrc32 << std::endl;
 }
 
 void AppSettings::save() {

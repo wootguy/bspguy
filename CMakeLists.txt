@@ -16,6 +16,7 @@ set(SOURCE_FILES
 	src/cli/ProgressMeter.h			src/cli/ProgressMeter.cpp
 	
 	# BSP and related structures
+	src/bsp/forcecrc32.h			src/bsp/forcecrc32.c
 	src/bsp/BspMerger.h				src/bsp/BspMerger.cpp
 	src/bsp/Bsp.h					src/bsp/Bsp.cpp
 	src/bsp/bsplimits.h
@@ -108,7 +109,8 @@ if(MSVC)
 	
 	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
 	
-	source_group("Header Files\\bsp" FILES	src/bsp/BspMerger.h
+	source_group("Header Files\\bsp" FILES	src/bsp/forcecrc32.h
+											src/bsp/BspMerger.h
 											src/bsp/Bsp.h
 											src/bsp/bsplimits.h
 											src/bsp/bsptypes.h
@@ -117,7 +119,8 @@ if(MSVC)
 											src/bsp/Wad.h
 											src/bsp/remap.h)
 											
-	source_group("Source Files\\bsp" FILES	src/bsp/BspMerger.cpp
+	source_group("Source Files\\bsp" FILES	src/bsp/forcecrc32.c
+											src/bsp/BspMerger.cpp
 											src/bsp/Bsp.cpp
 											src/bsp/bsptypes.cpp
 											src/bsp/Entity.cpp

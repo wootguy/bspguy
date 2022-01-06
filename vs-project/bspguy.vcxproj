@@ -148,6 +148,7 @@
       <ProgramDataBaseFile>Release/bspguy.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
       <SetChecksum>true</SetChecksum>
+      <StackReserveSize>10485760</StackReserveSize>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -160,6 +161,8 @@
     <ClCompile Include=".\..\src\cli\CommandLine.cpp" />
     <ClInclude Include=".\..\src\cli\ProgressMeter.h" />
     <ClCompile Include=".\..\src\cli\ProgressMeter.cpp" />
+    <ClInclude Include=".\..\src\bsp\forcecrc32.h" />
+    <ClCompile Include="..\src\bsp\forcecrc32.cpp" />
     <ClInclude Include=".\..\src\bsp\BspMerger.h" />
     <ClCompile Include=".\..\src\bsp\BspMerger.cpp" />
     <ClInclude Include=".\..\src\bsp\Bsp.h" />

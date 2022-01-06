@@ -12,6 +12,7 @@
 #include <winding.h>
 #include "Wad.h"
 #include <vector>
+#include "forcecrc32.h"
 
 typedef std::map< std::string, vec3 > mapStringToVector;
 
@@ -114,6 +115,8 @@ Bsp::Bsp(std::string fpath)
 		logf("%s is not a valid BSP file\n", fpath.c_str());
 		return;
 	}
+
+	logf("(CRC \"%u\")\n", reverse_bits(originCrc32));
 
 	load_ents();
 	update_lump_pointers();
@@ -1971,12 +1974,44 @@ void Bsp::write(std::string path) {
 		return;
 	}
 
-	logf("Writing %s\n", path.c_str());
 
+	if (g_settings.preserveCrc32)
+	{
+		logf("HACKING CRC value. Original crc: %u. ", reverse_bits(originCrc32));
+		uint32_t crc32 = UINT32_C(0xFFFFFFFF);
+
+		int originsize = header.lump[LUMP_MODELS].nLength;
+
+		byte* tmpNewModelds = new byte[originsize + sizeof(BSPMODEL)];
+		memset(tmpNewModelds, 0, originsize + sizeof(BSPMODEL));
+		memcpy(tmpNewModelds, &lumps[LUMP_MODELS], header.lump[LUMP_MODELS].nLength);
+		header.lump[LUMP_MODELS].nLength += sizeof(BSPMODEL);
+
+		for (int i = 0; i < HEADER_LUMPS; i++)
+		{
+			if (i != LUMP_ENTITIES)
+				crc32 = GetCrc32InMemory(&lumps[i][0], header.lump[i].nLength, crc32);
+		}
+
+		logf("Current value: %u. ", reverse_bits(crc32));
+
+		PathCrc32InMemory(&lumps[LUMP_MODELS][0], header.lump[LUMP_MODELS].nLength, header.lump[LUMP_MODELS].nLength - sizeof(BSPMODEL), crc32, originCrc32);
+
+		crc32 = UINT32_C(0xFFFFFFFF);
+		for (int i = 0; i < HEADER_LUMPS; i++)
+		{
+			if (i != LUMP_ENTITIES)
+				crc32 = GetCrc32InMemory(&lumps[i][0], header.lump[i].nLength, crc32);
+		}
+		logf("Hacked value: %u. ", reverse_bits(crc32));
+	}
+
+	logf("Writing %s\n", path.c_str());
 	file.write((char*)&header, sizeof(BSPHEADER));
 
 	// write the lumps
 	for (int i = 0; i < HEADER_LUMPS; i++) {
+
 		file.write((char*)lumps[i], header.lump[i].nLength);
 	}
 }
@@ -2009,6 +2044,8 @@ bool Bsp::load_lumps(std::string fpath)
 	lumps = new byte * [HEADER_LUMPS];
 	memset(lumps, 0, sizeof(byte*) * HEADER_LUMPS);
 
+	uint32_t crc32 = UINT32_C(0xFFFFFFFF);
+
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
 		if (header.lump[i].nLength == 0) {
@@ -2025,9 +2062,22 @@ bool Bsp::load_lumps(std::string fpath)
 		{
 			lumps[i] = new byte[header.lump[i].nLength];
 			fin.read((char*)lumps[i], header.lump[i].nLength);
+			if (i != LUMP_ENTITIES)
+				crc32 = GetCrc32InMemory(&lumps[i][0], header.lump[i].nLength, crc32);
 		}
 	}
 
+	// SKIP BAD MODEL
+	BSPMODEL* tmpBspModel = (BSPMODEL*)&lumps[header.lump[LUMP_MODELS].nLength - sizeof(BSPMODEL) ];
+	if (tmpBspModel->nFaces == 0 &&
+		tmpBspModel->nVisLeafs == 0 &&
+		tmpBspModel->iFirstFace == 0 )
+	{
+		header.lump[LUMP_MODELS].nLength -= sizeof(BSPMODEL);
+	}
+
+	originCrc32 = crc32;
+	
 	fin.close();
 
 	return valid;
