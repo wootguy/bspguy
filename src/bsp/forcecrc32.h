@@ -8,10 +8,10 @@
 #include <string.h>
 
 
-void PathCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset, uint32_t oldcrc, uint32_t newcrc);
-uint32_t GetCrc32InMemory(unsigned char* f, uint32_t length, uint32_t oldcrc = UINT32_C(0xFFFFFFFF));
-uint32_t ReplaceCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset, uint32_t newcrc, uint32_t oldcrc = UINT32_C(0xFFFFFFFF));
-uint32_t reverse_bits(uint32_t x);
+void PathCrc32InMemory(unsigned char* data, unsigned int len, unsigned int offset, unsigned int oldcrc, unsigned int newcrc);
+unsigned int GetCrc32InMemory(unsigned char* f, unsigned int length, unsigned int oldcrc = UINT32_C(0xFFFFFFFF));
+unsigned int ReplaceCrc32InMemory(unsigned char* data, unsigned int len, unsigned int offset, unsigned int newcrc, unsigned int oldcrc = UINT32_C(0xFFFFFFFF));
+unsigned int reverse_bits(unsigned int x);
 
 uint64_t multiply_mod(uint64_t x, uint64_t y);
 uint64_t pow_mod(uint64_t x, uint64_t y);

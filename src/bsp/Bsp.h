@@ -25,22 +25,22 @@ public:
 	std::string path;
 	std::string name;
 	BSPHEADER header = BSPHEADER();
-	byte** lumps;
+	unsigned char** lumps;
 	bool valid;
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
-	byte* textures;
+	unsigned char* textures;
 	BSPLEAF* leaves;
 	BSPMODEL* models;
 	BSPNODE* nodes;
 	BSPCLIPNODE* clipnodes;
 	BSPFACE* faces;
 	vec3* verts;
-	byte* lightdata;
-	int32_t* surfedges;
+	unsigned char* lightdata;
+	int* surfedges;
 	BSPEDGE* edges;
-	uint16* marksurfs;
-	byte* visdata;
+	unsigned short* marksurfs;
+	unsigned char* visdata;
 
 	bool is_model = false;
 	void selectModelEnt();
@@ -77,10 +77,10 @@ public:
 	void print_info(bool perModelStats, int perModelLimit, int sortMode);
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
-	void recurse_node(int16_t node, int depth);
-	int32_t pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx);
-	int32_t pointContents(int iNode, vec3 p, int hull);
-	const char* getLeafContentsName(int32_t contents);
+	void recurse_node(short node, int depth);
+	int pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx);
+	int pointContents(int iNode, vec3 p, int hull);
+	const char* getLeafContentsName(int contents);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0
@@ -170,10 +170,10 @@ public:
 
 	// create a new texture from raw RGB data, and embeds into the bsp. 
 	// Returns -1 on failure, else the new texture index
-	int add_texture(const char* name, byte* data, int width, int height);
+	int add_texture(const char* name, unsigned char* data, int width, int height);
 
-	void replace_lump(int lumpIdx, void* newData, int newLength);
-	void append_lump(int lumpIdx, void* newData, int appendLength);
+	void replace_lump(int lumpIdx, void* newData, size_t newLength);
+	void append_lump(int lumpIdx, void* newData, size_t appendLength);
 
 	bool is_invisible_solid(Entity* ent);
 
@@ -183,7 +183,7 @@ public:
 	// for use after scaling a model. Convex only.
 	// Skips axis-aligned planes (bounding box should have been generated beforehand)
 	void regenerate_clipnodes(int modelIdx, int hullIdx);
-	int16 regenerate_clipnodes_from_nodes(int iNode, int hullIdx);
+	short regenerate_clipnodes_from_nodes(int iNode, int hullIdx);
 
 	int create_clipnode();
 	int create_plane();
@@ -240,14 +240,14 @@ private:
 	void print_model_bsp(int modelIdx);
 	void print_leaf(BSPLEAF leaf);
 	void print_node(BSPNODE node);
-	void print_stat(std::string name, uint val, uint max, bool isMem);
-	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
+	void print_stat(std::string name, unsigned int val, unsigned int max, bool isMem);
+	void print_model_stat(STRUCTUSAGE* modelInfo, unsigned int val, unsigned int max, bool isMem);
 
 	std::string get_model_usage(int modelIdx);
 	std::vector<Entity*> get_model_ents(int modelIdx);
 	std::vector<int> get_model_ents_ids(int modelIdx);
 
-	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
+	void write_csg_polys(short nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);
 
 	// marks all structures that this model uses
 	// TODO: don't mark faces in submodel leaves (unused)
@@ -263,5 +263,5 @@ private:
 	void remap_clipnode_structures(int iNode, STRUCTREMAP* remap);
 
 	BspRenderer* renderer;
-	uint32_t originCrc32 = 0;
+	unsigned int originCrc32 = 0;
 };

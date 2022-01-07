@@ -12,7 +12,7 @@ namespace fs = std::experimental::filesystem;
 #define USE_FILESYSTEM
 #endif
 
-#include "types.h"
+
 #include <string>
 #include <vector>
 #include "mat4x4.h"
@@ -137,6 +137,6 @@ void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-void WriteBMP(std::string fileName, byte* pixels, int width, int height, int bytesPerPixel);
+void WriteBMP(std::string fileName, unsigned char* pixels, int width, int height, int bytesPerPixel);
 
 std::string GetCurrentWorkingDir();

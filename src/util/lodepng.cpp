@@ -420,9 +420,9 @@ unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const
 /*TODO: this ignores potential out of memory errors*/
 #define addBitToStream(/*size_t**/ bitpointer, /*ucvector**/ bitstream, /*unsigned char*/ bit)\
 {\
-  /*add a new byte at the end*/\
+  /*add a new unsigned char at the end*/\
   if(((*bitpointer) & 7) == 0) ucvector_push_back(bitstream, (unsigned char)0);\
-  /*earlier bit of huffman code is in a lesser significant bit of an earlier byte*/\
+  /*earlier bit of huffman code is in a lesser significant bit of an earlier unsigned char*/\
   (bitstream->data[bitstream->size - 1]) |= (bit << ((*bitpointer) & 0x7));\
   ++(*bitpointer);\
 }
@@ -942,7 +942,7 @@ static unsigned generateFixedDistanceTree(HuffmanTree* tree)
 
 /*
 returns the code, or (unsigned)(-1) if error happened
-inbitlength is the length of the complete buffer, in bits (so its byte length times 8)
+inbitlength is the length of the complete buffer, in bits (so its unsigned char length times 8)
 */
 static unsigned huffmanDecodeSymbol(const unsigned char* in, size_t* bp,
 	const HuffmanTree* codetree, size_t inbitlength)
@@ -1228,9 +1228,9 @@ static unsigned inflateNoCompression(ucvector* out, const unsigned char* in, siz
 	size_t p;
 	unsigned LEN, NLEN, n, error = 0;
 
-	/*go to first boundary of byte*/
+	/*go to first boundary of unsigned char*/
 	while (((*bp) & 0x7) != 0) ++(*bp);
-	p = (*bp) / 8; /*byte position*/
+	p = (*bp) / 8; /*unsigned char position*/
 
 	/*read LEN (2 bytes) and NLEN (2 bytes)*/
 	if (p + 4 >= inlength) return 52; /*error, bit pointer will jump past memory*/
@@ -1255,10 +1255,10 @@ static unsigned lodepng_inflatev(ucvector* out,
 	const unsigned char* in, size_t insize,
 	const LodePNGDecompressSettings* settings)
 {
-	/*bit pointer in the "in" data, current byte is bp >> 3, current bit is bp & 0x7 (from lsb to msb of the byte)*/
+	/*bit pointer in the "in" data, current unsigned char is bp >> 3, current bit is bp & 0x7 (from lsb to msb of the unsigned char)*/
 	size_t bp = 0;
 	unsigned BFINAL = 0;
-	size_t pos = 0; /*byte position in the out buffer*/
+	size_t pos = 0; /*unsigned char position in the out buffer*/
 	unsigned error = 0;
 
 	(void)settings;
@@ -1372,7 +1372,7 @@ typedef struct Hash
 	unsigned short* chain;
 	int* val; /*circular pos to hash value*/
 
-	/*TODO: do this not only for zeros but for any repeated byte. However for PNG
+	/*TODO: do this not only for zeros but for any repeated unsigned char. However for PNG
 	it's always going to be the zeros that dominate, so not important for PNG*/
 	int* headz; /*similar to head, but for chainz*/
 	unsigned short* chainz; /*those with same amount of zeros*/
@@ -1591,7 +1591,7 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
 				lazy = 1;
 				lazylength = length;
 				lazyoffset = offset;
-				continue; /*try the next byte*/
+				continue; /*try the next unsigned char*/
 			}
 			if (lazy)
 			{
@@ -1654,7 +1654,7 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
 
 static unsigned deflateNoCompression(ucvector* out, const unsigned char* data, size_t datasize)
 {
-	/*non compressed deflate block data: 1 bit BFINAL,2 bits BTYPE,(5 bits): it jumps to start of next byte,
+	/*non compressed deflate block data: 1 bit BFINAL,2 bits BTYPE,(5 bits): it jumps to start of next unsigned char,
 	2 bytes LEN, 2 bytes NLEN, LEN bytes literal DATA*/
 
 	size_t i, j, numdeflateblocks = (datasize + 65534) / 65535;
@@ -2198,7 +2198,7 @@ unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsig
 	unsigned char* deflatedata = 0;
 	size_t deflatesize = 0;
 
-	/*zlib data: 1 byte CMF (CM+CINFO), 1 byte FLG, deflate data, 4 byte ADLER32 checksum of the Decompressed data*/
+	/*zlib data: 1 unsigned char CMF (CM+CINFO), 1 unsigned char FLG, deflate data, 4 unsigned char ADLER32 checksum of the Decompressed data*/
 	unsigned CMF = 120; /*0b01111000: CM 8, CINFO 7. With CINFO 7, any window size up to 32768 can be used.*/
 	unsigned FLEVEL = 0;
 	unsigned FDICT = 0;
@@ -2401,7 +2401,7 @@ static void setBitOfReversedStream0(size_t* bitpointer, unsigned char* bitstream
 	/*the current bit in bitstream must be 0 for this to work*/
 	if (bit)
 	{
-		/*earlier bit of huffman code is in a lesser significant bit of an earlier byte*/
+		/*earlier bit of huffman code is in a lesser significant bit of an earlier unsigned char*/
 		bitstream[(*bitpointer) >> 3] |= (bit << (7 - ((*bitpointer) & 0x7)));
 	}
 	++(*bitpointer);
@@ -2983,7 +2983,7 @@ void lodepng_info_swap(LodePNGInfo* a, LodePNGInfo* b)
 static void addColorBits(unsigned char* out, size_t index, unsigned bits, unsigned in)
 {
 	unsigned m = bits == 1 ? 7 : bits == 2 ? 3 : 1; /*8 / bits - 1*/
-	/*p = the partial index in the byte, e.g. with 4 palettebits it is 0 for first half or 1 for second half*/
+	/*p = the partial index in the unsigned char, e.g. with 4 palettebits it is 0 for first half or 1 for second half*/
 	unsigned p = index & m;
 	in &= (1u << bits) - 1u; /*filter out any other bits of the input value*/
 	in = in << (bits * (m - p));
@@ -3594,7 +3594,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 		{
 			getPixelColorRGBA16(&r, &g, &b, &a, in, i, mode);
 			if ((r & 255) != ((r >> 8) & 255) || (g & 255) != ((g >> 8) & 255) ||
-				(b & 255) != ((b >> 8) & 255) || (a & 255) != ((a >> 8) & 255)) /*first and second byte differ*/
+				(b & 255) != ((b >> 8) & 255) || (a & 255) != ((a >> 8) & 255)) /*first and second unsigned char differ*/
 			{
 				sixteen = 1;
 				break;
@@ -3741,7 +3741,7 @@ unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
 			}
 		}
 
-		/*make the profile's key always 16-bit for consistency - repeat each byte twice*/
+		/*make the profile's key always 16-bit for consistency - repeat each unsigned char twice*/
 		profile->key_r += (profile->key_r << 8);
 		profile->key_g += (profile->key_g << 8);
 		profile->key_b += (profile->key_b << 8);
@@ -3859,12 +3859,12 @@ passstart: output containing the index of the start and end of each reduced
 w, h: width and height of non-interlaced image
 bpp: bits per pixel
 "padded" is only relevant if bpp is less than 8 and a scanline or image does not
- end at a full byte
+ end at a full unsigned char
 */
 static void Adam7_getpassvalues(unsigned passw[7], unsigned passh[7], size_t filter_passstart[8],
 	size_t padded_passstart[8], size_t passstart[8], unsigned w, unsigned h, unsigned bpp)
 {
-	/*the passstart values have 8 values: the 8th one indicates the byte after the end of the 7th (= last) pass*/
+	/*the passstart values have 8 values: the 8th one indicates the unsigned char after the end of the 7th (= last) pass*/
 	unsigned i;
 
 	/*calculate width and height in pixels of each pass*/
@@ -3879,10 +3879,10 @@ static void Adam7_getpassvalues(unsigned passw[7], unsigned passh[7], size_t fil
 	filter_passstart[0] = padded_passstart[0] = passstart[0] = 0;
 	for (i = 0; i != 7; ++i)
 	{
-		/*if passw[i] is 0, it's 0 bytes, not 1 (no filtertype-byte)*/
+		/*if passw[i] is 0, it's 0 bytes, not 1 (no filtertype-unsigned char)*/
 		filter_passstart[i + 1] = filter_passstart[i]
 			+ ((passw[i] && passh[i]) ? passh[i] * (1 + (passw[i] * bpp + 7) / 8) : 0);
-		/*bits padded if needed to fill full byte at end of each scanline*/
+		/*bits padded if needed to fill full unsigned char at end of each scanline*/
 		padded_passstart[i + 1] = padded_passstart[i] + passh[i] * ((passw[i] * bpp + 7) / 8);
 		/*only padded at end of reduced image*/
 		passstart[i + 1] = passstart[i] + (passh[i] * passw[i] * bpp + 7) / 8;
@@ -3967,10 +3967,10 @@ static unsigned unfilterScanline(unsigned char* recon, const unsigned char* scan
 {
 	/*
 	For PNG filter method 0
-	unfilter a PNG image scanline by scanline. when the pixels are smaller than 1 byte,
-	the filter works byte per byte (bytewidth = 1)
+	unfilter a PNG image scanline by scanline. when the pixels are smaller than 1 unsigned char,
+	the filter works unsigned char per unsigned char (bytewidth = 1)
 	precon is the previous unfiltered scanline, recon the result, scanline the current one
-	the incoming scanlines do NOT include the filtertype byte, that one is given in the parameter filterType instead
+	the incoming scanlines do NOT include the filtertype unsigned char, that one is given in the parameter filterType instead
 	recon and scanline MAY be the same memory address! precon must be disjoint.
 	*/
 
@@ -4041,7 +4041,7 @@ static unsigned unfilter(unsigned char* out, const unsigned char* in, unsigned w
 	/*
 	For PNG filter method 0
 	this function unfilters a single image (e.g. without interlacing this is called once, with Adam7 seven times)
-	out must have enough bytes allocated already, in must have the scanlines + 1 filtertype byte per scanline
+	out must have enough bytes allocated already, in must have the scanlines + 1 filtertype unsigned char per scanline
 	w and h are image dimensions or dimensions of reduced image, bpp is bits per pixel
 	in and out are allowed to be the same memory address (but aren't the same size since in has the extra filter bytes)
 	*/
@@ -4069,7 +4069,7 @@ static unsigned unfilter(unsigned char* out, const unsigned char* in, unsigned w
 
 /*
 in: Adam7 interlaced image, with no padding bits between scanlines, but between
- reduced images so that each reduced image starts at a byte.
+ reduced images so that each reduced image starts at a unsigned char.
 out: the same pixels, but re-ordered so that they're now a non-interlaced image with size w*h
 bpp: bits per pixel
 out has the following size in bits: w * h * bpp.
@@ -4196,7 +4196,7 @@ static unsigned postProcessScanlines(unsigned char* out, unsigned char* in,
 			if (bpp < 8)
 			{
 				/*remove padding bits in scanlines; after this there still may be padding
-				bits between the different reduced images: each reduced image still starts nicely at a byte*/
+				bits between the different reduced images: each reduced image still starts nicely at a unsigned char*/
 				removePaddingBits(&in[passstart[i]], &in[padded_passstart[i]], passw[i] * bpp,
 					((passw[i] * bpp + 7) / 8) * 8, passh[i]);
 			}
@@ -4272,7 +4272,7 @@ static unsigned readChunk_bKGD(LodePNGInfo* info, const unsigned char* data, siz
 {
 	if (info->color.colortype == LCT_PALETTE)
 	{
-		/*error: this chunk must be 1 byte for indexed color image*/
+		/*error: this chunk must be 1 unsigned char for indexed color image*/
 		if (chunkLength != 1) return 43;
 
 		info->background_defined = 1;
@@ -4368,7 +4368,7 @@ static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSetting
 		key[length] = 0;
 		for (i = 0; i != length; ++i) key[i] = (char)data[i];
 
-		if (data[length + 1] != 0) CERROR_BREAK(error, 72); /*the 0 byte indicating compression must be 0*/
+		if (data[length + 1] != 0) CERROR_BREAK(error, 72); /*the 0 unsigned char indicating compression must be 0*/
 
 		string2_begin = length + 2;
 		if (string2_begin > chunkLength) CERROR_BREAK(error, 75); /*no null termination, corrupt?*/
@@ -4423,7 +4423,7 @@ static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSetting
 
 		/*read the compression method*/
 		compressed = data[length + 1];
-		if (data[length + 2] != 0) CERROR_BREAK(error, 72); /*the 0 byte indicating compression must be 0*/
+		if (data[length + 2] != 0) CERROR_BREAK(error, 72); /*the 0 unsigned char indicating compression must be 0*/
 
 		/*even though it's not allowed by the standard, no error is thrown if
 		there's no null termination char, if the text is empty for the next 3 texts*/
@@ -4549,7 +4549,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
 	if (numpixels > 268435455) CERROR_RETURN(state->error, 92);
 
 	ucvector_init(&idat);
-	chunk = &in[33]; /*first byte of the first chunk after the header*/
+	chunk = &in[33]; /*first unsigned char of the first chunk after the header*/
 
 	/*loop through the chunks, ignoring unknown chunks and stopping at IEND chunk.
 	IDAT data is put at the start of the in buffer*/
@@ -4650,7 +4650,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
 #endif /*LODEPNG_COMPILE_ANCILLARY_CHUNKS*/
 		else /*it's not an implemented chunk type, so ignore it: skip over the data*/
 		{
-			/*error: unknown critical chunk (5th bit of first byte of chunk type is 0)*/
+			/*error: unknown critical chunk (5th bit of first unsigned char of chunk type is 0)*/
 			if (!lodepng_chunk_ancillary(chunk)) CERROR_BREAK(state->error, 69);
 
 			unknown = 1;
@@ -5208,7 +5208,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 	/*
 	For PNG filter method 0
 	out must be a buffer with as size: h + (w * h * bpp + 7) / 8, because there are
-	the scanlines with 1 extra byte per scanline
+	the scanlines with 1 extra unsigned char per scanline
 	*/
 
 	unsigned bpp = lodepng_get_bpp(info);
@@ -5245,7 +5245,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 		{
 			size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
 			size_t inindex = linebytes * y;
-			out[outindex] = 0; /*filter type byte*/
+			out[outindex] = 0; /*filter type unsigned char*/
 			filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, 0);
 			prevline = &in[inindex];
 		}
@@ -5283,7 +5283,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 					{
 						for (x = 0; x != linebytes; ++x)
 						{
-							/*For differences, each byte should be treated as signed, values above 127 are negative
+							/*For differences, each unsigned char should be treated as signed, values above 127 are negative
 							(converted to signed char). Filtertype 0 isn't a difference though, so use unsigned there.
 							This means filtertype 0 is almost never chosen, but that is justified.*/
 							unsigned char s = attempt[type][x];
@@ -5302,7 +5302,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 				prevline = &in[y * linebytes];
 
 				/*now fill the out values*/
-				out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+				out[y * (linebytes + 1)] = bestType; /*the first unsigned char of a scanline will be the filter type*/
 				for (x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
 			}
 		}
@@ -5349,7 +5349,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 			prevline = &in[y * linebytes];
 
 			/*now fill the out values*/
-			out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+			out[y * (linebytes + 1)] = bestType; /*the first unsigned char of a scanline will be the filter type*/
 			for (x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
 		}
 
@@ -5362,7 +5362,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 			size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
 			size_t inindex = linebytes * y;
 			unsigned char type = settings->predefined_filters[y];
-			out[outindex] = type; /*filter type byte*/
+			out[outindex] = type; /*filter type unsigned char*/
 			filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, type);
 			prevline = &in[inindex];
 		}
@@ -5412,7 +5412,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
 				}
 			}
 			prevline = &in[y * linebytes];
-			out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
+			out[y * (linebytes + 1)] = bestType; /*the first unsigned char of a scanline will be the filter type*/
 			for (x = 0; x != linebytes; ++x) out[y * (linebytes + 1) + 1 + x] = attempt[bestType][x];
 		}
 		for (type = 0; type != 5; ++type) lodepng_free(attempt[type]);
@@ -5448,7 +5448,7 @@ static void addPaddingBits(unsigned char* out, const unsigned char* in,
 in: non-interlaced image with size w*h
 out: the same pixels, but re-ordered according to PNG's Adam7 interlacing, with
  no padding bits between scanlines, but between reduced images so that each
- reduced image starts at a byte.
+ reduced image starts at a unsigned char.
 bpp: bits per pixel
 there are no padding bits, not between scanlines, not between reduced images
 in has the following size in bits: w * h * bpp.
@@ -5520,7 +5520,7 @@ static unsigned preProcessScanlines(unsigned char** out, size_t* outsize, const 
 
 	if (info_png->interlace_method == 0)
 	{
-		*outsize = h + (h * ((w * bpp + 7) / 8)); /*image size plus an extra byte per scanline + possible padding bits*/
+		*outsize = h + (h * ((w * bpp + 7) / 8)); /*image size plus an extra unsigned char per scanline + possible padding bits*/
 		*out = (unsigned char*)lodepng_malloc(*outsize);
 		if (!(*out) && (*outsize)) error = 83; /*alloc fail*/
 
@@ -5553,7 +5553,7 @@ static unsigned preProcessScanlines(unsigned char** out, size_t* outsize, const 
 
 		Adam7_getpassvalues(passw, passh, filter_passstart, padded_passstart, passstart, w, h, bpp);
 
-		*outsize = filter_passstart[7]; /*image size plus an extra byte per scanline + possible padding bits*/
+		*outsize = filter_passstart[7]; /*image size plus an extra unsigned char per scanline + possible padding bits*/
 		*out = (unsigned char*)lodepng_malloc(*outsize);
 		if (!(*out)) error = 83; /*alloc fail*/
 
@@ -5966,7 +5966,7 @@ const char* lodepng_error_text(unsigned code)
 	/*this would result in the inability of a deflated block to ever contain an end code. It must be at least 1.*/
 	case 64: return "the length of the END symbol 256 in the Huffman tree is 0";
 	case 66: return "the length of a text chunk keyword given to the encoder is longer than the maximum of 79 bytes";
-	case 67: return "the length of a text chunk keyword given to the encoder is smaller than the minimum of 1 byte";
+	case 67: return "the length of a text chunk keyword given to the encoder is smaller than the minimum of 1 unsigned char";
 	case 68: return "tried to encode a PLTE chunk with a palette that has less than 1 or more than 256 colors";
 	case 69: return "unknown chunk type with 'critical' flag encountered by the decoder";
 	case 71: return "unexisting interlace mode given to encoder (must be 0 or 1)";

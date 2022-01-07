@@ -9,7 +9,6 @@ project(bspguy)
 
 set(SOURCE_FILES 
 	src/main.cpp
-	src/types.h
 	
 	# command line
 	src/cli/CommandLine.h			src/cli/CommandLine.cpp

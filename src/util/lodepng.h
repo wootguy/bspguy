@@ -327,7 +327,7 @@ typedef struct LodePNGColorMode
 	Dynamically allocated with the colors of the palette, including alpha.
 	When encoding a PNG, to store your colors in the palette of the LodePNGColorMode, first use
 	lodepng_palette_clear, then for each color use lodepng_palette_add.
-	If you encode an image without alpha with palette, don't forget to put value 255 in each A byte of the palette.
+	If you encode an image without alpha with palette, don't forget to put value 255 in each A unsigned char of the palette.
 
 	When decoding, by default you can ignore this palette, since LodePNG already
 	fills the palette colors in the pixels of the raw RGBA output.
@@ -387,7 +387,7 @@ In detail, it returns true only if it's a color type with alpha, or has a palett
 or if "key_defined" is true.
 */
 unsigned lodepng_can_have_alpha(const LodePNGColorMode* info);
-/*Returns the byte size of a raw image buffer with given width, height and color mode*/
+/*Returns the unsigned char size of a raw image buffer with given width, height and color mode*/
 size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* color);
 
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -675,10 +675,10 @@ unknown chunks stored in the LodePNGInfo struct, or add new ones to it.
 It also allows traversing the chunks of an encoded PNG file yourself.
 
 PNG standard chunk naming conventions:
-First byte: uppercase = critical, lowercase = ancillary
-Second byte: uppercase = public, lowercase = private
-Third byte: must be uppercase
-Fourth byte: uppercase = unsafe to copy, lowercase = safe to copy
+First unsigned char: uppercase = critical, lowercase = ancillary
+Second unsigned char: uppercase = public, lowercase = private
+Third unsigned char: must be uppercase
+Fourth unsigned char: uppercase = unsafe to copy, lowercase = safe to copy
 */
 
 /*
@@ -688,7 +688,7 @@ it may be corrupt data.
 */
 unsigned lodepng_chunk_length(const unsigned char* chunk);
 
-/*puts the 4-byte type in null terminated string*/
+/*puts the 4-unsigned char type in null terminated string*/
 void lodepng_chunk_type(char type[5], const unsigned char* chunk);
 
 /*check if the type is the given type*/
@@ -1302,18 +1302,18 @@ it.
 
 In the PNG file format, if a less than 8-bit per pixel color type is used and the scanlines
 have a bit amount that isn't a multiple of 8, then padding bits are used so that each
-scanline starts at a fresh byte. But that is NOT true for the LodePNG raw input and output.
+scanline starts at a fresh unsigned char. But that is NOT true for the LodePNG raw input and output.
 The raw input image you give to the encoder, and the raw output image you get from the decoder
 will NOT have these padding bits, e.g. in the case of a 1-bit image with a width
-of 7 pixels, the first pixel of the second scanline will the the 8th bit of the first byte,
-not the first bit of a new byte.
+of 7 pixels, the first pixel of the second scanline will the the 8th bit of the first unsigned char,
+not the first bit of a new unsigned char.
 
 6.4. A note about 16-bits per channel and endianness
 ----------------------------------------------------
 
 LodePNG uses unsigned char arrays for 16-bit per channel colors too, just like
 for any other color format. The 16-bit values are stored in big endian (most
-significant byte first) in these arrays. This is the opposite order of the
+significant unsigned char first) in these arrays. This is the opposite order of the
 little endian used by x86 CPU's.
 
 LodePNG always uses big endian because the PNG file format does so internally.
@@ -1361,8 +1361,8 @@ length bytes data
 -----------------------------
 
 If you have a buffer containing the PNG image data, then the first chunk (the
-IHDR chunk) starts at byte number 8 of that buffer. The first 8 bytes are the
-signature of the PNG and are not part of a chunk. But if you start at byte 8
+IHDR chunk) starts at unsigned char number 8 of that buffer. The first 8 bytes are the
+signature of the PNG and are not part of a chunk. But if you start at unsigned char 8
 then you have a chunk, and can check the following things of it.
 
 NOTE: none of these functions check for memory buffer boundaries. To avoid

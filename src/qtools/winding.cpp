@@ -21,7 +21,7 @@ Winding& Winding::operator=(const Winding& other)
 	return *this;
 }
 
-Winding::Winding(uint32 numpoints)
+Winding::Winding(unsigned int numpoints)
 {
 	m_NumPoints = numpoints;
 	m_MaxPoints = (m_NumPoints + 3) & ~3;   // groups of 4

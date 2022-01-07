@@ -16,11 +16,11 @@ struct BSPFACE;
 class Winding
 {
 public:
-	uint32  m_NumPoints;
+	unsigned int  m_NumPoints;
 	vec3_t* m_Points;
 
 	Winding(Bsp* bsp, const BSPFACE& face, vec_t epsilon = ON_EPSILON);
-	Winding(uint32 numpoints);
+	Winding(unsigned int numpoints);
 	Winding(const Winding& other);
 	virtual ~Winding();
 	Winding& operator=(const Winding& other);
@@ -30,5 +30,5 @@ public:
 
 
 protected:
-	uint32  m_MaxPoints;
+	unsigned int  m_MaxPoints;
 };

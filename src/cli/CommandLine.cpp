@@ -82,9 +82,9 @@ vec3 CommandLine::getOptionVector(std::string optionName) {
 		return ret;
 	}
 
-	ret.x = atof(parts[0].c_str());
-	ret.y = atof(parts[1].c_str());
-	ret.z = atof(parts[2].c_str());
+	ret.x = (float)atof(parts[0].c_str());
+	ret.y = (float)atof(parts[1].c_str());
+	ret.z = (float)atof(parts[2].c_str());
 
 	return ret;
 }

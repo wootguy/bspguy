@@ -158,7 +158,7 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 
 void VertexBuffer::setData(const void* data, int numVerts)
 {
-	this->data = (byte*)data;
+	this->data = (unsigned char*)data;
 	this->numVerts = numVerts;
 }
 

@@ -3,9 +3,6 @@
 #include "bsplimits.h"
 #include "bsptypes.h"
 
-typedef unsigned char byte;
-typedef unsigned int uint;
-
 #define MAXTEXELS 262144
 
 #define CLAMP(v, min, max) if (v < min) { v = min; } else if (v > max) { v = max; }
@@ -13,18 +10,18 @@ typedef unsigned int uint;
 #pragma pack(push, 1)
 struct COLOR3
 {
-	byte r, g, b;
+	unsigned char r, g, b;
 
 	COLOR3() = default;
-	COLOR3(byte r, byte g, byte b) : r(r), g(g), b(b) {}
+	COLOR3(unsigned char r, unsigned char g, unsigned char b) : r(r), g(g), b(b) {}
 };
 #pragma pack(pop)
 struct COLOR4
 {
-	byte r, g, b, a;
+	unsigned char r, g, b, a;
 	COLOR4() = default;
-	COLOR4(byte r, byte g, byte b, byte a) : r(r), g(g), b(b), a(a) {}
-	COLOR4(COLOR3 c, byte a) : r(c.r), g(c.g), b(c.b), a(a) {}
+	COLOR4(unsigned char r, unsigned char g, unsigned char b, unsigned char a) : r(r), g(g), b(b), a(a) {}
+	COLOR4(COLOR3 c, unsigned char a) : r(c.r), g(c.g), b(c.b), a(a) {}
 };
 
 COLOR3 operator*(COLOR3 v, float f);
@@ -36,27 +33,27 @@ bool operator==(COLOR4 c1, COLOR4 c2);
 struct WADHEADER
 {
 	char szMagic[4];    // should be WAD2/WAD3
-	int32_t nDir;			// number of directory entries
-	int32_t nDirOffset;		// offset into directories
+	int nDir;			// number of directory entries
+	int nDirOffset;		// offset into directories
 };
 
 struct WADDIRENTRY
 {
-	int32_t nFilePos;				 // offset in WAD
-	int32_t nDiskSize;				 // size in file
-	int32_t nSize;					 // uncompressed size
+	int nFilePos;				 // offset in WAD
+	int nDiskSize;				 // size in file
+	int nSize;					 // uncompressed size
 	char nType;					 // type of entry
 	bool bCompression;           // 0 if none
-	int16_t nDummy;				 // not used
+	short nDummy;				 // not used
 	char szName[MAXTEXTURENAME]; // must be null terminated
 };
 
 struct WADTEX
 {
 	char szName[MAXTEXTURENAME];
-	uint32_t nWidth, nHeight;
-	uint32_t nOffsets[MIPLEVELS];
-	byte* data; // all mip-maps and pallete
+	unsigned int nWidth, nHeight;
+	unsigned int nOffsets[MIPLEVELS];
+	unsigned char* data; // all mip-maps and pallete
 	WADTEX()
 	{
 		szName[0] = '\0';
@@ -74,7 +71,7 @@ struct WADTEX
 		nHeight = tex->nHeight;
 		for (int i = 0; i < MIPLEVELS; i++)
 			nOffsets[i] = tex->nOffsets[i];
-		data = (byte*)(((byte*)tex) + tex->nOffsets[0]);
+		data = (unsigned char*)(((unsigned char*)tex) + tex->nOffsets[0]);
 	}
 };
 

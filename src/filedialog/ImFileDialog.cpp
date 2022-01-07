@@ -756,7 +756,7 @@ namespace ifd {
 		if (byteSize == 0)
 			return nullptr;
 
-		uint8_t* data = (uint8_t*)malloc(byteSize);
+		unsigned char* data = (unsigned char*)malloc(byteSize);
 		GetBitmapBits(iconInfo.hbmColor, byteSize, data);
 
 		m_icons[pathU8] = this->CreateTexture(data, ds.dsBm.bmWidth, ds.dsBm.bmHeight, 0);
@@ -792,18 +792,18 @@ namespace ifd {
 
 		// light theme - load default icons
 		if ((wndBg.x + wndBg.y + wndBg.z) / 3.0f > 0.5f) {
-			uint8_t* data = (uint8_t*)ifd::GetDefaultFileIcon();
+			unsigned char* data = (unsigned char*)ifd::GetDefaultFileIcon();
 			if (iconID == 0)
-				data = (uint8_t*)ifd::GetDefaultFolderIcon();
+				data = (unsigned char*)ifd::GetDefaultFolderIcon();
 			m_icons[pathU8] = this->CreateTexture(data, DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE, 0);
 		}
 		// dark theme - invert the colors
 		else {
-			uint8_t* data = (uint8_t*)ifd::GetDefaultFileIcon();
+			unsigned char* data = (unsigned char*)ifd::GetDefaultFileIcon();
 			if (iconID == 0)
-				data = (uint8_t*)ifd::GetDefaultFolderIcon();
+				data = (unsigned char*)ifd::GetDefaultFolderIcon();
 
-			uint8_t* invData = (uint8_t*)malloc(DEFAULT_ICON_SIZE * DEFAULT_ICON_SIZE * 4);
+			unsigned char* invData = (unsigned char*)malloc(DEFAULT_ICON_SIZE * DEFAULT_ICON_SIZE * 4);
 			for (int y = 0; y < 32; y++) {
 				for (int x = 0; x < 32; x++) {
 					int index = (y * DEFAULT_ICON_SIZE + x) * 4;

@@ -1,5 +1,6 @@
 #pragma once
-#include "types.h"
+#include <stdint.h>
+#include "vectors.h"
 #include "bsplimits.h"
 #include <vector>
 
@@ -103,19 +104,19 @@ struct BSPLUMP
 
 struct BSPHEADER
 {
-	int32_t nVersion;           // Must be 30 for a valid HL BSP file
+	int nVersion;           // Must be 30 for a valid HL BSP file
 	BSPLUMP lump[HEADER_LUMPS]; // Stores the directory of lumps
 };
 
 struct LumpState {
-	byte* lumps[HEADER_LUMPS];
+	unsigned char* lumps[HEADER_LUMPS];
 	int lumpLen[HEADER_LUMPS];
 };
 
 struct BSPPLANE {
 	vec3 vNormal;
 	float fDist;
-	int32_t nType;
+	int nType;
 
 	// returns true if the plane was flipped
 	bool update(vec3 newNormal, float fdist);
@@ -125,7 +126,7 @@ struct CSGPLANE {
 	double normal[3];
 	double origin[3];
 	double dist;
-	int32_t nType;
+	int nType;
 };
 
 struct BSPTEXTUREINFO {
@@ -133,43 +134,43 @@ struct BSPTEXTUREINFO {
 	float shiftS;
 	vec3 vT;
 	float shiftT;
-	uint32_t iMiptex;
-	uint32_t nFlags;
+	unsigned int iMiptex;
+	unsigned int nFlags;
 };
 
 struct BSPMIPTEX
 {
 	char szName[MAXTEXTURENAME];  // Name of texture
-	uint32_t nWidth, nHeight;		  // Extends of the texture
-	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps, relative to the start of this structure
+	unsigned int nWidth, nHeight;		  // Extends of the texture
+	unsigned int nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps, relative to the start of this structure
 };
 
 struct BSPFACE {
-	uint16_t iPlane;          // Plane the face is parallel to
-	uint16_t nPlaneSide;      // Set if different normals orientation
-	uint32_t iFirstEdge;      // Index of the first surfedge
-	uint16_t nEdges;          // Number of consecutive surfedges
-	uint16_t iTextureInfo;    // Index of the texture info structure
-	uint8_t nStyles[4];       // Specify lighting styles
-	uint32_t nLightmapOffset; // Offsets into the raw lightmap data
+	unsigned short iPlane;          // Plane the face is parallel to
+	unsigned short nPlaneSide;      // Set if different normals orientation
+	unsigned int iFirstEdge;      // Index of the first surfedge
+	unsigned short nEdges;          // Number of consecutive surfedges
+	unsigned short iTextureInfo;    // Index of the texture info structure
+	unsigned char nStyles[4];       // Specify lighting styles
+	unsigned int nLightmapOffset; // Offsets into the raw lightmap data
 };
 
 struct BSPLEAF
 {
-	int32_t nContents;                         // Contents enumeration
-	int32_t nVisOffset;                        // Offset into the visibility lump
-	int16_t nMins[3], nMaxs[3];                // Defines bounding box
-	uint16_t iFirstMarkSurface, nMarkSurfaces; // Index and count into marksurfaces array
-	uint8_t nAmbientLevels[4];                 // Ambient sound levels
+	int nContents;                         // Contents enumeration
+	int nVisOffset;                        // Offset into the visibility lump
+	short nMins[3], nMaxs[3];                // Defines bounding box
+	unsigned short iFirstMarkSurface, nMarkSurfaces; // Index and count into marksurfaces array
+	unsigned char nAmbientLevels[4];                 // Ambient sound levels
 
 	bool isEmpty();
 };
 
 struct BSPEDGE {
-	uint16_t iVertex[2]; // Indices into vertex array
+	unsigned short iVertex[2]; // Indices into vertex array
 
 	BSPEDGE();
-	BSPEDGE(uint16_t v1, uint16_t v2);
+	BSPEDGE(unsigned short v1, unsigned short v2);
 };
 
 struct BSPMODEL
@@ -177,24 +178,24 @@ struct BSPMODEL
 	vec3 nMins;
 	vec3 nMaxs;
 	vec3 vOrigin;                  // Coordinates to move the // coordinate system
-	int32_t iHeadnodes[MAX_MAP_HULLS]; // Index into nodes array
-	int32_t nVisLeafs;                 // ???
-	int32_t iFirstFace, nFaces;        // Index and count into faces
+	int iHeadnodes[MAX_MAP_HULLS]; // Index into nodes array
+	int nVisLeafs;                 // ???
+	int iFirstFace, nFaces;        // Index and count into faces
 };
 
 
 struct BSPNODE
 {
-	uint32_t iPlane;            // Index into Planes lump
-	int16_t iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
-	int16_t nMins[3], nMaxs[3]; // Defines bounding box
-	uint16_t firstFace, nFaces; // Index and count into Faces
+	unsigned int iPlane;            // Index into Planes lump
+	short iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
+	short nMins[3], nMaxs[3]; // Defines bounding box
+	unsigned short firstFace, nFaces; // Index and count into Faces
 };
 
 struct BSPCLIPNODE
 {
-	int32_t iPlane;       // Index into planes
-	int16_t iChildren[2]; // negative numbers are contents
+	int iPlane;       // Index into planes
+	short iChildren[2]; // negative numbers are contents
 };
 
 

@@ -24,8 +24,8 @@
  // Public library function. Returns NULL if successful, a string starting with "I/O error: "
  // if an I/O error occurred (please see perror()), or a string if some other error occurred.
 
-uint32_t ReplaceCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset, uint32_t newcrc, uint32_t oldcrc) {
-	uint32_t crc = GetCrc32InMemory(data, len, oldcrc);
+unsigned int ReplaceCrc32InMemory(unsigned char* data, unsigned int len, unsigned int offset, unsigned int newcrc, unsigned int oldcrc) {
+	unsigned int crc = GetCrc32InMemory(data, len, oldcrc);
 	PathCrc32InMemory(data, len, offset, crc, newcrc);
 	return GetCrc32InMemory(data, len);
 }
@@ -34,10 +34,10 @@ uint32_t ReplaceCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset
 // Generator polynomial. Do not modify, because there are many dependencies
 const uint64_t POLYNOMIAL = UINT64_C(0x104C11DB7);
 
-void PathCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset, uint32_t oldcrc, uint32_t newcrc)
+void PathCrc32InMemory(unsigned char* data, unsigned int len, unsigned int offset, unsigned int oldcrc, unsigned int newcrc)
 {
-	uint32_t delta = oldcrc ^ newcrc;
-	delta = (uint32_t)multiply_mod(reciprocal_mod(pow_mod(2, (len - offset) * 8)), delta);
+	unsigned int delta = oldcrc ^ newcrc;
+	delta = (unsigned int)multiply_mod(reciprocal_mod(pow_mod(2, (len - offset) * 8)), delta);
 
 	for (int i = 0; i < 4; i++) {
 		int b = data[offset + i];
@@ -46,23 +46,23 @@ void PathCrc32InMemory(unsigned char* data, uint32_t len, uint32_t offset, uint3
 	}
 }
 
-uint32_t GetCrc32InMemory(unsigned char* f, uint32_t length, uint32_t oldcrc) {
-	uint32_t crc = oldcrc;
+unsigned int GetCrc32InMemory(unsigned char* f, unsigned int length, unsigned int oldcrc) {
+	unsigned int crc = oldcrc;
 	for (size_t i = 0; i < length; i++) {
 		for (int j = 0; j < 8; j++) {
-			uint32_t bit = ((uint8_t)f[i] >> j) & 1;
+			unsigned int bit = ((unsigned char)f[i] >> j) & 1;
 			crc ^= bit << 31;
 			bool xor = (crc >> 31) != 0;
 			crc = (crc & UINT32_C(0x7FFFFFFF)) << 1;
 			if (xor)
-				crc ^= (uint32_t)POLYNOMIAL;
+				crc ^= (unsigned int)POLYNOMIAL;
 		}
 	}
 	return crc;
 }
 
-uint32_t reverse_bits(uint32_t x) {
-	uint32_t result = 0;
+unsigned int reverse_bits(unsigned int x) {
+	unsigned int result = 0;
 	for (int i = 0; i < 32; i++, x >>= 1)
 		result = (result << 1) | (x & 1U);
 	return result;

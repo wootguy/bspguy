@@ -13,15 +13,15 @@ enum mat_types
 class ShaderProgram
 {
 public:
-	uint ID; // OpenGL program ID
+	unsigned int ID; // OpenGL program ID
 
 	Shader* vShader; // vertex shader
 	Shader* fShader; // fragment shader
 
 	// commonly used vertex attributes
-	uint vposID;
-	uint vcolorID;
-	uint vtexID;
+	unsigned int vposID;
+	unsigned int vcolorID;
+	unsigned int vtexID;
 
 	mat4x4* projMat;
 	mat4x4* viewMat;
@@ -56,8 +56,8 @@ public:
 
 private:
 	// uniforms
-	uint modelViewID;
-	uint modelViewProjID;
+	unsigned int modelViewID;
+	unsigned int modelViewProjID;
 
 	// computed from model, view, and projection matrices
 	mat4x4* modelViewProjMat; // for transforming vertices onto the screen

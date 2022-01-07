@@ -42,6 +42,6 @@ public:
 
 	void renameTargetnameValues(std::string oldTargetname, std::string newTargetname);
 
-	int getMemoryUsage(); // aproximate
+	size_t getMemoryUsage(); // aproximate
 };
 

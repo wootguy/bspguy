@@ -44,10 +44,10 @@ bool Wad::readInfo()
 		return false;
 	}
 
-	uint begin = fin.tellg();
+	auto begin = fin.tellg();
 	fin.seekg(0, std::ios::end);
-	uint end = fin.tellg();
-	uint sz = end - begin;
+	auto end = fin.tellg();
+	auto sz = end - begin;
 	fin.seekg(0, std::ios::beg);
 
 	if (sz < sizeof(WADHEADER))
@@ -67,7 +67,7 @@ bool Wad::readInfo()
 		return false;
 	}
 
-	if (header.nDirOffset >= sz)
+	if (header.nDirOffset >= (int)sz)
 	{
 		fin.close();
 		return false;
@@ -165,7 +165,7 @@ WADTEX* Wad::readTexture(const std::string& texname)
 	int sz4 = sz3 / 4; // miptex 3
 	int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
 
-	byte* data = new byte[szAll];
+	unsigned char* data = new unsigned char[szAll];
 	fin.read((char*)data, szAll);
 
 	fin.close();

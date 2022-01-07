@@ -16,7 +16,7 @@ public:
 	Command(std::string desc, int mapIdx);
 	virtual void execute() = 0;
 	virtual void undo() = 0;
-	virtual int memoryUsage() = 0;
+	virtual size_t memoryUsage() = 0;
 
 	BspRenderer* getBspRenderer();
 	Bsp* getBsp();
@@ -36,7 +36,7 @@ public:
 	void undo() override;
 	Entity* getEnt();
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -51,7 +51,7 @@ public:
 	void execute() override;
 	void undo() override;
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -65,7 +65,7 @@ public:
 	void execute() override;
 	void undo() override;
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -82,7 +82,7 @@ public:
 
 	void execute() override;
 	void undo() override;
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -98,7 +98,7 @@ public:
 
 	void execute() override;
 	void undo() override;
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 
 private:
 	int getDefaultTextureIdx();
@@ -121,7 +121,7 @@ public:
 	void execute() override;
 	void undo() override;
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -135,7 +135,7 @@ public:
 	void execute() override;
 	void undo() override;
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };
 
 
@@ -149,5 +149,5 @@ public:
 	void execute() override;
 	void undo() override;
 	void refresh();
-	int memoryUsage() override;
+	size_t memoryUsage() override;
 };

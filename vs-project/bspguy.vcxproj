@@ -51,7 +51,8 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">bspguy.dir\Release\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">bspguy</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    </LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -104,7 +105,8 @@
     <ClCompile>
       <AdditionalIncludeDirectories>.\..\src;.\..\src\bsp;.\..\src\cli;.\..\src\data;.\..\src\editor;.\..\src\filedialog;.\..\src\gl;.\..\src\qtools;.\..\src\util;.\..\src\mdlviewer;.\..\imgui;.\..\imgui\examples;.\..\imgui\backends;.\..\glew\include;.\..\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <DisableSpecificWarnings>4244;4018</DisableSpecificWarnings>
+      <DisableSpecificWarnings>
+      </DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <Optimization>MaxSpeed</Optimization>
@@ -123,8 +125,18 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointModel>Precise</FloatingPointModel>
       <CallingConvention>FastCall</CallingConvention>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <ControlFlowGuard>false</ControlFlowGuard>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <GuardEHContMetadata>
+      </GuardEHContMetadata>
+      <GuardSignedReturns>
+      </GuardSignedReturns>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;GLEW_STATIC;USE_FILESYSTEM;</PreprocessorDefinitions>
@@ -148,10 +160,20 @@
       <ProgramDataBaseFile>Release/bspguy.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
       <SetChecksum>true</SetChecksum>
-      <StackReserveSize>10485760</StackReserveSize>
+      <StackReserveSize>
+      </StackReserveSize>
+      <LargeAddressAware>true</LargeAddressAware>
+      <BaseAddress>
+      </BaseAddress>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <SectionAlignment>
+      </SectionAlignment>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <ProjectReference>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <LinkLibraryDependencies>
+      </LinkLibraryDependencies>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>

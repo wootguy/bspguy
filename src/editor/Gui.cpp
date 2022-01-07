@@ -51,7 +51,7 @@ void Gui::init() {
 
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
-	ifd::FileDialog::Instance().CreateTexture = [](uint8_t* data, int w, int h, char fmt) -> void* {
+	ifd::FileDialog::Instance().CreateTexture = [](unsigned char* data, int w, int h, char fmt) -> void* {
 		GLuint tex;
 
 		glGenTextures(1, &tex);
@@ -79,8 +79,8 @@ void Gui::init() {
 	clearLog();
 
 	// load icons
-	byte* icon_data = NULL;
-	uint w, h;
+	unsigned char* icon_data = NULL;
+	unsigned int w, h;
 
 	lodepng_decode32(&icon_data, &w, &h, object_icon, sizeof(object_icon));
 	objectIconTexture = new Texture(w, h, icon_data);
@@ -220,7 +220,7 @@ void Gui::copyLightmap() {
 	copiedLightmap.width = size[0];
 	copiedLightmap.height = size[1];
 	copiedLightmap.layers = map->lightmap_count(app->pickInfo.faceIdx);
-	//copiedLightmap.luxelFlags = new byte[size[0] * size[1]];
+	//copiedLightmap.luxelFlags = new unsigned char[size[0] * size[1]];
 	//qrad_get_lightmap_flags(map, app->pickInfo.faceIdx, copiedLightmap.luxelFlags);
 }
 
@@ -298,8 +298,8 @@ void ExportModel(Bsp* map, int id, int ExportType)
 
 	tmpMap.update_ent_lump();
 
-	tmpMap.lumps[LUMP_MODELS] = (byte*)tmpMap.models;
-	tmpMap.header.lump[LUMP_MODELS].nLength = sizeof(tmpModel);
+	tmpMap.lumps[LUMP_MODELS] = (unsigned char*)tmpMap.models;
+	tmpMap.header.lump[LUMP_MODELS].nLength = sizeof(BSPMODEL);
 	tmpMap.update_lump_pointers();
 
 
@@ -321,7 +321,7 @@ void ExportModel(Bsp* map, int id, int ExportType)
 		while (tmpMap.models[0].nVisLeafs >= tmpMap.leafCount)
 			tmpMap.create_leaf(ExportType == 2 ? CONTENTS_WATER : CONTENTS_EMPTY);
 
-		//tmpMap.lumps[LUMP_LEAVES] = (byte*)tmpMap.leaves;
+		//tmpMap.lumps[LUMP_LEAVES] = (unsigned char*)tmpMap.leaves;
 		tmpMap.update_lump_pointers();
 	}
 
@@ -352,10 +352,10 @@ void ExportModel(Bsp* map, int id, int ExportType)
 	tmpNode[1].nMins[1] = tmpMap.models[0].nMins[1];
 	tmpNode[1].nMins[2] = tmpMap.models[0].nMins[2];
 
-	int16 sharedSolidLeaf = 0;
+	short sharedSolidLeaf = 0;
 
 
-	int16 anyEmptyLeaf = -1;
+	short anyEmptyLeaf = -1;
 	for (int i = 0; i < tmpMap.leafCount; i++) {
 		if (tmpMap.leaves[i].nContents == CONTENTS_EMPTY) {
 			anyEmptyLeaf = i;
@@ -378,7 +378,7 @@ void ExportModel(Bsp* map, int id, int ExportType)
 	tmpNode[1].iChildren[0] = ~sharedSolidLeaf;
 	tmpNode[1].iChildren[1] = ~anyEmptyLeaf;
 
-	tmpMap.lumps[LUMP_NODES] = (byte*)&tmpNode[0];
+	tmpMap.lumps[LUMP_NODES] = (unsigned char*)&tmpNode[0];
 	tmpMap.header.lump[LUMP_NODES].nLength = sizeof(BSPNODE) * 2;
 	tmpMap.update_lump_pointers();
 
@@ -671,7 +671,7 @@ bool ExportWad(Bsp* map)
 		Wad* tmpWad = new Wad(map->path);
 		std::vector<WADTEX*> tmpWadTex;
 		for (int i = 0; i < map->textureCount; i++) {
-			int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
+			int oldOffset = ((int*)map->textures)[i + 1];
 			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
 			if (bspTex->nOffsets[0] == -1 || bspTex->nOffsets[0] == 0)
 				continue;
@@ -719,7 +719,7 @@ void ImportWad(Bsp* map, Renderer* app, std::string path)
 			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-			byte* src = wadTex->data;
+			unsigned char* src = wadTex->data;
 
 			int sz = wadTex->nWidth * wadTex->nHeight;
 			COLOR3* imageData = new COLOR3[sz];
@@ -727,7 +727,7 @@ void ImportWad(Bsp* map, Renderer* app, std::string path)
 			for (int k = 0; k < sz; k++) {
 				imageData[k] = palette[src[k]];
 			}
-			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+			map->add_texture(wadTex->szName, (unsigned char*)imageData, wadTex->nWidth, wadTex->nHeight);
 
 			delete[] imageData;
 			delete wadTex;
@@ -895,7 +895,7 @@ void Gui::drawMenuBar() {
 						std::ifstream t(GetWorkDir() + (map->name + ".ent"));
 						std::string str((std::istreambuf_iterator<char>(t)),
 							std::istreambuf_iterator<char>());
-						byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
+						unsigned char* newlump = new unsigned char[str.size() + 1]{ 0x20,0 };
 						memcpy(newlump, &str[0], str.size());
 						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
 						map->load_ents();
@@ -1465,7 +1465,7 @@ void Gui::drawDebugWidget() {
 
 					if (face.iTextureInfo < map->texinfoCount) {
 						BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-						int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+						int texOffset = ((int*)map->textures)[info.iMiptex + 1];
 						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 						ImGui::Text("Texinfo ID: %d", face.iTextureInfo);
 						ImGui::Text("Texture ID: %d", info.iMiptex);
@@ -1860,7 +1860,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent) {
 	ImGui::BeginChild("FlagsWindow");
 
-	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+	unsigned int spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
 	FgdClass* fgdClass = app->fgd->getFgdClass(ent->keyvalues["classname"]);
 
 	ImGui::Columns(2, "keyvalcols", true);
@@ -2563,10 +2563,10 @@ void Gui::addLog(const char* s)
 
 void Gui::loadFonts() {
 	// data copied to new array so that ImGui doesn't delete static data
-	byte* smallFontData = new byte[sizeof(robotomedium)];
-	byte* largeFontData = new byte[sizeof(robotomedium)];
-	byte* consoleFontData = new byte[sizeof(robotomono)];
-	byte* consoleFontLargeData = new byte[sizeof(robotomono)];
+	unsigned char* smallFontData = new unsigned char[sizeof(robotomedium)];
+	unsigned char* largeFontData = new unsigned char[sizeof(robotomedium)];
+	unsigned char* consoleFontData = new unsigned char[sizeof(robotomono)];
+	unsigned char* consoleFontLargeData = new unsigned char[sizeof(robotomono)];
 	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
 	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
 	memcpy(consoleFontData, robotomono, sizeof(robotomono));
@@ -4420,7 +4420,7 @@ void Gui::drawTextureTool() {
 				{
 					BSPFACE& face = map->faces[faceIdx];
 					BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-					int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+					int texOffset = ((int*)map->textures)[texinfo.iMiptex + 1];
 
 					width = height = 0;
 					if (texOffset != -1) {
@@ -4557,7 +4557,7 @@ void Gui::drawTextureTool() {
 		if (refreshSelectedFaces) {
 			textureChanged = true;
 			refreshSelectedFaces = false;
-			int32_t texOffset = ((int32_t*)map->textures)[copiedMiptex + 1];
+			int texOffset = ((int*)map->textures)[copiedMiptex + 1];
 			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 			strncpy(textureName, tex.szName, MAXTEXTURENAME);
 			textureName[15] = '\0';
@@ -4569,16 +4569,16 @@ void Gui::drawTextureTool() {
 		ImGui::Text("%dx%d", width, height);
 
 		if (!ImGui::IsMouseDown(ImGuiMouseButton_::ImGuiMouseButton_Left) && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
-			uint32_t newMiptex = 0;
+			unsigned int newMiptex = 0;
 
 			app->saveLumpState(map, 0xffffffff, false);
 			if (textureChanged) {
 				validTexture = false;
 
-				int32_t totalTextures = ((int32_t*)map->textures)[0];
+				int totalTextures = ((int*)map->textures)[0];
 
-				for (uint i = 0; i < totalTextures; i++) {
-					int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+				for (unsigned int i = 0; i < totalTextures; i++) {
+					int texOffset = ((int*)map->textures)[i + 1];
 					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 					if (strcmp(tex.szName, textureName) == 0) {
 						validTexture = true;
@@ -4598,7 +4598,7 @@ void Gui::drawTextureTool() {
 							int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
 
 							COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-							byte* src = wadTex->data;
+							unsigned char* src = wadTex->data;
 
 							COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
 
@@ -4607,7 +4607,7 @@ void Gui::drawTextureTool() {
 							for (int k = 0; k < sz; k++) {
 								imageData[k] = palette[src[k]];
 							}
-							map->add_texture(textureName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
+							map->add_texture(textureName, (unsigned char*)imageData, wadTex->nWidth, wadTex->nHeight);
 							BspRenderer* mapRenderer = map->getBspRender();
 							mapRenderer->ReuploadTextures();
 							delete[] imageData;
@@ -4698,7 +4698,7 @@ void Gui::drawTextureTool() {
 	ImGui::End();
 }
 
-StatInfo Gui::calcStat(std::string name, uint val, uint max, bool isMem) {
+StatInfo Gui::calcStat(std::string name, unsigned int val, unsigned int max, bool isMem) {
 	StatInfo stat;
 	const float meg = 1024 * 1024;
 	float percent = (val / (float)max) * 100;
@@ -4747,7 +4747,7 @@ StatInfo Gui::calcStat(std::string name, uint val, uint max, bool isMem) {
 	return stat;
 }
 
-ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem) {
+ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, unsigned int val, unsigned int max, bool isMem) {
 	ModelInfo stat;
 
 	std::string classname = modelInfo->modelIdx == 0 ? "worldspawn" : "???";

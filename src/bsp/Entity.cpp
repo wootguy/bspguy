@@ -429,8 +429,8 @@ void Entity::renameTargetnameValues(std::string oldTargetname, std::string newTa
 	}
 }
 
-int Entity::getMemoryUsage() {
-	int size = sizeof(Entity);
+size_t Entity::getMemoryUsage() {
+	size_t size = sizeof(Entity);
 
 	for (int i = 0; i < cachedTargets.size(); i++) {
 		size += cachedTargets[i].size();

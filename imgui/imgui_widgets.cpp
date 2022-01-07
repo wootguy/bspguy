@@ -59,7 +59,7 @@ Index of this file:
 #if defined(_MSC_VER) && _MSC_VER >= 1922 // MSVC 2019 16.2 or later
 #pragma warning (disable: 5054)     // operator '|': deprecated between enumerations of different types
 #endif
-#pragma warning (disable: 26451)    // [Static Analyzer] Arithmetic overflow : Using operator 'xxx' on a 4 byte value and then casting the result to a 8 byte value. Cast the value to the wider type before calling operator 'xxx' to avoid overflow(io.2).
+#pragma warning (disable: 26451)    // [Static Analyzer] Arithmetic overflow : Using operator 'xxx' on a 4 unsigned char value and then casting the result to a 8 unsigned char value. Cast the value to the wider type before calling operator 'xxx' to avoid overflow(io.2).
 #pragma warning (disable: 26812)    // [Static Analyzer] The enum type 'xxx' is unscoped. Prefer 'enum class' over 'enum' (Enum.3).
 #endif
 
@@ -3949,7 +3949,7 @@ static bool InputTextFilterCharacter(unsigned int* p_char, ImGuiInputTextFlags f
 // Edit a string of text
 // - buf_size account for the zero-terminator, so a buf_size of 6 can hold "Hello" but not "Hello!".
 //   This is so we can easily call InputText() on static arrays using ARRAYSIZE() and to match
-//   Note that in std::string world, capacity() would omit 1 byte used by the zero-terminator.
+//   Note that in std::string world, capacity() would omit 1 unsigned char used by the zero-terminator.
 // - When active, hold on a privately held copy of the text (and apply back to 'buf'). So changing 'buf' while the InputText is active has no effect.
 // - If you want to use ImGui::InputText() with std::string, see misc/cpp/imgui_stdlib.h
 // (FIXME: Rather confusing and messy function, among the worse part of our codebase, expecting to rewrite a V2 at some point.. Partly because we are

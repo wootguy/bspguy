@@ -47,7 +47,7 @@ namespace ifd {
 		}
 		inline float GetZoom() { return m_zoom; }
 
-		std::function<void* (uint8_t*, int, int, char)> CreateTexture; // char -> fmt -> { 0 = BGRA, 1 = RGBA }
+		std::function<void* (unsigned char*, int, int, char)> CreateTexture; // char -> fmt -> { 0 = BGRA, 1 = RGBA }
 		std::function<void(void*)> DeleteTexture;
 
 		class FileTreeNode {
@@ -79,7 +79,7 @@ namespace ifd {
 
 			bool HasIconPreview;
 			void* IconPreview;
-			uint8_t* IconPreviewData;
+			unsigned char* IconPreviewData;
 			int IconPreviewWidth, IconPreviewHeight;
 		};
 
@@ -89,7 +89,7 @@ namespace ifd {
 		std::filesystem::path m_currentDirectory;
 		bool m_isMultiselect;
 		bool m_isOpen;
-		uint8_t m_type;
+		unsigned char m_type;
 		char m_inputTextbox[1024];
 		char m_pathBuffer[1024];
 		char m_newEntryBuffer[1024];

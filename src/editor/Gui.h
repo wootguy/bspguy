@@ -134,8 +134,8 @@ private:
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);
 	void drawEntityReport();
-	StatInfo calcStat(std::string name, uint val, uint max, bool isMem);
-	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
+	StatInfo calcStat(std::string name, unsigned int val, unsigned int max, bool isMem);
+	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, unsigned int val, unsigned int max, bool isMem);
 	void checkValidHulls();
 	void reloadLimits();
 

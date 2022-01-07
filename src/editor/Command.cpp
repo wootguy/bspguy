@@ -82,7 +82,7 @@ void EditEntityCommand::refresh() {
 	g_app->updateModelVerts();
 }
 
-int EditEntityCommand::memoryUsage() {
+size_t EditEntityCommand::memoryUsage() {
 	return sizeof(EditEntityCommand) + oldEntData->getMemoryUsage() + newEntData->getMemoryUsage();
 }
 
@@ -137,7 +137,7 @@ void DeleteEntityCommand::refresh() {
 	g_app->gui->refresh();
 }
 
-int DeleteEntityCommand::memoryUsage() {
+size_t DeleteEntityCommand::memoryUsage() {
 	return sizeof(DeleteEntityCommand) + entData->getMemoryUsage();
 }
 
@@ -183,7 +183,7 @@ void CreateEntityCommand::refresh() {
 	g_app->gui->refresh();
 }
 
-int CreateEntityCommand::memoryUsage() {
+size_t CreateEntityCommand::memoryUsage() {
 	return sizeof(CreateEntityCommand) + entData->getMemoryUsage();
 }
 
@@ -267,7 +267,7 @@ void DuplicateBspModelCommand::undo() {
 	*/
 }
 
-int DuplicateBspModelCommand::memoryUsage() {
+size_t DuplicateBspModelCommand::memoryUsage() {
 	int size = sizeof(DuplicateBspModelCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -354,7 +354,7 @@ void CreateBspModelCommand::undo() {
 	g_app->deselectObject();
 }
 
-int CreateBspModelCommand::memoryUsage() {
+size_t CreateBspModelCommand::memoryUsage() {
 	int size = sizeof(DuplicateBspModelCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -367,9 +367,9 @@ int CreateBspModelCommand::memoryUsage() {
 int CreateBspModelCommand::getDefaultTextureIdx() {
 	Bsp* map = getBsp();
 
-	int32_t totalTextures = ((int32_t*)map->textures)[0];
-	for (uint i = 0; i < totalTextures; i++) {
-		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+	int totalTextures = ((int*)map->textures)[0];
+	for (unsigned int i = 0; i < totalTextures; i++) {
+		int texOffset = ((int*)map->textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 		if (strcmp(tex.szName, "aaatrigger") == 0) {
 			return i;
@@ -381,14 +381,14 @@ int CreateBspModelCommand::getDefaultTextureIdx() {
 
 int CreateBspModelCommand::addDefaultTexture() {
 	Bsp* map = getBsp();
-	byte* tex_dat = NULL;
-	uint w, h;
+	unsigned char* tex_dat = NULL;
+	unsigned int w, h;
 
 	lodepng_decode24(&tex_dat, &w, &h, aaatrigger_dat, sizeof(aaatrigger_dat));
 	int aaatriggerIdx = map->add_texture("aaatrigger", tex_dat, w, h);
 	//renderer->reloadTextures();
 
-	lodepng_encode24_file("test.png", (byte*)tex_dat, w, h);
+	lodepng_encode24_file("test.png", (unsigned char*)tex_dat, w, h);
 	delete[] tex_dat;
 
 	return aaatriggerIdx;
@@ -457,7 +457,7 @@ void EditBspModelCommand::refresh() {
 	}
 }
 
-int EditBspModelCommand::memoryUsage() {
+size_t EditBspModelCommand::memoryUsage() {
 	int size = sizeof(DuplicateBspModelCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -512,7 +512,7 @@ void CleanMapCommand::refresh() {
 	g_app->saveLumpState(map, 0xffffffff, true);
 }
 
-int CleanMapCommand::memoryUsage() {
+size_t CleanMapCommand::memoryUsage() {
 	int size = sizeof(CleanMapCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -575,7 +575,7 @@ void OptimizeMapCommand::refresh() {
 	g_app->saveLumpState(map, 0xffffffff, true);
 }
 
-int OptimizeMapCommand::memoryUsage() {
+size_t OptimizeMapCommand::memoryUsage() {
 	int size = sizeof(OptimizeMapCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {

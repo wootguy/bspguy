@@ -85,7 +85,7 @@ char* loadFile(const std::string& fileName, int& length)
 	std::ifstream fin(fileName.c_str(), std::ios::binary);
 	long long begin = fin.tellg();
 	fin.seekg(0, std::ios::end);
-	uint size = (uint)((int)fin.tellg() - begin);
+	unsigned int size = (unsigned int)((int)fin.tellg() - begin);
 	char* buffer = new char[size];
 	fin.seekg(0, std::ios::beg);
 	fin.read(buffer, size);
@@ -735,7 +735,7 @@ bool pointInsidePolygon(std::vector<vec2>& poly, vec2 p) {
 #define MAX_NUMBER_OF_COLORS 0
 #define ALL_COLORS_REQUIRED 0
 
-void WriteBMP(std::string fileName, byte* pixels, int width, int height, int bytesPerPixel)
+void WriteBMP(std::string fileName, unsigned char* pixels, int width, int height, int bytesPerPixel)
 {
 	FILE* outputFile = fopen(fileName.c_str(), "wb");
 	//*****HEADER************//

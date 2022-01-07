@@ -128,7 +128,7 @@ public:
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
-	void updateClipnodeOpacity(byte newValue);
+	void updateClipnodeOpacity(unsigned char newValue);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures();
@@ -149,7 +149,7 @@ public:
 
 	void highlightFace(int faceIdx, bool highlight);
 	void updateFaceUVs(int faceIdx);
-	uint getFaceTextureId(int faceIdx);
+	unsigned int getFaceTextureId(int faceIdx);
 
 	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 
@@ -158,7 +158,7 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
-	uint colorShaderMultId;
+	unsigned int colorShaderMultId;
 
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;

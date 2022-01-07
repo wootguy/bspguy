@@ -3,7 +3,7 @@
 #include "Bsp.h"
 #include <algorithm>
 
-void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
+void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, unsigned char* luxelFlagsOut) {
 
 	BSPFACE* f = &bsp->faces[faceIdx];
 
@@ -416,7 +416,7 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 	}
 }
 
-void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags)
+void CalcPoints(Bsp* bsp, lightinfo_t* l, unsigned char* LuxelFlags)
 {
 	const int       facenum = l->surfnum;
 	const BSPFACE* f = bsp->faces + facenum;
@@ -424,7 +424,7 @@ void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags)
 	const int       w = l->texsize[0] + 1;
 	const vec_t     starts = l->texmins[0] * TEXTURE_STEP;
 	const vec_t     startt = l->texmins[1] * TEXTURE_STEP;
-	byte* pLuxelFlags;
+	unsigned char* pLuxelFlags;
 
 	for (int t = 0; t < h; t++)
 	{
@@ -446,7 +446,7 @@ void CalcPoints(Bsp* bsp, lightinfo_t* l, byte* LuxelFlags)
 
 	{
 		int s_other, t_other;
-		byte* pLuxelFlags_other;
+		unsigned char* pLuxelFlags_other;
 		bool adjusted;
 		for (int i = 0; i < h + w; i++)
 		{ // propagate valid light samples

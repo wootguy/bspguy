@@ -42,8 +42,8 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	blackTex->upload(GL_RGB);
 	blueTex->upload(GL_RGB);
 
-	byte* img_dat = NULL;
-	uint w, h;
+	unsigned char* img_dat = NULL;
+	unsigned int w, h;
 	lodepng_decode24(&img_dat, &w, &h, missing_dat, sizeof(missing_dat));
 	missingTex = new Texture(w, h, img_dat);
 	missingTex->upload(GL_RGB);
@@ -56,10 +56,10 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 
 	bspShader->bind();
 
-	uint sTexId = glGetUniformLocation(bspShader->ID, "sTex");
+	unsigned int sTexId = glGetUniformLocation(bspShader->ID, "sTex");
 	glUniform1i(sTexId, 0);
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		uint sLightmapTexIds = glGetUniformLocation(bspShader->ID, ("sLightmapTex" + std::to_string(s)).c_str());
+		unsigned int sLightmapTexIds = glGetUniformLocation(bspShader->ID, ("sLightmapTex" + std::to_string(s)).c_str());
 
 		// assign lightmap texture units (skips the normal texture unit)
 		glUniform1i(sLightmapTexIds, s + 1);
@@ -67,7 +67,7 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 
 	fullBrightBspShader->bind();
 
-	uint sTexId2 = glGetUniformLocation(fullBrightBspShader->ID, "sTex");
+	unsigned int sTexId2 = glGetUniformLocation(fullBrightBspShader->ID, "sTex");
 	glUniform1i(sTexId2, 0);
 
 	colorShaderMultId = glGetUniformLocation(colorShader->ID, "colorMult");
@@ -137,7 +137,7 @@ void BspRenderer::loadTextures() {
 
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
-		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
+		int texOffset = ((int*)map->textures)[i + 1];
 		if (texOffset == -1) {
 			glTexturesSwap[i] = missingTex;
 			continue;
@@ -145,7 +145,7 @@ void BspRenderer::loadTextures() {
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 		COLOR3* palette = NULL;
-		byte* src = NULL;
+		unsigned char* src = NULL;
 		WADTEX* wadTex = NULL;
 
 		int lastMipSize = (tex.nWidth / 8) * (tex.nHeight / 8);
@@ -195,7 +195,7 @@ void BspRenderer::loadTextures() {
 
 		// map->textures + texOffset + tex.nOffsets[0]
 
-		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, (byte*)imageData);
+		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, (unsigned char*)imageData);
 	}
 	if (wadTexCount)
 		debugf("Loaded %d wad textures\n", wadTexCount);
@@ -334,7 +334,7 @@ void BspRenderer::loadLightmaps() {
 					}
 					else {
 						bool checkers = x % 2 == 0 != y % 2 == 0;
-						lightDst[dst] = { (byte)(checkers ? 255 : 0), 0, (byte)(checkers ? 255 : 0) };
+						lightDst[dst] = { (unsigned char)(checkers ? 255 : 0), 0, (unsigned char)(checkers ? 255 : 0) };
 					}
 				}
 			}
@@ -516,7 +516,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		int faceIdx = model.iFirstFace + i;
 		BSPFACE& face = map->faces[faceIdx];
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-		int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+		int texOffset = ((int*)map->textures)[texinfo.iMiptex + 1];
 
 		int texWidth, texHeight;
 		if (texOffset != -1) {
@@ -557,7 +557,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		float opacity = isSpecial ? 0.5f : 1.0f;
 
 		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			int edgeIdx = map->surfedges[face.iFirstEdge + e];
 			BSPEDGE& edge = map->edges[abs(edgeIdx)];
 			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
 
@@ -924,7 +924,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	}
 }
 
-void BspRenderer::updateClipnodeOpacity(byte newValue) {
+void BspRenderer::updateClipnodeOpacity(unsigned char newValue) {
 	for (int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (renderClipnodes[i].clipnodeBuffer[k]) {
@@ -1112,7 +1112,7 @@ void BspRenderer::refreshFace(int faceIdx) {
 	std::vector<vec3> allVerts(face.nEdges);
 	vec3 v1;
 	for (int e = 0; e < face.nEdges; e++) {
-		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+		int edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
 		int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
 		allVerts[e] = map->verts[vertIdx];
@@ -1279,7 +1279,7 @@ void BspRenderer::updateFaceUVs(int faceIdx) {
 
 	BSPFACE& face = map->faces[faceIdx];
 	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-	int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
+	int texOffset = ((int*)map->textures)[texinfo.iMiptex + 1];
 	BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
 	for (int i = 0; i < rface->vertCount; i++) {
@@ -1312,7 +1312,7 @@ bool BspRenderer::getRenderPointers(int faceIdx, RenderFace** renderFace, Render
 	return true;
 }
 
-uint BspRenderer::getFaceTextureId(int faceIdx) {
+unsigned int BspRenderer::getFaceTextureId(int faceIdx) {
 	BSPFACE& face = map->faces[faceIdx];
 	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 	return glTextures[texinfo.iMiptex]->id;
