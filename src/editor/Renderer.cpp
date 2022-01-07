@@ -146,10 +146,10 @@ void AppSettings::load() {
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
-			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
-			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
-			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
-			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
+			else if (key == "fov") { g_settings.fov = (float)atof(val.c_str()); }
+			else if (key == "zfar") { g_settings.zfar = (float)atof(val.c_str()); }
+			else if (key == "move_speed") { g_settings.moveSpeed = (float)atof(val.c_str()); }
+			else if (key == "rot_speed") { g_settings.rotSpeed = (float)atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
@@ -278,7 +278,7 @@ int g_scroll = 0;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	g_scroll += round(yoffset);
+	g_scroll += (int)round(yoffset);
 }
 
 Renderer::Renderer() {
@@ -436,8 +436,8 @@ void Renderer::renderLoop() {
 	cCube vertCube(vec3(-1.0, -1.0, -1.0), vec3(1.0, 1.0, 1.0), { 0, 128, 255, 255 });
 	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
 
-	float lastFrameTime = glfwGetTime();
-	float lastTitleTime = glfwGetTime();
+	double lastFrameTime = glfwGetTime();
+	double lastTitleTime = glfwGetTime();
 
 
 	while (!glfwWindowShouldClose(window))
@@ -453,19 +453,19 @@ void Renderer::renderLoop() {
 		}
 		glfwPollEvents();
 
-		float frameDelta = glfwGetTime() - lastFrameTime;
-		frameTimeScale = 0.05f / frameDelta;
-		float fps = 1.0f / frameDelta;
+		double frameDelta = glfwGetTime() - lastFrameTime;
+		frameTimeScale = 0.05 / frameDelta;
+		double fps = 1.0 / frameDelta;
 
 		//FIXME : frameTimeScale = 0.05f / frameDelta ???
 		frameTimeScale = 144.0f / fps;
 
 		lastFrameTime = glfwGetTime();
 
-		float spin = glfwGetTime() * 2;
+		double spin = glfwGetTime() * 2;
 		model.loadIdentity();
-		model.rotateZ(spin);
-		model.rotateX(spin);
+		model.rotateZ((float)spin);
+		model.rotateX((float)spin);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -478,7 +478,7 @@ void Renderer::renderLoop() {
 		isLoading = reloading;
 
 		std::set<int> modelidskip;
-		for (int i = 0; i < mapRenderers.size(); i++) {
+		for (size_t i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
 			Bsp* curMap = mapRenderers[i]->map;
 			if (!curMap)
@@ -493,7 +493,7 @@ void Renderer::renderLoop() {
 			{
 				if (curMap->is_model)
 				{
-					for (int n = 0; n < mapRenderers.size(); n++)
+					for (size_t n = 0; n < mapRenderers.size(); n++)
 					{
 						if (n == i)
 							continue;
@@ -502,7 +502,7 @@ void Renderer::renderLoop() {
 						if (anotherMap && anotherMap->ents.size())
 						{
 							vec3 anotherMapOrigin = anotherMap->ents[0]->getOrigin();
-							for (int s = 0; s < anotherMap->ents.size(); s++)
+							for (int s = 0; s < (int)anotherMap->ents.size(); s++)
 							{
 								Entity* tmpEnt = anotherMap->ents[s];
 								if (tmpEnt->hasKey("model"))
@@ -935,7 +935,7 @@ void Renderer::controls() {
 						BSPFACE& selface = map->faces[selectedFaces[0]];
 						BSPTEXTUREINFO& seltexinfo = map->texinfos[selface.iTextureInfo];
 						deselectFaces();
-						for (int i = 0; i < map->faceCount; i++) {
+						for (unsigned int i = 0; i < map->faceCount; i++) {
 							BSPFACE& face = map->faces[i];
 							BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 							if (texinfo.iMiptex == seltexinfo.iMiptex)
@@ -953,7 +953,7 @@ void Renderer::controls() {
 	else
 	{
 		if (!io.WantCaptureKeyboard)
-			cameraOrigin += getMoveDir() * frameTimeScale;
+			cameraOrigin += getMoveDir() * (float)frameTimeScale;
 		moveGrabbedEnt();
 	}
 	static bool oldWantTextInput = false;
@@ -970,7 +970,7 @@ void Renderer::controls() {
 	if (!io.WantCaptureMouse) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
-		vec2 mousePos(xpos, ypos);
+		vec2 mousePos((float)xpos, (float)ypos);
 
 		cameraContextMenus();
 
@@ -1649,8 +1649,8 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 	ypos = windowHeight - ypos;
 
 	// translate mouse coordinates so that the origin lies in the center and is a scaler from +/-1.0
-	float mouseX = ((xpos / (double)windowWidth) * 2.0f) - 1.0f;
-	float mouseY = ((ypos / (double)windowHeight) * 2.0f) - 1.0f;
+	float mouseX = (((float)xpos / (float)windowWidth) * 2.0f) - 1.0f;
+	float mouseY = (((float)ypos / (float)windowHeight) * 2.0f) - 1.0f;
 
 	// http://schabby.de/picking-opengl-ray-tracing/
 	vec3 forward, right, up;
@@ -2216,9 +2216,9 @@ void Renderer::updateModelVerts() {
 	};
 	modelEdges = modelSolid.hullEdges;
 
-	int numCubes = modelVerts.size() + modelEdges.size();
+	size_t numCubes = modelVerts.size() + modelEdges.size();
 	modelVertCubes = new cCube[numCubes];
-	modelVertBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
+	modelVertBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, modelVertCubes, (int)(6 * 6 * numCubes));
 	//logf("%d intersection points\n", modelVerts.size());
 }
 
@@ -2310,8 +2310,8 @@ void Renderer::updateEntConnections() {
 			return;
 		}
 
-		int numVerts = targets.size() * 2 + callers.size() * 2 + callerAndTarget.size() * 2;
-		int numPoints = callers.size() + targets.size() + callerAndTarget.size();
+		size_t numVerts = targets.size() * 2 + callers.size() * 2 + callerAndTarget.size() * 2;
+		size_t numPoints = callers.size() + targets.size() + callerAndTarget.size();
 		cVert* lines = new cVert[numVerts];
 		cCube* points = new cCube[numPoints];
 
@@ -2325,27 +2325,27 @@ void Renderer::updateEntConnections() {
 		float s = 1.5f;
 		vec3 extent = vec3(s, s, s);
 
-		for (int i = 0; i < targets.size(); i++) {
+		for (size_t i = 0; i < targets.size(); i++) {
 			vec3 ori = getEntOrigin(map, targets[i]).flip();
 			points[cidx++] = cCube(ori - extent, ori + extent, targetColor);
 			lines[idx++] = cVert(srcPos, targetColor);
 			lines[idx++] = cVert(ori, targetColor);
 		}
-		for (int i = 0; i < callers.size(); i++) {
+		for (size_t i = 0; i < callers.size(); i++) {
 			vec3 ori = getEntOrigin(map, callers[i]).flip();
 			points[cidx++] = cCube(ori - extent, ori + extent, callerColor);
 			lines[idx++] = cVert(srcPos, callerColor);
 			lines[idx++] = cVert(ori, callerColor);
 		}
-		for (int i = 0; i < callerAndTarget.size() && cidx < numPoints && idx < numVerts; i++) {
+		for (size_t i = 0; i < callerAndTarget.size() && cidx < numPoints && idx < numVerts; i++) {
 			vec3 ori = getEntOrigin(map, callerAndTarget[i]).flip();
 			points[cidx++] = cCube(ori - extent, ori + extent, bothColor);
 			lines[idx++] = cVert(srcPos, bothColor);
 			lines[idx++] = cVert(ori, bothColor);
 		}
 
-		entConnections = new VertexBuffer(colorShader, COLOR_4B | POS_3F, lines, numVerts);
-		entConnectionPoints = new VertexBuffer(colorShader, COLOR_4B | POS_3F, points, numPoints * 6 * 6);
+		entConnections = new VertexBuffer(colorShader, COLOR_4B | POS_3F, lines, (int)numVerts);
+		entConnectionPoints = new VertexBuffer(colorShader, COLOR_4B | POS_3F, points, (int)(numPoints * 6 * 6));
 		entConnections->ownData = true;
 		entConnectionPoints->ownData = true;
 	}
@@ -2600,28 +2600,28 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 			float dotS = dotProduct(oldinfo.oldS.normalize(), stretchDir);
 			float dotT = dotProduct(oldinfo.oldT.normalize(), stretchDir);
 
-			float asdf = dotProduct(texFromDir, info.vS) < 0 ? 1 : -1;
-			float asdf2 = dotProduct(texFromDir, info.vT) < 0 ? 1 : -1;
+			float dotSm = dotProduct(texFromDir, info.vS) < 0 ? 1.0f : -1.0f;
+			float dotTm = dotProduct(texFromDir, info.vT) < 0 ? 1.0f : -1.0f;
 
 			// hurr dur oh god im fucking retarded huurr
 			if (k == 0 && dotProduct(texFromDir, fromDir) < 0 != fromDir.x < 0) {
-				asdf *= -1;
-				asdf2 *= -1;
+				dotSm *= -1.0f;
+				dotTm *= -1.0f;
 			}
 			if (k == 1 && dotProduct(texFromDir, fromDir) < 0 != fromDir.y < 0) {
-				asdf *= -1;
-				asdf2 *= -1;
+				dotSm *= -1.0f;
+				dotTm *= -1.0f;
 			}
 			if (k == 2 && dotProduct(texFromDir, fromDir) < 0 != fromDir.z < 0) {
-				asdf *= -1;
-				asdf2 *= -1;
+				dotSm *= -1.0f;
+				dotTm *= -1.0f;
 			}
 
 			float vsdiff = info.vS.length() - oldinfo.oldS.length();
 			float vtdiff = info.vT.length() - oldinfo.oldT.length();
 
-			shiftS += (refDist * vsdiff * fabs(dotS)) * asdf;
-			shiftT += (refDist * vtdiff * fabs(dotT)) * asdf2;
+			shiftS += (refDist * vsdiff * fabs(dotS)) * dotSm;
+			shiftT += (refDist * vtdiff * fabs(dotT)) * dotTm;
 		}
 
 		info.shiftS = shiftS;
@@ -2895,12 +2895,12 @@ vec3 Renderer::getCentroid(std::vector<TransformVert>& hullVerts) {
 }
 
 vec3 Renderer::snapToGrid(vec3 pos) {
-	float snapSize = pow(2.0, gridSnapLevel);
+	float snapSize = (float)pow(2.0f, gridSnapLevel);
 	float halfSnap = snapSize * 0.5f;
 
-	int x = round((pos.x) / snapSize) * snapSize;
-	int y = round((pos.y) / snapSize) * snapSize;
-	int z = round((pos.z) / snapSize) * snapSize;
+	float x = round((pos.x) / snapSize) * snapSize;
+	float y = round((pos.y) / snapSize) * snapSize;
+	float z = round((pos.z) / snapSize) * snapSize;
 
 	return vec3(x, y, z);
 }
@@ -2977,7 +2977,7 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	pushUndoCommand(createCommand);
 
 	clearSelection();
-	selectEnt(map, map->ents.size() > 1 ? map->ents.size() - 1 : 0);
+	selectEnt(map, map->ents.size() > 1 ? (int)(map->ents.size() - 1) : 0);
 }
 
 void Renderer::deleteEnt() {

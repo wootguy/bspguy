@@ -147,7 +147,7 @@ std::vector<std::string> splitString(const std::string & str, const char* delimi
 
 std::string basename(std::string path) {
 
-	int lastSlash = path.find_last_of("\\/");
+	size_t lastSlash = path.find_last_of("\\/");
 	if (lastSlash != std::string::npos) {
 		return path.substr(lastSlash + 1);
 	}
@@ -155,7 +155,7 @@ std::string basename(std::string path) {
 }
 
 std::string stripExt(std::string path) {
-	int lastDot = path.find_last_of('.');
+	size_t lastDot = path.find_last_of('.');
 	if (lastDot != std::string::npos) {
 		return path.substr(0, lastDot);
 	}
@@ -181,12 +181,12 @@ std::string toLowerCase(std::string str)
 std::string trimSpaces(std::string s)
 {
 	// Remove white space indents
-	int lineStart = s.find_first_not_of(" \t\n\r");
+	size_t lineStart = s.find_first_not_of(" \t\n\r");
 	if (lineStart == std::string::npos)
 		return "";
 
 	// Remove spaces after the last character
-	int lineEnd = s.find_last_not_of(" \t\n\r");
+	size_t lineEnd = s.find_last_not_of(" \t\n\r");
 	if (lineEnd != std::string::npos && lineEnd < s.length() - 1)
 		s = s.substr(lineStart, (lineEnd + 1) - lineStart);
 	else
@@ -226,9 +226,9 @@ vec3 parseVector(std::string s) {
 		return v;
 	}
 
-	v.x = atof(parts[0].c_str());
-	v.y = atof(parts[1].c_str());
-	v.z = atof(parts[2].c_str());
+	v.x = (float)atof(parts[0].c_str());
+	v.y = (float)atof(parts[1].c_str());
+	v.z = (float)atof(parts[2].c_str());
 
 	return v;
 }
@@ -271,9 +271,9 @@ bool IsEntNotSupportAngles(std::string& entname)
 
 COLOR3 operator*(COLOR3 c, float scale)
 {
-	c.r *= scale;
-	c.g *= scale;
-	c.b *= scale;
+	c.r = (unsigned char)(c.r * scale);
+	c.g = (unsigned char)(c.g * scale);
+	c.b = (unsigned char)(c.b * scale);
 	return c;
 }
 
@@ -283,9 +283,9 @@ bool operator==(COLOR3 c1, COLOR3 c2) {
 
 COLOR4 operator*(COLOR4 c, float scale)
 {
-	c.r *= scale;
-	c.g *= scale;
-	c.b *= scale;
+	c.r = (unsigned char)(c.r * scale);
+	c.g = (unsigned char)(c.g * scale);
+	c.b = (unsigned char)(c.b * scale);
 	return c;
 }
 
@@ -307,8 +307,8 @@ bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
 	char quadrant[3];
 	int i;
 	int whichPlane;
-	double maxT[3];
-	double candidatePlane[3];
+	float maxT[3];
+	float candidatePlane[3];
 
 	float* origin = (float*)&start;
 	float* dir = (float*)&rayDir;
@@ -408,8 +408,8 @@ float getDistAlongAxis(vec3 axis, vec3 p)
 bool getPlaneFromVerts(std::vector<vec3>& verts, vec3& outNormal, float& outDist) {
 	const float tolerance = 0.00001f; // normals more different than this = non-planar face
 
-	int numVerts = verts.size();
-	for (int i = 0; i < numVerts; i++) {
+	size_t numVerts = verts.size();
+	for (size_t i = 0; i < numVerts; i++) {
 		vec3 v0 = verts[(i + 0) % numVerts];
 		vec3 v1 = verts[(i + 1) % numVerts];
 		vec3 v2 = verts[(i + 2) % numVerts];
@@ -493,10 +493,10 @@ std::vector<vec3> getPlaneIntersectVerts(std::vector<BSPPLANE>& planes) {
 	std::vector<vec3> intersectVerts;
 
 	// https://math.stackexchange.com/questions/1883835/get-list-of-vertices-from-list-of-planes
-	int numPlanes = planes.size();
-	for (int i = 0; i < numPlanes - 2; i++) {
-		for (int j = i + 1; j < numPlanes - 1; j++) {
-			for (int k = j + 1; k < numPlanes; k++) {
+	size_t numPlanes = planes.size();
+	for (size_t i = 0; i < numPlanes - 2; i++) {
+		for (size_t j = i + 1; j < numPlanes - 1; j++) {
+			for (size_t k = j + 1; k < numPlanes; k++) {
 				vec3& n0 = planes[i].vNormal;
 				vec3& n1 = planes[j].vNormal;
 				vec3& n2 = planes[k].vNormal;
@@ -660,15 +660,15 @@ std::vector<int> getSortedPlanarVertOrder(std::vector<vec3>& verts) {
 	vec2 lastVert = localVerts[0];
 	remainingVerts.erase(remainingVerts.begin() + 0);
 	localVerts.erase(localVerts.begin() + 0);
-	for (int k = 0, sz = remainingVerts.size(); k < sz; k++) {
+	for (size_t k = 0, sz = remainingVerts.size(); k < sz; k++) {
 		int bestIdx = 0;
 		float bestAngle = FLT_MAX_COORD;
 
-		for (int i = 0; i < remainingVerts.size(); i++) {
+		for (size_t i = 0; i < remainingVerts.size(); i++) {
 			vec2 a = lastVert;
 			vec2 b = localVerts[i];
-			double a1 = atan2(a.x - center.x, a.y - center.y);
-			double a2 = atan2(b.x - center.x, b.y - center.y);
+			float a1 = atan2(a.x - center.x, a.y - center.y);
+			float a2 = atan2(b.x - center.x, b.y - center.y);
 			float angle = a2 - a1;
 			if (angle < 0)
 				angle += PI * 2;
@@ -737,7 +737,8 @@ bool pointInsidePolygon(std::vector<vec2>& poly, vec2 p) {
 
 void WriteBMP(std::string fileName, unsigned char* pixels, int width, int height, int bytesPerPixel)
 {
-	FILE* outputFile = fopen(fileName.c_str(), "wb");
+	FILE* outputFile = NULL;
+	fopen_s(&outputFile,fileName.c_str(), "wb");
 	//*****HEADER************//
 	const char* BM = "BM";
 	fwrite(&BM[0], 1, 1, outputFile);

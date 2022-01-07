@@ -13,7 +13,6 @@
 // 23-11-2018	moved from GLUT to GLFW
 
 // External Libraries
-#include <GLFW/glfw3.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +22,7 @@
 #include "mathlib.h"
 #include "studio_render.h"
 #include "util.h"
+#include <GLFW/glfw3.h>
 
 vec3_t g_vright;		// needs to be set to viewer's right in order for chrome to work
 float g_lambert;		// modifier for pseudo-hemispherical lighting
@@ -884,7 +884,8 @@ studiohdr_t* StudioModel::LoadModel(char* modelname)
 	void* buffer;
 
 	// load the model
-	if (!(fp = fopen(modelname, "rb")))
+	fopen_s(&fp, modelname, "rb");
+	if (!fp)
 	{
 		printf("unable to open %s\n", modelname);
 		exit(1);
@@ -930,7 +931,8 @@ studioseqhdr_t* StudioModel::LoadDemandSequences(char* modelname)
 	void* buffer;
 
 	// load the model
-	if (!(fp = fopen(modelname, "rb")))
+	fopen_s(&fp, modelname, "rb");
+	if (!fp)
 	{
 		printf("unable to open %s\n", modelname);
 		exit(1);

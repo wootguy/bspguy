@@ -1068,13 +1068,13 @@ void BspMerger::merge_planes(Bsp& mapA, Bsp& mapB) {
 	std::vector<BSPPLANE> mergedPlanes;
 	mergedPlanes.reserve(mapA.planeCount + mapB.planeCount);
 
-	for (int i = 0; i < mapA.planeCount; i++) {
+	for (unsigned int i = 0; i < mapA.planeCount; i++) {
 		mergedPlanes.push_back(mapA.planes[i]);
 		g_progress.tick();
 	}
-	for (int i = 0; i < mapB.planeCount; i++) {
+	for (unsigned int i = 0; i < mapB.planeCount; i++) {
 		bool isUnique = true;
-		for (int k = 0; k < mapA.planeCount; k++) {
+		for (unsigned int k = 0; k < mapA.planeCount; k++) {
 			if (memcmp(&mapB.planes[i], &mapA.planes[k], sizeof(BSPPLANE)) == 0) {
 				isUnique = false;
 				planeRemap.push_back(k);
@@ -1115,7 +1115,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	g_progress.update("Merging textures", mapA.textureCount + mapB.textureCount);
 
 	unsigned int thisMergeSz = (mapA.textureCount + 1) * sizeof(int);
-	for (int i = 0; i < mapA.textureCount; i++) {
+	for (unsigned int i = 0; i < mapA.textureCount; i++) {
 		int offset = ((int*)mapA.textures)[i + 1];
 
 		if (offset == -1) {
@@ -1137,7 +1137,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 	}
 
 	unsigned int otherMergeSz = (mapB.textureCount + 1) * sizeof(int);
-	for (int i = 0; i < mapB.textureCount; i++) {
+	for (unsigned int i = 0; i < mapB.textureCount; i++) {
 		int offset = ((int*)mapB.textures)[i + 1];
 
 		if (offset != -1) {
@@ -1145,7 +1145,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 			BSPMIPTEX* tex = (BSPMIPTEX*)(mapB.textures + offset);
 			int sz = getBspTextureSize(tex);
 
-			for (int k = 0; k < mapA.textureCount; k++) {
+			for (unsigned int k = 0; k < mapA.textureCount; k++) {
 				if (mipTexOffsets[k] == -1) {
 					continue;
 				}
@@ -1216,17 +1216,17 @@ void BspMerger::merge_texinfo(Bsp& mapA, Bsp& mapB) {
 	std::vector<BSPTEXTUREINFO> mergedInfo;
 	mergedInfo.reserve(mapA.texinfoCount + mapB.texinfoCount);
 
-	for (int i = 0; i < mapA.texinfoCount; i++) {
+	for (unsigned int i = 0; i < mapA.texinfoCount; i++) {
 		mergedInfo.push_back(mapA.texinfos[i]);
 		g_progress.tick();
 	}
 
-	for (int i = 0; i < mapB.texinfoCount; i++) {
+	for (unsigned int i = 0; i < mapB.texinfoCount; i++) {
 		BSPTEXTUREINFO info = mapB.texinfos[i];
 		info.iMiptex = texRemap[info.iMiptex];
 
 		bool isUnique = true;
-		for (int k = 0; k < mapA.texinfoCount; k++) {
+		for (unsigned int k = 0; k < mapA.texinfoCount; k++) {
 			if (memcmp(&info, &mapA.texinfos[k], sizeof(BSPTEXTUREINFO)) == 0) {
 				texInfoRemap.push_back(k);
 				isUnique = false;
@@ -1254,7 +1254,7 @@ void BspMerger::merge_faces(Bsp& mapA, Bsp& mapB) {
 	thisFaceCount = mapA.faceCount;
 	otherFaceCount = mapB.faceCount;
 	thisWorldFaceCount = mapA.models[0].nFaces;
-	int totalFaceCount = thisFaceCount + mapB.faceCount;
+	unsigned int totalFaceCount = thisFaceCount + mapB.faceCount;
 
 	g_progress.update("Merging faces", mapB.faceCount + 1);
 	g_progress.tick();
@@ -1265,21 +1265,21 @@ void BspMerger::merge_faces(Bsp& mapA, Bsp& mapB) {
 	// assumes world model faces always come first
 	int appendOffset = 0;
 	// copy world faces
-	int worldFaceCountA = thisWorldFaceCount;
-	int worldFaceCountB = mapB.models[0].nFaces;
+	unsigned int worldFaceCountA = thisWorldFaceCount;
+	unsigned int worldFaceCountB = mapB.models[0].nFaces;
 	memcpy(newFaces + appendOffset, mapA.faces, worldFaceCountA * sizeof(BSPFACE));
 	appendOffset += worldFaceCountA;
 	memcpy(newFaces + appendOffset, mapB.faces, worldFaceCountB * sizeof(BSPFACE));
 	appendOffset += worldFaceCountB;
 
 	// copy B's submodel faces followed by A's
-	int submodelFaceCountA = mapA.faceCount - worldFaceCountA;
-	int submodelFaceCountB = mapB.faceCount - worldFaceCountB;
+	unsigned int submodelFaceCountA = mapA.faceCount - worldFaceCountA;
+	unsigned int submodelFaceCountB = mapB.faceCount - worldFaceCountB;
 	memcpy(newFaces + appendOffset, mapB.faces + worldFaceCountB, submodelFaceCountB * sizeof(BSPFACE));
 	appendOffset += submodelFaceCountB;
 	memcpy(newFaces + appendOffset, mapA.faces + worldFaceCountA, submodelFaceCountA * sizeof(BSPFACE));
 
-	for (int i = 0; i < totalFaceCount; i++) {
+	for (unsigned int i = 0; i < totalFaceCount; i++) {
 		// only update B's faces
 		if (i < worldFaceCountA || i >= worldFaceCountA + mapB.faceCount)
 			continue;
@@ -1445,7 +1445,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 		g_progress.tick();
 	}
 
-	for (int i = 0; i < mapB.nodeCount; i++) {
+	for (unsigned int i = 0; i < mapB.nodeCount; i++) {
 		BSPNODE node = mapB.nodes[i];
 
 		for (int k = 0; k < 2; k++) {
@@ -1494,7 +1494,7 @@ void BspMerger::merge_clipnodes(Bsp& mapA, Bsp& mapB) {
 		g_progress.tick();
 	}
 
-	for (int i = 0; i < mapB.clipnodeCount; i++) {
+	for (unsigned int i = 0; i < mapB.clipnodeCount; i++) {
 		BSPCLIPNODE node = mapB.clipnodes[i];
 		node.iPlane = planeRemap[node.iPlane];
 
@@ -1525,7 +1525,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	mergedModels.push_back(mapA.models[0]);
 
 	// other map's submodels
-	for (int i = 1; i < mapB.modelCount; i++) {
+	for (unsigned int i = 1; i < mapB.modelCount; i++) {
 		BSPMODEL model = mapB.models[i];
 		if (model.iHeadnodes[0] >= 0)
 			model.iHeadnodes[0] += thisNodeCount; // already includes new head nodes (merge_nodes comes after create_merge_headnodes)
@@ -1539,7 +1539,7 @@ void BspMerger::merge_models(Bsp& mapA, Bsp& mapB) {
 	}
 
 	// this map's submodels
-	for (int i = 1; i < mapA.modelCount; i++) {
+	for (unsigned int i = 1; i < mapA.modelCount; i++) {
 		BSPMODEL model = mapA.models[i];
 		if (model.iHeadnodes[0] >= 0)
 			model.iHeadnodes[0] += 1; // adjust for new head node

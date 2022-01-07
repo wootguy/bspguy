@@ -24,6 +24,10 @@ namespace fs = std::experimental::filesystem;
 #include "ProgressMeter.h"
 #include "bsptypes.h"
 
+#ifndef WIN32
+#define fopen_s(pFile,filename,mode) ((*(pFile))=fopen((filename),  (mode)))==NULL
+#endif
+
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
 #define PRINT_RED		4

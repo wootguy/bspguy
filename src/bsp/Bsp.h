@@ -45,20 +45,20 @@ public:
 	bool is_model = false;
 	void selectModelEnt();
 
-	int planeCount;
-	int texinfoCount;
-	int leafCount;
-	int modelCount;
-	int nodeCount;
-	int vertCount;
-	int faceCount;
-	int clipnodeCount;
-	int marksurfCount;
-	int surfedgeCount;
-	int edgeCount;
-	int textureCount;
-	int lightDataLength;
-	int visDataLength;
+	unsigned int planeCount;
+	unsigned int texinfoCount;
+	unsigned int leafCount;
+	unsigned int modelCount;
+	unsigned int nodeCount;
+	unsigned int vertCount;
+	unsigned int faceCount;
+	unsigned int clipnodeCount;
+	unsigned int marksurfCount;
+	unsigned int surfedgeCount;
+	unsigned int edgeCount;
+	unsigned int textureCount;
+	unsigned int lightDataLength;
+	unsigned int visDataLength;
 
 	std::vector<Entity*> ents;
 

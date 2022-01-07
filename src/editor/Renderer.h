@@ -1,15 +1,17 @@
-#include <GL/glew.h>
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
-#include <GLFW/glfw3.h>
 #include "ShaderProgram.h"
 #include "BspRenderer.h"
 #include "Fgd.h"
 #include <thread>
 #include <future>
 #include "Command.h"
+#include <GLFW/glfw3.h>
+#include <GL/glew.h>
+
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
 
 extern std::string g_settings_path;
@@ -167,7 +169,7 @@ private:
 	vec3 cameraUp;
 	vec3 cameraRight;
 	bool cameraIsRotating;
-	float frameTimeScale = 0.0f;
+	double frameTimeScale = 0.0;
 	float moveSpeed = 4.0f;
 	float fov = 75.0f;
 	float zNear = 1.0f;
@@ -252,7 +254,7 @@ private:
 	int clipnodeRenderHull = -1;
 
 	int undoLevels = 64;
-	int undoMemoryUsage = 0; // approximate space used by undo+redo history
+	size_t undoMemoryUsage = 0; // approximate space used by undo+redo history
 	std::vector<Command*> undoHistory;
 	std::vector<Command*> redoHistory;
 	Entity* undoEntityState = NULL;

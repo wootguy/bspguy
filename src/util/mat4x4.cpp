@@ -15,7 +15,7 @@ void glhFrustumf2(float* matrix, float left, float right, float bottom, float to
 	float znear, float zfar)
 {
 	float temp, temp2, temp3, temp4;
-	temp = 2.0 * znear;
+	temp = 2.0f * znear;
 	temp2 = right - left;
 	temp3 = top - bottom;
 	temp4 = zfar - znear;
@@ -280,7 +280,7 @@ mat4x4 mat4x4::invert()
 		return out;
 	}
 
-	det = 1.0 / det;
+	det = 1.0f / det;
 
 	for (int i = 0; i < 16; i++)
 		out.m[i] = inv[i] * det;

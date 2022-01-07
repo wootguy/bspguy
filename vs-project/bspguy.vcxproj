@@ -178,7 +178,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include=".\..\src\main.cpp" />
-    <ClInclude Include=".\..\src\types.h" />
     <ClInclude Include=".\..\src\cli\CommandLine.h" />
     <ClCompile Include=".\..\src\cli\CommandLine.cpp" />
     <ClInclude Include=".\..\src\cli\ProgressMeter.h" />

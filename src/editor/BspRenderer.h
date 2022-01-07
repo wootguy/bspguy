@@ -1,13 +1,13 @@
 #pragma once
 #include "Bsp.h"
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include "Texture.h"
 #include "ShaderProgram.h"
 #include "LightmapNode.h"
 #include "VertexBuffer.h"
 #include "primitives.h"
 #include "PointEntRenderer.h"
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
 #define LIGHTMAP_ATLAS_SIZE 512
 

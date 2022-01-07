@@ -129,9 +129,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include=".\..\src\types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include=".\..\src\cli\CommandLine.h">
       <Filter>Header Files\cli</Filter>
     </ClInclude>
