@@ -128,7 +128,7 @@ std::streampos fileSize(const std::string& filePath) {
 	return fsize;
 }
 
-std::vector<std::string> splitString(std::string s, std::string delimitter) {
+std::vector<std::string> splitString(std::string s, const std::string& delimitter) {
 	std::vector<std::string> split;
 	if (s.size() == 0 || delimitter.size() == 0)
 		return split;
@@ -155,7 +155,7 @@ std::vector<std::string> splitString(std::string s, std::string delimitter) {
 	return split;
 }
 
-std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string delimitter) {
+std::vector<std::string> splitStringIgnoringQuotes(std::string s, const std::string& delimitter) {
 	std::vector<std::string> split;
 	if (s.size() == 0 || delimitter.size() == 0)
 		return split;
@@ -198,7 +198,7 @@ std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string de
 }
 
 
-std::string basename(std::string path) {
+std::string basename(const std::string& path) {
 
 	size_t lastSlash = path.find_last_of("\\/");
 	if (lastSlash != std::string::npos) {
@@ -207,7 +207,7 @@ std::string basename(std::string path) {
 	return path;
 }
 
-std::string stripExt(std::string path) {
+std::string stripExt(const std::string& path) {
 	size_t lastDot = path.find_last_of('.');
 	if (lastDot != std::string::npos) {
 		return path.substr(0, lastDot);
@@ -270,7 +270,7 @@ float clamp(float val, float min, float max) {
 	return val;
 }
 
-vec3 parseVector(std::string s) {
+vec3 parseVector(const std::string& s) {
 	vec3 v;
 	std::vector<std::string> parts = splitString(s, " ");
 
@@ -436,7 +436,7 @@ bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
 	return false;
 }
 
-bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectDist) {
+bool rayPlaneIntersect(const vec3& start, const vec3& dir, const vec3& normal, float fdist, float& intersectDist) {
 	float dot = dotProduct(dir, normal);
 
 	// don't select backfaces or parallel faces
@@ -452,7 +452,7 @@ bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& in
 	return true;
 }
 
-float getDistAlongAxis(vec3 axis, vec3 p)
+float getDistAlongAxis(const vec3& axis, const vec3& p)
 {
 	return dotProduct(axis, p) / sqrt(dotProduct(axis, axis));
 }
@@ -510,7 +510,7 @@ vec3 getCenter(std::vector<vec3>& verts) {
 }
 
 
-vec3 getCenter(vec3 maxs, vec3 mins) {
+vec3 getCenter(const vec3& maxs, const vec3& mins) {
 	return mins + (maxs - mins) * 0.5f;
 }
 
@@ -523,7 +523,7 @@ void getBoundingBox(std::vector<vec3>& verts, vec3& mins, vec3& maxs) {
 	}
 }
 
-void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs) {
+void expandBoundingBox(const vec3& v, vec3& mins, vec3& maxs) {
 	if (v.x > maxs.x) maxs.x = v.x;
 	if (v.y > maxs.y) maxs.y = v.y;
 	if (v.z > maxs.z) maxs.z = v.z;
@@ -533,7 +533,7 @@ void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs) {
 	if (v.z < mins.z) mins.z = v.z;
 }
 
-void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs) {
+void expandBoundingBox(const vec2& v, vec2& mins, vec2& maxs) {
 	if (v.x > maxs.x) maxs.x = v.x;
 	if (v.y > maxs.y) maxs.y = v.y;
 
@@ -624,8 +624,9 @@ std::vector<vec3> getTriangularVerts(std::vector<vec3>& verts) {
 	{
 		if (verts[i] != verts[i0]) {
 			i1 = i;
-			count++;
+			break;
 		}
+		count++;
 	}
 
 	if (i1 == -1) {
@@ -787,7 +788,7 @@ bool pointInsidePolygon(std::vector<vec2>& poly, vec2 p) {
 #define MAX_NUMBER_OF_COLORS 0
 #define ALL_COLORS_REQUIRED 0
 
-void WriteBMP(std::string fileName, unsigned char* pixels, int width, int height, int bytesPerPixel)
+void WriteBMP(const std::string& fileName, unsigned char* pixels, int width, int height, int bytesPerPixel)
 {
 	FILE* outputFile = NULL;
 	fopen_s(&outputFile,fileName.c_str(), "wb");

@@ -46,11 +46,11 @@ CommandLine::CommandLine(int argc, char* argv[]) {
 	}
 }
 
-bool CommandLine::hasOption(std::string optionName) {
+bool CommandLine::hasOption(const std::string& optionName) {
 	return optionVals.find(optionName) != optionVals.end();
 }
 
-bool CommandLine::hasOptionVector(std::string optionName) {
+bool CommandLine::hasOptionVector(const std::string& optionName) {
 	if (!hasOption(optionName))
 		return false;
 
@@ -65,15 +65,15 @@ bool CommandLine::hasOptionVector(std::string optionName) {
 	return true;
 }
 
-std::string CommandLine::getOption(std::string optionName) {
+std::string CommandLine::getOption(const std::string& optionName) {
 	return optionVals[optionName];
 }
 
-int CommandLine::getOptionInt(std::string optionName) {
+int CommandLine::getOptionInt(const std::string& optionName) {
 	return atoi(optionVals[optionName].c_str());
 }
 
-vec3 CommandLine::getOptionVector(std::string optionName) {
+vec3 CommandLine::getOptionVector(const std::string& optionName) {
 	vec3 ret;
 	std::vector<std::string> parts = splitString(optionVals[optionName], ",");
 
@@ -89,7 +89,7 @@ vec3 CommandLine::getOptionVector(std::string optionName) {
 	return ret;
 }
 
-std::vector<std::string> CommandLine::getOptionList(std::string optionName) {
+std::vector<std::string> CommandLine::getOptionList(const std::string& optionName) {
 	std::vector<std::string> parts = splitString(optionVals[optionName], ",");
 
 	for (int i = 0; i < parts.size(); i++) {

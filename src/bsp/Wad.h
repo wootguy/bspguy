@@ -88,9 +88,9 @@ public:
 	~Wad(void);
 
 	bool readInfo();
-	bool hasTexture(std::string name);
+	bool hasTexture(const std::string& name);
 
-	bool write(std::string filename, WADTEX** textures, size_t numTex);
+	bool write(const std::string& filename, WADTEX** textures, size_t numTex);
 	bool write(WADTEX** textures, size_t numTex);
 
 

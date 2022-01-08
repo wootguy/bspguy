@@ -17,6 +17,7 @@ public:
 	virtual void execute() = 0;
 	virtual void undo() = 0;
 	virtual size_t memoryUsage() = 0;
+	virtual ~Command() = default;
 
 	BspRenderer* getBspRenderer();
 	Bsp* getBsp();

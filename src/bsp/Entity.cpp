@@ -56,7 +56,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 	targetsCached = false;
 }
 
-bool Entity::renameKey(int idx, std::string newName) {
+bool Entity::renameKey(int idx, const std::string& newName) {
 	if (idx < 0 || idx >= keyOrder.size() || newName.empty()) {
 		return false;
 	}
@@ -389,7 +389,7 @@ std::vector<std::string> Entity::getTargets() {
 	return targets;
 }
 
-bool Entity::hasTarget(std::string checkTarget) {
+bool Entity::hasTarget(const std::string& checkTarget) {
 	std::vector<std::string> targets = getTargets();
 	for (int i = 0; i < targets.size(); i++) {
 		if (targets[i] == checkTarget) {
@@ -400,7 +400,7 @@ bool Entity::hasTarget(std::string checkTarget) {
 	return false;
 }
 
-void Entity::renameTargetnameValues(std::string oldTargetname, std::string newTargetname) {
+void Entity::renameTargetnameValues(const std::string& oldTargetname, const std::string& newTargetname) {
 	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {
 		const char* key = potential_tergetname_keys[i];
 		if (keyvalues.find(key) != keyvalues.end() && keyvalues[key] == oldTargetname) {

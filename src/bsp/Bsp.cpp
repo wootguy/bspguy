@@ -2136,7 +2136,7 @@ void Bsp::load_ents()
 	{
 		lineNum++;
 
-		while (line[0] == ' ' || line[0] == '	' || line[0] == '\r')
+		while (line[0] == ' ' || line[0] == '\t' || line[0] == '\r')
 		{
 			line.erase(line.begin());
 		}
@@ -2178,12 +2178,12 @@ void Bsp::load_ents()
 			ent = NULL;
 
 			// you can end/start an ent on the same line, you know
-			if (line.find("{") != std::string::npos)
+			if (line.find('{') != std::string::npos)
 			{
 				ent = new Entity();
 				lastBracket = 0;
 
-				if (line.find("\"") == std::string::npos)
+				if (line.find('\"') == std::string::npos)
 				{
 					continue;
 				}
@@ -2198,14 +2198,9 @@ void Bsp::load_ents()
 				ent->addKeyvalue(k.keys[i],k.values[i]);
 			}
 
-			if (line.find("}") != std::string::npos)
+			if (line.find('}') != std::string::npos)
 			{
-				if (lastBracket == 1)
-					logf("%s.bsp ent data (line %d): Unexpected '}' #2\n", path.c_str(), lineNum);
 				lastBracket = 1;
-
-				if (!ent)
-					continue;
 
 				if (ent->keyvalues.count("classname"))
 					ents.push_back(ent);
@@ -2213,7 +2208,7 @@ void Bsp::load_ents()
 					logf("Found unknown classname entity. Skip it.\n");
 				ent = NULL;
 			}
-			if (line.find("{") != std::string::npos)
+			if (line.find('{') != std::string::npos)
 			{
 				ent = new Entity();
 				lastBracket = 0;
@@ -2241,7 +2236,7 @@ void Bsp::load_ents()
 		delete ent;
 }
 
-void Bsp::print_stat(std::string name, unsigned int val, unsigned int max, bool isMem) {
+void Bsp::print_stat(const std::string& name, unsigned int val, unsigned int max, bool isMem) {
 	const float meg = 1024 * 1024;
 	float percent = (val / (float)max) * 100;
 
@@ -2691,7 +2686,7 @@ void Bsp::recurse_node(short nodeIdx, int depth) {
 	recurse_node(nodes[nodeIdx].iChildren[1], depth + 1);
 }
 
-void Bsp::print_node(BSPNODE node) {
+void Bsp::print_node(const BSPNODE & node) {
 	BSPPLANE& plane = planes[node.iPlane];
 
 	logf("Plane (%f %f %f) d: %f, Faces: %d, Min(%d, %d, %d), Max(%d, %d, %d)",
@@ -2701,7 +2696,7 @@ void Bsp::print_node(BSPNODE node) {
 		node.nMaxs[0], node.nMaxs[1], node.nMaxs[2]);
 }
 
-int Bsp::pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx) {
+int Bsp::pointContents(int iNode, const vec3& p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx) {
 	if (iNode < 0) {
 		leafIdx = -1;
 		childIdx = -1;
@@ -2751,7 +2746,7 @@ int Bsp::pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch
 	}
 }
 
-int Bsp::pointContents(int iNode, vec3 p, int hull) {
+int Bsp::pointContents(int iNode, const vec3& p, int hull) {
 	std::vector<int> nodeBranch;
 	int leafIdx;
 	int childIdx;
@@ -2828,9 +2823,9 @@ void Bsp::mark_node_structures(int iNode, STRUCTUSAGE* usage, bool skipLeaves) {
 		}
 		else if (!skipLeaves) {
 			BSPLEAF& leaf = leaves[~node.iChildren[i]];
-			for (int i = 0; i < leaf.nMarkSurfaces; i++) {
-				usage->markSurfs[leaf.iFirstMarkSurface + i] = true;
-				mark_face_structures(marksurfs[leaf.iFirstMarkSurface + i], usage);
+			for (int n = 0; n < leaf.nMarkSurfaces; n++) {
+				usage->markSurfs[leaf.iFirstMarkSurface + n] = true;
+				mark_face_structures(marksurfs[leaf.iFirstMarkSurface + n], usage);
 			}
 
 			usage->leaves[~node.iChildren[i]] = true;
@@ -3022,7 +3017,7 @@ void Bsp::delete_model(int modelIdx) {
 	}
 }
 
-int Bsp::create_solid(vec3 mins, vec3 maxs, int textureIdx) {
+int Bsp::create_solid(const vec3 & mins, const vec3& maxs, int textureIdx) {
 	int newModelIdx = create_model();
 	BSPMODEL& newModel = models[newModelIdx];
 
@@ -3249,7 +3244,7 @@ int Bsp::create_leaf(int contents) {
 	return newLeafIdx;
 }
 
-void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int textureIdx) {
+void Bsp::create_node_box(const vec3& min, const vec3& max, BSPMODEL* targetModel, int textureIdx) {
 
 	// add new verts (1 for each corner)
 	// TODO: subdivide faces to prevent max surface extents error
@@ -3528,8 +3523,9 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 
 		unsigned int idx = 0;
 		for (unsigned int i = 0; i < solid.faces.size(); i++) {
-			for (unsigned int k = 0; k < solid.faces[i].verts.size(); k++) {
-				newSurfedges[startSurfedge + idx++] = vertToSurfedge[solid.faces[i].verts[k]];
+			auto tmpFace = solid.faces[i];
+			for (unsigned int k = 0; k < tmpFace.verts.size(); k++) {
+				newSurfedges[startSurfedge + idx++] = vertToSurfedge[tmpFace.verts[k]];
 			}
 		}
 
@@ -3640,7 +3636,7 @@ void Bsp::create_nodes(Solid& solid, BSPMODEL* targetModel) {
 	}
 }
 
-int Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
+int Bsp::create_clipnode_box(const vec3 & mins, const vec3& maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {
 	std::vector<BSPPLANE> addPlanes;
 	std::vector<BSPCLIPNODE> addNodes;
 	int solidNodeIdx = 0;
@@ -4073,7 +4069,7 @@ void Bsp::regenerate_clipnodes(int modelIdx, int hullIdx) {
 	}
 }
 
-void Bsp::dump_lightmap(int faceIdx, std::string outputPath) {
+void Bsp::dump_lightmap(int faceIdx, const std::string & outputPath) {
 	int faceCount = header.lump[LUMP_FACES].nLength / sizeof(BSPFACE);
 
 	BSPFACE& face = faces[faceIdx];
@@ -4087,7 +4083,7 @@ void Bsp::dump_lightmap(int faceIdx, std::string outputPath) {
 	lodepng_encode24_file(outputPath.c_str(), (unsigned char*)lightdata + face.nLightmapOffset, extents[0], extents[1]);
 }
 
-void Bsp::dump_lightmap_atlas(std::string outputPath) {
+void Bsp::dump_lightmap_atlas(const std::string & outputPath) {
 	int lightmapWidth = MAX_SURFACE_EXTENT;
 
 	int lightmapsPerDim = (int)ceil(sqrt(faceCount));
@@ -4235,11 +4231,8 @@ void Bsp::write_csg_polys(short nodeIdx, FILE* polyfile, int flipPlaneSkip, bool
 
 	for (int i = leaf.iFirstMarkSurface; i < leaf.iFirstMarkSurface + leaf.nMarkSurfaces; i++) {
 		for (int z = 0; z < 2; z++) {
-			if (z == 0)
-				continue;
 			BSPFACE& face = faces[marksurfs[i]];
 
-			// FIXME : z always == 1
 			bool flipped = (z == 1 || face.nPlaneSide) && !(z == 1 && face.nPlaneSide);
 
 			int iPlane = !flipped ? face.iPlane : face.iPlane + flipPlaneSkip;
@@ -4286,7 +4279,7 @@ void Bsp::write_csg_polys(short nodeIdx, FILE* polyfile, int flipPlaneSkip, bool
 	}
 }
 
-void Bsp::print_leaf(BSPLEAF leaf) {
+void Bsp::print_leaf(const BSPLEAF & leaf) {
 	logf(getLeafContentsName(leaf.nContents));
 	logf(" %d surfs, Min(%d, %d, %d), Max(%d %d %d)", leaf.nMarkSurfaces,
 		leaf.nMins[0], leaf.nMins[1], leaf.nMins[2],
@@ -4480,7 +4473,7 @@ void Bsp::ExportToObjWIP(std::string path)
 					for (int r = 0; r < g_app->mapRenderers.size() && !foundInWad; r++)
 					{
 						Renderer* rend = g_app;
-						for (int k = 0; k < rend->mapRenderers[r]->wads.size() && !foundInWad; k++) {
+						for (int k = 0; k < rend->mapRenderers[r]->wads.size(); k++) {
 							if (rend->mapRenderers[r]->wads[k]->hasTexture(tex->szName)) {
 								foundInWad = true;
 

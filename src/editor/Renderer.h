@@ -144,7 +144,7 @@ public:
 	void selectMap(Bsp* map);
 	void deselectMap(Bsp* map);
 	void clearSelection();
-	void pushModelUndoState(std::string actionDesc, int targetLumps);
+	void pushModelUndoState(const std::string & actionDesc, int targetLumps);
 
 	std::vector<int> selectedFaces;
 private:
@@ -281,7 +281,7 @@ private:
 	void drawModelOrigin();
 	void drawTransformAxes();
 	void drawEntConnections();
-	void drawLine(vec3 start, vec3 end, COLOR4 color);
+	void drawLine(const vec3& start, const vec3& end, COLOR4 color);
 	void drawPlane(BSPPLANE& plane, COLOR4 color);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
@@ -297,10 +297,10 @@ private:
 	void updateEntConnections();
 	void updateEntConnectionPositions(); // only updates positions in the buffer
 	bool getModelSolid(std::vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
-	void moveSelectedVerts(vec3 delta);
+	void moveSelectedVerts(const vec3& delta);
 	void splitFace();
 
-	vec3 snapToGrid(vec3 pos);
+	vec3 snapToGrid(const vec3& pos);
 
 	void grabEnt();
 	void cutEnt();
@@ -308,7 +308,7 @@ private:
 	void pasteEnt(bool noModifyOrigin);
 	void deleteEnt();
 	void scaleSelectedObject(float x, float y, float z);
-	void scaleSelectedObject(vec3 dir, vec3 fromDir);
+	void scaleSelectedObject(vec3 dir, const vec3& fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
 	vec3 getEdgeControlPoint(std::vector<TransformVert>& hullVerts, HullEdge& edge);
 	vec3 getCentroid(std::vector<TransformVert>& hullVerts);
@@ -319,7 +319,7 @@ private:
 	void goToCoords(float x, float y, float z);
 	void ungrabEnt();
 
-	void pushEntityUndoState(std::string actionDesc);
+	void pushEntityUndoState(const std::string & actionDesc);
 	void pushUndoCommand(Command* cmd);
 	void undo();
 	void redo();

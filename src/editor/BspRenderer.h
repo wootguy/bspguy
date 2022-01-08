@@ -119,9 +119,9 @@ public:
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities(int highlightEnt);
 
-	bool pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo);
-	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
-	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
+	bool pickPoly(vec3 start, const vec3& dir, int hullIdx, PickInfo& pickInfo);
+	bool pickModelPoly(vec3 start, const vec3& dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
+	bool pickFaceMath(const vec3& start, const vec3& dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes = true);

@@ -5,7 +5,7 @@
 #include "vis.h"
 
 
-Bsp* BspMerger::merge(std::vector<Bsp*> maps, vec3 gap, std::string output_name, bool noripent, bool noscript) {
+Bsp* BspMerger::merge(std::vector<Bsp*> maps, const vec3 & gap, const std::string & output_name, bool noripent, bool noscript) {
 	if (maps.size() < 1) {
 		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
 		return NULL;
@@ -116,7 +116,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, std::string resultType) {
 	merge(*dst.map, *src.map);
 }
 
-std::vector<std::vector<std::vector<MAPBLOCK>>> BspMerger::separate(std::vector<Bsp*>& maps, vec3 gap) {
+std::vector<std::vector<std::vector<MAPBLOCK>>> BspMerger::separate(std::vector<Bsp*>& maps, const vec3& gap) {
 	std::vector<MAPBLOCK> blocks;
 
 	std::vector<std::vector<std::vector<MAPBLOCK>>> orderedBlocks;
@@ -227,7 +227,7 @@ typedef std::map< std::string, std::set<std::string> > mapStringToSet;
 typedef std::map< std::string, MAPBLOCK > mapStringToMapBlock;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBLOCK>& sourceMaps,
-	std::vector<Bsp*>& mapOrder, std::string output_name, std::string firstMapName, bool noscript) {
+	std::vector<Bsp*>& mapOrder, const std::string& output_name, const std::string& firstMapName, bool noscript) {
 	int originalEntCount = (int)mergedMap->ents.size();
 	int renameCount = force_unique_ent_names_per_map(mergedMap);
 

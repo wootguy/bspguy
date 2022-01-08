@@ -124,7 +124,7 @@ void mat4x4::rotateZ(float r)
 	mult(rmat);
 }
 
-mat4x4 worldToLocalTransform(vec3 local_x, vec3 local_y, vec3 local_z) {
+mat4x4 worldToLocalTransform(const vec3 & local_x, const vec3& local_y, const vec3& local_z) {
 	const vec3 world_x(1, 0, 0);
 	const vec3 world_y(0, 1, 0);
 	const vec3 world_z(0, 0, 1);
@@ -294,7 +294,7 @@ void mat4x4::mult(float mat[16])
 	*this = *this * _other;
 }
 
-mat4x4 operator*(mat4x4 m1, mat4x4 m2)
+mat4x4 operator*(const mat4x4& m1, const mat4x4& m2)
 {
 	mat4x4 result;
 	memset(result.m, 0, sizeof(result.m));
@@ -307,7 +307,7 @@ mat4x4 operator*(mat4x4 m1, mat4x4 m2)
 	return result;
 }
 
-vec4 operator*(mat4x4 mat, vec4 vec)
+vec4 operator*(const mat4x4& mat, const vec4& vec)
 {
 	vec4 res;
 	res.x = mat.m[0] * vec.x + mat.m[4] * vec.y + mat.m[8] * vec.z + mat.m[12] * vec.w;
@@ -317,7 +317,7 @@ vec4 operator*(mat4x4 mat, vec4 vec)
 	return res;
 }
 
-void mat4x4print(mat4x4 mat)
+void mat4x4print(const mat4x4& mat)
 {
 	logf("%f %f %f %f\n", mat.m[0], mat.m[1], mat.m[2], mat.m[3]);
 	logf("%f %f %f %f\n", mat.m[4], mat.m[5], mat.m[6], mat.m[7]);

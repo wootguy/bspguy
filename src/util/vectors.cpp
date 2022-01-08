@@ -3,7 +3,7 @@
 #include "mat4x4.h"
 #include "util.h"
 
-bool operator==(vec3 v1, vec3 v2)
+bool operator==(const vec3& v1, const vec3& v2)
 {
 	vec3 v = v1 - v2;
 	if (fabs(v.x) >= EPSILON)
@@ -15,7 +15,7 @@ bool operator==(vec3 v1, vec3 v2)
 	return true;
 }
 
-bool operator!=(vec3 v1, vec3 v2)
+bool operator!=(const vec3& v1, const vec3& v2)
 {
 	vec3 v = v1 - v2;
 	if (fabs(v.x) >= EPSILON)
@@ -27,7 +27,7 @@ bool operator!=(vec3 v1, vec3 v2)
 	return false;
 }
 
-vec3 operator-(vec3 v1, vec3 v2)
+vec3 operator-(vec3 v1, const vec3& v2)
 {
 	v1.x -= v2.x;
 	v1.y -= v2.y;
@@ -35,7 +35,7 @@ vec3 operator-(vec3 v1, vec3 v2)
 	return v1;
 }
 
-vec3 operator+(vec3 v1, vec3 v2)
+vec3 operator+(vec3 v1, const vec3& v2)
 {
 	v1.x += v2.x;
 	v1.y += v2.y;
@@ -43,7 +43,7 @@ vec3 operator+(vec3 v1, vec3 v2)
 	return v1;
 }
 
-vec3 operator*(vec3 v1, vec3 v2)
+vec3 operator*(vec3 v1, const vec3& v2)
 {
 	v1.x *= v2.x;
 	v1.y *= v2.y;
@@ -51,7 +51,7 @@ vec3 operator*(vec3 v1, vec3 v2)
 	return v1;
 }
 
-vec3 operator/(vec3 v1, vec3 v2)
+vec3 operator/(vec3 v1, const vec3& v2)
 {
 	v1.x /= v2.x;
 	v1.y /= v2.y;
@@ -91,28 +91,28 @@ vec3 operator/(vec3 v, float f)
 	return v;
 }
 
-void vec3::operator-=(vec3 v)
+void vec3::operator-=(const vec3& v)
 {
 	x -= v.x;
 	y -= v.y;
 	z -= v.z;
 }
 
-void vec3::operator+=(vec3 v)
+void vec3::operator+=(const vec3& v)
 {
 	x += v.x;
 	y += v.y;
 	z += v.z;
 }
 
-void vec3::operator*=(vec3 v)
+void vec3::operator*=(const vec3& v)
 {
 	x *= v.x;
 	y *= v.y;
 	z *= v.z;
 }
 
-void vec3::operator/=(vec3 v)
+void vec3::operator/=(const vec3& v)
 {
 	x /= v.x;
 	y /= v.y;
@@ -147,7 +147,7 @@ void vec3::operator/=(float f)
 	z /= f;
 }
 
-vec3 crossProduct(vec3 v1, vec3 v2)
+vec3 crossProduct(const vec3& v1, const vec3& v2)
 {
 	float x = v1.y * v2.z - v2.y * v1.z;
 	float y = v2.x * v1.z - v1.x * v2.z;
@@ -155,12 +155,12 @@ vec3 crossProduct(vec3 v1, vec3 v2)
 	return vec3(x, y, z);
 }
 
-float dotProduct(vec3 v1, vec3 v2)
+float dotProduct(const vec3& v1, const vec3& v2)
 {
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
-void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up) {
+void makeVectors(const vec3& angles, vec3& forward, vec3& right, vec3& up) {
 	mat4x4 rotMat;
 	rotMat.loadIdentity();
 	rotMat.rotateX(PI * angles.x / 180.0f);
@@ -193,7 +193,7 @@ float vec3::length()
 	return sqrt((x * x) + (y * y) + (z * z));
 }
 
-std::string vec3::toKeyvalueString(bool truncate, std::string suffix_x, std::string suffix_y, std::string suffix_z) {
+std::string vec3::toKeyvalueString(bool truncate, const std::string & suffix_x, const std::string& suffix_y, const std::string& suffix_z) {
 	std::string parts[3] = { std::to_string(x) ,std::to_string(y), std::to_string(z) };
 
 	// remove trailing zeros to save some space
@@ -351,7 +351,7 @@ vec2 vec2::normalize(float length) {
 
 
 
-bool operator==(vec4 v1, vec4 v2)
+bool operator==(const vec4& v1, const vec4& v2)
 {
 	vec4 v = v1 - v2;
 	if (fabs(v.x) >= EPSILON)
@@ -366,13 +366,13 @@ bool operator==(vec4 v1, vec4 v2)
 }
 
 
-bool operator!=(vec4 v1, vec4 v2)
+bool operator!=(const vec4& v1, const vec4& v2)
 {
 	return v1.x != v2.x || v1.y != v2.y || v1.z != v2.z || v1.w != v2.w;
 }
 
 
-vec4 operator+(vec4 v1, vec4 v2)
+vec4 operator+(vec4 v1, const vec4& v2)
 {
 	v1.x += v2.x;
 	v1.y += v2.y;
@@ -392,7 +392,7 @@ vec4 operator+(vec4 v, float f)
 
 
 
-vec4 operator*(vec4 v1, vec4 v2)
+vec4 operator*(vec4 v1, const vec4& v2)
 {
 	v1.x *= v2.x;
 	v1.y *= v2.y;
@@ -412,7 +412,7 @@ vec4 operator*(vec4 v, float f)
 
 
 
-vec4 operator/(vec4 v1, vec4 v2)
+vec4 operator/(vec4 v1, const vec4& v2)
 {
 	v1.x /= v2.x;
 	v1.y /= v2.y;
@@ -431,7 +431,7 @@ vec4 operator/(vec4 v, float f)
 }
 
 
-vec4 operator-(vec4 v1, vec4 v2)
+vec4 operator-(vec4 v1, const vec4& v2)
 {
 	v1.x -= v2.x;
 	v1.y -= v2.y;

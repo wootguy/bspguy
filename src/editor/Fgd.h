@@ -104,7 +104,7 @@ public:
 	bool parse();
 	void merge(Fgd* other);
 
-	FgdClass* getFgdClass(std::string cname);
+	FgdClass* getFgdClass(const std::string & cname);
 
 private:
 	int lineNum;
@@ -120,10 +120,10 @@ private:
 	void setSpawnflagNames();
 
 	// true if value begins a group of strings separated by spaces
-	bool stringGroupStarts(std::string s);
+	bool stringGroupStarts(const std::string & s);
 
 	// true if any closing paren or quote is found
-	bool stringGroupEnds(std::string s);
+	bool stringGroupEnds(const std::string &  s);
 
 	// get the value inside a prefixed set of parens
 	std::string getValueInParens(std::string s);

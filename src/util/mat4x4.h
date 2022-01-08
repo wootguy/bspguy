@@ -53,7 +53,7 @@ private:
 	void mult(float mat[16]);
 };
 
-mat4x4 operator*(mat4x4 m1, mat4x4 m2);
-vec4 operator*(mat4x4 mat, vec4 vec);
-mat4x4 worldToLocalTransform(vec3 local_x, vec3 local_y, vec3 local_z);
-void mat4x4print(mat4x4 mat);
+mat4x4 operator*(const mat4x4& m1, const mat4x4& m2);
+vec4 operator*(const mat4x4& mat, const vec4& vec);
+mat4x4 worldToLocalTransform(const vec3& local_x, const vec3& local_y, const vec3& local_z);
+void mat4x4print(const mat4x4& mat);

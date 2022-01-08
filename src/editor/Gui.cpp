@@ -744,28 +744,30 @@ void Gui::drawMenuBar() {
 	ImGui::BeginMainMenuBar();
 	Bsp* map = app->getSelectedMap();
 
-
-	if (ifd::FileDialog::Instance().IsDone("WadOpenDialog")) {
-		if (ifd::FileDialog::Instance().HasResult()) {
-			std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
-			for (int i = 0; i < map->ents.size(); i++) {
-				if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
-					std::vector<std::string> wadNames = splitString(map->ents[i]->keyvalues["wad"], ";");
-					std::string newWadNames;
-					for (int k = 0; k < wadNames.size(); k++) {
-						if (wadNames[k].find(res.filename().string()) == std::string::npos)
-							newWadNames += wadNames[k] + ";";
+	if (map)
+	{
+		if (ifd::FileDialog::Instance().IsDone("WadOpenDialog")) {
+			if (ifd::FileDialog::Instance().HasResult()) {
+				std::filesystem::path res = ifd::FileDialog::Instance().GetResult();
+				for (int i = 0; i < map->ents.size(); i++) {
+					if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
+						std::vector<std::string> wadNames = splitString(map->ents[i]->keyvalues["wad"], ";");
+						std::string newWadNames;
+						for (int k = 0; k < wadNames.size(); k++) {
+							if (wadNames[k].find(res.filename().string()) == std::string::npos)
+								newWadNames += wadNames[k] + ";";
+						}
+						map->ents[i]->keyvalues["wad"] = newWadNames;
+						break;
 					}
-					map->ents[i]->keyvalues["wad"] = newWadNames;
-					break;
 				}
+				app->updateEnts();
+				ImportWad(map, app, res.string());
+				app->reloadBspModels();
+				g_settings.lastdir = res.parent_path().string();
 			}
-			app->updateEnts();
-			ImportWad(map, app, res.string());
-			app->reloadBspModels();
-			g_settings.lastdir = res.parent_path().string();
+			ifd::FileDialog::Instance().Close();
 		}
-		ifd::FileDialog::Instance().Close();
 	}
 
 	if (ifd::FileDialog::Instance().IsDone("MapOpenDialog")) {
@@ -3933,7 +3935,7 @@ void DrawImageAtOneBigLightMap(COLOR3* img, int w, int h, int x, int y)
 			int offset2 = ArrayXYtoId(max_x_width, x + x1, y + y1);
 			while (offset2 >= colordata.size())
 			{
-				colordata.push_back(COLOR3(0, 0, 255));
+				colordata.emplace_back(COLOR3(0, 0, 255));
 			}
 			colordata[offset2] = img[offset];
 		}

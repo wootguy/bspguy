@@ -78,8 +78,8 @@ public:
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
 	void recurse_node(short node, int depth);
-	int pointContents(int iNode, vec3 p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx);
-	int pointContents(int iNode, vec3 p, int hull);
+	int pointContents(int iNode, const vec3 & p, int hull, std::vector<int>& nodeBranch, int& leafIdx, int& childIdx);
+	int pointContents(int iNode, const vec3 & p, int hull);
 	const char* getLeafContentsName(int contents);
 
 	// strips a collision hull from the given model index
@@ -90,8 +90,8 @@ public:
 	// and redirects to the given hull, if redirect>0
 	void delete_hull(int hull_number, int redirect);
 
-	void dump_lightmap(int faceIdx, std::string outputPath);
-	void dump_lightmap_atlas(std::string outputPath);
+	void dump_lightmap(int faceIdx, const std::string& outputPath);
+	void dump_lightmap_atlas(const std::string& outputPath);
 
 	void write_csg_outputs(std::string path);
 
@@ -154,16 +154,16 @@ public:
 	bool validate();
 
 	// creates a solid cube
-	int create_solid(vec3 mins, vec3 maxs, int textureIdx);
+	int create_solid(const vec3 & mins, const vec3& maxs, int textureIdx);
 
 	// creates a new solid from the given solid definition (must be convex).
 	int create_solid(Solid& solid, int targetModelIdx = -1);
 
 	int create_leaf(int contents);
-	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
+	void create_node_box(const vec3& mins, const vec3& maxs, BSPMODEL* targetModel, int textureIdx);
 	void create_nodes(Solid& solid, BSPMODEL* targetModel);
 	// returns index of the solid node
-	int create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
+	int create_clipnode_box(const vec3& mins, const vec3& maxs, BSPMODEL* targetModel, int targetHull = 0, bool skipEmpty = false);
 
 	// copies a model from the sourceMap into this one
 	void add_model(Bsp* sourceMap, int modelIdx);
@@ -238,9 +238,9 @@ private:
 	void get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLightmap, int& srcOffsetX, int& srcOffsetY);
 
 	void print_model_bsp(int modelIdx);
-	void print_leaf(BSPLEAF leaf);
-	void print_node(BSPNODE node);
-	void print_stat(std::string name, unsigned int val, unsigned int max, bool isMem);
+	void print_leaf(const BSPLEAF &leaf);
+	void print_node(const BSPNODE& node);
+	void print_stat(const std::string &name, unsigned int val, unsigned int max, bool isMem);
 	void print_model_stat(STRUCTUSAGE* modelInfo, unsigned int val, unsigned int max, bool isMem);
 
 	std::string get_model_usage(int modelIdx);

@@ -654,14 +654,10 @@ void StudioModel::DrawPoints()
 
 	for (j = 0; j < m_pmodel->nummesh; j++)
 	{
-		float s, t;
 		short* ptricmds;
 
 		pmesh = (mstudiomesh_t*)((unsigned char*)m_pstudiohdr + m_pmodel->meshindex) + j;
 		ptricmds = (short*)((unsigned char*)m_pstudiohdr + pmesh->triindex);
-
-		s = 1.0 / (float)ptexture[pskinref[pmesh->skinref]].width;
-		t = 1.0 / (float)ptexture[pskinref[pmesh->skinref]].height;
 
 		glBindTexture(GL_TEXTURE_2D, ptexture[pskinref[pmesh->skinref]].index);
 
@@ -739,6 +735,9 @@ void StudioModel::DrawPoints()
 					elementsThisStrip += 2;
 				}
 
+
+				float s = 1.0 / (float)ptexture[pskinref[pmesh->skinref]].width;
+				float t = 1.0 / (float)ptexture[pskinref[pmesh->skinref]].height;
 
 				// FIX: put these in as integer coords, not floats
 				if (ptexture[pskinref[pmesh->skinref]].flags & STUDIO_NF_CHROME)
@@ -888,7 +887,7 @@ studiohdr_t* StudioModel::LoadModel(char* modelname)
 	if (!fp)
 	{
 		printf("unable to open %s\n", modelname);
-		exit(1);
+		return NULL;
 	}
 
 	fseek(fp, 0, SEEK_END);
@@ -935,7 +934,7 @@ studioseqhdr_t* StudioModel::LoadDemandSequences(char* modelname)
 	if (!fp)
 	{
 		printf("unable to open %s\n", modelname);
-		exit(1);
+		return NULL;
 	}
 
 	fseek(fp, 0, SEEK_END);
@@ -954,12 +953,14 @@ void StudioModel::Init(char* modelname)
 {
 	m_pstudiohdr = LoadModel(modelname);
 
-	// preload textures
-	if (m_pstudiohdr->numtextures == 0)
-	{
-		char texturename[256];
+	char texturename[256];
 
-		memcpy(texturename, modelname, strlen(modelname) + 1);
+	memcpy(texturename, modelname, strlen(modelname) + 1);
+	texturename[255] = '\0';
+
+	// preload textures
+	if (m_pstudiohdr->numtextures == 0 && strlen(texturename) > 4)
+	{
 		memcpy(&texturename[strlen(texturename) - 4], "T.mdl", 5);
 
 		m_ptexturehdr = LoadModel(texturename);
@@ -972,13 +973,16 @@ void StudioModel::Init(char* modelname)
 	// preload animations
 	if (m_pstudiohdr->numseqgroups > 1)
 	{
+		auto mdllen = strlen(modelname);
 		for (int i = 1; i < m_pstudiohdr->numseqgroups; i++)
 		{
 			char seqgroupname[256];
 
-			memcpy(seqgroupname, modelname, strlen(modelname) + 1);
-			snprintf(&seqgroupname[strlen(seqgroupname) - 4], 20, "%02d.mdl", i);
-
+			memcpy(seqgroupname, modelname, mdllen + 1);
+			if (strlen(seqgroupname) > 4)
+			{
+				snprintf(&seqgroupname[strlen(seqgroupname) - 4], 20, "%02d.mdl", i);
+			}
 			m_panimhdr[i] = LoadDemandSequences(seqgroupname);
 		}
 	}

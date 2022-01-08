@@ -439,7 +439,7 @@ void CalcPoints(Bsp* bsp, lightinfo_t* l, unsigned char* LuxelFlags)
 			square[1][0] = us + TEXTURE_STEP;
 			square[1][1] = ut + TEXTURE_STEP;
 
-			*pLuxelFlags = TestSampleFrag(bsp, l->surfnum, us, ut, square, 100) ? LightNormal : LightOutside;
+			*pLuxelFlags = (unsigned char)(TestSampleFrag(bsp, l->surfnum, us, ut, square, 100) ? LightNormal : LightOutside);
 		}
 	}
 

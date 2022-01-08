@@ -25,7 +25,7 @@ Fgd::~Fgd() {
 	}
 }
 
-FgdClass* Fgd::getFgdClass(std::string cname) {
+FgdClass* Fgd::getFgdClass(const std::string& cname) {
 	if (classMap.find(cname) == classMap.end()) {
 		return NULL;
 	}
@@ -299,7 +299,8 @@ std::vector<std::string> Fgd::groupParts(std::vector<std::string>& ungrouped) {
 
 		if (stringGroupStarts(ungrouped[i])) {
 			std::string groupedPart = ungrouped[i];
-			for (i = i + 1; i < ungrouped.size(); i++) {
+			i++;
+			for (; i < ungrouped.size(); i++) {
 				groupedPart += " " + ungrouped[i];
 				if (stringGroupEnds(ungrouped[i])) {
 					break;
@@ -315,7 +316,7 @@ std::vector<std::string> Fgd::groupParts(std::vector<std::string>& ungrouped) {
 	return grouped;
 }
 
-bool Fgd::stringGroupStarts(std::string s) {
+bool Fgd::stringGroupStarts(const std::string& s) {
 	if (s.find('(') != std::string::npos) {
 		return s.find(')') == std::string::npos;
 	}
@@ -329,7 +330,7 @@ bool Fgd::stringGroupStarts(std::string s) {
 	return false;
 }
 
-bool Fgd::stringGroupEnds(std::string s) {
+bool Fgd::stringGroupEnds(const std::string& s) {
 	return s.find(')') != std::string::npos || s.find('\"') != std::string::npos;
 }
 
@@ -373,14 +374,17 @@ void Fgd::processClassInheritance() {
 					classes[i]->mins = allBaseClasses[k]->mins;
 					classes[i]->maxs = allBaseClasses[k]->maxs;
 				}
-				for (int c = 0; c < allBaseClasses[k]->keyvalues.size(); c++) {
-					if (addedKeys.find(allBaseClasses[k]->keyvalues[c].name) == addedKeys.end()) {
-						newKeyvalues.push_back(allBaseClasses[k]->keyvalues[c]);
-						addedKeys.insert(allBaseClasses[k]->keyvalues[c].name);
+				auto tmpBaseClass = allBaseClasses[k];
+				for (int c = 0; c < tmpBaseClass->keyvalues.size(); c++) {
+
+					auto tmpBaseKeys = tmpBaseClass->keyvalues[c];
+					if (addedKeys.find(tmpBaseKeys.name) == addedKeys.end()) {
+						newKeyvalues.push_back(tmpBaseClass->keyvalues[c]);
+						addedKeys.insert(tmpBaseKeys.name);
 					}
-					if (allBaseClasses[k]->keyvalues[c].iType == FGD_KEY_FLAGS) {
-						for (int f = 0; f < allBaseClasses[k]->keyvalues[c].choices.size(); f++) {
-							KeyvalueChoice& spawnflagOption = allBaseClasses[k]->keyvalues[c].choices[f];
+					if (tmpBaseKeys.iType == FGD_KEY_FLAGS) {
+						for (int f = 0; f < tmpBaseKeys.choices.size(); f++) {
+							KeyvalueChoice& spawnflagOption = tmpBaseKeys.choices[f];
 							if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
 								newSpawnflags.push_back(spawnflagOption);
 								addedSpawnflags.insert(spawnflagOption.svalue);
@@ -392,13 +396,14 @@ void Fgd::processClassInheritance() {
 			}
 
 			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
-				if (addedKeys.find(classes[i]->keyvalues[c].name) == addedKeys.end()) {
-					newKeyvalues.push_back(classes[i]->keyvalues[c]);
-					addedKeys.insert(classes[i]->keyvalues[c].name);
+				auto tmpBaseKeys = classes[i]->keyvalues[c];
+				if (addedKeys.find(tmpBaseKeys.name) == addedKeys.end()) {
+					newKeyvalues.push_back(tmpBaseKeys);
+					addedKeys.insert(tmpBaseKeys.name);
 				}
-				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
-					for (int f = 0; f < classes[i]->keyvalues[c].choices.size(); f++) {
-						KeyvalueChoice& spawnflagOption = classes[i]->keyvalues[c].choices[f];
+				if (tmpBaseKeys.iType == FGD_KEY_FLAGS) {
+					for (int f = 0; f < tmpBaseKeys.choices.size(); f++) {
+						KeyvalueChoice& spawnflagOption = tmpBaseKeys.choices[f];
 						if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
 							newSpawnflags.push_back(spawnflagOption);
 							addedSpawnflags.insert(spawnflagOption.svalue);

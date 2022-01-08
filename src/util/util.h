@@ -61,12 +61,12 @@ bool removeFile(const std::string& fileName);
 
 std::streampos fileSize(const std::string& filePath);
 
-std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string delimitter);
-std::vector<std::string> splitString(std::string s, std::string delimitter);
+std::vector<std::string> splitStringIgnoringQuotes(std::string s, const std::string& delimitter);
+std::vector<std::string> splitString(std::string s, const std::string& delimitter);
 
-std::string basename(std::string path);
+std::string basename(const std::string& path);
 
-std::string stripExt(std::string filename);
+std::string stripExt(const std::string& filename);
 
 bool isNumeric(const std::string& s);
 
@@ -88,15 +88,15 @@ int getBspTextureSize(BSPMIPTEX* bspTexture);
 
 float clamp(float val, float min, float max);
 
-vec3 parseVector(std::string s);
+vec3 parseVector(const std::string & s);
 
 bool IsEntNotSupportAngles(std::string& entname);
 
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 
-bool rayPlaneIntersect(vec3 start, vec3 dir, vec3 normal, float fdist, float& intersectDist);
+bool rayPlaneIntersect(const vec3& start, const vec3& dir, const vec3& normal, float fdist, float& intersectDist);
 
-float getDistAlongAxis(vec3 axis, vec3 p);
+float getDistAlongAxis(const vec3& axis, const vec3& p);
 
 // returns false if verts are not planar
 bool getPlaneFromVerts(std::vector<vec3>& verts, vec3& outNormal, float& outDist);
@@ -107,11 +107,11 @@ vec2 getCenter(std::vector<vec2>& verts);
 
 vec3 getCenter(std::vector<vec3>& verts);
 
-vec3 getCenter(vec3 maxs, vec3 mins);
+vec3 getCenter(const vec3& maxs, const vec3& mins);
 
-void expandBoundingBox(vec3 v, vec3& mins, vec3& maxs);
+void expandBoundingBox(const vec3& v, vec3& mins, vec3& maxs);
 
-void expandBoundingBox(vec2 v, vec2& mins, vec2& maxs);
+void expandBoundingBox(const vec2& v, vec2& mins, vec2& maxs);
 
 std::vector<vec3> getPlaneIntersectVerts(std::vector<BSPPLANE>& planes);
 
@@ -142,6 +142,6 @@ void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-void WriteBMP(std::string fileName, unsigned char* pixels, int width, int height, int bytesPerPixel);
+void WriteBMP(const std::string & fileName, unsigned char* pixels, int width, int height, int bytesPerPixel);
 
 std::string GetCurrentWorkingDir();

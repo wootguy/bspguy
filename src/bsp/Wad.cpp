@@ -102,7 +102,7 @@ bool Wad::readInfo()
 	return true;
 }
 
-bool Wad::hasTexture(std::string name)
+bool Wad::hasTexture(const std::string & name)
 {
 	for (int d = 0; d < header.nDir; d++)
 		if (strcasecmp(name.c_str(), dirEntries[d].szName) == 0)
@@ -186,7 +186,7 @@ bool Wad::write(WADTEX** textures, size_t numTex)
 	return write(filename, textures, numTex);
 }
 
-bool Wad::write(std::string filename, WADTEX** textures, size_t numTex)
+bool Wad::write(const std::string& filename, WADTEX** textures, size_t numTex)
 {
 	std::ofstream myFile(filename, std::ios::trunc | std::ios::binary);
 

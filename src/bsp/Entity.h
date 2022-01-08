@@ -20,7 +20,7 @@ public:
 
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
-	bool renameKey(int idx, std::string newName);
+	bool renameKey(int idx, const std::string& newName);
 	void clearAllKeyvalues();
 	void clearEmptyKeyvalues();
 
@@ -38,9 +38,9 @@ public:
 
 	std::vector<std::string> getTargets();
 
-	bool hasTarget(std::string checkTarget);
+	bool hasTarget(const std::string& checkTarget);
 
-	void renameTargetnameValues(std::string oldTargetname, std::string newTargetname);
+	void renameTargetnameValues(const std::string& oldTargetname, const std::string& newTargetname);
 
 	size_t getMemoryUsage(); // aproximate
 };

@@ -699,25 +699,25 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderGroups[i].wireframeVertCount = (int)renderGroupWireframeVerts[i].size();
 		memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
 
-		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
-		renderGroups[i].buffer->addAttribute(TEX_2F, "vTex");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vColor");
-		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
-		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
+		auto tmpBuf = renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
+		tmpBuf->addAttribute(TEX_2F, "vTex");
+		tmpBuf->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+		tmpBuf->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+		tmpBuf->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+		tmpBuf->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+		tmpBuf->addAttribute(4, GL_FLOAT, 0, "vColor");
+		tmpBuf->addAttribute(POS_3F, "vPosition");
+		tmpBuf->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 
-		renderGroups[i].wireframeBuffer = new VertexBuffer(activeShader, 0);
-		renderGroups[i].wireframeBuffer->addAttribute(TEX_2F, "vTex");
-		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
-		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
-		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
-		renderGroups[i].wireframeBuffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-		renderGroups[i].wireframeBuffer->addAttribute(4, GL_FLOAT, 0, "vColor");
-		renderGroups[i].wireframeBuffer->addAttribute(POS_3F, "vPosition");
-		renderGroups[i].wireframeBuffer->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
+		auto tmpWireBuff = renderGroups[i].wireframeBuffer = new VertexBuffer(activeShader, 0);
+		tmpWireBuff->addAttribute(TEX_2F, "vTex");
+		tmpWireBuff->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
+		tmpWireBuff->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
+		tmpWireBuff->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
+		tmpWireBuff->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
+		tmpWireBuff->addAttribute(4, GL_FLOAT, 0, "vColor");
+		tmpWireBuff->addAttribute(POS_3F, "vPosition");
+		tmpWireBuff->setData(renderGroups[i].wireframeVerts, renderGroups[i].wireframeVertCount);
 
 		renderModel->renderGroups[i] = renderGroups[i];
 	}
@@ -1321,6 +1321,7 @@ unsigned int BspRenderer::getFaceTextureId(int faceIdx) {
 	return glTextures[texinfo.iMiptex]->id;
 }
 ShaderProgram* activeShader; vec3 renderOffset;
+
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {
 	BSPMODEL& world = map->models[0];
 	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
@@ -1580,7 +1581,7 @@ void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) 
 }
 
 void BspRenderer::drawPointEntities(int highlightEnt) {
-	vec3 renderOffset = mapOffset.flip();
+	renderOffset = mapOffset.flip();
 
 	colorShader->bind();
 
@@ -1621,7 +1622,7 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * (skipIdx + 1), cubeVerts * numPointEnts);
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickPoly(vec3 start, const vec3 & dir, int hullIdx, PickInfo& pickInfo) {
 	bool foundBetterPick = false;
 
 	start -= mapOffset;
@@ -1682,7 +1683,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickModelPoly(vec3 start, const vec3& dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
 	BSPMODEL& model = map->models[modelIdx];
 
 	start -= offset;
@@ -1733,7 +1734,7 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist) {
+bool BspRenderer::pickFaceMath(const vec3& start, const vec3& dir, FaceMath& faceMath, float& bestDist) {
 	float dot = dotProduct(dir, faceMath.normal);
 	if (dot >= 0) {
 		return false; // don't select backfaces or parallel faces

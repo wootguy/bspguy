@@ -940,7 +940,7 @@ void Renderer::controls() {
 							BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 							if (texinfo.iMiptex == seltexinfo.iMiptex)
 							{
-								if (map && map->getBspRender())
+								if (map->getBspRender())
 									map->getBspRender()->highlightFace(i, true);
 								selectedFaces.push_back(i);
 							}
@@ -1861,7 +1861,7 @@ void Renderer::addMap(Bsp* map) {
 	}
 }
 
-void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
+void Renderer::drawLine(const vec3 & start, const vec3& end, COLOR4 color) {
 	cVert verts[2];
 
 	verts[0].x = start.x;
@@ -2197,11 +2197,11 @@ void Renderer::updateModelVerts() {
 
 	updateSelectionSize();
 
-	modelUsesSharedStructures = map->does_model_use_shared_structures(modelIdx);
-
 	if (!map->is_convex(modelIdx)) {
 		return;
 	}
+
+	modelUsesSharedStructures = map->does_model_use_shared_structures(modelIdx);
 
 	scaleTexinfos = map->getScalableTexinfos(modelIdx);
 	map->getModelPlaneIntersectVerts(pickInfo.modelIdx, modelVerts); // for vertex manipulation + scaling
@@ -2482,7 +2482,7 @@ void Renderer::scaleSelectedObject(float x, float y, float z) {
 	scaleSelectedObject(dir, vec3());
 }
 
-void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
+void Renderer::scaleSelectedObject(vec3 dir, const vec3& fromDir) {
 	if (pickInfo.modelIdx <= 0)
 		return;
 
@@ -2629,7 +2629,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	}
 }
 
-void Renderer::moveSelectedVerts(vec3 delta) {
+void Renderer::moveSelectedVerts(const vec3& delta) {
 	for (int i = 0; i < modelVerts.size(); i++) {
 		if (modelVerts[i].selected) {
 			modelVerts[i].pos = modelVerts[i].startPos + delta;
@@ -2894,7 +2894,7 @@ vec3 Renderer::getCentroid(std::vector<TransformVert>& hullVerts) {
 	return centroid / (float)hullVerts.size();
 }
 
-vec3 Renderer::snapToGrid(vec3 pos) {
+vec3 Renderer::snapToGrid(const vec3& pos) {
 	float snapSize = (float)pow(2.0f, gridSnapLevel);
 	float halfSnap = snapSize * 0.5f;
 
@@ -2956,23 +2956,22 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	}
 
 
-	Entity* insertEnt = new Entity();
-	*insertEnt = *copiedEnt;
+	Entity insertEnt;
+	insertEnt = *copiedEnt;
 
 	if (!noModifyOrigin) {
 		// can't just set camera origin directly because solid ents can have (0,0,0) origins
-		vec3 oldOrigin = getEntOrigin(map, insertEnt);
-		vec3 modelOffset = getEntOffset(map, insertEnt);
+		vec3 oldOrigin = getEntOrigin(map, &insertEnt);
+		vec3 modelOffset = getEntOffset(map, &insertEnt);
 		vec3 mapOffset = map->getBspRender()->mapOffset;
 
 		vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
 		vec3 newOri = (oldOrigin + moveDist) - (modelOffset + mapOffset);
 		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
-		insertEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+		insertEnt.setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 	}
 
-	CreateEntityCommand* createCommand = new CreateEntityCommand("Paste Entity", g_app->getSelectedMapId(), insertEnt);
-	delete insertEnt;
+	CreateEntityCommand* createCommand = new CreateEntityCommand("Paste Entity", g_app->getSelectedMapId(), &insertEnt);
 	createCommand->execute();
 	pushUndoCommand(createCommand);
 
@@ -3077,7 +3076,7 @@ void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 	undoLumpState = map->duplicate_lumps(targetLumps);
 }
 
-void Renderer::pushEntityUndoState(std::string actionDesc) {
+void Renderer::pushEntityUndoState(const std::string & actionDesc) {
 	if (!pickInfo.ent) {
 		logf("Invalid entity undo state push\n");
 		return;
@@ -3112,12 +3111,12 @@ void Renderer::pushEntityUndoState(std::string actionDesc) {
 	updateEntityState(pickInfo.ent);
 }
 
-void Renderer::pushModelUndoState(std::string actionDesc, int targetLumps) {
+void Renderer::pushModelUndoState(const std::string & actionDesc, int targetLumps) {
 	Bsp* map = getSelectedMap();
 
 	if (pickInfo.modelIdx <= 0)
 		pickInfo.modelIdx = 0;
-	if (!pickInfo.ent)
+	if (pickInfo.ent <= 0)
 		pickInfo.ent = 0;
 	if (!map) {
 		logf("Impossible, no map, ent or model idx\n");
