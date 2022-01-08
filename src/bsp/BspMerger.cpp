@@ -322,10 +322,10 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, std::vector<MAPBL
 			changesky->addKeyvalue("origin", changesky_origin.toKeyvalueString());
 			changesky->addKeyvalue("targetname", "bspguy_start_" + toLowerCase(mapOrder[i]->name));
 			if (skyname != lastSky) {
-				changesky->addKeyvalue("skyname", skyname.c_str());
+				changesky->addKeyvalue("skyname", skyname);
 			}
 			if (skyColorChanged) {
-				changesky->addKeyvalue("color", skyColor.c_str());
+				changesky->addKeyvalue("color", skyColor);
 			}
 			changesky->addKeyvalue("spawnflags", "5"); // all players + update server
 			changesky->addKeyvalue("classname", "trigger_changesky");
@@ -1678,10 +1678,12 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 	g_progress.tick();
 	memcpy((unsigned char*)newRad + thisColorCount * sizeof(COLOR3), otherRad, otherColorCount * sizeof(COLOR3));
+
 	if (freemem)
 	{
 		delete[] otherRad;
 	}
+
 	g_progress.tick();
 	mapA.replace_lump(LUMP_LIGHTING, newRad, totalColorCount * sizeof(COLOR3));
 

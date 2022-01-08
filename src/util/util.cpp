@@ -146,7 +146,7 @@ std::vector<std::string> splitString(std::string s, std::string delimitter) {
 			}
 
 			if (delimitPos != 0)
-				split.push_back(s.substr(0, delimitPos));
+				split.emplace_back(s.substr(0, delimitPos));
 
 			s = s.substr(delimitPos + delimitLen);
 		}
@@ -182,7 +182,7 @@ std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string de
 				continue;
 			}
 			if (delimitPos != 0)
-				split.push_back(s.substr(0, delimitPos));
+				split.emplace_back(s.substr(0, delimitPos));
 
 			s = s.substr(delimitPos + delimitLen);
 			foundUnquotedDelimitter = true;
@@ -308,7 +308,6 @@ bool IsEntNotSupportAngles(std::string& entname)
 		entname == "trigger_teleport" ||
 		entname == "func_bomb_target" ||
 		entname == "func_hostage_rescue" ||
-		entname == "func_escapezone" ||
 		entname == "func_vip_safetyzone" ||
 		entname == "func_escapezone" ||
 		entname == "trigger_autosave" ||
@@ -622,7 +621,7 @@ std::vector<vec3> getTriangularVerts(std::vector<vec3>& verts) {
 
 	int count = 1;
 	for (int i = 1; i < verts.size() && count < 3; i++) {
-		if (verts[i] != verts[i0]) {
+		if (verts[i] != verts[0]) {
 			i1 = i;
 			count++;
 			break;

@@ -63,16 +63,15 @@ bool STRUCTCOUNT::allZero() {
 }
 
 void print_stat(int indent, int stat, const char* data) {
-	if (!stat)
-		return;
 	for (int i = 0; i < indent; i++)
 		logf("    ");
 	const char* plural = "s";
 	if (std::string(data) == "vertex") {
 		plural = "es";
 	}
+	int statabs = abs(stat);
 
-	logf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", abs(stat), data, abs(stat) > 1 ? plural : "");
+	logf("%s %d %s%s\n", stat > 0 ? "Deleted" : "Added", statabs, data, statabs > 1 ? plural : "");
 }
 
 void print_stat_mem(int indent, int bytes, const char* data) {
