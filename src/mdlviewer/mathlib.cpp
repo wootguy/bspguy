@@ -14,7 +14,6 @@
 #pragma warning( disable : 4237 )
 #pragma warning( disable : 4305 )
 
-#include "cmdlib.h"
 #include "mathlib.h"
 
 vec3_t vec3_origin = { 0,0,0 };

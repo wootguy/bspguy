@@ -1,4 +1,6 @@
 #pragma once
+#include <GL/glew.h>
+
 #include <vector>
 #include "ShaderProgram.h"
 #include "util.h"
@@ -50,24 +52,24 @@ public:
 	unsigned char* data = NULL;
 	std::vector<VertexAttr> attribs;
 	int elementSize;
-	int numVerts;
+	GLsizei numVerts;
 	bool ownData = false; // set to true if buffer should delete data on destruction
 
 	// Specify which common attributes to use. They will be located in the
 	// shader program. If passing data, note that data is not copied, but referenced
 	VertexBuffer(ShaderProgram* shaderProgram, int attFlags);
-	VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, int numVerts);
+	VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, GLsizei numVerts);
 	~VertexBuffer();
 
 	// Note: Data is not copied into the class - don't delete your data.
 	//       Data will be deleted when the buffer is destroyed.
-	void setData(const void* data, int numVerts);
+	void setData(const void* data, GLsizei numVerts);
 
 	void upload();
 	void deleteBuffer();
 	void setShader(ShaderProgram* program, bool hideErrors = false);
 
-	void drawRange(int primitive, int start, int end);
+	void drawRange(int primitive, GLint start, GLsizei end);
 	void draw(int primitive);
 
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName);

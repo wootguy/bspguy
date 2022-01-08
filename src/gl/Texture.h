@@ -1,18 +1,19 @@
 #pragma once
+#include <GL/glew.h>
 #include "util.h"
 
 class Texture
 {
 public:
 	unsigned int id; // OpenGL texture ID
-	unsigned int height, width;
+	GLsizei height, width;
 	int nearFilter;
 	int farFilter;
 	unsigned int format; // format of the data
 	unsigned int iformat; // format of the data when uploaded to GL
 
-	Texture(int width, int height);
-	Texture(int width, int height, unsigned char* data);
+	Texture(GLsizei width, GLsizei height);
+	Texture(GLsizei width, GLsizei height, unsigned char* data);
 	~Texture();
 
 	// upload the texture with the specified settings

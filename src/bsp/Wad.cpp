@@ -1,8 +1,8 @@
-#include "Wad.h"
-#include "util.h"
 #include <iostream>
 #include <fstream>
 #include <string.h>
+#include "Wad.h"
+#include "util.h"
 
 #ifdef WIN32
 #define strcasecmp _stricmp
@@ -181,12 +181,12 @@ WADTEX* Wad::readTexture(const std::string& texname)
 
 	return tex;
 }
-bool Wad::write(WADTEX** textures, int numTex)
+bool Wad::write(WADTEX** textures, size_t numTex)
 {
 	return write(filename, textures, numTex);
 }
 
-bool Wad::write(std::string filename, WADTEX** textures, int numTex)
+bool Wad::write(std::string filename, WADTEX** textures, size_t numTex)
 {
 	std::ofstream myFile(filename, std::ios::trunc | std::ios::binary);
 
@@ -194,10 +194,10 @@ bool Wad::write(std::string filename, WADTEX** textures, int numTex)
 	header.szMagic[1] = 'A';
 	header.szMagic[2] = 'D';
 	header.szMagic[3] = '3';
-	header.nDir = numTex;
+	header.nDir = (int)numTex;
 
-	int tSize = sizeof(BSPMIPTEX) * numTex;
-	for (int i = 0; i < numTex; i++)
+	size_t tSize = sizeof(BSPMIPTEX) * numTex;
+	for (size_t i = 0; i < numTex; i++)
 	{
 		int w = textures[i]->nWidth;
 		int h = textures[i]->nHeight;
@@ -209,7 +209,7 @@ bool Wad::write(std::string filename, WADTEX** textures, int numTex)
 		tSize += szAll;
 	}
 
-	header.nDirOffset = 12 + tSize;
+	header.nDirOffset = (int)(12 + tSize);
 	myFile.write((char*)&header, sizeof(WADHEADER));
 
 	for (int i = 0; i < numTex; i++)

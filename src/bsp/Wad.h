@@ -90,8 +90,8 @@ public:
 	bool readInfo();
 	bool hasTexture(std::string name);
 
-	bool write(std::string filename, WADTEX** textures, int numTex);
-	bool write(WADTEX** textures, int numTex);
+	bool write(std::string filename, WADTEX** textures, size_t numTex);
+	bool write(WADTEX** textures, size_t numTex);
 
 
 	WADTEX* readTexture(int dirIndex);

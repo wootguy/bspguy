@@ -115,10 +115,7 @@
     <ClCompile Include=".\..\src\util\lodepng.cpp">
       <Filter>Source Files\util\lib</Filter>
     </ClCompile>
-    <ClCompile Include=".\..\src\mdlviewer\mathlib.c">
-      <Filter>Source Files\mdlviewer</Filter>
-    </ClCompile>
-    <ClCompile Include=".\..\src\mdlviewer\cmdlib.c">
+    <ClCompile Include="..\src\mdlviewer\mathlib.cpp">
       <Filter>Source Files\mdlviewer</Filter>
     </ClCompile>
     <ClCompile Include=".\..\src\mdlviewer\studio_render.cpp">
@@ -226,9 +223,6 @@
       <Filter>Header Files\util\lib</Filter>
     </ClInclude>
     <ClInclude Include=".\..\src\mdlviewer\mathlib.h">
-      <Filter>Header Files\mdlviewer</Filter>
-    </ClInclude>
-    <ClInclude Include=".\..\src\mdlviewer\cmdlib.h">
       <Filter>Header Files\mdlviewer</Filter>
     </ClInclude>
     <ClInclude Include=".\..\src\mdlviewer\studio_event.h">

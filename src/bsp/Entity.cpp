@@ -1,5 +1,6 @@
-#include "Entity.h"
+#include <string.h>
 #include <string>
+#include "Entity.h"
 #include "util.h"
 #include <algorithm>
 

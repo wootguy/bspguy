@@ -170,13 +170,14 @@ private:
 	// textures loaded in a separate thread
 	Texture** glTexturesSwap;
 
-	int numLightmapAtlases;
-	int numRenderModels;
-	int numRenderClipnodes;
-	int numRenderLightmapInfos;
-	int numFaceMaths;
-	int numPointEnts;
-	int numLoadedTextures = 0;
+	size_t numLightmapAtlases;
+
+	unsigned int numRenderModels;
+	unsigned int numRenderClipnodes;
+	unsigned int numRenderLightmapInfos;
+	unsigned int numFaceMaths;
+	unsigned int numPointEnts;
+	unsigned int numLoadedTextures;
 
 
 	Texture** glTextures = NULL;
@@ -200,9 +201,9 @@ private:
 	std::future<void> clipnodesFuture;
 
 	void loadLightmaps();
-	void genRenderFaces(int& renderModelCount);
+	void genRenderFaces(unsigned int& renderModelCount);
 	void loadClipnodes();
-	void generateClipnodeBuffer(int modelIdx);
+	void generateClipnodeBuffer(unsigned int modelIdx);
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderClip);
 	void deleteRenderClipnodes();

@@ -72,8 +72,10 @@
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;GLEW_STATIC;USE_FILESYSTEM;NOMINMAX;</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <CompileAsWinRT>
+      </CompileAsWinRT>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;GLEW_STATIC;USE_FILESYSTEM;</PreprocessorDefinitions>
@@ -248,9 +250,7 @@
     <ClInclude Include=".\..\src\util\lodepng.h" />
     <ClCompile Include=".\..\src\util\lodepng.cpp" />
     <ClInclude Include=".\..\src\mdlviewer\mathlib.h" />
-    <ClCompile Include=".\..\src\mdlviewer\mathlib.c" />
-    <ClInclude Include=".\..\src\mdlviewer\cmdlib.h" />
-    <ClCompile Include=".\..\src\mdlviewer\cmdlib.c" />
+    <ClCompile Include="..\src\mdlviewer\mathlib.cpp" />
     <ClInclude Include=".\..\src\mdlviewer\studio_event.h" />
     <ClInclude Include=".\..\src\mdlviewer\studio.h" />
     <ClInclude Include=".\..\src\mdlviewer\studio_render.h" />

@@ -959,8 +959,8 @@ void StudioModel::Init(char* modelname)
 	{
 		char texturename[256];
 
-		strncpy(texturename, modelname, sizeof(texturename));
-		strncpy(&texturename[strlen(texturename) - 4], "T.mdl", 5);
+		memcpy(texturename, modelname, strlen(modelname) + 1);
+		memcpy(&texturename[strlen(texturename) - 4], "T.mdl", 5);
 
 		m_ptexturehdr = LoadModel(texturename);
 	}
@@ -976,7 +976,7 @@ void StudioModel::Init(char* modelname)
 		{
 			char seqgroupname[256];
 
-			strncpy(seqgroupname, modelname, sizeof(seqgroupname));
+			memcpy(seqgroupname, modelname, strlen(modelname) + 1);
 			snprintf(&seqgroupname[strlen(seqgroupname) - 4], 20, "%02d.mdl", i);
 
 			m_panimhdr[i] = LoadDemandSequences(seqgroupname);

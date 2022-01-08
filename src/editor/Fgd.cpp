@@ -365,7 +365,7 @@ void Fgd::processClassInheritance() {
 			std::set<std::string> addedKeys;
 			std::set<std::string> addedSpawnflags;
 			//logf << classes[i]->name << " INHERITS FROM: ";
-			for (int k = allBaseClasses.size() - 1; k >= 0; k--) {
+			for (int k = (int)allBaseClasses.size() - 1; k >= 0; k--) {
 				if (!classes[i]->colorSet && allBaseClasses[k]->colorSet) {
 					classes[i]->color = allBaseClasses[k]->color;
 				}
@@ -422,13 +422,16 @@ void Fgd::processClassInheritance() {
 }
 
 void FgdClass::getBaseClasses(Fgd* fgd, std::vector<FgdClass*>& inheritanceList) {
-	for (int i = baseClasses.size() - 1; i >= 0; i--) {
-		if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
-			logf("ERROR: Invalid base class %s\n", baseClasses[i].c_str());
-			continue;
+	if (baseClasses.size() > 0)
+	{
+		for (int i = (int)baseClasses.size() - 1; i >= 0; i--) {
+			if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
+				logf("ERROR: Invalid base class %s\n", baseClasses[i].c_str());
+				continue;
+			}
+			inheritanceList.push_back(fgd->classMap[baseClasses[i]]);
+			fgd->classMap[baseClasses[i]]->getBaseClasses(fgd, inheritanceList);
 		}
-		inheritanceList.push_back(fgd->classMap[baseClasses[i]]);
-		fgd->classMap[baseClasses[i]]->getBaseClasses(fgd, inheritanceList);
 	}
 }
 
@@ -517,46 +520,4 @@ void Fgd::setSpawnflagNames() {
 			}
 		}
 	}
-}
-
-std::vector<std::string> Fgd::splitStringIgnoringQuotes(std::string s, std::string delimitter) {
-	std::vector<std::string> split;
-	if (s.size() == 0 || delimitter.size() == 0)
-		return split;
-
-	size_t delimitLen = delimitter.length();
-	while (s.size()) {
-
-		bool foundUnquotedDelimitter = false;
-		int searchOffset = 0;
-		while (!foundUnquotedDelimitter && searchOffset < s.size()) {
-			size_t delimitPos = s.find(delimitter, searchOffset);
-
-			if (delimitPos == std::string::npos) {
-				split.push_back(s);
-				return split;
-			}
-
-			int quoteCount = 0;
-			for (int i = 0; i < delimitPos; i++) {
-				quoteCount += s[i] == '"';
-			}
-
-			if (quoteCount % 2 == 1) {
-				searchOffset = delimitPos + 1;
-				continue;
-			}
-
-			split.push_back(s.substr(0, delimitPos));
-			s = s.substr(delimitPos + delimitLen);
-			foundUnquotedDelimitter = true;
-		}
-
-		if (!foundUnquotedDelimitter) {
-			break;
-		}
-
-	}
-
-	return split;
 }

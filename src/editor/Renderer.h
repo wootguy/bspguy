@@ -53,7 +53,7 @@ struct AppSettings {
 	int windowX;
 	int windowY;
 	int maximized;
-	int fontSize;
+	float fontSize;
 	std::string gamedir;
 	std::string workingdir;
 	std::string lastdir;

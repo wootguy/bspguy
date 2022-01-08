@@ -427,12 +427,14 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, std::vector<BSPPLANE>& clipOrder, st
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 
-			// reverse order of branched planes = order of cuts to the world which define this node's volume
-			// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
-			for (int k = (int)(clipOrder.size() - 1); k >= 0; k--) {
-				nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+			if (clipOrder.size())
+			{
+				// reverse order of branched planes = order of cuts to the world which define this node's volume
+				// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
+				for (int k = (int) clipOrder.size() - 1; k >= 0; k--) {
+					nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+				}
 			}
-
 			output.push_back(nodeVolumeCuts);
 		}
 
@@ -457,13 +459,14 @@ void Bsp::get_node_leaf_cuts(int iNode, std::vector<BSPPLANE>& clipOrder, std::v
 		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_EMPTY) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
-
-			// reverse order of branched planes = order of cuts to the world which define this node's volume
-			// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
-			for (int k = (int)(clipOrder.size() - 1); k >= 0; k--) {
-				nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+			if (clipOrder.size())
+			{
+				// reverse order of branched planes = order of cuts to the world which define this node's volume
+				// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
+				for (int k = (int)clipOrder.size() - 1; k >= 0; k--) {
+					nodeVolumeCuts.cuts.push_back(clipOrder[k]);
+				}
 			}
-
 			output.push_back(nodeVolumeCuts);
 		}
 
@@ -1010,19 +1013,19 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	STRUCTREMAP remappedStuff(this);
 
 	// TODO: handle all of these, assuming it's possible these are ever shared
-	for (int i = 1; i < shouldNotMove.count.leaves; i++) { // skip solid leaf - it doesn't matter
+	for (unsigned int i = 1; i < shouldNotMove.count.leaves; i++) { // skip solid leaf - it doesn't matter
 		if (shouldMove.leaves[i] && shouldNotMove.leaves[i]) {
 			logf("\nWarning: leaf shared with multiple models. Something might break.\n");
 			break;
 		}
 	}
-	for (int i = 0; i < shouldNotMove.count.nodes; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.nodes; i++) {
 		if (shouldMove.nodes[i] && shouldNotMove.nodes[i]) {
 			logf("\nError: node shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
-	for (int i = 0; i < shouldNotMove.count.verts; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.verts; i++) {
 		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
 			// this happens on activist series but doesn't break anything
 			logf("\nError: vertex shared with multiple models. Something will break.\n");
@@ -1034,13 +1037,13 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	int duplicateClipnodes = 0;
 	int duplicateTexinfos = 0;
 
-	for (int i = 0; i < shouldNotMove.count.planes; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.planes; i++) {
 		duplicatePlanes += shouldMove.planes[i] && shouldNotMove.planes[i];
 	}
-	for (int i = 0; i < shouldNotMove.count.clipnodes; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.clipnodes; i++) {
 		duplicateClipnodes += shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i];
 	}
-	for (int i = 0; i < shouldNotMove.count.texInfos; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.texInfos; i++) {
 		duplicateTexinfos += shouldMove.texInfo[i] && shouldNotMove.texInfo[i];
 	}
 
@@ -1058,7 +1061,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	memcpy(newTexinfos, texinfos, newTexinfoCount * sizeof(BSPTEXTUREINFO));
 
 	int addIdx = planeCount;
-	for (int i = 0; i < shouldNotMove.count.planes; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.planes; i++) {
 		if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
 			newPlanes[addIdx] = planes[i];
 			remappedStuff.planes[i] = addIdx;
@@ -1067,7 +1070,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	}
 
 	addIdx = clipnodeCount;
-	for (int i = 0; i < shouldNotMove.count.clipnodes; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.clipnodes; i++) {
 		if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
 			newClipnodes[addIdx] = clipnodes[i];
 			remappedStuff.clipnodes[i] = addIdx;
@@ -1076,7 +1079,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	}
 
 	addIdx = texinfoCount;
-	for (int i = 0; i < shouldNotMove.count.texInfos; i++) {
+	for (unsigned int i = 0; i < shouldNotMove.count.texInfos; i++) {
 		if (shouldMove.texInfo[i] && shouldNotMove.texInfo[i]) {
 			newTexinfos[addIdx] = texinfos[i];
 			remappedStuff.texInfo[i] = addIdx;
@@ -1199,7 +1202,7 @@ void Bsp::replace_lumps(LumpState& state) {
 	update_lump_pointers();
 }
 
-int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes) {
+unsigned int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes) {
 	int structSize = 0;
 
 	switch (lumpIdx) {
@@ -1244,7 +1247,7 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 	return removeCount;
 }
 
-int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
+unsigned int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 	int oldTexCount = textureCount;
 
 	int removeCount = 0;
@@ -1305,7 +1308,7 @@ int Bsp::remove_unused_textures(bool* usedTextures, int* remappedIndexes) {
 	return removeCount;
 }
 
-int Bsp::remove_unused_lightmaps(bool* usedFaces) {
+unsigned int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	int oldLightdataSize = lightDataLength;
 
 	int* lightmapSizes = new int[faceCount];
@@ -1335,10 +1338,10 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 
 	replace_lump(LUMP_LIGHTING, newColorData, newLightDataSize);
 
-	return oldLightdataSize - newLightDataSize;
+	return (unsigned int)(oldLightdataSize - newLightDataSize);
 }
 
-int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount) {
+unsigned int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount) {
 	int oldVisLength = visDataLength;
 
 	// exclude solid leaf
@@ -1373,7 +1376,7 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 
 	unsigned char* compressedVis = new unsigned char[decompressedVisSize];
 	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(leaves, decompressedVis, compressedVis, newVisLeafCount, newWorldLeaves, decompressedVisSize);
+	int64_t newVisLen = CompressAll(leaves, decompressedVis, compressedVis, newVisLeafCount, newWorldLeaves, decompressedVisSize);
 
 	unsigned char* compressedVisResized = new unsigned char[newVisLen];
 	memcpy(compressedVisResized, compressedVis, newVisLen);
@@ -1383,7 +1386,7 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	delete[] decompressedVis;
 	delete[] compressedVis;
 
-	return oldVisLength - newVisLen;
+	return (unsigned int)(oldVisLength - newVisLen);
 }
 
 STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) {
@@ -1403,7 +1406,7 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) 
 	// reversed so models can be deleted without shifting the next delete index
 	if (modelCount > 0)
 	{
-		for (unsigned int i = modelCount - 1; i >= 0; i--) {
+		for (int i = (int)modelCount - 1; i >= 0; i--) {
 			if (!usedModels[i]) {
 				delete_model(i);
 			}
@@ -1446,21 +1449,21 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) 
 
 	STRUCTCOUNT newCounts(this);
 
-	for (int i = 0; i < newCounts.markSurfs; i++) {
+	for (unsigned int i = 0; i < newCounts.markSurfs; i++) {
 		marksurfs[i] = remap.faces[marksurfs[i]];
 	}
-	for (int i = 0; i < newCounts.surfEdges; i++) {
+	for (unsigned int i = 0; i < newCounts.surfEdges; i++) {
 		surfedges[i] = surfedges[i] >= 0 ? remap.edges[surfedges[i]] : -remap.edges[-surfedges[i]];
 	}
-	for (int i = 0; i < newCounts.edges; i++) {
+	for (unsigned int i = 0; i < newCounts.edges; i++) {
 		for (int k = 0; k < 2; k++) {
 			edges[i].iVertex[k] = remap.verts[edges[i].iVertex[k]];
 		}
 	}
-	for (int i = 0; i < newCounts.texInfos; i++) {
+	for (unsigned int i = 0; i < newCounts.texInfos; i++) {
 		texinfos[i].iMiptex = remap.textures[texinfos[i].iMiptex];
 	}
-	for (int i = 0; i < newCounts.clipnodes; i++) {
+	for (unsigned int i = 0; i < newCounts.clipnodes; i++) {
 		clipnodes[i].iPlane = remap.planes[clipnodes[i].iPlane];
 		for (int k = 0; k < 2; k++) {
 			if (clipnodes[i].iChildren[k] >= 0) {
@@ -1468,7 +1471,7 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) 
 			}
 		}
 	}
-	for (int i = 0; i < newCounts.nodes; i++) {
+	for (unsigned int i = 0; i < newCounts.nodes; i++) {
 		nodes[i].iPlane = remap.planes[nodes[i].iPlane];
 		if (nodes[i].nFaces > 0)
 			nodes[i].firstFace = remap.faces[nodes[i].firstFace];
@@ -1482,11 +1485,11 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool export_bsp_with_clipnodes) 
 			}
 		}
 	}
-	for (int i = 1; i < newCounts.leaves; i++) {
+	for (unsigned int i = 1; i < newCounts.leaves; i++) {
 		if (leaves[i].nMarkSurfaces > 0)
 			leaves[i].iFirstMarkSurface = remap.markSurfs[leaves[i].iFirstMarkSurface];
 	}
-	for (int i = 0; i < newCounts.faces; i++) {
+	for (unsigned int i = 0; i < newCounts.faces; i++) {
 		faces[i].iPlane = remap.planes[faces[i].iPlane];
 		if (faces[i].nEdges > 0)
 			faces[i].iFirstEdge = remap.surfEdges[faces[i].iFirstEdge];
@@ -2906,7 +2909,7 @@ void Bsp::remap_clipnode_structures(int iNode, STRUCTREMAP* remap) {
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			if (node.iChildren[i] < remap->count.clipnodes) {
+			if (node.iChildren[i] < (int)remap->count.clipnodes) {
 				node.iChildren[i] = remap->clipnodes[node.iChildren[i]];
 			}
 
@@ -3794,7 +3797,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	STRUCTREMAP remap(this);
 
 	std::vector<BSPPLANE> newPlanes;
-	for (int i = 0; i < usage.count.planes; i++) {
+	for (unsigned int i = 0; i < usage.count.planes; i++) {
 		if (usage.planes[i]) {
 			remap.planes[i] = (int)(planeCount + newPlanes.size());
 			newPlanes.push_back(planes[i]);
@@ -3802,7 +3805,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<vec3> newVerts;
-	for (int i = 0; i < usage.count.verts; i++) {
+	for (unsigned int i = 0; i < usage.count.verts; i++) {
 		if (usage.verts[i]) {
 			remap.verts[i] = (int)(vertCount + newVerts.size());
 			newVerts.push_back(verts[i]);
@@ -3810,7 +3813,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<BSPEDGE> newEdges;
-	for (int i = 0; i < usage.count.edges; i++) {
+	for (unsigned int i = 0; i < usage.count.edges; i++) {
 		if (usage.edges[i]) {
 			remap.edges[i] = (int)(edgeCount + newEdges.size());
 
@@ -3822,7 +3825,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<int> newSurfedges;
-	for (int i = 0; i < usage.count.surfEdges; i++) {
+	for (unsigned int i = 0; i < usage.count.surfEdges; i++) {
 		if (usage.surfEdges[i]) {
 			remap.surfEdges[i] = (int)(surfedgeCount + newSurfedges.size());
 
@@ -3834,7 +3837,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<BSPTEXTUREINFO> newTexinfo;
-	for (int i = 0; i < usage.count.texInfos; i++) {
+	for (unsigned int i = 0; i < usage.count.texInfos; i++) {
 		if (usage.texInfo[i]) {
 			remap.texInfo[i] = (int)(texinfoCount + newTexinfo.size());
 			newTexinfo.push_back(texinfos[i]);
@@ -3844,7 +3847,7 @@ int Bsp::duplicate_model(int modelIdx) {
 	std::vector<BSPFACE> newFaces;
 	std::vector<COLOR3> newLightmaps;
 	int lightmapAppendSz = 0;
-	for (int i = 0; i < usage.count.faces; i++) {
+	for (unsigned int i = 0; i < usage.count.faces; i++) {
 		if (usage.faces[i]) {
 			remap.faces[i] = (int)(faceCount + newFaces.size());
 
@@ -3871,13 +3874,13 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<BSPNODE> newNodes;
-	for (int i = 0; i < usage.count.nodes; i++) {
+	for (unsigned int i = 0; i < usage.count.nodes; i++) {
 		if (usage.nodes[i]) {
 			remap.nodes[i] = (int)(nodeCount + newNodes.size());
 			newNodes.push_back(nodes[i]);
 		}
 	}
-	for (int i = 0; i < newNodes.size(); i++) {
+	for (size_t i = 0; i < newNodes.size(); i++) {
 		BSPNODE& node = newNodes[i];
 		node.firstFace = remap.faces[node.firstFace];
 		node.iPlane = remap.planes[node.iPlane];
@@ -3890,13 +3893,13 @@ int Bsp::duplicate_model(int modelIdx) {
 	}
 
 	std::vector<BSPCLIPNODE> newClipnodes;
-	for (int i = 0; i < usage.count.clipnodes; i++) {
+	for (unsigned int i = 0; i < usage.count.clipnodes; i++) {
 		if (usage.clipnodes[i]) {
 			remap.clipnodes[i] = (int)(clipnodeCount + newClipnodes.size());
 			newClipnodes.push_back(clipnodes[i]);
 		}
 	}
-	for (int i = 0; i < newClipnodes.size(); i++) {
+	for (size_t i = 0; i < newClipnodes.size(); i++) {
 		BSPCLIPNODE& clipnode = newClipnodes[i];
 		clipnode.iPlane = remap.planes[clipnode.iPlane];
 
@@ -4260,7 +4263,7 @@ void Bsp::write_csg_polys(short nodeIdx, FILE* polyfile, int flipPlaneSkip, bool
 			fprintf(polyfile, "%i %i %u %i %u\n", detaillevel, iPlane, face.iTextureInfo, faceContents, face.nEdges);
 
 			if (flipped) {
-				for (int e = (face.iFirstEdge + face.nEdges) - 1; e >= (int)face.iFirstEdge; e--) {
+				for (int e = (int)(face.iFirstEdge + face.nEdges) - 1; e >= (int)face.iFirstEdge; e--) {
 					int edgeIdx = surfedges[e];
 					BSPEDGE& edge = edges[abs(edgeIdx)];
 					vec3 v = edgeIdx >= 0 ? verts[edge.iVertex[1]] : verts[edge.iVertex[0]];

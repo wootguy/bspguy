@@ -64,7 +64,7 @@ void Gui::init() {
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, 0);
 
-		return (void*)tex;
+		return (void*)(uint64_t)tex;
 	};
 	ifd::FileDialog::Instance().DeleteTexture = [](void* tex) {
 		GLuint texID = (GLuint)((uintptr_t)tex);
@@ -254,7 +254,7 @@ void Gui::pasteLightmap() {
 }
 
 
-void ExportModel(Bsp* map, int id, int ExportType)
+void ExportModel(Bsp* map, unsigned int id, int ExportType)
 {
 	map->update_ent_lump();
 
@@ -311,14 +311,14 @@ void ExportModel(Bsp* map, int id, int ExportType)
 	{
 		logf("Tried to fix model by adding emply missing data %d\n", id);
 		int markid = 0;
-		for (int i = 0; i < tmpMap.leafCount; i++)
+		for (unsigned int i = 0; i < tmpMap.leafCount; i++)
 		{
 			BSPLEAF& tmpLeaf = tmpMap.leaves[i];
 			tmpLeaf.iFirstMarkSurface = markid;
 			markid += tmpLeaf.nMarkSurfaces;
 		}
 
-		while (tmpMap.models[0].nVisLeafs >= tmpMap.leafCount)
+		while (tmpMap.models[0].nVisLeafs >= (int)tmpMap.leafCount)
 			tmpMap.create_leaf(ExportType == 2 ? CONTENTS_WATER : CONTENTS_EMPTY);
 
 		//tmpMap.lumps[LUMP_LEAVES] = (unsigned char*)tmpMap.leaves;
@@ -335,28 +335,28 @@ void ExportModel(Bsp* map, int id, int ExportType)
 	tmpNode[0].firstFace = tmpMap.models[0].iFirstFace;
 	tmpNode[0].iPlane = tmpMap.faces[tmpNode[0].firstFace].iPlane;
 	tmpNode[0].nFaces = tmpMap.models[0].nFaces;
-	tmpNode[0].nMaxs[0] = tmpMap.models[0].nMaxs[0];
-	tmpNode[0].nMaxs[1] = tmpMap.models[0].nMaxs[1];
-	tmpNode[0].nMaxs[2] = tmpMap.models[0].nMaxs[2];
-	tmpNode[0].nMins[0] = tmpMap.models[0].nMins[0];
-	tmpNode[0].nMins[1] = tmpMap.models[0].nMins[1];
-	tmpNode[0].nMins[2] = tmpMap.models[0].nMins[2];
+	tmpNode[0].nMaxs[0] = (short)tmpMap.models[0].nMaxs[0];
+	tmpNode[0].nMaxs[1] = (short)tmpMap.models[0].nMaxs[1];
+	tmpNode[0].nMaxs[2] = (short)tmpMap.models[0].nMaxs[2];
+	tmpNode[0].nMins[0] = (short)tmpMap.models[0].nMins[0];
+	tmpNode[0].nMins[1] = (short)tmpMap.models[0].nMins[1];
+	tmpNode[0].nMins[2] = (short)tmpMap.models[0].nMins[2];
 
 	tmpNode[1].firstFace = tmpMap.models[0].iFirstFace;
 	tmpNode[1].iPlane = tmpMap.faces[tmpNode[1].firstFace].iPlane;
 	tmpNode[1].nFaces = tmpMap.models[0].nFaces;
-	tmpNode[1].nMaxs[0] = tmpMap.models[0].nMaxs[0];
-	tmpNode[1].nMaxs[1] = tmpMap.models[0].nMaxs[1];
-	tmpNode[1].nMaxs[2] = tmpMap.models[0].nMaxs[2];
-	tmpNode[1].nMins[0] = tmpMap.models[0].nMins[0];
-	tmpNode[1].nMins[1] = tmpMap.models[0].nMins[1];
-	tmpNode[1].nMins[2] = tmpMap.models[0].nMins[2];
+	tmpNode[1].nMaxs[0] = (short)tmpMap.models[0].nMaxs[0];
+	tmpNode[1].nMaxs[1] = (short)tmpMap.models[0].nMaxs[1];
+	tmpNode[1].nMaxs[2] = (short)tmpMap.models[0].nMaxs[2];
+	tmpNode[1].nMins[0] = (short)tmpMap.models[0].nMins[0];
+	tmpNode[1].nMins[1] = (short)tmpMap.models[0].nMins[1];
+	tmpNode[1].nMins[2] = (short)tmpMap.models[0].nMins[2];
 
 	short sharedSolidLeaf = 0;
 
 
 	short anyEmptyLeaf = -1;
-	for (int i = 0; i < tmpMap.leafCount; i++) {
+	for (unsigned int i = 0; i < tmpMap.leafCount; i++) {
 		if (tmpMap.leaves[i].nContents == CONTENTS_EMPTY) {
 			anyEmptyLeaf = i;
 			break;
@@ -639,7 +639,7 @@ void Gui::draw3dContextMenus() {
 			if (ImGui::MenuItem("Copy texture", "Ctrl+C")) {
 				copyTexture();
 			}
-			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && copiedMiptex < map->textureCount)) {
+			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && (unsigned int)copiedMiptex < map->textureCount)) {
 				pasteTexture();
 			}
 
@@ -654,7 +654,7 @@ void Gui::draw3dContextMenus() {
 				ImGui::EndTooltip();
 			}
 
-			if (ImGui::MenuItem("Paste lightmap", "", false, copiedLightmapFace >= 0 && copiedLightmapFace < map->faceCount)) {
+			if (ImGui::MenuItem("Paste lightmap", "", false, copiedLightmapFace >= 0 && (unsigned int)copiedLightmapFace < map->faceCount)) {
 				pasteLightmap();
 			}
 
@@ -670,7 +670,7 @@ bool ExportWad(Bsp* map)
 	{
 		Wad* tmpWad = new Wad(map->path);
 		std::vector<WADTEX*> tmpWadTex;
-		for (int i = 0; i < map->textureCount; i++) {
+		for (unsigned int i = 0; i < map->textureCount; i++) {
 			int oldOffset = ((int*)map->textures)[i + 1];
 			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
 			if (bspTex->nOffsets[0] == -1 || bspTex->nOffsets[0] == 0)
@@ -864,7 +864,7 @@ void Gui::drawMenuBar() {
 				if (map)
 				{
 					if (ImGui::BeginMenu((std::string("Map ") + map->name + ".bsp").c_str())) {
-						for (int i = 0; i < map->modelCount; i++)
+						for (unsigned int i = 0; i < map->modelCount; i++)
 						{
 							if (ImGui::MenuItem(("Export Model" + std::to_string(i) + ".bsp").c_str(), NULL, app->pickInfo.modelIdx == i))
 							{
@@ -892,12 +892,9 @@ void Gui::drawMenuBar() {
 					logf("Import entities from: %s%s\n", GetWorkDir().c_str(), (map->name + ".ent").c_str());
 					if (fileExists(GetWorkDir() + (map->name + ".ent")))
 					{
-						std::ifstream t(GetWorkDir() + (map->name + ".ent"));
-						std::string str((std::istreambuf_iterator<char>(t)),
-							std::istreambuf_iterator<char>());
-						unsigned char* newlump = new unsigned char[str.size() + 1]{ 0x20,0 };
-						memcpy(newlump, &str[0], str.size());
-						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
+						int len;
+						char* newlump = loadFile(GetWorkDir() + (map->name + ".ent"), len);
+						map->replace_lump(LUMP_ENTITIES, newlump, len);
 						map->load_ents();
 						for (int i = 0; i < app->mapRenderers.size(); i++) {
 							BspRenderer* mapRender = app->mapRenderers[i];
@@ -1152,7 +1149,7 @@ void Gui::drawMenuBar() {
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "func_wall");
 
-			float snapSize = pow(2.0, g_app->gridSnapLevel);
+			float snapSize = pow(2.0f, g_app->gridSnapLevel * 1.0f);
 			if (snapSize < 16) {
 				snapSize = 16;
 			}
@@ -1236,7 +1233,7 @@ void Gui::drawToolbar() {
 		dimColor.w = 1;
 
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_OBJECT ? selectColor : dimColor);
-		if (ImGui::ImageButton((void*)objectIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
+		if (ImGui::ImageButton((void*)(uint64_t)objectIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
 			app->deselectFaces();
 			app->deselectObject();
 			app->pickMode = PICK_OBJECT;
@@ -1251,7 +1248,7 @@ void Gui::drawToolbar() {
 
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_FACE ? selectColor : dimColor);
 		ImGui::SameLine();
-		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
+		if (ImGui::ImageButton((void*)(uint64_t)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
 			if (app->pickInfo.modelIdx > 0 && app->pickMode == PICK_FACE) {
 				Bsp* map = app->getSelectedMap();
 				if (map)
@@ -1303,13 +1300,13 @@ void Gui::drawFpsOverlay() {
 }
 
 void Gui::drawStatusMessage() {
-	static int windowWidth = 32;
-	static int loadingWindowWidth = 32;
-	static int loadingWindowHeight = 32;
+	static float windowWidth = 32;
+	static float loadingWindowWidth = 32;
+	static float loadingWindowHeight = 32;
 
 	bool showStatus = app->invalidSolid || !app->isTransformableSolid || badSurfaceExtents || lightmapTooLarge || app->modelUsesSharedStructures;
 	if (showStatus) {
-		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
+		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2.f, app->windowHeight - 10.f);
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
 		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 		ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -1386,10 +1383,10 @@ void Gui::drawStatusMessage() {
 
 		if (ImGui::Begin("loader", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 		{
-			static float lastTick = clock();
+			static clock_t lastTick = clock();
 			static int loadTick = 0;
 
-			if (float(clock() - lastTick) / (float)CLOCKS_PER_SEC > 0.05f) {
+			if (clock() - lastTick / (float)CLOCKS_PER_SEC > 0.05f) {
 				loadTick = (loadTick + 1) % 8;
 				lastTick = clock();
 			}
@@ -1419,7 +1416,7 @@ void Gui::drawStatusMessage() {
 void Gui::drawDebugWidget() {
 	ImGui::SetNextWindowBgAlpha(0.75f);
 
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200.f, 100.f), ImVec2(FLT_MAX, app->windowHeight * 1.0f));
 	if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
 
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1492,9 +1489,9 @@ void Gui::drawDebugWidget() {
 
 					static ImVec4 hullColors[] = {
 						ImVec4(1, 1, 1, 1),
-						ImVec4(0.3, 1, 1, 1),
-						ImVec4(1, 0.3, 1, 1),
-						ImVec4(1, 1, 0.3, 1),
+						ImVec4(0.3f, 1, 1, 1),
+						ImVec4(1, 0.3f, 1, 1),
+						ImVec4(1, 1, 0.3f, 1),
 					};
 
 					for (int i = 0; i < MAX_MAP_HULLS; i++) {
@@ -1567,8 +1564,8 @@ void Gui::drawDebugWidget() {
 void Gui::drawKeyvalueEditor() {
 	//ImGui::SetNextWindowBgAlpha(0.75f);
 
-	ImGui::SetNextWindowSize(ImVec2(610, 610), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(610.f, 610.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(300.f, 100.f), ImVec2(FLT_MAX, app->windowHeight - 40.f));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
 		if (app->pickInfo.ent && app->fgd
@@ -1685,8 +1682,8 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
 
-	static char keyNames[128][64];
-	static char keyValues[128][64];
+	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
+	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
 
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
 	float inputWidth = (ImGui::GetWindowWidth() - (paddingx * 2)) * 0.5f;
@@ -1741,9 +1738,13 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			if (value.empty() && keyvalue.defaultValue.length()) {
 				value = keyvalue.defaultValue;
 			}
+			if (niceName.size() >= MAX_KEY_LEN)
+				niceName = niceName.substr(0, MAX_KEY_LEN - 1);
+			if (value.size() >= MAX_VAL_LEN)
+				value = value.substr(0, MAX_VAL_LEN - 1);
 
-			strncpy(keyNames[i], niceName.c_str(), 64);
-			strncpy(keyValues[i], value.c_str(), 64);
+			memcpy(keyNames[i], niceName.c_str(), niceName.size() + 1);
+			memcpy(keyValues[i], value.c_str(), value.size() + 1);
 
 			inputData[i].key = key;
 			inputData[i].defaultValue = keyvalue.defaultValue;
@@ -2042,7 +2043,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 
 			if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
 			{
-				int n_next = (ImGui::GetMousePos().y - startY) / (ImGui::GetItemRectSize().y + style.FramePadding.y * 2);
+				int n_next = (int)((ImGui::GetMousePos().y - startY) / (ImGui::GetItemRectSize().y + style.FramePadding.y * 2));
 				if (n_next >= 0 && n_next < ent->keyOrder.size() && n_next < MAX_KEYS_PER_ENT)
 				{
 					dragIds[i] = dragIds[n_next];
@@ -2068,7 +2069,12 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		{
 			bool invalidKey = ignoreErrors == 0 && lastPickCount == app->pickCount && key != keyNames[i];
 
-			strncpy(keyNames[i], key.c_str(), sizeof(keyNames[0]));
+
+			if (key.size() >= MAX_KEY_LEN)
+				key = key.substr(0, MAX_KEY_LEN - 1);
+
+			memcpy(keyNames[i], key.c_str(), key.size() + 1);
+
 
 			keyIds[i].idx = i;
 			keyIds[i].entIdx = app->pickInfo.entIdx;
@@ -2094,7 +2100,10 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::NextColumn();
 		}
 		{
-			strncpy(keyValues[i], value.c_str(), sizeof(keyValues[0]));
+			if (value.size() >= MAX_VAL_LEN)
+				value = value.substr(0,MAX_VAL_LEN - 1);
+
+			memcpy(keyValues[i], value.c_str(), value.size() + 1);
 
 			valueIds[i].idx = i;
 			valueIds[i].entIdx = app->pickInfo.entIdx;
@@ -2189,8 +2198,8 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 }
 
 void Gui::drawGOTOWidget() {
-	ImGui::SetNextWindowSize(ImVec2(410, 200), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(410, 200), ImVec2(410, 200));
+	ImGui::SetNextWindowSize(ImVec2(410.f, 200.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(410.f, 200.f), ImVec2(410.f, 200.f));
 	static vec3 coordinates = vec3();
 	static vec3 angles = vec3();
 	float angles_y = 0.0f;
@@ -2247,11 +2256,11 @@ void Gui::drawTransformWidget() {
 		transformingEnt = app->pickInfo.entIdx > 0;
 	}
 
-	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(430.f, 380.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(300.f, 100.f), ImVec2(FLT_MAX, app->windowHeight - 40.f));
 
 
-	static int x, y, z;
+	static float x, y, z;
 	static float fx, fy, fz;
 	static float last_fx, last_fy, last_fz;
 	static float sx, sy, sz;
@@ -2299,9 +2308,9 @@ void Gui::drawTransformWidget() {
 
 				}
 				else {
-					x = fx = 0;
-					y = fy = 0;
-					z = fz = 0;
+					x = fx = 0.f;
+					y = fy = 0.f;
+					z = fz = 0.f;
 				}
 				sx = sy = sz = 1;
 			}
@@ -2326,21 +2335,21 @@ void Gui::drawTransformWidget() {
 			ImGui::PushItemWidth(inputWidth);
 
 			if (app->gridSnappingEnabled) {
-				if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+				if (ImGui::DragFloat("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 0;
 				if (ImGui::IsItemActive())
 					inputsAreDragging = true;
 				ImGui::SameLine();
 
-				if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+				if (ImGui::DragFloat("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 1;
 				if (ImGui::IsItemActive())
 					inputsAreDragging = true;
 				ImGui::SameLine();
 
-				if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+				if (ImGui::DragFloat("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
 				if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 					guiHoverAxis = 2;
 				if (ImGui::IsItemActive())
@@ -2581,8 +2590,8 @@ void Gui::loadFonts() {
 
 void Gui::drawLog() {
 
-	ImGui::SetNextWindowSize(ImVec2(750, 300), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(750.f, 300.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200.f, 100.f), ImVec2(FLT_MAX, app->windowHeight - 40.f));
 	if (!ImGui::Begin("Log", &showLogWidget))
 	{
 		ImGui::End();
@@ -2651,7 +2660,7 @@ void Gui::drawLog() {
 
 void Gui::drawSettings() {
 
-	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(790.f, 350.f), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
 		ImGuiContext& g = *GImGui;
@@ -2678,22 +2687,27 @@ void Gui::drawSettings() {
 		// right
 
 		ImGui::BeginGroup();
-		int footerHeight = settingsTab <= 2 ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
+		float footerHeight = settingsTab <= 2 ? ImGui::GetFrameHeightWithSpacing() + 4.f : 0.f;
 		ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
 		ImGui::Text(tab_titles[settingsTab]);
 		ImGui::Separator();
 
-		static char gamedir[256];
-		static char workingdir[256];
-		static int numFgds = 0;
-		static int numRes = 0;
+		static char gamedir[MAX_PATH];
+		static char workingdir[MAX_PATH];
+		static size_t numFgds = 0;
+		static size_t numRes = 0;
 
 		static std::vector<std::string> tmpFgdPaths;
 		static std::vector<std::string> tmpResPaths;
 
 		if (reloadSettings) {
-			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
-			strncpy(workingdir, g_settings.workingdir.c_str(), 256);
+			if (g_settings.gamedir.size() >= MAX_PATH)
+				g_settings.gamedir = g_settings.gamedir.substr(0, MAX_PATH - 1);
+			if (g_settings.gamedir.size() >= MAX_PATH)
+				g_settings.gamedir = g_settings.gamedir.substr(0, MAX_PATH - 1);
+
+			memcpy(gamedir, g_settings.gamedir.c_str(), g_settings.gamedir.size() + 1);
+			memcpy(workingdir, g_settings.workingdir.c_str(), g_settings.gamedir.size() + 1);
 			tmpFgdPaths = g_settings.fgdPaths;
 			tmpResPaths = g_settings.resPaths;
 
@@ -2703,8 +2717,8 @@ void Gui::drawSettings() {
 			reloadSettings = false;
 		}
 
-		int pathWidth = ImGui::GetWindowWidth() - 60;
-		int delWidth = 50;
+		float pathWidth = ImGui::GetWindowWidth() - 60.f;
+		float delWidth = 50.f;
 
 
 
@@ -2743,7 +2757,7 @@ void Gui::drawSettings() {
 			{
 				ifd::FileDialog::Instance().Open("WorkingDir", "Select working dir", std::string(), false, g_settings.lastdir);
 			}
-			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
+			if (ImGui::DragFloat("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
@@ -2978,7 +2992,7 @@ void Gui::drawSettings() {
 }
 
 void Gui::drawHelp() {
-	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(600.f, 400.f), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Help", &showHelpWidget)) {
 
 		if (ImGui::BeginTabBar("##tabs"))
@@ -3041,7 +3055,7 @@ void Gui::drawHelp() {
 }
 
 void Gui::drawAbout() {
-	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(500.f, 140.f), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("About", &showAboutWidget)) {
 		ImGui::InputText("Version", g_version_string, strlen(g_version_string), ImGuiInputTextFlags_ReadOnly);
 
@@ -3056,8 +3070,8 @@ void Gui::drawAbout() {
 }
 
 void Gui::drawMergeWindow() {
-	ImGui::SetNextWindowSize(ImVec2(500, 240), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 240), ImVec2(500, 240));
+	ImGui::SetNextWindowSize(ImVec2(500.f, 240.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(500.f, 240.f), ImVec2(500.f, 240.f));
 	static char Path[256];
 	static bool DeleteUnusedInfo = true;
 	static bool Optimize = false;
@@ -3142,8 +3156,8 @@ void Gui::drawMergeWindow() {
 }
 
 void Gui::drawImportMapWidget() {
-	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 140), ImVec2(500, 140));
+	ImGui::SetNextWindowSize(ImVec2(500.f, 140.f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(500.f, 140.f), ImVec2(500.f, 140.f));
 	static char Path[256];
 	const char* title = "Import .bsp model as func_breakable entity";
 
@@ -3212,7 +3226,7 @@ void Gui::drawImportMapWidget() {
 }
 
 void Gui::drawLimits() {
-	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(550.f, 630.f), ImGuiCond_FirstUseEver);
 
 	Bsp* map = app->getSelectedMap();
 	std::string title = map ? "Limits - " + map->name : "Limits";
@@ -3243,7 +3257,7 @@ void Gui::drawLimits() {
 						stats.push_back(calcStat("textures", map->textureCount, MAX_MAP_TEXTURES, false));
 						stats.push_back(calcStat("lightdata", map->lightDataLength, MAX_MAP_LIGHTDATA, true));
 						stats.push_back(calcStat("visdata", map->visDataLength, MAX_MAP_VISDATA, true));
-						stats.push_back(calcStat("entities", map->ents.size(), MAX_MAP_ENTS, false));
+						stats.push_back(calcStat("entities", (unsigned int) map->ents.size(), MAX_MAP_ENTS, false));
 						loadedStats = true;
 					}
 
@@ -3251,8 +3265,8 @@ void Gui::drawLimits() {
 					ImGui::Dummy(ImVec2(0, 10));
 					ImGui::PushFont(consoleFontLarge);
 
-					int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
-					int otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
+					float midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
+					float otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
 					ImGui::Columns(3);
 					ImGui::SetColumnWidth(0, otherWidth);
 					ImGui::SetColumnWidth(1, midWidth);
@@ -3355,10 +3369,10 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	ImGui::Dummy(ImVec2(0, 10));
 	ImGui::PushFont(consoleFontLarge);
 
-	int valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
-	int usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
-	int modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
-	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
+	float valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
+	float usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
+	float modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
+	float bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
 	ImGui::Columns(4);
 	ImGui::SetColumnWidth(0, bigWidth);
 	ImGui::SetColumnWidth(1, modelWidth);
@@ -3431,7 +3445,7 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 }
 
 void Gui::drawEntityReport() {
-	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(550.f, 630.f), ImGuiCond_FirstUseEver);
 
 	Bsp* map = app->getSelectedMap();
 
@@ -3455,8 +3469,8 @@ void Gui::drawEntityReport() {
 
 			const ImGuiKeyModFlags expected_key_mod_flags = ImGui::GetMergedKeyModFlags();
 
-			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
-			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
+			float footerHeight = ImGui::GetFrameHeightWithSpacing() * 5.f + 16.f;
+			ImGui::BeginChild("entlist", ImVec2(0.f, -footerHeight));
 
 			filterNeeded = app->getSelectedMapId() != lastmapidx;
 			lastmapidx = app->getSelectedMapId();
@@ -3532,7 +3546,7 @@ void Gui::drawEntityReport() {
 			filterNeeded = false;
 
 			ImGuiListClipper clipper;
-			clipper.Begin(visibleEnts.size());
+			clipper.Begin((int)visibleEnts.size());
 
 			while (clipper.Step())
 			{
@@ -3857,7 +3871,7 @@ static bool ColorPicker(float* col, bool alphabar)
 
 	// R,G,B or H,S,V color editor
 
-	color = ImColor::HSV(hue >= 1 ? hue - 10 * 1e-6 : hue, saturation > 0 ? saturation : 10 * 1e-6, value > 0 ? value : 1e-6);
+	color = ImColor::HSV(hue >= 1.f ? hue - 10.f * (float)1e-6 : hue, saturation > 0.f ? saturation : 10.f * (float)1e-6, value > 0.f ? value : (float)1e-6);
 	col[0] = color.Value.x;
 	col[1] = color.Value.y;
 	col[2] = color.Value.z;
@@ -3964,7 +3978,7 @@ void ImportOneBigLightmapFile(Bsp* map)
 	}
 	else
 	{
-		for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+		for (unsigned int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
 		{
 			faces_to_import.push_back(faceIdx);
 		}
@@ -3984,7 +3998,7 @@ void ImportOneBigLightmapFile(Bsp* map)
 			{
 				int size[2];
 				GetFaceLightmapSize(map, faceIdx, size);
-				unsigned int x_width = size[0], y_height = size[1];
+				int x_width = size[0], y_height = size[1];
 				if (map->faces[faceIdx].nLightmapOffset < 0 || map->faces[faceIdx].nStyles[lightId] == 255)
 					continue;
 				int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
@@ -4038,7 +4052,7 @@ void ExportOneBigLightmap(Bsp* map)
 	}
 	else
 	{
-		for (int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
+		for (unsigned int faceIdx = 0; faceIdx < map->faceCount; faceIdx++)
 		{
 			faces_to_export.push_back(faceIdx);
 		}
@@ -4085,7 +4099,7 @@ void ExportOneBigLightmap(Bsp* map)
 		{
 			int size[2];
 			GetFaceLightmapSize(map, faceIdx, size);
-			unsigned int x_width = size[0], y_height = size[1];
+			int x_width = size[0], y_height = size[1];
 			if (map->faces[faceIdx].nLightmapOffset < 0 || map->faces[faceIdx].nStyles[lightId] == 255)
 				continue;
 			int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
@@ -4164,8 +4178,8 @@ void ImportLightmaps(BSPFACE face, int faceIdx, Bsp* map)
 void Gui::drawLightMapTool() {
 	static float colourPatch[3];
 	static Texture* currentlightMap[MAXLIGHTMAPS] = { NULL };
-	static int windowWidth = 550;
-	static int windowHeight = 520;
+	static float windowWidth = 550;
+	static float windowHeight = 520;
 	static int lightmaps = 0;
 	const char* light_names[] =
 	{
@@ -4224,7 +4238,7 @@ void Gui::drawLightMapTool() {
 					}
 				}
 
-				windowWidth = lightmaps > 1 ? 550 : 250;
+				windowWidth = lightmaps > 1 ? 550.f : 250.f;
 				showLightmapEditorUpdate = false;
 			}
 			ImVec2 imgSize = ImVec2(200, 200);
@@ -4269,7 +4283,7 @@ void Gui::drawLightMapTool() {
 					continue;
 				}
 
-				if (ImGui::ImageButton((void*)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
+				if (ImGui::ImageButton((void*)(uint64_t)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
 					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
 					if (i == 1 || i == 3)
 					{
@@ -4278,8 +4292,8 @@ void Gui::drawLightMapTool() {
 					ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - picker_pos.x, 205 + ImGui::GetIO().MousePos.y - picker_pos.y);
 
 
-					int image_x = currentlightMap[i]->width / 200.0 * (ImGui::GetIO().MousePos.x - picker_pos.x);
-					int image_y = currentlightMap[i]->height / 200.0 * (205 + ImGui::GetIO().MousePos.y - picker_pos.y);
+					float image_x = currentlightMap[i]->width / 200.0f * (ImGui::GetIO().MousePos.x - picker_pos.x);
+					float image_y = currentlightMap[i]->height / 200.0f * (205.f + ImGui::GetIO().MousePos.y - picker_pos.y);
 					if (image_x < 0)
 					{
 						image_x = 0;
@@ -4288,24 +4302,24 @@ void Gui::drawLightMapTool() {
 					{
 						image_y = 0;
 					}
-					if (image_x > currentlightMap[i]->width)
+					if (image_x > (float)currentlightMap[i]->width)
 					{
-						image_x = currentlightMap[i]->width;
+						image_x = (float)currentlightMap[i]->width;
 					}
-					if (image_y > currentlightMap[i]->height)
+					if (image_y > (float)currentlightMap[i]->height)
 					{
-						image_y = currentlightMap[i]->height;
+						image_y = (float)currentlightMap[i]->height;
 					}
 
-					int offset = (currentlightMap[i]->width * sizeof(COLOR3) * image_y) + (image_x * sizeof(COLOR3));
+					int offset = (int)((currentlightMap[i]->width * sizeof(COLOR3) * image_y) + (image_x * sizeof(COLOR3)));
 					if (offset >= currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3))
 						offset = (currentlightMap[i]->width * currentlightMap[i]->height * sizeof(COLOR3)) - 1;
 					if (offset < 0)
 						offset = 0;
 
-					currentlightMap[i]->data[offset + 0] = colourPatch[0] * 255;
-					currentlightMap[i]->data[offset + 1] = colourPatch[1] * 255;
-					currentlightMap[i]->data[offset + 2] = colourPatch[2] * 255;
+					currentlightMap[i]->data[offset + 0] = (unsigned char)(colourPatch[0] * 255.f);
+					currentlightMap[i]->data[offset + 1] = (unsigned char)(colourPatch[1] * 255.f);
+					currentlightMap[i]->data[offset + 2] = (unsigned char)(colourPatch[2] * 255.f);
 					currentlightMap[i]->upload(GL_RGB, true);
 					//logf("%f %f %f %f %d %d = %d \n", picker_pos.x, picker_pos.y, mouse_pos_in_canvas.x, mouse_pos_in_canvas.y, image_x, image_y, i);
 				}
@@ -4388,12 +4402,12 @@ void Gui::drawLightMapTool() {
 void Gui::drawTextureTool() {
 
 
-	ImGui::SetNextWindowSize(ImVec2(300, 570), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(300.f, 570.f), ImGuiCond_FirstUseEver);
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
 	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
 		static float scaleX, scaleY, shiftX, shiftY;
 		static bool isSpecial;
-		static int width, height;
+		static float width, height;
 		static ImTextureID textureId = NULL; // OpenGL ID
 		static char textureName[16];
 		static int lastPickCount = -1;
@@ -4425,9 +4439,9 @@ void Gui::drawTextureTool() {
 					width = height = 0;
 					if (texOffset != -1) {
 						BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-						width = tex.nWidth;
-						height = tex.nHeight;
-						strncpy(textureName, tex.szName, MAXTEXTURENAME);
+						width = tex.nWidth * 1.0f;
+						height = tex.nHeight * 1.0f;
+						memcpy(textureName, tex.szName, MAXTEXTURENAME);
 					}
 					else {
 						textureName[0] = '\0';
@@ -4441,7 +4455,7 @@ void Gui::drawTextureTool() {
 					shiftY = texinfo.shiftT;
 					isSpecial = texinfo.nFlags & TEX_SPECIAL;
 
-					textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
+					textureId = (void*)(uint64_t)mapRenderer->getFaceTextureId(faceIdx);
 					validTexture = true;
 
 					// show default values if not all faces share the same values
@@ -4458,15 +4472,15 @@ void Gui::drawTextureTool() {
 						if (texinfo2.iMiptex != miptex) {
 							validTexture = false;
 							textureId = NULL;
-							width = 0;
-							height = 0;
+							width = 0.f;
+							height = 0.f;
 							textureName[0] = '\0';
 						}
 					}
 				}
 			}
 			else {
-				scaleX = scaleY = shiftX = shiftY = width = height = 0;
+				scaleX = scaleY = shiftX = shiftY = width = height = 0.f;
 				textureId = NULL;
 				textureName[0] = '\0';
 			}
@@ -4559,14 +4573,14 @@ void Gui::drawTextureTool() {
 			refreshSelectedFaces = false;
 			int texOffset = ((int*)map->textures)[copiedMiptex + 1];
 			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-			strncpy(textureName, tex.szName, MAXTEXTURENAME);
+			memcpy(textureName, tex.szName, MAXTEXTURENAME);
 			textureName[15] = '\0';
 		}
 		if (!validTexture) {
 			ImGui::PopStyleColor();
 		}
 		ImGui::SameLine();
-		ImGui::Text("%dx%d", width, height);
+		ImGui::Text("%.0fx%.0f", width, height);
 
 		if (!ImGui::IsMouseDown(ImGuiMouseButton_::ImGuiMouseButton_Left) && (scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
 			unsigned int newMiptex = 0;
@@ -4575,7 +4589,7 @@ void Gui::drawTextureTool() {
 			if (textureChanged) {
 				validTexture = false;
 
-				int totalTextures = ((int*)map->textures)[0];
+				unsigned int totalTextures = ((unsigned int*)map->textures)[0];
 
 				for (unsigned int i = 0; i < totalTextures; i++) {
 					int texOffset = ((int*)map->textures)[i + 1];
@@ -4647,7 +4661,7 @@ void Gui::drawTextureTool() {
 				mapRenderer->updateFaceUVs(faceIdx);
 			}
 			if ((textureChanged || toggledFlags) && app->selectedFaces.size() && app->selectedFaces[0] >= 0) {
-				textureId = (void*)mapRenderer->getFaceTextureId(app->selectedFaces[0]);
+				textureId = (void*)(uint64_t)mapRenderer->getFaceTextureId(app->selectedFaces[0]);
 				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
 					mapRenderer->refreshModel(*it);
 				}
@@ -4800,7 +4814,7 @@ void Gui::checkValidHulls() {
 		for (int k = 0; k < app->mapRenderers.size() && !anyHullValid[i]; k++) {
 			Bsp* map = app->mapRenderers[k]->map;
 
-			for (int m = 0; m < map->modelCount; m++) {
+			for (unsigned int m = 0; m < map->modelCount; m++) {
 				if (map->models[m].iHeadnodes[i] >= 0) {
 					anyHullValid[i] = true;
 					break;

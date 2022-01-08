@@ -102,7 +102,7 @@ void Clipper::clipEdges(CMesh& mesh, BSPPLANE& clip) {
 
 			float t = d0 / (d0 - d1);
 			vec3 intersect = v0.pos * (1 - t) + v1.pos * t;
-			int idx = mesh.verts.size();
+			int idx = (int)mesh.verts.size();
 			mesh.verts.push_back(intersect);
 
 			if (d0 > 0) {
@@ -117,9 +117,9 @@ void Clipper::clipEdges(CMesh& mesh, BSPPLANE& clip) {
 
 void Clipper::clipFaces(CMesh& mesh, BSPPLANE& clip) {
 	CFace closeFace({}, clip.vNormal.invert());
-	int findex = mesh.faces.size();
+	int findex = (int) mesh.faces.size();
 
-	for (int i = 0; i < mesh.faces.size(); i++) {
+	for (size_t i = 0; i < mesh.faces.size(); i++) {
 		CFace& face = mesh.faces[i];
 
 		if (face.visible) {
@@ -132,8 +132,8 @@ void Clipper::clipFaces(CMesh& mesh, BSPPLANE& clip) {
 			int start, final;
 			if (getOpenPolyline(mesh, face, start, final)) {
 				// Polyline is open. Close it.
-				int eidx = mesh.edges.size();
-				CEdge closeEdge = CEdge(start, final, i, findex);
+				int eidx = (int)mesh.edges.size();
+				CEdge closeEdge = CEdge(start, final,(int) i, findex);
 				mesh.edges.push_back(closeEdge);
 				face.edges.push_back(eidx);
 				closeFace.edges.push_back(eidx);

@@ -132,6 +132,4 @@ private:
 	std::vector<std::string> groupParts(std::vector<std::string>& ungrouped);
 
 	std::string getValueInQuotes(std::string s);
-
-	std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string delimitter);
 };

@@ -1,8 +1,8 @@
+#include <string.h>
 #include "Command.h"
 #include "Renderer.h"
 #include "Gui.h"
 #include <lodepng.h>
-
 #include "icons/aaatrigger.h"
 
 Command::Command(std::string desc, int mapIdx) {
@@ -367,8 +367,8 @@ size_t CreateBspModelCommand::memoryUsage() {
 int CreateBspModelCommand::getDefaultTextureIdx() {
 	Bsp* map = getBsp();
 
-	int totalTextures = ((int*)map->textures)[0];
-	for (int i = 0; i < totalTextures; i++) {
+	unsigned int totalTextures = ((unsigned int*)map->textures)[0];
+	for (unsigned int i = 0; i < totalTextures; i++) {
 		int texOffset = ((int*)map->textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 		if (strcmp(tex.szName, "aaatrigger") == 0) {

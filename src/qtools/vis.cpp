@@ -145,8 +145,8 @@ void decompress_vis_lump(BSPLEAF* leafLump, unsigned char* visLump, unsigned cha
 	int iterationLeaves, int visDataLeafCount, int newNumLeaves)
 {
 	unsigned char* dest;
-	unsigned int oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
-	unsigned int newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
+	int oldVisRowSize = ((visDataLeafCount + 63) & ~63) >> 3;
+	int newVisRowSize = ((newNumLeaves + 63) & ~63) >> 3;
 	int len = 0;
 
 	// calculate which bits of an uncompressed visibility row are used/unused
@@ -236,7 +236,7 @@ void DecompressVis(const unsigned char* src, unsigned char* const dest, const un
 	} while (out - dest < row);
 }
 
-int CompressVis(const unsigned char* const src, const unsigned int src_length, unsigned char* dest, unsigned int dest_length)
+int64_t CompressVis(const unsigned char* const src, const unsigned int src_length, unsigned char* dest, unsigned int dest_length)
 {
 	unsigned int    j;
 	unsigned char* dest_p = dest;
@@ -279,9 +279,9 @@ int CompressVis(const unsigned char* const src, const unsigned int src_length, u
 	return dest_p - dest;
 }
 
-int CompressAll(BSPLEAF* leafs, unsigned char* uncompressed, unsigned char* output, int numLeaves, int iterLeaves, int bufferSize)
+int64_t CompressAll(BSPLEAF* leafs, unsigned char* uncompressed, unsigned char* output, int numLeaves, int iterLeaves, int bufferSize)
 {
-	int x = 0;
+	int64_t x = 0;
 	unsigned char* dest;
 	unsigned char* src;
 	unsigned char compressed[MAX_MAP_LEAVES / 8];
@@ -329,7 +329,7 @@ int CompressAll(BSPLEAF* leafs, unsigned char* uncompressed, unsigned char* outp
 			logf("Vismap expansion overflow\n");
 		}
 
-		leafs[i + 1].nVisOffset = dest - output;            // leaf 0 is a common solid
+		leafs[i + 1].nVisOffset = (int)( dest - output );            // leaf 0 is a common solid
 
 		memcpy(dest, compressed, x);
 	}

@@ -79,7 +79,7 @@ void AppSettings::loadDefault()
 	windowY = 0;
 #endif
 	maximized = 0;
-	fontSize = 22;
+	fontSize = 22.f;
 	gamedir = std::string();
 	workingdir = "/bspguy_work/";
 
@@ -151,7 +151,7 @@ void AppSettings::load() {
 			else if (key == "move_speed") { g_settings.moveSpeed = (float)atof(val.c_str()); }
 			else if (key == "rot_speed") { g_settings.rotSpeed = (float)atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
-			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
+			else if (key == "font_size") { g_settings.fontSize = (float)atof(val.c_str()); }
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "workingdir") { g_settings.workingdir = val; }

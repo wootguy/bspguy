@@ -99,7 +99,7 @@ enum MODEL_SORT_MODES {
 struct BSPLUMP
 {
 	int nOffset; // File offset to data
-	int nLength; // Length of data
+	unsigned int nLength; // Length of data
 };
 
 struct BSPHEADER

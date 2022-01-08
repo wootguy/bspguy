@@ -4,15 +4,15 @@
 #include "lodepng.h"
 #include "util.h"
 
-Texture::Texture(int width, int height) {
+Texture::Texture(GLsizei width, GLsizei height) {
 	this->width = width;
 	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
-	this->data = new unsigned char[width * height * sizeof(COLOR3)];
+	this->data = new unsigned char[(unsigned int)(width * height) * sizeof(COLOR3)];
 }
 
-Texture::Texture(int width, int height, unsigned char* data)
+Texture::Texture(GLsizei width, GLsizei height, unsigned char* data)
 {
 	this->width = width;
 	this->height = height;

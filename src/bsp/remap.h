@@ -3,20 +3,20 @@ class Bsp;
 
 // excludes entities
 struct STRUCTCOUNT {
-	int planes;
-	int texInfos;
-	int leaves;
-	int nodes;
-	int clipnodes;
-	int verts;
-	int faces;
-	int textures;
-	int markSurfs;
-	int surfEdges;
-	int edges;
-	int models;
-	int lightdata;
-	int visdata;
+	unsigned int planes;
+	unsigned int texInfos;
+	unsigned int leaves;
+	unsigned int nodes;
+	unsigned int clipnodes;
+	unsigned int verts;
+	unsigned int faces;
+	unsigned int textures;
+	unsigned int markSurfs;
+	unsigned int surfEdges;
+	unsigned int edges;
+	unsigned int models;
+	unsigned int lightdata;
+	unsigned int visdata;
 
 	STRUCTCOUNT();
 	STRUCTCOUNT(Bsp* map);

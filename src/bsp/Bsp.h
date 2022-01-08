@@ -223,10 +223,10 @@ public:
 	bool isModelHasFaceIdx(const BSPMODEL& mdl, int faceid);
 
 private:
-	int remove_unused_lightmaps(bool* usedFaces);
-	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
-	int remove_unused_textures(bool* usedTextures, int* remappedIndexes);
-	int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
+	unsigned int remove_unused_lightmaps(bool* usedFaces);
+	unsigned int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
+	unsigned int remove_unused_textures(bool* usedTextures, int* remappedIndexes);
+	unsigned int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 

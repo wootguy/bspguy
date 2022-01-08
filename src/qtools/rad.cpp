@@ -41,13 +41,13 @@ void ApplyMatrix(const matrix_t& m, const vec3_t in, vec3_t& out)
 
 bool InvertMatrix(const matrix_t& m, matrix_t& m_inverse)
 {
-	double texplanes[2][4];
-	double faceplane[4];
+	float texplanes[2][4];
+	float faceplane[4];
 	int i;
-	double texaxis[2][3];
-	double normalaxis[3];
-	double det, sqrlen1, sqrlen2, sqrlen3;
-	double texorg[3];
+	float texaxis[2][3];
+	float normalaxis[3];
+	float det, sqrlen1, sqrlen2, sqrlen3;
+	float texorg[3];
 
 	for (i = 0; i < 4; i++)
 	{
@@ -159,7 +159,7 @@ bool CanFindFacePosition(Bsp* bsp, int facenum)
 
 	Winding facewinding(bsp, *f);
 	Winding texwinding(facewinding.m_NumPoints);
-	for (int x = 0; x < facewinding.m_NumPoints; x++)
+	for (unsigned int x = 0; x < facewinding.m_NumPoints; x++)
 	{
 		ApplyMatrix(worldtotex, facewinding.m_Points[x], texwinding.m_Points[x]);
 		texwinding.m_Points[x][2] = 0.0;
@@ -171,7 +171,7 @@ bool CanFindFacePosition(Bsp* bsp, int facenum)
 		return false;
 	}
 
-	for (int x = 0; x < texwinding.m_NumPoints; x++)
+	for (unsigned int x = 0; x < texwinding.m_NumPoints; x++)
 	{
 		for (int k = 0; k < 2; k++)
 		{
@@ -219,7 +219,7 @@ static bool TestSampleFrag(Bsp* bsp, int facenum, vec_t s, vec_t t, const vec_t 
 
 	TranslateWorldToTex(bsp, head.facenum, worldtotex);
 	head.mywinding = new Winding(facewinding.m_NumPoints);
-	for (int x = 0; x < facewinding.m_NumPoints; x++)
+	for (unsigned int x = 0; x < facewinding.m_NumPoints; x++)
 	{
 		ApplyMatrix(worldtotex, facewinding.m_Points[x], head.mywinding->m_Points[x]);
 		head.mywinding->m_Points[x][2] = 0.0;
@@ -397,8 +397,8 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 	GetFaceExtents(bsp, l->surfnum, bmins, bmaxs);
 	for (i = 0; i < 2; i++)
 	{
-		mins[i] = bmins[i];
-		maxs[i] = bmaxs[i];
+		mins[i] = bmins[i] * 1.0f;
+		maxs[i] = bmaxs[i] * 1.0f;
 		l->texmins[i] = bmins[i];
 		l->texsize[i] = bmaxs[i] - bmins[i];
 	}
@@ -422,8 +422,8 @@ void CalcPoints(Bsp* bsp, lightinfo_t* l, unsigned char* LuxelFlags)
 	const BSPFACE* f = bsp->faces + facenum;
 	const int       h = l->texsize[1] + 1;
 	const int       w = l->texsize[0] + 1;
-	const vec_t     starts = l->texmins[0] * TEXTURE_STEP;
-	const vec_t     startt = l->texmins[1] * TEXTURE_STEP;
+	const vec_t     starts = l->texmins[0] * TEXTURE_STEP * 1.0f;
+	const vec_t     startt = l->texmins[1] * TEXTURE_STEP * 1.0f;
 	unsigned char* pLuxelFlags;
 
 	for (int t = 0; t < h; t++)
@@ -431,8 +431,8 @@ void CalcPoints(Bsp* bsp, lightinfo_t* l, unsigned char* LuxelFlags)
 		for (int s = 0; s < w; s++)
 		{
 			pLuxelFlags = &LuxelFlags[s + w * t];
-			vec_t us = starts + s * TEXTURE_STEP;
-			vec_t ut = startt + t * TEXTURE_STEP;
+			vec_t us = starts + s * TEXTURE_STEP * 1.0f;
+			vec_t ut = startt + t * TEXTURE_STEP * 1.0f;
 			vec_t square[2][2];
 			square[0][0] = us - TEXTURE_STEP;
 			square[0][1] = ut - TEXTURE_STEP;

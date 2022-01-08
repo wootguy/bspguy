@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include "VertexBuffer.h"
 #include "util.h"
 #include <string.h>
@@ -47,7 +46,7 @@ VertexAttr::VertexAttr(int numValues, int valueType, int vhandle, int normalized
 	}
 }
 
-VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, int numVerts)
+VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, GLsizei numVerts)
 {
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
@@ -156,7 +155,7 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 	attributesBound = true;
 }
 
-void VertexBuffer::setData(const void* data, int numVerts)
+void VertexBuffer::setData(const void* data, GLsizei numVerts)
 {
 	this->data = (unsigned char*)data;
 	this->numVerts = numVerts;
@@ -193,7 +192,7 @@ void VertexBuffer::deleteBuffer() {
 	vboId = -1;
 }
 
-void VertexBuffer::drawRange(int primitive, int start, int end)
+void VertexBuffer::drawRange(int primitive, GLint start, GLsizei end)
 {
 	shaderProgram->bind();
 	bindAttributes();

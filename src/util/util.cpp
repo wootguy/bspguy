@@ -128,22 +128,75 @@ std::streampos fileSize(const std::string& filePath) {
 	return fsize;
 }
 
-std::vector<std::string> splitString(const std::string & str, const char* delimitters)
-{
+std::vector<std::string> splitString(std::string s, std::string delimitter) {
 	std::vector<std::string> split;
-	if (str.size() == 0)
+	if (s.size() == 0 || delimitter.size() == 0)
 		return split;
 
-	std::string copy = std::string(str.c_str());
+	size_t delimitLen = delimitter.length();
 
-	char* tok = strtok((char*)copy.c_str(), delimitters);
-	while (tok)
-	{
-		split.push_back(tok);
-		tok = strtok(NULL, delimitters);
+	while (s.size()) {
+		size_t searchOffset = 0;
+		while (searchOffset < s.size()) {
+			size_t delimitPos = s.find(delimitter, searchOffset);
+
+			if (delimitPos == std::string::npos) {
+				split.push_back(s);
+				return split;
+			}
+
+			if (delimitPos != 0)
+				split.push_back(s.substr(0, delimitPos));
+
+			s = s.substr(delimitPos + delimitLen);
+		}
 	}
+
 	return split;
 }
+
+std::vector<std::string> splitStringIgnoringQuotes(std::string s, std::string delimitter) {
+	std::vector<std::string> split;
+	if (s.size() == 0 || delimitter.size() == 0)
+		return split;
+
+	size_t delimitLen = delimitter.length();
+	while (s.size()) {
+
+		bool foundUnquotedDelimitter = false;
+		size_t searchOffset = 0;
+		while (!foundUnquotedDelimitter && searchOffset < s.size()) {
+			size_t delimitPos = s.find(delimitter, searchOffset);
+
+			if (delimitPos == std::string::npos || delimitPos > s.size()) {
+				split.push_back(s);
+				return split;
+			}
+			size_t quoteCount = 0;
+			for (int i = 0; i < delimitPos; i++) {
+				quoteCount += s[i] == '"';
+			}
+
+			if (quoteCount % 2 == 1) {
+				searchOffset = delimitPos + 1;
+				continue;
+			}
+			if (delimitPos != 0)
+				split.push_back(s.substr(0, delimitPos));
+
+			s = s.substr(delimitPos + delimitLen);
+			foundUnquotedDelimitter = true;
+		}
+
+		if (!foundUnquotedDelimitter) {
+			break;
+		}
+
+	}
+
+	return split;
+}
+
 
 std::string basename(std::string path) {
 
@@ -222,7 +275,7 @@ vec3 parseVector(std::string s) {
 	std::vector<std::string> parts = splitString(s, " ");
 
 	if (parts.size() != 3) {
-		logf("Not enough coordinates in std::vector %s\n", s.c_str());
+		logf("Not enough coordinates in std::vector %s. Size:%u\n", s.c_str(), (unsigned int)parts.size());
 		return v;
 	}
 
@@ -661,7 +714,7 @@ std::vector<int> getSortedPlanarVertOrder(std::vector<vec3>& verts) {
 	remainingVerts.erase(remainingVerts.begin() + 0);
 	localVerts.erase(localVerts.begin() + 0);
 	for (size_t k = 0, sz = remainingVerts.size(); k < sz; k++) {
-		int bestIdx = 0;
+		size_t bestIdx = 0;
 		float bestAngle = FLT_MAX_COORD;
 
 		for (size_t i = 0; i < remainingVerts.size(); i++) {

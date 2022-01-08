@@ -13,8 +13,8 @@ void decompress_vis_lump(BSPLEAF* leafLump, unsigned char* visLump, unsigned cha
 
 void DecompressVis(const unsigned char* src, unsigned char* const dest, const unsigned int dest_length, unsigned int numLeaves);
 
-int CompressVis(const unsigned char* const src, const unsigned int src_length, unsigned char* dest, unsigned int dest_length);
+int64_t CompressVis(const unsigned char* const src, const unsigned int src_length, unsigned char* dest, unsigned int dest_length);
 
-int CompressAll(BSPLEAF* leafs, unsigned char* uncompressed, unsigned char* output, int numLeaves, int iterLeaves, int bufferSize);
+int64_t CompressAll(BSPLEAF* leafs, unsigned char* uncompressed, unsigned char* output, int numLeaves, int iterLeaves, int bufferSize);
 
 extern bool g_debug_shift;

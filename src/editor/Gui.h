@@ -80,7 +80,7 @@ private:
 	ImFont* largeFont;
 	ImFont* consoleFont;
 	ImFont* consoleFontLarge;
-	int fontSize = 22;
+	float fontSize = 22.f;
 	bool shouldReloadFonts = false;
 	bool shouldReloadTextureInfo = false;
 	bool settingLoaded = false;

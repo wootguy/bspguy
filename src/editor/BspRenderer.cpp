@@ -1,9 +1,10 @@
+#include <string.h>
+#include <algorithm>
 #include "BspRenderer.h"
 #include "VertexBuffer.h"
 #include "primitives.h"
 #include "rad.h"
 #include "lodepng.h"
-#include <algorithm>
 #include "Renderer.h"
 #include "Clipper.h"
 
@@ -136,7 +137,7 @@ void BspRenderer::loadTextures() {
 	int embedCount = 0;
 
 	glTexturesSwap = new Texture * [map->textureCount];
-	for (int i = 0; i < map->textureCount; i++) {
+	for (unsigned int i = 0; i < map->textureCount; i++) {
 		int texOffset = ((int*)map->textures)[i + 1];
 		if (texOffset == -1) {
 			glTexturesSwap[i] = missingTex;
@@ -240,6 +241,8 @@ void BspRenderer::reloadClipnodes() {
 }
 
 void BspRenderer::addClipnodeModel(int modelIdx) {
+	if (modelIdx < 0)
+		return;
 	RenderClipnodes* newRenderClipnodes = new RenderClipnodes[numRenderClipnodes + 1];
 	memcpy(newRenderClipnodes, renderClipnodes, numRenderClipnodes * sizeof(RenderClipnodes));
 	memset(&newRenderClipnodes[numRenderClipnodes], 0, sizeof(RenderClipnodes));
@@ -252,7 +255,7 @@ void BspRenderer::addClipnodeModel(int modelIdx) {
 void BspRenderer::updateModelShaders() {
 	ShaderProgram* activeShader = (g_render_flags & RENDER_LIGHTMAPS) ? bspShader : fullBrightBspShader;
 
-	for (int i = 0; i < numRenderModels; i++) {
+	for (unsigned int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
 		for (int k = 0; k < model.groupCount; k++) {
 			model.renderGroups[k].buffer->setShader(activeShader, true);
@@ -276,7 +279,7 @@ void BspRenderer::loadLightmaps() {
 
 	int lightmapCount = 0;
 	int atlasId = 0;
-	for (int i = 0; i < map->faceCount; i++) {
+	for (unsigned int i = 0; i < map->faceCount; i++) {
 		BSPFACE& face = map->faces[i];
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 
@@ -380,7 +383,7 @@ void BspRenderer::preRenderFaces() {
 
 	genRenderFaces(numRenderModels);
 
-	for (int i = 0; i < numRenderModels; i++) {
+	for (unsigned int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
 		RenderClipnodes& clip = renderClipnodes[i];
 		for (int k = 0; k < model.groupCount; k++) {
@@ -392,7 +395,7 @@ void BspRenderer::preRenderFaces() {
 	}
 }
 
-void BspRenderer::genRenderFaces(int& renderModelCount) {
+void BspRenderer::genRenderFaces(unsigned int& renderModelCount) {
 	renderModels = new RenderModel[map->modelCount];
 	memset(renderModels, 0, sizeof(RenderModel) * map->modelCount);
 	renderModelCount = map->modelCount;
@@ -400,7 +403,7 @@ void BspRenderer::genRenderFaces(int& renderModelCount) {
 	int worldRenderGroups = 0;
 	int modelRenderGroups = 0;
 
-	for (int m = 0; m < map->modelCount; m++) {
+	for (unsigned int m = 0; m < map->modelCount; m++) {
 		int groupCount = refreshModel(m, false);
 		if (m == 0)
 			worldRenderGroups += groupCount;
@@ -432,7 +435,7 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 
 void BspRenderer::deleteRenderClipnodes() {
 	if (renderClipnodes) {
-		for (int i = 0; i < numRenderClipnodes; i++) {
+		for (unsigned int i = 0; i < numRenderClipnodes; i++) {
 			deleteRenderModelClipnodes(&renderClipnodes[i]);
 		}
 		delete[] renderClipnodes;
@@ -454,7 +457,7 @@ void BspRenderer::deleteRenderModelClipnodes(RenderClipnodes* renderClip) {
 
 void BspRenderer::deleteRenderFaces() {
 	if (renderModels) {
-		for (int i = 0; i < numRenderModels; i++) {
+		for (unsigned int i = 0; i < numRenderModels; i++) {
 			deleteRenderModel(&renderModels[i]);
 		}
 		delete[] renderModels;
@@ -465,7 +468,7 @@ void BspRenderer::deleteRenderFaces() {
 
 void BspRenderer::deleteTextures() {
 	if (glTextures) {
-		for (int i = 0; i < numLoadedTextures; i++) {
+		for (unsigned int i = 0; i < numLoadedTextures; i++) {
 			if (glTextures[i] != missingTex)
 				delete glTextures[i];
 		}
@@ -667,14 +670,14 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
 				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
 			}
+			groupIdx = (int)renderGroups.size();
 			renderGroups.push_back(newGroup);
 			renderGroupVerts.emplace_back(std::vector<lightmapVert>());
 			renderGroupWireframeVerts.emplace_back(std::vector<lightmapVert>());
-			groupIdx = renderGroups.size() - 1;
 		}
 
 		renderModel->renderFaces[i].group = groupIdx;
-		renderModel->renderFaces[i].vertOffset = renderGroupVerts[groupIdx].size();
+		renderModel->renderFaces[i].vertOffset = (int)renderGroupVerts[groupIdx].size();
 		renderModel->renderFaces[i].vertCount = vertCount;
 
 		renderGroupVerts[groupIdx].insert(renderGroupVerts[groupIdx].end(), verts, verts + vertCount);
@@ -685,15 +688,15 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	}
 
 	renderModel->renderGroups = new RenderGroup[renderGroups.size()];
-	renderModel->groupCount = renderGroups.size();
+	renderModel->groupCount = (int)renderGroups.size();
 
 	for (int i = 0; i < renderGroups.size(); i++) {
 		renderGroups[i].verts = new lightmapVert[renderGroupVerts[i].size()];
-		renderGroups[i].vertCount = renderGroupVerts[i].size();
+		renderGroups[i].vertCount = (int)renderGroupVerts[i].size();
 		memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
 
 		renderGroups[i].wireframeVerts = new lightmapVert[renderGroupWireframeVerts[i].size()];
-		renderGroups[i].wireframeVertCount = renderGroupWireframeVerts[i].size();
+		renderGroups[i].wireframeVertCount = (int)renderGroupWireframeVerts[i].size();
 		memcpy(renderGroups[i].wireframeVerts, &renderGroupWireframeVerts[i][0], renderGroups[i].wireframeVertCount * sizeof(lightmapVert));
 
 		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
@@ -723,7 +726,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		refreshFace(model.iFirstFace + i);
 	}
 
-	if (refreshClipnodes)
+	if (refreshClipnodes && modelIdx >= 0)
 		generateClipnodeBuffer(modelIdx);
 
 	return renderModel->groupCount;
@@ -733,7 +736,7 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 	if (!clipnodesLoaded) {
 		return false;
 	}
-	if (modelIdx < 0 || modelIdx >= numRenderClipnodes) {
+	if (modelIdx < 0 || (unsigned int)modelIdx >= numRenderClipnodes) {
 		logf("Bad model idx\n");
 		return false;
 	}
@@ -748,12 +751,12 @@ void BspRenderer::loadClipnodes() {
 	renderClipnodes = new RenderClipnodes[numRenderClipnodes];
 	memset(renderClipnodes, 0, numRenderClipnodes * sizeof(RenderClipnodes));
 
-	for (int i = 0; i < numRenderClipnodes; i++) {
+	for (unsigned int i = 0; i < numRenderClipnodes; i++) {
 		generateClipnodeBuffer(i);
 	}
 }
 
-void BspRenderer::generateClipnodeBuffer(int modelIdx) {
+void BspRenderer::generateClipnodeBuffer(unsigned int modelIdx) {
 	BSPMODEL& model = map->models[modelIdx];
 	RenderClipnodes* renderClip = &renderClipnodes[modelIdx];
 
@@ -914,10 +917,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 			continue;
 		}
 
-		renderClip->clipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+		renderClip->clipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, output, (GLsizei)allVerts.size());
 		renderClip->clipnodeBuffer[i]->ownData = true;
 
-		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, (GLsizei)wireframeVerts.size());
 		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
 
 		renderClip->faceMaths[i] = std::move(faceMaths);
@@ -925,7 +928,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 }
 
 void BspRenderer::updateClipnodeOpacity(unsigned char newValue) {
-	for (int i = 0; i < numRenderClipnodes; i++) {
+	for (unsigned int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
 			if (renderClipnodes[i].clipnodeBuffer[k]) {
 				cVert* data = (cVert*)renderClipnodes[i].clipnodeBuffer[k]->data;
@@ -976,13 +979,13 @@ void BspRenderer::preRenderEnts() {
 }
 
 void BspRenderer::refreshPointEnt(int entIdx) {
-	int skipIdx = 0;
+	unsigned int skipIdx = 0;
 
 	if (entIdx == 0)
 		return;
 
 	// skip worldspawn
-	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
+	for (size_t i = 1, sz = map->ents.size(); i < sz; i++) {
 		if (renderEnts[i].modelIdx >= 0)
 			continue;
 
@@ -1038,9 +1041,9 @@ void BspRenderer::refreshEnt(int entIdx) {
 			if (ent->keyvalues["classname"] == "func_breakable")
 			{
 				// based at cs 1.6 gamedll
-				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0f)));
 				renderEnts[entIdx].modelMat.rotateY(0);
-				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0f)));
 			}
 			else if (IsEntNotSupportAngles(ent->keyvalues["classname"]))
 			{
@@ -1051,29 +1054,29 @@ void BspRenderer::refreshEnt(int entIdx) {
 				// based at cs 1.6 gamedll
 				if (angles.y != 0.0 && angles.z == 0.0)
 				{
-					renderEnts[entIdx].modelMat.rotateZ(-(angles.y * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateZ(-(angles.y * (PI / 180.0f)));
 					renderEnts[entIdx].modelMat.rotateY(0);
-					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0f)));
 				}
 				else
 				{
-					renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-					renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
-					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+					renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0f)));
+					renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0f)));
+					renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0f)));
 				}
 			}
 			else
 			{
-				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-				renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
-				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+				renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0f)));
+				renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0f)));
+				renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0f)));
 			}
 		}
 		else
 		{
-			renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0)));
-			renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0)));
-			renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0)));
+			renderEnts[entIdx].modelMat.rotateZ(-(angles.x * (PI / 180.0f)));
+			renderEnts[entIdx].modelMat.rotateY((angles.y * (PI / 180.0f)));
+			renderEnts[entIdx].modelMat.rotateX((angles.z * (PI / 180.0f)));
 		}
 		renderEnts[entIdx].angles = angles;
 	}
@@ -1090,7 +1093,7 @@ void BspRenderer::calcFaceMaths() {
 	vec3 world_y = vec3(0, 1, 0);
 	vec3 world_z = vec3(0, 0, 1);
 
-	for (int i = 0; i < map->faceCount; i++) {
+	for (unsigned int i = 0; i < map->faceCount; i++) {
 		refreshFace(i);
 	}
 }
@@ -1182,7 +1185,7 @@ void BspRenderer::ReuploadTextures()
 
 	glTextures = glTexturesSwap;
 
-	for (int i = 0; i < map->textureCount; i++) {
+	for (unsigned int i = 0; i < map->textureCount; i++) {
 		if (!glTextures[i]->uploaded)
 			glTextures[i]->upload(GL_RGB);
 	}
@@ -1210,7 +1213,7 @@ void BspRenderer::delayLoadData() {
 
 		glTextures = glTexturesSwap;
 
-		for (int i = 0; i < map->textureCount; i++) {
+		for (unsigned int i = 0; i < map->textureCount; i++) {
 			if (!glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGB);
 		}
@@ -1223,7 +1226,7 @@ void BspRenderer::delayLoadData() {
 
 	if (!clipnodesLoaded && clipnodesFuture.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
 
-		for (int i = 0; i < numRenderClipnodes; i++) {
+		for (unsigned int i = 0; i < numRenderClipnodes; i++) {
 			RenderClipnodes& clip = renderClipnodes[i];
 			for (int k = 0; k < MAX_MAP_HULLS; k++) {
 				if (clip.clipnodeBuffer[k]) {
@@ -1335,7 +1338,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
 	if (highlightEnt > 0 && !highlightAlwaysOnTop) {
-		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
+		if (renderEnts[highlightEnt].modelIdx >= 0 && (unsigned int)renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			activeShader->pushMatrix(MAT_MODEL);
 			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
 			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
@@ -1353,8 +1356,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 
 		drawModel(0, drawTransparentFaces, false, false);
 
-		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+		for (size_t i = 0, sz = map->ents.size(); i < sz; i++) {
+			if (renderEnts[i].modelIdx >= 0 && (unsigned int)renderEnts[i].modelIdx < map->modelCount) {
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[i].modelMat;
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
@@ -1380,8 +1383,8 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 		}
 
 		if (g_render_flags & RENDER_ENT_CLIPNODES) {
-			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-				if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+			for (size_t i = 0, sz = map->ents.size(); i < sz; i++) {
+				if (renderEnts[i].modelIdx >= 0 && (unsigned int)renderEnts[i].modelIdx < map->modelCount) {
 					if (clipnodeHull == -1 && renderModels[renderEnts[i].modelIdx].groupCount > 0) {
 						continue; // skip rendering for models that have faces, if in auto mode
 					}
@@ -1411,7 +1414,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 	if (highlightEnt > 0 && highlightAlwaysOnTop) {
 		activeShader->bind();
 
-		if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
+		if (renderEnts[highlightEnt].modelIdx >= 0 && (unsigned int)renderEnts[highlightEnt].modelIdx < map->modelCount) {
 			activeShader->pushMatrix(MAT_MODEL);
 			*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
 			activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
@@ -1431,7 +1434,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 
 void BspRenderer::drawModel(RenderEnt * ent, bool transparent, bool highlight, bool edgesOnly) {
 	int modelIdx = ent ? ent->modelIdx : 0;
-	if (modelIdx < 0 || modelIdx >= numRenderModels)
+	if (modelIdx < 0 || (unsigned int)modelIdx >= numRenderModels)
 	{
 		return;
 	}
@@ -1587,10 +1590,10 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 		return;
 	}
 
-	int skipIdx = 0;
+	unsigned int skipIdx = 0;
 
 	// skip worldspawn
-	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
+	for (size_t i = 1, sz = map->ents.size(); i < sz; i++) {
 		if (renderEnts[i].modelIdx >= 0)
 			continue;
 
@@ -1636,8 +1639,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 		foundBetterPick = true;
 	}
 
-	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
-		if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+	for (size_t i = 0, sz = map->ents.size(); i < sz; i++) {
+		if (renderEnts[i].modelIdx >= 0 && (unsigned int)renderEnts[i].modelIdx < map->modelCount) {
 
 			bool isSpecial = false;
 			for (int k = 0; k < renderModels[renderEnts[i].modelIdx].groupCount; k++) {
@@ -1655,7 +1658,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 			}
 
 			if (pickModelPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, pickInfo)) {
-				pickInfo.entIdx = i;
+				pickInfo.entIdx = (int)i;
 				pickInfo.modelIdx = renderEnts[i].modelIdx;
 				pickInfo.map = map;
 				pickInfo.ent = map->ents[i];
@@ -1666,7 +1669,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
 			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
 			if (pickAABB(start, dir, mins, maxs, pickInfo.bestDist)) {
-				pickInfo.entIdx = i;
+				pickInfo.entIdx = (int)i;
 				pickInfo.modelIdx = -1;
 				pickInfo.faceIdx = -1;
 				pickInfo.map = map;

@@ -128,17 +128,17 @@ STRUCTUSAGE::STRUCTUSAGE(Bsp * map) : count(map) {
 
 void STRUCTUSAGE::compute_sum() {
 	memset(&sum, 0, sizeof(STRUCTCOUNT));
-	for (int i = 0; i < count.planes; i++) sum.planes += planes[i];
-	for (int i = 0; i < count.texInfos; i++) sum.texInfos += texInfo[i];
-	for (int i = 0; i < count.leaves; i++) sum.leaves += leaves[i];
-	for (int i = 0; i < count.nodes; i++) sum.nodes += nodes[i];
-	for (int i = 0; i < count.clipnodes; i++) sum.clipnodes += clipnodes[i];
-	for (int i = 0; i < count.verts; i++) sum.verts += verts[i];
-	for (int i = 0; i < count.faces; i++) sum.faces += faces[i];
-	for (int i = 0; i < count.textures; i++) sum.textures += textures[i];
-	for (int i = 0; i < count.markSurfs; i++) sum.markSurfs += markSurfs[i];
-	for (int i = 0; i < count.surfEdges; i++) sum.surfEdges += surfEdges[i];
-	for (int i = 0; i < count.edges; i++) sum.edges += edges[i];
+	for (unsigned int i = 0; i < count.planes; i++) sum.planes += planes[i];
+	for (unsigned int i = 0; i < count.texInfos; i++) sum.texInfos += texInfo[i];
+	for (unsigned int i = 0; i < count.leaves; i++) sum.leaves += leaves[i];
+	for (unsigned int i = 0; i < count.nodes; i++) sum.nodes += nodes[i];
+	for (unsigned int i = 0; i < count.clipnodes; i++) sum.clipnodes += clipnodes[i];
+	for (unsigned int i = 0; i < count.verts; i++) sum.verts += verts[i];
+	for (unsigned int i = 0; i < count.faces; i++) sum.faces += faces[i];
+	for (unsigned int i = 0; i < count.textures; i++) sum.textures += textures[i];
+	for (unsigned int i = 0; i < count.markSurfs; i++) sum.markSurfs += markSurfs[i];
+	for (unsigned int i = 0; i < count.surfEdges; i++) sum.surfEdges += surfEdges[i];
+	for (unsigned int i = 0; i < count.edges; i++) sum.edges += edges[i];
 }
 
 STRUCTUSAGE::~STRUCTUSAGE() {
@@ -174,17 +174,17 @@ STRUCTREMAP::STRUCTREMAP(Bsp * map) : count(map) {
 	visitedFaces = new bool[count.faces];
 
 	// remap to the same index by default
-	for (int i = 0; i < count.nodes; i++) nodes[i] = i;
-	for (int i = 0; i < count.clipnodes; i++) clipnodes[i] = i;
-	for (int i = 0; i < count.leaves; i++) leaves[i] = i;
-	for (int i = 0; i < count.planes; i++) planes[i] = i;
-	for (int i = 0; i < count.verts; i++) verts[i] = i;
-	for (int i = 0; i < count.texInfos; i++) texInfo[i] = i;
-	for (int i = 0; i < count.faces; i++) faces[i] = i;
-	for (int i = 0; i < count.textures; i++) textures[i] = i;
-	for (int i = 0; i < count.markSurfs; i++) markSurfs[i] = i;
-	for (int i = 0; i < count.surfEdges; i++) surfEdges[i] = i;
-	for (int i = 0; i < count.edges; i++) edges[i] = i;
+	for (unsigned int i = 0; i < count.nodes; i++) nodes[i] = i;
+	for (unsigned int i = 0; i < count.clipnodes; i++) clipnodes[i] = i;
+	for (unsigned int i = 0; i < count.leaves; i++) leaves[i] = i;
+	for (unsigned int i = 0; i < count.planes; i++) planes[i] = i;
+	for (unsigned int i = 0; i < count.verts; i++) verts[i] = i;
+	for (unsigned int i = 0; i < count.texInfos; i++) texInfo[i] = i;
+	for (unsigned int i = 0; i < count.faces; i++) faces[i] = i;
+	for (unsigned int i = 0; i < count.textures; i++) textures[i] = i;
+	for (unsigned int i = 0; i < count.markSurfs; i++) markSurfs[i] = i;
+	for (unsigned int i = 0; i < count.surfEdges; i++) surfEdges[i] = i;
+	for (unsigned int i = 0; i < count.edges; i++) edges[i] = i;
 
 	memset(visitedClipnodes, 0, count.clipnodes * sizeof(bool));
 	memset(visitedNodes, 0, count.nodes * sizeof(bool));
