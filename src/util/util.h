@@ -99,9 +99,9 @@ bool rayPlaneIntersect(const vec3& start, const vec3& dir, const vec3& normal, f
 float getDistAlongAxis(const vec3& axis, const vec3& p);
 
 // returns false if verts are not planar
-bool getPlaneFromVerts(std::vector<vec3>& verts, vec3& outNormal, float& outDist);
+bool getPlaneFromVerts(const std::vector<vec3>& verts, vec3& outNormal, float& outDist);
 
-void getBoundingBox(std::vector<vec3>& verts, vec3& mins, vec3& maxs);
+void getBoundingBox(const std::vector<vec3>& verts, vec3& mins, vec3& maxs);
 
 vec2 getCenter(std::vector<vec2>& verts);
 

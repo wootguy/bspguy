@@ -457,7 +457,7 @@ float getDistAlongAxis(const vec3& axis, const vec3& p)
 	return dotProduct(axis, p) / sqrt(dotProduct(axis, axis));
 }
 
-bool getPlaneFromVerts(std::vector<vec3>& verts, vec3& outNormal, float& outDist) {
+bool getPlaneFromVerts(const std::vector<vec3>& verts, vec3& outNormal, float& outDist) {
 	const float tolerance = 0.00001f; // normals more different than this = non-planar face
 
 	size_t numVerts = verts.size();
@@ -514,7 +514,7 @@ vec3 getCenter(const vec3& maxs, const vec3& mins) {
 	return mins + (maxs - mins) * 0.5f;
 }
 
-void getBoundingBox(std::vector<vec3>& verts, vec3& mins, vec3& maxs) {
+void getBoundingBox(const std::vector<vec3>& verts, vec3& mins, vec3& maxs) {
 	maxs = vec3(FLT_MIN_COORD, FLT_MIN_COORD, FLT_MIN_COORD);
 	mins = vec3(FLT_MAX_COORD, FLT_MAX_COORD, FLT_MAX_COORD);
 
