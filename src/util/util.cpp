@@ -620,11 +620,11 @@ std::vector<vec3> getTriangularVerts(std::vector<vec3>& verts) {
 	int i2 = -1;
 
 	int count = 1;
-	for (int i = 1; i < verts.size() && count < 3; i++) {
-		if (verts[i] != verts[0]) {
+	for (int i = 1; i < verts.size() && count < 3; i++) 
+	{
+		if (verts[i] != verts[i0]) {
 			i1 = i;
 			count++;
-			break;
 		}
 	}
 
@@ -978,7 +978,7 @@ void fixupPath(char* path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
 {
 	std::string tmpPath = path;
 	fixupPath(tmpPath, startslash, endslash);
-	snprintf(path, sizeof(path), "%s", tmpPath.c_str());
+	memcpy(path, &tmpPath[0], tmpPath.size() + 1);
 }
 
 void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)

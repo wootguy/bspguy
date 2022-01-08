@@ -13,7 +13,7 @@ Keyvalues::Keyvalues(std::string & line)
 	std::vector<std::string> allstrings = splitString(line,"\"");
 	if (allstrings.size() > 1)
 	{
-		if (allstrings[0].find("{") != std::string::npos)
+		if (allstrings[0].find('{') != std::string::npos)
 		{
 			allstrings.erase(allstrings.begin());
 		}
