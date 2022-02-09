@@ -53,7 +53,8 @@ Run 'bspguy <command> help' to read about a specific command.
 
 # Building the source
 ### Windows users:
-1. Install CMake and Visual Studio
+1. Install CMake and Visual Studio.
+    * Visual Studio: Make sure to checkmark "Desktop development with C++" if you're installing for the first time. 
 1. Download and extract [the source](https://github.com/wootguy/bspguy/archive/master.zip) somewhere
 1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract into the `bspguy-master` folder. Rename to `imgui`.
 1. Download [GLFW](https://www.glfw.org/) and extract into the `bspguy-master` folder. Rename to `glfw`.
