@@ -12,6 +12,7 @@
 #include "Command.h"
 
 class Gui;
+class SvenTV;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -118,6 +119,7 @@ public:
 	void reloadMaps();
 	void saveSettings();
 	void loadSettings();
+	void startSvenTv(string addr);
 
 private:
 	GLFWwindow* window;
@@ -127,6 +129,7 @@ private:
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
+	SvenTV* sventv = NULL;
 
 	static future<void> fgdFuture;
 	bool reloading = false;
@@ -236,6 +239,9 @@ private:
 	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
 
+	cCube* edictCubes = NULL;
+	VertexBuffer* edictVbo = NULL;
+
 	vec3 getMoveDir();
 	void controls();
 	void cameraPickingControls();
@@ -308,4 +314,8 @@ private:
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
 
 	void loadFgds();
+	void handleSvenTvCommands();
+	void renderSvenTvEdicts();
+	void observerSvenTvEdict(int idx);
+	Bsp* findMap(string mapname); // search content folders in game path for map
 };

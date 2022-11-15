@@ -29,6 +29,7 @@ set(SOURCE_FILES
 	src/util/util.h			src/util/util.cpp
 	src/util/vectors.h		src/util/vectors.cpp
 	src/util/mat4x4.h		src/util/mat4x4.cpp
+	src/util/mstream.h		src/util/mstream.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -63,7 +64,29 @@ set(SOURCE_FILES
 	imgui/backends/imgui_impl_opengl3.cpp
 	src/util/lodepng.h
 	src/util/lodepng.cpp
+	
+	# SvenTV
+	src/sventv/SvenTV.h src/sventv/SvenTV.cpp
+	
+	# networking stuff
+	src/net/Packet.h src/net/Packet.cpp
+	src/net/IPV4.h src/net/IPV4.cpp
+	src/net/Socket.h
 )
+
+if(MSVC)
+	set(SOURCE_FILES
+		${SOURCE_FILES}
+		src/net/Socket_win.cpp
+		src/net/network_win.cpp
+	)	
+else()
+	set(SOURCE_FILES
+		${SOURCE_FILES}
+		src/net/Socket_unix.cpp
+		src/net/network_unix.cpp
+	)
+endif()
 
 include_directories(src)
 include_directories(src/bsp)
@@ -73,6 +96,8 @@ include_directories(src/editor)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
+include_directories(src/net)
+include_directories(src/sventv)
 include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(imgui/backends)
@@ -93,7 +118,12 @@ if(MSVC)
 	# Disable C++ exceptions
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bspguy)
 	
-	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
+	target_link_libraries(${PROJECT_NAME}
+		opengl32
+		${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib
+		WS2_32
+		IPHLPAPI
+	)
 	
 	source_group("Header Files\\bsp" FILES	src/bsp/BspMerger.h
 											src/bsp/Bsp.h
@@ -160,11 +190,13 @@ if(MSVC)
 												
 	source_group("Header Files\\util" FILES		src/util/util.h
 												src/util/vectors.h
-												src/util/mat4x4.h)
+												src/util/mat4x4.h
+												src/util/mstream.h)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
 												src/util/vectors.cpp
-												src/util/mat4x4.cpp)
+												src/util/mat4x4.cpp
+												src/util/mstream.cpp)
 	
 	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)
 	
@@ -176,6 +208,15 @@ if(MSVC)
 													imgui/backends/imgui_impl_glfw.cpp
 													imgui/backends/imgui_impl_opengl3.cpp
 													src/util/lodepng.cpp)
+													
+	source_group("Header Files\\net" FILES	src/net/Socket.h
+											src/net/Packet.h
+											src/net/IPV4.h)
+											
+	source_group("Source Files\\net" FILES	src/net/Socket_win.cpp
+											src/net/network_win.cpp
+											src/net/Packet.cpp
+											src/net/IPV4.cpp) 
 
 else()
 	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs)

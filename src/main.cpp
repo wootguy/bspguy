@@ -133,6 +133,13 @@ void start_viewer(string map) {
 	renderer.renderLoop();
 }
 
+void start_sventv(string addr) {
+	Renderer renderer = Renderer();
+	renderer.startSvenTv(addr);
+	hideConsoleWindow();
+	renderer.renderLoop();
+}
+
 int test() {
 	//start_viewer("hl_c09.bsp");
 	//return 0;
@@ -708,6 +715,9 @@ int main(int argc, char* argv[])
 		}
 		else if (cli.command == "unembed") {
 			return unembed(cli);
+		}
+		else if (cli.command == "sventv") {
+			start_sventv(cli.bspfile); // TODO: it's actually an IP, not a bsp file
 		}
 		else {
 			logf("unrecognized command: %d\n", cli.command.c_str());

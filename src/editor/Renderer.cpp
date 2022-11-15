@@ -6,6 +6,7 @@
 #include "Gui.h"
 #include <algorithm>
 #include <map>
+#include "SvenTV.h"
 
 AppSettings g_settings;
 string g_config_dir = getConfigDir();
@@ -337,6 +338,9 @@ Renderer::Renderer() {
 
 Renderer::~Renderer() {
 	glfwTerminate();
+
+	if (sventv)
+		delete sventv;
 }
 
 void Renderer::renderLoop() {
@@ -394,10 +398,18 @@ void Renderer::renderLoop() {
 	float lastTitleTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+		handleSvenTvCommands();
+
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
 			lastTitleTime = glfwGetTime( );
-			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
+
+			string title = "bspguy";
+			if (mapRenderers.size()) {
+				title = std::string("bspguy - ") + getMapContainingCamera()->map->path;
+			}
+			
+			glfwSetWindowTitle(window, title.c_str());
 		}
 		glfwPollEvents();
 
@@ -423,18 +435,31 @@ void Renderer::renderLoop() {
 
 		drawEntConnections();
 
+		int oldRenderFlags = g_render_flags;
+		if (g_app->hideGui) {
+			g_render_flags = RENDER_LIGHTMAPS | RENDER_TEXTURES | RENDER_ENTS;
+		}
+
 		isLoading = reloading;
 		for (int i = 0; i < mapRenderers.size(); i++) {
 			int highlightEnt = -1;
 			if (pickInfo.valid && pickInfo.mapIdx == i && pickMode == PICK_OBJECT) {
 				highlightEnt = pickInfo.entIdx;
 			}
-			mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
+			if (g_app->hideGui) {
+				mapRenderers[i]->render(-1, false, -1);
+			}
+			else {
+				mapRenderers[i]->render(highlightEnt, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
+			}
+			
 
 			if (!mapRenderers[i]->isFinishedLoading()) {
 				isLoading = true;
 			}
 		}
+
+		g_render_flags = oldRenderFlags;
 
 		model.loadIdentity();
 		colorShader->bind();
@@ -498,6 +523,13 @@ void Renderer::renderLoop() {
 				drawModelOrigin();
 			}
 		}
+
+		sventv->edicts_mutex.lock();
+		if (g_app->hideGui) {
+			observerSvenTvEdict(1);
+		}
+		renderSvenTvEdicts();
+		sventv->edicts_mutex.unlock();
 
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
@@ -887,6 +919,10 @@ void Renderer::vertexEditControls() {
 }
 
 void Renderer::cameraPickingControls() {
+	if (g_app->hideGui) {
+		return;
+	}
+
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 		bool transforming = transformAxisControls();
 
@@ -1549,7 +1585,7 @@ BspRenderer* Renderer::getMapContainingCamera() {
 			return mapRenderers[i];
 		}
 	}
-	return mapRenderers[0];
+	return mapRenderers.size() ? mapRenderers[0] : NULL;
 }
 
 void Renderer::setupView() {
@@ -2950,4 +2986,127 @@ void Renderer::calcUndoMemoryUsage() {
 	for (int i = 0; i < redoHistory.size(); i++) {
 		undoMemoryUsage += redoHistory[i]->memoryUsage();
 	}
+}
+
+void Renderer::startSvenTv(string addr) {
+	if (sventv == NULL) {
+		sventv = new SvenTV(IPV4(addr.c_str()));
+	}
+	g_app->hideGui = true;
+}
+
+void Renderer::handleSvenTvCommands() {
+	if (!sventv) {
+		return;
+	}
+
+	string command = "";
+
+	sventv->command_mutex.lock();
+	if (!sventv->commands.empty()) {
+		command = sventv->commands.front();
+		sventv->commands.pop();
+	}
+	sventv->command_mutex.unlock();
+
+	if (command.length()) {
+		vector<string> parts = splitString(command, " ");
+
+		if (parts[0] == "map") {
+			Bsp* bsp = findMap("maps/" + parts[1] + ".bsp");
+
+			if (bsp) {
+				addMap(bsp);
+			}
+			else {
+				logf("Failed to find map: %s\n", parts[1].c_str());
+			}
+		}
+	}
+}
+
+void Renderer::renderSvenTvEdicts() {
+	if (!sventv) {
+		return;
+	}
+
+	if (edictCubes == NULL) {
+		logf("Create edict buffer size %d\n", (sizeof(cCube) * MAX_EDICTS) / 1024);
+		edictCubes = new cCube[MAX_EDICTS];
+		memset(edictCubes, 0, sizeof(cCube) * MAX_EDICTS);
+		edictVbo = new VertexBuffer(colorShader, COLOR_4B | POS_3F, edictCubes, 6 * 6 * MAX_EDICTS);
+	}
+
+	int cubeIdx = 0;
+	const int vertsPerCube = 6 * 6;
+
+	for (int i = 0; i < MAX_EDICTS; i++) {
+		netedict& ed = sventv->edicts[i];
+		vec3 origin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
+		const vec3 sz = vec3(16, 16, 16);
+
+		if (!ed.isValid) {
+			continue;
+		}
+
+		if (ed.isValid) {
+			edictCubes[cubeIdx] = cCube(origin + sz, origin - sz, COLOR4(255, 255, 0, 255));
+		}
+		else {
+			edictCubes[cubeIdx] = cCube(origin, origin, COLOR4(0, 0, 0, 0));
+		}
+		cubeIdx++;
+	}
+
+	colorShader->bind();
+	colorShader->pushMatrix(MAT_MODEL);
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+
+	edictVbo->drawRange(GL_TRIANGLES, 0, cubeIdx*vertsPerCube);
+
+	colorShader->popMatrix(MAT_MODEL);
+}
+
+void Renderer::observerSvenTvEdict(int idx) {
+	if (idx < 0 || idx >= MAX_EDICTS) {
+		return;
+	}
+
+	const float angleConvert = (360.0f / 65535.0f);
+	netedict& ed = sventv->edicts[idx];
+	vec3 viewOfs = vec3(0, 0, 28);
+	vec3 origin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]) + viewOfs;
+	vec3 angles = vec3((float)ed.angles[0]*angleConvert, (float)ed.angles[2] * -angleConvert, (float)ed.angles[1] * -angleConvert + 90);
+
+	cameraOrigin = origin;
+	cameraAngles = angles;
+}
+
+Bsp* Renderer::findMap(string mapname) {
+	vector<string> tryPaths = {
+		"./"
+	};
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+
+	string path;
+	for (int k = 0; k < tryPaths.size(); k++) {
+		string tryPath = tryPaths[k] + mapname;
+		string tryPath_full = g_settings.gamedir + tryPaths[k] + mapname;
+		logf("TRY '%s'\n", tryPath_full.c_str());
+		if (fileExists(tryPath)) {
+			path = tryPath;
+			break;
+		}
+		if (fileExists(tryPath_full)) {
+			path = tryPath_full;
+			break;
+		}
+	}
+
+	if (path.length()) {
+		return new Bsp(path);
+	}
+
+	return NULL;
 }
