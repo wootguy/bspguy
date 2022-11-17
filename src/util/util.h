@@ -40,6 +40,9 @@ bool fileExists(const string& fileName);
 
 char* loadFile(const string& fileName, int& length);
 
+// searches game content direcotires for file, returns the first valid path found
+string findAsset(const string& fileName);
+
 bool writeFile(const string& fileName, const char * data, int len);
 
 bool removeFile(const string& fileName);

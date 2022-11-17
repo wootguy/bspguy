@@ -22,6 +22,7 @@ public:
 	uint vposID;
 	uint vcolorID;
 	uint vtexID;
+	uint vnormID;
 
 	mat4x4* projMat;
 	mat4x4* viewMat;
@@ -45,7 +46,7 @@ public:
 	void setMatrixNames(const char * modelViewMat, const char * modelViewProjMat);
 
 	// Find the IDs for the common vertex attributes (position, color, texture coords, normals)
-	void setVertexAttributeNames(const char * posAtt, const char * colorAtt, const char * texAtt);
+	void setVertexAttributeNames(const char * posAtt, const char * colorAtt, const char * texAtt, const char* normAtt);
 
 	// upload the model, view, and projection matrices to the shader (or fixed-funcion pipe)
 	void updateMatrixes();

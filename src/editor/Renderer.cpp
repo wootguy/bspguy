@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include "SvenTV.h"
+#include "MdlRenderer.h"
 
 AppSettings g_settings;
 string g_config_dir = getConfigDir();
@@ -303,10 +304,15 @@ Renderer::Renderer() {
 	fullBrightBspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	fullBrightBspShader->setMatrixNames(NULL, "modelViewProjection");
 
+	mdlShader = new ShaderProgram(g_shader_mdl_vertex, g_shader_mdl_fragment);
+	mdlShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	mdlShader->setMatrixNames(NULL, "modelViewProjection");
+	mdlShader->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
+
 	colorShader = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
 	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
-	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
+	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL, NULL);
 
 	colorShader->bind();
 	uint colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
@@ -331,6 +337,16 @@ Renderer::Renderer() {
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
+
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/vtuber_kizuna_ld_v3/vtuber_kizuna_ld_v3.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
+	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kmd_kanna_cop/kmd_kanna_cop.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/rust/w_hammer.mdl");
+
+	mdlRenderers.push_back(testMdl);
+	cameraOrigin = vec3(64, 0, 0);
+	cameraAngles = vec3(0, 0, -90);
 
 	//cameraOrigin = vec3(51, 427, 234);
 	//cameraAngles = vec3(41, 0, -170);
@@ -530,6 +546,14 @@ void Renderer::renderLoop() {
 		}
 		renderSvenTvEdicts();
 		sventv->edicts_mutex.unlock();
+
+		for (int i = 0; i < mdlRenderers.size(); i++) {
+			mdlRenderers[i]->iController[0] += 1;
+			mdlRenderers[i]->iController[1] += 1;
+			mdlRenderers[i]->SetUpBones();
+			mdlRenderers[i]->transformVerts();
+			mdlRenderers[i]->draw();
+		}
 
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
@@ -3058,6 +3082,10 @@ void Renderer::renderSvenTvEdicts() {
 		cubeIdx++;
 	}
 
+	if (cubeIdx == 0) {
+		return;
+	}
+
 	colorShader->bind();
 	colorShader->pushMatrix(MAT_MODEL);
 	model.loadIdentity();
@@ -3072,9 +3100,14 @@ void Renderer::observerSvenTvEdict(int idx) {
 	if (idx < 0 || idx >= MAX_EDICTS) {
 		return;
 	}
+	
+	netedict& ed = sventv->edicts[idx];
+
+	if (!ed.isValid) {
+		return;
+	}
 
 	const float angleConvert = (360.0f / 65535.0f);
-	netedict& ed = sventv->edicts[idx];
 	vec3 viewOfs = vec3(0, 0, 28);
 	vec3 origin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]) + viewOfs;
 	vec3 angles = vec3((float)ed.angles[0]*angleConvert, (float)ed.angles[2] * -angleConvert, (float)ed.angles[1] * -angleConvert + 90);
@@ -3084,25 +3117,7 @@ void Renderer::observerSvenTvEdict(int idx) {
 }
 
 Bsp* Renderer::findMap(string mapname) {
-	vector<string> tryPaths = {
-		"./"
-	};
-	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
-
-	string path;
-	for (int k = 0; k < tryPaths.size(); k++) {
-		string tryPath = tryPaths[k] + mapname;
-		string tryPath_full = g_settings.gamedir + tryPaths[k] + mapname;
-		logf("TRY '%s'\n", tryPath_full.c_str());
-		if (fileExists(tryPath)) {
-			path = tryPath;
-			break;
-		}
-		if (fileExists(tryPath_full)) {
-			path = tryPath_full;
-			break;
-		}
-	}
+	string path = findAsset(mapname);
 
 	if (path.length()) {
 		return new Bsp(path);

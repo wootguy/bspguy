@@ -41,6 +41,21 @@ struct cVert
 	cVert(vec3 p, COLOR4 c) : c(c), x(p.x), y(p.y), z(p.z) {}
 };
 
+struct tnVert
+{
+	float u, v;
+	float nx, ny, nz;
+	float x, y, z;
+
+	tnVert() {}
+	tnVert(float x, float y, float z, float u, float v, float nx, float ny, float nz)
+		: u(u), v(v), nx(nx), ny(ny), nz(nz), x(x), y(y), z(z) {}
+	tnVert(vec3 p, float u, float v, vec3 n)
+		: u(u), v(v), nx(n.x), ny(n.y), nz(n.z), x(p.x), y(p.y), z(p.z) {}
+	tnVert(tVert v, vec3 n)
+		: u(v.u), v(v.v), nx(n.x), ny(n.y), nz(n.z), x(v.x), y(v.y), z(v.z) {}
+};
+
 struct tTri
 {
 	tVert v1, v2, v3;

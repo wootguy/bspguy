@@ -130,8 +130,8 @@ char * mstream::getBuffer()
 	return (char*)start;
 }
 
-char* mstream::getOffsetBuffer() {
-	return (char*)start + pos;
+char* mstream::get() {
+	return (char*)pos;
 }
 
 bool mstream::eom()

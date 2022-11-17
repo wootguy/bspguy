@@ -99,7 +99,7 @@ void ShaderProgram::setMatrixNames( const char * modelViewMat, const char * mode
 	}
 }
 
-void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * colorAtt, const char * texAtt )
+void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * colorAtt, const char * texAtt, const char* normAtt)
 {
 	if (posAtt != NULL)
 	{
@@ -115,6 +115,11 @@ void ShaderProgram::setVertexAttributeNames( const char * posAtt, const char * c
 	{
 		vtexID = glGetAttribLocation(ID, texAtt);
 		if (vtexID == -1) logf("Could not find vtexture attribute: %s\n", texAtt); 
+	}
+	if (normAtt != NULL)
+	{
+		vnormID = glGetAttribLocation(ID, normAtt);
+		if (vnormID == -1) logf("Could not find vnormal attribute: %s\n", normAtt);
 	}
 }
 

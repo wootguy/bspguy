@@ -48,6 +48,8 @@ set(SOURCE_FILES
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Clipper.h			src/editor/Clipper.cpp
 	src/editor/Command.h			src/editor/Command.cpp
+	src/editor/MdlRenderer.h		src/editor/MdlRenderer.cpp
+	src/editor/studio.h
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -169,7 +171,9 @@ if(MSVC)
 												src/editor/Gui.h
 												src/editor/PointEntRenderer.h
 												src/editor/Command.h
-												src/editor/Clipper.h)
+												src/editor/Clipper.h
+												src/editor/MdlRenderer.h
+												src/editor/studio.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/BspRenderer.cpp
 												src/editor/LightmapNode.cpp
@@ -178,7 +182,8 @@ if(MSVC)
 												src/editor/Gui.cpp
 												src/editor/PointEntRenderer.cpp
 												src/editor/Command.cpp
-												src/editor/Clipper.cpp)
+												src/editor/Clipper.cpp
+												src/editor/MdlRenderer.cpp)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h
 												src/qtools/vis.h

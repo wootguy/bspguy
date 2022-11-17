@@ -13,6 +13,7 @@
 
 class Gui;
 class SvenTV;
+class MdlRenderer;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -126,6 +127,7 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
+	ShaderProgram* mdlShader;
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
@@ -241,6 +243,8 @@ private:
 
 	cCube* edictCubes = NULL;
 	VertexBuffer* edictVbo = NULL;
+
+	vector<MdlRenderer*> mdlRenderers;
 
 	vec3 getMoveDir();
 	void controls();

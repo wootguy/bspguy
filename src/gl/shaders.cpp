@@ -154,3 +154,67 @@ const char* g_shader_fullbright_fragment =
 "{\n"
 "	gl_FragColor = texture2D(sTex, fTex) * fColor;\n"
 "}\n";
+
+const char* g_shader_mdl_fragment =
+"varying vec2 fTex;\n"
+"varying vec4 fColor;\n"
+
+"uniform sampler2D sTex;\n"
+
+"void main()\n"
+"{\n"
+"	gl_FragColor = texture2D(sTex, fTex) * fColor;\n"
+"}\n";
+
+
+const char* g_shader_mdl_vertex =
+// transformation matrix
+"uniform mat4 modelViewProjection;\n"
+
+// Lighting uniforms
+"uniform mat4 modelView;\n"
+"uniform mat4 normalMat;\n"
+"uniform mat3 lights[4];\n"
+"uniform int elights; \n"
+"uniform vec3 ambient; \n"
+
+// vertex variables
+"attribute vec3 vPosition; \n"
+"attribute vec4 vNormal; \n"
+"attribute vec2 vTex; \n"
+
+// fragment variables
+"varying vec2 fTex; \n"
+"varying vec4 fColor; \n"
+
+"vec4 gouraud(); \n"
+
+"void main()\n"
+"{\n"
+	"gl_Position = modelViewProjection * vec4(vPosition, 1); \n"
+
+	"fTex = vTex; \n"
+	"fColor = gouraud(); \n"
+"}\n"
+
+"vec4 gouraud()\n"
+"{\n"
+	"vec3 finalColor = ambient; \n"
+	"for (int i = 0; i < 4; ++i)\n"
+	"{\n"
+		"if (i == elights)\n" // Webgl won't let us use variables in our loop condition. So we have this.
+			"break; \n"
+		"vec3 lightPos = lights[i][0].xyz; \n"
+		"vec3 diffuse = lights[i][1].xyz; \n"
+
+		"vec3 lightDirection = lightPos.xyz; \n"
+		"vec3 normal = (normalMat * vNormal).xyz; \n"
+
+		"lightDirection -= (modelView * vec4(vPosition, 1)).xyz; \n"
+		"float distance = length(lightDirection); \n"
+		"lightDirection = normalize(lightDirection); \n"
+
+		"finalColor += diffuse * max(0.0, dot(normal, lightDirection)); \n"
+	"}\n"
+	"return vec4(clamp(finalColor, vec3(0, 0, 0), vec3(1, 1, 1)), 1); \n"
+"}\n";

@@ -5,21 +5,21 @@
 
 VertexAttr commonAttr[VBUF_FLAGBITS] =
 {
-	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, ""), // TEX_2B
-	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, ""), // TEX_2S
-	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, ""), // TEX_2F
-	VertexAttr(3, GL_UNSIGNED_BYTE, -1, GL_TRUE, ""),  // COLOR_3B
-	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, ""),  // COLOR_3F
-	VertexAttr(4, GL_UNSIGNED_BYTE, -1, GL_TRUE, ""),  // COLOR_4B
-	VertexAttr(4, GL_FLOAT,         -1, GL_TRUE, ""),  // COLOR_4F
-	VertexAttr(3, GL_BYTE,          -1, GL_TRUE, ""),  // NORM_3B
-	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, ""),  // NORM_3F
-	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, ""), // POS_2B
-	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, ""), // POS_2S
-	VertexAttr(2, GL_INT,           -1, GL_FALSE, ""), // POS_2I
-	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, ""), // POS_2F
-	VertexAttr(3, GL_SHORT,         -1, GL_FALSE, ""), // POS_3S
-	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, ""), // POS_3F
+	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, "TEX_2B"), // TEX_2B
+	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, "TEX_2S"), // TEX_2S
+	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, "TEX_2F"), // TEX_2F
+	VertexAttr(3, GL_UNSIGNED_BYTE, -1, GL_TRUE, "COLOR_3B"),  // COLOR_3B
+	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, "COLOR_3F"),  // COLOR_3F
+	VertexAttr(4, GL_UNSIGNED_BYTE, -1, GL_TRUE, "COLOR_4B"),  // COLOR_4B
+	VertexAttr(4, GL_FLOAT,         -1, GL_TRUE, "COLOR_4F"),  // COLOR_4F
+	VertexAttr(3, GL_BYTE,          -1, GL_TRUE, "NORM_3B"),  // NORM_3B
+	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, "NORM_3F"),  // NORM_3F
+	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, "POS_2B"), // POS_2B
+	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, "POS_2S"), // POS_2S
+	VertexAttr(2, GL_INT,           -1, GL_FALSE, "POS_2I"), // POS_2I
+	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, "POS_2F"), // POS_2F
+	VertexAttr(3, GL_SHORT,         -1, GL_FALSE, "POS_3S"), // POS_3S
+	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, "POS_3F"), // POS_3F
 };
 
 VertexAttr::VertexAttr( int numValues, int valueType, int handle, int normalized, const char* varName)
@@ -82,6 +82,8 @@ void VertexBuffer::addAttributes( int attFlags )
 		{
 			if (i >= VBUF_POS_START)
 				commonAttr[i].handle = shaderProgram->vposID;
+			else if (i >= VBUF_NORM_START)
+				commonAttr[i].handle = shaderProgram->vnormID;
 			else if (i >= VBUF_COLOR_START)
 				commonAttr[i].handle = shaderProgram->vcolorID;
 			else if (i >= VBUF_TEX_START)
@@ -218,6 +220,8 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 			glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
 		}
 	}
+
+	
 
 	if (start < 0 || start > numVerts)
 		logf("Invalid start index: %d\n", start);

@@ -8,6 +8,7 @@
 #include "Wad.h"
 #include <stdarg.h>
 #include <cfloat>
+#include "Renderer.h"
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
@@ -98,6 +99,29 @@ char* loadFile(const string& fileName, int& length)
 	fin.close();
 	length = (int)size; // surely models will never exceed 2 GB
 	return buffer;
+}
+
+string findAsset(const string& fileName) {
+	vector<string> tryPaths = {
+		"./"
+	};
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+
+	string path;
+	for (int k = 0; k < tryPaths.size(); k++) {
+		string tryPath = tryPaths[k] + fileName;
+		string tryPath_full = g_settings.gamedir + tryPaths[k] + fileName;
+		if (fileExists(tryPath)) {
+			path = tryPath;
+			break;
+		}
+		if (fileExists(tryPath_full)) {
+			path = tryPath_full;
+			break;
+		}
+	}
+
+	return path;
 }
 
 bool writeFile(const string& fileName, const char* data, int len)
