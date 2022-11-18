@@ -628,7 +628,8 @@ void Gui::drawMenuBar() {
 				}
 			}
 
-			Bsp* map = app->getMapContainingCamera()->map;
+			BspRenderer* bspRenderer = app->getMapContainingCamera();
+			Bsp* map = bspRenderer ? bspRenderer->map : NULL;
 
 			if (ImGui::MenuItem("Merge with .wad", NULL)) {
 				if (map)

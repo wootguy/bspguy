@@ -5,6 +5,7 @@
 #include "primitives.h"
 
 #define	Q_PI	3.14159265358979323846
+#define	EQUAL_EPSILON	0.001f
 
 struct MdlVert {
 	vec3 pos;
@@ -15,16 +16,18 @@ struct MdlVert {
 };
 
 struct boneVert {
-	float u, v;
-	float nx, ny, nz;
-	float x, y, z;
+	vec2 uv;
+	vec3 normal;
+	vec3 pos;
+	float bone;
 };
 
 struct MdlMeshRender {
-	tnVert* verts;
+	boneVert* verts;
 	short* origVerts; // original mdl vertex used to create the rendered vertex
 	short* origNorms; // original mdl normals used to create the rendered normal
 	int numVerts;
+	int flags;
 	Texture* texture;
 	VertexBuffer* buffer;
 };
@@ -44,13 +47,13 @@ public:
 	MdlRenderer(ShaderProgram* shaderProgram, string modelPath);
 	~MdlRenderer();
 
-	void draw();
+	void draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerRight);
 	bool validate();
 	bool hasExternalTextures();
 	bool hasExternalSequences();
 	bool isEmpty();
 
-	void SetUpBones();
+	void SetUpBones(int sequence, float& frame);
 	void transformVerts();
 
 private:
@@ -61,7 +64,7 @@ private:
 	bool loadTextureData();
 	bool loadMeshes();
 	
-	float m_bonetransform[MAXSTUDIOBONES][3][4];	// bone transformation matrix (3x4)
+	float m_bonetransform[MAXSTUDIOBONES][4][4];	// bone transformation matrix (3x4)
 
 	// Solokiller's model viewer functions
 	mstudioanim_t* GetAnim(mstudioseqdesc_t* pseqdesc);

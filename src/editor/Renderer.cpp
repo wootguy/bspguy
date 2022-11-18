@@ -339,8 +339,12 @@ Renderer::Renderer() {
 	memset(&undoLumpState, 0, sizeof(LumpState));
 
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/vtuber_kizuna_ld_v3/vtuber_kizuna_ld_v3.mdl");
-	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
-	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
+	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/counterx2/counterx2.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/holo_korone_lowpoly/holo_korone_lowpoly.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/cm_v3/tor.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/ryors_sphere/ryors_sphere.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kmd_kanna_cop/kmd_kanna_cop.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/rust/w_hammer.mdl");
 
@@ -547,12 +551,30 @@ void Renderer::renderLoop() {
 		renderSvenTvEdicts();
 		sventv->edicts_mutex.unlock();
 
+		static float lastMoveTime = glfwGetTime();
+		static int seq = 6;
+		static float frame = 0;
+		bool shouldAnimate = glfwGetTime() - lastMoveTime > 0.01f;
+		if (shouldAnimate) {
+			lastMoveTime = glfwGetTime();
+		}
+		frame += frameTimeScale*0.2f;
+
+		static vec3 angles;
+		static vec3 origin(16, 16, 16);
+
+		angles.z += frameTimeScale * 0.01f;
+		angles.x += frameTimeScale * 0.01f;
+		
 		for (int i = 0; i < mdlRenderers.size(); i++) {
-			mdlRenderers[i]->iController[0] += 1;
-			mdlRenderers[i]->iController[1] += 1;
-			mdlRenderers[i]->SetUpBones();
-			mdlRenderers[i]->transformVerts();
-			mdlRenderers[i]->draw();
+			if (shouldAnimate) {
+				//mdlRenderers[i]->iController[0] += 1;
+				//mdlRenderers[i]->iController[1] += 1;
+			}
+
+			mdlRenderers[i]->SetUpBones(seq, frame);
+			//mdlRenderers[i]->transformVerts();
+			mdlRenderers[i]->draw(origin, angles, cameraOrigin, cameraRight);
 		}
 
 		vec3 forward, right, up;

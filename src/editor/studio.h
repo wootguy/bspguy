@@ -314,10 +314,13 @@ typedef struct
 #endif
 
 // lighting options
-#define STUDIO_NF_FLATSHADE		0x0001
-#define STUDIO_NF_CHROME		0x0002
-#define STUDIO_NF_FULLBRIGHT	0x0004
-#define STUDIO_NF_ADDITIVE		0x0020
+#define STUDIO_NF_FLATSHADE 0x0001
+#define STUDIO_NF_CHROME 0x0002
+#define STUDIO_NF_FULLBRIGHT 0x0004
+#define STUDIO_NF_NOMIPS 0x0008
+#define STUDIO_NF_ALPHA 0x0010
+#define STUDIO_NF_ADDITIVE 0x0020
+#define STUDIO_NF_MASKED 0x0040
 
 // motion flags
 #define STUDIO_X		0x0001

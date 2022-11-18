@@ -124,3 +124,5 @@ enum class FIXUPPATH_SLASH
 
 void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
+float normalizeRangef(const float value, const float start, const float end);

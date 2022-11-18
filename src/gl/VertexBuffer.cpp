@@ -153,7 +153,7 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 
 		attribs[i].handle = glGetAttribLocation(shaderProgram->ID, attribs[i].varName);
 
-		if (!hideErrors && attribs[i].handle == -1)
+		if (attribs[i].handle == -1)
 			logf("Could not find vertex attribute: %s\n", attribs[i].varName);
 	}
 
@@ -220,8 +220,6 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 			glVertexAttribPointer(a.handle, a.numValues, a.valueType, a.normalized != 0, elementSize, ptr);
 		}
 	}
-
-	
 
 	if (start < 0 || start > numVerts)
 		logf("Invalid start index: %d\n", start);

@@ -29,10 +29,12 @@ MdlRenderer::MdlRenderer(ShaderProgram* shaderProgram, string modelPath) {
 	memset(iBlender, 0, 2);
 	iMouth = 0;
 
+	float frame = 0;
+
 	loadTextureData();
-	SetUpBones();
+	SetUpBones(0, frame);
 	loadMeshes();
-	transformVerts();
+	//transformVerts();
 	
 	valid = true;
 }
@@ -276,14 +278,31 @@ bool MdlRenderer::loadTextureData() {
 
 		data.seek(tex->index + imageDataSz);
 		COLOR3* palette = (COLOR3*)data.get();
-		COLOR3* imageData = new COLOR3[imageDataSz];
 
-		for (int k = 0; k < imageDataSz; k++) {
-			imageData[k] = palette[srcData[k]];
+		if (tex->flags & STUDIO_NF_MASKED) {
+			COLOR4* imageData = new COLOR4[imageDataSz];
+
+			for (int k = 0; k < imageDataSz; k++) {
+				if (srcData[k] == 255) {
+					imageData[k] = COLOR4(0, 0, 0, 0);
+				}
+				else {
+					imageData[k] = COLOR4(palette[srcData[k]], 255);
+				}
+			}
+
+			glTextures[i] = new Texture(tex->width, tex->height, imageData);
+			glTextures[i]->upload(GL_RGBA);
+		} else{
+			COLOR3* imageData = new COLOR3[imageDataSz];
+
+			for (int k = 0; k < imageDataSz; k++) {
+				imageData[k] = palette[srcData[k]];
+			}
+
+			glTextures[i] = new Texture(tex->width, tex->height, imageData);
+			glTextures[i]->upload(GL_RGB);
 		}
-
-		glTextures[i] = new Texture(tex->width, tex->height, imageData);
-		glTextures[i]->upload(GL_RGB);
 	}
 
 	return true;
@@ -427,6 +446,48 @@ void QuaternionSlerp(const vec4& pVec, vec4& qVec, float t, vec4& qtVec)
 	}
 }
 
+bool VectorCompare(const vec3& lhs, const vec3& rhs) {
+	if (fabs(lhs.x - rhs.x) > EQUAL_EPSILON
+		|| fabs(lhs.y - rhs.y) > EQUAL_EPSILON
+		|| fabs(lhs.z - rhs.z) > EQUAL_EPSILON) {
+		return false;
+	}
+
+	return true;
+}
+
+void VectorTransform(const vec3& in1, float in2[3][4], vec3& out) {
+	// convert coordinate system
+	/*
+	out.x = dotProduct(in1, *(vec3*)(&in2[0][0])) + in2[0][3];
+	out.z = -(dotProduct(in1, *(vec3*)(&in2[1][0])) + in2[1][3]);
+	out.y = dotProduct(in1, *(vec3*)(&in2[2][0])) + in2[2][3];
+	*/
+
+	out.x = dotProduct(in1, *(vec3*)(&in2[0][0])) + in2[0][3];
+	out.z = -(dotProduct(in1, *(vec3*)(&in2[1][0])) + in2[1][3]);
+	out.y = dotProduct(in1, *(vec3*)(&in2[2][0])) + in2[2][3];
+}
+
+void VectorRotate(const vec3& in1, float in2[3][4], vec3& out) {
+	// convert coordinate system
+	out.x = dotProduct(in1, *(vec3*)(&in2[0][0]));
+	out.y = dotProduct(in1, *(vec3*)(&in2[1][0]));
+	out.z = dotProduct(in1, *(vec3*)(&in2[2][0]));
+}
+
+void VectorIRotate(vec3& vector, float matrix[3][4], vec3& outResult)
+{
+	/*
+	outResult.x = vector.x * matrix[0][0] + vector.y * matrix[1][0] + vector.z * matrix[2][0];
+	outResult.z = -(vector.x * matrix[0][1] + vector.y * matrix[1][1] + vector.z * matrix[2][1]);
+	outResult.y = vector.x * matrix[0][2] + vector.y * matrix[1][2] + vector.z * matrix[2][2];
+	*/
+	outResult.x = vector.x * matrix[0][0] + vector.y * matrix[1][0] + vector.z * matrix[2][0];
+	outResult.y = vector.x * matrix[0][1] + vector.y * matrix[1][1] + vector.z * matrix[2][1];
+	outResult.z = vector.x * matrix[0][2] + vector.y * matrix[1][2] + vector.z * matrix[2][2];
+}
+
 void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, vec4& q)
 {
 	vec3 angle1Vec;
@@ -442,8 +503,8 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 		}
 		else
 		{
-			auto panimvalue = (const mstudioanimvalue_t*)((const byte*)panim + panim->offset[j + 3]);
-			auto k = frame;
+			mstudioanimvalue_t* panimvalue = (mstudioanimvalue_t*)((byte*)panim + panim->offset[j + 3]);
+			int k = frame;
 			while (panimvalue->num.total <= k)
 			{
 				k -= panimvalue->num.total;
@@ -489,7 +550,7 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 		}
 	}
 
-	if (angle1Vec != angle2Vec)
+	if (!VectorCompare(angle1Vec, angle2Vec))
 	{
 		vec4 q1, q2;
 
@@ -638,7 +699,7 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 		in1[2][2] * in2[2][3] + in1[2][3];
 }
 
-void MdlRenderer::SetUpBones()
+void MdlRenderer::SetUpBones(int sequence, float& frame)
 {
 	static vec3 pos[MAXSTUDIOBONES];
 	static vec4 q[MAXSTUDIOBONES];
@@ -650,20 +711,19 @@ void MdlRenderer::SetUpBones()
 	static vec3 pos4[MAXSTUDIOBONES];
 	static vec4 q4[MAXSTUDIOBONES];
 
-	int iSequence = 0;
-	float flFrame = 0;
-
-	data.seek(header->seqindex + iSequence*sizeof(mstudioseqdesc_t));
+	data.seek(header->seqindex + sequence *sizeof(mstudioseqdesc_t));
 	mstudioseqdesc_t* pseqdesc = (mstudioseqdesc_t*)data.get();
 
 	const mstudioanim_t* panim = GetAnim(pseqdesc);
 
-	CalcRotations(pos, q, pseqdesc, panim, flFrame);
+	frame = normalizeRangef(frame, 0, pseqdesc->numframes - 1.0f);
+
+	CalcRotations(pos, q, pseqdesc, panim, frame);
 
 	if (pseqdesc->numblends > 1)
 	{
 		panim += header->numbones;
-		CalcRotations(pos2, q2, pseqdesc, panim, flFrame);
+		CalcRotations(pos2, q2, pseqdesc, panim, frame);
 		float s = iBlender[0] / 255.0;
 
 		SlerpBones(q, pos, q2, pos2, s);
@@ -671,10 +731,10 @@ void MdlRenderer::SetUpBones()
 		if (pseqdesc->numblends == 4)
 		{
 			panim += header->numbones;
-			CalcRotations(pos3, q3, pseqdesc, panim, flFrame);
+			CalcRotations(pos3, q3, pseqdesc, panim, frame);
 
 			panim += header->numbones;
-			CalcRotations(pos4, q4, pseqdesc, panim, flFrame);
+			CalcRotations(pos4, q4, pseqdesc, panim, frame);
 
 			s = iBlender[0] / 255.0;
 			SlerpBones(q3, pos3, q4, pos4, s);
@@ -708,32 +768,6 @@ void MdlRenderer::SetUpBones()
 			R_ConcatTransforms(m_bonetransform[pbones[i].parent], bonematrix, m_bonetransform[i]);
 		}
 	}
-}
-
-void VectorTransform(const vec3& in1, float in2[3][4], vec3& out) {
-	// convert coordinate system
-	out.x = dotProduct(in1, *(vec3*)(&in2[0][0])) + in2[0][3];
-	out.z = -(dotProduct(in1, *(vec3*)(&in2[1][0])) + in2[1][3]);
-	out.y = dotProduct(in1, *(vec3*)(&in2[2][0])) + in2[2][3];
-}
-
-void VectorRotate(const vec3& in1, float in2[3][4], vec3& out) {
-	// convert coordinate system
-	out.x = dotProduct(in1, *(vec3*)(&in2[0][0]));
-	out.y = dotProduct(in1, *(vec3*)(&in2[1][0]));
-	out.z = dotProduct(in1, *(vec3*)(&in2[2][0]));
-}
-
-void VectorIRotate(vec3& vector, float matrix[3][4], vec3& outResult)
-{
-	/*
-	outResult.x = vector.x * matrix[0][0] + vector.y * matrix[1][0] + vector.z * matrix[2][0];
-	outResult.z = -(vector.x * matrix[0][1] + vector.y * matrix[1][1] + vector.z * matrix[2][1]);
-	outResult.y = vector.x * matrix[0][2] + vector.y * matrix[1][2] + vector.z * matrix[2][2];
-	*/
-	outResult.x = vector.x * matrix[0][0] + vector.y * matrix[1][0] + vector.z * matrix[2][0];
-	outResult.y = vector.x * matrix[0][1] + vector.y * matrix[1][1] + vector.z * matrix[2][1];
-	outResult.z = vector.x * matrix[0][2] + vector.y * matrix[1][2] + vector.z * matrix[2][2];
 }
 
 void MdlRenderer::transformVerts() {
@@ -781,12 +815,8 @@ void MdlRenderer::transformVerts() {
 					short oldVertIdx = buffer.origVerts[v];
 					short oldNormIdx = buffer.origNorms[v];
 
-					vec3* pos = (vec3*)&buffer.verts[v].x;
-					vec3* norm = (vec3*)&buffer.verts[v].nx;
-					uint8_t bone = pvertbone[oldVertIdx];
-
-					*pos = transformedVerts[oldVertIdx];
-					*norm = transformedNormals[oldNormIdx];
+					buffer.verts[v].pos = transformedVerts[oldVertIdx];
+					buffer.verts[v].normal = transformedNormals[oldNormIdx];
 
 					//VectorTransform(pstudioverts[oldVertIdx], m_bonetransform[bone], *pos);
 					//VectorRotate(pstudionorms[oldNormIdx], m_bonetransform[bone], *norm);
@@ -799,7 +829,7 @@ void MdlRenderer::transformVerts() {
 		}
 	}
 
-	logf("Transformed %d verts\n", vertCount);
+	//logf("Transformed %d verts\n", vertCount);
 }
 
 bool MdlRenderer::loadMeshes() {
@@ -884,7 +914,6 @@ bool MdlRenderer::loadMeshes() {
 				const float t = 1.0 / (float)texture->height;
 
 				vector<MdlVert> mdlVerts;
-				vector<tnVert> allVerts;
 
 				mdlVerts.reserve(MAXSTUDIOVERTS*3);
 				int p;
@@ -925,24 +954,22 @@ bool MdlRenderer::loadMeshes() {
 						}
 
 						MdlVert vert;
-
-						if (texture->flags & STUDIO_NF_CHROME) {
-							vert.uv = vec2(0.5f, 0.5f);
-
-							// TODO: ummm
-							//texCoordData[texCoordIdx++] = m_chrome[ptricmds[1]][0] * s;
-							//texCoordData[texCoordIdx++] = m_chrome[ptricmds[1]][1] * t;
-						}
-						else {
-							vert.uv = vec2(ptricmds[2] * s, ptricmds[3] * t);
-						}
-
+						
 						if (texture->flags & STUDIO_NF_ADDITIVE) {
 							vert.color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 						}
 						else {
 							vert.color = vec4(pstudionorms[ptricmds[1]], 0);
 						}
+
+						if (texture->flags & STUDIO_NF_CHROME) {
+							// real UVs calculated in shader
+							vert.uv = vec2(0.5f, 0.5f);
+						}
+						else {
+							vert.uv = vec2(ptricmds[2] * s, ptricmds[3] * t);
+						}
+						
 						// TODO: hmmm
 						//vert.color.w = m_pRenderInfo->flTransparency;
 
@@ -974,19 +1001,32 @@ bool MdlRenderer::loadMeshes() {
 				render.origVerts = new short[totalElements];
 				render.origNorms = new short[totalElements];
 
+				vector<boneVert> allVerts;
+				allVerts.reserve(totalElements);
+
 				for (int i = 0; i < totalElements; i++) {
 					MdlVert& v = mdlVerts[i];
 					render.origVerts[i] = v.origVert;
 					render.origNorms[i] = v.origNorm;
-					allVerts.push_back(tnVert(v.pos, v.uv.x, v.uv.y, v.color.xyz()));
+
+					boneVert bvert;
+					bvert.pos = v.pos;
+					bvert.normal = v.color.xyz();
+					bvert.uv = v.uv;
+					bvert.bone = pvertbone[v.origVert] + 0.1f;
+
+					allVerts.push_back(bvert);
 				}
 
-				meshBuffers[b][m][k].verts = new tnVert[totalElements];
+				meshBuffers[b][m][k].flags = texture->flags;
+				meshBuffers[b][m][k].verts = new boneVert[totalElements];
 				meshBuffers[b][m][k].numVerts = totalElements;
-				memcpy(meshBuffers[b][m][k].verts, &allVerts[0], totalElements * sizeof(tnVert));
+				memcpy(meshBuffers[b][m][k].verts, &allVerts[0], totalElements * sizeof(boneVert));
 				meshBuffers[b][m][k].buffer = new VertexBuffer(shaderProgram, NORM_3F | TEX_2F | POS_3F, meshBuffers[b][m][k].verts, meshBuffers[b][m][k].numVerts);
+				meshBuffers[b][m][k].buffer->addAttribute(1, GL_FLOAT, GL_FALSE, "vBone");
+				meshBuffers[b][m][k].buffer->upload();
 
-				meshBytes += totalElements * (sizeof(uint16_t) + sizeof(uint16_t) + sizeof(tnVert));
+				meshBytes += totalElements * (sizeof(uint16_t) + sizeof(uint16_t) + sizeof(boneVert));
 			}
 		}
 	}
@@ -994,13 +1034,13 @@ bool MdlRenderer::loadMeshes() {
 	printf("Total polys: %d, Mesh kb: %d\n", uiDrawnPolys, (int)(meshBytes / 1024.0f));
 }
 
-void MdlRenderer::draw() {
+void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerRight) {
 	if (!valid) {
 		return;
 	}
 
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
 
 	shaderProgram->bind();
 
@@ -1014,7 +1054,7 @@ void MdlRenderer::draw() {
 
 	// ambient lighting
 	uint ambient = glGetUniformLocation(shaderProgram->ID, "ambient");
-	glUniform3f(ambient, 0.2f, 0.2f, 0.2f);
+	glUniform3f(ambient, 0.4f, 0.4f, 0.4f);
 
 	// lighting matrices
 	mat4x4 lightModelMat;
@@ -1039,9 +1079,24 @@ void MdlRenderer::draw() {
 	lights[0][1] = vec3(1, 1, 1); // diffuse color
 	glUniformMatrix3fv(lightsId, 4, false, (float*)lights);
 	
+	// bone transforms
+	uint bonesId = glGetUniformLocation(shaderProgram->ID, "bones");
+	glUniformMatrix4fv(bonesId, header->numbones, false, (float*)m_bonetransform);
+
+	// chrome vars
+	uint additiveEnable = glGetUniformLocation(shaderProgram->ID, "additiveEnable");
+	uint chromeEnable = glGetUniformLocation(shaderProgram->ID, "chromeEnable");
+	uint flatshadeEnable = glGetUniformLocation(shaderProgram->ID, "flatshadeEnable");
+	uint viewerOriginId = glGetUniformLocation(shaderProgram->ID, "viewerOrigin");
+	uint viewerRightId = glGetUniformLocation(shaderProgram->ID, "viewerRight");
+	uint textureST = glGetUniformLocation(shaderProgram->ID, "textureST");
 
 	shaderProgram->pushMatrix(MAT_MODEL);
 	shaderProgram->modelMat->loadIdentity();
+	shaderProgram->modelMat->translate(origin.x, origin.y, origin.z);
+	shaderProgram->modelMat->rotateY(angles.z);
+	shaderProgram->modelMat->rotateZ(angles.x);
+	shaderProgram->modelMat->rotateX(angles.y);
 	shaderProgram->updateMatrixes();
 
 	data.seek(header->bodypartindex);
@@ -1059,8 +1114,41 @@ void MdlRenderer::draw() {
 
 			for (int k = 0; k < mod->nummesh; k++) {
 				meshCount++;
-				meshBuffers[b][i][k].texture->bind();
-				meshBuffers[b][i][k].buffer->draw(GL_TRIANGLES);
+				MdlMeshRender& render = meshBuffers[b][i][k];
+				render.texture->bind();
+
+				if (render.flags & STUDIO_NF_ADDITIVE) {
+					glEnable(GL_BLEND);
+					glUniform1i(additiveEnable, 1);
+				}
+				else {
+					glDisable(GL_BLEND);
+					glUniform1i(additiveEnable, 0);
+				}
+
+				int flatShade = 0;
+				if (render.flags & STUDIO_NF_FULLBRIGHT) {
+					flatShade = 2;
+				} else if (render.flags & STUDIO_NF_FLATSHADE) {
+					flatShade = 1;
+				}
+
+				glUniform1i(flatshadeEnable, flatShade);
+
+				if (render.flags & STUDIO_NF_CHROME) {
+					const float s = 1.0 / (float)render.texture->width;
+					const float t = 1.0 / (float)render.texture->height;
+					
+					glUniform1i(chromeEnable, 1);
+					glUniform3f(viewerOriginId, viewerOrigin.x, viewerOrigin.y, viewerOrigin.z);
+					glUniform3f(viewerRightId, viewerRight.x, viewerRight.y, viewerRight.z);
+					glUniform2f(textureST, s, t);
+				}
+				else {
+					glUniform1i(chromeEnable, 0);
+				}
+
+				render.buffer->draw(GL_TRIANGLES);
 			}
 		}
 	}
