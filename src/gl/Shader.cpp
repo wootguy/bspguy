@@ -14,16 +14,18 @@ Shader::Shader( const char * sourceCode, int shaderType )
 
 	int success;
 	glGetShaderiv(ID, GL_COMPILE_STATUS, &success);
+
+	static char log[512];
+	int len;
+	glGetShaderInfoLog(ID, 512, &len, log);
 	if (success != GL_TRUE)
-	{
-		char* log = new char[512];
-		int len;
-		glGetShaderInfoLog(ID, 512, &len, log);
 		logf("Shader Compilation Failed (type %d)\n", shaderType);
+		
+	if (len > 0) {
+		logf("Shader Compilation output:\n");
 		logf(log);
 		if (len > 512)
 			logf("\nLog too big to fit!");
-		delete[] log;
 	}
 }
 

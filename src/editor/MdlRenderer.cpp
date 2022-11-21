@@ -613,7 +613,7 @@ void MdlRenderer::CalcBonePosition(const int frame, const float s, const mstudio
 	}
 }
 
-void MdlRenderer::CalcRotations(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f)
+void MdlRenderer::CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f, bool isGait)
 {
 	const int frame = (int)f;
 	const float s = (f - frame);
@@ -622,10 +622,26 @@ void MdlRenderer::CalcRotations(vec3* pos, vec4* q, const mstudioseqdesc_t* cons
 	CalcBoneAdj();
 
 	data.seek(header->boneindex);
+	mstudiobone_t* pbones = (mstudiobone_t*)data.get();
 	mstudiobone_t* pbone = (mstudiobone_t*)data.get();
 
+	bool copy_bones = true;
 	for (int i = 0; i < header->numbones; i++, pbone++, panim++)
 	{
+		if (isGait) {			
+			if (!strcmp(pbone->name, "Bip01 Spine")) {
+				// stop copying bones from the lower spine upwards
+				copy_bones = false;
+			}
+			else if (pbone->parent != -1 && !strcmp(pbones[pbone->parent].name, "Bip01 Pelvis")) {
+				// copy bones from the waist down
+				copy_bones = true;
+			}
+
+			if (!copy_bones)
+				continue;
+		}
+
 		CalcBoneQuaternion(frame, s, pbone, panim, q[i]);
 		CalcBonePosition(frame, s, pbone, panim, (float*)&pos[i]);
 	}
@@ -699,7 +715,7 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 		in1[2][2] * in2[2][3] + in1[2][3];
 }
 
-void MdlRenderer::SetUpBones(int sequence, float& frame)
+void MdlRenderer::SetUpBones(int sequence, float& frame, int gaitsequence)
 {
 	static vec3 pos[MAXSTUDIOBONES];
 	static vec4 q[MAXSTUDIOBONES];
@@ -714,16 +730,16 @@ void MdlRenderer::SetUpBones(int sequence, float& frame)
 	data.seek(header->seqindex + sequence *sizeof(mstudioseqdesc_t));
 	mstudioseqdesc_t* pseqdesc = (mstudioseqdesc_t*)data.get();
 
-	const mstudioanim_t* panim = GetAnim(pseqdesc);
+	mstudioanim_t* panim = GetAnim(pseqdesc);
 
 	frame = normalizeRangef(frame, 0, pseqdesc->numframes - 1.0f);
 
-	CalcRotations(pos, q, pseqdesc, panim, frame);
+	CalcBones(pos, q, pseqdesc, panim, frame, false);
 
 	if (pseqdesc->numblends > 1)
 	{
 		panim += header->numbones;
-		CalcRotations(pos2, q2, pseqdesc, panim, frame);
+		CalcBones(pos2, q2, pseqdesc, panim, frame, false);
 		float s = iBlender[0] / 255.0;
 
 		SlerpBones(q, pos, q2, pos2, s);
@@ -731,10 +747,10 @@ void MdlRenderer::SetUpBones(int sequence, float& frame)
 		if (pseqdesc->numblends == 4)
 		{
 			panim += header->numbones;
-			CalcRotations(pos3, q3, pseqdesc, panim, frame);
+			CalcBones(pos3, q3, pseqdesc, panim, frame, false);
 
 			panim += header->numbones;
-			CalcRotations(pos4, q4, pseqdesc, panim, frame);
+			CalcBones(pos4, q4, pseqdesc, panim, frame, false);
 
 			s = iBlender[0] / 255.0;
 			SlerpBones(q3, pos3, q4, pos4, s);
@@ -742,6 +758,22 @@ void MdlRenderer::SetUpBones(int sequence, float& frame)
 			s = iBlender[1] / 255.0;
 			SlerpBones(q, pos, q3, pos3, s);
 		}
+	}
+
+	// calc gait animation
+	if (gaitsequence >= 0 && gaitsequence < header->numseq)
+	{
+		data.seek(header->seqindex + gaitsequence * sizeof(mstudioseqdesc_t));
+		mstudioseqdesc_t* gaitseqdesc = (mstudioseqdesc_t*)data.get();
+
+		data.seek(header->boneindex);
+		mstudiobone_t* pbones = (mstudiobone_t*)data.get();
+
+		// scale gait frame to equal same amount of progress in body sequence
+		float gaitframe = (frame / (float)pseqdesc->numframes) * (float)(gaitseqdesc->numframes - 1);
+
+		mstudioanim_t* gaitanim = GetAnim(gaitseqdesc);
+		CalcBones(pos, q, gaitseqdesc, gaitanim, gaitframe, true);
 	}
 
 	data.seek(header->boneindex);
@@ -1091,6 +1123,9 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 	uint viewerRightId = glGetUniformLocation(shaderProgram->ID, "viewerRight");
 	uint textureST = glGetUniformLocation(shaderProgram->ID, "textureST");
 
+	glUniform3f(viewerOriginId, viewerOrigin.x, viewerOrigin.y, viewerOrigin.z);
+	glUniform3f(viewerRightId, viewerRight.x, viewerRight.y, viewerRight.z);
+
 	shaderProgram->pushMatrix(MAT_MODEL);
 	shaderProgram->modelMat->loadIdentity();
 	shaderProgram->modelMat->translate(origin.x, origin.y, origin.z);
@@ -1140,8 +1175,6 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 					const float t = 1.0 / (float)render.texture->height;
 					
 					glUniform1i(chromeEnable, 1);
-					glUniform3f(viewerOriginId, viewerOrigin.x, viewerOrigin.y, viewerOrigin.z);
-					glUniform3f(viewerRightId, viewerRight.x, viewerRight.y, viewerRight.z);
 					glUniform2f(textureST, s, t);
 				}
 				else {

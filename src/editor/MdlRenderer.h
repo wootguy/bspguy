@@ -53,7 +53,7 @@ public:
 	bool hasExternalSequences();
 	bool isEmpty();
 
-	void SetUpBones(int sequence, float& frame);
+	void SetUpBones(int sequence, float& frame, int gaitsequence = -1);
 	void transformVerts();
 
 private:
@@ -68,7 +68,7 @@ private:
 
 	// Solokiller's model viewer functions
 	mstudioanim_t* GetAnim(mstudioseqdesc_t* pseqdesc);
-	void CalcRotations(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f);
+	void CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f, bool isGait);
 	void CalcBoneQuaternion(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, vec4& q);
 	void CalcBonePosition(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, float* pos);
 	void CalcBoneAdj();
