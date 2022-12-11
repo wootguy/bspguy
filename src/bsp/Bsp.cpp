@@ -1224,14 +1224,14 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 	int oldWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // TODO: allow deleting world leaves
 	int newWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
 
-	uint oldVisRowSize = ((oldVisLeafCount + 63) & ~63) >> 3;
-	uint newVisRowSize = ((newVisLeafCount + 63) & ~63) >> 3;
+	uint oldVisRowSize = ((oldVisLeafCount + 63 + 1) & ~63) >> 3;
+	uint newVisRowSize = ((newVisLeafCount + 63 + 1) & ~63) >> 3;
 
 	int decompressedVisSize = oldLeafCount * oldVisRowSize;
 	byte* decompressedVis = new byte[decompressedVisSize];
 	memset(decompressedVis, 0, decompressedVisSize);
 	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, 
-		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
+		oldWorldLeaves, oldVisLeafCount + 1, newWorldLeaves + 1);
 
 	if (oldVisRowSize != newVisRowSize) {
 		int newDecompressedVisSize = oldLeafCount * newVisRowSize;
