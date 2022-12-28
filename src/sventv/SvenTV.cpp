@@ -1,6 +1,7 @@
 #include "SvenTV.h"
 #include "util.h"
 #include "mstream.h"
+#include <GLFW/glfw3.h>
 
 using namespace std;
 
@@ -8,8 +9,12 @@ SvenTV::SvenTV(IPV4 serverAddr) {
 	this->serverAddr = serverAddr;
 	baselines = new netedict[MAX_EDICTS];
 	edicts = new netedict[MAX_EDICTS];
+	lastedicts = new netedict[MAX_EDICTS];
+	interpedicts = new netedict[MAX_EDICTS];
 	memset(baselines, 0, MAX_EDICTS*sizeof(netedict));
 	memset(edicts, 0, MAX_EDICTS*sizeof(netedict));
+	memset(lastedicts, 0, MAX_EDICTS*sizeof(netedict));
+	memset(interpedicts, 0, MAX_EDICTS*sizeof(netedict));
 	netThread = new thread(&SvenTV::think, this);
 }
 
@@ -20,6 +25,12 @@ SvenTV::~SvenTV() {
 		netThread->join();
 		delete netThread;
 	}
+
+	delete[] baselines;
+	delete[] lastedicts;
+	delete[] interpedicts;
+	delete[] edicts;	
+	
 }
 
 void SvenTV::connect() {
@@ -63,6 +74,74 @@ bool compareByFragmentId(const DeltaPacket& a, const DeltaPacket& b)
 	return a.fragmentId < b.fragmentId;
 }
 
+inline float lerp(float start, float end, float t) {
+	return start + (end - start) * t;
+}
+
+inline int anglelerp16(int start, int end, float t) {
+	// 65536 = 360 deg
+	int shortest_angle = ((((end - start) % 65536) + 98304) % 65536) - 32768;
+
+	return start + shortest_angle * t;
+}
+
+inline int anglelerp8(int start, int end, float t) {
+	// 65536 = 360 deg
+	int shortest_angle = ((((end - start) % 256) + 384) % 256) - 128;
+
+	return start + shortest_angle * t;
+}
+
+
+void SvenTV::interpolateEdicts() {
+	double delay = 1.0f / updateRate; // delay in seconds between packets
+	float t = (glfwGetTime() - lastDeltaTime) / delay;
+
+	if (t >= 1.0f) {
+		for (int i = 0; i < MAX_EDICTS; i++) {
+			if (!edicts[i].isValid) {
+				interpedicts[i].isValid = false;
+				continue;
+			}
+			interpedicts[i] = edicts[i];
+		}
+
+		return;
+	}
+
+	for (int i = 0; i < MAX_EDICTS; i++) {
+		if (!edicts[i].isValid || !lastedicts[i].isValid) {
+			interpedicts[i].isValid = false;
+			continue;
+		}
+
+		netedict& out = interpedicts[i];
+		netedict& start = lastedicts[i];
+		netedict& end = edicts[i];
+
+		out = start;
+
+		out.origin[0] = lerp(start.origin[0], end.origin[0], t);
+		out.origin[1] = lerp(start.origin[1], end.origin[1], t);
+		out.origin[2] = lerp(start.origin[2], end.origin[2], t);
+
+		out.velocity[0] = lerp(start.velocity[0], end.velocity[0], t);
+		out.velocity[1] = lerp(start.velocity[1], end.velocity[1], t);
+		out.velocity[2] = lerp(start.velocity[2], end.velocity[2], t);
+
+		out.angles[0] = anglelerp16(start.angles[0], end.angles[0], t);
+		out.angles[1] = anglelerp16(start.angles[1], end.angles[1], t);
+		out.angles[2] = anglelerp16(start.angles[2], end.angles[2], t);
+
+		if (start.sequence == end.sequence)
+			out.frame = anglelerp8(start.frame, end.frame, t);
+		else {
+			out.frame = anglelerp8(0, end.frame, t);
+			out.sequence = end.sequence;
+		}
+	}
+}
+
 bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 	mstream reader(packet.data, packet.sz);
 
@@ -81,7 +160,13 @@ bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 
 	//println("Apply delta %d frag %d", updateId, fragmentId);
 
-	edicts_mutex.lock();
+	// swap edict lists
+	if (!isBaseline) {
+		netedict* temp = lastedicts;
+		lastedicts = edicts;
+		edicts = temp;
+	}
+
 	int loop = -1;
 	while (1) {
 		loop++;
@@ -100,8 +185,7 @@ bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 
 		if (fullIndex >= MAX_EDICTS) {
 			logf("ERROR: Invalid delta packet wants to update edict %d at %d\n", (int)fullIndex, loop);
-			logf("TODO: rollback changes made so far, because now client and server are desynced\n");
-			edicts_mutex.unlock();
+			memcpy(edicts, lastedicts, MAX_EDICTS*sizeof(netedict)); // rollback changes
 			return false;
 		}
 
@@ -212,16 +296,21 @@ bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 			reader.read((void*)&ed->aiment, 1);
 		}
 
+		// calculate instantaneous velocity. Will later be used to interpolate between previous/current states.
+		netedict* lasted = &lastedicts[fullIndex];
+		ed->velocity[0] = ed->origin[0] - lasted->origin[0];
+		ed->velocity[1] = ed->origin[1] - lasted->origin[1];
+		ed->velocity[2] = ed->origin[2] - lasted->origin[2];
+
 		//println("Read index %d (%d bytes)", (int)fullIndex, (int)(reader.tell() - startPos));
 
 		if (reader.eom()) {
 			logf("ERROR: Invalid delta hit unexpected eom at %d\n", loop);
-			logf("TODO: rollback changes made so far, because now client and server are desynced\n");
+			memcpy(edicts, lastedicts, MAX_EDICTS * sizeof(netedict)); // rollback changes
 			edicts_mutex.unlock();
 			return false;
 		}
 	}
-	edicts_mutex.unlock();
 
 	return true;
 }
@@ -237,9 +326,11 @@ void SvenTV::handleDeltaPacket(mstream& reader, const Packet& packet) {
 	reader.read(&updateId, 2);
 	reader.read(&baselineId, 2);
 	reader.read(&fragmentId, 2);
-
 	
-	if (baselineId != lastBaselineId) {
+	// TODO: check frame time, not baseline id, because this breaks on integer overflow
+	if (baselineId > lastBaselineId) {
+		bool isOldBaseline = baselineId < lastBaselineId;
+
 		if (baselineId == 0) {
 			logf("Set baseline to null state\n");
 			memset(baselines, 0, MAX_EDICTS * sizeof(netedict)); // reset to null state
@@ -282,9 +373,22 @@ void SvenTV::handleDeltaPacket(mstream& reader, const Packet& packet) {
 				socket->send(Packet(&data, 1));
 			}
 		}
+	} else if (baselineId < lastBaselineId) {
+		// does the server not know we acked that baseline already?
+		logf("Ignoring delta %d for old baseline %d and resending ack.\n", updateId, baselineId);
+		socket->send(lastAck);
 	}
 
-	applyDelta(packet, false);
+	edicts_mutex.lock();
+	bool applied = applyDelta(packet, false);
+	edicts_mutex.unlock();
+
+	if (!applied) {
+		// Something went wrong. Don't let the server know we got this packet
+		return;
+	}
+
+	lastDeltaTime = glfwGetTime();
 	
 	DeltaPacket deltaPacket;
 	deltaPacket.fragmentId = fragmentId;
@@ -360,7 +464,8 @@ void SvenTV::handleDeltaPacket(mstream& reader, const Packet& packet) {
 			//logf("Ack %d packets from update %d\n", bestUpdate->packets.size(), bestUpdate->updateId);
 			bestUpdate->acked = true;
 			lastAckId = bestUpdate->updateId;
-			socket->send(Packet(ackData, ackSize));
+			lastAck = Packet(ackData, ackSize);
+			socket->send(lastAck);
 		}
 
 		//logf("Started Delta %d on baseline %d\n", updateId, baselineId);
@@ -376,8 +481,8 @@ void SvenTV::handleDeltaPacket(mstream& reader, const Packet& packet) {
 		}
 	}
 
-	logf("Delta %5d -> %5d (%d packets), Acked %5d, History %d\n",
-		(int)baselineId, (int)updateId, totalPackets, (int)lastAckId, (int)receivedDeltas.size());
+	//logf("Delta %5d -> %5d (%d packets), Acked %5d, History %d\n",
+	//	(int)baselineId, (int)updateId, totalPackets, (int)lastAckId, (int)receivedDeltas.size());
 }
 
 void SvenTV::think() {

@@ -4,7 +4,6 @@
 #include "VertexBuffer.h"
 #include "primitives.h"
 
-#define	Q_PI	3.14159265358979323846
 #define	EQUAL_EPSILON	0.001f
 
 struct MdlVert {
@@ -35,7 +34,7 @@ struct MdlMeshRender {
 class MdlRenderer {
 public:
 	studiohdr_t* header = NULL;
-	mstream data;
+	mstream data; // TODO: parse structures into class members instead of seeking through the original data
 	bool valid;
 	string fpath;
 
@@ -53,8 +52,10 @@ public:
 	bool hasExternalSequences();
 	bool isEmpty();
 
-	void SetUpBones(int sequence, float& frame, int gaitsequence = -1);
+	// frame values = 0 - 1.0 (0-100%)
+	void SetUpBones(int sequence, float frame, int gaitsequence = -1, float gaitframe=0);
 	void transformVerts();
+	mstudioseqdesc_t* getSequence(int seq);
 
 private:
 	ShaderProgram* shaderProgram;

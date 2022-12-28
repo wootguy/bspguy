@@ -16,13 +16,11 @@
 #define PRINT_RED		4
 #define PRINT_BRIGHT	8
 
-#define PI 3.141592f
+#define	PI 3.14159265358979323846f
 
 #define EPSILON	(0.03125f) // 1/32 (to keep floating point happy -Carmack)
 
 #define __WINDOWS__
-
-
 
 extern bool g_verbose;
 extern ProgressMeter g_progress;
@@ -126,3 +124,5 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLAS
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
 float normalizeRangef(const float value, const float start, const float end);
+
+void AngleVectors(const vec3& angles, vec3* forward, vec3* right, vec3* up);

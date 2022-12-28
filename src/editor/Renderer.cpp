@@ -341,6 +341,7 @@ Renderer::Renderer() {
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/vtuber_kizuna_ld_v3/vtuber_kizuna_ld_v3.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
 	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/helmet/helmet.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/arknights_lappland/arknights_lappland.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/counterx2/counterx2.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/holo_korone_lowpoly/holo_korone_lowpoly.mdl");
@@ -420,6 +421,9 @@ void Renderer::renderLoop() {
 	while (!glfwWindowShouldClose(window))
 	{
 		handleSvenTvCommands();
+		sventv->edicts_mutex.lock();
+		sventv->interpolateEdicts();
+		sventv->edicts_mutex.unlock();
 
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
@@ -449,11 +453,16 @@ void Renderer::renderLoop() {
 		model.rotateX(spin);
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		if (g_app->hideGui) {
+			observerSvenTvEdict(1);
+		}
 
 		setupView();
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
+		renderSvenTvEdicts();
 		drawEntConnections();
 
 		int oldRenderFlags = g_render_flags;
@@ -542,42 +551,6 @@ void Renderer::renderLoop() {
 			}
 			if (transformTarget == TRANSFORM_ORIGIN) {
 				drawModelOrigin();
-			}
-		}
-
-		sventv->edicts_mutex.lock();
-		if (g_app->hideGui) {
-			observerSvenTvEdict(1);
-		}
-		renderSvenTvEdicts();
-		sventv->edicts_mutex.unlock();
-
-		{
-			static float lastMoveTime = glfwGetTime();
-			static int seq = 10;
-			static int gaitseq = 3; // 6 = crawl, 2 = run
-			static float frame = 0;
-			bool shouldAnimate = glfwGetTime() - lastMoveTime > 0.01f;
-			if (shouldAnimate) {
-				lastMoveTime = glfwGetTime();
-			}
-			frame += frameTimeScale * 0.2f;
-
-			static vec3 angles;
-			static vec3 origin;
-
-			//angles.z += frameTimeScale * 0.01f;
-			//angles.x += frameTimeScale * 0.01f;
-
-			for (int i = 0; i < mdlRenderers.size(); i++) {
-				if (shouldAnimate) {
-					//mdlRenderers[i]->iController[0] += 1;
-					//mdlRenderers[i]->iController[1] += 1;
-				}
-
-				mdlRenderers[i]->SetUpBones(seq, frame, gaitseq);
-				//mdlRenderers[i]->transformVerts();
-				mdlRenderers[i]->draw(origin, angles, cameraOrigin, cameraRight);
 			}
 		}
 
@@ -3089,13 +3062,18 @@ void Renderer::renderSvenTvEdicts() {
 
 	int cubeIdx = 0;
 	const int vertsPerCube = 6 * 6;
+	int playerIdx = 1;
 
 	for (int i = 0; i < MAX_EDICTS; i++) {
-		netedict& ed = sventv->edicts[i];
+		netedict& ed = sventv->interpedicts[i];
 		vec3 origin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
 		const vec3 sz = vec3(16, 16, 16);
 
 		if (!ed.isValid) {
+			continue;
+		}
+
+		if (i == playerIdx) {
 			continue;
 		}
 
@@ -3107,6 +3085,134 @@ void Renderer::renderSvenTvEdicts() {
 		}
 		cubeIdx++;
 	}
+
+	netedict& ed = sventv->interpedicts[playerIdx];
+
+	if (ed.isValid) {
+		static double lastTime = glfwGetTime();
+		static vec3 lastPos;
+
+		const float angleConvert = (360.0f / 65535.0f);
+		vec3 origin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
+		vec3 lastOrigin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
+		vec3 angles = vec3((float)ed.angles[0] * -angleConvert, (float)ed.angles[2] * -angleConvert, (float)ed.angles[1] * angleConvert);
+
+		float frame;
+		static float gaitframe = 0;
+		static float gaityaw = 0;
+		int seq = ed.sequence;
+		int gaitseq = -1; // 6 = crawl, 3 = run, 4 = walk
+		int mdlIdx = 0;
+
+		double now = glfwGetTime();
+
+		mstudioseqdesc_t* seqdesc = mdlRenderers[mdlIdx]->getSequence(seq);
+
+		frame = ed.frame / 255.0f;		
+
+		float pitch = normalizeRangef(angles.x, -180.0f, 180.0f);
+		int8_t b = 127 + pitch;
+
+		// TODO: need to rotate entire model a bit after a certain point
+		mdlRenderers[mdlIdx]->iBlender[0] = b;
+		angles.x = 0;
+
+		float dt = (now - lastTime);
+		float dtScale = 1.0f / dt;
+		vec3 gaitspeed = vec3(ed.velocity[0], 0, -ed.velocity[1]) * sventv->updateRate;
+		bool reverseGait = false;
+
+		// gait calcuations from hlsdk
+		{
+			if (gaitspeed.length() < 5)
+			{
+				// standing still. Rotate legs back to forward position
+				float flYawDiff = angles.z - gaityaw;
+				flYawDiff = flYawDiff - (int)(flYawDiff / 360) * 360;
+				if (flYawDiff > 180)
+					flYawDiff -= 360;
+				if (flYawDiff < -180)
+					flYawDiff += 360;
+
+				if (dt < 0.25)
+					flYawDiff *= dt * 4;
+				else
+					flYawDiff *= dt;
+
+				gaityaw += flYawDiff;
+				gaityaw -= (int)(gaityaw / 360) * 360;
+			}
+			else
+			{
+				// moving. rotate legs towards movement direction
+				vec3 doot = gaitspeed.normalize();
+				gaityaw = (atan2(-gaitspeed.z, gaitspeed.x) * 180 / PI);
+				if (gaityaw > 180)
+					gaityaw = 180;
+				if (gaityaw < -180)
+					gaityaw = -180;
+			}
+
+			float flYaw = angles.z - gaityaw;
+			flYaw = flYaw - (int)(flYaw / 360) * 360;
+			if (flYaw < -180)
+				flYaw = flYaw + 360;
+			if (flYaw > 180)
+				flYaw = flYaw - 360;
+
+			if (flYaw > 120)
+			{
+				gaityaw = gaityaw - 180;
+				flYaw = flYaw - 180;
+				reverseGait = true;
+			}
+			else if (flYaw < -120)
+			{
+				gaityaw = gaityaw + 180;
+				flYaw = flYaw + 180;
+				reverseGait = true;
+			}
+
+			// adjust torso
+			uint8_t torso = ((flYaw / 4.0) + 30) / (60.0 / 255.0);
+			memset(mdlRenderers[mdlIdx]->iController, torso, 4);
+			angles.z = gaityaw;
+		}
+
+		gaitseq = ed.gaitsequence;
+		
+		float movespeed = gaitspeed.length() * (reverseGait ? -1.0f : 1.0f);
+		logf("GAITSPEED %f %d\n", movespeed, gaitseq);
+
+		// TODO: maybe transfer velocity over network becuase it can be very wrong
+		// i think it was off by 50% at 1000 speed with 100 updateRate
+		if (gaitseq == 6) { // crawling
+			gaitframe += movespeed * 0.0001f * 0.80f;
+		}
+		else if (gaitseq == 3) { // running
+			gaitframe += movespeed * 0.0001f * 0.5f;
+		}
+		else if (gaitseq == 4) { // walking
+			gaitframe += movespeed * 0.0001f;
+		}
+		else {
+			if (gaitseq == 0) {
+				gaitseq = seq;
+			}
+			gaitframe = frame;
+		}
+		//gaitframe += frameTimeScale*0.01f;
+		
+		gaitframe = normalizeRangef(gaitframe, 0, 1.0f);
+
+		mdlRenderers[mdlIdx]->SetUpBones(seq, frame, gaitseq, gaitframe);
+		mdlRenderers[mdlIdx]->draw(origin, angles, cameraOrigin, cameraRight);
+
+		lastPos = origin;
+		lastTime = now;
+	}
+
+	//sventv->edicts_mutex.unlock();
 
 	if (cubeIdx == 0) {
 		return;
@@ -3127,7 +3233,7 @@ void Renderer::observerSvenTvEdict(int idx) {
 		return;
 	}
 	
-	netedict& ed = sventv->edicts[idx];
+	netedict& ed = sventv->interpedicts[idx];
 
 	if (!ed.isValid) {
 		return;
@@ -3135,11 +3241,22 @@ void Renderer::observerSvenTvEdict(int idx) {
 
 	const float angleConvert = (360.0f / 65535.0f);
 	vec3 viewOfs = vec3(0, 0, 28);
-	vec3 origin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]) + viewOfs;
-	vec3 angles = vec3((float)ed.angles[0]*angleConvert, (float)ed.angles[2] * -angleConvert, (float)ed.angles[1] * -angleConvert + 90);
 
-	cameraOrigin = origin;
+	vec3 origin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]) + viewOfs;
+	vec3 rawAngles = vec3((float)ed.angles[0] * angleConvert, (float)ed.angles[1] * angleConvert, (float)ed.angles[2] * angleConvert);
+	vec3 angles = vec3(rawAngles.x, -rawAngles.z, -rawAngles.y + 90);
+
+	vec3 forward;
+	AngleVectors(rawAngles, &forward, NULL, NULL);
+	forward.z = 0;
+	forward = forward.normalize();
+	angles.x = 0;
+
+	cameraOrigin = origin + forward*-128;
 	cameraAngles = angles;
+
+	// DEBUG
+	//g_app->hideGui = false;
 }
 
 Bsp* Renderer::findMap(string mapname) {

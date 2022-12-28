@@ -323,6 +323,15 @@ mstudioanim_t* MdlRenderer::GetAnim(mstudioseqdesc_t* pseqdesc) {
 	return (mstudioanim_t*)data.get();
 }
 
+mstudioseqdesc_t* MdlRenderer::getSequence(int seq) {
+	if (seq < 0 || seq > header->numseq) {
+		return NULL;
+	}
+
+	data.seek(header->seqindex + seq * sizeof(mstudioseqdesc_t));
+	return (mstudioseqdesc_t*)data.get();
+}
+
 void MdlRenderer::CalcBoneAdj()
 {
 	data.seek(header->bonecontrollerindex);
@@ -362,7 +371,7 @@ void MdlRenderer::CalcBoneAdj()
 		case STUDIO_XR:
 		case STUDIO_YR:
 		case STUDIO_ZR:
-			m_Adj[j] = value * (Q_PI / 180.0);
+			m_Adj[j] = value * (PI / 180.0);
 			break;
 		case STUDIO_X:
 		case STUDIO_Y:
@@ -438,8 +447,8 @@ void QuaternionSlerp(const vec4& pVec, vec4& qVec, float t, vec4& qtVec)
 		qt[1] = p[0];
 		qt[2] = -p[3];
 		qt[3] = p[2];
-		sclp = sin((1.0 - t) * 0.5 * Q_PI);
-		sclq = sin(t * 0.5 * Q_PI);
+		sclp = sin((1.0 - t) * 0.5 * PI);
+		sclq = sin(t * 0.5 * PI);
 		for (i = 0; i < 3; i++) {
 			qt[i] = sclp * p[i] + sclq * qt[i];
 		}
@@ -715,7 +724,7 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 		in1[2][2] * in2[2][3] + in1[2][3];
 }
 
-void MdlRenderer::SetUpBones(int sequence, float& frame, int gaitsequence)
+void MdlRenderer::SetUpBones(int sequence, float frame, int gaitsequence, float gaitframe)
 {
 	static vec3 pos[MAXSTUDIOBONES];
 	static vec4 q[MAXSTUDIOBONES];
@@ -727,12 +736,12 @@ void MdlRenderer::SetUpBones(int sequence, float& frame, int gaitsequence)
 	static vec3 pos4[MAXSTUDIOBONES];
 	static vec4 q4[MAXSTUDIOBONES];
 
-	data.seek(header->seqindex + sequence *sizeof(mstudioseqdesc_t));
+	data.seek(header->seqindex + sequence * sizeof(mstudioseqdesc_t));
 	mstudioseqdesc_t* pseqdesc = (mstudioseqdesc_t*)data.get();
 
 	mstudioanim_t* panim = GetAnim(pseqdesc);
 
-	frame = normalizeRangef(frame, 0, pseqdesc->numframes - 1.0f);
+	frame = clamp(frame, 0.0f, 1.0f) * (pseqdesc->numframes - 1.0f);
 
 	CalcBones(pos, q, pseqdesc, panim, frame, false);
 
@@ -766,11 +775,10 @@ void MdlRenderer::SetUpBones(int sequence, float& frame, int gaitsequence)
 		data.seek(header->seqindex + gaitsequence * sizeof(mstudioseqdesc_t));
 		mstudioseqdesc_t* gaitseqdesc = (mstudioseqdesc_t*)data.get();
 
+		gaitframe = clamp(gaitframe, 0.0f, 1.0f) * (gaitseqdesc->numframes - 1.0f);
+
 		data.seek(header->boneindex);
 		mstudiobone_t* pbones = (mstudiobone_t*)data.get();
-
-		// scale gait frame to equal same amount of progress in body sequence
-		float gaitframe = (frame / (float)pseqdesc->numframes) * (float)(gaitseqdesc->numframes - 1);
 
 		mstudioanim_t* gaitanim = GetAnim(gaitseqdesc);
 		CalcBones(pos, q, gaitseqdesc, gaitanim, gaitframe, true);
@@ -1129,9 +1137,9 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 	shaderProgram->pushMatrix(MAT_MODEL);
 	shaderProgram->modelMat->loadIdentity();
 	shaderProgram->modelMat->translate(origin.x, origin.y, origin.z);
-	shaderProgram->modelMat->rotateY(angles.z);
-	shaderProgram->modelMat->rotateZ(angles.x);
-	shaderProgram->modelMat->rotateX(angles.y);
+	shaderProgram->modelMat->rotateY(angles.z * (PI / 180.0f));
+	shaderProgram->modelMat->rotateZ(angles.x * (PI / 180.0f));
+	shaderProgram->modelMat->rotateX(angles.y * (PI / 180.0f));
 	shaderProgram->updateMatrixes();
 
 	data.seek(header->bodypartindex);

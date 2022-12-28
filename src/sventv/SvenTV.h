@@ -47,6 +47,10 @@
 #define FL_DELTA_RENDERFX		(1 << 27)
 #define FL_DELTA_AIMENT			(1 << 28)
 
+#define FLOAT_TO_FIXED(v, fractional_bits) (v * (1 << fractional_bits) + 0.5f)
+#define FIXED_TO_FLOAT(v, fractional_bits) ((float)v / (float)(1 << fractional_bits))
+
+// TODO: player doesn't need: animtime, controller, blending, gaitsequence, aiment
 struct netedict {
 	bool		isValid;		// true if edict is rendered and sent to clients
 	float		origin[3];
@@ -73,6 +77,8 @@ struct netedict {
 	uint8_t		renderfx;
 
 	int16_t		aiment;		// entity pointer when MOVETYPE_FOLLOW, 0 if movetype is not MOVETYPE_FOLLOW
+
+	float		velocity[3];	// calculated locally
 };
 
 struct DeltaPacket {
@@ -92,28 +98,36 @@ struct DeltaUpdate {
 class SvenTV {
 public:
 	netedict* baselines = NULL; // "edicts" states are computed from this + the latest delta packet
-	netedict* edicts = NULL;
-	uint16_t lastBaselineId = 0;
-	uint16_t lastAckId = 0;
+	netedict* lastedicts = NULL; // edicts from the previous delta update
+	netedict* interpedicts = NULL; // edicts interpolated between the previous and current states
+	netedict* edicts = NULL; // edicts in the latest delta update packet
+	float updateRate = 10;
 
 	std::mutex edicts_mutex; // lock before reading/writing edicts
-
 	std::mutex command_mutex; // lock before using commands
 	std::queue<std::string> commands; // thread-safe commands from sventv to the renderer
-
-	std::vector<DeltaUpdate> receivedDeltas;
 
 	SvenTV(IPV4 serverAddr);
 	~SvenTV();
 
+	// call each time a frame is rendered
+	void interpolateEdicts();
+
 private:
 	IPV4 serverAddr;
 	volatile bool shouldKillThread = false;
+	uint16_t lastBaselineId = 0;
+	uint16_t lastAckId = 0;
+	Packet lastAck;
+	double lastDeltaTime = 0; // time the last delta packet was received (for interpolation)
+
+	std::vector<DeltaUpdate> receivedDeltas;
 
 	void think();
 	void connect();
 	void handleDeltaPacket(mstream& reader, const Packet& packet);
 
+	// applies all deltas from the packet to the baseline edicts to create the latest set of edicts
 	bool applyDelta(const Packet& packet, bool isBaseline);
 
 	Socket* socket = NULL;
