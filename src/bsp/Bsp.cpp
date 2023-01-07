@@ -2902,7 +2902,7 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		return 0;
 	}
 	
-	texDataSize += texDataSize % 4;// 4 = padding
+	texDataSize = (texDataSize + 3) & ~3;// 4 = padding
 
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
 	byte* newTexData = new byte[newTexLumpSize];
