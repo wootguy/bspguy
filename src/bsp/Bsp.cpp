@@ -2861,14 +2861,14 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		}
 	}
 	
-	int texDataSize = width * height + sizeof(COLOR3) * 256 + 4; // 4 = padding
+	int texDataSize = width * height + sizeof(short) /*pal count*/ + sizeof(COLOR3) * 256; 
 
 	// generate mipmaps
 	for (int i = 1; i < MIPLEVELS; i++) {
 		int div = 1 << i;
 		int mipWidth = width / div;
 		int mipHeight = height / div;
-		texDataSize += mipWidth * height;
+		texDataSize += mipWidth * mipHeight;
 		mip[i] = new byte[mipWidth * mipHeight];
 
 		src = (COLOR3*)data;
@@ -2901,6 +2901,8 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 		}
 		return 0;
 	}
+	
+	texDataSize += texDataSize % 4;// 4 = padding
 
 	int newTexLumpSize = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t) + sizeof(BSPMIPTEX) + texDataSize;
 	byte* newTexData = new byte[newTexLumpSize];
