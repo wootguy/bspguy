@@ -46,14 +46,15 @@ public:
 	MdlRenderer(ShaderProgram* shaderProgram, string modelPath);
 	~MdlRenderer();
 
-	void draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerRight);
+	void draw(vec3 origin, vec3 viewerOrigin, vec3 viewerRight);
 	bool validate();
 	bool hasExternalTextures();
 	bool hasExternalSequences();
 	bool isEmpty();
 
 	// frame values = 0 - 1.0 (0-100%)
-	void SetUpBones(int sequence, float frame, int gaitsequence = -1, float gaitframe=0);
+	// angles = rotation for the entire model (y = pitch, z = yaw)
+	void SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence = -1, float gaitframe=0);
 	void transformVerts();
 	mstudioseqdesc_t* getSequence(int seq);
 

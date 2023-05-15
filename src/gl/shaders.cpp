@@ -256,17 +256,12 @@ const char* g_shader_mdl_vertex =
 
 "vec2 chrome(inout vec3 tNormal, inout mat4 bone)\n"
 "{\n"
-	"vec3 tmp = viewerOrigin * -1.0; \n"
+	"vec3 dir = normalize(viewerOrigin + vec3(bone[0][3], bone[2][3], -bone[1][3])); \n"
 
-	"tmp.x += bone[0][3]; \n"
-	"tmp.y += bone[1][3]; \n"
-	"tmp.z += bone[2][3]; \n"
+	"vec3 chromeupvec = normalize(cross(dir, viewerRight)); \n"
+	"vec3 chromerightvec = normalize(cross(dir, chromeupvec)); \n"
 
-	"tmp = normalize(tmp); \n"
-	"vec3 chromeupvec = normalize(cross(tmp, -viewerRight)); \n"
-	"vec3 chromerightvec = normalize(cross(tmp, chromeupvec)); \n"
-
-	"vec3 chromeup = irotateVector(-chromeupvec, bone); \n"
+	"vec3 chromeup = irotateVector(chromeupvec, bone); \n"
 	"vec3 chromeright = irotateVector(chromerightvec, bone); \n"
 
 	"vec2 chrome;\n"

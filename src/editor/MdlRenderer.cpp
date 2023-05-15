@@ -32,7 +32,7 @@ MdlRenderer::MdlRenderer(ShaderProgram* shaderProgram, string modelPath) {
 	float frame = 0;
 
 	loadTextureData();
-	SetUpBones(0, frame);
+	SetUpBones(vec3(), 0, frame);
 	loadMeshes();
 	//transformVerts();
 	
@@ -698,33 +698,21 @@ void MdlRenderer::QuaternionMatrix(float* quaternion, float matrix[3][4])
 
 void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 {
-	out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] +
-		in1[0][2] * in2[2][0];
-	out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] +
-		in1[0][2] * in2[2][1];
-	out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] +
-		in1[0][2] * in2[2][2];
-	out[0][3] = in1[0][0] * in2[0][3] + in1[0][1] * in2[1][3] +
-		in1[0][2] * in2[2][3] + in1[0][3];
-	out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] +
-		in1[1][2] * in2[2][0];
-	out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] +
-		in1[1][2] * in2[2][1];
-	out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] +
-		in1[1][2] * in2[2][2];
-	out[1][3] = in1[1][0] * in2[0][3] + in1[1][1] * in2[1][3] +
-		in1[1][2] * in2[2][3] + in1[1][3];
-	out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] +
-		in1[2][2] * in2[2][0];
-	out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] +
-		in1[2][2] * in2[2][1];
-	out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] +
-		in1[2][2] * in2[2][2];
-	out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] +
-		in1[2][2] * in2[2][3] + in1[2][3];
+	out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
+	out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
+	out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
+	out[0][3] = in1[0][0] * in2[0][3] + in1[0][1] * in2[1][3] + in1[0][2] * in2[2][3] + in1[0][3];
+	out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0];
+	out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1];
+	out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2];
+	out[1][3] = in1[1][0] * in2[0][3] + in1[1][1] * in2[1][3] + in1[1][2] * in2[2][3] + in1[1][3];
+	out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0];
+	out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1];
+	out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
+	out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] + in1[2][2] * in2[2][3] + in1[2][3];
 }
 
-void MdlRenderer::SetUpBones(int sequence, float frame, int gaitsequence, float gaitframe)
+void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence, float gaitframe)
 {
 	static vec3 pos[MAXSTUDIOBONES];
 	static vec4 q[MAXSTUDIOBONES];
@@ -789,6 +777,10 @@ void MdlRenderer::SetUpBones(int sequence, float frame, int gaitsequence, float 
 
 	float bonematrix[3][4];
 
+	float modelAngleMatrix[3][4];
+	vec4 angleQuat;
+	AngleQuaternion(angles * (PI / 180.0f), angleQuat);
+
 	for (int i = 0; i < header->numbones; i++)
 	{
 		QuaternionMatrix((float*)&q[i], bonematrix);
@@ -799,9 +791,13 @@ void MdlRenderer::SetUpBones(int sequence, float frame, int gaitsequence, float 
 
 		if (pbones[i].parent == -1)
 		{
-			for (int x = 0; x < 3; x++)
-				for (int y = 0; y < 4; y++)
-					m_bonetransform[i][x][y] = bonematrix[x][y];
+			QuaternionMatrix((float*)&angleQuat, modelAngleMatrix);
+
+			modelAngleMatrix[0][3] = 0;
+			modelAngleMatrix[1][3] = 0;
+			modelAngleMatrix[2][3] = 0;
+
+			R_ConcatTransforms(modelAngleMatrix, bonematrix, m_bonetransform[i]);
 		}
 		else
 		{
@@ -1074,7 +1070,7 @@ bool MdlRenderer::loadMeshes() {
 	printf("Total polys: %d, Mesh kb: %d\n", uiDrawnPolys, (int)(meshBytes / 1024.0f));
 }
 
-void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerRight) {
+void MdlRenderer::draw(vec3 origin, vec3 viewerOrigin, vec3 viewerRight) {
 	if (!valid) {
 		return;
 	}
@@ -1096,6 +1092,7 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 	uint ambient = glGetUniformLocation(shaderProgram->ID, "ambient");
 	glUniform3f(ambient, 0.4f, 0.4f, 0.4f);
 
+	/*
 	// lighting matrices
 	mat4x4 lightModelMat;
 	mat4x4 lightNormalMat;
@@ -1107,6 +1104,7 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 	uint normalMat = glGetUniformLocation(shaderProgram->ID, "normalMat");
 	glUniformMatrix4fv(modelView, 1, false, (float*)&lightModelMat);
 	glUniformMatrix4fv(normalMat, 1, false, (float*)&lightNormalMat);
+	*/
 
 	// light data
 	uint lightsId = glGetUniformLocation(shaderProgram->ID, "lights");
@@ -1131,16 +1129,17 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, vec3 viewerOrigin, vec3 viewerR
 	uint viewerRightId = glGetUniformLocation(shaderProgram->ID, "viewerRight");
 	uint textureST = glGetUniformLocation(shaderProgram->ID, "textureST");
 
-	glUniform3f(viewerOriginId, viewerOrigin.x, viewerOrigin.y, viewerOrigin.z);
-	glUniform3f(viewerRightId, viewerRight.x, viewerRight.y, viewerRight.z);
-
 	shaderProgram->pushMatrix(MAT_MODEL);
 	shaderProgram->modelMat->loadIdentity();
-	shaderProgram->modelMat->translate(origin.x, origin.y, origin.z);
-	shaderProgram->modelMat->rotateY(angles.z * (PI / 180.0f));
-	shaderProgram->modelMat->rotateZ(angles.x * (PI / 180.0f));
-	shaderProgram->modelMat->rotateX(angles.y * (PI / 180.0f));
+	shaderProgram->modelMat->translate(origin.x, origin.z, -origin.y);
+	// Don't rotate the scene because it messes up chrome effect.
 	shaderProgram->updateMatrixes();
+
+	vec3 uploadOrigin = viewerOrigin - origin; // world coordinates
+	vec3 uploadRight = viewerRight;
+
+	glUniform3f(viewerOriginId, uploadOrigin.x, uploadOrigin.y, uploadOrigin.z);
+	glUniform3f(viewerRightId, viewerRight.x, viewerRight.y, viewerRight.z);
 
 	data.seek(header->bodypartindex);
 	mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.get();

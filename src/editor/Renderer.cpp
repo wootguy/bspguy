@@ -340,7 +340,8 @@ Renderer::Renderer() {
 
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/vtuber_kizuna_ld_v3/vtuber_kizuna_ld_v3.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
-	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/helmet/helmet.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/helmet/helmet.mdl");
+	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/lord_shino1/lord_shino1.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/arknights_lappland/arknights_lappland.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/counterx2/counterx2.mdl");
@@ -3093,8 +3094,8 @@ void Renderer::renderSvenTvEdicts() {
 		static vec3 lastPos;
 
 		const float angleConvert = (360.0f / 65535.0f);
-		vec3 origin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
-		vec3 lastOrigin = vec3(ed.origin[0], ed.origin[2], -ed.origin[1]);
+		vec3 origin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]);
+		vec3 lastOrigin = vec3(ed.origin[0], ed.origin[1], ed.origin[2]);
 		vec3 angles = vec3((float)ed.angles[0] * -angleConvert, (float)ed.angles[2] * -angleConvert, (float)ed.angles[1] * angleConvert);
 
 		float frame;
@@ -3108,7 +3109,7 @@ void Renderer::renderSvenTvEdicts() {
 
 		mstudioseqdesc_t* seqdesc = mdlRenderers[mdlIdx]->getSequence(seq);
 
-		frame = ed.frame / 255.0f;		
+		frame = ed.frame / 255.0f;
 
 		float pitch = normalizeRangef(angles.x, -180.0f, 180.0f);
 		int8_t b = 127 + pitch;
@@ -3182,7 +3183,7 @@ void Renderer::renderSvenTvEdicts() {
 		gaitseq = ed.gaitsequence;
 		
 		float movespeed = gaitspeed.length() * (reverseGait ? -1.0f : 1.0f);
-		logf("GAITSPEED %f %d\n", movespeed, gaitseq);
+		//logf("GAITSPEED %f %d\n", movespeed, gaitseq);
 
 		// TODO: maybe transfer velocity over network becuase it can be very wrong
 		// i think it was off by 50% at 1000 speed with 100 updateRate
@@ -3205,8 +3206,8 @@ void Renderer::renderSvenTvEdicts() {
 		
 		gaitframe = normalizeRangef(gaitframe, 0, 1.0f);
 
-		mdlRenderers[mdlIdx]->SetUpBones(seq, frame, gaitseq, gaitframe);
-		mdlRenderers[mdlIdx]->draw(origin, angles, cameraOrigin, cameraRight);
+		mdlRenderers[mdlIdx]->SetUpBones(angles, seq, frame, gaitseq, gaitframe);
+		mdlRenderers[mdlIdx]->draw(origin, cameraOrigin, cameraRight);
 
 		lastPos = origin;
 		lastTime = now;

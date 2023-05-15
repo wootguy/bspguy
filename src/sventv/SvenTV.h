@@ -101,7 +101,7 @@ public:
 	netedict* lastedicts = NULL; // edicts from the previous delta update
 	netedict* interpedicts = NULL; // edicts interpolated between the previous and current states
 	netedict* edicts = NULL; // edicts in the latest delta update packet
-	float updateRate = 10;
+	float updateRate = 60;
 
 	std::mutex edicts_mutex; // lock before reading/writing edicts
 	std::mutex command_mutex; // lock before using commands

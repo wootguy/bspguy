@@ -3,6 +3,16 @@
 #include "mstream.h"
 #include <GLFW/glfw3.h>
 
+// SvenTV TODO
+//
+// - packet ID overflows and loses sync after a while
+//
+// Player models:
+// - uzi/mp5/m16/saw shoot anim too slow/smooth at updaterate 10
+// - crossbow/sniper zoom tranistion animation needs smoothing
+// - looking up/down past X degrees needs to rotate entire model, not just change blend
+// - disable gait on player death
+
 using namespace std;
 
 SvenTV::SvenTV(IPV4 serverAddr) {
