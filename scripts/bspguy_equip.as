@@ -5,6 +5,7 @@ namespace bspguy {
 	const int FL_FORCE_WEAPON_SWITCH = 2; // force switch to most powerful weapon on trigger
 	const int FL_REQUIP_ON_USE = 4;
 	const int FL_ALLOW_MULTI_USE_PER_LIFE = 8;
+	const int FL_REFILL_CLIPS = 16;
 
 	enum respawn_equip_modes {
 		RESPAWN_EQUIP_IF_ON,
@@ -243,6 +244,8 @@ namespace bspguy {
 						
 						anyWeaponGiven = true;
 					}
+				} else if (pev.spawnflags & FL_REFILL_CLIPS != 0) {
+					wep.m_iClip = wep.iMaxClip();
 				}
 				
 				int primaryAmmoIdx = wep.PrimaryAmmoIndex();

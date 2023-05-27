@@ -6,6 +6,7 @@
 		2: "Switch to best weapon on use" : 0
 		4: "Re-equip on use" : 0
 		8: "Allow 2+ uses per life" : 0
+		16: "Refill weapon clips" : 0
 	]
 	
 	targetname(target_source) : "Name"

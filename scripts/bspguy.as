@@ -138,6 +138,11 @@ namespace bspguy {
 		clean_map_no_repeat(cleanMap);
 	}
 	
+	void maprestart(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
+	{
+		g_Scheduler.SetTimeout("restart_survival_section", 0, true);
+	}
+	
 	void bspguy(CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue)
 	{		
 		string loadMap = getCustomStringKeyvalue(pCaller, "$s_bspguy_load").ToLowercase();
@@ -523,7 +528,7 @@ namespace bspguy {
 		}
 		
 		g_PlayerFuncs.ClientPrintAll(HUD_PRINTTALK, "This is a merged map. The current section will reload shortly.\n");	
-		g_Scheduler.SetTimeout("restart_survival_section", 3);
+		g_Scheduler.SetTimeout("restart_survival_section", 3, false);
 	}
 	
 	int count_living_players() {
@@ -540,8 +545,8 @@ namespace bspguy {
 		return totalLiving;
 	}
 	
-	void restart_survival_section() {		
-		if (count_living_players() > 0) {
+	void restart_survival_section(bool force_restart) {		
+		if (count_living_players() > 0 && !force_restart) {
 			return;
 		}
 		
@@ -595,6 +600,10 @@ namespace bspguy {
 		keys["delay"] = "0";
 		keys["m_iszScriptFile"] = "bspguy/bspguy";
 		keys["m_iMode"] = "1"; // trigger
+		
+		keys["targetname"] = "bspguy_maprestart";
+		keys["m_iszScriptFunctionName"] = "bspguy::maprestart";
+		g_EntityFuncs.CreateEntity("trigger_script", keys, true);
 		
 		keys["targetname"] = "bspguy_mapchange";
 		keys["m_iszScriptFunctionName"] = "bspguy::mapchange";
