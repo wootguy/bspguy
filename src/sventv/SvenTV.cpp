@@ -168,14 +168,7 @@ bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 	reader.read(&baselineId, 2);
 	reader.read(&fragmentId, 2);
 
-	//println("Apply delta %d frag %d", updateId, fragmentId);
-
-	// swap edict lists
-	if (!isBaseline) {
-		netedict* temp = lastedicts;
-		lastedicts = edicts;
-		edicts = temp;
-	}
+	//logf("Apply delta %d frag %d%s\n", updateId, fragmentId, isBaseline ? " (BASELINE)" : "");
 
 	int loop = -1;
 	while (1) {
@@ -206,6 +199,7 @@ bool SvenTV::applyDelta(const Packet& packet, bool isBaseline) {
 		if (!isBaseline) {
 			// calculating current state from baseline and this delta packet
 			ed = &edicts[fullIndex];
+			lastedicts[fullIndex] = *ed;
 			*ed = baselines[fullIndex]; // undo previous deltas, restart from baseline
 		}
 
