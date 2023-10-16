@@ -340,8 +340,8 @@ Renderer::Renderer() {
 
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/vtuber_kizuna_ld_v3/vtuber_kizuna_ld_v3.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/al_nagato_ld/al_nagato_ld.mdl");
-	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/helmet/helmet.mdl");
-	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/lord_shino1/lord_shino1.mdl");
+	MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/helmet/helmet.mdl");
+	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/lord_shino1/lord_shino1.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/arknights_lappland/arknights_lappland.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/kizuna_xmas/kizuna_xmas.mdl");
 	//MdlRenderer* testMdl = new MdlRenderer(mdlShader, "models/player/counterx2/counterx2.mdl");
@@ -3114,9 +3114,22 @@ void Renderer::renderSvenTvEdicts() {
 		float pitch = normalizeRangef(angles.x, -180.0f, 180.0f);
 		int8_t b = 127 + pitch;
 
-		// TODO: need to rotate entire model a bit after a certain point
+		
 		mdlRenderers[mdlIdx]->iBlender[0] = b;
 		angles.x = 0;
+
+		// TODO: need to rotate entire model a bit after a certain point
+		/*
+		if (pitch > 35) {
+			ent->v.angles.x = (pitch - 35) * 0.5f;
+		}
+		else if (pitch < -45) {
+			ent->v.angles.x = (pitch - -45) * 0.5f;
+		}
+		else {
+			ent->v.angles.x = 0;
+		}
+		*/
 
 		float dt = (now - lastTime);
 		float dtScale = 1.0f / dt;
@@ -3183,7 +3196,6 @@ void Renderer::renderSvenTvEdicts() {
 		gaitseq = ed.gaitsequence;
 		
 		float movespeed = gaitspeed.length() * (reverseGait ? -1.0f : 1.0f);
-		//logf("GAITSPEED %f %d\n", movespeed, gaitseq);
 
 		// TODO: maybe transfer velocity over network becuase it can be very wrong
 		// i think it was off by 50% at 1000 speed with 100 updateRate
@@ -3201,10 +3213,16 @@ void Renderer::renderSvenTvEdicts() {
 				gaitseq = seq;
 			}
 			gaitframe = frame;
+			
 		}
 		//gaitframe += frameTimeScale*0.01f;
-		
+
 		gaitframe = normalizeRangef(gaitframe, 0, 1.0f);
+		if (frame == 1.0f) {
+			gaitframe = 1.0f;
+		}
+
+		//logf("GAITSPEED %f %d %f\n", movespeed, gaitseq, gaitframe);
 
 		mdlRenderers[mdlIdx]->SetUpBones(angles, seq, frame, gaitseq, gaitframe);
 		mdlRenderers[mdlIdx]->draw(origin, cameraOrigin, cameraRight);
