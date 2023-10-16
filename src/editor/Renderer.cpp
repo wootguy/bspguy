@@ -1735,7 +1735,7 @@ void Renderer::updateDragAxes() {
 		if (transformTarget == TRANSFORM_VERTEX) {
 			vec3 entOrigin = ent ? ent->getOrigin() : vec3();
 			vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-			vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+			vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 			int selectTotal = 0;
 			for (int i = 0; i < modelVerts.size(); i++) {
 				if (modelVerts[i].selected) {
@@ -2226,7 +2226,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	bool scaleFromOrigin = fromDir.x == 0 && fromDir.y == 0 && fromDir.z == 0;
 
 	vec3 minDist = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	vec3 maxDist = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 maxDist = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	for (int i = 0; i < modelVerts.size(); i++) {
 		expandBoundingBox(modelVerts[i].startPos, minDist, maxDist);
@@ -2291,7 +2291,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 		return;
 
 	minDist = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	maxDist = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	maxDist = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	
 	for (int i = 0; i < modelFaceVerts.size(); i++) {
 		expandBoundingBox(modelFaceVerts[i].pos, minDist, maxDist);
@@ -2530,7 +2530,7 @@ void Renderer::splitFace() {
 		for (int i = 0; i < newSolid.faces.size(); i++) {
 			Face& solidFace = newSolid.faces[i];
 			BSPFACE* bestMatch = NULL;
-			float bestdot = FLT_MIN;
+			float bestdot = -FLT_MAX;
 			for (int k = 0; k < oldModel.nFaces; k++) {
 				BSPFACE& bspface = map->faces[oldModel.iFirstFace + k];
 				BSPPLANE& plane = map->planes[bspface.iPlane];
@@ -2573,7 +2573,7 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	vec3 fromOrigin = activeAxes.origin;
 
 	vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-	vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	int selectTotal = 0;
 	for (int i = 0; i < modelVerts.size(); i++) {
 		if (modelVerts[i].selected) {

@@ -411,7 +411,7 @@ bool getPlaneFromVerts(vector<vec3>& verts, vec3& outNormal, float& outDist) {
 }
 
 vec2 getCenter(vector<vec2>& verts) {
-	vec2 maxs = vec2(FLT_MIN, FLT_MIN);
+	vec2 maxs = vec2(-FLT_MAX, -FLT_MAX);
 	vec2 mins = vec2(FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
@@ -422,7 +422,7 @@ vec2 getCenter(vector<vec2>& verts) {
 }
 
 vec3 getCenter(vector<vec3>& verts) {
-	vec3 maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	vec3 maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	vec3 mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
@@ -433,7 +433,7 @@ vec3 getCenter(vector<vec3>& verts) {
 }
 
 void getBoundingBox(vector<vec3>& verts, vec3& mins, vec3& maxs) {
-	maxs = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+	maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 
 	for (int i = 0; i < verts.size(); i++) {
