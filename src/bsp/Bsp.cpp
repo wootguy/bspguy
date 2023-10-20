@@ -250,7 +250,7 @@ void Bsp::getNodePlanes(int iNode, vector<int>& nodePlanes) {
 	}
 }
 
-vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx) {
+vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int16_t contents) {
 	vector<NodeVolumeCuts> modelVolumeCuts;
 
 	if (hullIdx >= 0 && hullIdx < MAX_MAP_HULLS)
@@ -271,14 +271,14 @@ vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx
 				get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
 			}
 			else {
-				get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+				get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts, contents);
 			}
 		}
 	}
 	return modelVolumeCuts;
 }
 
-void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output) {
+void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int16_t contents) {
 	BSPCLIPNODE& node = clipnodes[iNode];
 
 	if (node.iPlane < 0) {
@@ -294,9 +294,9 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 		clipOrder.push_back(plane);
 
 		if (node.iChildren[i] >= 0) {
-			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output);
+			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output, contents);
 		}
-		else if (node.iChildren[i] != CONTENTS_EMPTY) {
+		else if (node.iChildren[i] == contents) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 
@@ -327,7 +327,7 @@ void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<Node
 		if (node.iChildren[i] >= 0) {
 			get_node_leaf_cuts(node.iChildren[i], clipOrder, output);
 		}
-		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_EMPTY) {
+		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_SOLID) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 

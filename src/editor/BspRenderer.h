@@ -141,6 +141,8 @@ public:
 	void updateFaceUVs(int faceIdx);
 	uint getFaceTextureId(int faceIdx);
 
+	void write_obj_file();
+
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -191,6 +193,7 @@ private:
 	void genRenderFaces(int& renderModelCount);
 	void loadClipnodes();
 	void generateClipnodeBuffer(int modelIdx);
+	void generateNavMeshBuffer();
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
 	void deleteRenderClipnodes();

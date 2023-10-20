@@ -97,6 +97,10 @@ vector<vec3> getPlaneIntersectVerts(vector<BSPPLANE>& planes);
 
 bool vertsAllOnOneSide(vector<vec3>& verts, BSPPLANE& plane);
 
+bool boxesIntersect(const vec3& mins1, const vec3& maxs1, const vec3& mins2, const vec3& maxs2);
+
+bool isBoxContained(const vec3& innerMins, const vec3& innerMaxs, const vec3& outerMins, const vec3& outerMaxs);
+
 // get verts from the given set that form a triangle (no duplicates and not colinear)
 vector<vec3> getTriangularVerts(vector<vec3>& verts);
 

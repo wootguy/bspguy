@@ -6,6 +6,7 @@
 #include "Gui.h"
 #include <algorithm>
 #include <map>
+#include "Polygon3D.h"
 
 AppSettings g_settings;
 string g_config_dir = getConfigDir();
@@ -342,7 +343,7 @@ Renderer::~Renderer() {
 void Renderer::renderLoop() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
+	glCullFace(GL_BACK);
 
 	{
 		moveAxes.dimColor[0] = { 110, 0, 160, 255 };
@@ -497,6 +498,55 @@ void Renderer::renderLoop() {
 			if (transformTarget == TRANSFORM_ORIGIN) {
 				drawModelOrigin();
 			}
+		}
+
+		{
+			colorShader->bind();
+			model.loadIdentity();
+			colorShader->updateMatrixes();
+			glDisable(GL_CULL_FACE);
+
+			glLineWidth(128.0f);
+			drawLine(debugLine0, debugLine1, { 255, 0, 0, 255 });
+			
+
+			
+			if (debugPoly.isValid) {
+				if (debugPoly.verts.size() > 1) {
+					vec3 v1 = debugPoly.verts[0];
+					vec3 v2 = debugPoly.verts[1];
+					drawLine(v1, v1 + (v2 - v1) * 0.5f, COLOR4(0, 255, 0, 255));
+				}
+				for (int i = 0; i < debugPoly.verts.size(); i++) {
+					drawBox(debugPoly.verts[i], 4, COLOR4(128, 128, 0, 255));
+				}
+
+				glLineWidth(1);
+				vec3 xaxis = debugPoly.plane_x * 16;
+				vec3 yaxis = debugPoly.plane_y * 16;
+				vec3 zaxis = debugPoly.plane_z * 16;
+				vec3 center = getCenter(debugPoly.verts) + debugPoly.plane_z*8;
+				drawLine(center, center + xaxis, COLOR4(255, 0, 0, 255));
+				drawLine(center, center + yaxis, COLOR4(255, 255, 0, 255));
+				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));
+
+				glDisable(GL_DEPTH_TEST);
+
+				colorShader->pushMatrix(MAT_PROJECTION);
+				colorShader->pushMatrix(MAT_VIEW);
+				projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
+				view.loadIdentity();
+				float sz = min(windowWidth*0.8f, windowHeight*0.8f);
+				model.translate((windowWidth- sz)*0.5f, (windowHeight- sz)*0.5f, 0);
+				colorShader->updateMatrixes();
+
+				float scale = drawPolygon2D(debugPoly, vec2(0, 0), vec2(sz, sz), COLOR4(255, 255, 0, 255));
+
+				colorShader->popMatrix(MAT_PROJECTION);
+				colorShader->popMatrix(MAT_VIEW);
+			}
+
+			glLineWidth(1);
 		}
 
 		vec3 forward, right, up;
@@ -1612,6 +1662,102 @@ void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
 
 	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &verts[0], 2);
 	buffer.draw(GL_LINES);
+}
+
+void Renderer::drawLine2D(vec2 start, vec2 end, COLOR4 color) {
+	cVert verts[2];
+
+	verts[0].x = start.x;
+	verts[0].y = start.y;
+	verts[0].z = 0;
+	verts[0].c = color;
+
+	verts[1].x = end.x;
+	verts[1].y = end.y;
+	verts[1].z = 0;
+	verts[1].c = color;
+
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &verts[0], 2);
+	buffer.draw(GL_LINES);
+}
+
+void Renderer::drawBox(vec3 center, float width, COLOR4 color) {
+	width *= 0.5f;
+	vec3 sz = vec3(width, width, width);
+	vec3 pos = vec3(center.x, center.z, -center.y);
+	cCube cube(pos - sz, pos + sz, color);
+
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
+	buffer.draw(GL_TRIANGLES);
+}
+
+float Renderer::drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color) {
+	vec2 sz = poly.localMaxs - poly.localMins;
+	float scale = min(maxSz.y / sz.y, maxSz.x / sz.x);
+
+	vec2 offset = poly.localMins * -scale;
+
+	for (int i = 0; i < poly.verts.size(); i++) {
+		vec2 v1 = poly.localVerts[i];
+		vec2 v2 = poly.localVerts[(i + 1) % debugPoly.verts.size()];
+		drawLine2D(offset + v1*scale, offset + v2 * scale, color);
+	}
+
+	{
+		vec2 cam = debugPoly.project(cameraOrigin);
+		drawBox2D(offset + cam*scale, 16, poly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
+
+		Bsp* map = mapRenderers[0]->map;
+		vec3 mapMins;
+		vec3 mapMaxs;
+		map->get_bounding_box(mapMins, mapMaxs);
+
+		vec2 localMins = vec2(FLT_MAX, FLT_MAX);
+		vec2 localMaxs = vec2(-FLT_MAX, -FLT_MAX);
+		for (int e = 0; e < poly.verts.size(); e++) {
+			vec3 p = poly.verts[e];
+			if (p.x < mapMins.x || p.y < mapMins.y || p.z < mapMins.z
+				|| p.x > mapMaxs.x || p.y > mapMaxs.y || p.z > mapMaxs.z) {
+				continue;
+			}
+
+			vec2 localPoint = poly.project(p);
+			expandBoundingBox(localPoint, localMins, localMaxs);
+		}
+		
+		int hull = 3;
+		int headnode = map->models[0].iHeadnodes[hull];
+		int inPoly = 0;
+		int totalPoint = 0;
+		float step = 4.0f; // decrease if small polys are missing
+		bool touchingEmptyLeaf = false;
+		for (float x = localMins.x + 0.5f; x < localMaxs.x && !touchingEmptyLeaf; x += step) {
+			for (float y = localMins.y + 0.5f; y < localMaxs.y; y += step) {
+				totalPoint++;
+				vec2 testPos = vec2(x, y);
+				if (poly.isInside(testPos)) {
+					vec3 worldPos = poly.unproject(testPos);
+					if (map->pointContents(headnode, worldPos + poly.plane_z, hull) == CONTENTS_EMPTY) {
+						drawBox2D(offset + testPos * scale, 2, COLOR4(0, 255, 255, 255));
+					}
+					else {
+						drawBox2D(offset + testPos * scale, 2, COLOR4(255, 128, 0, 255));
+					}
+				}
+			}
+		}
+	}
+	
+
+	return scale;
+}
+
+void Renderer::drawBox2D(vec2 center, float width, COLOR4 color) {
+	vec2 pos = vec2(center.x, center.y) - vec2(width*0.5f, width *0.5f);
+	cQuad cube(pos.x, pos.y, width, width, color);
+
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
+	buffer.draw(GL_TRIANGLES);
 }
 
 void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color) {
@@ -2741,7 +2887,7 @@ void Renderer::deselectFaces() {
 void Renderer::selectEnt(Bsp* map, int entIdx) {
 	pickInfo.entIdx = entIdx;
 	pickInfo.ent = map->ents[entIdx];
-	pickInfo.modelIdx = pickInfo.ent->getBspModelIdx();
+	pickInfo.modelIdx = entIdx == 0 ? 0 : pickInfo.ent->getBspModelIdx();
 	updateSelectionSize();
 	updateEntConnections();
 	updateEntityState(pickInfo.ent);

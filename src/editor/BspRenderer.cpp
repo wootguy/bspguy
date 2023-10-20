@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "Renderer.h"
 #include "Clipper.h"
+#include <iomanip>
+#include "Polygon3D.h"
 
 #include "icons/missing.h"
 
@@ -81,6 +83,8 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 	for (int i = 0; i < map->ents.size(); i++) {
 		map->ents[i]->getTargets();
 	}
+
+	//write_obj_file();
 }
 
 void BspRenderer::loadTextures() {
@@ -611,9 +615,10 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 		int idx = 0;
 		for (int k = 2; k < face.nEdges; k++) {
-			newVerts[idx++] = verts[0];
-			newVerts[idx++] = verts[k - 1];
+			// reverse order due to coordinate system swap
 			newVerts[idx++] = verts[k];
+			newVerts[idx++] = verts[k - 1];
+			newVerts[idx++] = verts[0];	
 		}
 
 		idx = 0;
@@ -722,10 +727,60 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		refreshFace(model.iFirstFace + i);
 	}
 
-	if (refreshClipnodes)
+	if (refreshClipnodes) {
 		generateClipnodeBuffer(modelIdx);
+	}
 
 	return renderModel->groupCount;
+}
+
+void BspRenderer::write_obj_file() {
+	int modelIdx = 0;
+	BSPMODEL& model = map->models[modelIdx];
+	vector<vec3> allVerts;
+
+	for (int i = 0; i < model.nFaces; i++) {
+		int faceIdx = model.iFirstFace + i;
+		BSPFACE& face = map->faces[faceIdx];
+		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+
+		if (texinfo.nFlags & TEX_SPECIAL) {
+			continue;
+		}
+
+		vec3* verts = new vec3[face.nEdges];
+		int vertCount = face.nEdges;
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+			vec3& vert = map->verts[vertIdx];
+			verts[e].x = vert.x;
+			verts[e].y = vert.z;
+			verts[e].z = -vert.y;
+		}
+
+		// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
+		int idx = 0;
+		for (int k = 2; k < face.nEdges; k++) {
+			allVerts.push_back(verts[0]);
+			allVerts.push_back(verts[k - 1]);
+			allVerts.push_back(verts[k]);
+		}
+	}
+
+	ofstream file(map->name + ".obj", ios::out | ios::trunc);
+	for (int i = 0; i < allVerts.size(); i++) {
+		vec3 v = allVerts[i];
+		file << "v " << fixed << std::setprecision(2) << v.x << " " << v.y << " " << v.z << endl;
+	}
+	for (int i = 0; i < allVerts.size(); i += 3) {
+		file << "f " << (i+3) << " " << (i+2) << " " << (i+1) << endl;
+	}
+	logf("Wrote %d verts\n", allVerts.size());
+	file.close();
 }
 
 bool BspRenderer::refreshModelClipnodes(int modelIdx) {
@@ -752,6 +807,324 @@ void BspRenderer::loadClipnodes() {
 	}
 }
 
+void BspRenderer::generateNavMeshBuffer() {
+	BSPMODEL& model = map->models[0];
+	RenderClipnodes* renderClip = &renderClipnodes[0];
+	int hull = 3;
+	int headnode = map->models[0].iHeadnodes[hull];
+
+	vec3 min = vec3(model.nMins.x, model.nMins.y, model.nMins.z);
+	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
+
+	renderClip->clipnodeBuffer[hull] = NULL;
+	renderClip->wireframeClipnodeBuffer[hull] = NULL;
+
+	Clipper clipper;
+
+	vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(0, hull, CONTENTS_SOLID);
+
+	vector<CMesh> solidMeshes;
+	for (int k = 0; k < solidNodes.size(); k++) {
+		solidMeshes.push_back(clipper.clip(solidNodes[k].cuts));
+	}
+
+	vector<Polygon3D> solidFaces;
+
+	// GET FACES FROM MESHES
+	for (int m = 0; m < solidMeshes.size(); m++) {
+		CMesh& mesh = solidMeshes[m];
+
+		for (int f = 0; f < mesh.faces.size(); f++) {
+			CFace& face = mesh.faces[f];
+			if (!face.visible) {
+				continue;
+			}
+
+			set<int> uniqueFaceVerts;
+
+			for (int k = 0; k < face.edges.size(); k++) {
+				for (int v = 0; v < 2; v++) {
+					int vertIdx = mesh.edges[face.edges[k]].verts[v];
+					if (!mesh.verts[vertIdx].visible) {
+						continue;
+					}
+					uniqueFaceVerts.insert(vertIdx);
+				}
+			}
+
+			vector<vec3> faceVerts;
+			for (auto vertIdx : uniqueFaceVerts) {
+				faceVerts.push_back(mesh.verts[vertIdx].pos);
+			}
+
+			faceVerts = getSortedPlanarVerts(faceVerts);
+
+			if (faceVerts.size() < 3) {
+				//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
+				continue;
+			}
+
+			vec3 normal = getNormalFromVerts(faceVerts);
+
+			if (dotProduct(face.normal, normal) < 0) {
+				reverse(faceVerts.begin(), faceVerts.end());
+				normal = normal.invert();
+			}
+
+			solidFaces.push_back(faceVerts);
+		}
+	}
+
+	int debugPoly = 0;
+	//debugPoly = 1560;
+	bool doCull = true;
+	
+	if (doCull) {
+		int presplit = solidFaces.size();
+		int numSplits = 0;
+		for (int i = 0; i < solidFaces.size(); i++) {
+			Polygon3D& poly = solidFaces[i];
+			if (debugPoly && i != debugPoly) {
+				continue;
+			}
+			if (!poly.isValid) {
+				solidFaces.erase(solidFaces.begin() + i);
+				i--;
+				continue;
+			}
+
+			for (int k = 0; k < solidFaces.size(); k++) {
+				if (i == k) {
+					continue;
+				}
+
+				//if (k != 1547) {
+				//	continue;
+				//}
+
+				vector<vector<vec3>> splitPolys = poly.split(solidFaces[k]);
+
+				if (splitPolys.size()) {
+					solidFaces.push_back(splitPolys[0]);
+					solidFaces.push_back(splitPolys[1]);
+					solidFaces.erase(solidFaces.begin() + i);
+					//logf("Split poly %d by %d\n", i, k);
+					i--;
+					break;
+				}
+			}
+		}
+		logf("Split %d faces into %d (%d splits)\n", presplit, solidFaces.size(), numSplits);
+	}
+	debugPoly = 0;
+
+	vec3 mapMins;
+	vec3 mapMaxs;
+	map->get_bounding_box(mapMins, mapMaxs);
+
+	// CULL FACES THAT FACE INTO THE VOID
+	vector<Polygon3D> interiorFaces;
+	for (int m = 0; m < solidFaces.size(); m++) {
+		Polygon3D& poly = solidFaces[m];
+
+		if (!boxesIntersect(poly.worldMins, poly.worldMaxs, mapMins, mapMaxs)) {
+			continue;
+		}
+
+		vec3 v0 = poly.verts[0];
+		vec3 v1;
+		bool found = false;
+		for (int z = 1; z < poly.verts.size(); z++) {
+			if (poly.verts[z] != v0) {
+				v1 = poly.verts[z];
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			logf("Failed to find non-duplicate vert for clipnode face\n");
+		}
+
+		if (!poly.isValid) {
+			logf("NOT VALID\n");
+			continue;
+		}
+
+		float error = getDistAlongAxis(poly.plane_z, poly.verts[1]) - poly.fdist;
+		if (error > 0.1f) {
+			logf("oh noes %f\n", error);
+		}
+
+		vec2 localMins = vec2(FLT_MAX, FLT_MAX);
+		vec2 localMaxs = vec2(-FLT_MAX, -FLT_MAX);
+		for (int e = 0; e < poly.verts.size(); e++) {
+			vec3 p = poly.verts[e];
+			if (p.x < mapMins.x || p.y < mapMins.y || p.z < mapMins.z
+				|| p.x > mapMaxs.x || p.y > mapMaxs.y || p.z > mapMaxs.z) {
+				continue;
+			}
+
+			vec2 localPoint = poly.project(p);
+			expandBoundingBox(localPoint, localMins, localMaxs);
+		}
+
+		int inPoly = 0;
+		int totalPoint = 0;
+		float step = 4.0f; // decrease if small polys are missing
+		bool touchingEmptyLeaf = false;
+		for (float x = localMins.x + 0.5f; x < localMaxs.x && !touchingEmptyLeaf; x += step) {
+			for (float y = localMins.y + 0.5f; y < localMaxs.y; y += step) {
+				totalPoint++;
+				vec2 testPos = vec2(x, y);
+				if (poly.isInside(testPos)) {
+					vec3 worldPos = poly.unproject(testPos);
+					if (map->pointContents(headnode, worldPos + poly.plane_z, hull) == CONTENTS_EMPTY) {
+						touchingEmptyLeaf = true;
+						break;
+					}
+					inPoly++;
+				}
+			}
+		}
+
+		float sz = (localMaxs.y - localMins.y) * (localMaxs.x - localMins.x);
+		//logf("%d / %d points inside size %.1f\n", inPoly, totalPoint, sz);
+		if (touchingEmptyLeaf || !doCull) {
+			interiorFaces.push_back(poly);
+
+			if (!isBoxContained(poly.worldMins, poly.worldMaxs, mapMins, mapMaxs)) {
+				logf("Nav poly %d out of world\n", interiorFaces.size()-1);
+			}
+		}
+	}
+	logf("Got %d solidfaces, %d interior faces, %d skipped\n", solidFaces.size(), interiorFaces.size());
+
+	//g_app->debugPoly = interiorFaces[4180];
+
+	static COLOR4 hullColors[] = {
+		COLOR4(255, 255, 255, 128),
+		COLOR4(96, 255, 255, 128),
+		COLOR4(255, 96, 255, 128),
+		COLOR4(255, 255, 96, 128),
+	};
+	COLOR4 color = hullColors[hull];
+
+	vector<cVert> allVerts;
+	vector<cVert> wireframeVerts;
+	vector<FaceMath> faceMaths;
+
+	for (int m = 0; m < interiorFaces.size(); m++) {
+		Polygon3D& poly = interiorFaces[m];
+
+		vec3 normal = poly.plane_z;
+
+		// calculations for face picking
+		{
+			FaceMath faceMath;
+			faceMath.normal = normal;
+			faceMath.fdist = poly.fdist;
+			faceMath.worldToLocal = poly.worldToLocal;
+			faceMath.localVerts = poly.localVerts;
+			faceMaths.push_back(faceMath);
+		}
+
+		// create the verts for rendering
+		{
+			vector<vec3> renderVerts;
+			renderVerts.resize(poly.verts.size());
+			for (int i = 0; i < poly.verts.size(); i++) {
+				renderVerts[i] = poly.verts[i].flip();
+			}
+
+			COLOR4 wireframeColor = { 0, 0, 0, 255 };
+			for (int k = 0; k < renderVerts.size(); k++) {
+				wireframeVerts.push_back(cVert(renderVerts[k], wireframeColor));
+				wireframeVerts.push_back(cVert(renderVerts[(k + 1) % renderVerts.size()], wireframeColor));
+			}
+
+			vec3 lightDir = vec3(1, 1, -1).normalize();
+			float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
+			if (dot > 0.5f) {
+				dot = dot * dot;
+			}
+			color = hullColors[hull];
+			if (normal.z < -0.8 || true) {
+				static int r = 0;
+				r = (r + 1) % 8;
+				if (r == 0) {
+					color = COLOR4(255, 32, 32, 255);
+				}
+				else if (r == 1) {
+					color = COLOR4(255, 255, 32, 255);
+				}
+				else if (r == 2) {
+					color = COLOR4(255, 32, 255, 255);
+				}
+				else if (r == 3) {
+					color = COLOR4(255, 128, 255, 255);
+				}
+				else if (r == 4) {
+					color = COLOR4(32, 32, 255, 255);
+				}
+				else if (r == 5) {
+					color = COLOR4(32, 255, 255, 255);
+				}
+				else if (r == 6) {
+					color = COLOR4(32, 128, 255, 255);
+				}
+				else if (r == 7) {
+					color = COLOR4(32, 255, 128, 255);
+				}
+			}
+			COLOR4 faceColor = color * (dot);
+
+			// convert from TRIANGLE_FAN style verts to TRIANGLES
+			for (int k = 2; k < renderVerts.size(); k++) {
+				allVerts.push_back(cVert(renderVerts[0], faceColor));
+				allVerts.push_back(cVert(renderVerts[k - 1], faceColor));
+				allVerts.push_back(cVert(renderVerts[k], faceColor));
+			}
+		}
+	}
+
+	cVert* output = new cVert[allVerts.size()];
+	for (int i = 0; i < allVerts.size(); i++) {
+		output[i] = allVerts[i];
+	}
+
+	cVert* wireOutput = new cVert[wireframeVerts.size()];
+	for (int i = 0; i < wireframeVerts.size(); i++) {
+		wireOutput[i] = wireframeVerts[i];
+	}
+
+	logf("Navigation mesh generated\n");
+
+	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+		renderClip->clipnodeBuffer[hull] = NULL;
+		renderClip->wireframeClipnodeBuffer[hull] = NULL;
+		return;
+	}
+
+	renderClip->clipnodeBuffer[hull] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+	renderClip->clipnodeBuffer[hull]->ownData = true;
+
+	renderClip->wireframeClipnodeBuffer[hull] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+	renderClip->wireframeClipnodeBuffer[hull]->ownData = true;
+
+	renderClip->faceMaths[hull] = faceMaths;
+
+	ofstream file(map->name + "_hull" + to_string(hull) + ".obj", ios::out | ios::trunc);
+	for (int i = 0; i < allVerts.size(); i++) {
+		vec3 v = vec3(allVerts[i].x, allVerts[i].y, allVerts[i].z);
+		file << "v " << fixed << std::setprecision(2) << v.x << " " << v.y << " " << v.z << endl;
+	}
+	for (int i = 0; i < allVerts.size(); i += 3) {
+		file << "f " << (i + 3) << " " << (i + 2) << " " << (i + 1) << endl;
+	}
+	logf("Wrote %d verts\n", allVerts.size());
+	file.close();
+}
+
 void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	BSPMODEL& model = map->models[modelIdx];
 	RenderClipnodes* renderClip = &renderClipnodes[modelIdx];
@@ -767,12 +1140,11 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	Clipper clipper;
 	
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
-		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i);
+		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i, CONTENTS_SOLID);
 
-		vector<CMesh> meshes;
+		vector<CMesh> solidMeshes;
 		for (int k = 0; k < solidNodes.size(); k++) {
-			meshes.push_back(clipper.clip(solidNodes[k].cuts));
-			clipnodeLeafCount++;
+			solidMeshes.push_back(clipper.clip(solidNodes[k].cuts));
 		}
 		
 		static COLOR4 hullColors[] = {
@@ -787,8 +1159,9 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		vector<cVert> wireframeVerts;
 		vector<FaceMath> faceMaths;
 
-		for (int m = 0; m < meshes.size(); m++) {
-			CMesh& mesh = meshes[m];
+		for (int m = 0; m < solidMeshes.size(); m++) {
+			CMesh& mesh = solidMeshes[m];
+			clipnodeLeafCount++;
 
 			for (int i = 0; i < mesh.faces.size(); i++) {
 
@@ -822,7 +1195,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 				vec3 normal = getNormalFromVerts(faceVerts);
 
-				if (dotProduct(mesh.faces[i].normal, normal) > 0) {
+				if (dotProduct(mesh.faces[i].normal, normal) < 0) {
 					reverse(faceVerts.begin(), faceVerts.end());
 					normal = normal.invert();
 				}
@@ -836,9 +1209,9 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 					vec3 v0 = faceVerts[0];
 					vec3 v1;
 					bool found = false;
-					for (int i = 1; i < faceVerts.size(); i++) {
-						if (faceVerts[i] != v0) {
-							v1 = faceVerts[i];
+					for (int z = 1; z < faceVerts.size(); z++) {
+						if (faceVerts[z] != v0) {
+							v1 = faceVerts[z];
 							found = true;
 							break;
 						}
@@ -873,7 +1246,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 					}
 
 					vec3 lightDir = vec3(1, 1, -1).normalize();
-					float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
+					float dot = (dotProduct(normal*-1, lightDir) + 1) / 2.0f;
 					if (dot > 0.5f) {
 						dot = dot * dot;
 					}
@@ -912,6 +1285,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
 
 		renderClip->faceMaths[i] = faceMaths;
+	}
+
+	if (modelIdx == 0) {
+		generateNavMeshBuffer();
 	}
 }
 
@@ -1605,6 +1982,9 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 				pickInfo.valid = true;
 				pickInfo.bestDist = t;
 				pickInfo.faceIdx = -1;
+				if (modelIdx == 0) {
+					logf("Picked hull %d face %d\n", hullIdx, i);
+				}
 			}
 		}
 	}

@@ -29,6 +29,7 @@ set(SOURCE_FILES
 	src/util/util.h			src/util/util.cpp
 	src/util/vectors.h		src/util/vectors.cpp
 	src/util/mat4x4.h		src/util/mat4x4.cpp
+	src/util/Polygon3D.h	src/util/Polygon3D.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -160,10 +161,12 @@ if(MSVC)
 												
 	source_group("Header Files\\util" FILES		src/util/util.h
 												src/util/vectors.h
+												src/util/Polygon3D.h
 												src/util/mat4x4.h)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
 												src/util/vectors.cpp
+												src/util/Polygon3D.cpp
 												src/util/mat4x4.cpp)
 	
 	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)

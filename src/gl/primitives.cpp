@@ -47,6 +47,16 @@ cQuad::cQuad(cVert v1, cVert v2, cVert v3, cVert v4)
 	this->v6 = v4;
 }
 
+cQuad::cQuad(float x, float y, float w, float h, COLOR4 color) {
+	v1 = cVert(x, y, 0, color);
+	v2 = cVert(x, y + h, 0, color);
+	v3 = cVert(x + w, y + h, 0, color);
+
+	v4 = cVert(x, y, 0, color);
+	v5 = cVert(x + w, y + h, 0, color);
+	v6 = cVert(x + w, y, 0, color);
+}
+
 void cQuad::setColor(COLOR4 c )
 {
 	v1.c = c;

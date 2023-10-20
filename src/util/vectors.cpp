@@ -155,9 +155,18 @@ vec3 crossProduct( vec3 v1, vec3 v2 )
 	return vec3(x, y, z);
 }
 
+float crossProduct(vec2 v1, vec2 v2)
+{
+	return (v1.x * v2.y) - (v1.y * v2.x);
+}
+
 float dotProduct( vec3 v1, vec3 v2 )
 {
 	return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+}
+
+float dotProduct(vec2 v1, vec2 v2) {
+	return v1.x*v2.x + v1.y*v2.y;
 }
 
 void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up) {

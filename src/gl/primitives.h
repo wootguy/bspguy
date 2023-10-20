@@ -77,6 +77,7 @@ struct cQuad
 
 	cQuad() {}
 	cQuad(cVert v1, cVert v2, cVert v3, cVert v4);
+	cQuad(float x, float y, float w, float h, COLOR4 color);
 
 	void setColor(COLOR4 c); // color for the entire quad
 	void setColor(COLOR4 c1, COLOR4 c2, COLOR4 c3, COLOR4 c4); // color each vertex in CCW order

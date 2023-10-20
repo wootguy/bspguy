@@ -10,6 +10,10 @@
 #include <set>
 #include "bsptypes.h"
 
+// largest coordinate allowed in map
+//#define MAX_COORD 131072
+#define MAX_COORD 32768
+
 struct membuf : std::streambuf
 {
 	membuf(char* begin, int len) {
@@ -107,8 +111,8 @@ public:
 	bool is_node_hull_convex(int iNode);
 
 	// get cuts required to create bounding volumes for each solid leaf in the model
-	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx);
-	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
+	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int16_t contents);
+	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int16_t contents);
 	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
@@ -209,6 +213,8 @@ public:
 	BSPMIPTEX * find_embedded_texture(const char * name);
 
 	void update_lump_pointers();
+
+	void write_obj_file();
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);

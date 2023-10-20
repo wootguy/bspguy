@@ -73,6 +73,9 @@ vec2 operator/(vec2 v, float f);
 bool operator==(vec2 v1, vec2 v2);
 bool operator!=(vec2 v1, vec2 v2);
 
+float dotProduct(vec2 v1, vec2 v2);
+float crossProduct(vec2 v1, vec2 v2);
+
 struct vec4
 {
 	float x, y, z, w;
