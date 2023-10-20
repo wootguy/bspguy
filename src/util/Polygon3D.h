@@ -50,9 +50,17 @@ public:
 	vec3 worldMins;
 	vec3 worldMaxs;
 
+	vec3 center; // average/centroid in world coordinates
+	
+	int idx = -1; // for octree lookup
+
 	Polygon3D() {}
 
 	Polygon3D(const std::vector<vec3>& verts);
+	
+	Polygon3D(const std::vector<vec3>& verts, int idx);
+
+	void init();
 
 	float distance(const vec3& p);
 

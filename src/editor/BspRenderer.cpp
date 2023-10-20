@@ -8,6 +8,7 @@
 #include "Clipper.h"
 #include <iomanip>
 #include "Polygon3D.h"
+#include "PolyOctree.h"
 
 #include "icons/missing.h"
 
@@ -808,6 +809,7 @@ void BspRenderer::loadClipnodes() {
 }
 
 void BspRenderer::generateNavMeshBuffer() {
+	float navMeshGenStart = glfwGetTime();
 	BSPMODEL& model = map->models[0];
 	RenderClipnodes* renderClip = &renderClipnodes[0];
 	int hull = 3;
@@ -828,7 +830,23 @@ void BspRenderer::generateNavMeshBuffer() {
 		solidMeshes.push_back(clipper.clip(solidNodes[k].cuts));
 	}
 
-	vector<Polygon3D> solidFaces;
+	vector<Polygon3D*> solidFaces;
+
+	vec3 mapMins;
+	vec3 mapMaxs;
+	map->get_bounding_box(mapMins, mapMaxs);
+
+	vec3 treeMin = vec3(-MAX_COORD, -MAX_COORD, -MAX_COORD);
+	vec3 treeMax = vec3(MAX_COORD, MAX_COORD, MAX_COORD);
+
+	while (isBoxContained(mapMins, mapMaxs, treeMin * 0.5f, treeMax * 0.5f)) {
+		treeMax *= 0.5f;
+		treeMin *= 0.5f;
+	}
+
+	int treedepth = 6;
+	logf("Create octree depth %d, size %f -> %f\n", treedepth, treeMax.x, treeMax.x / pow(2, treedepth));
+	PolygonOctree octree(treeMin, treeMax, treedepth);
 
 	// GET FACES FROM MESHES
 	for (int m = 0; m < solidMeshes.size(); m++) {
@@ -871,133 +889,88 @@ void BspRenderer::generateNavMeshBuffer() {
 				normal = normal.invert();
 			}
 
-			solidFaces.push_back(faceVerts);
+			solidFaces.push_back(new Polygon3D(faceVerts, solidFaces.size()));
+			octree.insertPolygon(solidFaces[solidFaces.size()-1]);
 		}
 	}
 
 	int debugPoly = 0;
 	//debugPoly = 1560;
-	bool doCull = true;
+
+	int avgInRegion = 0;
+	int regionChecks = 0;
 	
-	if (doCull) {
-		int presplit = solidFaces.size();
-		int numSplits = 0;
-		for (int i = 0; i < solidFaces.size(); i++) {
-			Polygon3D& poly = solidFaces[i];
-			if (debugPoly && i != debugPoly) {
-				continue;
-			}
-			if (!poly.isValid) {
-				solidFaces.erase(solidFaces.begin() + i);
-				i--;
-				continue;
-			}
-
-			for (int k = 0; k < solidFaces.size(); k++) {
-				if (i == k) {
-					continue;
-				}
-
-				//if (k != 1547) {
-				//	continue;
-				//}
-
-				vector<vector<vec3>> splitPolys = poly.split(solidFaces[k]);
-
-				if (splitPolys.size()) {
-					solidFaces.push_back(splitPolys[0]);
-					solidFaces.push_back(splitPolys[1]);
-					solidFaces.erase(solidFaces.begin() + i);
-					//logf("Split poly %d by %d\n", i, k);
-					i--;
-					break;
-				}
-			}
-		}
-		logf("Split %d faces into %d (%d splits)\n", presplit, solidFaces.size(), numSplits);
-	}
-	debugPoly = 0;
-
-	vec3 mapMins;
-	vec3 mapMaxs;
-	map->get_bounding_box(mapMins, mapMaxs);
-
-	// CULL FACES THAT FACE INTO THE VOID
+	vector<Polygon3D*> cuttingPolys = solidFaces;
 	vector<Polygon3D> interiorFaces;
-	for (int m = 0; m < solidFaces.size(); m++) {
-		Polygon3D& poly = solidFaces[m];
 
-		if (!boxesIntersect(poly.worldMins, poly.worldMaxs, mapMins, mapMaxs)) {
+	int presplit = solidFaces.size();
+	int numSplits = 0;
+	float startTime = glfwGetTime();
+	bool doCull = true;
+	bool walkableSurfacesOnly = false;
+
+	vector<bool> regionPolys;
+	regionPolys.resize(cuttingPolys.size());
+
+	for (int i = 0; i < solidFaces.size(); i++) {
+		Polygon3D* poly = solidFaces[i];
+		if (debugPoly && i != debugPoly) {
+			continue;
+		}
+		if (!poly->isValid || poly->idx == -1) {
+			continue;
+		}
+		if (walkableSurfacesOnly && poly->plane_z.z < 0.7) {
 			continue;
 		}
 
-		vec3 v0 = poly.verts[0];
-		vec3 v1;
-		bool found = false;
-		for (int z = 1; z < poly.verts.size(); z++) {
-			if (poly.verts[z] != v0) {
-				v1 = poly.verts[z];
-				found = true;
+		octree.getPolysInRegion(poly, regionPolys);
+		if (poly->idx < cuttingPolys.size())
+			regionPolys[poly->idx] = false;
+		regionChecks++;
+
+		bool anySplits = false;
+		int sz = cuttingPolys.size();
+		for (int k = 0; k < sz; k++) {
+			if (!regionPolys[k]) {
+				continue;
+			}
+			Polygon3D* cutPoly = cuttingPolys[k];
+			avgInRegion++;
+			//if (k != 1547) {
+			//	continue;
+			//}
+
+			vector<vector<vec3>> splitPolys = poly->split(*cutPoly);
+
+			if (splitPolys.size()) {
+				anySplits = true;
+				numSplits++;
+
+				for (int j = 0; j < 2; j++) {
+					int idx = solidFaces.size();
+					Polygon3D* newpoly = new Polygon3D(splitPolys[j], idx);
+					solidFaces.push_back(newpoly);
+				}
+
+				//logf("Split poly %d by %d\n", i, k);
 				break;
 			}
 		}
-		if (!found) {
-			logf("Failed to find non-duplicate vert for clipnode face\n");
-		}
 
-		if (!poly.isValid) {
-			logf("NOT VALID\n");
-			continue;
-		}
-
-		float error = getDistAlongAxis(poly.plane_z, poly.verts[1]) - poly.fdist;
-		if (error > 0.1f) {
-			logf("oh noes %f\n", error);
-		}
-
-		vec2 localMins = vec2(FLT_MAX, FLT_MAX);
-		vec2 localMaxs = vec2(-FLT_MAX, -FLT_MAX);
-		for (int e = 0; e < poly.verts.size(); e++) {
-			vec3 p = poly.verts[e];
-			if (p.x < mapMins.x || p.y < mapMins.y || p.z < mapMins.z
-				|| p.x > mapMaxs.x || p.y > mapMaxs.y || p.z > mapMaxs.z) {
-				continue;
-			}
-
-			vec2 localPoint = poly.project(p);
-			expandBoundingBox(localPoint, localMins, localMaxs);
-		}
-
-		int inPoly = 0;
-		int totalPoint = 0;
-		float step = 4.0f; // decrease if small polys are missing
-		bool touchingEmptyLeaf = false;
-		for (float x = localMins.x + 0.5f; x < localMaxs.x && !touchingEmptyLeaf; x += step) {
-			for (float y = localMins.y + 0.5f; y < localMaxs.y; y += step) {
-				totalPoint++;
-				vec2 testPos = vec2(x, y);
-				if (poly.isInside(testPos)) {
-					vec3 worldPos = poly.unproject(testPos);
-					if (map->pointContents(headnode, worldPos + poly.plane_z, hull) == CONTENTS_EMPTY) {
-						touchingEmptyLeaf = true;
-						break;
-					}
-					inPoly++;
-				}
-			}
-		}
-
-		float sz = (localMaxs.y - localMins.y) * (localMaxs.x - localMins.x);
-		//logf("%d / %d points inside size %.1f\n", inPoly, totalPoint, sz);
-		if (touchingEmptyLeaf || !doCull) {
-			interiorFaces.push_back(poly);
-
-			if (!isBoxContained(poly.worldMins, poly.worldMaxs, mapMins, mapMaxs)) {
-				logf("Nav poly %d out of world\n", interiorFaces.size()-1);
-			}
+		if (!anySplits && (map->isInteriorFace(*poly, hull) || !doCull)) {
+			interiorFaces.push_back(*poly);
 		}
 	}
-	logf("Got %d solidfaces, %d interior faces, %d skipped\n", solidFaces.size(), interiorFaces.size());
+	logf("Finished cutting in %.2fs\n", (float)(glfwGetTime() - startTime));
+	logf("Split %d faces into %d (%d splits)\n", presplit, solidFaces.size(), numSplits);
+	logf("Average of %d in poly regions\n", regionChecks ? (avgInRegion / regionChecks) : 0);
+	logf("Got %d interior faces\n", interiorFaces.size());
+
+	for (int i = 0; i < solidFaces.size(); i++) {
+		if (solidFaces[i])
+			delete solidFaces[i];
+	}
 
 	//g_app->debugPoly = interiorFaces[4180];
 
@@ -1112,6 +1085,8 @@ void BspRenderer::generateNavMeshBuffer() {
 	renderClip->wireframeClipnodeBuffer[hull]->ownData = true;
 
 	renderClip->faceMaths[hull] = faceMaths;
+
+	logf("Generated nav mesh in %.2fs\n", glfwGetTime() - navMeshGenStart);
 
 	ofstream file(map->name + "_hull" + to_string(hull) + ".obj", ios::out | ios::trunc);
 	for (int i = 0; i < allVerts.size(); i++) {

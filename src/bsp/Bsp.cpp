@@ -367,6 +367,12 @@ bool Bsp::is_node_hull_convex(int iNode) {
 	return true;
 }
 
+bool Bsp::isInteriorFace(const Polygon3D& poly, int hull) {
+	int headnode = models[0].iHeadnodes[hull];
+	vec3 testPos = poly.center + poly.plane_z * 0.5f;
+	return pointContents(headnode, testPos, hull) == CONTENTS_EMPTY;
+}
+
 int Bsp::addTextureInfo(BSPTEXTUREINFO& copy) {
 	BSPTEXTUREINFO* newInfos = new BSPTEXTUREINFO[texinfoCount + 1];
 	memcpy(newInfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));

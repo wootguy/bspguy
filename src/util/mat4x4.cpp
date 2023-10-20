@@ -277,6 +277,7 @@ mat4x4 mat4x4::invert()
 	if (det == 0)
 	{
 		logf("Matrix inversion failed (determinant is zero)\n");
+		memset(out.m, 0, sizeof(float) * 16);
 		return out;
 	}
 

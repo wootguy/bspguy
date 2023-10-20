@@ -9,6 +9,7 @@
 #include "remap.h"
 #include <set>
 #include "bsptypes.h"
+#include "Polygon3D.h"
 
 // largest coordinate allowed in map
 //#define MAX_COORD 131072
@@ -109,6 +110,9 @@ public:
 	void getNodePlanes(int iNode, vector<int>& nodePlanes);
 	bool is_convex(int modelIdx);
 	bool is_node_hull_convex(int iNode);
+
+	// true if the center of this face is touching an empty leaf
+	bool isInteriorFace(const Polygon3D& poly, int hull);
 
 	// get cuts required to create bounding volumes for each solid leaf in the model
 	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int16_t contents);
@@ -213,8 +217,6 @@ public:
 	BSPMIPTEX * find_embedded_texture(const char * name);
 
 	void update_lump_pointers();
-
-	void write_obj_file();
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);

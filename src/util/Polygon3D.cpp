@@ -76,7 +76,16 @@ vec2 Line2D::intersect(const Line2D& l2) {
 
 Polygon3D::Polygon3D(const vector<vec3>& verts) {
 	this->verts = verts;
+	init();
+}
 
+Polygon3D::Polygon3D(const vector<vec3>& verts, int idx) {
+	this->verts = verts;
+	this->idx = idx;
+	init();
+}
+
+void Polygon3D::init() {
 	vector<vec3> triangularVerts = getTriangularVerts(this->verts);
 
 	if (triangularVerts.empty())
@@ -93,18 +102,29 @@ Polygon3D::Polygon3D(const vector<vec3>& verts) {
 	worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 	localToWorld = worldToLocal.invert();
 
+	if (localToWorld.m[15] == 0) {
+		// failed matrix inversion
+		isValid = false;
+		return;
+	}
+
 	localMins = vec2(FLT_MAX, FLT_MAX);
 	localMaxs = vec2(-FLT_MAX, -FLT_MAX);
 
 	worldMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	worldMaxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
+	center = vec3();
+
 	for (int e = 0; e < verts.size(); e++) {
 		vec2 localPoint = project(verts[e]);
 		localVerts.push_back(localPoint);
 		expandBoundingBox(localPoint, localMins, localMaxs);
 		expandBoundingBox(verts[e], worldMins, worldMaxs);
+		center += verts[e];
 	}
+
+	center /= (float)verts.size();
 
 	vec3 vep(EPSILON, EPSILON, EPSILON);
 	worldMins -= vep;
@@ -190,7 +210,7 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 			break;
 		}
 	}
-	if (!intersectsAnyEdge) {
+	if (!intersectsAnyEdge && !(isInside(cutLine.start) && isInside(cutLine.end))) {
 		//logf("No edge intersections\n");
 		return splitPolys;
 	}
@@ -224,7 +244,7 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 
 			edgeIntersections++;
 			if (edgeIntersections > 2) {
-				logf(">2 edge intersections! Has %d vert intersect\n", vertIntersections);
+				//logf(">2 edge intersections! Has %d vert intersect\n", vertIntersections);
 				return vector<vector<vec3>>();
 			}
 		}

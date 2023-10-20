@@ -1706,46 +1706,6 @@ float Renderer::drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color
 	{
 		vec2 cam = debugPoly.project(cameraOrigin);
 		drawBox2D(offset + cam*scale, 16, poly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
-
-		Bsp* map = mapRenderers[0]->map;
-		vec3 mapMins;
-		vec3 mapMaxs;
-		map->get_bounding_box(mapMins, mapMaxs);
-
-		vec2 localMins = vec2(FLT_MAX, FLT_MAX);
-		vec2 localMaxs = vec2(-FLT_MAX, -FLT_MAX);
-		for (int e = 0; e < poly.verts.size(); e++) {
-			vec3 p = poly.verts[e];
-			if (p.x < mapMins.x || p.y < mapMins.y || p.z < mapMins.z
-				|| p.x > mapMaxs.x || p.y > mapMaxs.y || p.z > mapMaxs.z) {
-				continue;
-			}
-
-			vec2 localPoint = poly.project(p);
-			expandBoundingBox(localPoint, localMins, localMaxs);
-		}
-		
-		int hull = 3;
-		int headnode = map->models[0].iHeadnodes[hull];
-		int inPoly = 0;
-		int totalPoint = 0;
-		float step = 4.0f; // decrease if small polys are missing
-		bool touchingEmptyLeaf = false;
-		for (float x = localMins.x + 0.5f; x < localMaxs.x && !touchingEmptyLeaf; x += step) {
-			for (float y = localMins.y + 0.5f; y < localMaxs.y; y += step) {
-				totalPoint++;
-				vec2 testPos = vec2(x, y);
-				if (poly.isInside(testPos)) {
-					vec3 worldPos = poly.unproject(testPos);
-					if (map->pointContents(headnode, worldPos + poly.plane_z, hull) == CONTENTS_EMPTY) {
-						drawBox2D(offset + testPos * scale, 2, COLOR4(0, 255, 255, 255));
-					}
-					else {
-						drawBox2D(offset + testPos * scale, 2, COLOR4(255, 128, 0, 255));
-					}
-				}
-			}
-		}
 	}
 	
 
