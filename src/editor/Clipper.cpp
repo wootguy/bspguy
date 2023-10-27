@@ -43,10 +43,10 @@ int Clipper::clipVertices(CMesh& mesh, BSPPLANE& clip) {
 		if (vert.visible) {
 			vert.distance = dotProduct(clipNorm, vert.pos) - dDist;
 
-			if (vert.distance >= EPSILON) {
+			if (vert.distance > EPSILON) {
 				positive++;
 			}
-			else if (vert.distance <= EPSILON) {
+			else if (vert.distance < -EPSILON) {
 				negative++;
 				vert.visible = false;
 			}
@@ -108,7 +108,7 @@ void Clipper::clipEdges(CMesh& mesh, BSPPLANE& clip) {
 			int idx = mesh.verts.size();
 			mesh.verts.push_back(intersect);
 
-			if (d0 > 0) {
+			if (d0 >= 0) {
 				edge.verts[1] = idx;
 			}
 			else {
@@ -223,12 +223,12 @@ CMesh Clipper::createMaxSizeVolume() {
 	}
 
 	{
-		mesh.faces.push_back(CFace({ 0, 1, 2, 3 },   vec3( 0, -1,  0)));	// 0 front
-		mesh.faces.push_back(CFace({ 4, 5, 6, 7 },   vec3( 0,  1,  0)));	// 1 back
-		mesh.faces.push_back(CFace({ 1, 5, 8, 9 },   vec3(-1,  0,  0)));	// 2 left
-		mesh.faces.push_back(CFace({ 3, 7, 10, 11 }, vec3( 1,  0,  0)));	// 3 right
-		mesh.faces.push_back(CFace({ 2, 6, 9, 11 },  vec3( 0,  0,  1)));	// 4 top
-		mesh.faces.push_back(CFace({ 0, 4, 8, 10 },  vec3( 0,  0, -1)));	// 5 bottom
+		mesh.faces.push_back(CFace({ 0, 1, 2, 3 },   vec3d( 0, -1,  0)));	// 0 front
+		mesh.faces.push_back(CFace({ 4, 5, 6, 7 },   vec3d( 0,  1,  0)));	// 1 back
+		mesh.faces.push_back(CFace({ 1, 5, 8, 9 },   vec3d(-1,  0,  0)));	// 2 left
+		mesh.faces.push_back(CFace({ 3, 7, 10, 11 }, vec3d( 1,  0,  0)));	// 3 right
+		mesh.faces.push_back(CFace({ 2, 6, 9, 11 },  vec3d( 0,  0,  1)));	// 4 top
+		mesh.faces.push_back(CFace({ 0, 4, 8, 10 },  vec3d( 0,  0, -1)));	// 5 bottom
 	}
 
 	return mesh;
