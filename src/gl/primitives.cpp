@@ -122,40 +122,40 @@ cCube::cCube(vec3 mins, vec3 maxs, COLOR4 c)
 {
 	cVert v1, v2, v3, v4;
 
-	v1 = cVert(mins.x, maxs.y, maxs.z, c);
-	v2 = cVert(mins.x, maxs.y, mins.z, c);
-	v3 = cVert(mins.x, mins.y, mins.z, c);
-	v4 = cVert(mins.x, mins.y, maxs.z, c);
+	v4 = cVert(mins.x, maxs.y, maxs.z, c);
+	v3 = cVert(mins.x, maxs.y, mins.z, c);
+	v2 = cVert(mins.x, mins.y, mins.z, c);
+	v1 = cVert(mins.x, mins.y, maxs.z, c);
 	left = cQuad(v1, v2, v3, v4);
 
-	v1 = cVert(maxs.x, maxs.y, mins.z, c);
-	v2 = cVert(maxs.x, maxs.y, maxs.z, c);
-	v3 = cVert(maxs.x, mins.y, maxs.z, c);
-	v4 = cVert(maxs.x, mins.y, mins.z, c);
+	v4 = cVert(maxs.x, maxs.y, mins.z, c);
+	v3 = cVert(maxs.x, maxs.y, maxs.z, c);
+	v2 = cVert(maxs.x, mins.y, maxs.z, c);
+	v1 = cVert(maxs.x, mins.y, mins.z, c);
 	right = cQuad(v1, v2, v3, v4);
 
-	v1 = cVert(mins.x, mins.y, mins.z, c);
-	v2 = cVert(maxs.x, mins.y, mins.z, c);
-	v3 = cVert(maxs.x, mins.y, maxs.z, c);
-	v4 = cVert(mins.x, mins.y, maxs.z, c);
+	v4 = cVert(mins.x, mins.y, mins.z, c);
+	v3 = cVert(maxs.x, mins.y, mins.z, c);
+	v2 = cVert(maxs.x, mins.y, maxs.z, c);
+	v1 = cVert(mins.x, mins.y, maxs.z, c);
 	top = cQuad(v1, v2, v3, v4);
 
-	v1 = cVert(mins.x, maxs.y, maxs.z, c);
-	v2 = cVert(maxs.x, maxs.y, maxs.z, c);
-	v3 = cVert(maxs.x, maxs.y, mins.z, c);
-	v4 = cVert(mins.x, maxs.y, mins.z, c);
+	v4 = cVert(mins.x, maxs.y, maxs.z, c);
+	v3 = cVert(maxs.x, maxs.y, maxs.z, c);
+	v2 = cVert(maxs.x, maxs.y, mins.z, c);
+	v1 = cVert(mins.x, maxs.y, mins.z, c);
 	bottom = cQuad(v1, v2, v3, v4);
 
-	v1 = cVert(mins.x, maxs.y, mins.z, c);
-	v2 = cVert(maxs.x, maxs.y, mins.z, c);
-	v3 = cVert(maxs.x, mins.y, mins.z, c);
-	v4 = cVert(mins.x, mins.y, mins.z, c);
+	v4 = cVert(mins.x, maxs.y, mins.z, c);
+	v3 = cVert(maxs.x, maxs.y, mins.z, c);
+	v2 = cVert(maxs.x, mins.y, mins.z, c);
+	v1 = cVert(mins.x, mins.y, mins.z, c);
 	front = { v1, v2, v3, v4 };
 
-	v1 = cVert(maxs.x, maxs.y, maxs.z, c);
-	v2 = cVert(mins.x, maxs.y, maxs.z, c);
-	v3 = cVert(mins.x, mins.y, maxs.z, c);
-	v4 = cVert(maxs.x, mins.y, maxs.z, c);
+	v4 = cVert(maxs.x, maxs.y, maxs.z, c);
+	v3 = cVert(mins.x, maxs.y, maxs.z, c);
+	v2 = cVert(mins.x, mins.y, maxs.z, c);
+	v1 = cVert(maxs.x, mins.y, maxs.z, c);
 	back = cQuad(v1, v2, v3, v4);
 }
 
