@@ -6,12 +6,12 @@
 // https://www.geometrictools.com/Documentation/ClipMesh.pdf
 
 struct CVertex {
-	vec3d pos;
-	double distance = 0;
+	vec3 pos;
+	float distance = 0;
 	int occurs = 0;
 	bool visible = true;
 
-	CVertex(vec3d pos) : pos(pos) {}
+	CVertex(vec3 pos) : pos(pos) {}
 };
 
 struct CEdge {
@@ -37,9 +37,9 @@ struct CEdge {
 struct CFace {
 	vector<int> edges;
 	bool visible = true;
-	vec3d normal;
+	vec3 normal;
 
-	CFace(vector<int> edges, vec3d normal) {
+	CFace(vector<int> edges, vec3 normal) {
 		this->edges = edges;
 		this->normal = normal;
 	}
