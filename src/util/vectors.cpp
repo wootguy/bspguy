@@ -3,6 +3,127 @@
 #include "mat4x4.h"
 #include "util.h"
 
+vec3d operator-(vec3d v1, vec3d v2)
+{
+	v1.x -= v2.x;
+	v1.y -= v2.y;
+	v1.z -= v2.z;
+	return v1;
+}
+
+vec3d operator+(vec3d v1, vec3d v2)
+{
+	v1.x += v2.x;
+	v1.y += v2.y;
+	v1.z += v2.z;
+	return v1;
+}
+
+vec3d operator*(vec3d v1, vec3d v2)
+{
+	v1.x *= v2.x;
+	v1.y *= v2.y;
+	v1.z *= v2.z;
+	return v1;
+}
+
+vec3d operator/(vec3d v1, vec3d v2)
+{
+	v1.x /= v2.x;
+	v1.y /= v2.y;
+	v1.z /= v2.z;
+	return v1;
+}
+
+vec3d operator-(vec3d v, double f)
+{
+	v.x -= f;
+	v.y -= f;
+	v.z -= f;
+	return v;
+}
+
+vec3d operator+(vec3d v, double f)
+{
+	v.x += f;
+	v.y += f;
+	v.z += f;
+	return v;
+}
+
+vec3d operator*(vec3d v, double f)
+{
+	v.x *= f;
+	v.y *= f;
+	v.z *= f;
+	return v;
+}
+
+vec3d operator/(vec3d v, double f)
+{
+	v.x /= f;
+	v.y /= f;
+	v.z /= f;
+	return v;
+}
+
+void vec3d::operator-=(vec3d v)
+{
+	x -= v.x;
+	y -= v.y;
+	z -= v.z;
+}
+
+void vec3d::operator+=(vec3d v)
+{
+	x += v.x;
+	y += v.y;
+	z += v.z;
+}
+
+void vec3d::operator*=(vec3d v)
+{
+	x *= v.x;
+	y *= v.y;
+	z *= v.z;
+}
+
+void vec3d::operator/=(vec3d v)
+{
+	x /= v.x;
+	y /= v.y;
+	z /= v.z;
+}
+
+void vec3d::operator-=(double f)
+{
+	x -= f;
+	y -= f;
+	z -= f;
+}
+
+void vec3d::operator+=(double f)
+{
+	x += f;
+	y += f;
+	z += f;
+}
+
+void vec3d::operator*=(double f)
+{
+	x *= f;
+	y *= f;
+	z *= f;
+}
+
+void vec3d::operator/=(double f)
+{
+	x /= f;
+	y /= f;
+	z /= f;
+}
+
+
 bool operator==( vec3 v1, vec3 v2 )
 {
 	vec3 v = v1 - v2;
@@ -147,6 +268,14 @@ void vec3::operator/=( float f )
 	z /= f;
 }
 
+vec3d crossProduct(vec3d v1, vec3d v2)
+{
+	float x = v1.y * v2.z - v2.y * v1.z;
+	float y = v2.x * v1.z - v1.x * v2.z;
+	float z = v1.x * v2.y - v1.y * v2.x;
+	return vec3d(x, y, z);
+}
+
 vec3 crossProduct( vec3 v1, vec3 v2 )
 {
 	float x = v1.y*v2.z - v2.y*v1.z; 
@@ -158,6 +287,11 @@ vec3 crossProduct( vec3 v1, vec3 v2 )
 float crossProduct(vec2 v1, vec2 v2)
 {
 	return (v1.x * v2.y) - (v1.y * v2.x);
+}
+
+double dotProduct(vec3d v1, vec3d v2)
+{
+	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
 float dotProduct( vec3 v1, vec3 v2 )
@@ -195,6 +329,10 @@ vec3 vec3::normalize( float length )
 
 vec3 vec3::invert() {
 	return vec3(x != 0 ? -x : x, y != 0 ? -y : y, z != 0 ? -z : z);
+}
+
+vec3d vec3d::invert() {
+	return vec3d(x != 0 ? -x : x, y != 0 ? -y : y, z != 0 ? -z : z);
 }
 
 float vec3::length()

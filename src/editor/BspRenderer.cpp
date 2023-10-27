@@ -872,7 +872,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			vector<vec3> faceVerts;
 			for (auto vertIdx : uniqueFaceVerts) {
-				faceVerts.push_back(mesh.verts[vertIdx].pos);
+				faceVerts.push_back(mesh.verts[vertIdx].pos.vec3f());
 			}
 
 			faceVerts = getSortedPlanarVerts(faceVerts);
@@ -884,7 +884,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			vec3 normal = getNormalFromVerts(faceVerts);
 
-			if (dotProduct(face.normal, normal) < 0) {
+			if (dotProduct(face.normal.vec3f(), normal) < 0) {
 				reverse(faceVerts.begin(), faceVerts.end());
 				normal = normal.invert();
 			}
@@ -895,7 +895,7 @@ void BspRenderer::generateNavMeshBuffer() {
 	}
 
 	int debugPoly = 0;
-	//debugPoly = 1560;
+	//debugPoly = 2233;
 
 	int avgInRegion = 0;
 	int regionChecks = 0;
@@ -906,23 +906,32 @@ void BspRenderer::generateNavMeshBuffer() {
 	int presplit = solidFaces.size();
 	int numSplits = 0;
 	float startTime = glfwGetTime();
+	bool doSplit = true;
 	bool doCull = true;
-	bool walkableSurfacesOnly = false;
+	bool walkableSurfacesOnly = true;
 
 	vector<bool> regionPolys;
 	regionPolys.resize(cuttingPolys.size());
 
+	vector<int> debugSplits;
+
+	int didx = 0;
 	for (int i = 0; i < solidFaces.size(); i++) {
 		Polygon3D* poly = solidFaces[i];
-		if (debugPoly && i != debugPoly) {
-			continue;
-		}
-		if (!poly->isValid || poly->idx == -1) {
+		//if (debugPoly && i != debugPoly && i < cuttingPolys.size()) {
+		//	continue;
+		//}
+		if (!poly->isValid || poly->area == 0) {
 			continue;
 		}
 		if (walkableSurfacesOnly && poly->plane_z.z < 0.7) {
 			continue;
 		}
+		
+		//logf("debug poly idx %d -> %d\n", didx, i);
+		//didx++;
+
+		//logf("Splitting %d\n", i);
 
 		octree.getPolysInRegion(poly, regionPolys);
 		if (poly->idx < cuttingPolys.size())
@@ -931,6 +940,10 @@ void BspRenderer::generateNavMeshBuffer() {
 
 		bool anySplits = false;
 		int sz = cuttingPolys.size();
+
+		if (!doSplit || (debugPoly && i != debugPoly && i < cuttingPolys.size()))
+			sz = 0;
+
 		for (int k = 0; k < sz; k++) {
 			if (!regionPolys[k]) {
 				continue;
@@ -947,18 +960,27 @@ void BspRenderer::generateNavMeshBuffer() {
 				anySplits = true;
 				numSplits++;
 
-				for (int j = 0; j < 2; j++) {
-					int idx = solidFaces.size();
-					Polygon3D* newpoly = new Polygon3D(splitPolys[j], idx);
-					solidFaces.push_back(newpoly);
+				Polygon3D* newpoly0 = new Polygon3D(splitPolys[0], solidFaces.size());
+				Polygon3D* newpoly1 = new Polygon3D(splitPolys[1], solidFaces.size());
+				
+				solidFaces.push_back(newpoly0);
+				solidFaces.push_back(newpoly1);
+				
+				float newArea = newpoly0->area + newpoly1->area;
+				if (newArea < poly->area * 0.9f) {
+					logf("Poly %d area shrunk by %.1f (%.1f -> %1.f)\n", i, (poly->area - newArea), poly->area, newArea);
 				}
 
 				//logf("Split poly %d by %d\n", i, k);
 				break;
 			}
 		}
-
-		if (!anySplits && (map->isInteriorFace(*poly, hull) || !doCull)) {
+		if (!doSplit) {
+			if (i < cuttingPolys.size()) {
+				interiorFaces.push_back(*poly);
+			}
+		}
+		else if (!anySplits && (map->isInteriorFace(*poly, hull) || !doCull)) {
 			interiorFaces.push_back(*poly);
 		}
 	}
@@ -1158,7 +1180,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 				vector<vec3> faceVerts;
 				for (auto vertIdx : uniqueFaceVerts) {
-					faceVerts.push_back(mesh.verts[vertIdx].pos);
+					faceVerts.push_back(mesh.verts[vertIdx].pos.vec3f());
 				}
 
 				faceVerts = getSortedPlanarVerts(faceVerts);
@@ -1170,7 +1192,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 				vec3 normal = getNormalFromVerts(faceVerts);
 
-				if (dotProduct(mesh.faces[i].normal, normal) < 0) {
+				if (dotProduct(mesh.faces[i].normal.vec3f(), normal) < 0) {
 					reverse(faceVerts.begin(), faceVerts.end());
 					normal = normal.invert();
 				}
@@ -1178,8 +1200,8 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 				// calculations for face picking
 				{
 					FaceMath faceMath;
-					faceMath.normal = mesh.faces[i].normal;
-					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal, faceVerts[0]);
+					faceMath.normal = mesh.faces[i].normal.vec3f();
+					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal.vec3f(), faceVerts[0]);
 
 					vec3 v0 = faceVerts[0];
 					vec3 v1;
@@ -1195,7 +1217,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 						logf("Failed to find non-duplicate vert for clipnode face\n");
 					}
 
-					vec3 plane_z = mesh.faces[i].normal;
+					vec3 plane_z = mesh.faces[i].normal.vec3f();
 					vec3 plane_x = (v1 - v0).normalize();
 					vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
 					faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);

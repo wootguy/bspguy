@@ -100,3 +100,36 @@ vec4 operator/(vec4 v, float f);
 
 bool operator==(vec4 v1, vec4 v2);
 bool operator!=(vec4 v1, vec4 v2);
+
+struct vec3d
+{
+	double x, y, z;
+	vec3d() : x(), y(), z() {}
+	vec3d(float x, float y, float z) : x(x), y(y), z(z) {}
+	vec3d(vec3 v) : x(v.x), y(v.y), z(v.z) {}
+	vec3 vec3f() { return vec3(x, y, z); }
+	vec3d invert();
+
+	void operator-=(vec3d v);
+	void operator+=(vec3d v);
+	void operator*=(vec3d v);
+	void operator/=(vec3d v);
+
+	void operator-=(double f);
+	void operator+=(double f);
+	void operator*=(double f);
+	void operator/=(double f);
+};
+
+vec3d operator-(vec3d v1, vec3d v2);
+vec3d operator+(vec3d v1, vec3d v2);
+vec3d operator*(vec3d v1, vec3d v2);
+vec3d operator/(vec3d v1, vec3d v2);
+
+vec3d operator+(vec3d v, double f);
+vec3d operator-(vec3d v, double f);
+vec3d operator*(vec3d v, double f);
+vec3d operator/(vec3d v, double f);
+
+double dotProduct(vec3d v1, vec3d v2);
+vec3d crossProduct(vec3d v1, vec3d v2);

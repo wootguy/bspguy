@@ -12,8 +12,7 @@
 #include "Polygon3D.h"
 
 // largest coordinate allowed in map
-//#define MAX_COORD 131072
-#define MAX_COORD 32768
+#define MAX_COORD 131072
 
 struct membuf : std::streambuf
 {

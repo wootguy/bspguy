@@ -52,6 +52,8 @@ public:
 
 	vec3 center; // average/centroid in world coordinates
 	
+	float area = 0; // area of the 2D polygon
+
 	int idx = -1; // for octree lookup
 
 	Polygon3D() {}
@@ -88,6 +90,4 @@ public:
 
 	// get the world position of a point in the polygon's local coordinate system
 	vec3 unproject(vec2 p);
-
-	void draw2d(vec2 pos, vec2 maxSz);
 };

@@ -124,6 +124,12 @@ void Polygon3D::init() {
 		center += verts[e];
 	}
 
+	area = 0;
+	for (int i = 0; i < localVerts.size(); i++) {
+		area += crossProduct(localVerts[i], localVerts[(i+1) % localVerts.size()]);
+	}
+	area = fabs(area) * 0.5f;
+
 	center /= (float)verts.size();
 
 	vec3 vep(EPSILON, EPSILON, EPSILON);
