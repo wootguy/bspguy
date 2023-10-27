@@ -25,11 +25,7 @@ public:
 
     ~PolygonOctree();
 
-    void buildOctree(PolyOctant* node, int currentDepth);
-
     void insertPolygon(Polygon3D* polygon);
-
-    void insertPolygon(PolyOctant* node, Polygon3D* polygon, int currentDepth);
 
     void removePolygon(Polygon3D* polygon);
 
@@ -37,5 +33,10 @@ public:
 
     void getPolysInRegion(Polygon3D* poly, vector<bool>& regionPolys);
 
+private:
+    void buildOctree(PolyOctant* node, int currentDepth);
+
     void getPolysInRegion(PolyOctant* node, Polygon3D* poly, int currentDepth, vector<bool>& regionPolys);
+
+    void insertPolygon(PolyOctant* node, Polygon3D* polygon, int currentDepth);
 };

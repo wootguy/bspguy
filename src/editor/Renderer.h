@@ -108,8 +108,7 @@ public:
 
 	vec3 debugLine0;
 	vec3 debugLine1;
-	vec3 debugLine2;
-	vec3 debugLine3;
+	Line2D debugCut;
 	Polygon3D debugPoly;
 	Polygon3D debugPoly2;
 

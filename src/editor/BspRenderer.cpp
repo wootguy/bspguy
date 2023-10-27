@@ -872,7 +872,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			vector<vec3> faceVerts;
 			for (auto vertIdx : uniqueFaceVerts) {
-				faceVerts.push_back(mesh.verts[vertIdx].pos.vec3f());
+				faceVerts.push_back(mesh.verts[vertIdx].pos);
 			}
 
 			faceVerts = getSortedPlanarVerts(faceVerts);
@@ -884,18 +884,21 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			vec3 normal = getNormalFromVerts(faceVerts);
 
-			if (dotProduct(face.normal.vec3f(), normal) < 0) {
+			if (dotProduct(face.normal, normal) < 0) {
 				reverse(faceVerts.begin(), faceVerts.end());
 				normal = normal.invert();
 			}
 
-			solidFaces.push_back(new Polygon3D(faceVerts, solidFaces.size()));
+			Polygon3D* poly = new Polygon3D(faceVerts, solidFaces.size());
+			poly->removeDuplicateVerts();
+
+			solidFaces.push_back(poly);
 			octree.insertPolygon(solidFaces[solidFaces.size()-1]);
 		}
 	}
 
 	int debugPoly = 0;
-	//debugPoly = 2233;
+	//debugPoly = 601;
 
 	int avgInRegion = 0;
 	int regionChecks = 0;
@@ -908,20 +911,21 @@ void BspRenderer::generateNavMeshBuffer() {
 	float startTime = glfwGetTime();
 	bool doSplit = true;
 	bool doCull = true;
+	bool doMerge = true;
 	bool walkableSurfacesOnly = true;
+	const int TINY_POLY = 64; // cull faces smaller than this
 
 	vector<bool> regionPolys;
 	regionPolys.resize(cuttingPolys.size());
 
 	vector<int> debugSplits;
 
-	int didx = 0;
 	for (int i = 0; i < solidFaces.size(); i++) {
 		Polygon3D* poly = solidFaces[i];
 		//if (debugPoly && i != debugPoly && i < cuttingPolys.size()) {
 		//	continue;
 		//}
-		if (!poly->isValid || poly->area == 0) {
+		if (!poly->isValid || poly->area < 4.0f) {
 			continue;
 		}
 		if (walkableSurfacesOnly && poly->plane_z.z < 0.7) {
@@ -957,21 +961,27 @@ void BspRenderer::generateNavMeshBuffer() {
 			vector<vector<vec3>> splitPolys = poly->split(*cutPoly);
 
 			if (splitPolys.size()) {
+				Polygon3D* newpoly0 = new Polygon3D(splitPolys[0], solidFaces.size());
+				Polygon3D* newpoly1 = new Polygon3D(splitPolys[1], solidFaces.size());
+
+				if (newpoly0->area < EPSILON || newpoly1->area < EPSILON) {
+					delete newpoly0;
+					delete newpoly1;
+					continue;
+				}
+
+				solidFaces.push_back(newpoly0);
+				solidFaces.push_back(newpoly1);
+
 				anySplits = true;
 				numSplits++;
 
-				Polygon3D* newpoly0 = new Polygon3D(splitPolys[0], solidFaces.size());
-				Polygon3D* newpoly1 = new Polygon3D(splitPolys[1], solidFaces.size());
-				
-				solidFaces.push_back(newpoly0);
-				solidFaces.push_back(newpoly1);
-				
 				float newArea = newpoly0->area + newpoly1->area;
 				if (newArea < poly->area * 0.9f) {
 					logf("Poly %d area shrunk by %.1f (%.1f -> %1.f)\n", i, (poly->area - newArea), poly->area, newArea);
 				}
 
-				//logf("Split poly %d by %d\n", i, k);
+				//logf("Split poly %d by %d into areas %.1f %.1f\n", i, k, newpoly0->area, newpoly1->area);
 				break;
 			}
 		}
@@ -988,13 +998,105 @@ void BspRenderer::generateNavMeshBuffer() {
 	logf("Split %d faces into %d (%d splits)\n", presplit, solidFaces.size(), numSplits);
 	logf("Average of %d in poly regions\n", regionChecks ? (avgInRegion / regionChecks) : 0);
 	logf("Got %d interior faces\n", interiorFaces.size());
+	
+	float mergeStart = glfwGetTime();
+
+	int preMergePolys = interiorFaces.size();
+	vector<Polygon3D> mergedFaces = interiorFaces;
+	int pass = 0;
+	int maxPass = 10;
+	for (pass = 0; pass <= maxPass; pass++) {
+
+		PolygonOctree mergeOctree(treeMin, treeMax, treedepth);
+		for (int i = 0; i < mergedFaces.size(); i++) {
+			mergedFaces[i].idx = i;
+			//interiorFaces[i].removeColinearVerts();
+			mergeOctree.insertPolygon(&mergedFaces[i]);
+		}
+		regionPolys.resize(mergedFaces.size());
+
+		vector<Polygon3D> newMergedFaces;
+
+		for (int i = 0; i < mergedFaces.size(); i++) {
+			Polygon3D& poly = mergedFaces[i];
+			if (poly.idx == -1)
+				continue;
+			//if (pass == 4 && i != 149)
+			//	continue;
+
+			mergeOctree.getPolysInRegion(&poly, regionPolys);
+			regionPolys[poly.idx] = false;
+
+			int sz = doMerge ? regionPolys.size() : 0;
+			bool anyMerges = false;
+
+			for (int k = i+1; k < sz; k++) {
+				if (!regionPolys[k]) {
+					continue;
+				}
+				Polygon3D& mergePoly = mergedFaces[k];
+				/*
+				if (pass == 4 && k != 242) {
+					continue;
+				}
+				if (pass == 4) {
+					logf("debug time\n");
+				}
+				*/
+
+				//poly.removeColinearVerts();
+				//mergePoly.removeColinearVerts();
+				Polygon3D mergedPoly = poly.merge(mergePoly);
+
+				if (!mergedPoly.isValid) {
+					continue;
+				}
+
+				anyMerges = true;
+
+				// prevent any further merges on the original polys
+				mergePoly.idx = -1;
+				poly.idx = -1;
+
+				newMergedFaces.push_back(mergedPoly);
+				break;
+			}
+
+			if (!anyMerges)
+				newMergedFaces.push_back(poly);
+		}
+
+		logf("Removed %d polys in pass %d\n", mergedFaces.size() - newMergedFaces.size(), pass+1);
+
+		if (mergedFaces.size() == newMergedFaces.size() || pass == maxPass) {
+			break;
+		}
+		else {
+			mergedFaces = newMergedFaces;
+		}
+	}
+
+	vector<Polygon3D> finalPolys;
+	for (int i = 0; i < mergedFaces.size(); i++) {
+		if (mergedFaces[i].area < TINY_POLY) {
+			// TODO: only remove if there is at least one unconnected edge,
+			// otherwise there will be holes
+			continue;
+		}
+		finalPolys.push_back(mergedFaces[i]);
+	}
+
+	logf("Finished merging in %.2fs\n", (float)(glfwGetTime() - mergeStart));
+	logf("Merged %d polys down to %d in %d passes\n", preMergePolys, finalPolys.size(), pass);
+	logf("Removed %d tiny polys\n", mergedFaces.size() - finalPolys.size());
+	
+	debugFaces = finalPolys;
+	//debugFaces = interiorFaces;
 
 	for (int i = 0; i < solidFaces.size(); i++) {
 		if (solidFaces[i])
 			delete solidFaces[i];
 	}
-
-	//g_app->debugPoly = interiorFaces[4180];
 
 	static COLOR4 hullColors[] = {
 		COLOR4(255, 255, 255, 128),
@@ -1008,8 +1110,8 @@ void BspRenderer::generateNavMeshBuffer() {
 	vector<cVert> wireframeVerts;
 	vector<FaceMath> faceMaths;
 
-	for (int m = 0; m < interiorFaces.size(); m++) {
-		Polygon3D& poly = interiorFaces[m];
+	for (int m = 0; m < finalPolys.size(); m++) {
+		Polygon3D& poly = finalPolys[m];
 
 		vec3 normal = poly.plane_z;
 
@@ -1116,7 +1218,7 @@ void BspRenderer::generateNavMeshBuffer() {
 		file << "v " << fixed << std::setprecision(2) << v.x << " " << v.y << " " << v.z << endl;
 	}
 	for (int i = 0; i < allVerts.size(); i += 3) {
-		file << "f " << (i + 3) << " " << (i + 2) << " " << (i + 1) << endl;
+		file << "f " << (i + 1) << " " << (i + 2) << " " << (i + 3) << endl;
 	}
 	logf("Wrote %d verts\n", allVerts.size());
 	file.close();
@@ -1180,7 +1282,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 				vector<vec3> faceVerts;
 				for (auto vertIdx : uniqueFaceVerts) {
-					faceVerts.push_back(mesh.verts[vertIdx].pos.vec3f());
+					faceVerts.push_back(mesh.verts[vertIdx].pos);
 				}
 
 				faceVerts = getSortedPlanarVerts(faceVerts);
@@ -1192,7 +1294,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 				vec3 normal = getNormalFromVerts(faceVerts);
 
-				if (dotProduct(mesh.faces[i].normal.vec3f(), normal) < 0) {
+				if (dotProduct(mesh.faces[i].normal, normal) < 0) {
 					reverse(faceVerts.begin(), faceVerts.end());
 					normal = normal.invert();
 				}
@@ -1200,8 +1302,8 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 				// calculations for face picking
 				{
 					FaceMath faceMath;
-					faceMath.normal = mesh.faces[i].normal.vec3f();
-					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal.vec3f(), faceVerts[0]);
+					faceMath.normal = mesh.faces[i].normal;
+					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal, faceVerts[0]);
 
 					vec3 v0 = faceVerts[0];
 					vec3 v1;
@@ -1217,7 +1319,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 						logf("Failed to find non-duplicate vert for clipnode face\n");
 					}
 
-					vec3 plane_z = mesh.faces[i].normal.vec3f();
+					vec3 plane_z = mesh.faces[i].normal;
 					vec3 plane_x = (v1 - v0).normalize();
 					vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
 					faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
@@ -1979,8 +2081,16 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 				pickInfo.valid = true;
 				pickInfo.bestDist = t;
 				pickInfo.faceIdx = -1;
-				if (modelIdx == 0) {
-					logf("Picked hull %d face %d\n", hullIdx, i);
+				if (modelIdx == 0 && hullIdx == 3) {
+					static int lastPick = 0;
+					logf("Picked hull %d, face %d, verts %d, area %.1f\n", hullIdx, i, debugFaces[i].verts.size(), debugFaces[i].area);
+					g_app->debugPoly = debugFaces[i];
+
+					Polygon3D merged = debugFaces[lastPick].merge(debugFaces[i]);
+					vector<vector<vec3>> split = debugFaces[i].split(debugFaces[lastPick]);
+					logf("split %d by %d == %d\n", i, lastPick, split.size());
+
+					lastPick = i;
 				}
 			}
 		}

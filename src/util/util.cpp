@@ -569,7 +569,7 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 		if (verts[i] != verts[i0] && verts[i] != verts[i1]) {
 			vec3 ab = (verts[i1] - verts[i0]).normalize();
 			vec3 ac = (verts[i] - verts[i0]).normalize();
-			if (fabs(dotProduct(ab, ac)) == 1) {
+			if (fabs(dotProduct(ab, ac)) > 0.99f) {
 				continue;
 			}
 

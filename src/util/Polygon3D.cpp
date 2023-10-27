@@ -3,6 +3,21 @@
 #include "BspRenderer.h"
 #include "Renderer.h"
 
+#define COLINEAR_EPSILON 0.125f
+#define SAME_VERT_EPSILON 0.125f
+
+bool vec3Equal(vec3 v1, vec3 v2, float epsilon)
+{
+	vec3 v = v1 - v2;
+	if (fabs(v.x) >= epsilon)
+		return false;
+	if (fabs(v.y) >= epsilon)
+		return false;
+	if (fabs(v.z) >= epsilon)
+		return false;
+	return true;
+}
+
 Line2D::Line2D(vec2 start, vec2 end) {
 	this->start = start;
 	this->end = end;
@@ -87,6 +102,16 @@ Polygon3D::Polygon3D(const vector<vec3>& verts, int idx) {
 
 void Polygon3D::init() {
 	vector<vec3> triangularVerts = getTriangularVerts(this->verts);
+	localVerts.clear();
+	isValid = false;
+	center = vec3();
+	area = 0;
+
+	localMins = vec2(FLT_MAX, FLT_MAX);
+	localMaxs = vec2(-FLT_MAX, -FLT_MAX);
+
+	worldMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	worldMaxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	if (triangularVerts.empty())
 		return;
@@ -104,17 +129,8 @@ void Polygon3D::init() {
 
 	if (localToWorld.m[15] == 0) {
 		// failed matrix inversion
-		isValid = false;
 		return;
 	}
-
-	localMins = vec2(FLT_MAX, FLT_MAX);
-	localMaxs = vec2(-FLT_MAX, -FLT_MAX);
-
-	worldMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	worldMaxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
-	center = vec3();
 
 	for (int e = 0; e < verts.size(); e++) {
 		vec2 localPoint = project(verts[e]);
@@ -124,7 +140,6 @@ void Polygon3D::init() {
 		center += verts[e];
 	}
 
-	area = 0;
 	for (int i = 0; i < localVerts.size(); i++) {
 		area += crossProduct(localVerts[i], localVerts[(i+1) % localVerts.size()]);
 	}
@@ -193,77 +208,94 @@ bool Polygon3D::isInside(vec2 p) {
 vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 	vector<vector<vec3>> splitPolys;
 
-	int vertIntersections = 0;
+	bool intersectsAnyEdge = false;
+	if (isInside(cutLine.start) || isInside(cutLine.end)) {
+		intersectsAnyEdge = true;
+	}
+
+	if (!intersectsAnyEdge) {
+		for (int i = 0; i < localVerts.size(); i++) {
+			vec2 e1 = localVerts[i];
+			vec2 e2 = localVerts[(i + 1) % localVerts.size()];
+			Line2D edge(e1, e2);
+
+			if (edge.doesIntersect(cutLine)) {
+				intersectsAnyEdge = true;
+				break;
+			}
+		}
+	}
+	if (!intersectsAnyEdge) {
+		//logf("No edge intersections\n");
+		return splitPolys;
+	}
+
+	// extend to "infinity" if we know the cutting edge is touching the poly somewhere
+	// a split should happen along that edge across the entire polygon
+	cutLine.start = cutLine.start - cutLine.dir * MAX_COORD;
+	cutLine.end = cutLine.end + cutLine.dir * MAX_COORD;
+
 	for (int i = 0; i < localVerts.size(); i++) {
-		float dist = fabs(cutLine.distance(localVerts[i]));
-		if (dist < EPSILON) {
-			vertIntersections++;
-			if (vertIntersections > 1) {
+		vec2 e1 = localVerts[i];
+		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
+
+		float dist1 = fabs(cutLine.distance(e1));
+		float dist2 = fabs(cutLine.distance(e2));
+
+		if (dist1 < COLINEAR_EPSILON) {
+			if (dist2 < COLINEAR_EPSILON) {
 				//logf("cut is colinear with an edge\n");
 				return splitPolys; // line is colinear with an edge, no intersections possible
 			}
 		}
 	}
 
-	bool intersectsAnyEdge = false;
-	for (int i = 0; i < localVerts.size(); i++) {
-		vec2 e1 = localVerts[i];
-		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
-		Line2D edge(e1, e2);
-
-		if (edge.doesIntersect(cutLine)) {
-			intersectsAnyEdge = true;
-			break;
-		}
-	}
-	if (!intersectsAnyEdge && !(isInside(cutLine.start) && isInside(cutLine.end))) {
-		//logf("No edge intersections\n");
-		return splitPolys;
-	}
-
-	// extend to "infinity" now that we know the cutting edge is touching the poly somewhere
-	// a split should happen along that edge across the entire polygon
-	cutLine.start = cutLine.start - cutLine.dir * MAX_COORD;
-	cutLine.end = cutLine.end + cutLine.dir * MAX_COORD;
 
 	splitPolys.push_back(vector<vec3>());
 	splitPolys.push_back(vector<vec3>());
 
-	int edgeIntersections = 0;
 
-	//logf("VErt intersects: %d\n", vertIntersections);
+	// get new verts with intersection points included
+	vector<vec3> newVerts;
+	vector<vec2> newLocalVerts;
 
 	for (int i = 0; i < localVerts.size(); i++) {
+		int next = (i + 1) % localVerts.size();
 		vec2 e1 = localVerts[i];
-		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
+		vec2 e2 = localVerts[next];
 		Line2D edge(e1, e2);
 
-		int polyIdx = edgeIntersections == 1 ? 1 : 0;
+		newVerts.push_back(verts[i]);
+		newLocalVerts.push_back(e1);
 
 		if (edge.doesIntersect(cutLine)) {
 			vec2 intersect = edge.intersect(cutLine);
 			vec3 worldPos = (localToWorld * vec4(intersect.x, intersect.y, fdist, 1)).xyz();
 
-			splitPolys[polyIdx].push_back(verts[i]);
-			splitPolys[0].push_back(worldPos);
-			splitPolys[1].push_back(worldPos);
-
-			edgeIntersections++;
-			if (edgeIntersections > 2) {
-				//logf(">2 edge intersections! Has %d vert intersect\n", vertIntersections);
-				return vector<vector<vec3>>();
+			if (!vec3Equal(worldPos, verts[i], SAME_VERT_EPSILON) && !vec3Equal(worldPos, verts[next], SAME_VERT_EPSILON)) {
+				newVerts.push_back(worldPos);
+				newLocalVerts.push_back(intersect);
 			}
 		}
+	}
+
+	// define new polys (separate by left/right of line
+	for (int i = 0; i < newLocalVerts.size(); i++) {
+		float dist = cutLine.distance(newLocalVerts[i]);
+
+		if (dist < -SAME_VERT_EPSILON) {
+			splitPolys[0].push_back(newVerts[i]);
+		}
+		else if (dist > SAME_VERT_EPSILON) {
+			splitPolys[1].push_back(newVerts[i]);
+		}
 		else {
-			splitPolys[polyIdx].push_back(verts[i]);
+			splitPolys[0].push_back(newVerts[i]);
+			splitPolys[1].push_back(newVerts[i]);
 		}
 	}
 
-	//logf("Edge intersects: %d\n", edgeIntersections);
-
-	if (edgeIntersections <= 1) {
-		return vector<vector<vec3>>();
-	}
+	g_app->debugCut = cutLine;
 
 	if (splitPolys[0].size() < 3 || splitPolys[1].size() < 3) {
 		//logf("Degenerate split!\n");
@@ -283,7 +315,7 @@ vector<vector<vec3>> Polygon3D::split(const Polygon3D& cutPoly) {
 		const vec3& e2 = cutPoly.verts[(i + 1) % cutPoly.verts.size()];
 
 		if (fabs(distance(e1)) < EPSILON && fabs(distance(e2)) < EPSILON) {
-			//logf("Edge %d is inside\n", i);
+			//logf("Edge %d is inside %.1f %.1f\n", i, distance(e1), distance(e2));
 			g_app->debugLine0 = e1;
 			g_app->debugLine1 = e2;
 			return cut(Line2D(project(e1), project(e2)));
@@ -291,4 +323,142 @@ vector<vector<vec3>> Polygon3D::split(const Polygon3D& cutPoly) {
 	}
 
 	return vector<vector<vec3>>();
+}
+
+bool Polygon3D::isConvex() {
+	int n = localVerts.size();
+	if (n < 3) {
+		return false;
+	}
+
+	int sign = 0;  // Initialize the sign of the cross product
+
+	for (int i = 0; i < n; i++) {
+		const vec2& A = localVerts[i];
+		const vec2& B = localVerts[(i + 1) % n];  // Next vertex
+		const vec2& C = localVerts[(i + 2) % n];  // Vertex after the next
+
+		vec2 AB = vec2(B.x - A.x, B.y - A.y).normalize();
+		vec2 BC = vec2(C.x - B.x, C.y - B.y).normalize();
+
+		float current_cross_product = crossProduct(AB, BC);
+
+		if (fabs(current_cross_product) < COLINEAR_EPSILON) {
+			continue;  // Skip collinear points
+		}
+
+		if (sign == 0) {
+			sign = (current_cross_product > 0) ? 1 : -1;
+		}
+		else {
+			if ((current_cross_product > 0 && sign == -1) || (current_cross_product < 0 && sign == 1)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void Polygon3D::removeDuplicateVerts() {
+	vector<vec3> newVerts;
+
+	int sz = localVerts.size();
+	for (int i = 0; i < sz; i++) {
+		int last = (i + (sz - 1)) % sz;
+
+		if (!vec3Equal(verts[i], verts[last], SAME_VERT_EPSILON))
+			newVerts.push_back(verts[i]);
+	}
+
+	if (verts.size() != newVerts.size()) {
+		logf("Removed %d duplicate verts\n", verts.size() - newVerts.size());
+		verts = newVerts;
+		init();
+	}
+}
+
+void Polygon3D::removeColinearVerts() {
+	vector<vec3> newVerts;
+
+	if (verts.size() < 3) {
+		logf("Not enough verts to remove colinear ones\n");
+		return;
+	}
+
+	int sz = localVerts.size();
+	for (int i = 0; i < sz; i++) {
+		const vec2& A = localVerts[(i + (sz-1)) % sz];
+		const vec2& B = localVerts[i];
+		const vec2& C = localVerts[(i + 1) % sz];
+
+		vec2 AB = vec2(B.x - A.x, B.y - A.y).normalize();
+		vec2 BC = vec2(C.x - B.x, C.y - B.y).normalize();
+		float cross = crossProduct(AB, BC);
+
+		if (fabs(cross) >= COLINEAR_EPSILON) {
+			newVerts.push_back(verts[i]);
+		}
+	}
+
+	if (verts.size() != newVerts.size()) {
+		//logf("Removed %d colinear verts\n", verts.size() - newVerts.size());
+		verts = newVerts;
+		init();
+	}
+}
+
+Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
+	vector<vec3> mergedVerts;
+	
+	float epsilon = 1.0f;
+
+	if (fabs(fdist - mergePoly.fdist) > epsilon || dotProduct(plane_z, mergePoly.plane_z) < 0.99f)
+		return mergedVerts; // faces not coplaner
+
+	int sharedEdges = 0;
+	int commonEdgeStart1 = -1, commonEdgeEnd1 = -1;
+	int commonEdgeStart2 = -1, commonEdgeEnd2 = -1;
+	for (int i = 0; i < verts.size(); i++) {
+		const vec3& e1 = verts[i];
+		const vec3& e2 = verts[(i + 1) % verts.size()];
+
+		for (int k = 0; k < mergePoly.verts.size(); k++) {
+			const vec3& other1 = mergePoly.verts[k];
+			const vec3& other2 = mergePoly.verts[(k + 1) % mergePoly.verts.size()];
+
+			if ((vec3Equal(e1, other1, epsilon) && vec3Equal(e2, other2, epsilon))
+				|| (vec3Equal(e1, other2, epsilon) && vec3Equal(e2, other1, epsilon))) {
+				commonEdgeStart1 = i;
+				commonEdgeEnd1 = (i + 1) % verts.size();
+				commonEdgeStart2 = k;
+				commonEdgeEnd2 = (k + 1) % mergePoly.verts.size();
+				sharedEdges++;
+			}
+		}
+	}
+
+	if (sharedEdges == 0)
+		return Polygon3D();
+	if (sharedEdges > 1) {
+		//logf("More than 1 shared edge for merge!\n");
+		return Polygon3D();
+	}
+
+	mergedVerts.reserve(verts.size() + mergePoly.verts.size() - 2);
+	for (int i = commonEdgeEnd1; i != commonEdgeStart1; i = (i + 1) % verts.size()) {
+		mergedVerts.push_back(verts[i]);
+	}
+	for (int i = commonEdgeEnd2; i != commonEdgeStart2; i = (i + 1) % mergePoly.verts.size()) {
+		mergedVerts.push_back(mergePoly.verts[i]);
+	}
+
+	Polygon3D newPoly(mergedVerts);
+
+	if (!newPoly.isConvex()) {
+		return Polygon3D();
+	}
+	newPoly.removeColinearVerts();
+
+	return newPoly;
 }

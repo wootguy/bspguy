@@ -167,6 +167,8 @@ private:
 	int numPointEnts;
 	int numLoadedTextures = 0;
 
+	vector<Polygon3D> debugFaces;
+
 
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;

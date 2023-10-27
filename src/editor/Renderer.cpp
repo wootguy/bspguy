@@ -1708,6 +1708,7 @@ float Renderer::drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color
 		drawBox2D(offset + cam*scale, 16, poly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
 	}
 	
+	drawLine2D(offset + debugCut.start * scale, offset + debugCut.end * scale, color);
 
 	return scale;
 }

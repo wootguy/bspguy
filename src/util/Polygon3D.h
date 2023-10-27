@@ -8,6 +8,8 @@ struct Line2D {
 	vec2 end;
 	vec2 dir;
 
+	Line2D() {}
+
 	Line2D(vec2 start, vec2 end);
 
 	// distance between this point and the axis of this line
@@ -34,7 +36,7 @@ public:
 	vec3 plane_x;
 	vec3 plane_y;
 	vec3 plane_z; // plane normal
-	float fdist;
+	float fdist = 0;
 	
 	std::vector<vec3> verts;
 	std::vector<vec2> localVerts; // points relative to the plane orientation
@@ -66,6 +68,11 @@ public:
 
 	float distance(const vec3& p);
 
+	bool isConvex();
+
+	void removeColinearVerts();
+	void removeDuplicateVerts();
+
 	// returns split polys for first edge on cutPoly that contacts this polygon
 	// multiple intersections (overlapping polys) are not handled
 	// returns empty on no intersection
@@ -76,6 +83,10 @@ public:
 	// returns empty if cutting not possible
 	// returns 2 new convex polygons otherwise
 	vector<vector<vec3>> cut(Line2D cutLine);
+
+	// returns merged polygon vertices if polys are coplaner and share an edge
+	// otherwise returns an empty vector
+	Polygon3D merge(const Polygon3D& mergePoly);
 
 	// is point inside this polygon? Coordinates are in world space.
 	// Points within EPSILON of an edge are not inside.
