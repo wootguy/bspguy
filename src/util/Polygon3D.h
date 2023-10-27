@@ -73,6 +73,8 @@ public:
 	void removeColinearVerts();
 	void removeDuplicateVerts();
 
+	void extendAlongAxis(float amt);
+
 	// returns split polys for first edge on cutPoly that contacts this polygon
 	// multiple intersections (overlapping polys) are not handled
 	// returns empty on no intersection

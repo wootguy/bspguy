@@ -5,6 +5,7 @@
 
 #define COLINEAR_EPSILON 0.125f
 #define SAME_VERT_EPSILON 0.125f
+#define COLINEAR_CUT_EPSILON 0.25f // increase if cutter gets stuck in a loop cutting the same polys
 
 bool vec3Equal(vec3 v1, vec3 v2, float epsilon)
 {
@@ -242,11 +243,9 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 		float dist1 = fabs(cutLine.distance(e1));
 		float dist2 = fabs(cutLine.distance(e2));
 
-		if (dist1 < COLINEAR_EPSILON) {
-			if (dist2 < COLINEAR_EPSILON) {
-				//logf("cut is colinear with an edge\n");
-				return splitPolys; // line is colinear with an edge, no intersections possible
-			}
+		if (dist1 < COLINEAR_CUT_EPSILON && dist2 < COLINEAR_CUT_EPSILON) {
+			//logf("cut is colinear with an edge\n");
+			return splitPolys; // line is colinear with an edge, no intersections possible
 		}
 	}
 
@@ -338,6 +337,7 @@ bool Polygon3D::isConvex() {
 		const vec2& B = localVerts[(i + 1) % n];  // Next vertex
 		const vec2& C = localVerts[(i + 2) % n];  // Vertex after the next
 
+		// normalizing prevents small epsilons not working for large differences in edge lengths
 		vec2 AB = vec2(B.x - A.x, B.y - A.y).normalize();
 		vec2 BC = vec2(C.x - B.x, C.y - B.y).normalize();
 
@@ -376,6 +376,14 @@ void Polygon3D::removeDuplicateVerts() {
 		verts = newVerts;
 		init();
 	}
+}
+
+void Polygon3D::extendAlongAxis(float amt) {
+	for (int i = 0; i < verts.size(); i++) {
+		verts[i] += plane_z * amt;
+	}
+
+	init();
 }
 
 void Polygon3D::removeColinearVerts() {

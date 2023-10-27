@@ -268,7 +268,7 @@ vector<NodeVolumeCuts> Bsp::get_model_leaf_volume_cuts(int modelIdx, int hullIdx
 		if (nodeIdx >= 0 && is_valid_node) {
 			vector<BSPPLANE> clipOrder;
 			if (hullIdx == 0) {
-				get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts);
+				get_node_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts, contents);
 			}
 			else {
 				get_clipnode_leaf_cuts(nodeIdx, clipOrder, modelVolumeCuts, contents);
@@ -313,7 +313,7 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 	}
 }
 
-void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output) {
+void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int16_t contents) {
 	BSPNODE& node = nodes[iNode];
 
 	for (int i = 0; i < 2; i++) {
@@ -325,9 +325,9 @@ void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<Node
 		clipOrder.push_back(plane);
 
 		if (node.iChildren[i] >= 0) {
-			get_node_leaf_cuts(node.iChildren[i], clipOrder, output);
+			get_node_leaf_cuts(node.iChildren[i], clipOrder, output, contents);
 		}
-		else if (leaves[~node.iChildren[i]].nContents != CONTENTS_SOLID) {
+		else if (leaves[~node.iChildren[i]].nContents == contents) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 

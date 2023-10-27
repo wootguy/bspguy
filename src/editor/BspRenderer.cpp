@@ -838,6 +838,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 	vec3 treeMin = vec3(-MAX_COORD, -MAX_COORD, -MAX_COORD);
 	vec3 treeMax = vec3(MAX_COORD, MAX_COORD, MAX_COORD);
+	float hullShrink = hull == 0 ? 18 : 0;
 
 	while (isBoxContained(mapMins, mapMaxs, treeMin * 0.5f, treeMax * 0.5f)) {
 		treeMax *= 0.5f;
@@ -891,6 +892,8 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			Polygon3D* poly = new Polygon3D(faceVerts, solidFaces.size());
 			poly->removeDuplicateVerts();
+			if (hullShrink)
+				poly->extendAlongAxis(hullShrink);
 
 			solidFaces.push_back(poly);
 			octree.insertPolygon(solidFaces[solidFaces.size()-1]);
@@ -912,6 +915,7 @@ void BspRenderer::generateNavMeshBuffer() {
 	bool doSplit = true;
 	bool doCull = true;
 	bool doMerge = true;
+	bool doTinyCull = true;
 	bool walkableSurfacesOnly = true;
 	const int TINY_POLY = 64; // cull faces smaller than this
 
@@ -925,7 +929,7 @@ void BspRenderer::generateNavMeshBuffer() {
 		//if (debugPoly && i != debugPoly && i < cuttingPolys.size()) {
 		//	continue;
 		//}
-		if (!poly->isValid || poly->area < 4.0f) {
+		if (!poly->isValid) {
 			continue;
 		}
 		if (walkableSurfacesOnly && poly->plane_z.z < 0.7) {
@@ -1078,7 +1082,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 	vector<Polygon3D> finalPolys;
 	for (int i = 0; i < mergedFaces.size(); i++) {
-		if (mergedFaces[i].area < TINY_POLY) {
+		if (doTinyCull && mergedFaces[i].area < TINY_POLY) {
 			// TODO: only remove if there is at least one unconnected edge,
 			// otherwise there will be holes
 			continue;
