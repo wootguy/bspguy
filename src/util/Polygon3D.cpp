@@ -104,6 +104,7 @@ Polygon3D::Polygon3D(const vector<vec3>& verts, int idx) {
 void Polygon3D::init() {
 	vector<vec3> triangularVerts = getTriangularVerts(this->verts);
 	localVerts.clear();
+	topdownVerts.clear();
 	isValid = false;
 	center = vec3();
 	area = 0;
@@ -136,6 +137,7 @@ void Polygon3D::init() {
 	for (int e = 0; e < verts.size(); e++) {
 		vec2 localPoint = project(verts[e]);
 		localVerts.push_back(localPoint);
+		topdownVerts.push_back(vec2(verts[e].x, verts[e].y));
 		expandBoundingBox(localPoint, localMins, localMaxs);
 		expandBoundingBox(verts[e], worldMins, worldMaxs);
 		center += verts[e];
@@ -372,7 +374,7 @@ void Polygon3D::removeDuplicateVerts() {
 	}
 
 	if (verts.size() != newVerts.size()) {
-		logf("Removed %d duplicate verts\n", verts.size() - newVerts.size());
+		//logf("Removed %d duplicate verts\n", verts.size() - newVerts.size());
 		verts = newVerts;
 		init();
 	}

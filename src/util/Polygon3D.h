@@ -40,6 +40,7 @@ public:
 	
 	std::vector<vec3> verts;
 	std::vector<vec2> localVerts; // points relative to the plane orientation
+	std::vector<vec2> topdownVerts; // points without a z coordinate
 
 	mat4x4 worldToLocal;
 	mat4x4 localToWorld;
@@ -103,4 +104,7 @@ public:
 
 	// get the world position of a point in the polygon's local coordinate system
 	vec3 unproject(vec2 p);
+
+	
+	bool sharesTopDownEdge();
 };

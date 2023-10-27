@@ -31,6 +31,8 @@ set(SOURCE_FILES
 	src/util/mat4x4.h		src/util/mat4x4.cpp
 	src/util/Polygon3D.h	src/util/Polygon3D.cpp
 	src/util/PolyOctree.h	src/util/PolyOctree.cpp
+	src/bsp/NavMesh.h		src/bsp/NavMesh.cpp
+	src/bsp/NavMeshGenerator.h		src/bsp/NavMeshGenerator.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -89,8 +91,8 @@ if(MSVC)
 	add_subdirectory(glfw)
 	
 	# compile using the static runtime
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /wd4244 /wd4018")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /wd4244 /wd4018 /W0")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /W0")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /wd4244 /wd4018")
 	
 	# Disable C++ exceptions
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bspguy)
