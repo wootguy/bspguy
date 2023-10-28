@@ -1,7 +1,5 @@
 #include "Entity.h"
-#include <string>
 #include "util.h"
-#include <algorithm>
 
 using namespace std;
 

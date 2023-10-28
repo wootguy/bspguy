@@ -1,18 +1,13 @@
 #pragma once
-#include <chrono>
-#include <ctime> 
-#include "Wad.h"
-#include "Entity.h"
 #include "bsplimits.h"
 #include "rad.h"
 #include <string.h>
 #include "remap.h"
-#include <set>
 #include "bsptypes.h"
 #include "Polygon3D.h"
+#include <streambuf>
 
-// largest coordinate allowed in map
-#define MAX_COORD 131072
+class Entity;
 
 struct membuf : std::streambuf
 {

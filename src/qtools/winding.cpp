@@ -3,6 +3,7 @@
 #include "winding.h"
 #include "rad.h"
 #include "Bsp.h"
+#include "util.h"
 
 #undef ON_EPSILON
 

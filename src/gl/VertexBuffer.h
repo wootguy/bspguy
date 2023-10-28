@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include "ShaderProgram.h"
-#include "util.h"
+
+class ShaderProgram;
 
 // Combinable flags for setting common vertex attributes
 #define TEX_2B   (1 << 0)   // 2D byte texture coordinates
@@ -47,8 +47,8 @@ struct VertexAttr
 class VertexBuffer
 {
 public:
-	byte* data = NULL;
-	vector<VertexAttr> attribs;
+	uint8_t* data = NULL;
+	std::vector<VertexAttr> attribs;
 	int elementSize;
 	int numVerts;
 	bool ownData = false; // set to true if buffer should delete data on destruction
@@ -76,7 +76,7 @@ public:
 
 private:
 	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes
-	uint vboId = -1;
+	uint32_t vboId = -1;
 	bool attributesBound = false;
 
 	// add attributes according to the attribute flags

@@ -1,9 +1,6 @@
 #pragma once
-
-#include "util.h"
-#include "Bsp.h"
-#include "Entity.h"
 #include "BspRenderer.h"
+#include "bsptypes.h"
 
 // Undoable actions following the Command Pattern
 

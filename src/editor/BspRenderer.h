@@ -1,13 +1,20 @@
 #pragma once
-#include "Bsp.h"
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-#include "Texture.h"
-#include "ShaderProgram.h"
-#include "LightmapNode.h"
-#include "VertexBuffer.h"
-#include "primitives.h"
-#include "PointEntRenderer.h"
+#include "bsplimits.h"
+#include "mat4x4.h"
+#include <vector>
+#include "Polygon3D.h"
+#include <future>
+
+class NavMesh;
+class PointEntRenderer;
+struct EntCube;
+class VertexBuffer;
+class ShaderProgram;
+class Texture;
+struct lightmapVert;
+struct cCube;
+class Bsp;
+class Entity;
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
@@ -168,6 +175,7 @@ private:
 	int numLoadedTextures = 0;
 
 	vector<Polygon3D> debugFaces;
+	NavMesh* debugNavMesh;
 
 
 	Texture** glTextures = NULL;

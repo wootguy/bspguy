@@ -1,11 +1,17 @@
 #include "Gui.h"
-#include "ShaderProgram.h"
 #include "primitives.h"
-#include "VertexBuffer.h"
-#include "shaders.h"
 #include "Renderer.h"
 #include <lodepng.h>
-#include <algorithm>
+#include "Entity.h"
+#include "Bsp.h"
+#include "Command.h"
+#include "Fgd.h"
+#include "Texture.h"
+#include "Wad.h"
+#include "util.h"
+#include "globals.h"
+#include <fstream>
+#include <set>
 
 // embedded binary data
 #include "fonts/robotomono.h"

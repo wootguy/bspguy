@@ -1,7 +1,12 @@
 #pragma once
-#include "util.h"
-#include "Wad.h"
-#include "Entity.h"
+#include <vector>
+#include "colors.h"
+#include <string>
+#include <map>
+#include <vector>
+#include "types.h"
+
+class Entity;
 
 enum FGD_CLASS_TYPES {
 	FGD_CLASS_BASE,
@@ -57,7 +62,7 @@ struct FgdClass {
 	vec3 mins;
 	vec3 maxs;
 	COLOR3 color;
-	hashmap otherTypes; // unrecognized types
+	map< string, string > otherTypes; // unrecognized types
 
 	// if false, then need to get props from the base class
 	bool colorSet;

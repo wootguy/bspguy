@@ -1,6 +1,6 @@
 #include "Clipper.h"
 #include <set>
-#include "bsp.h"
+#include "util.h"
 
 Clipper::Clipper() {
 
@@ -184,8 +184,8 @@ bool Clipper::getOpenPolyline(CMesh& mesh, CFace& face, int& start, int& final) 
 }
 
 CMesh Clipper::createMaxSizeVolume() {
-	const vec3 min = vec3(-MAX_COORD, -MAX_COORD, -MAX_COORD);
-	const vec3 max = vec3(MAX_COORD, MAX_COORD, MAX_COORD);
+	const vec3 min = vec3(-MAX_MAP_COORD, -MAX_MAP_COORD, -MAX_MAP_COORD);
+	const vec3 max = vec3(MAX_MAP_COORD, MAX_MAP_COORD, MAX_MAP_COORD);
 
 	CMesh mesh;
 

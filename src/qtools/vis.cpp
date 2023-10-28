@@ -1,5 +1,7 @@
 #include "vis.h"
-#include "Bsp.h"
+#include "rad.h"
+#include "util.h"
+#include "globals.h"
 
 bool g_debug_shift = false;
 

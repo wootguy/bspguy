@@ -1,7 +1,6 @@
 #include "primitives.h"
 #include <math.h>
 #include <string.h>
-#include "Wad.h"
 
 tQuad::tQuad(float x, float y, float w, float h)
 {

@@ -1,6 +1,8 @@
 #include <GL/glew.h>
 #include "ShaderProgram.h"
+#include "Shader.h"
 #include "util.h"
+#include "mat4x4.h"
 #include <string.h>
 
 static int g_active_shader_program;

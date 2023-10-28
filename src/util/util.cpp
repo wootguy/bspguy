@@ -1,13 +1,9 @@
 #include "util.h"
-#include <iostream>
 #include <fstream>
-#include <string>
-#include <algorithm>
-#include <cctype>
 #include <string.h>
-#include "Wad.h"
-#include <stdarg.h>
-#include <cfloat>
+#include "colors.h"
+#include "mat4x4.h"
+#include "globals.h"
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
@@ -30,11 +26,6 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #define USE_FILESYSTEM
 #endif
-
-ProgressMeter g_progress;
-int g_render_flags;
-vector<string> g_log_buffer;
-mutex g_log_mutex;
 
 static char log_line[4096];
 
@@ -242,30 +233,6 @@ vec3 parseVector(string s) {
 	v.z = atof(parts[2].c_str());
 
 	return v;
-}
-
-COLOR3 operator*(COLOR3 c, float scale)
-{
-	c.r *= scale;
-	c.g *= scale;
-	c.b *= scale;
-	return c;
-}
-
-bool operator==(COLOR3 c1, COLOR3 c2) {
-	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b;
-}
-
-COLOR4 operator*(COLOR4 c, float scale)
-{
-	c.r *= scale;
-	c.g *= scale;
-	c.b *= scale;
-	return c;
-}
-
-bool operator==(COLOR4 c1, COLOR4 c2) {
-	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b && c1.a == c2.a;
 }
 
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {

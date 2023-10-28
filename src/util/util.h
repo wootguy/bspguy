@@ -2,12 +2,8 @@
 #include "types.h"
 #include <string>
 #include <vector>
-#include "mat4x4.h"
-#include <iostream>
-#include <fstream>
 #include <cmath>
-#include <thread>
-#include <future>
+#include <mutex>
 #include "ProgressMeter.h"
 #include "bsptypes.h"
 
@@ -22,15 +18,6 @@
 
 #define __WINDOWS__
 
-
-
-extern bool g_verbose;
-extern ProgressMeter g_progress;
-extern vector<string> g_log_buffer;
-extern const char* g_version_string;
-extern mutex g_log_mutex;
-
-extern int g_render_flags;
 
 void logf(const char* format, ...);
 

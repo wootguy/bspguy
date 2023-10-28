@@ -24,6 +24,7 @@ set(SOURCE_FILES
 	src/bsp/Keyvalue.h		src/bsp/Keyvalue.cpp
 	src/bsp/Wad.h			src/bsp/Wad.cpp
 	src/bsp/remap.h			src/bsp/remap.cpp
+	src/bsp/colors.h		src/bsp/colors.cpp
 	
 	# Math and stuff
 	src/util/util.h			src/util/util.cpp
@@ -33,6 +34,7 @@ set(SOURCE_FILES
 	src/util/PolyOctree.h	src/util/PolyOctree.cpp
 	src/bsp/NavMesh.h		src/bsp/NavMesh.cpp
 	src/bsp/NavMeshGenerator.h		src/bsp/NavMeshGenerator.cpp
+	src/globals.h			src/globals.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -51,6 +53,7 @@ set(SOURCE_FILES
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Clipper.h			src/editor/Clipper.cpp
 	src/editor/Command.h			src/editor/Command.cpp
+	src/editor/AppSettings.h		src/editor/AppSettings.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -106,6 +109,7 @@ if(MSVC)
 											src/bsp/Entity.h
 											src/bsp/Keyvalue.h
 											src/bsp/Wad.h
+											src/bsp/colors.h
 											src/bsp/remap.h)
 											
 	source_group("Source Files\\bsp" FILES	src/bsp/BspMerger.cpp
@@ -114,6 +118,7 @@ if(MSVC)
 											src/bsp/Entity.cpp
 											src/bsp/Keyvalue.cpp
 											src/bsp/Wad.cpp
+											src/bsp/colors.cpp
 											src/bsp/remap.cpp)
 	
 	source_group("Header Files\\cli" FILES	src/cli/CommandLine.h
@@ -143,6 +148,7 @@ if(MSVC)
 												src/editor/Gui.h
 												src/editor/PointEntRenderer.h
 												src/editor/Command.h
+												src/editor/AppSettings.h
 												src/editor/Clipper.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/BspRenderer.cpp
@@ -152,6 +158,7 @@ if(MSVC)
 												src/editor/Gui.cpp
 												src/editor/PointEntRenderer.cpp
 												src/editor/Command.cpp
+												src/editor/AppSettings.cpp
 												src/editor/Clipper.cpp)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h

@@ -1,7 +1,4 @@
-#include "util.h"
 #include "bsptypes.h"
-#include "primitives.h"
-#include "VertexBuffer.h"
 
 // https://www.geometrictools.com/Documentation/ClipMesh.pdf
 

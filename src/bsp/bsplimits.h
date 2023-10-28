@@ -1,5 +1,5 @@
 #define MAX_MAP_HULLS	4
-#define MAX_MAP_COORD 32767 // stuff breaks past this point
+#define MAX_MAP_COORD 131072 // stuff breaks past this point
 
 #define MAX_MAP_MODELS 4096
 #define MAX_MAP_PLANES 65535

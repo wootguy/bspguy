@@ -1,5 +1,7 @@
 #include "Fgd.h"
+#include "util.h"
 #include <set>
+#include <fstream>
 
 map<string, int> fgdKeyTypes{
 	{"integer", FGD_KEY_INTEGER},

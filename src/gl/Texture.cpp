@@ -1,15 +1,13 @@
 #include <GL/glew.h>
-#include "Wad.h"
+#include "colors.h"
 #include "Texture.h"
-#include "lodepng.h"
-#include "util.h"
 
 Texture::Texture(int width, int height) {
 	this->width = width;
 	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
-	this->data = new byte[width*height*sizeof(COLOR3)];
+	this->data = new uint8_t[width*height*sizeof(COLOR3)];
 }
 
 Texture::Texture( int width, int height, void * data )
@@ -18,7 +16,7 @@ Texture::Texture( int width, int height, void * data )
 	this->height = height;
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
-	this->data = (byte*)data;
+	this->data = (uint8_t*)data;
 }
 
 Texture::~Texture()

@@ -1,6 +1,5 @@
 #pragma once
 #include <chrono>
-#include <ctime>
 
 class ProgressMeter {
 public:

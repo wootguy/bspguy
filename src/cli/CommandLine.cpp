@@ -1,4 +1,5 @@
 #include "CommandLine.h"
+#include "util.h"
 
 CommandLine::CommandLine(int argc, char* argv[]) {
 

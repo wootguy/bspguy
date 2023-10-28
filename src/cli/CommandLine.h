@@ -1,5 +1,7 @@
-#include "util.h"
-#include "Entity.h"
+#include "types.h"
+#include <string>
+#include <vector>
+#include <map>
 
 class CommandLine {
 public:
@@ -19,5 +21,5 @@ public:
 	vector<string> getOptionList(string optionName);
 
 private:
-	hashmap optionVals;
+	map<string,string> optionVals;
 };

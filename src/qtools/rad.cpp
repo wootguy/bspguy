@@ -1,7 +1,8 @@
 #include "rad.h"
 #include "winding.h"
 #include "Bsp.h"
-#include <algorithm>
+#include "colors.h"
+#include "util.h"
 
 void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
 

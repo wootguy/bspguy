@@ -1,6 +1,5 @@
 #pragma once
 
-#include "util.h"
 #include "bsptypes.h"
 
 #define MAX_SINGLEMAP ((MAX_SURFACE_EXTENT+1)*(MAX_SURFACE_EXTENT+1))

@@ -2,6 +2,10 @@
 #include "Renderer.h"
 #include "Gui.h"
 #include <lodepng.h>
+#include "Bsp.h"
+#include "Entity.h"
+#include "util.h"
+#include "globals.h"
 
 #include "icons/aaatrigger.h"
 

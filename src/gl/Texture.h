@@ -1,16 +1,15 @@
 #pragma once
-#include "util.h"
 
 class Texture
 {
 public:	
-	uint id; // OpenGL texture ID
-	uint height, width;
-	byte * data; // RGB(A) data
+	uint32_t id; // OpenGL texture ID
+	uint32_t height, width;
+	uint8_t * data; // RGB(A) data
 	int nearFilter;
 	int farFilter;
-	uint format; // format of the data
-	uint iformat; // format of the data when uploaded to GL
+	uint32_t format; // format of the data
+	uint32_t iformat; // format of the data when uploaded to GL
 	bool uploaded = false;
 
 	Texture(int width, int height);

@@ -1,7 +1,13 @@
 #pragma once
-#include "util.h"
-#include "Fgd.h"
-#include "VertexBuffer.h"
+#include "colors.h"
+#include "vectors.h"
+#include <map>
+#include <vector>
+
+class Fgd;
+class Entity;
+class VertexBuffer;
+class ShaderProgram;
 
 struct EntCube {
 	vec3 mins;

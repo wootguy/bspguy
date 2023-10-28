@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include "vectors.h"
-#include "Wad.h"
+#include "colors.h"
 #include "bsplimits.h"
 
 #pragma pack(push, 1)

@@ -1,13 +1,13 @@
 #pragma once
 #include "Keyvalue.h"
+#include "types.h"
 #include <map>
-
-typedef std::map< std::string, std::string > hashmap;
+#include <vector>
 
 class Entity
 {
 public:
-	hashmap keyvalues;
+	map<string, string> keyvalues;
 	vector<string> keyOrder;
 
 	int cachedModelIdx = -2; // -2 = not cached

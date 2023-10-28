@@ -4,11 +4,12 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include <GLFW/glfw3.h>
-#include "Entity.h"
 #include "remap.h"
 #include "bsptypes.h"
-#include "Texture.h"
 #include "qtools/rad.h"
+
+class Entity;
+class Texture;
 
 struct ModelInfo {
 	string classname;

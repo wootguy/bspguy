@@ -1,11 +1,9 @@
 #include "util.h"
 #include "BspMerger.h"
 #include <string>
-#include <algorithm>
-#include <iostream>
 #include "CommandLine.h"
-#include "remap.h"
 #include "Renderer.h"
+#include "globals.h"
 
 // super todo:
 // gui scale not accurate and mostly broken

@@ -1,6 +1,5 @@
 #pragma once
 #include "Polygon3D.h"
-#include <set>
 #include <vector>
 
 struct PolyOctant {

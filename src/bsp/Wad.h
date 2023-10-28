@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
-#include "bsplimits.h"
 #include "bsptypes.h"
+#include "colors.h"
 
 typedef unsigned char byte;
 typedef unsigned int uint;
@@ -9,30 +9,6 @@ typedef unsigned int uint;
 #define MAXTEXELS 262144
 
 #define CLAMP(v, min, max) if (v < min) { v = min; } else if (v > max) { v = max; }
-
-#pragma pack(push, 1)
-struct COLOR3
-{
-	byte r, g, b;
-
-	COLOR3() {}
-	COLOR3(byte r, byte g, byte b) : r(r), g(g), b(b) {}
-};
-#pragma pack(pop)
-struct COLOR4
-{
-	byte r, g, b, a;
-
-	COLOR4() {}
-	COLOR4(byte r, byte g, byte b, byte a) : r(r), g(g), b(b), a(a) {}
-	COLOR4(COLOR3 c, byte a) : r(c.r), g(c.g), b(c.b), a(a) {}
-};
-
-COLOR3 operator*(COLOR3 v, float f);
-bool operator==(COLOR3 c1, COLOR3 c2);
-
-COLOR4 operator*(COLOR4 v, float f);
-bool operator==(COLOR4 c1, COLOR4 c2);
 
 struct WADHEADER
 {

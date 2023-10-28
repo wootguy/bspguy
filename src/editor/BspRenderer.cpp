@@ -3,12 +3,23 @@
 #include "primitives.h"
 #include "rad.h"
 #include "lodepng.h"
-#include <algorithm>
 #include "Renderer.h"
 #include "Clipper.h"
-#include <iomanip>
 #include "Polygon3D.h"
 #include "NavMeshGenerator.h"
+#include "PointEntRenderer.h"
+#include "Texture.h"
+#include "LightmapNode.h"
+#include "Bsp.h"
+#include "NavMesh.h"
+#include "Entity.h"
+#include "Wad.h"
+#include "util.h"
+#include "ShaderProgram.h"
+#include "globals.h"
+#include <iomanip>
+#include <set>
+#include <fstream>
 
 #include "icons/missing.h"
 
@@ -816,8 +827,8 @@ void BspRenderer::generateNavMeshBuffer() {
 
 	NavMesh* navMesh = NavMeshGenerator().generate(map, hull);
 	vector<Polygon3D> navPolys = navMesh->getPolys();
-	delete navMesh;
 
+	debugNavMesh = navMesh;
 	debugFaces = navPolys;
 
 	static COLOR4 hullColors[] = {

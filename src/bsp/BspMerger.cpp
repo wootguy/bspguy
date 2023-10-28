@@ -1,8 +1,10 @@
 #include "BspMerger.h"
-#include <algorithm>
-#include <map>
 #include <set>
 #include "vis.h"
+#include "Entity.h"
+#include "Wad.h"
+#include <fstream>
+#include "globals.h"
 
 BspMerger::BspMerger() {
 
@@ -428,7 +430,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;
-				hashmap oldKeys = ent->keyvalues;
+				map<string,string> oldKeys = ent->keyvalues;
 
 				string spawn_name = "bspguy_npcs_" + source_map;
 

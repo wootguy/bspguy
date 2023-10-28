@@ -1,7 +1,8 @@
 #pragma once
-#include "Shader.h"
 #include <vector>
-#include "mat4x4.h"
+
+struct mat4x4;
+class Shader;
 
 enum mat_types
 {
@@ -13,15 +14,15 @@ enum mat_types
 class ShaderProgram
 {
 public:
-	uint ID; // OpenGL program ID
+	uint32_t ID; // OpenGL program ID
 
 	Shader * vShader; // vertex shader
 	Shader * fShader; // fragment shader
 
 	// commonly used vertex attributes
-	uint vposID;
-	uint vcolorID;
-	uint vtexID;
+	uint32_t vposID;
+	uint32_t vcolorID;
+	uint32_t vtexID;
 
 	mat4x4* projMat;
 	mat4x4* viewMat;
@@ -56,8 +57,8 @@ public:
 
 private:
 	// uniforms
-	uint modelViewID;
-	uint modelViewProjID;
+	uint32_t modelViewID;
+	uint32_t modelViewProjID;
 
 	// computed from model, view, and projection matrices
 	mat4x4* modelViewProjMat; // for transforming vertices onto the screen

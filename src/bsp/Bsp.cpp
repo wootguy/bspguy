@@ -1,13 +1,16 @@
 #include "Bsp.h"
 #include "util.h"
-#include <algorithm>
-#include <sstream>
 #include "lodepng.h"
-#include "rad.h"
 #include "vis.h"
-#include "remap.h"
-#include "Renderer.h"
+#include "Entity.h"
+#include "colors.h"
+#include "globals.h"
+#include <sstream>
 #include <set>
+#include <map>
+#include <fstream>
+#include <algorithm>
+
 
 typedef map< string, vec3 > mapStringToVector;
 

@@ -1,18 +1,18 @@
 #include <GL/glew.h>
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include "imgui_internal.h"
 #include <GLFW/glfw3.h>
-#include "ShaderProgram.h"
+#include "primitives.h"
 #include "BspRenderer.h"
-#include "Fgd.h"
-#include <thread>
-#include <future>
-#include "Command.h"
-#include "Polygon3D.h"
+#include "bsptypes.h"
 
 class Gui;
+class Fgd;
+class Command;
+class BspRenderer;
+class VertexBuffer;
+class ShaderProgram;
+class PointEntRenderer;
+class Entity;
+class Bsp;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -42,49 +42,7 @@ struct TransformAxes {
 	int numAxes;
 };
 
-struct AppSettings {
-	int windowWidth;
-	int windowHeight;
-	int windowX;
-	int windowY;
-	int maximized;
-	int fontSize;
-	string gamedir;
-	string workingdir;
-	bool valid;
-	int undoLevels;
-	bool verboseLogs;
-
-	bool debug_open;
-	bool keyvalue_open;
-	bool transform_open;
-	bool log_open;
-	bool settings_open;
-	bool limits_open;
-	bool entreport_open;
-	int settings_tab;
-
-	float fov;
-	float zfar;
-	float moveSpeed;
-	float rotSpeed;
-	int render_flags;
-	bool vsync;
-	bool show_transform_axes;
-	bool backUpMap;
-
-	vector<string> fgdPaths;
-	vector<string> resPaths;
-
-	void loadDefault();
-	void load();
-	void save();
-};
-
 class Renderer;
-
-extern AppSettings g_settings;
-extern Renderer* g_app;
 
 class Renderer {
 	friend class Gui;
@@ -233,7 +191,7 @@ private:
 	int debugNodeMax = 0;
 	bool debugClipnodes = false;
 	bool debugNodes = false;
-	int clipnodeRenderHull = -1;
+	int clipnodeRenderHull = 3;
 
 	int undoLevels = 64;
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history

@@ -2,8 +2,6 @@
 #include "Shader.h"
 #include "util.h"
 
-using namespace std;
-
 Shader::Shader( const char * sourceCode, int shaderType )
 {
 	// Create Shader And Program Objects
