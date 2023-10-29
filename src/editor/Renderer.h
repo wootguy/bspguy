@@ -71,6 +71,8 @@ public:
 	Polygon3D debugPoly2;
 	NavMesh* debugNavMesh = NULL;
 	int debugNavPoly = -1;
+	vec3 debugTraceStart;
+	TraceResult debugTrace;
 
 	bool hideGui = false;
 

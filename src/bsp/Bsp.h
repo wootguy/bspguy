@@ -73,6 +73,8 @@ public:
 	void recurse_node(int16_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx);
 	int32_t pointContents(int iNode, vec3 p, int hull);
+	bool recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace);
+	void traceHull(vec3 start, vec3 end, int hull, TraceResult* ptr);
 	const char* getLeafContentsName(int32_t contents);
 
 	// strips a collision hull from the given model index

@@ -2449,7 +2449,7 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch,
 	if (iNode < 0) {
 		leafIdx = -1;
 		childIdx = -1;
-		return CONTENTS_EMPTY;
+		return iNode;
 	}
 	
 	if (hull == 0) {
@@ -2500,6 +2500,129 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull) {
 	int leafIdx;
 	int childIdx;
 	return pointContents(iNode, p, hull, nodeBranch, leafIdx, childIdx);
+}
+
+bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace)
+{
+	if (num < 0) {
+		if (num != CONTENTS_SOLID) {
+			trace->fAllSolid = false;
+
+			if (num == CONTENTS_EMPTY)
+				trace->fInOpen = true;
+
+			else if (num != CONTENTS_TRANSLUCENT)
+				trace->fInWater = true;
+		}
+		else {
+			trace->fStartSolid = true;
+		}
+
+		// empty
+		return true;
+	}
+
+	if (num >= clipnodeCount) {
+		logf("%s: bad node number\n", __func__);
+		return false;
+	}
+
+	// find the point distances
+	BSPCLIPNODE* node = &clipnodes[num];
+	BSPPLANE* plane = &planes[node->iPlane];
+	
+	float t1 = dotProduct(plane->vNormal, p1) - plane->fDist;
+	float t2 = dotProduct(plane->vNormal, p2) - plane->fDist;
+
+	// keep descending until we find a plane that bisects the trace line
+	if (t1 >= 0.0f && t2 >= 0.0f)
+		return recursiveHullCheck(hull, node->iChildren[0], p1f, p2f, p1, p2, trace);
+	if (t1 < 0.0f && t2 < 0.0f)
+		return recursiveHullCheck(hull, node->iChildren[1], p1f, p2f, p1, p2, trace);
+
+	int side = (t1 < 0.0f) ? 1 : 0;
+	
+	// put the crosspoint DIST_EPSILON pixels on the near side
+	float frac;
+	if (side) {
+		frac = (t1 + EPSILON) / (t1 - t2);
+	}
+	else {
+		frac = (t1 - EPSILON) / (t1 - t2);
+	}
+	frac = clamp(frac, 0.0f, 1.0f);
+
+	if (frac != frac) {
+		return false; // NaN
+	}
+
+	float pdif = p2f - p1f;
+	float midf = p1f + pdif * frac;
+
+	vec3 point = p2 - p1;
+	vec3 mid = p1 + (point * frac);
+
+	// check if trace is empty up until this plane that was just intersected
+	if (!recursiveHullCheck(hull, node->iChildren[side], p1f, midf, p1, mid, trace)) {
+		// hit an earlier plane that caused the trace to be fully solid here
+		return false;
+	}
+
+	// check if trace can go through this plane without entering a solid area
+	if (pointContents(node->iChildren[side ^ 1], mid, hull) != CONTENTS_SOLID) {
+		// continue the trace from this plane
+		// won't collide with it again because trace starts from a child of the intersected node
+		return recursiveHullCheck(hull, node->iChildren[side ^ 1], midf, p2f, mid, p2, trace);
+	}
+
+	if (trace->fAllSolid) {
+		return false; // never got out of the solid area
+	}
+
+	// the other side of the node is solid, this is the impact point
+	trace->vecPlaneNormal = plane->vNormal;
+	trace->flPlaneDist = side ? -plane->fDist : plane->fDist;
+
+	// backup the trace if the collision point is considered solid due to poor float precision
+	// shouldn't really happen, but does occasionally
+	int headnode = models[0].iHeadnodes[hull];
+	while (pointContents(headnode, mid, hull) == CONTENTS_SOLID) {
+		frac -= 0.1f;
+		if (frac < 0.0f)
+		{
+			trace->flFraction = midf;
+			trace->vecEndPos = mid;
+			logf("backup past 0\n");
+			return false;
+		}
+
+		midf = p1f + pdif * frac;
+
+		vec3 point = p2 - p1;
+		mid = p1 + (point * frac);
+	}
+
+	trace->flFraction = midf;
+	trace->vecEndPos = mid;
+
+	return false;
+}
+
+void Bsp::traceHull(vec3 start, vec3 end, int hull, TraceResult* trace)
+{
+	if (hull < 0 || hull > 3)
+		hull = 0;
+
+	int headnode = models[0].iHeadnodes[hull];
+
+	// fill in a default trace
+	memset(trace, 0, sizeof(TraceResult));
+	trace->vecEndPos = end;
+	trace->flFraction = 1.0f;
+	trace->fAllSolid = true;
+
+	// trace a line through the appropriate clipping hull
+	recursiveHullCheck(hull, headnode, 0.0f, 1.0f, start, end, trace);
 }
 
 const char* Bsp::getLeafContentsName(int32_t contents) {

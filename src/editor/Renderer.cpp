@@ -330,7 +330,7 @@ void Renderer::renderLoop() {
 			glLineWidth(128.0f);
 			drawLine(debugLine0, debugLine1, { 255, 0, 0, 255 });
 			
-
+			drawLine(debugTraceStart, debugTrace.vecEndPos, COLOR4(255, 0, 0, 255));
 			
 			if (debugPoly.isValid) {
 				if (debugPoly.verts.size() > 1) {
@@ -349,9 +349,7 @@ void Renderer::renderLoop() {
 				vec3 center = getCenter(debugPoly.verts) + debugPoly.plane_z*8;
 				drawLine(center, center + xaxis, COLOR4(255, 0, 0, 255));
 				drawLine(center, center + yaxis, COLOR4(255, 255, 0, 255));
-				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));
-
-				
+				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));		
 
 				if (debugNavMesh && debugNavPoly != -1) {
 					NavNode& node = debugNavMesh->nodes[debugNavPoly];
@@ -1190,6 +1188,15 @@ void Renderer::pickObject() {
 
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
+
+	TraceResult& tr = debugTrace;
+	mapRenderers[0]->map->traceHull(pickStart, pickStart + pickDir*512, 1, &tr);
+	logf("Fraction=%.1f, StartSolid=%d, AllSolid=%d, InOpen=%d, PlaneDist=%.1f\nStart=(%.1f,%.1f,%.1f) End=(%.1f,%.1f,%.1f) PlaneNormal=(%.1f,%.1f,%.1f)\n", 
+		tr.flFraction, tr.fStartSolid, tr.fAllSolid, tr.fInOpen, tr.flPlaneDist,
+		pickStart.x, pickStart.y, pickStart.z,
+		tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z,
+		tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z);
+	debugTraceStart = pickStart;
 
 	int oldEntIdx = pickInfo.entIdx;
 	memset(&pickInfo, 0, sizeof(PickInfo));
