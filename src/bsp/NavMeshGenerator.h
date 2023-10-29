@@ -1,9 +1,9 @@
 #pragma once
 #include "Polygon3D.h"
-#include "PolyOctree.h"
-#include <set>
-#include "Bsp.h"
-#include "NavMesh.h"
+
+class NavMesh;
+class Bsp;
+class PolygonOctree;
 
 // generates a navigation mesh for a BSP
 class NavMeshGenerator {
@@ -24,7 +24,7 @@ private:
 	void getOctreeBox(Bsp* map, vec3& min, vec3& max);
 
 	// group polys that are close together for fewer collision checks later
-	PolygonOctree createPolyOctree(Bsp* map, const vector<Polygon3D*>& faces, int treeDepth);
+	PolygonOctree* createPolyOctree(Bsp* map, const vector<Polygon3D*>& faces, int treeDepth);
 
 	// splits faces along their intersections with each other to clip polys that extend out
 	// into the void, then tests each poly to see if it faces into the map or into the void.

@@ -2,6 +2,11 @@
 #include "GLFW/glfw3.h"
 #include "PolyOctree.h"
 #include "Clipper.h"
+#include "Bsp.h"
+#include "NavMesh.h"
+#include <set>
+#include "util.h"
+#include "PolyOctree.h"
 
 NavMesh* NavMeshGenerator::generate(Bsp* map, int hull) {
 	float NavMeshGeneratorGenStart = glfwGetTime();
@@ -97,8 +102,8 @@ void NavMeshGenerator::getOctreeBox(Bsp* map, vec3& min, vec3& max) {
 	vec3 mapMaxs;
 	map->get_bounding_box(mapMins, mapMaxs);
 
-	min = vec3(-MAX_COORD, -MAX_COORD, -MAX_COORD);
-	max = vec3(MAX_COORD, MAX_COORD, MAX_COORD);
+	min = vec3(-MAX_MAP_COORD, -MAX_MAP_COORD, -MAX_MAP_COORD);
+	max = vec3(MAX_MAP_COORD, MAX_MAP_COORD, MAX_MAP_COORD);
 
 	while (isBoxContained(mapMins, mapMaxs, min * 0.5f, max * 0.5f)) {
 		max *= 0.5f;
@@ -106,22 +111,22 @@ void NavMeshGenerator::getOctreeBox(Bsp* map, vec3& min, vec3& max) {
 	}
 }
 
-PolygonOctree NavMeshGenerator::createPolyOctree(Bsp* map, const vector<Polygon3D*>& faces, int treeDepth) {
+PolygonOctree* NavMeshGenerator::createPolyOctree(Bsp* map, const vector<Polygon3D*>& faces, int treeDepth) {
 	vec3 treeMin, treeMax;
 	getOctreeBox(map, treeMin, treeMax);
 
 	logf("Create octree depth %d, size %f -> %f\n", treeDepth, treeMax.x, treeMax.x / pow(2, treeDepth));
-	PolygonOctree octree(treeMin, treeMax, treeDepth);
+	PolygonOctree* octree = new PolygonOctree(treeMin, treeMax, treeDepth);
 
 	for (int i = 0; i < faces.size(); i++) {
-		octree.insertPolygon(faces[i]);
+		octree->insertPolygon(faces[i]);
 	}
 
 	return octree;
 }
 
 vector<Polygon3D> NavMeshGenerator::getInteriorFaces(Bsp* map, int hull, vector<Polygon3D*>& faces) {
-	PolygonOctree octree = createPolyOctree(map, faces, octreeDepth);
+	PolygonOctree* octree = createPolyOctree(map, faces, octreeDepth);
 
 	int debugPoly = 0;
 	//debugPoly = 601;
@@ -161,7 +166,7 @@ vector<Polygon3D> NavMeshGenerator::getInteriorFaces(Bsp* map, int hull, vector<
 
 		//logf("Splitting %d\n", i);
 
-		octree.getPolysInRegion(poly, regionPolys);
+		octree->getPolysInRegion(poly, regionPolys);
 		if (poly->idx < cuttingPolyCount)
 			regionPolys[poly->idx] = false;
 		regionChecks++;
@@ -222,6 +227,8 @@ vector<Polygon3D> NavMeshGenerator::getInteriorFaces(Bsp* map, int hull, vector<
 	logf("Split %d faces into %d (%d splits)\n", presplit, faces.size(), numSplits);
 	logf("Average of %d in poly regions\n", regionChecks ? (avgInRegion / regionChecks) : 0);
 	logf("Got %d interior faces\n", interiorFaces.size());
+
+	delete octree;
 
 	return interiorFaces;
 }
@@ -331,19 +338,24 @@ void NavMeshGenerator::cullTinyFaces(vector<Polygon3D>& faces) {
 }
 
 void NavMeshGenerator::linkNavPolys(NavMesh* mesh) {
+	int numLinks = 0;
+
 	for (int i = 0; i < mesh->numPolys; i++) {
 		Polygon3D& poly = mesh->polys[i];
-		vector<vec2>& verts = poly.topdownVerts;
 
 		for (int k = 0; k < mesh->numPolys; k++) {
 			if (i == k)
 				continue;
 			Polygon3D& otherPoly = mesh->polys[k];
-			vector<vec2>& otherVerts = otherPoly.topdownVerts;
 
-			for (int j = 0; j < verts.size(); j++) {
-				vec2& e1 = verts[j];
+			int sharedEdge;
+			int sharedEdgeOther;
+			if (poly.sharesTopDownEdge(otherPoly, sharedEdge, sharedEdgeOther)) {
+				numLinks += mesh->addLink(i, k, sharedEdge, sharedEdgeOther, 0, 0);
+				numLinks += mesh->addLink(k, i, sharedEdgeOther, sharedEdge, 0, 0);
 			}
 		}
 	}
+
+	logf("Added %d nav poly links\n", numLinks);
 }

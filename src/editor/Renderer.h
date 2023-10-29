@@ -69,6 +69,8 @@ public:
 	Line2D debugCut;
 	Polygon3D debugPoly;
 	Polygon3D debugPoly2;
+	NavMesh* debugNavMesh = NULL;
+	int debugNavPoly = -1;
 
 	bool hideGui = false;
 

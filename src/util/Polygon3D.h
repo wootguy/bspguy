@@ -105,6 +105,6 @@ public:
 	// get the world position of a point in the polygon's local coordinate system
 	vec3 unproject(vec2 p);
 
-	
-	bool sharesTopDownEdge();
+	// returns true if polys share an edge from the top down perspective
+	bool sharesTopDownEdge(const Polygon3D& otherPoly, int& sharedEdge, int& sharedEdgeOther);
 };

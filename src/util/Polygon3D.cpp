@@ -1,7 +1,7 @@
 #include "Polygon3D.h"
 #include "util.h"
-#include "BspRenderer.h"
 #include "Renderer.h"
+#include "globals.h"
 
 #define COLINEAR_EPSILON 0.125f
 #define SAME_VERT_EPSILON 0.125f
@@ -235,8 +235,8 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 
 	// extend to "infinity" if we know the cutting edge is touching the poly somewhere
 	// a split should happen along that edge across the entire polygon
-	cutLine.start = cutLine.start - cutLine.dir * MAX_COORD;
-	cutLine.end = cutLine.end + cutLine.dir * MAX_COORD;
+	cutLine.start = cutLine.start - cutLine.dir * MAX_MAP_COORD;
+	cutLine.end = cutLine.end + cutLine.dir * MAX_MAP_COORD;
 
 	for (int i = 0; i < localVerts.size(); i++) {
 		vec2 e1 = localVerts[i];
@@ -471,4 +471,80 @@ Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
 	newPoly.removeColinearVerts();
 
 	return newPoly;
+}
+
+bool Polygon3D::sharesTopDownEdge(const Polygon3D& otherPoly, int& sharedEdge, int& sharedEdgeOther) {
+	const vector<vec2>& otherTopVerts = otherPoly.topdownVerts;
+	const vector<vec3>& otherVerts = otherPoly.verts;
+
+	sharedEdge = -1;
+	sharedEdgeOther = -1;
+
+	for (int i = 0; i < topdownVerts.size(); i++) {
+		int inext = (i + 1) % topdownVerts.size();
+		const vec2& e1 = topdownVerts[i];
+		const vec2& e2 = topdownVerts[inext];
+		Line2D thisEdge(e1, e2);
+
+		for (int k = 0; k < otherTopVerts.size(); k++) {
+			int knext = (k + 1) % otherTopVerts.size();
+			const vec2& other1 = otherTopVerts[k];
+			const vec2& other2 = otherTopVerts[knext];
+			Line2D otherEdge(other1, other2);
+			
+			if (fabs(dotProduct(thisEdge.dir, otherEdge.dir)) < 0.999f) {
+				continue; // lines not colinear
+			}
+
+			vec2 relativePos1 = other1 - e1;
+			vec2 relativePos2 = other2 - e1;
+
+			// Calculate the cross products
+			float cross1 = crossProduct(thisEdge.dir, relativePos1);
+			float cross2 = crossProduct(thisEdge.dir, relativePos2);
+
+			// If the cross products have same signs, the lines don't overlap
+			if (cross1 * cross2 > EPSILON) {
+				continue;
+			}
+
+			vec2 dir = thisEdge.dir;
+			float d1 = dotProduct(e1, dir);
+			float d2 = dotProduct(e2, dir);
+			float d3 = dotProduct(other1, dir);
+			float d4 = dotProduct(other2, dir);
+
+			if (d2 < d1) {
+				float temp = d1;
+				d1 = d2;
+				d2 = temp;
+			}
+			if (d4 < d3) {
+				float temp = d3;
+				d3 = d4;
+				d4 = temp;
+			}
+
+			if (d3 > d2 || d4 < d1) {
+				// no overlap
+				continue;
+			}
+
+			float maxZdist = 18 * 0.5f;
+
+			float zmin1 = min(verts[i].z, verts[inext].z) - maxZdist;
+			float zmax1 = max(verts[i].z, verts[inext].z) + maxZdist;
+
+			float zmin2 = min(otherVerts[k].z, otherVerts[knext].z) - maxZdist;
+			float zmax2 = max(otherVerts[k].z, otherVerts[knext].z) + maxZdist;
+
+			if (zmin1 <= zmax2 && zmax1 >= zmin2) {
+				sharedEdge = i;
+				sharedEdgeOther = k;
+				return true;
+			}
+		}
+	}
+
+	return false;
 }

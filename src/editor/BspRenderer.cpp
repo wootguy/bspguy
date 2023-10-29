@@ -828,6 +828,8 @@ void BspRenderer::generateNavMeshBuffer() {
 	NavMesh* navMesh = NavMeshGenerator().generate(map, hull);
 	vector<Polygon3D> navPolys = navMesh->getPolys();
 
+	g_app->debugNavMesh = navMesh;
+	g_app->debugNavPoly = 1387;
 	debugNavMesh = navMesh;
 	debugFaces = navPolys;
 
@@ -1812,14 +1814,22 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 				pickInfo.faceIdx = -1;
 				if (modelIdx == 0 && hullIdx == 3) {
 					static int lastPick = 0;
-					logf("Picked hull %d, face %d, verts %d, area %.1f\n", hullIdx, i, debugFaces[i].verts.size(), debugFaces[i].area);
+					
 					g_app->debugPoly = debugFaces[i];
+					g_app->debugNavPoly = i;
 
-					Polygon3D merged = debugFaces[lastPick].merge(debugFaces[i]);
-					vector<vector<vec3>> split = debugFaces[i].split(debugFaces[lastPick]);
-					logf("split %d by %d == %d\n", i, lastPick, split.size());
+					//Polygon3D merged = debugFaces[lastPick].merge(debugFaces[i]);
+					//vector<vector<vec3>> split = debugFaces[i].split(debugFaces[lastPick]);
+					//logf("split %d by %d == %d\n", i, lastPick, split.size());
+
+					int s1, s2;
+					bool shared = debugFaces[lastPick].sharesTopDownEdge(debugFaces[i], s1, s2);
+
+					NavNode& node = g_app->debugNavMesh->nodes[i];
+
 
 					lastPick = i;
+					logf("Picked hull %d, face %d, verts %d, area %.1f\nNav links %d\n", hullIdx, i, debugFaces[i].verts.size(), debugFaces[i].area, node.numLinks());
 				}
 			}
 		}

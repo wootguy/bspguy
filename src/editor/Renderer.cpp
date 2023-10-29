@@ -13,6 +13,7 @@
 #include "util.h"
 #include <fstream>
 #include "globals.h"
+#include "NavMesh.h"
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
@@ -349,6 +350,26 @@ void Renderer::renderLoop() {
 				drawLine(center, center + xaxis, COLOR4(255, 0, 0, 255));
 				drawLine(center, center + yaxis, COLOR4(255, 255, 0, 255));
 				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));
+
+				
+
+				if (debugNavMesh && debugNavPoly != -1) {
+					NavNode& node = debugNavMesh->nodes[debugNavPoly];
+					Polygon3D& poly = debugNavMesh->polys[debugNavPoly];
+
+					for (int i = 0; i < MAX_NAV_LINKS; i++) {
+						int linkNode = node.links[i].node;
+						if (linkNode == -1) {
+							break;
+						}
+						Polygon3D& linkPoly = debugNavMesh->polys[linkNode];
+
+						glDisable(GL_DEPTH_TEST);
+						drawLine(poly.center, linkPoly.center, COLOR4(0, 255, 255, 255));
+						glEnable(GL_DEPTH_TEST);
+						drawBox(linkPoly.center, 8, COLOR4(0, 255, 255, 255));
+					}
+				}
 
 				glDisable(GL_DEPTH_TEST);
 
