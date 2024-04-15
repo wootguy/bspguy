@@ -1,5 +1,6 @@
 #include "Entity.h"
 #include "util.h"
+#include <set>
 
 using namespace std;
 
@@ -443,4 +444,51 @@ int Entity::getMemoryUsage() {
 	}
 
 	return size;
+}
+
+bool Entity::isEverVisible() {
+	string cname = keyvalues["classname"];
+	string tname = hasKey("targetname") ? keyvalues["targetname"] : "";
+
+	static set<string> invisibleEnts = {
+		"env_bubbles",
+		"func_clip",
+		"func_friction",
+		"func_ladder",
+		"func_monsterclip",
+		"func_mortar_field",
+		"func_op4mortarcontroller",
+		"func_tankcontrols",
+		"func_traincontrols",
+		"trigger_autosave",
+		"trigger_cameratarget",
+		"trigger_cdaudio",
+		"trigger_changelevel",
+		"trigger_counter",
+		"trigger_endsection",
+		"trigger_gravity",
+		"trigger_hurt",
+		"trigger_monsterjump",
+		"trigger_multiple",
+		"trigger_once",
+		"trigger_push",
+		"trigger_teleport",
+		"trigger_transition",
+		"game_zone_player",
+		"info_hullshape",
+		"player_respawn_zone",
+	};
+
+	if (invisibleEnts.count(cname)) {
+		return false;
+	}
+
+	if (!tname.length() && hasKey("rendermode") && atoi(keyvalues["rendermode"].c_str()) != 0) {
+		if (!hasKey("renderamt") || atoi(keyvalues["renderamt"].c_str()) == 0) {
+			// starts invisible and likely nothing will change that because it has no targetname
+			return false;
+		}
+	}
+
+	return true;
 }

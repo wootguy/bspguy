@@ -43,5 +43,7 @@ public:
 	void renameTargetnameValues(string oldTargetname, string newTargetname);
 
 	int getMemoryUsage(); // aproximate
+
+	bool isEverVisible();
 };
 

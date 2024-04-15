@@ -465,6 +465,25 @@ void Gui::draw3dContextMenus() {
 			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && copiedMiptex < map->textureCount)) {
 				pasteTexture();
 			}
+			if (ImGui::MenuItem("Select all of this texture")) {
+				if (!app->pickInfo.valid) {
+					return;
+				}
+				Bsp* map = app->pickInfo.map;
+				BSPTEXTUREINFO& texinfo = map->texinfos[map->faces[app->pickInfo.faceIdx].iTextureInfo];
+				uint32_t selectedMiptex = texinfo.iMiptex;
+
+				app->selectedFaces.clear();
+				for (int i = 0; i < map->faceCount; i++) {
+					BSPTEXTUREINFO& info = map->texinfos[map->faces[i].iTextureInfo];
+					if (info.iMiptex == selectedMiptex) {
+						app->selectedFaces.push_back(i);
+					}
+				}
+
+				logf("Selected %d faces\n", app->selectedFaces.size());
+				refreshSelectedFaces = true;
+			}
 
 			ImGui::Separator();
 
@@ -810,6 +829,26 @@ void Gui::drawMenuBar() {
 			g_app->saveLumpState(map, 0xffffffff, false);
 			command->execute();
 			app->pushUndoCommand(command);
+		}
+
+		if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
+			map->deduplicate_models();
+
+			BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+			if (renderer) {
+				renderer->preRenderEnts();
+				g_app->gui->refresh();
+			}
+		}
+
+		if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
+			map->allocblock_reduction();
+
+			BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+			if (renderer) {
+				renderer->preRenderFaces();
+				g_app->gui->refresh();
+			}
 		}
 
 		ImGui::Separator();

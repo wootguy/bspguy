@@ -1650,6 +1650,253 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 	return removed;
 }
 
+struct CompareVert {
+	vec3 pos;
+	float u, v;
+};
+
+struct ModelIdxRemap {
+	int newIdx;
+	vec3 offset;
+};
+
+void Bsp::deduplicate_models() {
+	const float epsilon = 1.0f;
+
+	map<int, ModelIdxRemap> modelRemap;
+
+	for (int i = 1; i < modelCount; i++) {
+		BSPMODEL& modelA = models[i];
+
+		if (modelA.nFaces == 0)
+			continue;
+
+		if (modelRemap.find(i) != modelRemap.end()) {
+			continue;
+		}
+
+		bool shouldCompareTextures = false;
+		string modelKeyA = "*" + to_string(i);
+
+		for (Entity* ent : ents) {
+			if (ent->hasKey("model") && ent->keyvalues["model"] == modelKeyA) {
+				if (ent->isEverVisible()) {
+					shouldCompareTextures = true;
+					break;
+				}
+			}
+		}
+
+		for (int k = 1; k < modelCount; k++) {
+			if (i == k)
+				continue;
+
+			BSPMODEL& modelB = models[k];
+
+			if (modelA.nFaces != modelB.nFaces)
+				continue;
+
+			vec3 minsA, maxsA, minsB, maxsB;
+			get_model_vertex_bounds(i, minsA, maxsA);
+			get_model_vertex_bounds(k, minsB, maxsB);
+
+			vec3 sizeA = maxsA - minsA;
+			vec3 sizeB = maxsB - minsB;
+
+			if ((sizeB - sizeA).length() > epsilon) {
+				continue;
+			}
+
+			if (!shouldCompareTextures) {
+				string modelKeyB = "*" + to_string(k);
+
+				for (Entity* ent : ents) {
+					if (ent->hasKey("model") && ent->keyvalues["model"] == modelKeyB) {
+						if (ent->isEverVisible()) {
+							shouldCompareTextures = true;
+							break;
+						}
+					}
+				}
+			}
+
+			bool similarFaces = true;
+			for (int fa = 0; fa < modelA.nFaces; fa++) {
+				BSPFACE& faceA = faces[modelA.iFirstFace + fa];
+				BSPTEXTUREINFO& infoA = texinfos[faceA.iTextureInfo];
+				BSPPLANE& planeA = planes[faceA.iPlane];
+				int32_t texOffset = ((int32_t*)textures)[infoA.iMiptex + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+				float tw = 1.0f / (float)tex.nWidth;
+				float th = 1.0f / (float)tex.nHeight;
+
+				vector<CompareVert> vertsA;
+				for (int e = 0; e < faceA.nEdges; e++) {
+					int32_t edgeIdx = surfedges[faceA.iFirstEdge + e];
+					BSPEDGE& edge = edges[abs(edgeIdx)];
+					int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+					CompareVert v;
+					v.pos = verts[vertIdx];
+
+					float fU = dotProduct(infoA.vS, v.pos) + infoA.shiftS;
+					float fV = dotProduct(infoA.vT, v.pos) + infoA.shiftT;
+					v.u = fU * tw;
+					v.v = fV * th;
+
+					// wrap coords
+					v.u = v.u > 0 ? (v.u - (int)v.u) : 1.0f - (v.u - (int)v.u);
+					v.v = v.v > 0 ? (v.v - (int)v.v) : 1.0f - (v.v - (int)v.v);
+
+					vertsA.push_back(v);
+					//logf("A Face %d vert %d uv: %.2f %.2f\n", fa, e, v.u, v.v);
+				}
+
+				bool foundMatch = false;
+				for (int fb = 0; fb < modelB.nFaces; fb++) {
+					BSPFACE& faceB = faces[modelB.iFirstFace + fb];
+					BSPTEXTUREINFO& infoB = texinfos[faceB.iTextureInfo];
+					BSPPLANE& planeB = planes[faceB.iPlane];
+
+					if ((!shouldCompareTextures || infoA.iMiptex == infoB.iMiptex)
+						&& planeA.vNormal == planeB.vNormal
+						&& faceA.nPlaneSide == faceB.nPlaneSide) {
+						// face planes and textures match
+						// now check if vertices have same relative positions and texture coords
+
+						vector<CompareVert> vertsB;
+						for (int e = 0; e < faceB.nEdges; e++) {
+							int32_t edgeIdx = surfedges[faceB.iFirstEdge + e];
+							BSPEDGE& edge = edges[abs(edgeIdx)];
+							int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+							CompareVert v;
+							v.pos = verts[vertIdx];
+
+							float fU = dotProduct(infoB.vS, v.pos) + infoB.shiftS;
+							float fV = dotProduct(infoB.vT, v.pos) + infoB.shiftT;
+							v.u = fU * tw;
+							v.v = fV * th;
+
+							// wrap coords
+							v.u = v.u > 0 ? (v.u - (int)v.u) : 1.0f - (v.u - (int)v.u);
+							v.v = v.v > 0 ? (v.v - (int)v.v) : 1.0f - (v.v - (int)v.v);
+
+							vertsB.push_back(v);
+							//logf("B Face %d vert %d uv: %.2f %.2f\n", fb, e, v.u, v.v);
+						}
+
+						bool vertsMatch = true;
+						for (CompareVert& vertA : vertsA) {
+							bool foundVertMatch = false;
+
+							for (CompareVert& vertB : vertsB) {
+								
+								float diffU = fabs(vertA.u - vertB.u);
+								float diffV = fabs(vertA.v - vertB.v);
+								const float uvEpsilon = 0.005f;
+
+								bool uvsMatch = !shouldCompareTextures ||
+									((diffU < uvEpsilon || fabs(diffU - 1.0f) < uvEpsilon)
+									&& (diffV < uvEpsilon || fabs(diffV - 1.0f) < uvEpsilon));
+
+								if (((vertA.pos - minsA) - (vertB.pos - minsB)).length() < epsilon
+									&& uvsMatch) {
+									foundVertMatch = true;
+									break;
+								}
+							}
+
+							if (!foundVertMatch) {
+								vertsMatch = false;
+								break;
+							}
+						}
+
+						if (vertsMatch) {
+							foundMatch = true;
+							break;
+						}
+					}
+				}
+
+				if (!foundMatch) {
+					similarFaces = false;
+					break;
+				}
+			}
+
+			if (!similarFaces)
+				continue;			
+
+			//logf("Model %d and %d seem very similar (%d faces)\n", i, k, modelA.nFaces);
+			ModelIdxRemap remap;
+			remap.newIdx = i;
+			remap.offset = minsB - minsA;
+			modelRemap[k] = remap;
+		}
+	}
+	
+	logf("Remapped %d BSP model references\n", modelRemap.size());
+
+	for (Entity* ent : ents) {
+		if (!ent->keyvalues.count("model")) {
+			continue;
+		}
+
+		string model = ent->keyvalues["model"];
+
+		if (model[0] != '*')
+			continue;
+
+		int modelIdx = atoi(model.substr(1).c_str());
+
+		if (modelRemap.find(modelIdx) != modelRemap.end()) {
+			ModelIdxRemap remap = modelRemap[modelIdx];
+
+			ent->setOrAddKeyvalue("origin", (ent->getOrigin() + remap.offset).toKeyvalueString());
+			ent->setOrAddKeyvalue("model", "*" + to_string(remap.newIdx));
+		}
+	}
+}
+
+void Bsp::allocblock_reduction() {
+	int scaleCount = 0;
+
+	for (int i = 1; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		if (model.nFaces == 0)
+			continue;
+
+		bool isVisibleModel = false;
+		string modelKey = "*" + to_string(i);
+
+		for (Entity* ent : ents) {
+			if (ent->hasKey("model") && ent->keyvalues["model"] == modelKey) {
+				if (ent->isEverVisible()) {
+					isVisibleModel = true;
+					break;
+				}
+			}
+		}
+
+		if (isVisibleModel)
+			continue;
+		for (int fa = 0; fa < model.nFaces; fa++) {
+			BSPFACE& face = faces[model.iFirstFace + fa];
+			BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+			info.vS = info.vS.normalize(0.01f);
+			info.vT = info.vT.normalize(0.01f);
+		}
+
+		scaleCount++;
+		logf("Scale up model %d\n", i);
+	}
+
+	logf("Scaled up textures on %d invisible models\n", scaleCount);
+}
+
 bool Bsp::is_invisible_solid(Entity* ent) {
 	if (!ent->isBspModel())
 		return false;
