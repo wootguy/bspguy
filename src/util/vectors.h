@@ -2,45 +2,6 @@
 #include "types.h"
 #include <string>
 
-struct vec3
-{
-	float x, y, z;
-	vec3() : x(), y(), z() {}
-	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
-	vec3 normalize(float length=1.0f);
-	float length();
-	vec3 invert();
-	std::string toKeyvalueString(bool truncate=false, std::string suffix_x=" ", std::string suffix_y=" ", std::string suffix_z="");
-	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
-
-	void operator-=(vec3 v);
-	void operator+=(vec3 v);
-	void operator*=(vec3 v);
-	void operator/=(vec3 v);
-
-	void operator-=(float f);
-	void operator+=(float f);
-	void operator*=(float f);
-	void operator/=(float f);
-};
-
-vec3 operator-(vec3 v1, vec3 v2);
-vec3 operator+(vec3 v1, vec3 v2);
-vec3 operator*(vec3 v1, vec3 v2);
-vec3 operator/(vec3 v1, vec3 v2);
-
-vec3 operator+(vec3 v, float f);
-vec3 operator-(vec3 v, float f);
-vec3 operator*(vec3 v, float f);
-vec3 operator/(vec3 v, float f);
-
-vec3 crossProduct(vec3 v1, vec3 v2);
-float dotProduct(vec3 v1, vec3 v2);
-void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up);
-
-bool operator==(vec3 v1, vec3 v2);
-bool operator!=(vec3 v1, vec3 v2);
-
 struct vec2
 {
 	float x, y;
@@ -75,6 +36,46 @@ bool operator!=(vec2 v1, vec2 v2);
 
 float dotProduct(vec2 v1, vec2 v2);
 float crossProduct(vec2 v1, vec2 v2);
+
+struct vec3
+{
+	float x, y, z;
+	vec3() : x(), y(), z() {}
+	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
+	vec3 normalize(float length=1.0f);
+	float length();
+	vec3 invert();
+	std::string toKeyvalueString(bool truncate=false, std::string suffix_x=" ", std::string suffix_y=" ", std::string suffix_z="");
+	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
+	vec2 xy() { return vec2(x, y); }
+
+	void operator-=(vec3 v);
+	void operator+=(vec3 v);
+	void operator*=(vec3 v);
+	void operator/=(vec3 v);
+
+	void operator-=(float f);
+	void operator+=(float f);
+	void operator*=(float f);
+	void operator/=(float f);
+};
+
+vec3 operator-(vec3 v1, vec3 v2);
+vec3 operator+(vec3 v1, vec3 v2);
+vec3 operator*(vec3 v1, vec3 v2);
+vec3 operator/(vec3 v1, vec3 v2);
+
+vec3 operator+(vec3 v, float f);
+vec3 operator-(vec3 v, float f);
+vec3 operator*(vec3 v, float f);
+vec3 operator/(vec3 v, float f);
+
+vec3 crossProduct(vec3 v1, vec3 v2);
+float dotProduct(vec3 v1, vec3 v2);
+void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up);
+
+bool operator==(vec3 v1, vec3 v2);
+bool operator!=(vec3 v1, vec3 v2);
 
 struct vec4
 {

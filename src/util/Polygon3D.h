@@ -2,27 +2,7 @@
 #include "vectors.h"
 #include <vector>
 #include "mat4x4.h"
-
-struct Line2D {
-	vec2 start;
-	vec2 end;
-	vec2 dir;
-
-	Line2D() {}
-
-	Line2D(vec2 start, vec2 end);
-
-	// distance between this point and the axis of this line
-	float distance(vec2 p);
-
-	bool doesIntersect(const Line2D& l2);
-
-	// call doesIntersect for line segments first, this returns the intersection point for infinite lines
-	vec2 intersect(const Line2D& l2);
-
-private:
-
-};
+#include "Line2D.h"
 
 // points must be at least this far inside the polygon edges
 // large enough to prevent PointContents returning empty on the edges of underground polys
@@ -104,7 +84,4 @@ public:
 
 	// get the world position of a point in the polygon's local coordinate system
 	vec3 unproject(vec2 p);
-
-	// returns true if polys share an edge from the top down perspective
-	bool sharesTopDownEdge(const Polygon3D& otherPoly, int& sharedEdge, int& sharedEdgeOther);
 };

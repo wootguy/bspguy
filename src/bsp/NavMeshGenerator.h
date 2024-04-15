@@ -39,5 +39,9 @@ private:
 
 	// links nav polys that share an edge from a top-down view
 	// climbability depends on game settings (gravity, stepsize, autoclimb, grapple/gauss weapon, etc.)
-	void linkNavPolys(NavMesh* mesh);
+	void linkNavPolys(Bsp* map, NavMesh* mesh);
+
+	// tests of polys can be linked by an overlapping edge from the top-down perspective
+	// returns number of links created
+	int tryEdgeLinkPolys(Bsp* map, NavMesh* mesh, int srcPolyIdx, int dstPolyIdx);
 };

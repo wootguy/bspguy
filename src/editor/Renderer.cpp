@@ -332,6 +332,92 @@ void Renderer::renderLoop() {
 			
 			drawLine(debugTraceStart, debugTrace.vecEndPos, COLOR4(255, 0, 0, 255));
 			
+			if (debugNavMesh && debugNavPoly != -1) {
+				glLineWidth(1);
+				NavNode& node = debugNavMesh->nodes[debugNavPoly];
+				Polygon3D& poly = debugNavMesh->polys[debugNavPoly];
+
+				for (int i = 0; i < MAX_NAV_LINKS; i++) {
+					NavLink& link = node.links[i];
+					if (link.node == -1) {
+						break;
+					}
+					Polygon3D& linkPoly = debugNavMesh->polys[link.node];
+
+					vec3 srcMid, dstMid;
+					debugNavMesh->getLinkMidPoints(debugNavPoly, i, srcMid, dstMid);
+
+					glDisable(GL_DEPTH_TEST);
+					drawLine(poly.center, srcMid, COLOR4(0, 255, 255, 255));
+					drawLine(srcMid, dstMid, COLOR4(0, 255, 255, 255));
+					drawLine(dstMid, linkPoly.center, COLOR4(0, 255, 255, 255));
+
+					if (fabs(link.zDist) > NAV_STEP_HEIGHT) {
+						Bsp* map = mapRenderers[0]->map;
+						int i = link.srcEdge;
+						int k = link.dstEdge;
+						int inext = (i + 1) % poly.verts.size();
+						int knext = (k + 1) % linkPoly.verts.size();
+
+						Line2D thisEdge(poly.topdownVerts[i], poly.topdownVerts[inext]);
+						Line2D otherEdge(linkPoly.topdownVerts[k], linkPoly.topdownVerts[knext]);
+
+						float t0, t1, t2, t3;
+						float overlapDist = thisEdge.getOverlapRanges(otherEdge, t0, t1, t2, t3);
+						
+						vec3 delta1 = poly.verts[inext] - poly.verts[i];
+						vec3 delta2 = linkPoly.verts[knext] - linkPoly.verts[k];
+						vec3 e1 = poly.verts[i] + delta1 * t0;
+						vec3 e2 = poly.verts[i] + delta1 * t1;
+						vec3 e3 = linkPoly.verts[k] + delta2 * t2;
+						vec3 e4 = linkPoly.verts[k] + delta2 * t3;
+
+						bool isBelow = link.zDist > 0;
+						delta1 = e2 - e1;
+						delta2 = e4 - e3;
+						vec3 mid1 = e1 + delta1 * 0.5f;
+						vec3 mid2 = e3 + delta2 * 0.5f;
+						vec3 inwardDir = crossProduct(poly.plane_z, delta1.normalize());
+						vec3 testOffset = (isBelow ? inwardDir : inwardDir * -1) + vec3(0, 0, 1.0f);
+
+						float flatLen = (e2.xy() - e1.xy()).length();
+						float stepUnits = 1.0f;
+						float step = stepUnits / flatLen;
+						TraceResult tr;
+						bool isBlocked = true;
+						for (float f = 0; f < 0.5f; f += step) {
+							vec3 test1 = mid1 + (delta1 * f) + testOffset;
+							vec3 test2 = mid2 + (delta2 * f) + testOffset;
+							vec3 test3 = mid1 + (delta1 * -f) + testOffset;
+							vec3 test4 = mid2 + (delta2 * -f) + testOffset;
+
+							map->traceHull(test1, test2, 3, &tr);
+							if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.99f) {
+								drawLine(test1, test2, COLOR4(255, 255, 0, 255));
+							}
+							else {
+								drawLine(test1, test2, COLOR4(255, 0, 0, 255));
+							}
+
+							map->traceHull(test3, test4, 3, &tr);
+							if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.99f) {
+								drawLine(test3, test4, COLOR4(255, 255, 0, 255));
+							}
+							else {
+								drawLine(test3, test4, COLOR4(255, 0, 0, 255));
+							}
+						}
+
+						//if (isBlocked) {
+						//	continue;
+						//}
+					}
+
+					glEnable(GL_DEPTH_TEST);
+					drawBox(linkPoly.center, 4, COLOR4(0, 255, 255, 255));
+				}
+			}
+
 			if (debugPoly.isValid) {
 				if (debugPoly.verts.size() > 1) {
 					vec3 v1 = debugPoly.verts[0];
@@ -349,25 +435,7 @@ void Renderer::renderLoop() {
 				vec3 center = getCenter(debugPoly.verts) + debugPoly.plane_z*8;
 				drawLine(center, center + xaxis, COLOR4(255, 0, 0, 255));
 				drawLine(center, center + yaxis, COLOR4(255, 255, 0, 255));
-				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));		
-
-				if (debugNavMesh && debugNavPoly != -1) {
-					NavNode& node = debugNavMesh->nodes[debugNavPoly];
-					Polygon3D& poly = debugNavMesh->polys[debugNavPoly];
-
-					for (int i = 0; i < MAX_NAV_LINKS; i++) {
-						int linkNode = node.links[i].node;
-						if (linkNode == -1) {
-							break;
-						}
-						Polygon3D& linkPoly = debugNavMesh->polys[linkNode];
-
-						glDisable(GL_DEPTH_TEST);
-						drawLine(poly.center, linkPoly.center, COLOR4(0, 255, 255, 255));
-						glEnable(GL_DEPTH_TEST);
-						drawBox(linkPoly.center, 8, COLOR4(0, 255, 255, 255));
-					}
-				}
+				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));				
 
 				glDisable(GL_DEPTH_TEST);
 
@@ -1189,6 +1257,7 @@ void Renderer::pickObject() {
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
+	/*
 	TraceResult& tr = debugTrace;
 	mapRenderers[0]->map->traceHull(pickStart, pickStart + pickDir*512, 1, &tr);
 	logf("Fraction=%.1f, StartSolid=%d, AllSolid=%d, InOpen=%d, PlaneDist=%.1f\nStart=(%.1f,%.1f,%.1f) End=(%.1f,%.1f,%.1f) PlaneNormal=(%.1f,%.1f,%.1f)\n", 
@@ -1197,6 +1266,7 @@ void Renderer::pickObject() {
 		tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z,
 		tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z);
 	debugTraceStart = pickStart;
+	*/
 
 	int oldEntIdx = pickInfo.entIdx;
 	memset(&pickInfo, 0, sizeof(PickInfo));

@@ -10,7 +10,7 @@ bool NavNode::addLink(int node, int srcEdge, int dstEdge, int16_t zDist, uint8_t
 		return false;
 	}
 	if (dstEdge < 0 || dstEdge >= MAX_NAV_POLY_VERTS) {
-		logf("Error: add link to invalid src edge %d\n", dstEdge);
+		logf("Error: add link to invalid dst edge %d\n", dstEdge);
 		return false;
 	}
 	
@@ -109,4 +109,48 @@ vector<Polygon3D> NavMesh::getPolys() {
 	}
 
 	return ret;
+}
+
+void NavMesh::getLinkMidPoints(int iNode, int iLink, vec3& srcMid, vec3& dstMid) {
+	srcMid = dstMid = vec3();
+	if (iNode < 0 || iNode >= MAX_NAV_POLYS) {
+		return;
+	}
+	if (iLink < 0 || iLink >= MAX_NAV_LINKS) {
+		return;
+	}
+
+	NavLink& link = nodes[iNode].links[iLink];
+	if (link.node < 0 || link.node >= MAX_NAV_POLYS) {
+		return;
+	}
+
+	Polygon3D& srcPoly = polys[iNode];
+	Polygon3D& dstPoly = polys[link.node];
+
+	int e2i = (link.srcEdge + 1) % srcPoly.verts.size();
+	int e4i = (link.dstEdge + 1) % dstPoly.verts.size();
+	vec2 e1 = srcPoly.topdownVerts[link.srcEdge];
+	vec2 e2 = srcPoly.topdownVerts[e2i];
+	vec2 e3 = dstPoly.topdownVerts[link.dstEdge];
+	vec2 e4 = dstPoly.topdownVerts[e4i];
+
+	float t0, t1, t2, t3;
+	float overlapDist = Line2D(e1, e2).getOverlapRanges(Line2D(e3, e4), t0, t1, t2, t3);
+
+	{
+		vec3 edgeStart = srcPoly.verts[link.srcEdge];
+		vec3 edgeDelta = srcPoly.verts[e2i] - edgeStart;
+		vec3 borderStart = edgeStart + edgeDelta * t0;
+		vec3 borderEnd = edgeStart + edgeDelta * t1;
+		srcMid = borderStart + (borderEnd - borderStart) * 0.5f;
+	}
+
+	{
+		vec3 edgeStart = dstPoly.verts[link.dstEdge];
+		vec3 edgeDelta = dstPoly.verts[e4i] - edgeStart;
+		vec3 borderStart = edgeStart + edgeDelta * t2;
+		vec3 borderEnd = edgeStart + edgeDelta * t3;
+		dstMid = borderStart + (borderEnd - borderStart) * 0.5f;
+	}
 }

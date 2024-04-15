@@ -47,6 +47,9 @@ public:
 
 	void clear();
 
+	// get mid points on borders between 2 polys
+	void getLinkMidPoints(int iNode, int iLink, vec3& srcMid, vec3& dstMid);
+
 	vector<Polygon3D> getPolys();
 
 private:

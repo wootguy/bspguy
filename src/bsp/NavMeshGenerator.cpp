@@ -25,7 +25,7 @@ NavMesh* NavMeshGenerator::generate(Bsp* map, int hull) {
 	logf("Generated nav mesh in %.2fs\n", faces.size(), glfwGetTime() - NavMeshGeneratorGenStart);
 
 	NavMesh* navmesh = new NavMesh(faces);
-	linkNavPolys(navmesh);
+	linkNavPolys(map, navmesh);
 
 	return navmesh;
 }
@@ -337,25 +337,130 @@ void NavMeshGenerator::cullTinyFaces(vector<Polygon3D>& faces) {
 	faces = finalPolys;
 }
 
-void NavMeshGenerator::linkNavPolys(NavMesh* mesh) {
+void NavMeshGenerator::linkNavPolys(Bsp* map, NavMesh* mesh) {
 	int numLinks = 0;
+
+	float linkStart = glfwGetTime();
 
 	for (int i = 0; i < mesh->numPolys; i++) {
 		Polygon3D& poly = mesh->polys[i];
 
-		for (int k = 0; k < mesh->numPolys; k++) {
+		for (int k = i+1; k < mesh->numPolys; k++) {
 			if (i == k)
 				continue;
 			Polygon3D& otherPoly = mesh->polys[k];
 
-			int sharedEdge;
-			int sharedEdgeOther;
-			if (poly.sharesTopDownEdge(otherPoly, sharedEdge, sharedEdgeOther)) {
-				numLinks += mesh->addLink(i, k, sharedEdge, sharedEdgeOther, 0, 0);
-				numLinks += mesh->addLink(k, i, sharedEdgeOther, sharedEdge, 0, 0);
-			}
+			numLinks += tryEdgeLinkPolys(map, mesh, i, k);
 		}
 	}
 
-	logf("Added %d nav poly links\n", numLinks);
+	logf("Added %d nav poly links in %.2fs\n", numLinks, (float)glfwGetTime() - linkStart);
+}
+
+int NavMeshGenerator::tryEdgeLinkPolys(Bsp* map, NavMesh* mesh, int srcPolyIdx, int dstPolyIdx) {
+	const Polygon3D& srcPoly = mesh->polys[srcPolyIdx];
+	const Polygon3D& dstPoly = mesh->polys[dstPolyIdx];
+
+	for (int i = 0; i < srcPoly.topdownVerts.size(); i++) {
+		int inext = (i + 1) % srcPoly.topdownVerts.size();
+		Line2D thisEdge(srcPoly.topdownVerts[i], srcPoly.topdownVerts[inext]);
+
+		for (int k = 0; k < dstPoly.topdownVerts.size(); k++) {
+			int knext = (k + 1) % dstPoly.topdownVerts.size();
+			Line2D otherEdge(dstPoly.topdownVerts[k], dstPoly.topdownVerts[knext]);
+
+			if (!thisEdge.isAlignedWith(otherEdge)) {
+				continue;
+			}
+
+			float t0, t1, t2, t3;
+			float overlapDist = thisEdge.getOverlapRanges(otherEdge, t0, t1, t2, t3);
+
+			if (overlapDist < 1.0f) {
+				continue; // shared region too short
+			}
+
+			vec3 delta1 = srcPoly.verts[inext] - srcPoly.verts[i];
+			vec3 delta2 = srcPoly.verts[knext] - srcPoly.verts[k];
+			vec3 e1 = srcPoly.verts[i] + delta1 * t0;
+			vec3 e2 = srcPoly.verts[i] + delta1 * t1;
+			vec3 e3 = dstPoly.verts[k] + delta2 * t2;
+			vec3 e4 = dstPoly.verts[k] + delta2 * t3;
+
+			float min1 = min(e1.z, e2.z);
+			float max1 = max(e1.z, e2.z);
+			float min2 = min(e3.z, e4.z);
+			float max2 = max(e3.z, e4.z);
+
+			int16_t zDist = 0; // 0 = edges are are the same height or cross at some point
+			if (max1 < min2) { // dst is above src
+				zDist = ceilf(min2 - max1);
+			}
+			else if (min1 > max2) { // dst is below src
+				zDist = floorf(max2 - min1);
+			}
+
+			if (fabs(zDist) > NAV_STEP_HEIGHT) {
+				// trace at every point along the edge to see if this connection is possible
+				// starting at the mid point and working outwards
+				bool isBelow = zDist > 0;
+				delta1 = e2 - e1;
+				delta2 = e4 - e3;
+				vec3 mid1 = e1 + delta1 * 0.5f;
+				vec3 mid2 = e3 + delta2 * 0.5f;
+				vec3 inwardDir = crossProduct(srcPoly.plane_z, delta1.normalize());
+				vec3 testOffset = (isBelow ? inwardDir : inwardDir * -1) + vec3(0, 0, 1.0f);
+
+				float flatLen = (e2.xy() - e1.xy()).length();
+				float stepUnits = 1.0f;
+				float step = stepUnits / flatLen;
+				TraceResult tr;
+				bool isBlocked = true;
+				for (float f = 0; f < 0.5f; f += step) {
+					vec3 test1 = mid1 + (delta1 * f) + testOffset;
+					vec3 test2 = mid2 + (delta2 * f) + testOffset;
+					vec3 test3 = mid1 + (delta1 * -f) + testOffset;
+					vec3 test4 = mid2 + (delta2 * -f) + testOffset;
+
+					map->traceHull(test1, test2, 3, &tr);
+					if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.9f) {
+						isBlocked = false;
+						break;
+					}
+					map->traceHull(test3, test4, 3, &tr);
+					if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.9f) {
+						isBlocked = false;
+						break;
+					}
+				}
+
+				if (isBlocked) {
+					continue;
+				}
+			}
+
+			if (dotProduct(thisEdge.dir, otherEdge.dir) > 0) {
+				// Polygons overlap, but this is ok when dropping down.
+				// Technically it's possible to go up too but that's
+				// hard to pull off and no map requires that
+
+				if (srcPoly.verts[i].z < dstPoly.verts[k].z) {
+					mesh->addLink(dstPolyIdx, srcPolyIdx, k, i, -zDist, 0);
+				}
+				else {
+					mesh->addLink(srcPolyIdx, dstPolyIdx, i, k, zDist, 0);
+				}
+
+				return 1;
+			}
+
+			mesh->addLink(srcPolyIdx, dstPolyIdx, i, k, zDist, 0);
+			mesh->addLink(dstPolyIdx, srcPolyIdx, k, i, -zDist, 0);
+
+			// TODO: multiple edge links are possible for overlapping polys
+			return 2;
+		}
+	}
+
+	return 0;
 }

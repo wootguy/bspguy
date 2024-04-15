@@ -145,6 +145,14 @@ public:
 	// conditionally deletes hulls for entities that aren't using them
 	STRUCTCOUNT delete_unused_hulls(bool noProgress=false);
 
+	// searches for entities that have very similar models,
+	// then updates the entities to share a single model reference
+	// this reduces the precached model count even though the models are still present in the bsp
+	void deduplicate_models();
+
+	// scales up texture sizes on models that aren't used by visible entities
+	void allocblock_reduction();
+
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();
 	
