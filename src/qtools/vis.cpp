@@ -115,7 +115,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 		}
 	}
 	if (overflow)
-		logf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING\n", overflow);
+		logf("OVERFLOWED %d VIS LEAVES WHILE SHIFTING FROM LEAF %d\n", overflow, offsetLeaf);
 
 
 	if (byteShifts > 0) {

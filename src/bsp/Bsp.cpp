@@ -1223,14 +1223,14 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	return oldLightdataSize - newLightDataSize;
 }
 
-int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount) {
+int Bsp::remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount) {
 	int oldVisLength = visDataLength;
 
 	// exclude solid leaf
 	int oldVisLeafCount = oldLeafCount - 1;
 	int newVisLeafCount = (header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF)) - 1;
 
-	int oldWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs; // TODO: allow deleting world leaves
+	int oldWorldLeaves = oldWorldspawnLeafCount; // TODO: allow deleting world leaves
 	int newWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
 
 	uint oldVisRowSize = ((oldVisLeafCount + 63) & ~63) >> 3;
@@ -1243,13 +1243,35 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
 
 	if (oldVisRowSize != newVisRowSize) {
-		int newDecompressedVisSize = oldLeafCount * newVisRowSize;
+		int newDecompressedVisSize = newWorldLeaves * newVisRowSize;
 		byte* newDecompressedVis = new byte[decompressedVisSize];
 		memset(newDecompressedVis, 0, newDecompressedVisSize);
 
-		int minRowSize = min(oldVisRowSize, newVisRowSize);
-		for (int i = 0; i < oldWorldLeaves; i++) {
-			memcpy(newDecompressedVis + i * newVisRowSize, decompressedVis + i * oldVisRowSize, minRowSize);
+		if (newVisRowSize > oldVisRowSize) {
+			logf("ERROR: New vis row size larger than old size. VIS will likely be broken\n");
+		}
+
+		for (int i = 0; i < newWorldLeaves; i++) {
+			// find the source leaf to load vis data from
+			int sourceLeaf = 0;
+			for (int k = 0; k < oldWorldLeaves; k++) {
+				if (remap->leaves[k] == i) {
+					sourceLeaf = k;
+					//logf("Load source leaf %d row into new leaf %d row\n", k, i);
+					break;
+				}
+			}
+
+			byte* oldVisRow = decompressedVis + sourceLeaf * oldVisRowSize;
+
+			// remove deleted leaves from the old visibility list
+			for (int k = oldWorldLeaves-1; k > 0; k--) {
+				if (remap->leaves[k] == 0) {
+					shiftVis(oldVisRow, oldVisRowSize, k, -1);
+				}
+			}
+
+			memcpy(newDecompressedVis + i * newVisRowSize, oldVisRow, newVisRowSize);
 		}
 
 		delete[] decompressedVis;
@@ -1272,6 +1294,12 @@ int Bsp::remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeaf
 }
 
 STRUCTCOUNT Bsp::remove_unused_model_structures() {
+	int oldVisLeafCount = 0;
+	count_leaves(models[0].iHeadnodes[0], oldVisLeafCount);
+	if (leafCount != models[0].nVisLeafs)
+		logf("WARNING: old leaf count doesn't match worldpsawn leaf count %d != %d\n", 
+			leafCount, models[0].nVisLeafs);
+
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
 
@@ -1320,9 +1348,6 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	removeCount.edges = remove_unused_structs(LUMP_EDGES, usedStructures.edges, remap.edges);
 	removeCount.verts = remove_unused_structs(LUMP_VERTICES, usedStructures.verts, remap.verts);
 	removeCount.textures = remove_unused_textures(usedStructures.textures, remap.textures);
-
-	if (visDataLength)
-		removeCount.visdata = remove_unused_visdata(usedStructures.leaves, (BSPLEAF*)oldLeaves, usedStructures.count.leaves);
 
 	STRUCTCOUNT newCounts(this);
 
@@ -1383,6 +1408,16 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 				models[i].iHeadnodes[k] = remap.clipnodes[models[i].iHeadnodes[k]];
 		}
 	}
+
+	models[0].nVisLeafs = 0;
+	count_leaves(models[0].iHeadnodes[0], models[0].nVisLeafs);
+	//models[0].nVisLeafs = leafCount;
+
+	//logf("clean leaf count: %d -> %d (%d)\n", oldVisLeafCount, models[0].nVisLeafs, leafCount);
+
+	if (visDataLength)
+		removeCount.visdata = remove_unused_visdata(&remap, (BSPLEAF*)oldLeaves, 
+			usedStructures.count.leaves, oldVisLeafCount);
 
 	return removeCount;
 }
@@ -1648,6 +1683,22 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 	}
 
 	return removed;
+}
+
+
+void Bsp::count_leaves(int iNode, int& leafCount) {
+	BSPNODE& node = nodes[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			count_leaves(node.iChildren[i], leafCount);
+		}
+		else {
+			int16_t leafIdx = ~node.iChildren[i];
+			if (leafIdx > leafCount)
+				leafCount = leafIdx;
+		}
+	}
 }
 
 struct CompareVert {

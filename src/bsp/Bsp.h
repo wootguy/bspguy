@@ -145,6 +145,10 @@ public:
 	// conditionally deletes hulls for entities that aren't using them
 	STRUCTCOUNT delete_unused_hulls(bool noProgress=false);
 
+	// assumes contiguous leaves starting at 0. Only works for worldspawn, which is the only model which
+	// should have leaves anyway.
+	void count_leaves(int iNode, int& leafCount);
+
 	// searches for entities that have very similar models,
 	// then updates the entities to share a single model reference
 	// this reduces the precached model count even though the models are still present in the bsp
@@ -224,7 +228,7 @@ public:
 
 private:
 	int remove_unused_lightmaps(bool* usedFaces);
-	int remove_unused_visdata(bool* usedLeaves, BSPLEAF* oldLeaves, int oldLeafCount); // called after removing unused leaves
+	int remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount); // called after removing unused leaves
 	int remove_unused_textures(bool* usedTextures, int* remappedIndexes);
 	int remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedIndexes);
 
