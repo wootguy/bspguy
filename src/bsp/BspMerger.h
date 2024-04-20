@@ -11,7 +11,7 @@ struct MAPBLOCK
 	bool intersects(MAPBLOCK& other) {
 		return (mins.x <= other.maxs.x && maxs.x >= other.mins.x) &&
 			(mins.y <= other.maxs.y && maxs.y >= other.mins.y) &&
-			(mins.z <= other.maxs.z && maxs.y >= other.mins.z);
+			(mins.z <= other.maxs.z && maxs.z >= other.mins.z);
 	}
 };
 

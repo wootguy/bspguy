@@ -149,8 +149,8 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 
 	bool noOverlap = true;
 	for (int i = 0; i < blocks.size() && noOverlap; i++) {
-		for (int k = i + i; k < blocks.size(); k++) {
-			if (blocks[i].intersects(blocks[k])) {
+		for (int k = 0; k < blocks.size(); k++) {
+			if (i != k && blocks[i].intersects(blocks[k])) {
 				noOverlap = false;
 				break;
 			}
@@ -158,7 +158,16 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	}
 
 	if (noOverlap) {
-		logf("Maps do not overlap. They will be merged without moving.");
+		logf("Maps do not overlap. They will be merged without moving.\n");
+
+		vector<vector<MAPBLOCK>> col;
+		vector<MAPBLOCK> row;
+		for (const MAPBLOCK& block : blocks) {
+			row.push_back(block);
+		}
+		col.push_back(row);
+		orderedBlocks.push_back(col);
+
 		return orderedBlocks;
 	}
 
@@ -201,21 +210,21 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	for (int z = 0; z < idealMapsPerAxis && blockIdx < blocks.size(); z++) {
 		targetMins.y = mergedMapMin.y;
 		vector<vector<MAPBLOCK>> col;
-		for (int y = 0; y < idealMapsPerAxis && blockIdx < blocks.size(); y++) {
-			targetMins.x = mergedMapMin.x;
-			vector<MAPBLOCK> row;
-			for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
-				MAPBLOCK& block = blocks[blockIdx];
+			for (int y = 0; y < idealMapsPerAxis && blockIdx < blocks.size(); y++) {
+				targetMins.x = mergedMapMin.x;
+				vector<MAPBLOCK> row;
+				for (int x = 0; x < idealMapsPerAxis && blockIdx < blocks.size(); x++) {
+					MAPBLOCK& block = blocks[blockIdx];
 
-				block.offset = targetMins - block.mins;
-				//logf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
-				//logf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
+					block.offset = targetMins - block.mins;
+					//logf("block %d: %.0f %.0f %.0f\n", blockIdx, targetMins.x, targetMins.y, targetMins.z);
+					//logf("%s offset: %.0f %.0f %.0f\n", block.map->name.c_str(), block.offset.x, block.offset.y, block.offset.z);
 
-				row.push_back(block);
+					row.push_back(block);
 
-				blockIdx++;
-				targetMins.x += maxDims.x;
-			}
+					blockIdx++;
+					targetMins.x += maxDims.x;
+				}
 			col.push_back(row);
 			targetMins.y += maxDims.y;
 		}
