@@ -6,8 +6,17 @@
 #include "bsptypes.h"
 #include "Polygon3D.h"
 #include <streambuf>
+#include <set>
 
 class Entity;
+
+
+#define OOB_CLIP_X 1
+#define OOB_CLIP_X_NEG 2
+#define OOB_CLIP_Y 4
+#define OOB_CLIP_Y_NEG 8
+#define OOB_CLIP_Z 16
+#define OOB_CLIP_Z_NEG 32
 
 struct membuf : std::streambuf
 {
@@ -145,6 +154,13 @@ public:
 	// conditionally deletes hulls for entities that aren't using them
 	STRUCTCOUNT delete_unused_hulls(bool noProgress=false);
 
+	// deletes data outside the map bounds
+	void delete_oob_data(int clipFlags);
+
+	void delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass);
+	
+	void delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass);
+
 	// assumes contiguous leaves starting at 0. Only works for worldspawn, which is the only model which
 	// should have leaves anyway.
 	void count_leaves(int iNode, int& leafCount);
@@ -153,9 +169,23 @@ public:
 	// then updates the entities to share a single model reference
 	// this reduces the precached model count even though the models are still present in the bsp
 	void deduplicate_models();
+	
+	// scales up texture axes for any face with bad surface extents
+	// connected planar faces which use the same texture will also be scaled up to prevent seams
+	// showing between faces with different texture scales
+	void fix_bad_surface_extents(bool scaleNotSubdivide);
+
+	// reduces size of textures that exceed game limits and adjusts face scales accordingly
+	void downscale_invalid_textures();
 
 	// scales up texture sizes on models that aren't used by visible entities
 	void allocblock_reduction();
+
+	// subdivides along the axis with the most texture pixels (for biggest surface extent reduction)
+	bool subdivide_face(int faceIdx);
+
+	// select faces connected to the given one, which lie on the same plane and use the same texture
+	set<int> selectConnectedTexture(int modelId, int faceId);
 
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();

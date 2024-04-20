@@ -484,6 +484,43 @@ void Gui::draw3dContextMenus() {
 				logf("Selected %d faces\n", app->selectedFaces.size());
 				refreshSelectedFaces = true;
 			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Select every face in the map which has this texture.");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Select connected planar faces of this texture")) {
+				if (!app->pickInfo.valid) {
+					return;
+				}
+				Bsp* map = app->pickInfo.map;
+
+				app->selectedFaces.clear();
+				set<int> newSelect = map->selectConnectedTexture(app->pickInfo.modelIdx, app->pickInfo.faceIdx);
+
+				for (int i : newSelect) {
+					app->selectedFaces.push_back(i);
+				}
+
+				logf("Selected %d faces\n", app->selectedFaces.size());
+				refreshSelectedFaces = true;
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Selects faces connected to this one which lie on the same plane and use the same texture");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Subdivide")) {
+				if (!app->pickInfo.valid) {
+					return;
+				}
+				Bsp* map = app->pickInfo.map;
+
+				map->subdivide_face(app->pickInfo.faceIdx);
+				app->mapRenderers[0]->reload();
+			}
 
 			ImGui::Separator();
 
@@ -831,24 +868,163 @@ void Gui::drawMenuBar() {
 			app->pushUndoCommand(command);
 		}
 
-		if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
-			map->deduplicate_models();
+		if (ImGui::BeginMenu("Porting tools", !app->isLoading)) {
+			if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
+				map->deduplicate_models();
 
-			BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-			if (renderer) {
-				renderer->preRenderEnts();
-				g_app->gui->refresh();
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					renderer->preRenderEnts();
+					g_app->gui->refresh();
+				}
 			}
-		}
-
-		if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
-			map->allocblock_reduction();
-
-			BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-			if (renderer) {
-				renderer->preRenderFaces();
-				g_app->gui->refresh();
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Deletes BSP models that are identical to another model and updates entity model keyvalues accordingly.");
+				ImGui::EndTooltip();
 			}
+
+			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
+				map->allocblock_reduction();
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					renderer->preRenderFaces();
+					g_app->gui->refresh();
+				}
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Scales up textures on invisible models. Manually scale up textures on visible models if you still get an error.\n");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Fix Bad Surface Extents (subdivide)", 0, false, !app->isLoading && mapSelected)) {
+				map->fix_bad_surface_extents(false);
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					map->remove_unused_model_structures();
+					renderer->reload();
+				}
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Subdivides faces until they have valid extents.\n");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Fix Bad Surface Extents (scale)", 0, false, !app->isLoading && mapSelected)) {
+				map->fix_bad_surface_extents(true);
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					map->remove_unused_model_structures();
+					renderer->reload();
+				}
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Scales up face textures until they have valid extents.\n");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::MenuItem("Downscale invalid textures", 0, false, !app->isLoading && mapSelected)) {
+				map->downscale_invalid_textures();
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					renderer->preRenderFaces();
+					g_app->gui->refresh();
+				}
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Shrinks textures that exceed the max texture size. Adjusts texture coordinates accordingly. WAD textures must be shrunk manually.\n");
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::BeginMenu("Delete OOB data", !app->isLoading && mapSelected)) {
+
+				static const char* optionNames[10] = {
+					"All Axes",
+					"X Axis",
+					"X Axis (positive only)",
+					"X Axis (negative only)",
+					"Y Axis",
+					"Y Axis (positive only)",
+					"Y Axis (negative only)",
+					"Z Axis",
+					"Z Axis (positive only)",
+					"Z Axis (negative only)",
+				};
+
+				static int clipFlags[10] = {
+					0xffffffff, 
+					OOB_CLIP_X | OOB_CLIP_X_NEG,
+					OOB_CLIP_X,
+					OOB_CLIP_X_NEG,
+					OOB_CLIP_Y | OOB_CLIP_Y_NEG,
+					OOB_CLIP_Y,
+					OOB_CLIP_Y_NEG,
+					OOB_CLIP_Z | OOB_CLIP_Z_NEG,
+					OOB_CLIP_Z,
+					OOB_CLIP_Z_NEG,
+				};
+
+				for (int i = 0; i < 10; i++) {
+					if (ImGui::MenuItem(optionNames[i], 0, false, !app->isLoading && mapSelected)) {
+						if (map->ents[0]->hasKey("origin")) {
+							vec3 ori = map->ents[0]->getOrigin();
+							logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
+							map->move(ori);
+							map->ents[0]->removeKeyvalue("origin");
+
+						}
+
+						map->delete_oob_data(clipFlags[i]);
+
+						BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+						if (renderer) {
+							renderer->reload();
+							g_app->gui->refresh();
+							g_app->deselectObject();
+						}
+					}
+					if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+						ImGui::BeginTooltip();
+						ImGui::TextUnformatted("Deletes BSP data and entities outside of the max map boundary.\n");
+						ImGui::EndTooltip();
+					}
+				}
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::MenuItem("Apply worldspawn transform", 0, false, !app->isLoading && mapSelected)) {
+				if (map->ents[0]->hasKey("origin")) {
+					vec3 ori = map->ents[0]->getOrigin();
+					logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
+					map->move(ori);
+					map->ents[0]->removeKeyvalue("origin");
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						renderer->reload();
+						g_app->gui->refresh();
+						g_app->deselectObject();
+					}
+				}
+				else {
+					logf("Transform the worldspawn origin first using the transform widget!\n");
+				}
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Moves BSP data by the amount set in the worldspawn origin keyvalue\n");
+				ImGui::EndTooltip();
+			}
+
+			ImGui::EndMenu();
 		}
 
 		ImGui::Separator();
@@ -1914,7 +2090,7 @@ void Gui::drawGOTOWidget() {
 	ImGui::End();
 }
 void Gui::drawTransformWidget() {
-	bool transformingEnt = app->pickInfo.valid && app->pickInfo.entIdx > 0;
+	bool transformingEnt = app->pickInfo.valid && app->pickInfo.entIdx >= 0;
 
 	Entity* ent = NULL;
 	BspRenderer* bspRenderer = NULL;
