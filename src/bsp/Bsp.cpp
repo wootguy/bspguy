@@ -58,7 +58,7 @@ Bsp::Bsp() {
 
 Bsp::Bsp(std::string fpath)
 {
-	if (fpath.size() < 4 || fpath.rfind(".bsp") != fpath.size() - 4) {
+	if (fpath.size() < 4 || toLowerCase(fpath).rfind(".bsp") != fpath.size() - 4) {
 		fpath = fpath + ".bsp";
 	}
 	this->path = fpath;
