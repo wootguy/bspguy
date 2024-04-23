@@ -1803,8 +1803,6 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 		hullIdx = getBestClipnodeHull(modelIdx);
 	}
 
-	// Nav mesh WIP code
-	/*
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
 			FaceMath& faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
@@ -1816,6 +1814,8 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 				pickInfo.bestDist = t;
 				pickInfo.faceIdx = -1;
 
+				// Nav mesh WIP code
+				/*
 				if (modelIdx == 0 && hullIdx == 3) {
 					static int lastPick = 0;
 					
@@ -1831,10 +1831,10 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 					lastPick = i;
 					logf("Picked hull %d, face %d, verts %d, area %.1f\nNav links %d\n", hullIdx, i, debugFaces[i].verts.size(), debugFaces[i].area, node.numLinks());
 				}
+				*/
 			}
 		}
 	}
-	*/
 
 	return foundBetterPick;
 }
