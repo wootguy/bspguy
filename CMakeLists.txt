@@ -94,13 +94,14 @@ target_link_libraries(${PROJECT_NAME} glfw)
 add_definitions(-DGLEW_STATIC)
 
 if(MSVC)
+	# no warnings for release builds
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /W0")
+
+	# compile using the static runtime	
+	set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+		
 	add_subdirectory(glfw)
 	
-	# compile using the static runtime
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /W0")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /wd4244 /wd4018")
-	
-	# Disable C++ exceptions
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bspguy)
 	
 	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)

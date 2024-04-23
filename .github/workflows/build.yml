@@ -9,19 +9,15 @@ jobs:
     steps: 
     - name: Checkout repository
       uses: actions/checkout@v2
+      with:
+        submodules: 'true'
 
     - name: Download and install dependencies
       run: |
-        Invoke-WebRequest https://github.com/ocornut/imgui/archive/refs/tags/v1.81.zip -outfile v1.81.zip
-        Invoke-WebRequest https://github.com/glfw/glfw/releases/download/3.3.3/glfw-3.3.3.zip -outfile glfw-3.3.3.zip
         Invoke-WebRequest https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0-win32.zip -outfile glew-2.2.0-win32.zip
 
-        tar -xf v1.81.zip
-        tar -xf glfw-3.3.3.zip
         tar -xf glew-2.2.0-win32.zip
 
-        ren imgui-1.81 imgui
-        ren glfw-3.3.3 glfw
         ren glew-2.2.0 glew
 
     - name: Build release 
@@ -42,16 +38,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     
     - name: Download and install dependencies
       run: |
         sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libglew-dev libxxf86vm-dev
-
-        wget https://github.com/ocornut/imgui/archive/refs/tags/v1.81.zip
-
-        unzip -q v1.81.zip
-
-        mv imgui-1.81 imgui
 
     - name: Build release
       run: |

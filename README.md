@@ -1,5 +1,5 @@
 # bspguy
-A tool for modifying and merging Sven Co-op maps without decompiling.
+A tool for editing GoldSrc maps without decompiling.
 
 # Usage
 To launch the 3D editor, drag and drop a .bsp file onto the executable, or "Open with" bspguy, or run `bspguy <mapname>`
@@ -26,9 +26,9 @@ Requires OpenGL 3.0 or later.
 
 ## First-time Setup
 1. Click `File` -> `Settings` -> `General`
-1. Set the `Game Directory` to your `Sven Co-op` folder path, then click `Apply Changes`.
+1. Set the `Game Directory` to your game folder path (e.g. `D:/Steam/steamapps/common/Half-Life/`), then click `Apply Changes`.
     - This will fix the missing textures.
-1. Click the `FGDs` tab and add the full path to your sven-coop.fgd (found in `Sven Co-op/svencoop/`). Click `Apply Changes`.
+1. Click the `FGDs` tab and add the full path to your game's fgd file(s) (e.g. `D:/Steam/steamapps/Sven Co-op/svencoop/sven-coop.fgd`). Click `Apply Changes`.
     - This will give point entities more colorful cubes, and enable the `Attributes` tab in the `Keyvalue editor`.
 
 bspguy saves configuration files to `%APPDATA%/bspguy` on Windows.
@@ -57,7 +57,7 @@ Run 'bspguy <command> help' to read about a specific command.
     * Visual Studio: Make sure to checkmark "Desktop development with C++" if you're installing for the first time. 
 1. Open a command prompt somewhere and run this command to download the source code (don't click the download zip button!):
    ```
-    git clone --recurse-submodules https://github.com/wootguy/bspguy
+    git clone --recurse-submodules --shallow-submodules https://github.com/wootguy/bspguy
     ```
 1. Download [GLEW](http://glew.sourceforge.net/) (choose the `Binaries Windows 32-bit and 64-bit` link) and extract the `glew-x.y.z` folder into the `bspguy` folder that was created in the previous step. Rename the `glew-x.y.z` folder to `glew`.
 1. Open a command prompt in the `bspguy` folder and run these commands:
@@ -73,7 +73,7 @@ Run 'bspguy <command> help' to read about a specific command.
     * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev libxxf86vm-dev`
 1. Open a terminal somewhere and run these commands:
     ```
-    git clone --recurse-submodules https://github.com/wootguy/bspguy
+    git clone --recurse-submodules --shallow-submodules https://github.com/wootguy/bspguy
     cd bspguy
     mkdir build; cd build
     cmake .. -DCMAKE_BUILD_TYPE=RELEASE
