@@ -4,6 +4,7 @@
 #include "colors.h"
 #include "util.h"
 #include "globals.h"
+#include <algorithm>
 
 void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
 

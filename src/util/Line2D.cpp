@@ -1,5 +1,6 @@
 #include "Line2D.h"
 #include "util.h"
+#include <algorithm>
 
 Line2D::Line2D(vec2 start, vec2 end) {
 	this->start = start;
