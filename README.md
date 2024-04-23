@@ -20,7 +20,7 @@ See the [wiki](https://github.com/wootguy/bspguy/wiki) for tutorials.
 
 ![image](https://user-images.githubusercontent.com/12087544/88471604-1768ac80-cec0-11ea-9ce5-13095e843ce7.png)
 
-**The editor is full of bugs, unstable, and has no undo button yet. Save early and often! Make backups before experimenting with anything.**
+**The editor is full of bugs, unstable, and not all actions can be undone. Save early and often! Make backups before experimenting with anything.**
 
 Requires OpenGL 3.0 or later.
 
@@ -53,13 +53,14 @@ Run 'bspguy <command> help' to read about a specific command.
 
 # Building the source
 ### Windows users:
-1. Install CMake and Visual Studio.
+1. Install [CMake](https://cmake.org/download/), [Visual Studio Community](https://visualstudio.microsoft.com/downloads/), and [Git](https://git-scm.com/download/win).
     * Visual Studio: Make sure to checkmark "Desktop development with C++" if you're installing for the first time. 
-1. Download and extract [the source](https://github.com/wootguy/bspguy/archive/master.zip) somewhere
-1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract into the `bspguy-master` folder. Rename to `imgui`.
-1. Download [GLFW](https://www.glfw.org/) and extract into the `bspguy-master` folder. Rename to `glfw`.
-1. Download [GLEW](http://glew.sourceforge.net/) (choose the  `Binaries 		Windows 32-bit and 64-bit` link) and extract into the `bspguy-master` folder. Rename to `glew`.
-1. Open a command prompt in the `bspguy-master` folder and run these commands:
+1. Open a command prompt somewhere and run this command to download the source code (don't click the download zip button!):
+   ```
+    git clone --recurse-submodules https://github.com/wootguy/bspguy
+    ```
+1. Download [GLEW](http://glew.sourceforge.net/) (choose the `Binaries Windows 32-bit and 64-bit` link) and extract the `glew-x.y.z` folder into the `bspguy` folder that was created in the previous step. Rename the `glew-x.y.z` folder to `glew`.
+1. Open a command prompt in the `bspguy` folder and run these commands:
     ```
     mkdir build && cd build
     cmake ..
@@ -70,10 +71,10 @@ Run 'bspguy <command> help' to read about a specific command.
 ### Linux users:
 1. Install Git, CMake, X11, GLFW, GLEW, and a compiler.
     * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev`
-1. Download the source: `git clone https://github.com/wootguy/bspguy.git`
-1. Download [Dear ImGui](https://github.com/ocornut/imgui/releases/tag/v1.81) and extract next to the `src` folder. Rename to `imgui`.
-1. Open a terminal in the `bspguy` folder and run these commands:
+1. Open a terminal somewhere and run these commands:
     ```
+    git clone --recurse-submodules https://github.com/wootguy/bspguy
+    cd bspguy
     mkdir build; cd build
     cmake .. -DCMAKE_BUILD_TYPE=RELEASE
     make

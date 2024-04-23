@@ -1,10 +1,8 @@
 test
 msvc
 /glew
-/glfw
 /msvc_xp
 /release
-/imgui
 /qhull
 /imgui_177
 /imgui_178
