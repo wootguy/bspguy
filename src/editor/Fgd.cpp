@@ -361,7 +361,26 @@ void Fgd::processClassInheritance() {
 			vector<KeyvalueChoice> newSpawnflags;
 			set<string> addedKeys;
 			set<string> addedSpawnflags;
-			//logf << classes[i]->name << " INHERITS FROM: ";
+
+			bool verbose = false;
+			if (verbose) logf("%s INHERITS FROM:\n", classes[i]->name.c_str());
+
+			// add in fields from the child class
+			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
+				if (!addedKeys.count(classes[i]->keyvalues[c].name)) {
+					newKeyvalues.push_back(classes[i]->keyvalues[c]);
+					addedKeys.insert(classes[i]->keyvalues[c].name);
+				}
+				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
+					for (int f = 0; f < classes[i]->keyvalues[c].choices.size(); f++) {
+						KeyvalueChoice& spawnflagOption = classes[i]->keyvalues[c].choices[f];
+						newSpawnflags.push_back(spawnflagOption);
+						addedSpawnflags.insert(spawnflagOption.svalue);
+					}
+				}
+			}
+
+			// add fields from base classes if they don't override child class keys
 			for (int k = allBaseClasses.size()-1; k >= 0; k--) {
 				if (!classes[i]->colorSet && allBaseClasses[k]->colorSet) {
 					classes[i]->color = allBaseClasses[k]->color;
@@ -371,37 +390,21 @@ void Fgd::processClassInheritance() {
 					classes[i]->maxs = allBaseClasses[k]->maxs;
 				}
 				for (int c = 0; c < allBaseClasses[k]->keyvalues.size(); c++) {
-					if (addedKeys.find(allBaseClasses[k]->keyvalues[c].name) == addedKeys.end()) {
+					if (!addedKeys.count(allBaseClasses[k]->keyvalues[c].name)) {
 						newKeyvalues.push_back(allBaseClasses[k]->keyvalues[c]);
 						addedKeys.insert(allBaseClasses[k]->keyvalues[c].name);
 					}
 					if (allBaseClasses[k]->keyvalues[c].iType == FGD_KEY_FLAGS) {
 						for (int f = 0; f < allBaseClasses[k]->keyvalues[c].choices.size(); f++) {
 							KeyvalueChoice& spawnflagOption = allBaseClasses[k]->keyvalues[c].choices[f];
-							if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
+							if (!addedSpawnflags.count(spawnflagOption.svalue)) {
 								newSpawnflags.push_back(spawnflagOption);
 								addedSpawnflags.insert(spawnflagOption.svalue);
 							}
 						}
 					}
 				}
-				//logf << allBaseClasses[k]->name << " ";
-			}
-
-			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
-				if (addedKeys.find(classes[i]->keyvalues[c].name) == addedKeys.end()) {
-					newKeyvalues.push_back(classes[i]->keyvalues[c]);
-					addedKeys.insert(classes[i]->keyvalues[c].name);
-				}
-				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
-					for (int f = 0; f < classes[i]->keyvalues[c].choices.size(); f++) {
-						KeyvalueChoice& spawnflagOption = classes[i]->keyvalues[c].choices[f];
-						if (addedSpawnflags.find(spawnflagOption.svalue) == addedSpawnflags.end()) {
-							newSpawnflags.push_back(spawnflagOption);
-							addedSpawnflags.insert(spawnflagOption.svalue);
-						}
-					}
-				}
+				if (verbose) logf("  %s\n", allBaseClasses[k]->name.c_str());
 			}
 
 			classes[i]->keyvalues = newKeyvalues;
@@ -411,8 +414,6 @@ void Fgd::processClassInheritance() {
 					classes[i]->keyvalues[c].choices = newSpawnflags;
 				}
 			}
-			
-			//logf << endl;
 		}
 		
 	}
