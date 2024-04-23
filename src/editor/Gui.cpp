@@ -1687,6 +1687,7 @@ void Gui::drawKeyvalueEditor() {
 								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
 								app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
 								app->pushEntityUndoState("Change Class");
+								entityReportFilterNeeded = true;
 							}
 						}
 
@@ -1963,6 +1964,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 		Entity* entRef;
 		int entIdx;
 		BspRenderer* bspRenderer;
+		Gui* gui;
 	};
 
 	struct TextChangeCallback {
@@ -1979,6 +1981,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
 				g_app->updateEntConnections();
+				inputData->gui->entityReportFilterNeeded = true;
 			}
 
 			return 1;
@@ -1997,6 +2000,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 				}
 				g_app->updateEntConnections();
+				inputData->gui->entityReportFilterNeeded = true;
 			}
 
 			return 1;
@@ -2118,6 +2122,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			valueIds[i].entIdx = app->pickInfo.entIdx;
 			valueIds[i].entRef = ent;
 			valueIds[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+			valueIds[i].gui = this;
 
 			if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
@@ -3275,7 +3280,6 @@ void Gui::drawEntityReport() {
 			static int lastSelect = -1;
 			static string classFilter = "(none)";
 			static bool partialMatches = true;
-			static bool filterNeeded = true;
 			static vector<int> visibleEnts;
 			static vector<bool> selectedItems;
 
@@ -3284,7 +3288,7 @@ void Gui::drawEntityReport() {
 			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
 
-			if (filterNeeded) {
+			if (entityReportFilterNeeded) {
 				visibleEnts.clear();
 				for (int i = 1; i < map->ents.size(); i++) {
 					Entity* ent = map->ents[i];
@@ -3352,7 +3356,7 @@ void Gui::drawEntityReport() {
 				for (int k = 0; k < selectedItems.size(); k++)
 					selectedItems[k] = false;
 			}
-			filterNeeded = false;
+			entityReportFilterNeeded = false;
 
 			ImGuiListClipper clipper;
 			clipper.Begin(visibleEnts.size());
@@ -3426,7 +3430,7 @@ void Gui::drawEntityReport() {
 					app->deselectObject();
 					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
 					reloadLimits();
-					filterNeeded = true;
+					entityReportFilterNeeded = true;
 				}
 
 				ImGui::EndPopup();
@@ -3470,7 +3474,7 @@ void Gui::drawEntityReport() {
 					bool selected = usedClasses[k] == classFilter;
 					if (ImGui::Selectable(usedClasses[k].c_str(), selected)) {
 						classFilter = usedClasses[k];
-						filterNeeded = true;
+						entityReportFilterNeeded = true;
 					}
 				}
 
@@ -3491,18 +3495,18 @@ void Gui::drawEntityReport() {
 			for (int i = 0; i < MAX_FILTERS; i++) {
 				ImGui::SetNextItemWidth(inputWidth);
 				if (ImGui::InputText(("##Key" + to_string(i)).c_str(), keyFilter[i], 64)) {
-					filterNeeded = true;
+					entityReportFilterNeeded = true;
 				}
 				ImGui::SameLine();
 				ImGui::Text(" = "); ImGui::SameLine();
 				ImGui::SetNextItemWidth(inputWidth);
 				if (ImGui::InputText(("##Value" + to_string(i)).c_str(), valueFilter[i], 64)) {
-					filterNeeded = true;
+					entityReportFilterNeeded = true;
 				}
 			}
 
 			if (ImGui::Checkbox("Partial Matching", &partialMatches)) {
-				filterNeeded = true;
+				entityReportFilterNeeded = true;
 			}
 
 			ImGui::EndChild();
@@ -4361,4 +4365,5 @@ void Gui::checkFaceErrors() {
 void Gui::refresh() {
 	reloadLimits();
 	checkValidHulls();
+	entityReportFilterNeeded = true;
 }

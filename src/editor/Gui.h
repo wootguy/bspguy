@@ -104,6 +104,8 @@ private:
 	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
 	bool AutoScroll = true;  // Keep scrolling if already at the bottom
 
+	bool entityReportFilterNeeded = true;
+
 	void draw3dContextMenus();
 	void drawMenuBar();
 	void drawToolbar();
