@@ -2,8 +2,7 @@
 
 #include "bsptypes.h"
 
-#define MAX_SINGLEMAP ((MAX_SURFACE_EXTENT+1)*(MAX_SURFACE_EXTENT+1))
-#define MAX_SURFACE_EXTENT  16 // if lightmap extent exceeds 16, the map will not be able to load in 'Software' renderer and HLDS.
+#define MAX_SINGLEMAP ((g_limits.max_surface_extents+1)*(g_limits.max_surface_extents+1))
 #define MAX_LUXELS 1600 // max pixels in a single lightmap
 #define TEXTURE_STEP        16 // this constant was previously defined in lightmap.cpp. --vluzacn
 #define TEX_SPECIAL     1    // sky or slime or null, no lightmap or 256 subdivision

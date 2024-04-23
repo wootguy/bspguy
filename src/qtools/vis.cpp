@@ -3,6 +3,8 @@
 #include "util.h"
 #include "globals.h"
 
+#define MAX_MAP_LEAVES 65536 // set this to the largest value in any engine
+
 bool g_debug_shift = false;
 
 void printVisRow(byte* vis, int len, int offsetLeaf, int mask) {

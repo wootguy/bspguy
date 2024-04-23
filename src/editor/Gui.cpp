@@ -23,6 +23,16 @@ float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 string iniPath = getConfigDir() + "imgui.ini";
 
+void tooltip(ImGuiContext& g, const char* text) {
+	if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(text);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
 Gui::Gui(Renderer* app) {
 	this->app = app;
 	init();
@@ -416,11 +426,7 @@ void Gui::draw3dContextMenus() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-				if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-					ImGui::BeginTooltip();
-					ImGui::TextUnformatted("Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
-					ImGui::EndTooltip();
-				}
+				tooltip(g, "Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
 			}
 
 			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
@@ -459,13 +465,13 @@ void Gui::draw3dContextMenus() {
 
 		if (ImGui::BeginPopup("face_context"))
 		{
-			if (ImGui::MenuItem("Copy texture", "Ctrl+C")) {
+			if (ImGui::MenuItem("Copy texture", "Ctrl+C", false, app->selectedFaces.size() == 1)) {
 				copyTexture();
 			}
 			if (ImGui::MenuItem("Paste texture", "Ctrl+V", false, copiedMiptex >= 0 && copiedMiptex < map->textureCount)) {
 				pasteTexture();
 			}
-			if (ImGui::MenuItem("Select all of this texture")) {
+			if (ImGui::MenuItem("Select all of this texture", "", false, app->selectedFaces.size() == 1)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
@@ -484,13 +490,9 @@ void Gui::draw3dContextMenus() {
 				logf("Selected %d faces\n", app->selectedFaces.size());
 				refreshSelectedFaces = true;
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Select every face in the map which has this texture.");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Select every face in the map which has this texture.");
 
-			if (ImGui::MenuItem("Select connected planar faces of this texture")) {
+			if (ImGui::MenuItem("Select connected planar faces of this texture", "", false, app->selectedFaces.size() == 1)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
@@ -506,42 +508,45 @@ void Gui::draw3dContextMenus() {
 				logf("Selected %d faces\n", app->selectedFaces.size());
 				refreshSelectedFaces = true;
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Selects faces connected to this one which lie on the same plane and use the same texture");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Selects faces connected to this one which lie on the same plane and use the same texture");
 
 			if (ImGui::MenuItem("Downscale texture")) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
+
 				Bsp* map = app->pickInfo.map;
 
-				BSPFACE& face = map->faces[app->pickInfo.faceIdx];
-				BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-				int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
-				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+				set<int> downscaled;
 
-				int maxDim = max(tex.nWidth, tex.nHeight);
+				for (int i = 0; i < app->selectedFaces.size(); i++) {
+					BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+					BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+					
+					if (downscaled.count(info.iMiptex))
+						continue;
+					
+					int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
 
-				int nextBestDim = 16;
-				if (maxDim > 512) { nextBestDim = 512; }
-				else if (maxDim > 256) { nextBestDim = 256; }
-				else if (maxDim > 128) { nextBestDim = 128; }
-				else if (maxDim > 64) { nextBestDim = 64; }
-				else if (maxDim > 32) { nextBestDim = 32; }
-				else if (maxDim > 32) { nextBestDim = 32; }
+					int maxDim = max(tex.nWidth, tex.nHeight);
 
-				map->downscale_texture(info.iMiptex, nextBestDim);
+					int nextBestDim = 16;
+					if (maxDim > 512) { nextBestDim = 512; }
+					else if (maxDim > 256) { nextBestDim = 256; }
+					else if (maxDim > 128) { nextBestDim = 128; }
+					else if (maxDim > 64) { nextBestDim = 64; }
+					else if (maxDim > 32) { nextBestDim = 32; }
+					else if (maxDim > 32) { nextBestDim = 32; }
+
+					map->downscale_texture(info.iMiptex, nextBestDim);
+					downscaled.insert(info.iMiptex);
+				}
+				
 				app->deselectFaces();
 				app->mapRenderers[0]->reload();
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Reduces the dimensions of this texture down to the next power of 2");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2.");
 
 			if (ImGui::MenuItem("Subdivide")) {
 				if (!app->pickInfo.valid) {
@@ -549,21 +554,35 @@ void Gui::draw3dContextMenus() {
 				}
 				Bsp* map = app->pickInfo.map;
 
-				map->subdivide_face(app->pickInfo.faceIdx);
+				for (int i = 0; i < app->selectedFaces.size(); i++) {
+					map->subdivide_face(app->pickInfo.faceIdx);
+				}
 				app->deselectFaces();
 				app->mapRenderers[0]->reload();
 			}
+			tooltip(g, "Split this face across the axis with the most texture pixels.");
+
+			if (ImGui::MenuItem("Subdivide until valid")) {
+				if (!app->pickInfo.valid) {
+					return;
+				}
+				Bsp* map = app->pickInfo.map;
+
+				for (int i = 0; i < app->selectedFaces.size(); i++) {
+					map->fix_bad_surface_extents_with_subdivide(app->selectedFaces[i]);
+				}
+				
+				app->deselectFaces();
+				app->mapRenderers[0]->reload();
+			} 
+			tooltip(g, "Subdivide this face until it has valid surface extents.");
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Copy lightmap", "(WIP)")) {
+			if (ImGui::MenuItem("Copy lightmap", "(WIP)", false, app->selectedFaces.size() == 1)) {
 				copyLightmap();
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Only works for faces with matching sizes/extents,\nand the lightmap might get shifted.");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Only works for faces with matching sizes/extents,\nand the lightmap might get shifted.");
 
 			if (ImGui::MenuItem("Paste lightmap", "", false, copiedLightmapFace >= 0 && copiedLightmapFace < map->faceCount)) {
 				pasteLightmap();
@@ -659,6 +678,7 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
+		/*
 		if (ImGui::BeginMenu("Export")) {
 			if (ImGui::MenuItem("Entity file", NULL)) {
 				Bsp* map = app->getMapContainingCamera()->map;
@@ -775,15 +795,16 @@ void Gui::drawMenuBar() {
 				}
 			}
 		}
-
 		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
 			ImGui::EndTooltip();
 		}
+		*/
 
 		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
 			app->reloadMaps();
+			refresh();
 		}
 		if (ImGui::MenuItem("Validate")) {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
@@ -900,22 +921,7 @@ void Gui::drawMenuBar() {
 			app->pushUndoCommand(command);
 		}
 
-		if (ImGui::BeginMenu("Porting tools", !app->isLoading)) {
-			if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
-				map->deduplicate_models();
-
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-				if (renderer) {
-					renderer->preRenderEnts();
-					g_app->gui->refresh();
-				}
-			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Deletes BSP models that are identical to another model and updates entity model keyvalues accordingly.");
-				ImGui::EndTooltip();
-			}
-
+		if (ImGui::BeginMenu("Porting Tools", !app->isLoading)) {
 			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
 				map->allocblock_reduction();
 
@@ -925,58 +931,29 @@ void Gui::drawMenuBar() {
 					g_app->gui->refresh();
 				}
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Scales up textures on invisible models. Manually scale up textures on visible models if you still get an error.\n");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Scales up textures on invisible models, if any exist. Manually increase texture scales or downscale large textures to reduce AllocBlocks further.\n");
 
-			if (ImGui::MenuItem("Fix Bad Surface Extents (subdivide)", 0, false, !app->isLoading && mapSelected)) {
-				map->fix_bad_surface_extents(false, 256);
+			if (ImGui::MenuItem("Apply Worldspawn Transform", 0, false, !app->isLoading && mapSelected)) {
+				if (map->ents[0]->hasKey("origin")) {
+					vec3 ori = map->ents[0]->getOrigin();
+					logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
+					map->move(ori);
+					map->ents[0]->removeKeyvalue("origin");
 
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-				if (renderer) {
-					map->remove_unused_model_structures();
-					renderer->reload();
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						renderer->reload();
+						g_app->gui->refresh();
+						g_app->deselectObject();
+					}
+				}
+				else {
+					logf("Transform the worldspawn origin first using the transform widget!\n");
 				}
 			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Subdivides faces until they have valid extents.\n");
-				ImGui::EndTooltip();
-			}
+			tooltip(g, "Moves BSP data by the amount set in the worldspawn origin keyvalue. Useful for adjusting OOB deletes or for alignining maps before merging.");
 
-			if (ImGui::MenuItem("Fix Bad Surface Extents (scale)", 0, false, !app->isLoading && mapSelected)) {
-				map->fix_bad_surface_extents(true, 256);
-
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-				if (renderer) {
-					map->remove_unused_model_structures();
-					renderer->reload();
-				}
-			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Scales up face textures until they have valid extents.\n");
-				ImGui::EndTooltip();
-			}
-
-			if (ImGui::MenuItem("Downscale invalid textures", 0, false, !app->isLoading && mapSelected)) {
-				map->downscale_invalid_textures();
-
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-				if (renderer) {
-					renderer->preRenderFaces();
-					g_app->gui->refresh();
-				}
-			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Shrinks textures that exceed the max texture size. Adjusts texture coordinates accordingly. WAD textures must be shrunk manually.\n");
-				ImGui::EndTooltip();
-			}
-
-			if (ImGui::BeginMenu("Delete OOB data", !app->isLoading && mapSelected)) {
+			if (ImGui::BeginMenu("Delete OOB Data", !app->isLoading && mapSelected)) {
 
 				static const char* optionNames[10] = {
 					"All Axes",
@@ -992,7 +969,7 @@ void Gui::drawMenuBar() {
 				};
 
 				static int clipFlags[10] = {
-					0xffffffff, 
+					0xffffffff,
 					OOB_CLIP_X | OOB_CLIP_X_NEG,
 					OOB_CLIP_X,
 					OOB_CLIP_X_NEG,
@@ -1023,37 +1000,125 @@ void Gui::drawMenuBar() {
 							g_app->deselectObject();
 						}
 					}
-					if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-						ImGui::BeginTooltip();
-						ImGui::TextUnformatted("Deletes BSP data and entities outside of the max map boundary.\n");
-						ImGui::EndTooltip();
-					}
+					tooltip(g, "Deletes BSP data and entities outside of the "
+							"max map boundary.\n\n"
+							"This is useful for splitting maps for running in an engine with stricter map limits.");
 				}
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::MenuItem("Apply worldspawn transform", 0, false, !app->isLoading && mapSelected)) {
-				if (map->ents[0]->hasKey("origin")) {
-					vec3 ori = map->ents[0]->getOrigin();
-					logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
-					map->move(ori);
-					map->ents[0]->removeKeyvalue("origin");
+			if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
+				map->deduplicate_models();
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					renderer->preRenderEnts();
+					g_app->gui->refresh();
+				}
+			}
+			tooltip(g, "Deletes duplicated BSP models and updates entity model keyvalues accordingly. This lowers the model count and allows more game models to be precached.");
+
+			if (ImGui::MenuItem("Downscale Invalid Textures", "(WIP)", false, !app->isLoading && mapSelected)) {
+				map->downscale_invalid_textures();
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				if (renderer) {
+					renderer->preRenderFaces();
+					g_app->gui->refresh();
+					reloadLimits();
+				}
+			}
+			tooltip(g, "Shrinks textures that exceed the max texture size and adjusts texture coordinates accordingly. Does not work with WAD textures yet.\n");
+
+			if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading && mapSelected)) {
+				if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(false, true, 512);
 
 					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 					if (renderer) {
+						map->remove_unused_model_structures();
 						renderer->reload();
-						g_app->gui->refresh();
-						g_app->deselectObject();
+						reloadLimits();
 					}
 				}
-				else {
-					logf("Transform the worldspawn origin first using the transform widget!\n");
+				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 512x512 pixels. "
+					"This alone will likely not be enough to fix all faces with bad surface extents."
+					"You may also have to apply the Subdivide or Scale methods.");
+
+				if (ImGui::MenuItem("Shrink Textures (256)", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(false, true, 256);
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						map->remove_unused_model_structures();
+						renderer->reload();
+						reloadLimits();
+					}
 				}
-			}
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Moves BSP data by the amount set in the worldspawn origin keyvalue\n");
-				ImGui::EndTooltip();
+				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 256x256 pixels. "
+					"This alone will likely not be enough to fix all faces with bad surface extents."
+					"You may also have to apply the Subdivide or Scale methods.");
+
+				if (ImGui::MenuItem("Shrink Textures (128)", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(false, true, 128);
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						map->remove_unused_model_structures();
+						renderer->reload();
+						reloadLimits();
+					}
+				}
+				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 128x128 pixels. "
+					"This alone will likely not be enough to fix all faces with bad surface extents."
+					"You may also have to apply the Subdivide or Scale methods.");
+
+				if (ImGui::MenuItem("Shrink Textures (64)", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(false, true, 64);
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						map->remove_unused_model_structures();
+						renderer->reload();
+						reloadLimits();
+					}
+				}
+				tooltip(g, "Downscales embedded textures to a max resolution of 64x64 pixels. "
+					"This alone will likely not be enough to fix all faces with bad surface extents."
+					"You may also have to apply the Subdivide or Scale methods.");
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Scale", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(true, false, 0);
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						map->remove_unused_model_structures();
+						renderer->reload();
+						reloadLimits();
+					}
+				}
+				tooltip(g, "Scales up face textures until they have valid extents. The drawback to this method is shifted texture coordinates and lower apparent texture quality.");
+
+				if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading && mapSelected)) {
+					map->fix_bad_surface_extents(false, false, 0);
+
+					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+					if (renderer) {
+						map->remove_unused_model_structures();
+						renderer->reload();
+						reloadLimits();
+					}
+				}
+				tooltip(g, "Subdivides faces until they have valid extents. The drawback to this method is reduced in-game performace from higher poly counts.");
+
+				ImGui::MenuItem("", "WIP");
+				tooltip(g, "Anything you choose here will break lightmaps. "
+					"Run the map through a RAD compiler to fix, and pray that the mapper didn't "
+					"customize compile settings much.");
+
+				ImGui::EndMenu();
 			}
 
 			ImGui::EndMenu();
@@ -2610,17 +2675,62 @@ void Gui::drawSettings() {
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
 			ImGui::InputText("Game Directory", gamedir, 256);
+
+			// TODO: use file dialogs instead
+			/*
 			ImGui::Text("Import/Export Directory:");
 			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
+			*/
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
+			
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
+			
+			// why not make a backup yourself?
+			/*
 			ImGui::Checkbox("Make map backup", &g_settings.backUpMap);
 			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 				ImGui::BeginTooltip();
 				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
+			}
+			*/
+
+			
+			ImGui::Dummy(ImVec2(0, 8));
+
+			ImGui::Text("Engine");
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				ImGui::TextUnformatted("Map limits change depending on the engine selected here.");
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+
+			if (ImGui::BeginCombo("##engine", g_settings.engine == ENGINE_HALF_LIFE ? "Half-Life" : "Sven Co-op"))
+			{
+				static int selected;
+				selected = g_settings.engine;
+
+				bool changed = false;
+				if (ImGui::Selectable("Half-Life", selected == ENGINE_HALF_LIFE)) {
+					changed = g_settings.engine != ENGINE_HALF_LIFE;
+					g_settings.engine = ENGINE_HALF_LIFE;
+				} else if (ImGui::Selectable("Sven Co-op", selected == ENGINE_SVEN_COOP)) {
+					changed = g_settings.engine != ENGINE_SVEN_COOP;
+					g_settings.engine = ENGINE_SVEN_COOP;
+				}
+
+				if (changed) {
+					g_limits = g_engine_limits[g_settings.engine];
+					app->mapRenderers[0]->reload();
+					reloadLimits();
+				}
+
+				ImGui::EndCombo();
 			}
 		}
 		else if (settingsTab == 1) {
@@ -2690,6 +2800,7 @@ void Gui::drawSettings() {
 			bool renderWorldClipnodes = g_render_flags & RENDER_WORLD_CLIPNODES;
 			bool renderEntClipnodes = g_render_flags & RENDER_ENT_CLIPNODES;
 			bool renderEntConnections = g_render_flags & RENDER_ENT_CONNECTIONS;
+			bool renderMapBoundary = g_render_flags & RENDER_MAP_BOUNDARY;
 
 			ImGui::Text("Render Flags:");
 
@@ -2709,11 +2820,8 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("Origin", &renderOrigin)) {
 				g_render_flags ^= RENDER_ORIGIN;
 			}
-			if (ImGui::Checkbox("Entity Links", &renderEntConnections)) {
-				g_render_flags ^= RENDER_ENT_CONNECTIONS;
-				if (g_render_flags & RENDER_ENT_CONNECTIONS) {
-					app->updateEntConnections();
-				}
+			if (ImGui::Checkbox("Map Boundary", &renderMapBoundary)) {
+				g_render_flags ^= RENDER_MAP_BOUNDARY;
 			}
 
 			ImGui::NextColumn();
@@ -2729,6 +2837,12 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::Checkbox("Special World Faces", &renderSpecial)) {
 				g_render_flags ^= RENDER_SPECIAL;
+			}
+			if (ImGui::Checkbox("Entity Links", &renderEntConnections)) {
+				g_render_flags ^= RENDER_ENT_CONNECTIONS;
+				if (g_render_flags & RENDER_ENT_CONNECTIONS) {
+					app->updateEntConnections();
+				}
 			}
 
 
@@ -2911,21 +3025,22 @@ void Gui::drawLimits() {
 
 					if (!loadedStats) {
 						stats.clear();
-						stats.push_back(calcStat("models", map->modelCount, MAX_MAP_MODELS, false));
-						stats.push_back(calcStat("planes", map->planeCount, MAX_MAP_PLANES, false));
-						stats.push_back(calcStat("vertexes", map->vertCount, MAX_MAP_VERTS, false));
-						stats.push_back(calcStat("nodes", map->nodeCount, MAX_MAP_NODES, false));
-						stats.push_back(calcStat("texinfos", map->texinfoCount, MAX_MAP_TEXINFOS, false));
-						stats.push_back(calcStat("faces", map->faceCount, MAX_MAP_FACES, false));
-						stats.push_back(calcStat("clipnodes", map->clipnodeCount, MAX_MAP_CLIPNODES, false));
-						stats.push_back(calcStat("leaves", map->leafCount, MAX_MAP_LEAVES, false));
-						stats.push_back(calcStat("marksurfaces", map->marksurfCount, MAX_MAP_MARKSURFS, false));
-						stats.push_back(calcStat("surfedges", map->surfedgeCount, MAX_MAP_SURFEDGES, false));
-						stats.push_back(calcStat("edges", map->edgeCount, MAX_MAP_EDGES, false));
-						stats.push_back(calcStat("textures", map->textureCount, MAX_MAP_TEXTURES, false));
-						stats.push_back(calcStat("lightdata", map->lightDataLength, MAX_MAP_LIGHTDATA, true));
-						stats.push_back(calcStat("visdata", map->visDataLength, MAX_MAP_VISDATA, true));
-						stats.push_back(calcStat("entities", map->ents.size(), MAX_MAP_ENTS, false));
+						stats.push_back(calcStat("AllocBlock", map->calc_allocblock_usage(), g_limits.max_allocblocks, false));
+						stats.push_back(calcStat("clipnodes", map->clipnodeCount, g_limits.max_clipnodes, false));
+						stats.push_back(calcStat("nodes", map->nodeCount, g_limits.max_nodes, false));
+						stats.push_back(calcStat("leaves", map->leafCount, g_limits.max_leaves, false));
+						stats.push_back(calcStat("models", map->modelCount, g_limits.max_models, false));
+						stats.push_back(calcStat("faces", map->faceCount, g_limits.max_faces, false));
+						stats.push_back(calcStat("texinfos", map->texinfoCount, g_limits.max_texinfos, false));
+						stats.push_back(calcStat("textures", map->textureCount, g_limits.max_textures, false));
+						stats.push_back(calcStat("planes", map->planeCount, g_limits.max_planes, false));
+						stats.push_back(calcStat("vertexes", map->vertCount, g_limits.max_vertexes, false));
+						stats.push_back(calcStat("edges", map->edgeCount, g_limits.max_edges, false));
+						stats.push_back(calcStat("surfedges", map->surfedgeCount, g_limits.max_surfedges, false));
+						stats.push_back(calcStat("marksurfaces", map->marksurfCount, g_limits.max_marksurfaces, false));
+						stats.push_back(calcStat("entdata", map->header.lump[LUMP_ENTITIES].nLength, g_limits.max_entdata, true));
+						stats.push_back(calcStat("visdata", map->visDataLength, g_limits.max_visdata, true));
+						stats.push_back(calcStat("lightdata", map->lightDataLength, g_limits.max_lightdata, true));
 						loadedStats = true;
 					}
 
@@ -2973,21 +3088,25 @@ void Gui::drawLimits() {
 				}
 
 				if (ImGui::BeginTabItem("Clipnodes")) {
+					loadedStats = false;
 					drawLimitTab(map, SORT_CLIPNODES);
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Nodes")) {
+					loadedStats = false;
 					drawLimitTab(map, SORT_NODES);
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Faces")) {
+					loadedStats = false;
 					drawLimitTab(map, SORT_FACES);
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Vertices")) {
+					loadedStats = false;
 					drawLimitTab(map, SORT_VERTS);
 					ImGui::EndTabItem();
 				}

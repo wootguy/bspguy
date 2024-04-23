@@ -3,6 +3,7 @@
 #include "Bsp.h"
 #include "colors.h"
 #include "util.h"
+#include "globals.h"
 
 void qrad_get_lightmap_flags(Bsp* bsp, int faceIdx, byte* luxelFlagsOut) {
 
@@ -263,11 +264,11 @@ bool GetFaceLightmapSize(Bsp* bsp, int facenum, int size[2]) {
 	size[1] = (maxs[1] - mins[1]);
 
 	bool badSurfaceExtents = false;
-	if ((size[0] > MAX_SURFACE_EXTENT) || (size[1] > MAX_SURFACE_EXTENT) || size[0] < 0 || size[1] < 0)
+	if ((size[0] > g_limits.max_surface_extents) || (size[1] > g_limits.max_surface_extents) || size[0] < 0 || size[1] < 0)
 	{
 		//logf("Bad surface extents (%d x %d)\n", size[0], size[1]);
-		size[0] = min(size[0], MAX_SURFACE_EXTENT);
-		size[1] = min(size[1], MAX_SURFACE_EXTENT);
+		size[0] = min(size[0], g_limits.max_surface_extents);
+		size[1] = min(size[1], g_limits.max_surface_extents);
 		badSurfaceExtents = true;
 	}
 
@@ -406,13 +407,13 @@ void CalcFaceExtents(Bsp* bsp, lightinfo_t* l)
 
 	if (!(tex->nFlags & TEX_SPECIAL))
 	{
-		if ((l->texsize[0] > MAX_SURFACE_EXTENT) || (l->texsize[1] > MAX_SURFACE_EXTENT)
+		if ((l->texsize[0] > g_limits.max_surface_extents) || (l->texsize[1] > g_limits.max_surface_extents)
 			|| l->texsize[0] < 0 || l->texsize[1] < 0 //--vluzacn
 			)
 		{
 			//logf("Bad surface extents (%d x %d)\n", l->texsize[0], l->texsize[1]);
-			l->texsize[0] = min(l->texsize[0], MAX_SURFACE_EXTENT);
-			l->texsize[1] = min(l->texsize[1], MAX_SURFACE_EXTENT);
+			l->texsize[0] = min(l->texsize[0], g_limits.max_surface_extents);
+			l->texsize[1] = min(l->texsize[1], g_limits.max_surface_extents);
 		}
 	}
 }

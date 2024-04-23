@@ -293,9 +293,9 @@ void Renderer::renderLoop() {
 				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
 				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
 				
-				if (pickInfo.valid && pickInfo.entIdx == 0) {
+				if ((g_render_flags & RENDER_MAP_BOUNDARY) && pickInfo.valid && pickInfo.entIdx == 0) {
 					glDisable(GL_CULL_FACE);
-					drawBox(mapRenderers[0]->map->ents[0]->getOrigin() * -1, 8192, COLOR4(0, 255, 0, 64));
+					drawBox(mapRenderers[0]->map->ents[0]->getOrigin() * -1, g_limits.max_mapboundary*2, COLOR4(0, 255, 0, 64));
 					glEnable(GL_CULL_FACE);
 				}
 
@@ -1548,12 +1548,12 @@ void Renderer::addMap(Bsp* map) {
 	gui->checkValidHulls();
 
 	// Pick default map
-	if (!pickInfo.map) 
+	//if (!pickInfo.map) 
 	{
-		pickInfo.modelIdx = -1;
+		pickInfo.modelIdx = 0;
 		pickInfo.faceIdx = -1;
-		pickInfo.ent = NULL;
-		pickInfo.entIdx = -1;
+		pickInfo.ent = map->ents[0];
+		pickInfo.entIdx = 0;
 		pickInfo.mapIdx = 0;
 		pickInfo.map = map;
 		pickInfo.valid = true;

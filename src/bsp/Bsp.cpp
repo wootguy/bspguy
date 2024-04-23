@@ -1732,7 +1732,7 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
 	bool* oobHistory, bool isFirstPass, int& removedNodes) {
 	BSPNODE& node = nodes[iNode];
-	const float oob_coord = 4096;
+	float oob_coord = g_limits.max_mapboundary;
 
 	if (node.iPlane < 0) {
 		return;
@@ -1803,7 +1803,7 @@ void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& c
 void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
 	bool* oobHistory, bool isFirstPass, int& removedNodes)  {
 	BSPCLIPNODE& node = clipnodes[iNode];
-	const float oob_coord = 4096;
+	float oob_coord = g_limits.max_mapboundary;
 
 	if (node.iPlane < 0) {
 		return;
@@ -1884,9 +1884,8 @@ void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE
 }
 
 void Bsp::delete_oob_data(int clipFlags) {
-	const float oob_coord = 4096;
+	float oob_coord = g_limits.max_mapboundary;
 	BSPMODEL& worldmodel = models[0];
-
 
 	// remove OOB nodes and clipnodes
 	{
@@ -1958,7 +1957,9 @@ void Bsp::delete_oob_data(int clipFlags) {
 		}
 
 	}
-	logf("Removed %d ents\n", ents.size() - newEnts.size());
+	int deletedEnts = ents.size() - newEnts.size();
+	if (deletedEnts)
+		logf("    Deleted %d entities\n", deletedEnts);
 	ents = newEnts;
 
 	uint8_t* oobFaces = new uint8_t[faceCount];
@@ -2003,7 +2004,6 @@ void Bsp::delete_oob_data(int clipFlags) {
 			newFaces[outIdx++] = faces[i];
 		}
 	}
-	logf("Wrote %d / %d faces\n", outIdx, faceCount - oobFaceCount);
 
 	for (int i = 0; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
@@ -2020,9 +2020,6 @@ void Bsp::delete_oob_data(int clipFlags) {
 
 		model.iFirstFace -= offset;
 		model.nFaces -= countReduce;
-
-		if (countReduce)
-			logf("Removed %d faces from model %d\n", countReduce, i);
 	}
 
 	for (int i = 0; i < nodeCount; i++) {
@@ -2090,6 +2087,8 @@ void Bsp::delete_oob_data(int clipFlags) {
 	vec3 buffer = vec3(64, 64, 128); // leave room for largest collision hull wall thickness
 	worldmodel.nMins = mins - buffer;
 	worldmodel.nMaxs = maxs + buffer;
+
+	remove_unused_model_structures().print_delete_stats(1);
 }
 
 void Bsp::count_leaves(int iNode, int& leafCount) {
@@ -2317,6 +2316,21 @@ void Bsp::deduplicate_models() {
 	}
 }
 
+float Bsp::calc_allocblock_usage() {
+	int total = 0;
+
+	for (int i = 0; i < faceCount; i++) {
+		int size[2];
+		GetFaceLightmapSize(this, i, size);
+
+		total += size[0] * size[1];
+	}
+
+	const int allocBlockSize = 128 * 128;
+
+	return total / (float)allocBlockSize;
+}
+
 void Bsp::allocblock_reduction() {
 	int scaleCount = 0;
 
@@ -2497,7 +2511,6 @@ bool Bsp::subdivide_face(int faceIdx) {
 		}
 		else if (node.firstFace <= faceIdx && node.firstFace + node.nFaces > faceIdx) {
 			node.nFaces++;
-			logf("Add face to node %d\n", i);
 		}
 	}
 
@@ -2536,92 +2549,138 @@ bool Bsp::subdivide_face(int faceIdx) {
 	return true;
 }
 
-void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, int maxTextureDim) {
-	int opcount = 0;
+void Bsp::fix_bad_surface_extents_with_subdivide(int faceIdx) {
+	vector<int> faces;
+	faces.push_back(faceIdx);
+
+	int totalFaces = 1;
+
+	while (faces.size()) {
+		int size[2];
+		int i = faces[faces.size()-1];
+		if (GetFaceLightmapSize(this, i, size)) {
+			faces.pop_back();
+			continue;
+		}
+
+		// adjust face indexes if about to split a face with a lower index 
+		for (int i = 0; i < faces.size(); i++) {
+			if (faces[i] > i) {
+				faces[i]++;
+			}
+		}
+
+		totalFaces++;
+		subdivide_face(i);
+		faces.push_back(i+1);
+		faces.push_back(i);
+	}
+
+	logf("Subdivided into %d faces\n", totalFaces);
+}
+
+void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, bool downscaleOnly, int maxTextureDim) {
+	int numSub = 0;
+	int numScale = 0;
+	int numShrink = 0;
 	bool anySubdivides = true;
 
-	while (anySubdivides) {
+	if (scaleNotSubdivide) {
+		// create unique texinfos in case any are shared with both good and bad faces
+		for (int fa = 0; fa < faceCount; fa++) {
+			int faceIdx = fa;
+			BSPFACE& face = faces[faceIdx];
+			BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
 
-		anySubdivides = false;
-		for (int i = 0; i < modelCount; i++) {
-			BSPMODEL& model = models[i];
-
-			if (model.nFaces == 0)
+			if (info.nFlags & TEX_SPECIAL) {
 				continue;
+			}
 
-			for (int fa = 0; fa < model.nFaces; fa++) {
-				int faceIdx = model.iFirstFace + fa;
-				BSPFACE& face = faces[faceIdx];
-				BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+			int size[2];
+			if (GetFaceLightmapSize(this, faceIdx, size)) {
+				continue;
+			}
 
-				if (info.nFlags & TEX_SPECIAL) {
-					continue;
+			get_unique_texinfo(faceIdx);
+		}
+	}
+
+	while (anySubdivides) {
+		anySubdivides = false;
+		for (int fa = 0; fa < faceCount; fa++) {
+			int faceIdx = fa;
+			BSPFACE& face = faces[faceIdx];
+			BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+
+			if (info.nFlags & TEX_SPECIAL) {
+				continue;
+			}
+
+			int size[2];
+			if (GetFaceLightmapSize(this, faceIdx, size)) {
+				continue;
+			}
+
+			if (maxTextureDim > 0 && downscale_texture(info.iMiptex, maxTextureDim)) {
+				// retry after downscaling
+				numShrink++;
+				fa--;
+				continue;
+			}
+
+			if (downscaleOnly) {
+				continue;
+			}
+
+			if (!scaleNotSubdivide) {
+				if (subdivide_face(faceIdx)) {
+					numSub++;
+					anySubdivides = true;
+					break;
 				}
+				// else scale the face because it was too skinny to be subdivided or something
+			}
+				
+			vec2 oldScale(1.0f / info.vS.length(), 1.0f / info.vT.length());
 
-				int size[2];
+			bool scaledOk = false;
+			for (int i = 0; i < 128; i++) {
+				info.vS *= 0.5f;
+				info.vT *= 0.5f;
+
 				if (GetFaceLightmapSize(this, faceIdx, size)) {
-					continue;
+					scaledOk = true;
+					break;
 				}
+			}
 
-				if (maxTextureDim >= 0) {
-					// first downscale the texture
-					if (downscale_texture(info.iMiptex, maxTextureDim)) {
-						if (GetFaceLightmapSize(this, faceIdx, size)) {
-							continue;
-						}
+			if (!scaledOk) {
+				int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+				logf("Failed to fix face %s with scales %f %f\n", tex.szName, oldScale.x, oldScale.y);
+			}
+			else {
+				int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+				vec2 newScale(1.0f / info.vS.length(), 1.0f / info.vT.length());
 
-						info = texinfos[face.iTextureInfo];
-					}
-				}
-
-				if (!scaleNotSubdivide) {
-					if (subdivide_face(faceIdx)) {
-						opcount++;
-						anySubdivides = true;
-						break;
-					}
-				}
-				else {
-					// TODO: don't scale up if texinfo is shared with a face that doesn't have bad extents
-					vec2 oldScale(1.0f / info.vS.length(), 1.0f / info.vT.length());
-
-					bool scaledOk = false;
-					for (int i = 0; i < 128; i++) {
-						info.vS *= 0.5f;
-						info.vT *= 0.5f;
-
-						if (GetFaceLightmapSize(this, faceIdx, size)) {
-							scaledOk = true;
-							break;
-						}
-					}
-
-					if (!scaledOk) {
-						int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
-						BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-						logf("Failed to fix face %s with scales %f %f\n", tex.szName, oldScale.x, oldScale.y);
-					}
-					else {
-						int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
-						BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-						vec2 newScale(1.0f / info.vS.length(), 1.0f / info.vT.length());
-
-						vec3 center = get_face_center(faceIdx);
-						logf("Scaled up %s from %fx%f -> %fx%f (%d %d %d)\n",
-							tex.szName, oldScale.x, oldScale.y, newScale.x, newScale.y,
-							(int)center.x, (int)center.y, (int)center.z);
-						opcount++;
-					}
-				}
+				vec3 center = get_face_center(faceIdx);
+				logf("Scaled up %s from %fx%f -> %fx%f (%d %d %d)\n",
+					tex.szName, oldScale.x, oldScale.y, newScale.x, newScale.y,
+					(int)center.x, (int)center.y, (int)center.z);
+				numScale++;
 			}
 		}
 	}
 
-	if (scaleNotSubdivide) {
-		logf("Scaled up %d face textures\n", opcount);
+	if (numScale) {
+		logf("Scaled up %d face textures\n", numScale);
 	}
-	else {
-		logf("Subdivided %d faces\n", opcount);
+	if (numSub) {
+		logf("Subdivided %d faces\n", numSub);
+	}
+	if (numShrink) {
+		logf("Downscaled %d textures\n", numShrink);
 	}
 }
 
@@ -2640,33 +2699,20 @@ vec3 Bsp::get_face_center(int faceIdx) {
 	return centroid / (float)face.nEdges;
 }
 
-bool Bsp::downscale_texture(int textureId, int maxDim) {
-	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
-	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-
-	if (tex.nOffsets[0] == 0) {
-		logf("Can't downscale WAD texture %s\n", tex.szName);
+bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
+	if ((newWidth % 16 != 0) || (newHeight % 16 != 0) || newWidth <= 0 || newHeight <= 0) {
+		logf("Invalid downscale dimensions: %dx%d\n", newWidth, newHeight);
 		return false;
 	}
+
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 	int oldWidth = tex.nWidth;
 	int oldHeight = tex.nHeight;
 
-	float ratio = oldHeight / (float)oldWidth;
-
-	while (tex.nWidth > 0 && (tex.nWidth > maxDim || tex.nHeight > maxDim || (tex.nHeight % 16) != 0)) {
-		tex.nWidth -= 16;
-		tex.nHeight = tex.nWidth * ratio;
-	}
-
-	if (oldWidth == tex.nWidth) {
-		return false;
-	}
-
-	if (tex.nWidth == 0) {
-		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
-		return false;
-	}
+	tex.nWidth = newWidth;
+	tex.nHeight = newHeight;
 
 	int lastMipSize = (oldWidth >> 3) * (oldHeight >> 3);
 	byte* pixels = (byte*)(textures + texOffset + tex.nOffsets[0]);
@@ -2682,15 +2728,15 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 		oldHeights[i] = oldHeight >> (1 * i);
 		newWidths[i] = tex.nWidth >> (1 * i);
 		newHeights[i] = tex.nHeight >> (1 * i);
-		
+
 		if (i > 0) {
-			newOffset[i] = newOffset[i-1] + newWidths[i-1] * newHeights[i-1];
+			newOffset[i] = newOffset[i - 1] + newWidths[i - 1] * newHeights[i - 1];
 		}
 		else {
 			newOffset[i] = sizeof(BSPMIPTEX);
 		}
 	}
-	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3]*newHeights[3] + 2);
+	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3] * newHeights[3] + 2);
 
 	float srcScale = (float)oldWidth / tex.nWidth;
 
@@ -2704,9 +2750,9 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 			int srcY = (int)(srcScale * y + 0.5f);
 
 			for (int x = 0; x < newWidths[i]; x++) {
-				int srcX = (int)(srcScale*x + 0.5f);
-				
-				dstData[y* dstWidth + x] = srcData[srcY * srcWidth + srcX];
+				int srcX = (int)(srcScale * x + 0.5f);
+
+				dstData[y * dstWidth + x] = srcData[srcY * srcWidth + srcX];
 			}
 		}
 	}
@@ -2715,23 +2761,16 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 	for (int i = 0; i < 4; i++) {
 		tex.nOffsets[i] = newOffset[i];
 	}
-	
+
 	// scale up face texture coordinates
 	float scale = tex.nWidth / (float)oldWidth;
-
-	/*
-	for (int i = 0; i < faceCount; i++) {
-		BSPFACE& face = faces[i];
-		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
-	}
-	*/
 
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
 
 		if (texinfos[face.iTextureInfo].iMiptex != textureId)
 			continue;
-		
+
 		// each affected face should have a unique texinfo because
 		// the shift amount may be different for every face after scaling
 		BSPTEXTUREINFO* info = get_unique_texinfo(i);
@@ -2763,19 +2802,17 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 
 	// shrink texture lump
 	int removedBytes = palette - newPalette;
-	logf("Removed %d bytes\n", removedBytes);
 	byte* texEnd = newPalette + 256 * sizeof(COLOR3);
 	int shiftBytes = (texEnd - textures) + removedBytes;
-	
+
 	memcpy(texEnd, texEnd + removedBytes, header.lump[LUMP_TEXTURES].nLength - shiftBytes);
-	for (int k = textureId+1; k < textureCount; k++) {
+	for (int k = textureId + 1; k < textureCount; k++) {
 		((int32_t*)textures)[k + 1] -= removedBytes;
 	}
 
 	for (int i = 0; i < textureCount; i++) {
 		int32_t texOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-		logf("VALIDATE %s\n", tex.szName);
 	}
 
 	logf("Downscale %s %dx%d -> %dx%d\n", tex.szName, oldWidth, oldHeight, tex.nWidth, tex.nHeight);
@@ -2783,48 +2820,79 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 	return true;
 }
 
+bool Bsp::downscale_texture(int textureId, int maxDim) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	if (tex.nOffsets[0] == 0) {
+		logf("Can't downscale WAD texture %s\n", tex.szName);
+		return false;
+	}
+
+	int oldWidth = tex.nWidth;
+	int oldHeight = tex.nHeight;
+	int newWidth = tex.nWidth;
+	int newHeight = tex.nHeight;
+
+	float ratio = oldHeight / (float)oldWidth;
+
+	while (newWidth > 0 && (newWidth > maxDim || newHeight > maxDim || (newHeight % 16) != 0)) {
+		newWidth -= 16;
+		newHeight = newWidth * ratio;
+	}
+
+	if (oldWidth == newWidth) {
+		return false;
+	}
+
+	if (tex.nWidth == 0) {
+		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
+		return false;
+	}
+
+	downscale_texture(textureId, newWidth, newHeight);
+}
+
 void Bsp::downscale_invalid_textures() {
-	const int MAX_PIXELS = 262144; // Half-Life limit
+	int count = 0;
 
 	for (int i = 0; i < textureCount; i++) {
 		int32_t texOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 		
-		if (tex.nWidth * tex.nHeight > MAX_PIXELS) {
+		if (tex.nOffsets[0] == 0) {
+			logf("Skipping WAD texture %s\n", tex.szName);
+			continue;
+		}
+
+		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
 			
 			int oldWidth = tex.nWidth;
 			int oldHeight = tex.nHeight;
+			int newWidth = tex.nWidth;
+			int newHeight = tex.nHeight;
 
 			float ratio = oldHeight / (float)oldWidth;
 
-			while (tex.nWidth > 16) {
-				tex.nWidth -= 16;
-				tex.nHeight = tex.nWidth * ratio;
+			while (newWidth > 16) {
+				newWidth -= 16;
+				newHeight = newWidth * ratio;
 
-				if (tex.nHeight % 16 != 0) {
+				if (newHeight % 16 != 0) {
 					continue;
 				}
 
-				if (tex.nWidth * tex.nHeight <= MAX_PIXELS) {
+				if (newWidth * newHeight <= g_limits.max_texturepixels) {
 					break;
 				}
 			}
 
-			float scale = tex.nWidth / (float)oldWidth;
-
-			for (int k = 0; k < texinfoCount; k++) {
-				BSPTEXTUREINFO& info = texinfos[k];
-				if (info.iMiptex == i) {
-					info.vS *= scale;
-					info.vT *= scale;
-					info.shiftS = (info.shiftS * scale) - (oldWidth - tex.nWidth);
-					info.shiftT = (info.shiftT * scale) - (oldHeight - tex.nHeight);
-				}
-			}
-
-			logf("Downscale %s %dx%d -> %dx%d\n", tex.szName, oldWidth, oldHeight, tex.nWidth, tex.nHeight);
+			downscale_texture(i, newWidth, newHeight);
+			count++;
 		}
 	}
+
+	logf("Downscaled %d textures\n", count);
 }
 
 set<int> Bsp::selectConnectedTexture(int modelId, int faceId) {
@@ -3342,22 +3410,21 @@ bool sortModelInfos(const STRUCTUSAGE* a, const STRUCTUSAGE* b) {
 }
 
 bool Bsp::isValid() {
-	return modelCount < MAX_MAP_MODELS
-		&& planeCount < MAX_MAP_PLANES
-		&& vertCount < MAX_MAP_VERTS
-		&& nodeCount < MAX_MAP_NODES
-		&& texinfoCount < MAX_MAP_TEXINFOS
-		&& faceCount < MAX_MAP_FACES
-		&& clipnodeCount < MAX_MAP_CLIPNODES
-		&& leafCount < MAX_MAP_LEAVES
-		&& marksurfCount < MAX_MAP_MARKSURFS
-		&& surfedgeCount < MAX_MAP_SURFEDGES
-		&& edgeCount < MAX_MAP_SURFEDGES
-		&& textureCount < MAX_MAP_TEXTURES
-		&& lightDataLength < MAX_MAP_LIGHTDATA
-		&& visDataLength < MAX_MAP_VISDATA
-		&& ents.size() < MAX_MAP_ENTS;
-
+	return modelCount < g_limits.max_models
+		&& planeCount < g_limits.max_planes
+		&& vertCount < g_limits.max_vertexes
+		&& nodeCount < g_limits.max_nodes
+		&& texinfoCount < g_limits.max_texinfos
+		&& faceCount < g_limits.max_faces
+		&& clipnodeCount < g_limits.max_clipnodes
+		&& leafCount < g_limits.max_leaves
+		&& marksurfCount < g_limits.max_marksurfaces
+		&& surfedgeCount < g_limits.max_surfedges
+		&& edgeCount < g_limits.max_edges
+		&& textureCount < g_limits.max_textures
+		&& lightDataLength < g_limits.max_lightdata
+		&& visDataLength < g_limits.max_visdata
+		&& ents.size() < g_limits.max_entities;
 }
 
 bool Bsp::validate() {
@@ -3381,6 +3448,7 @@ bool Bsp::validate() {
 			isValid = false;
 		}
 	}
+	int numBadExtent = 0;
 	for (int i = 0; i < faceCount; i++) {
 		if (faces[i].iPlane < 0 || faces[i].iPlane >= planeCount) {
 			logf("Bad plane reference in face %d: %d / %d\n", i, faces[i].iPlane, planeCount);
@@ -3400,6 +3468,16 @@ bool Bsp::validate() {
 			logf("Bad lightmap offset in face %d: %d / %d\n", i, faces[i].nLightmapOffset, lightDataLength);
 			isValid = false;
 		}
+
+		BSPTEXTUREINFO& info = texinfos[faces[i].iTextureInfo];
+		int size[2];
+		if (!(info.nFlags & TEX_SPECIAL) && !GetFaceLightmapSize(this, i, size)) {
+			numBadExtent++;
+		}
+	}
+	if (numBadExtent) {
+		logf("Bad Surface Extents on %d faces\n", numBadExtent);
+		isValid = false;
 	}
 
 	for (int i = 0; i < leafCount; i++) {
@@ -3543,11 +3621,11 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	if (perModelStats) {
 		g_sort_mode = sortMode;
 
-		if (planeCount >= MAX_MAP_PLANES || texinfoCount >= MAX_MAP_TEXINFOS || leafCount >= MAX_MAP_LEAVES ||
-			modelCount >= MAX_MAP_MODELS || nodeCount >= MAX_MAP_NODES || vertCount >= MAX_MAP_VERTS ||
-			faceCount >= MAX_MAP_FACES || clipnodeCount >= MAX_MAP_CLIPNODES || marksurfCount >= MAX_MAP_MARKSURFS ||
-			surfedgeCount >= MAX_MAP_SURFEDGES || edgeCount >= MAX_MAP_EDGES || textureCount >= MAX_MAP_TEXTURES ||
-			lightDataLength >= MAX_MAP_LIGHTDATA || visDataLength >= MAX_MAP_VISDATA) 
+		if (planeCount >= g_limits.max_planes || texinfoCount >= g_limits.max_texinfos || leafCount >= g_limits.max_leaves ||
+			modelCount >= g_limits.max_models || nodeCount >= g_limits.max_nodes || vertCount >= g_limits.max_vertexes ||
+			faceCount >= g_limits.max_faces || clipnodeCount >= g_limits.max_clipnodes || marksurfCount >= g_limits.max_marksurfaces ||
+			surfedgeCount >= g_limits.max_surfedges || edgeCount >= g_limits.max_edges || textureCount >= g_limits.max_textures ||
+			lightDataLength >= g_limits.max_lightdata || visDataLength >= g_limits.max_visdata)
 		{
 			logf("Unable to show model stats while BSP limits are exceeded.\n");
 			return;
@@ -3587,21 +3665,21 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	else {
 		logf(" Data Type     Current / Max       Fullness\n");
 		logf("------------  -------------------  --------\n");
-		print_stat("models", modelCount, MAX_MAP_MODELS, false);
-		print_stat("planes", planeCount, MAX_MAP_PLANES, false);
-		print_stat("vertexes", vertCount, MAX_MAP_VERTS, false);
-		print_stat("nodes", nodeCount, MAX_MAP_NODES, false);
-		print_stat("texinfos", texinfoCount, MAX_MAP_TEXINFOS, false);
-		print_stat("faces", faceCount, MAX_MAP_FACES, false);
-		print_stat("clipnodes", clipnodeCount, MAX_MAP_CLIPNODES, false);
-		print_stat("leaves", leafCount, MAX_MAP_LEAVES, false);
-		print_stat("marksurfaces", marksurfCount, MAX_MAP_MARKSURFS, false);
-		print_stat("surfedges", surfedgeCount, MAX_MAP_SURFEDGES, false);
-		print_stat("edges", edgeCount, MAX_MAP_SURFEDGES, false);
-		print_stat("textures", textureCount, MAX_MAP_TEXTURES, false);
-		print_stat("lightdata", lightDataLength, MAX_MAP_LIGHTDATA, true);
-		print_stat("visdata", visDataLength, MAX_MAP_VISDATA, true);
-		print_stat("entities", entCount, MAX_MAP_ENTS, false);
+		print_stat("models", modelCount, g_limits.max_models, false);
+		print_stat("planes", planeCount, g_limits.max_planes, false);
+		print_stat("vertexes", vertCount, g_limits.max_vertexes, false);
+		print_stat("nodes", nodeCount, g_limits.max_nodes, false);
+		print_stat("texinfos", texinfoCount, g_limits.max_texinfos, false);
+		print_stat("faces", faceCount, g_limits.max_faces, false);
+		print_stat("clipnodes", clipnodeCount, g_limits.max_clipnodes, false);
+		print_stat("leaves", leafCount, g_limits.max_leaves, false);
+		print_stat("marksurfaces", marksurfCount, g_limits.max_marksurfaces, false);
+		print_stat("surfedges", surfedgeCount, g_limits.max_surfedges, false);
+		print_stat("edges", edgeCount, g_limits.max_edges, false);
+		print_stat("textures", textureCount, g_limits.max_textures, false);
+		print_stat("lightdata", lightDataLength, g_limits.max_lightdata, true);
+		print_stat("visdata", visDataLength, g_limits.max_visdata, true);
+		print_stat("entities", entCount, g_limits.max_entities, false);
 	}
 }
 
@@ -5250,7 +5328,7 @@ void Bsp::dump_lightmap(int faceIdx, string outputPath) {
 }
 
 void Bsp::dump_lightmap_atlas(string outputPath) {
-	int lightmapWidth = MAX_SURFACE_EXTENT;
+	int lightmapWidth = g_limits.max_surface_extents;
 
 	int lightmapsPerDim = ceil(sqrt(faceCount));
 	int atlasDim = lightmapsPerDim * lightmapWidth;
@@ -5477,21 +5555,21 @@ void Bsp::update_lump_pointers() {
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 
-	if (planeCount > MAX_MAP_PLANES) logf("Overflowed Planes !!!\n");
-	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!\n");
-	if (leafCount > MAX_MAP_LEAVES) logf("Overflowed leaves !!!\n");
-	if (modelCount > MAX_MAP_MODELS) logf("Overflowed models !!!\n");
-	if (texinfoCount > MAX_MAP_TEXINFOS) logf("Overflowed texinfos !!!\n");
-	if (nodeCount > MAX_MAP_NODES) logf("Overflowed nodes !!!\n");
-	if (vertCount > MAX_MAP_VERTS) logf("Overflowed verts !!!\n");
-	if (faceCount > MAX_MAP_FACES) logf("Overflowed faces !!!\n");
-	if (clipnodeCount > MAX_MAP_CLIPNODES) logf("Overflowed clipnodes !!!\n");
-	if (marksurfCount > MAX_MAP_MARKSURFS) logf("Overflowed marksurfs !!!\n");
-	if (surfedgeCount > MAX_MAP_SURFEDGES) logf("Overflowed surfedges !!!\n");
-	if (edgeCount > MAX_MAP_EDGES) logf("Overflowed edges !!!\n");
-	if (textureCount > MAX_MAP_TEXTURES) logf("Overflowed textures !!!\n");
-	if (lightDataLength > MAX_MAP_LIGHTDATA) logf("Overflowed lightdata !!!\n");
-	if (visDataLength > MAX_MAP_VISDATA) logf("Overflowed visdata !!!\n");
+	if (planeCount > g_limits.max_planes) logf("Overflowed Planes !!!\n");
+	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+	if (leafCount > g_limits.max_leaves) logf("Overflowed leaves !!!\n");
+	if (modelCount > g_limits.max_models) logf("Overflowed models !!!\n");
+	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+	if (nodeCount > g_limits.max_nodes) logf("Overflowed nodes !!!\n");
+	if (vertCount > g_limits.max_vertexes) logf("Overflowed verts !!!\n");
+	if (faceCount > g_limits.max_faces) logf("Overflowed faces !!!\n");
+	if (clipnodeCount > g_limits.max_clipnodes) logf("Overflowed clipnodes !!!\n");
+	if (marksurfCount > g_limits.max_marksurfaces) logf("Overflowed marksurfs !!!\n");
+	if (surfedgeCount > g_limits.max_surfedges) logf("Overflowed surfedges !!!\n");
+	if (edgeCount > g_limits.max_edges) logf("Overflowed edges !!!\n");
+	if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
+	if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
+	if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {

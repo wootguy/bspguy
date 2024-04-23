@@ -191,20 +191,32 @@ public:
 	// showing between faces with different texture scales
 	// scaleNotSubdivide:true = scale face textures to lower extents
 	// scaleNotSubdivide:false = subdivide face textures to lower extents
+	// downscaleOnly:true = don't scale or subdivide anything, just downscale the textures
 	// maxTextureDim = downscale textures first if they are larger than this (0 = disable)
-	void fix_bad_surface_extents(bool scaleNotSubdivide, int maxTextureDim);
+	void fix_bad_surface_extents(bool scaleNotSubdivide, bool downscaleOnly, int maxTextureDim);
+
+	// subdivide a face until it has valid surface extents
+	void fix_bad_surface_extents_with_subdivide(int faceIdx);
 
 	// reduces size of textures that exceed game limits and adjusts face scales accordingly
 	void downscale_invalid_textures();
+
+	void downscale_textures(int maxDim);
 
 	// downscales a texture to the maximum specified width/height
 	// true if was downscaled
 	bool downscale_texture(int textureId, int maxDim);
 
+	bool downscale_texture(int textureId, int newWidth, int newHeight);
+
 	vec3 get_face_center(int faceIdx);
 
 	// scales up texture sizes on models that aren't used by visible entities
 	void allocblock_reduction();
+
+	// gets estimated number of allocblocks filled
+	// actual amount will vary because there is some wasted space when the engine generates lightmap atlases
+	float calc_allocblock_usage();
 
 	// subdivides along the axis with the most texture pixels (for biggest surface extent reduction)
 	bool subdivide_face(int faceIdx);

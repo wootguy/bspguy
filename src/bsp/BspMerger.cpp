@@ -1650,7 +1650,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 
 	// create a single full-bright lightmap to use for all faces, if one map has lighting but the other doesn't
 	if (thisColorCount == 0 && otherColorCount != 0) {
-		thisColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
+		thisColorCount = g_limits.max_surface_extents * g_limits.max_surface_extents;
 		totalColorCount += thisColorCount;
 		int sz = thisColorCount * sizeof(COLOR3);
 		mapA.lumps[LUMP_LIGHTING] = new byte[sz];
@@ -1667,7 +1667,7 @@ void BspMerger::merge_lighting(Bsp& mapA, Bsp& mapB) {
 		}
 	}
 	else if (thisColorCount != 0 && otherColorCount == 0) {
-		otherColorCount = MAX_SURFACE_EXTENT * MAX_SURFACE_EXTENT;
+		otherColorCount = g_limits.max_surface_extents * g_limits.max_surface_extents;
 		totalColorCount += otherColorCount;
 		otherRad = new COLOR3[otherColorCount];
 		freemem = true;

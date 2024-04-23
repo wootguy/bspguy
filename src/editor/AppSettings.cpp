@@ -32,6 +32,51 @@ void AppSettings::loadDefault()
 	entreport_open = false;
 	show_transform_axes = false;
 	settings_tab = 0;
+	engine = ENGINE_HALF_LIFE;
+
+	g_engine_limits[ENGINE_HALF_LIFE].max_surface_extents = 16;
+	g_engine_limits[ENGINE_HALF_LIFE].max_models = 512;
+	g_engine_limits[ENGINE_HALF_LIFE].max_planes = 32768;
+	g_engine_limits[ENGINE_HALF_LIFE].max_vertexes = 65535;
+	g_engine_limits[ENGINE_HALF_LIFE].max_nodes = 32767;
+	g_engine_limits[ENGINE_HALF_LIFE].max_faces = 65535;
+	g_engine_limits[ENGINE_HALF_LIFE].max_clipnodes = 32767;
+	g_engine_limits[ENGINE_HALF_LIFE].max_leaves = 32760;
+	g_engine_limits[ENGINE_HALF_LIFE].max_marksurfaces = 65535;
+	g_engine_limits[ENGINE_HALF_LIFE].max_surfedges = 512000;
+	g_engine_limits[ENGINE_HALF_LIFE].max_edges = 256000;
+	g_engine_limits[ENGINE_HALF_LIFE].max_textures = 512;
+	g_engine_limits[ENGINE_HALF_LIFE].max_lightdata = 48*1024*1024;
+	g_engine_limits[ENGINE_HALF_LIFE].max_visdata = 8*1024*1024;
+	g_engine_limits[ENGINE_HALF_LIFE].max_entdata = 2*1024*1024;
+	g_engine_limits[ENGINE_HALF_LIFE].max_entities = 8192;
+	g_engine_limits[ENGINE_HALF_LIFE].max_texinfos = 32767;
+	g_engine_limits[ENGINE_HALF_LIFE].max_allocblocks = 64;
+	g_engine_limits[ENGINE_HALF_LIFE].max_texturepixels = 262144;
+	g_engine_limits[ENGINE_HALF_LIFE].max_mapboundary = 4096;
+
+	g_engine_limits[ENGINE_SVEN_COOP].max_surface_extents = 64;
+	g_engine_limits[ENGINE_SVEN_COOP].max_models = 4096;
+	g_engine_limits[ENGINE_SVEN_COOP].max_planes = 65535;
+	g_engine_limits[ENGINE_SVEN_COOP].max_vertexes = 65535;
+	g_engine_limits[ENGINE_SVEN_COOP].max_nodes = 32768;
+	g_engine_limits[ENGINE_SVEN_COOP].max_faces = 65535;
+	g_engine_limits[ENGINE_SVEN_COOP].max_clipnodes = 32768;
+	g_engine_limits[ENGINE_SVEN_COOP].max_leaves = 65536;
+	g_engine_limits[ENGINE_SVEN_COOP].max_marksurfaces = 65535;
+	g_engine_limits[ENGINE_SVEN_COOP].max_surfedges = 512000;
+	g_engine_limits[ENGINE_SVEN_COOP].max_edges = 256000;
+	g_engine_limits[ENGINE_SVEN_COOP].max_textures = 4096;
+	g_engine_limits[ENGINE_SVEN_COOP].max_lightdata = 64 * 1024 * 1024;
+	g_engine_limits[ENGINE_SVEN_COOP].max_visdata = 64 * 1024 * 1024;
+	g_engine_limits[ENGINE_SVEN_COOP].max_entdata = 2 * 1024 * 1024;
+	g_engine_limits[ENGINE_SVEN_COOP].max_entities = 8192;
+	g_engine_limits[ENGINE_SVEN_COOP].max_texinfos = 32767;
+	g_engine_limits[ENGINE_SVEN_COOP].max_allocblocks = 1024;
+	g_engine_limits[ENGINE_SVEN_COOP].max_texturepixels = 1048576;
+	g_engine_limits[ENGINE_SVEN_COOP].max_mapboundary = 32768;
+
+	g_limits = g_engine_limits[ENGINE_HALF_LIFE];
 
 	render_flags = g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
@@ -94,6 +139,10 @@ void AppSettings::load() {
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
+			else if (key == "engine") { 
+				g_settings.engine = clamp(atoi(val.c_str()), 0, 1);
+				g_limits = g_engine_limits[g_settings.engine];
+			}
 		}
 
 		g_settings.valid = true;
@@ -184,4 +233,5 @@ void AppSettings::save() {
 	file << "font_size=" << g_settings.fontSize << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
 	file << "savebackup=" << g_settings.backUpMap << endl;
+	file << "engine=" << g_settings.engine << endl;
 }
