@@ -52,6 +52,7 @@ void Fgd::merge(Fgd* other) {
 		classMap[className] = newClass;
 	}
 
+	createEntGroups();
 	sortClasses();
 }
 
@@ -457,6 +458,9 @@ void FgdClass::getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList) {
 void Fgd::createEntGroups() {
 	set<string> addedPointGroups;
 	set<string> addedSolidGroups;
+
+	pointEntGroups.clear();
+	solidEntGroups.clear();
 
 	for (int i = 0; i < classes.size(); i++) {
 		if (classes[i]->classType == FGD_CLASS_BASE || classes[i]->name == "worldspawn")
