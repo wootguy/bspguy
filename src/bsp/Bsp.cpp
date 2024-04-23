@@ -1276,7 +1276,7 @@ int Bsp::remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLe
 	int oldDecompressedVisSize = oldLeafCount * oldVisRowSize;
 	byte* oldDecompressedVis = new byte[oldDecompressedVisSize];
 	memset(oldDecompressedVis, 0, oldDecompressedVisSize);
-	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], oldDecompressedVis, oldVisLeafCount);
+	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], visDataLength, oldDecompressedVis, oldVisLeafCount);
 
 	int newDecompressedVisSize = newVisLeafCount * newVisRowSize;
 	byte* newDecompressedVis = new byte[oldDecompressedVisSize];
@@ -3428,6 +3428,21 @@ bool Bsp::isValid() {
 		&& ents.size() < g_limits.max_entities;
 }
 
+bool Bsp::validate_vis_data() {
+	// exclude solid leaf
+	int visLeafCount = leafCount - 1;
+
+	uint visRowSize = ((visLeafCount + 63) & ~63) >> 3;
+
+	int decompressedVisSize = visLeafCount * visRowSize;
+	byte* decompressedVis = new byte[decompressedVisSize];
+	memset(decompressedVis, 0, decompressedVisSize);
+	bool ret = decompress_vis_lump(leaves, lumps[LUMP_VISIBILITY], visDataLength, decompressedVis, visLeafCount);
+	delete[] decompressedVis;
+	
+	return ret;
+}
+
 bool Bsp::validate() {
 	bool isValid = true;
 
@@ -3615,6 +3630,10 @@ bool Bsp::validate() {
 	}
 	if (worldspawn_count != 1) {
 		logf("Found %d worldspawn entities (expected 1). This can cause crashes and svc_bad errors.\n", worldspawn_count);
+		isValid = false;
+	}
+
+	if (!validate_vis_data()) {
 		isValid = false;
 	}
 

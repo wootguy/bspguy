@@ -230,6 +230,8 @@ public:
 	// check for bad indexes
 	bool validate();
 
+	bool validate_vis_data();
+
 	// creates a solid cube
 	int create_solid(vec3 mins, vec3 maxs, int textureIdx);
 

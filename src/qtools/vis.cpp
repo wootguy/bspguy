@@ -142,16 +142,16 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 	return overflow;
 }
 
-void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, int visDataLeafCount)
+bool decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, int visLength, byte* output, int visDataLeafCount)
 {
-	decompress_vis_lump(leafLump, visLump, output, visDataLeafCount, visDataLeafCount, visDataLeafCount);
+	return decompress_vis_lump(leafLump, visLump, visLength, output, visDataLeafCount, visDataLeafCount, visDataLeafCount);
 }
 
 // decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
 // iterationLeaves = number of leaves to decompress vis for
 // visDataLeafCount = total leaves in this map (exluding the shared solid leaf 0)
 // newNumLeaves = total leaves that will be in the map after merging is finished (again, excluding solid leaf 0)
-void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
+bool decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, int visLength, byte* output,
 	int iterationLeaves, int visDataLeafCount, int newNumLeaves)
 {
 	byte* dest;
@@ -166,19 +166,25 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		lastChunkMask = lastChunkMask | (1 << k);
 	}
 
+	bool anyErrors = false;
+
 	for (int i = 0; i < iterationLeaves; i++)
 	{
 		g_progress.tick();
 		dest = output + i * newVisRowSize;
 		if (lastUsedIdx >= 0)
 		{
-			if (leafLump[i + 1].nVisOffset < 0) {
+			if (leafLump[i + 1].nVisOffset < 0 || leafLump[i + 1].nVisOffset >= visLength) {
 				memset(dest, 255, lastUsedIdx);
 				dest[lastUsedIdx] |= lastChunkMask;
 				continue;
 			}
 
-			DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize, visDataLeafCount);
+			if (!DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize,
+				visDataLeafCount, visLump, visLength)) {
+				logf("Failed to decompress VIS for leaf %d\n", i+1);
+				anyErrors = true;
+			}
 
 			// Leaf visibility row lengths are multiples of 64 leaves, so there are usually some unused bits at the end.
 			// Maps sometimes set those unused bits randomly (e.g. leaf index 100 is marked visible, but there are only 90 leaves...)
@@ -192,16 +198,19 @@ void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output,
 		}
 		else {
 			logf("Overflow decompressing VIS lump!");
-			return;
+			return false;
 		}
 	}
+
+	return anyErrors;
 }
 
 //
 // BEGIN COPIED QVIS CODE
 //
 
-void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_length, uint numLeaves)
+bool DecompressVis(const byte* src, byte* const dest, const unsigned int dest_length, uint numLeaves,
+	byte* visLump, int visLength)
 {
 	unsigned int    current_length = 0;
 	int             c;
@@ -214,7 +223,10 @@ void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_le
 
 	do
 	{
-		//hlassume(src - g_dvisdata < g_visdatasize, assume_DECOMPRESSVIS_OVERFLOW);
+		if (src - visLump > visLength) {
+			//hlassume(src - visLump < visLength, assume_DECOMPRESSVIS_OVERFLOW);
+			return false;
+		}
 		if (*src)
 		{
 			current_length++;
@@ -240,10 +252,12 @@ void DecompressVis(const byte* src, byte* const dest, const unsigned int dest_le
 
 			if (out - dest >= row)
 			{
-				return;
+				return true;
 			}
 		}
 	} while (out - dest < row);
+
+	return true;
 }
 
 int CompressVis(const byte* const src, const unsigned int src_length, byte* dest, unsigned int dest_length)
