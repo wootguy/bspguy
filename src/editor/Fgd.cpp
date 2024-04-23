@@ -2,6 +2,8 @@
 #include "util.h"
 #include <set>
 #include <fstream>
+#include "globals.h"
+#include <algorithm>
 
 map<string, int> fgdKeyTypes{
 	{"integer", FGD_KEY_INTEGER},
@@ -49,6 +51,8 @@ void Fgd::merge(Fgd* other) {
 		classes.push_back(newClass);
 		classMap[className] = newClass;
 	}
+
+	sortClasses();
 }
 
 bool Fgd::parse() {
@@ -82,6 +86,24 @@ bool Fgd::parse() {
 		if (line.empty())
 			continue;
 		
+		if (line.find("@include") == 0) {
+			string baseFgd = getValueInQuotes(line.substr(8));
+			string basePath = path.substr(0, path.find_last_of("/\\") + 1) + baseFgd;
+
+			if (g_parsed_fgds.count(basePath)) {
+				continue;
+			}
+			g_parsed_fgds.insert(basePath);
+
+			Fgd* tmp = new Fgd(basePath);
+			if (tmp->parse()) {
+				merge(tmp);
+			}
+
+			delete tmp;
+			continue;
+		}
+
 		if (line[0] == '@') {
 			if (bracketNestLevel) {
 				logf("ERROR: New FGD class definition starts before previous one ends (line %d)\n", lineNum);
@@ -122,6 +144,7 @@ bool Fgd::parse() {
 	processClassInheritance();
 	createEntGroups();
 	setSpawnflagNames();
+	sortClasses();
 	return true;
 }
 
@@ -145,6 +168,7 @@ void Fgd::parseClassHeader(FgdClass& fgdClass) {
 	}
 	else {
 		logf("ERROR: Unrecognized FGD class type '%s'\n", typeParts[0].c_str());
+		return;
 	}
 	
 	// parse constructors/properties
@@ -557,4 +581,15 @@ vector<string> Fgd::splitStringIgnoringQuotes(string s, string delimitter) {
 	}
 
 	return split;
+}
+
+bool sortFgdClasses(FgdClass* a, FgdClass* b) { return a->name < b->name; }
+
+void Fgd::sortClasses() {
+	for (int i = 0; i < solidEntGroups.size(); i++) {
+		std::sort(solidEntGroups[i].classes.begin(), solidEntGroups[i].classes.end(), sortFgdClasses);
+	}
+	for (int i = 0; i < pointEntGroups.size(); i++) {
+		std::sort(pointEntGroups[i].classes.begin(), pointEntGroups[i].classes.end(), sortFgdClasses);
+	}
 }

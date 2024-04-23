@@ -605,7 +605,13 @@ void Renderer::loadSettings() {
 
 void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
+
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
+		string path = g_settings.fgdPaths[i];
+
+		g_parsed_fgds.clear();
+		g_parsed_fgds.insert(path);
+
 		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
 		if (!tmp->parse())
 		{

@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <mutex>
+#include <set>
 #include "AppSettings.h"
 
 enum engine_types {
@@ -50,5 +51,8 @@ extern MapLimits g_engine_limits[ENGINE_TYPES];
 
 extern std::string g_config_dir;
 extern std::string g_settings_path;
+
+// prevents infinite include loops
+extern std::set<std::string> g_parsed_fgds;
 
 extern int g_render_flags;

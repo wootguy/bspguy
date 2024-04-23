@@ -139,4 +139,6 @@ private:
 	string getValueInQuotes(string s);
 
 	vector<string> splitStringIgnoringQuotes(string s, string delimitter);
+
+	void sortClasses();
 };
