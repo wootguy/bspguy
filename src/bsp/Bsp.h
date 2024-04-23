@@ -157,9 +157,11 @@ public:
 	// deletes data outside the map bounds
 	void delete_oob_data(int clipFlags);
 
-	void delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass);
+	void delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, 
+		int oobFlags, bool* oobHistory, bool isFirstPass, int& removedNodes);
 	
-	void delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass);
+	void delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, 
+		int oobFlags, bool* oobHistory, bool isFirstPass, int& removedNodes);
 
 	// assumes contiguous leaves starting at 0. Only works for worldspawn, which is the only model which
 	// should have leaves anyway.
@@ -173,10 +175,19 @@ public:
 	// scales up texture axes for any face with bad surface extents
 	// connected planar faces which use the same texture will also be scaled up to prevent seams
 	// showing between faces with different texture scales
-	void fix_bad_surface_extents(bool scaleNotSubdivide);
+	// scaleNotSubdivide:true = scale face textures to lower extents
+	// scaleNotSubdivide:false = subdivide face textures to lower extents
+	// maxTextureDim = downscale textures first if they are larger than this (0 = disable)
+	void fix_bad_surface_extents(bool scaleNotSubdivide, int maxTextureDim);
 
 	// reduces size of textures that exceed game limits and adjusts face scales accordingly
 	void downscale_invalid_textures();
+
+	// downscales a texture to the maximum specified width/height
+	// true if was downscaled
+	bool downscale_texture(int textureId, int maxDim);
+
+	vec3 get_face_center(int faceIdx);
 
 	// scales up texture sizes on models that aren't used by visible entities
 	void allocblock_reduction();

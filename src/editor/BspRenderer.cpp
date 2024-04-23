@@ -1118,7 +1118,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	}
 
 	if (modelIdx == 0) {
-		generateNavMeshBuffer();
+		//generateNavMeshBuffer();
 	}
 }
 

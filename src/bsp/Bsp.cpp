@@ -1333,9 +1333,9 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	int oldVisLeafCount = 0;
 	count_leaves(models[0].iHeadnodes[0], oldVisLeafCount);
 	//oldVisLeafCount = models[0].nVisLeafs;
-	if (leafCount != models[0].nVisLeafs)
-		logf("WARNING: old leaf count doesn't match worldpsawn leaf count %d != %d\n", 
-			leafCount, models[0].nVisLeafs);
+	//if (leafCount != models[0].nVisLeafs)
+	//	logf("WARNING: old leaf count doesn't match worldpsawn leaf count %d != %d\n", 
+	//		leafCount, models[0].nVisLeafs);
 
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
@@ -1414,6 +1414,8 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 		nodes[i].iPlane = remap.planes[nodes[i].iPlane];
 		if (nodes[i].nFaces > 0)
 			nodes[i].firstFace = remap.faces[nodes[i].firstFace];
+		else
+			nodes[i].firstFace = 0;
 		for (int k = 0; k < 2; k++) {
 			if (nodes[i].iChildren[k] >= 0) {
 				nodes[i].iChildren[k] = remap.nodes[nodes[i].iChildren[k]];
@@ -1427,17 +1429,23 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	for (int i = 1; i < newCounts.leaves; i++) {
 		if (leaves[i].nMarkSurfaces > 0)
 			leaves[i].iFirstMarkSurface = remap.markSurfs[leaves[i].iFirstMarkSurface];
+		else
+			leaves[i].iFirstMarkSurface = 0;
 	}
 	for (int i = 0; i < newCounts.faces; i++) {
 		faces[i].iPlane = remap.planes[faces[i].iPlane];
 		if (faces[i].nEdges > 0)
 			faces[i].iFirstEdge = remap.surfEdges[faces[i].iFirstEdge];
+		else
+			faces[i].iFirstEdge = 0;
 		faces[i].iTextureInfo = remap.texInfo[faces[i].iTextureInfo];
 	}
 
 	for (int i = 0; i < modelCount; i++) {
 		if (models[i].nFaces > 0)
 			models[i].iFirstFace = remap.faces[models[i].iFirstFace];
+		else
+			models[i].iFirstFace = 0;
 		if (models[i].iHeadnodes[0] >= 0)
 			models[i].iHeadnodes[0] = remap.nodes[models[i].iHeadnodes[0]];
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
@@ -1449,8 +1457,6 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	models[0].nVisLeafs = 0;
 	count_leaves(models[0].iHeadnodes[0], models[0].nVisLeafs);
 	//models[0].nVisLeafs = leafCount;
-
-	logf("clean leaf count: %d -> %d (%d)\n", oldVisLeafCount, models[0].nVisLeafs, leafCount);
 
 	if (visDataLength)
 		removeCount.visdata = remove_unused_visdata(&remap, (BSPLEAF*)oldLeaves, 
@@ -1722,7 +1728,8 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 	return removed;
 }
 
-void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass) {
+void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
+	bool* oobHistory, bool isFirstPass, int& removedNodes) {
 	BSPNODE& node = nodes[iNode];
 	const float oob_coord = 4096;
 
@@ -1741,12 +1748,13 @@ void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& c
 		clipOrder.push_back(plane);
 
 		if (node.iChildren[i] >= 0) {
-			delete_oob_nodes(node.iChildren[i], &node.iChildren[i], clipOrder, oobFlags, oobHistory, isFirstPass);
+			delete_oob_nodes(node.iChildren[i], &node.iChildren[i], clipOrder, oobFlags, oobHistory, 
+				isFirstPass, removedNodes);
 			if (node.iChildren[i] >= 0) {
 				isoob = false; // children weren't empty, so this node isn't empty either
 			}
 		}
-		else if (node.iChildren[i] == CONTENTS_EMPTY) {
+		else if (isFirstPass) {
 			vector<BSPPLANE> cuts;
 			for (int k = clipOrder.size() - 1; k >= 0; k--) {
 				cuts.push_back(clipOrder[k]);
@@ -1776,13 +1784,6 @@ void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& c
 		clipOrder.pop_back();
 	}
 
-	// clipnodes are reused in the BSP tree. Some paths to the same node involve more plane intersections
-	// than others. So, there will be some paths where the node is considered OOB and others not. If it
-	// was EVER considered to be within bounds, on any branch, then don't let be stripped. Otherwise you
-	// end up with broken clipnodes that are expanded too much because a deeper branch was deleted and
-	// so there are fewer clipping planes to define the volume. This then then leads to players getting
-	// stuck on shit and unable to escape when touching that region.
-
 	if (isFirstPass) {
 		// only check if each node is ever considered in bounds, after considering all branches.
 		// don't remove anything until the entire tree has been scanned
@@ -1794,10 +1795,12 @@ void Bsp::delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& c
 	else if (parentBranch && isoob) {
 		// we know which nodes are OOB now, so it's safe to unlink this node from the paranet
 		*parentBranch = CONTENTS_SOLID;
+		removedNodes++;
 	}
 }
 
-void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, bool* oobHistory, bool isFirstPass)  {
+void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
+	bool* oobHistory, bool isFirstPass, int& removedNodes)  {
 	BSPCLIPNODE& node = clipnodes[iNode];
 	const float oob_coord = 4096;
 
@@ -1816,7 +1819,8 @@ void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE
 		clipOrder.push_back(plane);
 
 		if (node.iChildren[i] >= 0) {
-			delete_oob_clipnodes(node.iChildren[i], &node.iChildren[i], clipOrder, oobFlags, oobHistory, isFirstPass);
+			delete_oob_clipnodes(node.iChildren[i], &node.iChildren[i], clipOrder, oobFlags, 
+				oobHistory, isFirstPass, removedNodes);
 			if (node.iChildren[i] >= 0) {
 				isoob = false; // children weren't empty, so this node isn't empty either
 			}
@@ -1874,6 +1878,7 @@ void Bsp::delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE
 	else if (parentBranch && isoob) {
 		// we know which nodes are OOB now, so it's safe to unlink this node from the paranet
 		*parentBranch = CONTENTS_SOLID;
+		removedNodes++;
 	}
 }
 
@@ -1887,26 +1892,30 @@ void Bsp::delete_oob_data(int clipFlags) {
 		vector<BSPPLANE> clipOrder;
 
 		bool* oobMarks = new bool[nodeCount];
-		memset(oobMarks, 1, nodeCount * sizeof(bool)); // assume everything is oob at first
-
+		
 		// collect oob data, then actually remove the nodes
-		delete_oob_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipFlags, oobMarks, true);
-		delete_oob_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipFlags, oobMarks, false);
+		int removedNodes = 0;
+		do {
+			removedNodes = 0;
+			memset(oobMarks, 1, nodeCount * sizeof(bool)); // assume everything is oob at first
+			delete_oob_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipFlags, oobMarks, true, removedNodes);
+			delete_oob_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipFlags, oobMarks, false, removedNodes);
+		} while (removedNodes);
 		delete[] oobMarks;
 
 		oobMarks = new bool[clipnodeCount];
 		for (int i = 1; i < MAX_MAP_HULLS; i++) {
-			memset(oobMarks, 1, clipnodeCount * sizeof(bool)); // assume everything is oob at first
-
 			// collect oob data, then actually remove the nodes
-			delete_oob_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipFlags, oobMarks, true);
-			delete_oob_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipFlags, oobMarks, false);
+			int removedNodes = 0;
+			do {
+				removedNodes = 0;
+				memset(oobMarks, 1, clipnodeCount * sizeof(bool)); // assume everything is oob at first
+				delete_oob_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipFlags, oobMarks, true, removedNodes);
+				delete_oob_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipFlags, oobMarks, false, removedNodes);
+			} while (removedNodes);
 		}
 		delete[] oobMarks;
 	}
-
-
-	//if (1) return;
 
 	vector<Entity*> newEnts;
 	newEnts.push_back(ents[0]); // never remove worldspawn
@@ -2389,9 +2398,8 @@ bool Bsp::subdivide_face(int faceIdx) {
 			maxVertV = pos;
 		}
 	}
-
-	vec2 axisU = poly.project(info.vS);
-	vec2 axisV = poly.project(info.vT);
+	vec2 axisU = poly.project(info.vS).normalize();
+	vec2 axisV = poly.project(info.vT).normalize();
 
 	vec2 midVertU = poly.project(minVertU + (maxVertU - minVertU) * 0.5f);
 	vec2 midVertV = poly.project(minVertV + (maxVertV - minVertV) * 0.5f);
@@ -2402,12 +2410,16 @@ bool Bsp::subdivide_face(int faceIdx) {
 	int size[2];
 	GetFaceLightmapSize(this, faceIdx, size);
 
-	Line2D& cutLine = size[0] > MAX_SURFACE_EXTENT ? ucut : vcut;
+	Line2D& cutLine = size[0] > size[1] ? ucut : vcut;
 
 	vector<vector<vec3>> polys = poly.cut(cutLine);
 
 	if (polys.empty()) {
-		logf("Failed to subdivide face %d %s\n", faceIdx);
+		int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+		vec3 center = get_face_center(faceIdx);
+		logf("Failed to subdivide face %d %s (%d %d %d)\n", faceIdx, tex.szName,
+			(int)center.x, (int)center.y, (int)center.z);
 		return false;
 	}
 	
@@ -2417,17 +2429,15 @@ bool Bsp::subdivide_face(int faceIdx) {
 	memcpy(newFaces, faces, faceIdx * sizeof(BSPFACE));
 	memcpy(newFaces + faceIdx + 1, faces + faceIdx, (faceCount - faceIdx) * sizeof(BSPFACE));
 
-	int marksurfIdx = 0;
+	int addMarks = 0;
 	for (int i = 0; i < marksurfCount; i++) {
 		if (marksurfs[i] == faceIdx) {
-			marksurfIdx = i;
+			addMarks++;
 		}
 	}
-	uint16_t* newMarkSurfs = new uint16_t[marksurfCount + 1];
-	memcpy(newMarkSurfs, marksurfs, marksurfIdx * sizeof(uint16_t));
-	memcpy(newMarkSurfs + marksurfIdx + 1, marksurfs + marksurfIdx, (marksurfCount - marksurfIdx) * sizeof(uint16_t));
-	newMarkSurfs[marksurfIdx] = faceIdx;
-	newMarkSurfs[marksurfIdx+1] = faceIdx+1;
+	int totalMarks = marksurfCount + addMarks;
+	uint16_t* newMarkSurfs = new uint16_t[totalMarks];
+	memcpy(newMarkSurfs, marksurfs, marksurfCount * sizeof(uint16_t));
 
 	BSPEDGE* newEdges = new BSPEDGE[edgeCount + addVerts];
 	memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
@@ -2473,7 +2483,7 @@ bool Bsp::subdivide_face(int faceIdx) {
 		if (model.iFirstFace > faceIdx) {
 			model.iFirstFace += 1;
 		}
-		else if (model.iFirstFace < faceIdx && model.iFirstFace + model.nFaces > faceIdx) {
+		else if (model.iFirstFace <= faceIdx && model.iFirstFace + model.nFaces > faceIdx) {
 			model.nFaces++;
 		}
 	}
@@ -2484,25 +2494,39 @@ bool Bsp::subdivide_face(int faceIdx) {
 		if (node.firstFace > faceIdx) {
 			node.firstFace += 1;
 		}
-		else if (node.firstFace < faceIdx && node.firstFace + node.nFaces > faceIdx) {
+		else if (node.firstFace <= faceIdx && node.firstFace + node.nFaces > faceIdx) {
 			node.nFaces++;
+			logf("Add face to node %d\n", i);
 		}
 	}
 
-	for (int i = 0; i < leafCount; i++) {
-		BSPLEAF& leaf = leaves[i];
+	for (int i = 0; i < totalMarks; i++) {
+		if (newMarkSurfs[i] == faceIdx) {
+			memmove(newMarkSurfs + i + 1, newMarkSurfs + i, (totalMarks - (i+1)) * sizeof(uint16_t));
+			newMarkSurfs[i + 1] = faceIdx + 1;
 
-		if (!leaf.nMarkSurfaces)
-			continue;
-		else if (leaf.iFirstMarkSurface > marksurfIdx) {
-			leaf.iFirstMarkSurface += 1;
+			for (int k = 0; k < leafCount; k++) {
+				BSPLEAF& leaf = leaves[k];
+
+				if (!leaf.nMarkSurfaces)
+					continue;
+				else if (leaf.iFirstMarkSurface > i) {
+					leaf.iFirstMarkSurface += 1;
+				}
+				else if (leaf.iFirstMarkSurface <= i && leaf.iFirstMarkSurface + leaf.nMarkSurfaces > i) {
+					//logf("Added mark %d/%d to leaf %d (%d + %d)\n", i, marksurfCount, k, leaf.iFirstMarkSurface, leaf.nMarkSurfaces);
+					leaf.nMarkSurfaces += 1;
+				}
+			}
+
+			i++; // skip the other side of the subdivided face, or else it triggers the next block
 		}
-		else if (leaf.iFirstMarkSurface < marksurfIdx && leaf.iFirstMarkSurface + leaf.nMarkSurfaces >= marksurfIdx) {
-			leaf.nMarkSurfaces += 1;
+		else if (newMarkSurfs[i] > faceIdx) {
+			newMarkSurfs[i]++;
 		}
 	}
 
-	replace_lump(LUMP_MARKSURFACES, newMarkSurfs, (marksurfCount + 1)*sizeof(uint16_t));
+	replace_lump(LUMP_MARKSURFACES, newMarkSurfs, totalMarks * sizeof(uint16_t));
 	replace_lump(LUMP_FACES, newFaces, (faceCount + 1)*sizeof(BSPFACE));
 	replace_lump(LUMP_EDGES, newEdges, (edgeCount + addVerts)*sizeof(BSPEDGE));
 	replace_lump(LUMP_SURFEDGES, newSurfEdges, (surfedgeCount + addVerts) * sizeof(int32_t));
@@ -2511,7 +2535,7 @@ bool Bsp::subdivide_face(int faceIdx) {
 	return true;
 }
 
-void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide) {
+void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, int maxTextureDim) {
 	int opcount = 0;
 	bool anySubdivides = true;
 
@@ -2536,6 +2560,17 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide) {
 				int size[2];
 				if (GetFaceLightmapSize(this, faceIdx, size)) {
 					continue;
+				}
+
+				if (maxTextureDim >= 0) {
+					// first downscale the texture
+					if (downscale_texture(info.iMiptex, maxTextureDim)) {
+						if (GetFaceLightmapSize(this, faceIdx, size)) {
+							continue;
+						}
+
+						info = texinfos[face.iTextureInfo];
+					}
 				}
 
 				if (!scaleNotSubdivide) {
@@ -2569,7 +2604,11 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide) {
 						int32_t texOffset = ((int32_t*)textures)[info.iMiptex + 1];
 						BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 						vec2 newScale(1.0f / info.vS.length(), 1.0f / info.vT.length());
-						//logf("Scaled up %s from %fx%f -> %fx%f\n", tex.szName, oldScale.x, oldScale.y, newScale.x, newScale.y);
+
+						vec3 center = get_face_center(faceIdx);
+						logf("Scaled up %s from %fx%f -> %fx%f (%d %d %d)\n",
+							tex.szName, oldScale.x, oldScale.y, newScale.x, newScale.y,
+							(int)center.x, (int)center.y, (int)center.z);
 						opcount++;
 					}
 				}
@@ -2583,6 +2622,164 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide) {
 	else {
 		logf("Subdivided %d faces\n", opcount);
 	}
+}
+
+vec3 Bsp::get_face_center(int faceIdx) {
+	BSPFACE& face = faces[faceIdx];
+
+	vec3 centroid;
+
+	for (int k = 0; k < face.nEdges; k++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + k];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		centroid += verts[vertIdx];
+	}
+	
+	return centroid / (float)face.nEdges;
+}
+
+bool Bsp::downscale_texture(int textureId, int maxDim) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	if (tex.nOffsets[0] == 0) {
+		logf("Can't downscale WAD texture %s\n", tex.szName);
+		return false;
+	}
+
+	int oldWidth = tex.nWidth;
+	int oldHeight = tex.nHeight;
+
+	float ratio = oldHeight / (float)oldWidth;
+
+	while (tex.nWidth > 0 && (tex.nWidth > maxDim || tex.nHeight > maxDim || (tex.nHeight % 16) != 0)) {
+		tex.nWidth -= 16;
+		tex.nHeight = tex.nWidth * ratio;
+	}
+
+	if (oldWidth == tex.nWidth) {
+		return false;
+	}
+
+	if (tex.nWidth == 0) {
+		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
+		return false;
+	}
+
+	int lastMipSize = (oldWidth >> 3) * (oldHeight >> 3);
+	byte* pixels = (byte*)(textures + texOffset + tex.nOffsets[0]);
+	byte* palette = (byte*)(textures + texOffset + tex.nOffsets[3] + lastMipSize + 2);
+
+	int oldWidths[4];
+	int oldHeights[4];
+	int newWidths[4];
+	int newHeights[4];
+	int newOffset[4];
+	for (int i = 0; i < 4; i++) {
+		oldWidths[i] = oldWidth >> (1 * i);
+		oldHeights[i] = oldHeight >> (1 * i);
+		newWidths[i] = tex.nWidth >> (1 * i);
+		newHeights[i] = tex.nHeight >> (1 * i);
+		
+		if (i > 0) {
+			newOffset[i] = newOffset[i-1] + newWidths[i-1] * newHeights[i-1];
+		}
+		else {
+			newOffset[i] = sizeof(BSPMIPTEX);
+		}
+	}
+	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3]*newHeights[3] + 2);
+
+	float srcScale = (float)oldWidth / tex.nWidth;
+
+	for (int i = 0; i < 4; i++) {
+		byte* srcData = (byte*)(textures + texOffset + tex.nOffsets[i]);
+		byte* dstData = (byte*)(textures + texOffset + newOffset[i]);
+		int srcWidth = oldWidths[i];
+		int dstWidth = newWidths[i];
+
+		for (int y = 0; y < newHeights[i]; y++) {
+			int srcY = (int)(srcScale * y + 0.5f);
+
+			for (int x = 0; x < newWidths[i]; x++) {
+				int srcX = (int)(srcScale*x + 0.5f);
+				
+				dstData[y* dstWidth + x] = srcData[srcY * srcWidth + srcX];
+			}
+		}
+	}
+	memcpy(newPalette, palette, 256 * sizeof(COLOR3));
+
+	for (int i = 0; i < 4; i++) {
+		tex.nOffsets[i] = newOffset[i];
+	}
+	
+	// scale up face texture coordinates
+	float scale = tex.nWidth / (float)oldWidth;
+
+	/*
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+	}
+	*/
+
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+
+		if (texinfos[face.iTextureInfo].iMiptex != textureId)
+			continue;
+		
+		// each affected face should have a unique texinfo because
+		// the shift amount may be different for every face after scaling
+		BSPTEXTUREINFO* info = get_unique_texinfo(i);
+
+		// get any vert on the face to use a reference point. Why?
+		// When textures are scaled, the texture relative to the face will depend on how far away its
+		// vertices are from the world origin. This means faces far away from the world origin shift many
+		// pixels per scale unit, and faces aligned with the world origin don't shift at all when scaled.
+		int32_t edgeIdx = surfedges[face.iFirstEdge];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		vec3 vert = verts[vertIdx];
+
+		vec3 oldvs = info->vS;
+		vec3 oldvt = info->vT;
+		info->vS *= scale;
+		info->vT *= scale;
+
+		// get before/after uv coordinates
+		float oldu = (dotProduct(oldvs, vert) + info->shiftS) * (1.0f / (float)oldWidth);
+		float oldv = (dotProduct(oldvt, vert) + info->shiftT) * (1.0f / (float)oldHeight);
+		float u = dotProduct(info->vS, vert) + info->shiftS;
+		float v = dotProduct(info->vT, vert) + info->shiftT;
+
+		// undo the shift in uv coordinates for this face
+		info->shiftS += (oldu * tex.nWidth) - u;
+		info->shiftT += (oldv * tex.nHeight) - v;
+	}
+
+	// shrink texture lump
+	int removedBytes = palette - newPalette;
+	logf("Removed %d bytes\n", removedBytes);
+	byte* texEnd = newPalette + 256 * sizeof(COLOR3);
+	int shiftBytes = (texEnd - textures) + removedBytes;
+	
+	memcpy(texEnd, texEnd + removedBytes, header.lump[LUMP_TEXTURES].nLength - shiftBytes);
+	for (int k = textureId+1; k < textureCount; k++) {
+		((int32_t*)textures)[k + 1] -= removedBytes;
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+		logf("VALIDATE %s\n", tex.szName);
+	}
+
+	logf("Downscale %s %dx%d -> %dx%d\n", tex.szName, oldWidth, oldHeight, tex.nWidth, tex.nHeight);
+
+	return true;
 }
 
 void Bsp::downscale_invalid_textures() {
@@ -3219,6 +3416,17 @@ bool Bsp::validate() {
 			logf("Bad vis offset in leaf %d: %d / %d\n", i, leaves[i].nVisOffset, visDataLength);
 			isValid = false;
 		}
+		
+		for (int k = 0; k < leaves[i].nMarkSurfaces; k++) {
+			//if (marksurfs[leaves[i].iFirstMarkSurface + k] == 3697) { // after subdivide
+			if (marksurfs[leaves[i].iFirstMarkSurface + k] == 3696) {
+				logf("Found face in leaf %d (mins %d %d %d) (maxs %d %d %d)\n", i,
+					(int)leaves[i].nMins[0], (int)leaves[i].nMins[1], (int)leaves[i].nMins[2],
+					(int)leaves[i].nMaxs[0], (int)leaves[i].nMaxs[1], (int)leaves[i].nMaxs[2]);
+			}
+		}
+
+		//logf("Leaf %d: %d %d %d\n", i, marksurfs[leaves[i].iFirstMarkSurface], leaves[i].nMarkSurfaces);
 	}
 	for (int i = 0; i < edgeCount; i++) {
 		for (int k = 0; k < 2; k++) {

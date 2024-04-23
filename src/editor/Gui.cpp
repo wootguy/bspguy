@@ -512,6 +512,37 @@ void Gui::draw3dContextMenus() {
 				ImGui::EndTooltip();
 			}
 
+			if (ImGui::MenuItem("Downscale texture")) {
+				if (!app->pickInfo.valid) {
+					return;
+				}
+				Bsp* map = app->pickInfo.map;
+
+				BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+				BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+				int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+				BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+
+				int maxDim = max(tex.nWidth, tex.nHeight);
+
+				int nextBestDim = 16;
+				if (maxDim > 512) { nextBestDim = 512; }
+				else if (maxDim > 256) { nextBestDim = 256; }
+				else if (maxDim > 128) { nextBestDim = 128; }
+				else if (maxDim > 64) { nextBestDim = 64; }
+				else if (maxDim > 32) { nextBestDim = 32; }
+				else if (maxDim > 32) { nextBestDim = 32; }
+
+				map->downscale_texture(info.iMiptex, nextBestDim);
+				app->deselectFaces();
+				app->mapRenderers[0]->reload();
+			}
+			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted("Reduces the dimensions of this texture down to the next power of 2");
+				ImGui::EndTooltip();
+			}
+
 			if (ImGui::MenuItem("Subdivide")) {
 				if (!app->pickInfo.valid) {
 					return;
@@ -519,6 +550,7 @@ void Gui::draw3dContextMenus() {
 				Bsp* map = app->pickInfo.map;
 
 				map->subdivide_face(app->pickInfo.faceIdx);
+				app->deselectFaces();
 				app->mapRenderers[0]->reload();
 			}
 
@@ -900,7 +932,7 @@ void Gui::drawMenuBar() {
 			}
 
 			if (ImGui::MenuItem("Fix Bad Surface Extents (subdivide)", 0, false, !app->isLoading && mapSelected)) {
-				map->fix_bad_surface_extents(false);
+				map->fix_bad_surface_extents(false, 256);
 
 				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 				if (renderer) {
@@ -915,7 +947,7 @@ void Gui::drawMenuBar() {
 			}
 
 			if (ImGui::MenuItem("Fix Bad Surface Extents (scale)", 0, false, !app->isLoading && mapSelected)) {
-				map->fix_bad_surface_extents(true);
+				map->fix_bad_surface_extents(true, 256);
 
 				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 				if (renderer) {

@@ -195,7 +195,7 @@ private:
 	int debugNodeMax = 0;
 	bool debugClipnodes = false;
 	bool debugNodes = false;
-	int clipnodeRenderHull = 3;
+	int clipnodeRenderHull = -1;
 
 	int undoLevels = 64;
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history
