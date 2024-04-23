@@ -47,6 +47,14 @@ public:
 	int32_t* surfedges;
 	BSPEDGE* edges;
 	uint16* marksurfs;
+
+	// VIS data is a compressed 2D array.
+	// Example binary for uncompressed vis data in a map with 4 leaves:
+	//     0000 ... (no leaves are visible from leaf 1)
+	//     1001 ... (leaves 1 and 4 are visible from leaf 2)
+	//     1111 ... (all leaves are visible from leaf 3)
+	// There are only 3 rows because the shared solid leaf 0 is excluded from both columns and rows.
+	// Dots "..." indicate padding. Rows are padded to multiples of 8 bytes/64 leaves.
 	byte* visdata;
 
 	int planeCount;
@@ -85,6 +93,12 @@ public:
 	bool recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace);
 	void traceHull(vec3 start, vec3 end, int hull, TraceResult* ptr);
 	const char* getLeafContentsName(int32_t contents);
+
+	// returns true if leaf is in the PVS from the given position
+	bool is_leaf_visible(int ileaf, vec3 pos);
+
+	// get leaf index from world position
+	int get_leaf(vec3 pos);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0

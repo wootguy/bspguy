@@ -50,7 +50,7 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 
 	if (shift < 0) {
 		// TODO: memcpy for negative shifts
-		bitShifts += byteShifts * 8;
+		bitShifts = abs(shift);
 		byteShifts = 0;
 	}
 
@@ -137,6 +137,11 @@ bool shiftVis(byte* vis, int len, int offsetLeaf, int shift) {
 	}
 
 	return overflow;
+}
+
+void decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, byte* output, int visDataLeafCount)
+{
+	decompress_vis_lump(leafLump, visLump, output, visDataLeafCount, visDataLeafCount, visDataLeafCount);
 }
 
 // decompress this map's vis data into arrays of bits where each bit indicates if a leaf is visible or not
@@ -281,7 +286,7 @@ int CompressVis(const byte* const src, const unsigned int src_length, byte* dest
 	return dest_p - dest;
 }
 
-int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves, int iterLeaves, int bufferSize)
+int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves, int bufferSize)
 {
 	int x = 0;
 	byte* dest;
@@ -291,8 +296,8 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 
 	byte* vismap_p = output;
 
-	int* sharedRows = new int[iterLeaves];
-	for (int i = 0; i < iterLeaves; i++) {
+	int* sharedRows = new int[numLeaves];
+	for (int i = 0; i < numLeaves; i++) {
 		byte* src = uncompressed + i * g_bitbytes;
 
 		sharedRows[i] = i;
@@ -309,7 +314,7 @@ int CompressAll(BSPLEAF* leafs, byte* uncompressed, byte* output, int numLeaves,
 		g_progress.tick();
 	}
 
-	for (int i = 0; i < iterLeaves; i++)
+	for (int i = 0; i < numLeaves; i++)
 	{
 		if (sharedRows[i] != i) {
 			leafs[i + 1].nVisOffset = leafs[sharedRows[i] + 1].nVisOffset;

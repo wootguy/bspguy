@@ -1258,72 +1258,76 @@ int Bsp::remove_unused_lightmaps(bool* usedFaces) {
 	return oldLightdataSize - newLightDataSize;
 }
 
-int Bsp::remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount) {
+int Bsp::remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount) {	
 	int oldVisLength = visDataLength;
 
 	// exclude solid leaf
 	int oldVisLeafCount = oldLeafCount - 1;
 	int newVisLeafCount = (header.lump[LUMP_LEAVES].nLength / sizeof(BSPLEAF)) - 1;
 
-	int oldWorldLeaves = oldWorldspawnLeafCount; // TODO: allow deleting world leaves
-	//int oldWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
-	int newWorldLeaves = ((BSPMODEL*)lumps[LUMP_MODELS])->nVisLeafs;
+	if (oldVisLeafCount == newVisLeafCount) {
+		return 0; // VIS data needs updating only when leaves are added/removed
+	}
 
 	uint oldVisRowSize = ((oldVisLeafCount + 63) & ~63) >> 3;
 	uint newVisRowSize = ((newVisLeafCount + 63) & ~63) >> 3;
 
-	int decompressedVisSize = oldLeafCount * oldVisRowSize;
-	byte* decompressedVis = new byte[decompressedVisSize];
-	memset(decompressedVis, 0, decompressedVisSize);
-	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], decompressedVis, 
-		oldWorldLeaves, oldVisLeafCount, oldVisLeafCount);
+	int oldDecompressedVisSize = oldLeafCount * oldVisRowSize;
+	byte* oldDecompressedVis = new byte[oldDecompressedVisSize];
+	memset(oldDecompressedVis, 0, oldDecompressedVisSize);
+	decompress_vis_lump(oldLeaves, lumps[LUMP_VISIBILITY], oldDecompressedVis, oldVisLeafCount);
 
-	if (oldVisRowSize != newVisRowSize) {
-		int newDecompressedVisSize = newWorldLeaves * newVisRowSize;
-		byte* newDecompressedVis = new byte[decompressedVisSize];
-		memset(newDecompressedVis, 0, newDecompressedVisSize);
+	int newDecompressedVisSize = newVisLeafCount * newVisRowSize;
+	byte* newDecompressedVis = new byte[oldDecompressedVisSize];
+	memset(newDecompressedVis, 0, newDecompressedVisSize);
 
-		if (newVisRowSize > oldVisRowSize) {
-			logf("ERROR: New vis row size larger than old size. VIS will likely be broken\n");
-		}
-
-		for (int i = 0; i < newWorldLeaves; i++) {
-			// find the source leaf to load vis data from
-			int sourceLeaf = 0;
-			for (int k = 0; k < oldWorldLeaves; k++) {
-				if (remap->leaves[k] == i) {
-					sourceLeaf = k;
-					//logf("Load source leaf %d row into new leaf %d row\n", k, i);
-					break;
-				}
-			}
-
-			byte* oldVisRow = decompressedVis + sourceLeaf * oldVisRowSize;
-
-			// remove deleted leaves from the old visibility list
-			for (int k = oldWorldLeaves-1; k > 0; k--) {
-				if (remap->leaves[k] == 0) {
-					shiftVis(oldVisRow, oldVisRowSize, k, -1);
-				}
-			}
-
-			memcpy(newDecompressedVis + i * newVisRowSize, oldVisRow, newVisRowSize);
-		}
-
-		delete[] decompressedVis;
-		decompressedVis = newDecompressedVis;
+	if (newVisRowSize > oldVisRowSize) {
+		logf("ERROR: New vis row size larger than old size. VIS will likely be broken\n");
 	}
 
-	byte* compressedVis = new byte[decompressedVisSize];
-	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(leaves, decompressedVis, compressedVis, newVisLeafCount, newWorldLeaves, decompressedVisSize);
+	int* oldLeafs = new int[newVisLeafCount];
+
+	for (int i = 1; i < newVisLeafCount; i++) {
+		int oldLeafIdx = 0;
+
+		for (int k = 1; k < oldVisLeafCount; k++) {
+			if (remap->leaves[k] == i) {
+				oldLeafs[i] = k;
+				break;
+			}
+		}
+	}
+
+	for (int i = 1; i < newVisLeafCount; i++) {
+		byte* oldVisRow = oldDecompressedVis + (oldLeafs[i] - 1) * oldVisRowSize;
+		byte* newVisRow = newDecompressedVis + (i - 1) * newVisRowSize;
+
+		for (int k = 1; k < newVisLeafCount; k++) {
+			int oldLeafIdx = oldLeafs[k] - 1;
+			int oldByteOffset = oldLeafIdx / 8;
+			int oldBitOffset = 1 << (oldLeafIdx % 8);
+
+			if (oldVisRow[oldByteOffset] & oldBitOffset) {
+				int newLeafIdx = k-1;
+				int newByteOffset = newLeafIdx / 8;
+				int newBitOffset = 1 << (newLeafIdx % 8);
+				newVisRow[newByteOffset] |= newBitOffset;
+			}
+		}
+	}
+
+	delete[] oldLeafs;
+	delete[] oldDecompressedVis;
+
+	byte* compressedVis = new byte[newDecompressedVisSize]; // assuming compressed will reduce size
+	memset(compressedVis, 0, newDecompressedVisSize);
+	int newVisLen = CompressAll(leaves, newDecompressedVis, compressedVis, newVisLeafCount, newDecompressedVisSize);
 
 	byte* compressedVisResized = new byte[newVisLen];
 	memcpy(compressedVisResized, compressedVis, newVisLen);
 
 	replace_lump(LUMP_VISIBILITY, compressedVisResized, newVisLen);
 
-	delete[] decompressedVis;
 	delete[] compressedVis;
 
 	return oldVisLength - newVisLen;
@@ -1333,9 +1337,6 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	int oldVisLeafCount = 0;
 	count_leaves(models[0].iHeadnodes[0], oldVisLeafCount);
 	//oldVisLeafCount = models[0].nVisLeafs;
-	//if (leafCount != models[0].nVisLeafs)
-	//	logf("WARNING: old leaf count doesn't match worldpsawn leaf count %d != %d\n", 
-	//		leafCount, models[0].nVisLeafs);
 
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
@@ -3412,20 +3413,6 @@ bool Bsp::validate() {
 
 			isValid = false;
 		}
-		if (visDataLength > 0 && leaves[i].nVisOffset < -1 || leaves[i].nVisOffset >= visDataLength) {
-			logf("Bad vis offset in leaf %d: %d / %d\n", i, leaves[i].nVisOffset, visDataLength);
-			isValid = false;
-		}
-		
-		for (int k = 0; k < leaves[i].nMarkSurfaces; k++) {
-			//if (marksurfs[leaves[i].iFirstMarkSurface + k] == 3697) { // after subdivide
-			if (marksurfs[leaves[i].iFirstMarkSurface + k] == 3696) {
-				logf("Found face in leaf %d (mins %d %d %d) (maxs %d %d %d)\n", i,
-					(int)leaves[i].nMins[0], (int)leaves[i].nMins[1], (int)leaves[i].nMins[2],
-					(int)leaves[i].nMaxs[0], (int)leaves[i].nMaxs[1], (int)leaves[i].nMaxs[2]);
-			}
-		}
-
 		//logf("Leaf %d: %d %d %d\n", i, marksurfs[leaves[i].iFirstMarkSurface], leaves[i].nMarkSurfaces);
 	}
 	for (int i = 0; i < edgeCount; i++) {
@@ -3928,6 +3915,63 @@ const char* Bsp::getLeafContentsName(int32_t contents) {
 	default:
 		return "UNKNOWN";
 	}
+}
+
+int Bsp::get_leaf(vec3 pos) {
+	int iNode = models->iHeadnodes[0];
+
+	while (iNode >= 0)
+	{
+		BSPNODE& node = nodes[iNode];
+		BSPPLANE& plane = planes[node.iPlane];
+
+		float d = dotProduct(plane.vNormal, pos) - plane.fDist;
+		if (d < 0) {
+			iNode = node.iChildren[1];
+		}
+		else {
+			iNode = node.iChildren[0];
+		}
+	}
+
+	return ~iNode;
+}
+
+bool Bsp::is_leaf_visible(int ileaf, vec3 pos) {
+	int ipvsLeaf = get_leaf(pos);
+	BSPLEAF& pvsLeaf = leaves[ipvsLeaf];
+
+	int p = pvsLeaf.nVisOffset; // pvs offset
+	byte* pvs = lumps[LUMP_VISIBILITY];
+	
+	bool isVisible = false;
+	int numVisible = 0;
+
+	//logf("leaf %d can see:", ipvsLeaf);
+
+	for (int lf = 1; lf < leafCount; p++)
+	{
+		if (pvs[p] == 0) // prepare to skip leafs
+			lf += 8 * pvs[++p]; // next byte holds number of leafs to skip
+		else
+		{
+			for (byte bit = 1; bit != 0; bit *= 2, lf++)
+			{
+				if ((pvs[p] & bit) && lf < leafCount) // leaf is flagged as visible
+				{
+					numVisible++;
+					//logf(" %d", lf);
+					if (lf == ileaf) {
+						isVisible = true;
+					}
+				}
+			}
+		}
+	}
+
+	//logf("\n");
+
+	return isVisible;
 }
 
 void Bsp::mark_face_structures(int iFace, STRUCTUSAGE* usage) {

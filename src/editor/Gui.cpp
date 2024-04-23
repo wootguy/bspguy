@@ -1442,6 +1442,29 @@ void Gui::drawDebugWidget() {
 						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
 					}
 					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
+
+					static int lastFaceIdx = -1;
+					static string leafList;
+					static int leafPick = 0;
+
+					if (app->pickInfo.faceIdx != lastFaceIdx) {
+						lastFaceIdx = app->pickInfo.faceIdx;
+						leafList = "";
+						leafPick = -1;
+						for (int i = 1; i < map->leafCount; i++) {
+							BSPLEAF& leaf = map->leaves[i];
+							for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+								if (map->marksurfs[leaf.iFirstMarkSurface + k] == app->pickInfo.faceIdx) {
+									leafList += " " + to_string(i);
+									leafPick = i;
+								}
+							}
+						}
+					}
+
+					const char* isVis = map->is_leaf_visible(leafPick, app->cameraOrigin) ? " (visible!)" : "";
+
+					ImGui::Text("Leaf IDs:%s%s", leafList.c_str(), isVis);
 				}
 			}
 
