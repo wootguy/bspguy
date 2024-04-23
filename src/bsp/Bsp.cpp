@@ -3483,12 +3483,14 @@ bool Bsp::validate() {
 
 	for (int i = 0; i < leafCount; i++) {
 		if ((leaves[i].iFirstMarkSurface < 0 || leaves[i].iFirstMarkSurface + leaves[i].nMarkSurfaces > marksurfCount)) {
-			logf("Bad marksurf reference in leaf %d: (%d + %d) / %d\n", 
+			logf("Bad marksurf reference in leaf %d: (%d + %d) / %d", 
 				i, leaves[i].iFirstMarkSurface, leaves[i].nMarkSurfaces, marksurfCount);
 
 			if (leaves[i].nMarkSurfaces == 0) {
+				logf(" (fixed!)");
 				leaves[i].iFirstMarkSurface = 0;
 			}
+			logf("\n");
 
 			isValid = false;
 		}
@@ -3504,10 +3506,12 @@ bool Bsp::validate() {
 	}
 	for (int i = 0; i < nodeCount; i++) {
 		if ((nodes[i].firstFace < 0 || nodes[i].firstFace + nodes[i].nFaces > faceCount)) {
-			logf("Bad face reference in node %d: %d / %d\n", i, nodes[i].firstFace, faceCount);
+			logf("Bad face reference in node %d: %d / %d", i, nodes[i].firstFace, faceCount);
 			if (nodes[i].nFaces == 0) {
 				nodes[i].firstFace = 0;
+				logf(" (fixed!)");
 			}
+			logf("\n");
 			isValid = false;
 		}
 		if (nodes[i].iPlane < 0 || nodes[i].iPlane >= planeCount) {
@@ -3523,6 +3527,22 @@ bool Bsp::validate() {
 				logf("Bad leaf reference in node %d child %d: %d / %d\n", i, k, ~nodes[i].iChildren[k], leafCount);
 				isValid = false;
 			}
+		}
+	}
+	for (int i = 0; i < planeCount; i++) {
+		BSPPLANE& plane = planes[i];
+		float normLen = plane.vNormal.length();
+
+		
+		if (normLen < 0.5f) {
+			logf("Bad normal for plane %d", i);
+			if (normLen > 0) {
+				plane.vNormal = plane.vNormal.normalize(1.0f);
+				logf(" (fixed!)");
+			}
+			logf("\n");
+			
+			isValid = false;
 		}
 	}
 
@@ -3551,10 +3571,12 @@ bool Bsp::validate() {
 		totalVisLeaves += models[i].nVisLeafs;
 		totalFaces += models[i].nFaces;
 		if ((models[i].iFirstFace < 0 || models[i].iFirstFace + models[i].nFaces > faceCount)) {
-			logf("Bad face reference in model %d: %d / %d\n", i, models[i].iFirstFace, faceCount);
+			logf("Bad face reference in model %d: %d / %d", i, models[i].iFirstFace, faceCount);
 			if (models[i].nFaces == 0) {
 				models[i].iFirstFace = 0;
+				logf(" (fixed!)");
 			}
+			logf("\n");
 			isValid = false;
 		}
 		if (models[i].iHeadnodes[0] >= nodeCount) {
