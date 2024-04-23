@@ -71,6 +71,8 @@ set(SOURCE_FILES
 	imgui/backends/imgui_impl_opengl3.cpp
 	src/util/lodepng.h
 	src/util/lodepng.cpp
+	src/util/tinyfiledialogs.c
+	src/util/tinyfiledialogs.h
 )
 
 include_directories(src)

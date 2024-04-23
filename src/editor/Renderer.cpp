@@ -219,7 +219,7 @@ void Renderer::renderLoop() {
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
 			lastTitleTime = glfwGetTime( );
-			glfwSetWindowTitle(window, std::string(std::string("bspguy - ") + getMapContainingCamera()->map->path).c_str());
+			glfwSetWindowTitle(window, (getMapContainingCamera()->map->path + std::string(std::string(" - bspguy"))).c_str());
 		}
 		glfwPollEvents();
 
@@ -532,6 +532,25 @@ void Renderer::reloadMaps() {
 	clearRedoCommands();
 
 	logf("Reloaded maps\n");
+}
+
+void Renderer::openMap(const char* fpath) {
+	if (!fpath) {
+		return;
+	}
+	if (!fileExists(fpath)) {
+		logf("File does not exist: %s\n", fpath);
+		return;
+	}
+
+	mapRenderers.clear();
+	pickInfo.valid = false;
+	addMap(new Bsp(fpath));
+
+	clearUndoCommands();
+	clearRedoCommands();
+
+	logf("Loaded map: %s\n", fpath);
 }
 
 void Renderer::saveSettings() {
@@ -2835,7 +2854,7 @@ void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 }
 
 void Renderer::pushEntityUndoState(string actionDesc) {
-	if (!pickInfo.valid || !pickInfo.ent) {
+	if (!pickInfo.valid || !pickInfo.ent || !undoEntityState) {
 		logf("Invalid entity undo state push\n");
 		return;
 	}

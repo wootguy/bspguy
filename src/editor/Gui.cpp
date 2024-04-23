@@ -12,6 +12,7 @@
 #include "globals.h"
 #include <fstream>
 #include <set>
+#include "tinyfiledialogs.h"
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -671,12 +672,37 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("File"))
 	{
+		static char const* bspFilterPatterns[1] = { "*.bsp" };
+
+		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
+			app->reloadMaps();
+			refresh();
+		}
+
+		if (ImGui::MenuItem("Open", NULL)) {
+			char* fname = tinyfd_openFileDialog("Open Map", "",
+				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
+			
+			g_app->openMap(fname);
+		}
 		if (ImGui::MenuItem("Save", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
 			map->update_ent_lump();
 			//map->write("yabma_move.bsp");
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
+		}
+		if (ImGui::MenuItem("Save As...", NULL)) {
+			Bsp* map = app->getMapContainingCamera()->map;
+
+			char* fname = tinyfd_saveFileDialog("Save As", map->path.c_str(),
+				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)");
+
+			if (fname) {
+				map->update_ent_lump();
+				map->path = fname;
+				map->write(map->path);
+			}
 		}
 		/*
 		if (ImGui::BeginMenu("Export")) {
@@ -802,10 +828,7 @@ void Gui::drawMenuBar() {
 		}
 		*/
 
-		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
-			app->reloadMaps();
-			refresh();
-		}
+		
 		if (ImGui::MenuItem("Validate")) {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
 				Bsp* map = app->mapRenderers[i]->map;
@@ -951,7 +974,7 @@ void Gui::drawMenuBar() {
 					logf("Transform the worldspawn origin first using the transform widget!\n");
 				}
 			}
-			tooltip(g, "Moves BSP data by the amount set in the worldspawn origin keyvalue. Useful for adjusting OOB deletes or for alignining maps before merging.");
+			tooltip(g, "Moves BSP data by the amount set in the worldspawn origin keyvalue. Useful for aligning maps before merging.");
 
 			if (ImGui::BeginMenu("Delete OOB Data", !app->isLoading && mapSelected)) {
 

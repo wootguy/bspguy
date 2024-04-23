@@ -85,6 +85,7 @@ public:
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
+	void openMap(const char* path);
 	void saveSettings();
 	void loadSettings();
 
