@@ -1,6 +1,7 @@
 #include "Entity.h"
 #include "util.h"
 #include <set>
+#include <algorithm>
 
 using namespace std;
 

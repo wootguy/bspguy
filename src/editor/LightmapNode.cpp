@@ -1,5 +1,6 @@
 #include "LightmapNode.h"
 #include <stdint.h>
+#include <string.h>
 
 LightmapNode::LightmapNode( int offX, int offY, int mapW, int mapH )
 {

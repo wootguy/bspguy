@@ -2,6 +2,7 @@
 #include "rad.h"
 #include "util.h"
 #include "globals.h"
+#include <string.h>
 
 #define MAX_MAP_LEAVES 65536 // set this to the largest value in any engine
 

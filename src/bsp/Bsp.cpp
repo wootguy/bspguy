@@ -11,6 +11,7 @@
 #include <fstream>
 #include <algorithm>
 #include "Clipper.h"
+#include <float.h>
 
 
 typedef map< string, vec3 > mapStringToVector;

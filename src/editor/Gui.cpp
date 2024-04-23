@@ -13,6 +13,7 @@
 #include <fstream>
 #include <set>
 #include "tinyfiledialogs.h"
+#include <algorithm>
 
 // embedded binary data
 #include "fonts/robotomono.h"

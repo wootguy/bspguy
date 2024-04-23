@@ -4,6 +4,11 @@
 #include "colors.h"
 #include "mat4x4.h"
 #include "globals.h"
+#include <cstdarg>
+#include <iostream>
+#include <algorithm>
+#include <float.h>
+
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>

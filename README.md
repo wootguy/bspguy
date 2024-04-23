@@ -70,7 +70,7 @@ Run 'bspguy <command> help' to read about a specific command.
 
 ### Linux users:
 1. Install Git, CMake, X11, GLFW, GLEW, and a compiler.
-    * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev`
+    * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev libxxf86vm-dev`
 1. Open a terminal somewhere and run these commands:
     ```
     git clone --recurse-submodules https://github.com/wootguy/bspguy

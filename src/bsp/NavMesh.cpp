@@ -3,6 +3,7 @@
 #include "PolyOctree.h"
 #include "Clipper.h"
 #include "util.h"
+#include <string.h>
 
 bool NavNode::addLink(int node, int srcEdge, int dstEdge, int16_t zDist, uint8_t flags) {
 	if (srcEdge < 0 || srcEdge >= MAX_NAV_POLY_VERTS) {
@@ -136,7 +137,8 @@ void NavMesh::getLinkMidPoints(int iNode, int iLink, vec3& srcMid, vec3& dstMid)
 	vec2 e4 = dstPoly.topdownVerts[e4i];
 
 	float t0, t1, t2, t3;
-	float overlapDist = Line2D(e1, e2).getOverlapRanges(Line2D(e3, e4), t0, t1, t2, t3);
+	Line2D e34(e3, e4);
+	float overlapDist = Line2D(e1, e2).getOverlapRanges(e34, t0, t1, t2, t3);
 
 	{
 		vec3 edgeStart = srcPoly.verts[link.srcEdge];

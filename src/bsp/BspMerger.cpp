@@ -5,6 +5,7 @@
 #include "Wad.h"
 #include <fstream>
 #include "globals.h"
+#include <algorithm>
 
 BspMerger::BspMerger() {
 

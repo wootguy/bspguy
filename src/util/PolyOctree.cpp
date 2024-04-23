@@ -1,5 +1,7 @@
 #include "PolyOctree.h"
 #include "util.h"
+#include <string.h>
+#include <algorithm>
 
 PolyOctant::PolyOctant(vec3 min, vec3 max) {
     this->min = min;

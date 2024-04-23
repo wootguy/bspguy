@@ -7,6 +7,7 @@
 #include <set>
 #include "util.h"
 #include "PolyOctree.h"
+#include <algorithm>
 
 NavMesh* NavMeshGenerator::generate(Bsp* map, int hull) {
 	float NavMeshGeneratorGenStart = glfwGetTime();

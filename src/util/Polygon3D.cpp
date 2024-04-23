@@ -2,6 +2,7 @@
 #include "util.h"
 #include "Renderer.h"
 #include "globals.h"
+#include <float.h>
 
 #define COLINEAR_EPSILON 0.125f
 #define SAME_VERT_EPSILON 0.125f

@@ -14,6 +14,7 @@
 #include <fstream>
 #include "globals.h"
 #include "NavMesh.h"
+#include <algorithm>
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)

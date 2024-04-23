@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <set>
 #include <fstream>
+#include <algorithm>
 
 #include "icons/missing.h"
 
