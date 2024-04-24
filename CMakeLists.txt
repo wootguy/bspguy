@@ -199,7 +199,7 @@ if(MSVC)
 													src/util/lodepng.cpp)
 
 else()
-	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs)
+	target_link_libraries(${PROJECT_NAME} GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs ${CMAKE_DL_LIBS})
 	set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 	set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 	set(CMAKE_CXX_FLAGS_RELEASE "-Os -fno-exceptions -w -Wfatal-errors")
