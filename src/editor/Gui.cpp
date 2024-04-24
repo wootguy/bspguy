@@ -937,6 +937,10 @@ void Gui::drawMenuBar() {
 			command->execute();
 			app->pushUndoCommand(command);
 		}
+		tooltip(g, "Removes unreferenced structures in the BSP data.\n\nWhen you edit BSP models or delete"
+			" references to them, the data is not deleted until you run this command. "
+			"If you are close exceeding map limits, you may need to run this regularly while creating "
+			"and editing models. Watch the Limits and Log widgets to see how many structures were removed.");
 
 		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
 			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
@@ -944,6 +948,19 @@ void Gui::drawMenuBar() {
 			command->execute();
 			app->pushUndoCommand(command);
 		}
+		tooltip(g, "Removes unnecesary structures in the BSP data. Useful as a pre-processing step for "
+			"merging maps together without exceeding map limits.\n\n"
+
+			"An example of commonly deleted structures would be the visible hull 0 for entities like "
+			"trigger_once, which are invisible and so don't need textured faces. Entities "
+			"like func_illusionary also don't need any clipnodes because they're not meant to be collidable.\n\n"
+		
+			"The drawback to using this command is that it's possible for entities to change state in "
+			"such a way that the deleted hulls are needed later. In those cases it is possible that "
+			"the game crashes or has broken collision.\n\n"
+			
+			"Check the Log widget to see which entities had their hulls deleted. You may want to delete "
+			"them manually by yourself if you run into problems with the Optimize command.");
 
 		if (ImGui::BeginMenu("Porting Tools", !app->isLoading)) {
 			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
