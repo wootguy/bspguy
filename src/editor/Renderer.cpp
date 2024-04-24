@@ -281,7 +281,7 @@ void Renderer::renderLoop() {
 				glEnable(GL_CULL_FACE);
 			}
 
-			if (g_render_flags & RENDER_ORIGIN) {
+			if (g_render_flags & (RENDER_ORIGIN | RENDER_MAP_BOUNDARY)) {
 				colorShader->bind();
 				model.loadIdentity();
 				colorShader->pushMatrix(MAT_MODEL);
@@ -290,13 +290,16 @@ void Renderer::renderLoop() {
 					model.translate(offset.x, offset.y, offset.z);
 				}
 				colorShader->updateMatrixes();
-				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
-				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
-				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
+
+				if (g_render_flags & RENDER_ORIGIN) {
+					drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
+					drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
+					drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
+				}
 				
-				if ((g_render_flags & RENDER_MAP_BOUNDARY) && pickInfo.valid && pickInfo.entIdx == 0) {
+				if (g_render_flags & RENDER_MAP_BOUNDARY) {
 					glDisable(GL_CULL_FACE);
-					drawBox(mapRenderers[0]->map->ents[0]->getOrigin() * -1, g_limits.max_mapboundary*2, COLOR4(0, 255, 0, 64));
+					drawBox(mapRenderers[0]->map->ents[0]->getOrigin() * -1, g_limits.max_mapboundary * 2, COLOR4(0, 255, 0, 64));
 					glEnable(GL_CULL_FACE);
 				}
 

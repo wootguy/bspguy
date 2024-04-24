@@ -837,6 +837,8 @@ void Gui::drawMenuBar() {
 				map->validate();
 			}
 		}
+		tooltip(g, "Checks BSP data structures for invalid values and references. Trivial problems are fixed automatically. Results are output to the Log widget.");
+
 		ImGui::Separator();
 		if (ImGui::MenuItem("Settings", NULL)) {
 			if (!showSettingsWidget) {
@@ -916,14 +918,160 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
+	if (ImGui::BeginMenu("View")) {
+		ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
+		if (ImGui::MenuItem("Textures", 0, g_render_flags & RENDER_TEXTURES)) {
+			g_render_flags ^= RENDER_TEXTURES;
+		}
+		tooltip(g, "Render textures for all faces.");
+
+		if (ImGui::MenuItem("Lightmaps", 0, g_render_flags & RENDER_LIGHTMAPS)) {
+			g_render_flags ^= RENDER_LIGHTMAPS;
+		}
+		tooltip(g, "Render lighting textures for all faces.");
+
+		if (ImGui::MenuItem("Wireframe", 0, g_render_flags & RENDER_WIREFRAME)) {
+			g_render_flags ^= RENDER_WIREFRAME;
+		}
+		tooltip(g, "Outline all faces.");
+
+		if (ImGui::MenuItem("Special World Faces", 0, g_render_flags & RENDER_SPECIAL)) {
+			g_render_flags ^= RENDER_SPECIAL;
+		}
+		tooltip(g, "Render special faces that are normally invisible and/or have special rendering properties (e.g. the SKY texture).");
+		
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Point Entities", 0, g_render_flags & RENDER_POINT_ENTS)) {
+			g_render_flags ^= RENDER_POINT_ENTS;
+		}
+		tooltip(g, "Render point-sized entities which either have no model or reference MDL/SPR files.");
+
+		if (ImGui::MenuItem("Solid Entities", 0, g_render_flags & RENDER_ENTS)) {
+			g_render_flags ^= RENDER_ENTS;
+			g_render_flags |= RENDER_SPECIAL_ENTS;
+		}
+		tooltip(g, "Render entities that reference BSP models.");
+
+		if (ImGui::MenuItem("Entity Links", 0, g_render_flags & RENDER_ENT_CONNECTIONS)) {
+			g_render_flags ^= RENDER_ENT_CONNECTIONS;
+		}
+		tooltip(g, "Show how entities connect to each other.\n\n"
+			"Yellow line = Selected entity targets the connected entity.\n"
+			"Blue line = Selected entity is targetted by the connected entity.\n"
+			"Green line = Selected entity and connected entity target each other.\n\n"
+			"Not all connections are displayed. You may still need to use the Entity Report "
+			"to find connections depending on the game the map was compiled for."
+		);
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Clipnodes (World)", 0, g_render_flags & RENDER_WORLD_CLIPNODES)) {
+			g_render_flags ^= RENDER_WORLD_CLIPNODES;
+		}
+		tooltip(g, "Render clipnode hulls for worldspawn");
+
+		if (ImGui::MenuItem("Clipnodes (Entities)", 0, g_render_flags & RENDER_ENT_CLIPNODES)) {
+			g_render_flags ^= RENDER_ENT_CLIPNODES;
+		}
+		tooltip(g, "Render clipnode hulls for solid entities");
+
+		if (ImGui::MenuItem("Clipnode Transparency", 0, transparentClipnodes)) {
+			transparentClipnodes = !transparentClipnodes;
+			g_app->mapRenderers[0]->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
+		}
+		tooltip(g, "Render clipnode meshes with transparency.");
+		g_settings.render_flags = g_render_flags;
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Auto Hulls", 0, app->clipnodeRenderHull == -1)) {
+			app->clipnodeRenderHull = -1;
+		}
+		tooltip(g, "Render collision hulls for things which would otherwise be invisible."
+			"\n\nAn example of this is a trigger_once which had the NULL texture applied to it by the mapper. "
+			"That entity would have no visible faces and so would be invisible if its collision hull were not rendered instead.");
+
+		if (ImGui::MenuItem("Hull 0 (Point)", 0, app->clipnodeRenderHull == 0)) {
+			app->clipnodeRenderHull = 0;
+		}
+		tooltip(g, "Renders hull 0 regardless of object visibility.\n\n"
+			"This hull is used for point-sized object collision and mesh rendering.");
+
+		if (ImGui::MenuItem("Hull 1 (Human)", 0, app->clipnodeRenderHull == 1)) {
+			app->clipnodeRenderHull = 1;
+		}
+		tooltip(g, "Renders hull 1 regardless of object visibility."
+			"\n\nThis is a collision hull used by standing players and human-sized monsters.");
+
+		if (ImGui::MenuItem("Hull 2 (Large)", 0, app->clipnodeRenderHull == 2)) {
+			app->clipnodeRenderHull = 2;
+		}
+		tooltip(g, "Renders hull 2 regardless of object visibility.\n\n"
+			"This is a collision hull used by large monsters and pushable objects.");
+
+		if (ImGui::MenuItem("Hull 3 (Head)", 0, app->clipnodeRenderHull == 3)) {
+			app->clipnodeRenderHull = 3;
+		}
+		tooltip(g, "Renders hull 3 regardless of object visibility.\n\n"
+			"This is a collision hull used by crouching players and small monsters.");
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Map Boundaries", 0, g_render_flags & RENDER_MAP_BOUNDARY)) {
+			g_render_flags ^= RENDER_MAP_BOUNDARY;
+		}
+		tooltip(g, "Renders map boundaries as a transparent box around the world. Entities which leave "
+			"this box may have visual glitches depending on the engine this map runs in.");
+
+		if (ImGui::MenuItem("Origin", 0, g_render_flags & RENDER_ORIGIN)) {
+			g_render_flags ^= RENDER_ORIGIN;
+		}
+		tooltip(g, "Displays a colored cross at the world origin (0,0,0)");
+
+		ImGui::PopItemFlag();
+		ImGui::EndMenu();
+	}
+
 	if (ImGui::BeginMenu("Map"))
 	{
 		if (ImGui::MenuItem("Entity Report", NULL)) {
 			showEntityReport = true;
 		}
+		tooltip(g, "Search for entities by name, class, and/or other properties.");
 
 		if (ImGui::MenuItem("Show Limits", NULL)) {
 			showLimitsWidget = true;
+		}
+		tooltip(g, "Shows how close the map is to exceeding engine limits.");
+
+		if (ImGui::BeginMenu("Select Engine"))
+		{
+			bool changed = false;
+
+			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE)) {
+				changed = g_settings.engine != ENGINE_HALF_LIFE;
+				g_settings.engine = ENGINE_HALF_LIFE;
+			}
+			tooltip(g, "The standard GoldSrc engine. Assumes a +/-4096 map boundary.\n");
+
+			if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP)) {
+				changed = g_settings.engine != ENGINE_SVEN_COOP;
+				g_settings.engine = ENGINE_SVEN_COOP;
+			}
+			tooltip(g, "Sven Co-op maps have much higher limits than in Half-Life.\n\nAttempting to run a "
+			"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents errors, "
+			"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
+			"See the Porting Tools menu for solutions to these problems.\n\n"
+			"The map boundary for Sven Co-op is effectively +/-32768. Rendering glitches occur beyond that point.");
+
+			if (changed) {
+				g_limits = g_engine_limits[g_settings.engine];
+				app->mapRenderers[0]->reload();
+				reloadLimits();
+			}
+
+			ImGui::EndMenu();
 		}
 
 		ImGui::Separator();
@@ -939,7 +1087,7 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Removes unreferenced structures in the BSP data.\n\nWhen you edit BSP models or delete"
 			" references to them, the data is not deleted until you run this command. "
-			"If you are close exceeding map limits, you may need to run this regularly while creating "
+			"If you are close exceeding engine limits, you may need to run this regularly while creating "
 			"and editing models. Watch the Limits and Log widgets to see how many structures were removed.");
 
 		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
@@ -949,7 +1097,7 @@ void Gui::drawMenuBar() {
 			app->pushUndoCommand(command);
 		}
 		tooltip(g, "Removes unnecesary structures in the BSP data. Useful as a pre-processing step for "
-			"merging maps together without exceeding map limits.\n\n"
+			"merging maps together without exceeding engine limits.\n\n"
 
 			"An example of commonly deleted structures would be the visible hull 0 for entities like "
 			"trigger_once, which are invisible and so don't need textured faces. Entities "
@@ -1043,7 +1191,7 @@ void Gui::drawMenuBar() {
 					}
 					tooltip(g, "Deletes BSP data and entities outside of the "
 							"max map boundary.\n\n"
-							"This is useful for splitting maps for running in an engine with stricter map limits.");
+							"This is useful for splitting maps to run in an engine with stricter map limits.");
 				}
 				ImGui::EndMenu();
 			}
@@ -1506,6 +1654,8 @@ void Gui::drawDebugWidget() {
 		{
 			ImGui::Text("Origin: %d %d %d", (int)app->cameraOrigin.x, (int)app->cameraOrigin.y, (int)app->cameraOrigin.z);
 			ImGui::Text("Angles: %d %d %d", (int)app->cameraAngles.x, (int)app->cameraAngles.y, (int)app->cameraAngles.z);
+		
+
 		}
 
 		if (app->pickInfo.valid) {
@@ -2727,58 +2877,14 @@ void Gui::drawSettings() {
 			/*
 			ImGui::Text("Import/Export Directory:");
 			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
+			*/
+
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
-			*/
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 			
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
-			
-			// why not make a backup yourself?
-			/*
-			ImGui::Checkbox("Make map backup", &g_settings.backUpMap);
-			if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				ImGui::TextUnformatted("Creates a backup of the BSP file when saving for the first time.");
-			}
-			*/
-
-			
-			ImGui::Dummy(ImVec2(0, 8));
-
-			ImGui::Text("Engine");
-			if (ImGui::IsItemHovered())
-			{
-				ImGui::BeginTooltip();
-				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-				ImGui::TextUnformatted("Map limits change depending on the engine selected here.");
-				ImGui::PopTextWrapPos();
-				ImGui::EndTooltip();
-			}
-
-			if (ImGui::BeginCombo("##engine", g_settings.engine == ENGINE_HALF_LIFE ? "Half-Life" : "Sven Co-op"))
-			{
-				static int selected;
-				selected = g_settings.engine;
-
-				bool changed = false;
-				if (ImGui::Selectable("Half-Life", selected == ENGINE_HALF_LIFE)) {
-					changed = g_settings.engine != ENGINE_HALF_LIFE;
-					g_settings.engine = ENGINE_HALF_LIFE;
-				} else if (ImGui::Selectable("Sven Co-op", selected == ENGINE_SVEN_COOP)) {
-					changed = g_settings.engine != ENGINE_SVEN_COOP;
-					g_settings.engine = ENGINE_SVEN_COOP;
-				}
-
-				if (changed) {
-					g_limits = g_engine_limits[g_settings.engine];
-					app->mapRenderers[0]->reload();
-					reloadLimits();
-				}
-
-				ImGui::EndCombo();
-			}
 		}
 		else if (settingsTab == 1) {
 			for (int i = 0; i < numFgds; i++) {
@@ -2834,94 +2940,6 @@ void Gui::drawSettings() {
 			}
 			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
-			ImGui::Separator();
-
-			bool renderTextures = g_render_flags & RENDER_TEXTURES;
-			bool renderLightmaps = g_render_flags & RENDER_LIGHTMAPS;
-			bool renderWireframe = g_render_flags & RENDER_WIREFRAME;
-			bool renderEntities = g_render_flags & RENDER_ENTS;
-			bool renderSpecial = g_render_flags & RENDER_SPECIAL;
-			bool renderSpecialEnts = g_render_flags & RENDER_SPECIAL_ENTS;
-			bool renderPointEnts = g_render_flags & RENDER_POINT_ENTS;
-			bool renderOrigin = g_render_flags & RENDER_ORIGIN;
-			bool renderWorldClipnodes = g_render_flags & RENDER_WORLD_CLIPNODES;
-			bool renderEntClipnodes = g_render_flags & RENDER_ENT_CLIPNODES;
-			bool renderEntConnections = g_render_flags & RENDER_ENT_CONNECTIONS;
-			bool renderMapBoundary = g_render_flags & RENDER_MAP_BOUNDARY;
-
-			ImGui::Text("Render Flags:");
-
-			ImGui::Columns(2, 0, false);
-
-			if (ImGui::Checkbox("Textures", &renderTextures)) {
-				g_render_flags ^= RENDER_TEXTURES;
-			}
-			if (ImGui::Checkbox("Lightmaps", &renderLightmaps)) {
-				g_render_flags ^= RENDER_LIGHTMAPS;
-				for (int i = 0; i < app->mapRenderers.size(); i++)
-					app->mapRenderers[i]->updateModelShaders();
-			}
-			if (ImGui::Checkbox("Wireframe", &renderWireframe)) {
-				g_render_flags ^= RENDER_WIREFRAME;
-			}
-			if (ImGui::Checkbox("Origin", &renderOrigin)) {
-				g_render_flags ^= RENDER_ORIGIN;
-			}
-			if (ImGui::Checkbox("Map Boundary", &renderMapBoundary)) {
-				g_render_flags ^= RENDER_MAP_BOUNDARY;
-			}
-
-			ImGui::NextColumn();
-
-			if (ImGui::Checkbox("Point Entities", &renderPointEnts)) {
-				g_render_flags ^= RENDER_POINT_ENTS;
-			}
-			if (ImGui::Checkbox("Normal Solid Entities", &renderEntities)) {
-				g_render_flags ^= RENDER_ENTS;
-			}
-			if (ImGui::Checkbox("Special Solid Entities", &renderSpecialEnts)) {
-				g_render_flags ^= RENDER_SPECIAL_ENTS;
-			}
-			if (ImGui::Checkbox("Special World Faces", &renderSpecial)) {
-				g_render_flags ^= RENDER_SPECIAL;
-			}
-			if (ImGui::Checkbox("Entity Links", &renderEntConnections)) {
-				g_render_flags ^= RENDER_ENT_CONNECTIONS;
-				if (g_render_flags & RENDER_ENT_CONNECTIONS) {
-					app->updateEntConnections();
-				}
-			}
-
-
-			ImGui::Columns(1);
-
-			ImGui::Separator();
-
-			ImGui::Text("Clipnode Rendering:");
-
-			ImGui::Columns(2, 0, false);
-			ImGui::RadioButton("Auto", &app->clipnodeRenderHull, -1);
-			ImGui::RadioButton("0 - Point", &app->clipnodeRenderHull, 0);
-			ImGui::RadioButton("1 - Human", &app->clipnodeRenderHull, 1);
-			ImGui::RadioButton("2 - Large", &app->clipnodeRenderHull, 2);
-			ImGui::RadioButton("3 - Head", &app->clipnodeRenderHull, 3);
-
-			ImGui::NextColumn();
-
-			if (ImGui::Checkbox("World Leaves", &renderWorldClipnodes)) {
-				g_render_flags ^= RENDER_WORLD_CLIPNODES;
-			}
-			if (ImGui::Checkbox("Entity Leaves", &renderEntClipnodes)) {
-				g_render_flags ^= RENDER_ENT_CLIPNODES;
-			}
-			static bool transparentNodes = true;
-			if (ImGui::Checkbox("Transparency", &transparentNodes)) {
-				for (int i = 0; i < g_app->mapRenderers.size(); i++) {
-					g_app->mapRenderers[i]->updateClipnodeOpacity(transparentNodes ? 128 : 255);
-				}
-			}
-
-			ImGui::Columns(1);
 		}
 		else if (settingsTab == 4) {
 			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");

@@ -69,6 +69,7 @@ private:
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	bool openSavedTabs = false;
+	bool transparentClipnodes = true;
 
 	ImFont* smallFont;
 	ImFont* largeFont;
