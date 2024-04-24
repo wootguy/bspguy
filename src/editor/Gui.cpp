@@ -1775,9 +1775,16 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			string value = ent->keyvalues[key];
 			string niceName = keyvalue.description;
 
-			if (value.empty() && keyvalue.defaultValue.length()) {
-				value = keyvalue.defaultValue;
-			}
+			// TODO: ImGui doesn't have placeholder text like in HTML forms,
+			// but it would be nice to show an example/default value here somehow.
+			// Forcing the default value is bad because that can change entity behavior
+			// in unexpected ways. The default should always be an empty string or 0 when
+			// you don't care about the key. I think I remember there being strange problems
+			// when JACK would autofill default values for every possible key in an entity.
+			// 
+			//if (value.empty() && keyvalue.defaultValue.length()) {
+			//	value = keyvalue.defaultValue;
+			//}
 
 			strcpy(keyNames[i], niceName.c_str());
 			strcpy(keyValues[i], value.c_str());
@@ -1840,13 +1847,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						string newVal = data->Buf;
 						if (newVal.empty()) {
-							if (inputData->defaultValue.length()) {
-								ent->setOrAddKeyvalue(inputData->key, inputData->defaultValue);
-							}
-							else {
-								ent->removeKeyvalue(inputData->key);
-							}
-
+							ent->removeKeyvalue(inputData->key);
 						}
 						else {
 							ent->setOrAddKeyvalue(inputData->key, newVal);

@@ -2851,7 +2851,7 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 		return false;
 	}
 
-	downscale_texture(textureId, newWidth, newHeight);
+	return downscale_texture(textureId, newWidth, newHeight);
 }
 
 void Bsp::downscale_invalid_textures() {
@@ -3542,6 +3542,15 @@ bool Bsp::validate() {
 				logf("Bad leaf reference in node %d child %d: %d / %d\n", i, k, ~nodes[i].iChildren[k], leafCount);
 				isValid = false;
 			}
+		}
+
+		if (nodes[i].nMins[0] > nodes[i].nMaxs[0] ||
+			nodes[i].nMins[1] > nodes[i].nMaxs[1] ||
+			nodes[i].nMins[2] > nodes[i].nMaxs[2]) {
+			logf("Backwards mins/maxs in node %d. Mins: (%d, %d, %d) Maxs: (%d %d %d)\n", i,
+				(int)nodes[i].nMins[0], (int)nodes[i].nMins[1], (int)nodes[i].nMins[2],
+				(int)nodes[i].nMaxs[0], (int)nodes[i].nMaxs[1], (int)nodes[i].nMaxs[2]);
+			isValid = false;
 		}
 	}
 	for (int i = 0; i < planeCount; i++) {
