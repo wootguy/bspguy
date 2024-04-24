@@ -1564,8 +1564,8 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		entsThatNeverNeedAnyHulls.insert("func_tankcontrols");
 		entsThatNeverNeedAnyHulls.insert("func_traincontrols");
 		entsThatNeverNeedAnyHulls.insert("func_vehiclecontrols");
-		entsThatNeverNeedAnyHulls.insert("trigger_autosave"); // obsolete in sven
-		entsThatNeverNeedAnyHulls.insert("trigger_endsection"); // obsolete in sven
+		//entsThatNeverNeedAnyHulls.insert("trigger_autosave"); // obsolete in sven
+		//entsThatNeverNeedAnyHulls.insert("trigger_endsection"); // obsolete in sven
 
 		set<string> entsThatNeverNeedCollision;
 		entsThatNeverNeedCollision.insert("func_illusionary");
