@@ -91,6 +91,10 @@ Bsp::~Bsp()
 
 	for (int i = 0; i < ents.size(); i++)
 		delete ents[i];
+
+	if (pvsFaces) {
+		delete[] pvsFaces;
+	}
 }
 
 void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
@@ -4103,6 +4107,63 @@ bool Bsp::is_leaf_visible(int ileaf, vec3 pos) {
 	return isVisible;
 }
 
+bool Bsp::is_face_visible(int faceIdx, vec3 pos, vec3 angles) {
+	BSPFACE& face = faces[faceIdx];
+	BSPPLANE& plane = planes[face.iPlane];
+	vec3 normal = plane.vNormal;
+
+	// TODO: is it in the frustrum? Is it part of an entity model? If so is the entity linked in the PVS?
+	// is it facing the camera? Is it a special face?
+
+	return true;
+}
+
+int Bsp::count_visible_polys(vec3 pos, vec3 angles) {
+	int ipvsLeaf = get_leaf(pos);
+	BSPLEAF& pvsLeaf = leaves[ipvsLeaf];
+
+	int p = pvsLeaf.nVisOffset; // pvs offset
+	byte* pvs = lumps[LUMP_VISIBILITY];
+
+	bool isVisible = false;
+	int numVisible = 0;
+
+	if (ipvsLeaf == 0) {
+		return faceCount;
+	}
+
+	memset(pvsFaces, 0, pvsFaceCount*sizeof(bool));
+	int renderFaceCount = 0;
+
+	for (int lf = 1; lf < leafCount; p++)
+	{
+		if (pvs[p] == 0) // prepare to skip leafs
+			lf += 8 * pvs[++p]; // next byte holds number of leafs to skip
+		else
+		{
+			for (byte bit = 1; bit != 0; bit *= 2, lf++)
+			{
+				if ((pvs[p] & bit) && lf < leafCount) // leaf is flagged as visible
+				{
+					numVisible++;
+					BSPLEAF& leaf = leaves[lf];
+
+					for (int i = 0; i < leaf.nMarkSurfaces; i++) {
+						int faceIdx = marksurfs[leaf.iFirstMarkSurface + i];
+						if (!pvsFaces[faceIdx]) {
+							pvsFaces[faceIdx] = true;
+							if (is_face_visible(faceIdx, pos, angles))
+								renderFaceCount++;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return renderFaceCount;
+}
+
 void Bsp::mark_face_structures(int iFace, STRUCTUSAGE* usage) {
 	BSPFACE& face = faces[iFace];
 	usage->faces[iFace] = true;
@@ -5621,6 +5682,15 @@ void Bsp::update_lump_pointers() {
 	if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
 	if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
 	if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
+
+	if (pvsFaceCount != faceCount) {
+		pvsFaceCount = faceCount;
+
+		if (pvsFaces) {
+			delete[] pvsFaces;
+		}
+		pvsFaces = new bool[pvsFaceCount];
+	}
 }
 
 void Bsp::replace_lump(int lumpIdx, void* newData, int newLength) {

@@ -52,6 +52,7 @@ public:
 
 private:
 	bool vsync = true;
+	bool polycount = false;
 	bool showDebugWidget = false;
 	bool showKeyvalueWidget = false;
 	bool showTransformWidget = false;

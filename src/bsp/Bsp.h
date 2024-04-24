@@ -97,6 +97,10 @@ public:
 	// returns true if leaf is in the PVS from the given position
 	bool is_leaf_visible(int ileaf, vec3 pos);
 
+	bool is_face_visible(int faceIdx, vec3 pos, vec3 angles);
+
+	int count_visible_polys(vec3 pos, vec3 angles);
+
 	// get leaf index from world position
 	int get_leaf(vec3 pos);
 
@@ -296,6 +300,9 @@ public:
 	void update_lump_pointers();
 
 private:
+	bool* pvsFaces = NULL; // flags which faces are marked for rendering in the PVS
+	int pvsFaceCount = 0;
+
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount); // called after removing unused leaves
 	int remove_unused_textures(bool* usedTextures, int* remappedIndexes);

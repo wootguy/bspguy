@@ -1510,16 +1510,36 @@ void Gui::drawToolbar() {
 }
 
 void Gui::drawFpsOverlay() {
+	ImGuiContext& g = *GImGui;
 	ImGuiIO& io = ImGui::GetIO();
 	ImVec2 window_pos = ImVec2(io.DisplaySize.x - 10.0f, 35.0f);
 	ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
 	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+
 	if (ImGui::Begin("Overlay", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 	{
-		ImGui::Text("%.0f FPS", ImGui::GetIO().Framerate);
+		int faceCount = 0;
+
+		if (polycount && g_app->mapRenderers.size()) {
+			Bsp* map = g_app->mapRenderers[0]->map;
+			faceCount = map->count_visible_polys(g_app->cameraOrigin, g_app->cameraAngles);
+
+			ImGui::Text("%d Polys    %.0f FPS", faceCount, ImGui::GetIO().Framerate);
+		}
+		else {
+			ImGui::Text("%.0f FPS", ImGui::GetIO().Framerate);
+		}
+		
 		if (ImGui::BeginPopupContextWindow())
 		{
+			/*
+			if (ImGui::MenuItem("Poly Counter", NULL, polycount)) {
+				polycount = !polycount;
+			}
+			tooltip(g, "Count rendered polygons in the PVS.");
+			*/
+
 			if (ImGui::MenuItem("VSync", NULL, vsync)) {
 				vsync = !vsync;
 				glfwSwapInterval(vsync ? 1 : 0);
