@@ -66,6 +66,21 @@ public:
 };
 
 
+class CreateEntityFromTextCommand : public Command {
+public:
+	string textData;
+	int createdEnts;
+
+	CreateEntityFromTextCommand(string desc, int mapIdx, string textData);
+	~CreateEntityFromTextCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+
 class DuplicateBspModelCommand : public Command {
 public:
 	int oldModelIdx;

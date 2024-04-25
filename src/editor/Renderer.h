@@ -49,6 +49,7 @@ class Renderer {
 	friend class EditEntityCommand;
 	friend class DeleteEntityCommand;
 	friend class CreateEntityCommand;
+	friend class CreateEntityFromTextCommand;
 	friend class DuplicateBspModelCommand;
 	friend class CreateBspModelCommand;
 	friend class EditBspModelCommand;
@@ -256,6 +257,7 @@ private:
 	void cutEnt();
 	void copyEnt();
 	void pasteEnt(bool noModifyOrigin);
+	void pasteEntsFromText(string text);
 	void deleteEnt();
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);

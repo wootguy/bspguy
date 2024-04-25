@@ -2,6 +2,7 @@
 #include "util.h"
 #include <set>
 #include <algorithm>
+#include <sstream>
 
 using namespace std;
 
@@ -492,4 +493,19 @@ bool Entity::isEverVisible() {
 	}
 
 	return true;
+}
+
+string Entity::serialize() {
+	stringstream ent_data;
+
+	ent_data << "{\n";
+
+	for (int k = 0; k < keyOrder.size(); k++) {
+		string key = keyOrder[k];
+		ent_data << "\"" << key << "\" \"" << keyvalues[key] << "\"\n";
+	}
+
+	ent_data << "}\n";
+
+	return ent_data.str();
 }

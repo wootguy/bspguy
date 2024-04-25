@@ -6,6 +6,7 @@
 #include "Entity.h"
 #include "util.h"
 #include "globals.h"
+#include <sstream>
 
 #include "icons/aaatrigger.h"
 
@@ -191,6 +192,109 @@ int CreateEntityCommand::memoryUsage() {
 	return sizeof(CreateEntityCommand) + entData->getMemoryUsage();
 }
 
+//
+// Create Entities From Text
+//
+CreateEntityFromTextCommand::CreateEntityFromTextCommand(string desc, int mapIdx, string textData) : Command(desc, mapIdx) {
+	this->textData = textData;
+	this->allowedDuringLoad = true;
+}
+
+CreateEntityFromTextCommand::~CreateEntityFromTextCommand() {
+}
+
+void CreateEntityFromTextCommand::execute() {
+	Bsp* map = getBsp();
+
+	std::istringstream in(textData);
+
+	int lineNum = 0;
+	int lastBracket = -1;
+	Entity* ent = NULL;
+
+	vector<Entity*> ents;
+
+	string line = "";
+	while (std::getline(in, line))
+	{
+		lineNum++;
+		if (line.length() < 1 || line[0] == '\n')
+			continue;
+
+		if (line[0] == '{')
+		{
+			if (lastBracket == 0)
+			{
+				logf("clipboard ent text data (line %d): Unexpected '{'\n", lineNum);
+				continue;
+			}
+			lastBracket = 0;
+
+			if (ent != NULL)
+				delete ent;
+			ent = new Entity();
+		}
+		else if (line[0] == '}')
+		{
+			if (lastBracket == 1)
+				logf("clipboard ent text data (line %d): Unexpected '}'\n", lineNum);
+			lastBracket = 1;
+
+			if (ent == NULL)
+				continue;
+
+			if (ent->keyvalues.count("classname"))
+				ents.push_back(ent);
+			else
+				logf("Found unknown classname entity. Skip it.\n");
+			ent = NULL;
+
+			// you can end/start an ent on the same line, you know
+			if (line.find("{") != string::npos)
+			{
+				ent = new Entity();
+				lastBracket = 0;
+			}
+		}
+		else if (lastBracket == 0 && ent != NULL) // currently defining an entity
+		{
+			Keyvalue k(line);
+			if (k.key.length() && k.value.length())
+				ent->addKeyvalue(k);
+		}
+	}
+
+	for (Entity* ent : ents) {
+		map->ents.push_back(ent);
+	}
+	createdEnts = ents.size();
+	logf("Pasted %d entities from clipboard\n", createdEnts);
+	
+	refresh();
+}
+
+void CreateEntityFromTextCommand::undo() {
+	Bsp* map = getBsp();
+
+	g_app->deselectObject();
+
+	for (int i = 0; i < createdEnts; i++) {
+		delete map->ents[map->ents.size() - 1];
+		map->ents.pop_back();
+	}
+	
+	refresh();
+}
+
+void CreateEntityFromTextCommand::refresh() {
+	BspRenderer* renderer = getBspRenderer();
+	renderer->preRenderEnts();
+	g_app->gui->refresh();
+}
+
+int CreateEntityFromTextCommand::memoryUsage() {
+	return sizeof(CreateEntityFromTextCommand) + textData.size();
+}
 
 //
 // Duplicate BSP Model command

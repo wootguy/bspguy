@@ -2721,6 +2721,8 @@ void Renderer::cutEnt() {
 	DeleteEntityCommand* deleteCommand = new DeleteEntityCommand("Cut Entity", pickInfo);
 	deleteCommand->execute();
 	pushUndoCommand(deleteCommand);
+
+	ImGui::SetClipboardText(copiedEnt->serialize().c_str());
 }
 
 void Renderer::copyEnt() {
@@ -2733,6 +2735,8 @@ void Renderer::copyEnt() {
 	Bsp* map = mapRenderers[pickInfo.mapIdx]->map;
 	copiedEnt = new Entity();
 	*copiedEnt = *map->ents[pickInfo.entIdx];
+
+	ImGui::SetClipboardText(copiedEnt->serialize().c_str());
 }
 
 void Renderer::pasteEnt(bool noModifyOrigin) {
@@ -2765,6 +2769,31 @@ void Renderer::pasteEnt(bool noModifyOrigin) {
 	delete insertEnt;
 	createCommand->execute();
 	pushUndoCommand(createCommand);
+
+	pickInfo.valid = true;
+	selectEnt(map, map->ents.size() - 1);
+}
+
+void Renderer::pasteEntsFromText(string text) {
+	Bsp* map = pickInfo.map ? pickInfo.map : mapRenderers[0]->map;
+
+	CreateEntityFromTextCommand* createCommand = 
+		new CreateEntityFromTextCommand("Paste entities from clipboard", pickInfo.mapIdx, text);
+	createCommand->execute();
+	pushUndoCommand(createCommand);
+
+	if (createCommand->createdEnts == 1) {
+		Entity* createdEnt = map->ents[map->ents.size()-1];
+		vec3 oldOrigin = getEntOrigin(map, createdEnt);
+		vec3 modelOffset = getEntOffset(map, createdEnt);
+		vec3 mapOffset = mapRenderers[pickInfo.mapIdx]->mapOffset;
+
+		vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
+		vec3 newOri = (oldOrigin + moveDist) - (modelOffset + mapOffset);
+		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
+		createdEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+		createCommand->refresh();
+	}
 
 	pickInfo.valid = true;
 	selectEnt(map, map->ents.size() - 1);

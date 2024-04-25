@@ -888,6 +888,15 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Paste at original origin", 0, false, entSelected && app->copiedEnt != NULL)) {
 			app->pasteEnt(true);
 		}
+
+		const char* clipBoardText = ImGui::GetClipboardText();
+		if (ImGui::MenuItem("Paste entities from clipboard", 0, false, clipBoardText && clipBoardText[0] == '{')) {
+			app->pasteEntsFromText(clipBoardText);
+		}
+		tooltip(g, "Creates entities from text data. You can use this to transfer entities "
+			"from one bspguy window to another, or paste from .ent file text. Copy any entity "
+			"in the viewer then paste to a text editor to see the format of the text data.");
+
 		if (ImGui::MenuItem("Delete", "Del", false, nonWorldspawnEntSelected)) {
 			app->deleteEnt();
 		}
@@ -2285,6 +2294,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			keyIds[i].entIdx = app->pickInfo.entIdx;
 			keyIds[i].entRef = ent;
 			keyIds[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+			keyIds[i].gui = this;
 
 			if (invalidKey) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));

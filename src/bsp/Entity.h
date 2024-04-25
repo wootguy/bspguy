@@ -45,5 +45,7 @@ public:
 	int getMemoryUsage(); // aproximate
 
 	bool isEverVisible();
+
+	string serialize();
 };
 
