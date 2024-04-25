@@ -702,6 +702,7 @@ void Gui::drawMenuBar() {
 			if (fname) {
 				map->update_ent_lump();
 				map->path = fname;
+				map->name = stripExt(basename(fname));
 				map->write(map->path);
 			}
 		}
@@ -1680,7 +1681,6 @@ void Gui::drawDebugWidget() {
 
 		if (app->pickInfo.valid) {
 			Bsp* map = app->pickInfo.map;
-			Entity* ent = app->pickInfo.ent;
 
 			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -2580,7 +2580,7 @@ void Gui::drawTransformWidget() {
 			inputsAreDragging = true;
 
 		if (inputsWereDragged && !inputsAreDragging) {
-			if (app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
+			if (app->undoEntityState && app->pickInfo.ent && app->undoEntityState->getOrigin() != app->pickInfo.ent->getOrigin()) {
 				app->pushEntityUndoState("Move Entity");
 			}
 

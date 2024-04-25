@@ -2721,7 +2721,7 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 
 	int lastMipSize = (oldWidth >> 3) * (oldHeight >> 3);
 	byte* pixels = (byte*)(textures + texOffset + tex.nOffsets[0]);
-	byte* palette = (byte*)(textures + texOffset + tex.nOffsets[3] + lastMipSize + 2);
+	byte* palette = (byte*)(textures + texOffset + tex.nOffsets[3] + lastMipSize);
 
 	int oldWidths[4];
 	int oldHeights[4];
@@ -2741,7 +2741,7 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 			newOffset[i] = sizeof(BSPMIPTEX);
 		}
 	}
-	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3] * newHeights[3] + 2);
+	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3] * newHeights[3]);
 
 	float srcScale = (float)oldWidth / tex.nWidth;
 
@@ -2761,7 +2761,8 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 			}
 		}
 	}
-	memcpy(newPalette, palette, 256 * sizeof(COLOR3));
+	// 2 = palette color count (should always be 256)
+	memcpy(newPalette, palette, 256 * sizeof(COLOR3) + 2);
 
 	for (int i = 0; i < 4; i++) {
 		tex.nOffsets[i] = newOffset[i];
