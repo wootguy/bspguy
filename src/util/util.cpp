@@ -916,3 +916,13 @@ string getConfigDir()
 	return string("") + getenv("HOME") + "/.config/bspguy/";
 }
 #endif
+
+
+void sleepms(uint32_t ms)
+{
+#ifdef _WIN32
+	Sleep(ms);
+#else
+	usleep(ms * 1000);
+#endif
+}

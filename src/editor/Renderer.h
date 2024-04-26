@@ -78,6 +78,9 @@ public:
 	MergeResult mergeResult;
 
 	bool hideGui = false;
+	bool isFocused = false;
+	bool isHovered = false;
+	bool isIconified = false;
 
 	Renderer();
 	~Renderer();

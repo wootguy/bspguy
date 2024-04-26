@@ -67,6 +67,22 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	g_scroll += round(yoffset);
 }
 
+void window_focus_callback(GLFWwindow* window, int focused)
+{
+	g_app->isFocused = focused;
+}
+
+void cursor_enter_callback(GLFWwindow* window, int entered)
+{
+	g_app->isHovered = entered;
+}
+
+void window_iconify_callback(GLFWwindow* window, int iconified)
+{
+	g_app->isIconified = iconified;
+}
+
+
 Renderer::Renderer() {
 	g_settings.loadDefault();
 	g_settings.load();
@@ -108,6 +124,9 @@ Renderer::Renderer() {
 	glfwSetWindowPosCallback(window, window_pos_callback);
 	glfwSetWindowCloseCallback(window, window_close_callback);
 	glfwSetWindowMaximizeCallback(window, window_maximize_callback);
+	glfwSetWindowFocusCallback(window, window_focus_callback);
+	glfwSetCursorEnterCallback(window, cursor_enter_callback);
+	glfwSetWindowIconifyCallback(window, window_iconify_callback);
 
 	glewInit();
 
@@ -487,6 +506,10 @@ void Renderer::renderLoop() {
 		int glerror = glGetError();
 		if (glerror != GL_NO_ERROR) {
 			logf("Got OpenGL Error: %d\n", glerror);
+		}
+
+		if (!isFocused && !isHovered) {
+			sleepms(50);
 		}
 	}
 
