@@ -522,7 +522,7 @@ void Gui::draw3dContextMenus() {
 				set<int> downscaled;
 
 				for (int i = 0; i < app->selectedFaces.size(); i++) {
-					BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+					BSPFACE& face = map->faces[app->selectedFaces[i]];
 					BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
 					
 					if (downscaled.count(info.iMiptex))
@@ -541,8 +541,8 @@ void Gui::draw3dContextMenus() {
 					else if (maxDim > 32) { nextBestDim = 32; }
 					else if (maxDim > 32) { nextBestDim = 32; }
 
-					map->downscale_texture(info.iMiptex, nextBestDim);
 					downscaled.insert(info.iMiptex);
+					map->downscale_texture(info.iMiptex, nextBestDim);
 				}
 				
 				app->deselectFaces();
@@ -958,8 +958,12 @@ void Gui::drawMenuBar() {
 		tooltip(g, "Render point-sized entities which either have no model or reference MDL/SPR files.");
 
 		if (ImGui::MenuItem("Solid Entities", 0, g_render_flags & RENDER_ENTS)) {
-			g_render_flags ^= RENDER_ENTS;
-			g_render_flags |= RENDER_SPECIAL_ENTS;
+			if (g_render_flags & RENDER_ENTS) {
+				g_render_flags &= ~(RENDER_ENTS | RENDER_SPECIAL_ENTS);
+			}
+			else {
+				g_render_flags |= RENDER_ENTS | RENDER_SPECIAL_ENTS;
+			}
 		}
 		tooltip(g, "Render entities that reference BSP models.");
 
@@ -1312,7 +1316,7 @@ void Gui::drawMenuBar() {
 				}
 				tooltip(g, "Subdivides faces until they have valid extents. The drawback to this method is reduced in-game performace from higher poly counts.");
 
-				ImGui::MenuItem("", "WIP");
+				ImGui::MenuItem("##", "WIP");
 				tooltip(g, "Anything you choose here will break lightmaps. "
 					"Run the map through a RAD compiler to fix, and pray that the mapper didn't "
 					"customize compile settings much.");
@@ -1496,11 +1500,15 @@ void Gui::drawToolbar() {
 			if (app->pickInfo.valid && app->pickInfo.modelIdx >= 0) {
 				Bsp* map = app->pickInfo.map;
 				BspRenderer* mapRenderer = app->mapRenderers[app->pickInfo.mapIdx];
-				BSPMODEL& model = map->models[app->pickInfo.modelIdx];
-				for (int i = 0; i < model.nFaces; i++) {
-					int faceIdx = model.iFirstFace + i;
-					mapRenderer->highlightFace(faceIdx, true);
-					app->selectedFaces.push_back(faceIdx);
+
+				// don't select all worldspawn faces because it lags the program
+				if (app->pickInfo.modelIdx != 0) {
+					BSPMODEL& model = map->models[app->pickInfo.modelIdx];
+					for (int i = 0; i < model.nFaces; i++) {
+						int faceIdx = model.iFirstFace + i;
+						mapRenderer->highlightFace(faceIdx, true);
+						app->selectedFaces.push_back(faceIdx);
+					}
 				}
 			}
 			app->selectMapIdx = app->pickInfo.mapIdx;
@@ -1688,7 +1696,7 @@ void Gui::drawDebugWidget() {
 
 		}
 
-		if (app->pickInfo.valid) {
+		if (app->pickInfo.valid && app->pickInfo.map) {
 			Bsp* map = app->pickInfo.map;
 
 			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))

@@ -1502,7 +1502,7 @@ void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipno
 			drawModelClipnodes(0, false, clipnodeHull);
 		}
 
-		if (g_render_flags & RENDER_ENT_CLIPNODES) {
+		if ((g_render_flags & RENDER_ENTS) && (g_render_flags & RENDER_ENT_CLIPNODES)) {
 			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 				if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 					if (clipnodeHull == -1 && renderModels[renderEnts[i].modelIdx].groupCount > 0) {

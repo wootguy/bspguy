@@ -1682,7 +1682,7 @@ void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color) {
 	vec3 right = crossProduct(plane.vNormal, crossDir);
 	vec3 up = crossProduct(right, plane.vNormal);
 
-	float s = 100.0f;
+	float s = 32768.0f;
 
 	vec3 topLeft = vec3(ori + right * -s + up * s).flip();
 	vec3 topRight = vec3(ori + right * s + up * s).flip();

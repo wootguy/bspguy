@@ -2743,7 +2743,8 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 	}
 	byte* newPalette = (byte*)(textures + texOffset + newOffset[3] + newWidths[3] * newHeights[3]);
 
-	float srcScale = (float)oldWidth / tex.nWidth;
+	float srcScaleX = (float)oldWidth / tex.nWidth;
+	float srcScaleY = (float)oldHeight / tex.nHeight;
 
 	for (int i = 0; i < 4; i++) {
 		byte* srcData = (byte*)(textures + texOffset + tex.nOffsets[i]);
@@ -2752,10 +2753,10 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 		int dstWidth = newWidths[i];
 
 		for (int y = 0; y < newHeights[i]; y++) {
-			int srcY = (int)(srcScale * y + 0.5f);
+			int srcY = (int)(srcScaleY * y + 0.5f);
 
 			for (int x = 0; x < newWidths[i]; x++) {
-				int srcX = (int)(srcScale * x + 0.5f);
+				int srcX = (int)(srcScaleX * x + 0.5f);
 
 				dstData[y * dstWidth + x] = srcData[srcY * srcWidth + srcX];
 			}
@@ -2769,7 +2770,8 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 	}
 
 	// scale up face texture coordinates
-	float scale = tex.nWidth / (float)oldWidth;
+	float scaleX = tex.nWidth / (float)oldWidth;
+	float scaleY = tex.nHeight / (float)oldHeight;
 
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
@@ -2792,8 +2794,8 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 
 		vec3 oldvs = info->vS;
 		vec3 oldvt = info->vT;
-		info->vS *= scale;
-		info->vT *= scale;
+		info->vS *= scaleX;
+		info->vT *= scaleY;
 
 		// get before/after uv coordinates
 		float oldu = (dotProduct(oldvs, vert) + info->shiftS) * (1.0f / (float)oldWidth);
@@ -2840,18 +2842,27 @@ bool Bsp::downscale_texture(int textureId, int maxDim) {
 	int newWidth = tex.nWidth;
 	int newHeight = tex.nHeight;
 
-	float ratio = oldHeight / (float)oldWidth;
-
-	while (newWidth > 0 && (newWidth > maxDim || newHeight > maxDim || (newHeight % 16) != 0)) {
-		newWidth -= 16;
-		newHeight = newWidth * ratio;
+	if (tex.nWidth > maxDim && tex.nWidth > tex.nHeight) {
+		float ratio = oldHeight / (float)oldWidth;
+		newWidth = maxDim;
+		newHeight = (int)(((newWidth * ratio) + 8) / 16) * 16;
+		if (newHeight > oldHeight) {
+			newHeight = (int)((newWidth * ratio) / 16) * 16;
+		}
+	}
+	else if (tex.nHeight > maxDim) {
+		float ratio = oldWidth / (float)oldHeight;
+		newHeight = maxDim;
+		newWidth = (int)(((newHeight * ratio) + 8) / 16) * 16;
+		if (newWidth > oldWidth) {
+			newWidth = (int)((newHeight * ratio) / 16) * 16;
+		}
+	}
+	else {
+		return false; // no need to downscale
 	}
 
-	if (oldWidth == newWidth) {
-		return false;
-	}
-
-	if (tex.nWidth == 0) {
+	if (oldWidth == newWidth && oldHeight == newHeight) {
 		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
 		return false;
 	}
