@@ -170,7 +170,7 @@ int test() {
 	removed.print_delete_stats(1);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, vec3(1, 1, 1), "yabma_move", false, false);
+	Bsp* result = merger.merge(maps, vec3(1, 1, 1), "yabma_move", false, false, false).map;
 	logf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
@@ -227,7 +227,8 @@ int merge_maps(CommandLine& cli) {
 	string output_name = cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile;
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, gap, output_name, cli.hasOption("-noripent"), cli.hasOption("-noscript"));
+	Bsp* result = merger.merge(maps, gap, output_name,
+		cli.hasOption("-noripent"), cli.hasOption("-noscript"), false).map;
 
 	logf("\n");
 	if (result->isValid()) result->write(output_name);

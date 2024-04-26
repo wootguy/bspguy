@@ -125,6 +125,7 @@ private:
 	void drawHelp();
 	void drawAbout();
 	void drawLimits();
+	void drawLimitsSummary(Bsp* map, bool modalMode);
 	void drawLightMapTool();
 	void drawTextureTool();
 	void drawLimitTab(Bsp* map, int sortMode);

@@ -15,6 +15,7 @@
 #include "globals.h"
 #include "NavMesh.h"
 #include <algorithm>
+#include "BspMerger.h"
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
@@ -553,6 +554,7 @@ void Renderer::openMap(const char* fpath) {
 
 	clearUndoCommands();
 	clearRedoCommands();
+	gui->refresh();
 
 	logf("Loaded map: %s\n", fpath);
 }
@@ -3040,4 +3042,49 @@ void Renderer::calcUndoMemoryUsage() {
 	for (int i = 0; i < redoHistory.size(); i++) {
 		undoMemoryUsage += redoHistory[i]->memoryUsage();
 	}
+}
+
+void Renderer::merge(string fpath) {
+	Bsp* thismap = g_app->mapRenderers[0]->map;
+	thismap->update_ent_lump();
+
+	Bsp* map2 = new Bsp(fpath);
+	Bsp* thisCopy = new Bsp(*thismap);
+
+	if (!map2->valid) {
+		delete map2;
+		logf("Merge aborted because the BSP load failed.\n");
+		return;
+	}
+	
+	vector<Bsp*> maps;
+	
+	maps.push_back(thisCopy);
+	maps.push_back(map2);
+
+	BspMerger merger;
+	mergeResult = merger.merge(maps, vec3(), thismap->name, true, true, true);
+
+	if (!mergeResult.map || !mergeResult.map->valid) {
+		delete map2;
+		if (mergeResult.map)
+			delete mergeResult.map;
+
+		mergeResult.map = NULL;
+		return;
+	}
+
+	if (mergeResult.overflow) {
+		return; // map deleted later in gui modal, after displaying limit overflows
+	}
+
+	mapRenderers.clear();
+	pickInfo.valid = false;
+	addMap(mergeResult.map);
+
+	clearUndoCommands();
+	clearRedoCommands();
+	gui->refresh();
+
+	logf("Merged maps!\n");
 }

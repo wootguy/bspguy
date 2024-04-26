@@ -11,15 +11,28 @@ BspMerger::BspMerger() {
 
 }
 
-Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript) {
-	if (maps.size() < 1) {
+MergeResult BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript, bool nomove) {
+	MergeResult result;
+	result.fpath = "";
+	result.map = NULL;
+	result.moveFixes = vec3();
+	result.overflow = false;
+	
+	if (maps.size() <= 1) {
 		logf("\nMore than 1 map is required for merging. Aborting merge.\n");
-		return NULL;
+		return result;
 	}
 
-	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap);
+	result.fpath = maps[1]->path;
 
-	logf("\nArranging maps so that they don't overlap:\n");
+	vector<vector<vector<MAPBLOCK>>> blocks = separate(maps, gap, nomove, result);
+
+	if (blocks.empty()) {
+		return result;
+	}
+
+	if (!nomove)
+		logf("\nArranging maps so that they don't overlap:\n");
 
 	for (int z = 0; z < blocks.size(); z++) {
 		for (int y = 0; y < blocks[z].size(); y++) {
@@ -108,7 +121,9 @@ Bsp* BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool nori
 		update_map_series_entity_logic(output, flattenedBlocks, maps, output_name, maps[0]->name, noscript);
 	}
 
-	return output;
+	result.map = output;
+	result.overflow = !output->isValid();
+	return result;
 }
 
 void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
@@ -120,7 +135,7 @@ void BspMerger::merge(MAPBLOCK& dst, MAPBLOCK& src, string resultType) {
 	merge(*dst.map, *src.map);
 }
 
-vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 gap) {
+vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 gap, bool nomove, MergeResult& result) {
 	vector<MAPBLOCK> blocks;
 
 	vector<vector<vector<MAPBLOCK>>> orderedBlocks;
@@ -153,22 +168,38 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 		for (int k = 0; k < blocks.size(); k++) {
 			if (i != k && blocks[i].intersects(blocks[k])) {
 				noOverlap = false;
+
+				if (nomove) {
+					logf("Merge aborted because the maps overlap.\n");
+					blocks[i].suggest_intersection_fix(blocks[k], result);
+				}
+
 				break;
 			}
 		}
 	}
 
 	if (noOverlap) {
-		logf("Maps do not overlap. They will be merged without moving.\n");
+		if (!nomove)
+			logf("Maps do not overlap. They will be merged without moving.\n");
 
 		vector<vector<MAPBLOCK>> col;
 		vector<MAPBLOCK> row;
 		for (const MAPBLOCK& block : blocks) {
 			row.push_back(block);
+			if (block.map->ents[0]->hasKey("origin")) {
+				// apply the transform move in the GUI
+				block.map->move(block.map->ents[0]->getOrigin());
+				block.map->ents[0]->removeKeyvalue("origin");
+			}
 		}
 		col.push_back(row);
 		orderedBlocks.push_back(col);
 
+		return orderedBlocks;
+	}
+
+	if (nomove) {
 		return orderedBlocks;
 	}
 

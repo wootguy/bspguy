@@ -14,6 +14,7 @@
 #include <set>
 #include "tinyfiledialogs.h"
 #include <algorithm>
+#include "BspMerger.h"
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -675,17 +676,13 @@ void Gui::drawMenuBar() {
 	{
 		static char const* bspFilterPatterns[1] = { "*.bsp" };
 
-		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
-			app->reloadMaps();
-			refresh();
-		}
-
-		if (ImGui::MenuItem("Open", NULL)) {
+		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
 			char* fname = tinyfd_openFileDialog("Open Map", "",
 				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
 			
 			g_app->openMap(fname);
 		}
+
 		if (ImGui::MenuItem("Save", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
 			map->update_ent_lump();
@@ -830,7 +827,28 @@ void Gui::drawMenuBar() {
 		}
 		*/
 
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Merge", NULL, false, !app->isLoading)) {
+			char* fname = tinyfd_openFileDialog("Merge Map", "",
+				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
+
+			if (fname)
+				g_app->merge(fname);
+		}
+		Bsp* map = g_app->mapRenderers[0]->map;
+		tooltip(g, ("Merge one other BSP into the current file.\n\n"
+			"Equivalent CLI command:\nbspguy merge " + map->name + " -noscript -noripent -maps \""
+			+ map->name + ",other_map\"\n\nUse the CLI for automatic arrangement and optimization of "
+			"many maps. The CLI also offers ripent fixes and script setup which can "
+			"generate a playable map without you having to make any manual edits (Sven Co-op only).").c_str());
 		
+		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
+			app->reloadMaps();
+			refresh();
+		}
+		tooltip(g, "Discard all changes and reload the map.\n");
+
 		if (ImGui::MenuItem("Validate")) {
 			for (int i = 0; i < app->mapRenderers.size(); i++) {
 				Bsp* map = app->mapRenderers[i]->map;
@@ -1454,6 +1472,131 @@ void Gui::drawMenuBar() {
 	}
 
 	ImGui::EndMainMenuBar();
+
+	if (!g_app->mergeResult.map && !g_app->mergeResult.overflow && g_app->mergeResult.fpath.size())
+		ImGui::OpenPopup("Merge Overlap");
+
+	if (ImGui::BeginPopupModal("Merge Overlap", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		Bsp* thismap = g_app->mapRenderers[0]->map;
+		string name = stripExt(basename(g_app->mergeResult.fpath));
+		vec3 mergeMove = g_app->mergeResult.moveFixes;
+		vec3 mergeMove2 = g_app->mergeResult.moveFixes2;
+
+		ImGui::Text((thismap->name + " overlaps " + name + " and must be moved before merging.").c_str());
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+		ImGui::Text(("How do you want to move " + thismap->name + "?").c_str());
+
+		ImGui::Separator();
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+		ImGuiStyle& style = ImGui::GetStyle();
+		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+		float inputWidth = (ImGui::GetWindowWidth() - padding) * 0.33f;
+
+		ImGui::Columns(3, 0, false);
+
+		string xmove = "Move X +" + to_string((int)mergeMove.x);
+		string ymove = "Move Y +" + to_string((int)mergeMove.y);
+		string zmove = "Move Z +" + to_string((int)mergeMove.z);
+
+		string xmove2 = "Move X " + to_string((int)mergeMove2.x);
+		string ymove2 = "Move Y " + to_string((int)mergeMove2.y);
+		string zmove2 = "Move Z " + to_string((int)mergeMove2.z);
+
+		vec3 adjustment;
+		if (ImGui::Button(xmove.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(mergeMove.x, 0, 0);
+		}
+
+		ImGui::NextColumn();
+		if (ImGui::Button(ymove.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(0, mergeMove.y, 0);
+		}
+
+		ImGui::NextColumn();
+		if (ImGui::Button(zmove.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(0, 0, mergeMove.z);
+		}
+
+		ImGui::NextColumn();
+		if (ImGui::Button(xmove2.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(mergeMove2.x, 0, 0);
+		}
+
+		ImGui::NextColumn();
+		if (ImGui::Button(ymove2.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(0, mergeMove2.y, 0);
+		}
+
+		ImGui::NextColumn();
+		if (ImGui::Button(zmove2.c_str(), ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			adjustment = vec3(0, 0, mergeMove2.z);
+		}
+
+		if (adjustment != vec3()) {
+			vec3 newOri = thismap->ents[0]->getOrigin() + adjustment;
+			thismap->ents[0]->setOrAddKeyvalue("origin", newOri.toKeyvalueString());
+			g_app->merge(g_app->mergeResult.fpath);
+		}
+
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+		ImGui::NextColumn();
+		ImGui::NextColumn();
+		if (ImGui::Button("Cancel", ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			g_app->mergeResult.fpath = "";
+		}
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+		ImGui::SetItemDefaultFocus();
+		ImGui::EndPopup();
+	}
+
+	if (g_app->mergeResult.overflow && g_app->mergeResult.fpath.size()) {
+		ImGui::OpenPopup("Merge Failed");
+		loadedStats = false;
+	}
+
+	if (ImGui::BeginPopupModal("Merge Failed", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+	{
+		string engineName = g_settings.engine == ENGINE_HALF_LIFE ? "Half-Life" : "Sven Co-op";
+		ImGui::Text(("Merging the selected maps would overflow \"" + engineName + "\" engine limits.\n"
+			"Optimize the maps or manually remove unused structures before trying again.").c_str());
+
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+		ImGui::Separator();
+		
+		drawLimitsSummary(g_app->mergeResult.map, true);
+
+		ImGuiStyle& style = ImGui::GetStyle();
+		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
+		float inputWidth = (ImGui::GetWindowWidth() - padding) * 0.33f;
+
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+		ImGui::Columns(3, 0, false);
+
+		ImGui::NextColumn();
+		if (ImGui::Button("OK", ImVec2(inputWidth, 0))) {
+			ImGui::CloseCurrentPopup();
+			g_app->mergeResult.fpath = "";
+			delete g_app->mergeResult.map;
+			g_app->mergeResult.map = NULL;
+			loadedStats = false;
+		}
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+		ImGui::SetItemDefaultFocus();
+		ImGui::EndPopup();
+	}
 }
 
 void Gui::drawToolbar() {
@@ -1767,7 +1910,7 @@ void Gui::drawDebugWidget() {
 			}
 			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 
-				if (app->pickInfo.modelIdx >= 0) {
+				if (app->pickInfo.map && app->pickInfo.modelIdx >= 0) {
 					Bsp* map = app->pickInfo.map;
 
 					vec3 localCamera = app->cameraOrigin - app->mapRenderers[app->pickInfo.mapIdx]->mapOffset;
@@ -3110,6 +3253,74 @@ void Gui::drawAbout() {
 	ImGui::End();
 }
 
+void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
+	if (!loadedStats) {
+		stats.clear();
+		stats.push_back(calcStat("AllocBlock", map->calc_allocblock_usage(), g_limits.max_allocblocks, false));
+		stats.push_back(calcStat("clipnodes", map->clipnodeCount, g_limits.max_clipnodes, false));
+		stats.push_back(calcStat("nodes", map->nodeCount, g_limits.max_nodes, false));
+		stats.push_back(calcStat("leaves", map->leafCount, g_limits.max_leaves, false));
+		stats.push_back(calcStat("models", map->modelCount, g_limits.max_models, false));
+		stats.push_back(calcStat("faces", map->faceCount, g_limits.max_faces, false));
+		stats.push_back(calcStat("texinfos", map->texinfoCount, g_limits.max_texinfos, false));
+		stats.push_back(calcStat("textures", map->textureCount, g_limits.max_textures, false));
+		stats.push_back(calcStat("planes", map->planeCount, g_limits.max_planes, false));
+		stats.push_back(calcStat("vertexes", map->vertCount, g_limits.max_vertexes, false));
+		stats.push_back(calcStat("edges", map->edgeCount, g_limits.max_edges, false));
+		stats.push_back(calcStat("surfedges", map->surfedgeCount, g_limits.max_surfedges, false));
+		stats.push_back(calcStat("marksurfaces", map->marksurfCount, g_limits.max_marksurfaces, false));
+		stats.push_back(calcStat("entdata", map->header.lump[LUMP_ENTITIES].nLength, g_limits.max_entdata, true));
+		stats.push_back(calcStat("visdata", map->visDataLength, g_limits.max_visdata, true));
+		stats.push_back(calcStat("lightdata", map->lightDataLength, g_limits.max_lightdata, true));
+		loadedStats = true;
+	}
+
+	if (!modalMode)
+		ImGui::BeginChild("##content");
+	ImGui::Dummy(ImVec2(0, 10));
+	ImGui::PushFont(consoleFontLarge);
+
+	int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
+	int otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
+	ImGui::Columns(3);
+	ImGui::SetColumnWidth(0, otherWidth);
+	ImGui::SetColumnWidth(1, midWidth);
+	ImGui::SetColumnWidth(2, otherWidth);
+
+	ImGui::Text("Data Type"); ImGui::NextColumn();
+	ImGui::Text(" Current / Max"); ImGui::NextColumn();
+	ImGui::Text("Fullness"); ImGui::NextColumn();
+
+	ImGui::Columns(1);
+	ImGui::Separator();
+	if (!modalMode)
+		ImGui::BeginChild("##chart");
+	ImGui::Columns(3);
+	ImGui::SetColumnWidth(0, otherWidth);
+	ImGui::SetColumnWidth(1, midWidth);
+	ImGui::SetColumnWidth(2, otherWidth);
+
+	for (int i = 0; i < stats.size(); i++) {
+		ImGui::TextColored(stats[i].color, stats[i].name.c_str()); ImGui::NextColumn();
+
+		string val = stats[i].val + " / " + stats[i].max;
+		ImGui::TextColored(stats[i].color, val.c_str());
+		ImGui::NextColumn();
+
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
+		ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
+		ImGui::PopStyleColor(1);
+		ImGui::NextColumn();
+	}
+
+	ImGui::Columns(1);
+	if (!modalMode)
+		ImGui::EndChild();
+	ImGui::PopFont();
+	if (!modalMode)
+		ImGui::EndChild();
+}
+
 void Gui::drawLimits() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
@@ -3125,68 +3336,7 @@ void Gui::drawLimits() {
 			if (ImGui::BeginTabBar("##tabs"))
 			{
 				if (ImGui::BeginTabItem("Summary")) {
-
-					if (!loadedStats) {
-						stats.clear();
-						stats.push_back(calcStat("AllocBlock", map->calc_allocblock_usage(), g_limits.max_allocblocks, false));
-						stats.push_back(calcStat("clipnodes", map->clipnodeCount, g_limits.max_clipnodes, false));
-						stats.push_back(calcStat("nodes", map->nodeCount, g_limits.max_nodes, false));
-						stats.push_back(calcStat("leaves", map->leafCount, g_limits.max_leaves, false));
-						stats.push_back(calcStat("models", map->modelCount, g_limits.max_models, false));
-						stats.push_back(calcStat("faces", map->faceCount, g_limits.max_faces, false));
-						stats.push_back(calcStat("texinfos", map->texinfoCount, g_limits.max_texinfos, false));
-						stats.push_back(calcStat("textures", map->textureCount, g_limits.max_textures, false));
-						stats.push_back(calcStat("planes", map->planeCount, g_limits.max_planes, false));
-						stats.push_back(calcStat("vertexes", map->vertCount, g_limits.max_vertexes, false));
-						stats.push_back(calcStat("edges", map->edgeCount, g_limits.max_edges, false));
-						stats.push_back(calcStat("surfedges", map->surfedgeCount, g_limits.max_surfedges, false));
-						stats.push_back(calcStat("marksurfaces", map->marksurfCount, g_limits.max_marksurfaces, false));
-						stats.push_back(calcStat("entdata", map->header.lump[LUMP_ENTITIES].nLength, g_limits.max_entdata, true));
-						stats.push_back(calcStat("visdata", map->visDataLength, g_limits.max_visdata, true));
-						stats.push_back(calcStat("lightdata", map->lightDataLength, g_limits.max_lightdata, true));
-						loadedStats = true;
-					}
-
-					ImGui::BeginChild("content");
-					ImGui::Dummy(ImVec2(0, 10));
-					ImGui::PushFont(consoleFontLarge);
-
-					int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
-					int otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
-					ImGui::Columns(3);
-					ImGui::SetColumnWidth(0, otherWidth);
-					ImGui::SetColumnWidth(1, midWidth);
-					ImGui::SetColumnWidth(2, otherWidth);
-
-					ImGui::Text("Data Type"); ImGui::NextColumn();
-					ImGui::Text(" Current / Max"); ImGui::NextColumn();
-					ImGui::Text("Fullness"); ImGui::NextColumn();
-
-					ImGui::Columns(1);
-					ImGui::Separator();
-					ImGui::BeginChild("chart");
-					ImGui::Columns(3);
-					ImGui::SetColumnWidth(0, otherWidth);
-					ImGui::SetColumnWidth(1, midWidth);
-					ImGui::SetColumnWidth(2, otherWidth);
-
-					for (int i = 0; i < stats.size(); i++) {
-						ImGui::TextColored(stats[i].color, stats[i].name.c_str()); ImGui::NextColumn();
-
-						string val = stats[i].val + " / " + stats[i].max;
-						ImGui::TextColored(stats[i].color, val.c_str());
-						ImGui::NextColumn();
-
-						ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
-						ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
-						ImGui::PopStyleColor(1);
-						ImGui::NextColumn();
-					}
-
-					ImGui::Columns(1);
-					ImGui::EndChild();
-					ImGui::PopFont();
-					ImGui::EndChild();
+					drawLimitsSummary(map, false);
 					ImGui::EndTabItem();
 				}
 

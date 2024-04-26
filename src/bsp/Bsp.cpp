@@ -56,8 +56,27 @@ Bsp::Bsp() {
 	valid = true;
 }
 
+Bsp::Bsp(const Bsp& other) {
+	header = other.header;
+	lumps = new byte*[HEADER_LUMPS];
+	path = other.path;
+	name = other.name;
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		lumps[i] = new byte[header.lump[i].nLength];
+		memcpy(lumps[i], other.lumps[i], header.lump[i].nLength);
+	}
+
+	load_ents();
+	update_lump_pointers();
+
+	valid = true;
+}
+
 Bsp::Bsp(std::string fpath)
 {
+	lumps = NULL;
+
 	if (fpath.size() < 4 || toLowerCase(fpath).rfind(".bsp") != fpath.size() - 4) {
 		fpath = fpath + ".bsp";
 	}
@@ -84,10 +103,12 @@ Bsp::Bsp(std::string fpath)
 
 Bsp::~Bsp()
 {	 
-	for (int i = 0; i < HEADER_LUMPS; i++)
-		if (lumps[i])
-			delete [] lumps[i];
-	delete [] lumps;
+	if (lumps) {
+		for (int i = 0; i < HEADER_LUMPS; i++)
+			if (lumps[i])
+				delete[] lumps[i];
+		delete[] lumps;
+	}
 
 	for (int i = 0; i < ents.size(); i++)
 		delete ents[i];
@@ -105,6 +126,12 @@ void Bsp::get_bounding_box(vec3& mins, vec3& maxs) {
 
 	mins = thisWorld.nMins;
 	maxs = thisWorld.nMaxs;
+
+	if (ents.size() && ents[0]->hasKey("origin")) {
+		vec3 origin = ents[0]->getOrigin();
+		mins += origin;
+		maxs += origin;
+	}
 }
 
 void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
@@ -3441,7 +3468,8 @@ bool Bsp::isValid() {
 		&& textureCount < g_limits.max_textures
 		&& lightDataLength < g_limits.max_lightdata
 		&& visDataLength < g_limits.max_visdata
-		&& ents.size() < g_limits.max_entities;
+		&& ents.size() < g_limits.max_entities
+		&& ceilf(calc_allocblock_usage()) < g_limits.max_allocblocks;
 }
 
 bool Bsp::validate_vis_data() {

@@ -3,6 +3,7 @@
 #include "primitives.h"
 #include "BspRenderer.h"
 #include "bsptypes.h"
+#include "BspMerger.h"
 
 class Gui;
 class Fgd;
@@ -74,6 +75,7 @@ public:
 	int debugNavPoly = -1;
 	vec3 debugTraceStart;
 	TraceResult debugTrace;
+	MergeResult mergeResult;
 
 	bool hideGui = false;
 
@@ -89,6 +91,7 @@ public:
 	void openMap(const char* path);
 	void saveSettings();
 	void loadSettings();
+	void merge(string fpath);
 
 private:
 	GLFWwindow* window;

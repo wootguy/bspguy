@@ -75,6 +75,7 @@ public:
 	vector<Entity*> ents;
 
 	Bsp();
+	Bsp(const Bsp& other);
 	Bsp(std::string fname);
 	~Bsp();
 
