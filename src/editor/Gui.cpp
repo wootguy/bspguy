@@ -2104,8 +2104,8 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
 
-	static char keyNames[128][64];
-	static char keyValues[128][64];
+	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
+	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
 
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
 	float inputWidth = (ImGui::GetWindowWidth() - (paddingx * 2)) * 0.5f;
@@ -2225,7 +2225,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 						InputChangeCallback::keyValueChanged, &inputData[i]);
 				}
 				else {
-					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyValues[i], 64,
+					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyValues[i], MAX_VAL_LEN,
 						ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[i]);
 				}
 
