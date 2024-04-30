@@ -182,6 +182,13 @@ public:
 	void delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, 
 		int oobFlags, bool* oobHistory, bool isFirstPass, int& removedNodes);
 
+	// deletes data inside a bounding box
+	void delete_box_data(vec3 clipMins, vec3 clipMaxs);
+	void delete_box_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+		vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes);
+	void delete_box_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+		vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes);
+
 	// assumes contiguous leaves starting at 0. Only works for worldspawn, which is the only model which
 	// should have leaves anyway.
 	void count_leaves(int iNode, int& leafCount);

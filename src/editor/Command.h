@@ -163,3 +163,74 @@ public:
 	void refresh();
 	int memoryUsage();
 };
+
+class DeleteBoxedDataCommand : public Command {
+public:
+	LumpState oldLumps = LumpState();
+	vec3 mins, maxs;
+
+	DeleteBoxedDataCommand(string desc, int mapIdx, vec3 mins, vec3 maxs, LumpState oldLumps);
+	~DeleteBoxedDataCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+class DeleteOobDataCommand : public Command {
+public:
+	LumpState oldLumps = LumpState();
+	int clipFlags;
+
+	DeleteOobDataCommand(string desc, int mapIdx, int clipFlags, LumpState oldLumps);
+	~DeleteOobDataCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+class FixSurfaceExtentsCommand : public Command {
+public:
+	LumpState oldLumps = LumpState();
+	bool scaleNotSubdivide;
+	bool downscaleOnly;
+	int maxTextureDim;
+
+	FixSurfaceExtentsCommand(string desc, int mapIdx, bool scaleNotSubdivide, bool downscaleOnly, int maxTextureDim, LumpState oldLumps);
+	~FixSurfaceExtentsCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+class DeduplicateModelsCommand : public Command {
+public:
+	LumpState oldLumps = LumpState();
+
+	DeduplicateModelsCommand(string desc, int mapIdx, LumpState oldLumps);
+	~DeduplicateModelsCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};
+
+class MoveMapCommand : public Command {
+public:
+	LumpState oldLumps = LumpState();
+	vec3 offset;
+
+	MoveMapCommand(string desc, int mapIdx, vec3 offset, LumpState oldLumps);
+	~MoveMapCommand();
+
+	void execute();
+	void undo();
+	void refresh();
+	int memoryUsage();
+};

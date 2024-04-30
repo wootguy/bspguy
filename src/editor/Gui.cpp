@@ -1156,17 +1156,11 @@ void Gui::drawMenuBar() {
 
 			if (ImGui::MenuItem("Apply Worldspawn Transform", 0, false, !app->isLoading && mapSelected)) {
 				if (map->ents[0]->hasKey("origin")) {
-					vec3 ori = map->ents[0]->getOrigin();
-					logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
-					map->move(ori);
-					map->ents[0]->removeKeyvalue("origin");
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						renderer->reload();
-						g_app->gui->refresh();
-						g_app->deselectObject();
-					}
+					MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
+						app->pickInfo.mapIdx, map->ents[0]->getOrigin(), app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				else {
 					logf("Transform the worldspawn origin first using the transform widget!\n");
@@ -1212,32 +1206,52 @@ void Gui::drawMenuBar() {
 
 						}
 
-						map->delete_oob_data(clipFlags[i]);
-
-						BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-						if (renderer) {
-							renderer->reload();
-							g_app->gui->refresh();
-							g_app->deselectObject();
-						}
+						g_app->updateEntityLumpUndoState(map);
+						DeleteOobDataCommand* command = new DeleteOobDataCommand("Delete OOB Data",
+							app->pickInfo.mapIdx, clipFlags[i], app->undoLumpState);
+						g_app->saveLumpState(map, 0xffffffff, false);
+						command->execute();
+						app->pushUndoCommand(command);
 					}
 					tooltip(g, "Deletes BSP data and entities outside of the "
 							"max map boundary.\n\n"
 							"This is useful for splitting maps to run in an engine with stricter map limits.");
 				}
+
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::MenuItem("De-duplicate Models", 0, false, !app->isLoading && mapSelected)) {
-				map->deduplicate_models();
-
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-				if (renderer) {
-					renderer->preRenderEnts();
-					g_app->gui->refresh();
+			if (ImGui::MenuItem("Delete Boxed Data", 0, false, !app->isLoading && mapSelected)) {
+				if (!g_app->hasCullbox) {
+					logf("Create at least 2 entities with \"cull\" as a classname first!\n");
 				}
+				else {
+					g_app->updateEntityLumpUndoState(map);
+					DeleteBoxedDataCommand* command = new DeleteBoxedDataCommand("Delete Boxed Data", 
+						app->pickInfo.mapIdx, g_app->cullMins, g_app->cullMaxs, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
+				}
+
 			}
-			tooltip(g, "Deletes duplicated BSP models and updates entity model keyvalues accordingly. This lowers the model count and allows more game models to be precached.");
+			tooltip(g, "Deletes BSP data and entities inside of a box defined by 2 \"cull\" entities "
+				"(for the min and max extent of the box). This is useful for getting maps to run in an "
+				"engine with stricter map limits.\n\n"
+				"Create 2 cull entities from the \"Create\" menu to define the culling box. "
+				"A transparent red box will form between them.");
+
+			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading && mapSelected)) {
+				g_app->updateEntityLumpUndoState(map);
+				DeduplicateModelsCommand* command = new DeduplicateModelsCommand("Deduplicate models",
+					app->pickInfo.mapIdx, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Scans for duplicated BSP models and updates entity model keys to reference only one model in set of duplicated models. "
+				"This lowers the model count and allows more game models to be precached.\n\n"
+				"This does not delete BSP data structures unless you run the Clean command afterward.");
 
 			if (ImGui::MenuItem("Downscale Invalid Textures", "(WIP)", false, !app->isLoading && mapSelected)) {
 				map->downscale_invalid_textures();
@@ -1253,56 +1267,44 @@ void Gui::drawMenuBar() {
 
 			if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading && mapSelected)) {
 				if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(false, true, 512);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (512)",
+						app->pickInfo.mapIdx, false, true, 512, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 512x512 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
 				if (ImGui::MenuItem("Shrink Textures (256)", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(false, true, 256);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (256)",
+						app->pickInfo.mapIdx, false, true, 256, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 256x256 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
 				if (ImGui::MenuItem("Shrink Textures (128)", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(false, true, 128);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (128)",
+						app->pickInfo.mapIdx, false, true, 128, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 128x128 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
 				if (ImGui::MenuItem("Shrink Textures (64)", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(false, true, 64);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (64)",
+						app->pickInfo.mapIdx, false, true, 64, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Downscales embedded textures to a max resolution of 64x64 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
@@ -1311,26 +1313,20 @@ void Gui::drawMenuBar() {
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Scale", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(true, false, 0);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Scale faces",
+						app->pickInfo.mapIdx, true, false, 0, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Scales up face textures until they have valid extents. The drawback to this method is shifted texture coordinates and lower apparent texture quality.");
 
 				if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading && mapSelected)) {
-					map->fix_bad_surface_extents(false, false, 0);
-
-					BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
-					if (renderer) {
-						map->remove_unused_model_structures();
-						renderer->reload();
-						reloadLimits();
-					}
+					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Subdivide faces",
+						app->pickInfo.mapIdx, false, false, 0, app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Subdivides faces until they have valid extents. The drawback to this method is reduced in-game performace from higher poly counts.");
 
@@ -1395,7 +1391,7 @@ void Gui::drawMenuBar() {
 		Bsp* map = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
 		BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 
-		if (ImGui::MenuItem("Entity", 0, false, mapSelected)) {
+		if (ImGui::MenuItem("Point Entity", 0, false, mapSelected)) {
 			Entity* newEnt = new Entity();
 			vec3 origin = (app->cameraOrigin + app->cameraForward * 100);
 			if (app->gridSnappingEnabled)
@@ -1408,6 +1404,7 @@ void Gui::drawMenuBar() {
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
 		}
+		tooltip(g, "Create a point entity. This is a ripent-only operation which does not affect BSP structures.\n");
 
 		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading && mapSelected)) {
 			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
@@ -1428,6 +1425,23 @@ void Gui::drawMenuBar() {
 			delete newEnt;
 			app->pushUndoCommand(command);
 		}
+		tooltip(g, "Create a BSP model and attach it to a new entity. This is not a ripent-only operation and will create new BSP structures.\n");
+
+		if (ImGui::MenuItem("Cull Entity", 0, false, mapSelected)) {
+			Entity* newEnt = new Entity();
+			vec3 origin = (app->cameraOrigin + app->cameraForward * 100);
+			if (app->gridSnappingEnabled)
+				origin = app->snapToGrid(origin);
+			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
+			newEnt->addKeyvalue("classname", "cull");
+
+			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->pickInfo.mapIdx, newEnt);
+			delete newEnt;
+			createCommand->execute();
+			app->pushUndoCommand(createCommand);
+		}
+		tooltip(g, "Create a point entity for use with the culling tool. 2 of these define the bounding box for structure culling operations.\n");
+
 		ImGui::EndMenu();
 	}
 

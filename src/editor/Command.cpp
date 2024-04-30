@@ -85,6 +85,7 @@ void EditEntityCommand::refresh() {
 	g_app->updateEntityState(ent);
 	g_app->pickCount++; // force GUI update
 	g_app->updateModelVerts();
+	g_app->updateCullBox();
 }
 
 int EditEntityCommand::memoryUsage() {
@@ -140,6 +141,7 @@ void DeleteEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->refresh();
+	g_app->updateCullBox();
 }
 
 int DeleteEntityCommand::memoryUsage() {
@@ -186,6 +188,7 @@ void CreateEntityCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->refresh();
+	g_app->updateCullBox();
 }
 
 int CreateEntityCommand::memoryUsage() {
@@ -290,6 +293,7 @@ void CreateEntityFromTextCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->refresh();
+	g_app->updateCullBox();
 }
 
 int CreateEntityFromTextCommand::memoryUsage() {
@@ -685,6 +689,282 @@ void OptimizeMapCommand::refresh() {
 
 int OptimizeMapCommand::memoryUsage() {
 	int size = sizeof(OptimizeMapCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+
+//
+// Delete boxed data
+//
+DeleteBoxedDataCommand::DeleteBoxedDataCommand(string desc, int mapIdx, vec3 mins, vec3 maxs, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+	this->mins = mins;
+	this->maxs = maxs;
+}
+
+DeleteBoxedDataCommand::~DeleteBoxedDataCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void DeleteBoxedDataCommand::execute() {
+	Bsp* map = getBsp();
+
+	map->delete_box_data(mins, maxs);
+
+	refresh();
+}
+
+void DeleteBoxedDataCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+	map->load_ents();
+
+	refresh();
+}
+
+void DeleteBoxedDataCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int DeleteBoxedDataCommand::memoryUsage() {
+	int size = sizeof(DeleteBoxedDataCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+
+//
+// Delete OOB data
+//
+DeleteOobDataCommand::DeleteOobDataCommand(string desc, int mapIdx, int clipFlags, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+	this->clipFlags = clipFlags;
+}
+
+DeleteOobDataCommand::~DeleteOobDataCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void DeleteOobDataCommand::execute() {
+	Bsp* map = getBsp();
+
+	map->delete_oob_data(clipFlags);
+
+	refresh();
+}
+
+void DeleteOobDataCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+	map->load_ents();
+
+	refresh();
+}
+
+void DeleteOobDataCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int DeleteOobDataCommand::memoryUsage() {
+	int size = sizeof(DeleteOobDataCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+//
+// Fix bad surface extents
+//
+FixSurfaceExtentsCommand::FixSurfaceExtentsCommand(string desc, int mapIdx, bool scaleNotSubdivide,
+		bool downscaleOnly, int maxTextureDim, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+	this->scaleNotSubdivide = scaleNotSubdivide;
+	this->downscaleOnly = downscaleOnly;
+	this->maxTextureDim = maxTextureDim;
+}
+
+FixSurfaceExtentsCommand::~FixSurfaceExtentsCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void FixSurfaceExtentsCommand::execute() {
+	Bsp* map = getBsp();
+
+	map->fix_bad_surface_extents(scaleNotSubdivide, downscaleOnly, maxTextureDim);
+
+	refresh();
+}
+
+void FixSurfaceExtentsCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+
+	refresh();
+}
+
+void FixSurfaceExtentsCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int FixSurfaceExtentsCommand::memoryUsage() {
+	int size = sizeof(FixSurfaceExtentsCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+
+//
+// Deduplicate models
+//
+DeduplicateModelsCommand::DeduplicateModelsCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+}
+
+DeduplicateModelsCommand::~DeduplicateModelsCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void DeduplicateModelsCommand::execute() {
+	Bsp* map = getBsp();
+
+	map->deduplicate_models();
+
+	refresh();
+}
+
+void DeduplicateModelsCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+	map->load_ents();
+
+	refresh();
+}
+
+void DeduplicateModelsCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int DeduplicateModelsCommand::memoryUsage() {
+	int size = sizeof(DeduplicateModelsCommand);
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		size += oldLumps.lumpLen[i];
+	}
+
+	return size;
+}
+
+
+//
+// Move the entire map
+//
+MoveMapCommand::MoveMapCommand(string desc, int mapIdx, vec3 offset, LumpState oldLumps) : Command(desc, mapIdx) {
+	this->oldLumps = oldLumps;
+	this->allowedDuringLoad = false;
+	this->offset = offset;
+}
+
+MoveMapCommand::~MoveMapCommand() {
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (oldLumps.lumps[i])
+			delete[] oldLumps.lumps[i];
+	}
+}
+
+void MoveMapCommand::execute() {
+	Bsp* map = getBsp();
+
+	map->ents[0]->removeKeyvalue("origin");
+	map->move(offset);
+
+	refresh();
+}
+
+void MoveMapCommand::undo() {
+	Bsp* map = getBsp();
+
+	map->replace_lumps(oldLumps);
+	map->ents[0]->setOrAddKeyvalue("origin", offset.toKeyvalueString());
+
+	refresh();
+}
+
+void MoveMapCommand::refresh() {
+	Bsp* map = getBsp();
+	BspRenderer* renderer = getBspRenderer();
+
+	renderer->reload();
+	g_app->deselectObject();
+	g_app->gui->refresh();
+	g_app->saveLumpState(map, 0xffffffff, true);
+}
+
+int MoveMapCommand::memoryUsage() {
+	int size = sizeof(MoveMapCommand);
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		size += oldLumps.lumpLen[i];

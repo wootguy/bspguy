@@ -1091,6 +1091,11 @@ LumpState Bsp::duplicate_lumps(int targets) {
 			state.lumpLen[i] = 0;
 			continue;
 		}
+
+		if (i == LUMP_ENTITIES) {
+			update_ent_lump();
+		}
+
 		state.lumps[i] = new byte[header.lump[i].nLength];
 		state.lumpLen[i] = header.lump[i].nLength;
 		memcpy(state.lumps[i], lumps[i], header.lump[i].nLength);
@@ -2028,6 +2033,329 @@ void Bsp::delete_oob_data(int clipFlags) {
 		}
 	}
 	
+	BSPFACE* newFaces = new BSPFACE[faceCount - oobFaceCount];
+
+	int outIdx = 0;
+	for (int i = 0; i < faceCount; i++) {
+		if (!oobFaces[i]) {
+			newFaces[outIdx++] = faces[i];
+		}
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		int offset = 0;
+		int countReduce = 0;
+
+		for (int k = 0; k < model.iFirstFace; k++) {
+			offset += oobFaces[k];
+		}
+		for (int k = 0; k < model.nFaces; k++) {
+			countReduce += oobFaces[model.iFirstFace + k];
+		}
+
+		model.iFirstFace -= offset;
+		model.nFaces -= countReduce;
+	}
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = nodes[i];
+
+		int offset = 0;
+		int countReduce = 0;
+
+		for (int k = 0; k < node.firstFace; k++) {
+			offset += oobFaces[k];
+		}
+		for (int k = 0; k < node.nFaces; k++) {
+			countReduce += oobFaces[node.firstFace + k];
+		}
+
+		node.firstFace -= offset;
+		node.nFaces -= countReduce;
+	}
+
+	for (int i = 0; i < leafCount; i++) {
+		BSPLEAF& leaf = leaves[i];
+
+		if (!leaf.nMarkSurfaces)
+			continue;
+
+		int oobCount = 0;
+
+		for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+			if (oobFaces[marksurfs[leaf.iFirstMarkSurface + k]]) {
+				oobCount++;
+			}
+		}
+
+		if (oobCount) {
+			leaf.nMarkSurfaces = 0;
+			leaf.iFirstMarkSurface = 0;
+
+			if (oobCount != leaf.nMarkSurfaces) {
+				//logf("leaf %d partially OOB\n", i);
+			}
+		}
+		else {
+			for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+				uint16_t faceIdx = marksurfs[leaf.iFirstMarkSurface + k];
+
+				int offset = 0;
+				for (int j = 0; j < faceIdx; j++) {
+					offset += oobFaces[j];
+				}
+
+				marksurfs[leaf.iFirstMarkSurface + k] = faceIdx - offset;
+			}
+		}
+	}
+
+	replace_lump(LUMP_FACES, newFaces, (faceCount - oobFaceCount) * sizeof(BSPFACE));
+
+	delete[] oobFaces;
+
+	worldmodel = models[0];
+
+	vec3 mins, maxs;
+	get_model_vertex_bounds(0, mins, maxs);
+
+	vec3 buffer = vec3(64, 64, 128); // leave room for largest collision hull wall thickness
+	worldmodel.nMins = mins - buffer;
+	worldmodel.nMaxs = maxs + buffer;
+
+	remove_unused_model_structures().print_delete_stats(1);
+}
+
+
+void Bsp::delete_box_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+	vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes) {
+	BSPNODE& node = nodes[iNode];
+	float oob_coord = g_limits.max_mapboundary;
+
+	if (node.iPlane < 0) {
+		return;
+	}
+
+	bool isoob = isFirstPass ? true : oobHistory[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		BSPPLANE plane = planes[node.iPlane];
+		if (i != 0) {
+			plane.vNormal = plane.vNormal.invert();
+			plane.fDist = -plane.fDist;
+		}
+		clipOrder.push_back(plane);
+
+		if (node.iChildren[i] >= 0) {
+			delete_box_nodes(node.iChildren[i], &node.iChildren[i], clipOrder, clipMins, clipMaxs, 
+				oobHistory, isFirstPass, removedNodes);
+			if (node.iChildren[i] >= 0) {
+				isoob = false; // children weren't empty, so this node isn't empty either
+			}
+		}
+		else if (isFirstPass) {
+			vector<BSPPLANE> cuts;
+			for (int k = clipOrder.size() - 1; k >= 0; k--) {
+				cuts.push_back(clipOrder[k]);
+			}
+
+			Clipper clipper;
+			CMesh nodeVolume = clipper.clip(cuts);
+
+			for (int k = 0; k < nodeVolume.verts.size(); k++) {
+				if (!nodeVolume.verts[k].visible)
+					continue;
+				vec3 v = nodeVolume.verts[k].pos;
+
+				if (!pointInBox(v, clipMins, clipMaxs)) {
+					isoob = false; // node can't be empty if both children aren't oob
+				}
+			}
+		}
+
+		clipOrder.pop_back();
+	}
+
+	if (isFirstPass) {
+		// only check if each node is ever considered in bounds, after considering all branches.
+		// don't remove anything until the entire tree has been scanned
+
+		if (!isoob) {
+			oobHistory[iNode] = false;
+		}
+	}
+	else if (parentBranch && isoob) {
+		// we know which nodes are OOB now, so it's safe to unlink this node from the paranet
+		*parentBranch = CONTENTS_SOLID;
+		removedNodes++;
+	}
+}
+
+void Bsp::delete_box_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+	vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes) {
+	BSPCLIPNODE& node = clipnodes[iNode];
+	float oob_coord = g_limits.max_mapboundary;
+
+	if (node.iPlane < 0) {
+		return;
+	}
+
+	bool isoob = isFirstPass ? true : oobHistory[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		BSPPLANE plane = planes[node.iPlane];
+		if (i != 0) {
+			plane.vNormal = plane.vNormal.invert();
+			plane.fDist = -plane.fDist;
+		}
+		clipOrder.push_back(plane);
+
+		if (node.iChildren[i] >= 0) {
+			delete_box_clipnodes(node.iChildren[i], &node.iChildren[i], clipOrder, clipMins, clipMaxs,
+				oobHistory, isFirstPass, removedNodes);
+			if (node.iChildren[i] >= 0) {
+				isoob = false; // children weren't empty, so this node isn't empty either
+			}
+		}
+		else if (isFirstPass) {
+			vector<BSPPLANE> cuts;
+			for (int k = clipOrder.size() - 1; k >= 0; k--) {
+				cuts.push_back(clipOrder[k]);
+			}
+
+			Clipper clipper;
+			CMesh nodeVolume = clipper.clip(cuts);
+
+			vec3 mins(FLT_MAX, FLT_MAX, FLT_MAX);
+			vec3 maxs(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+			for (int k = 0; k < nodeVolume.verts.size(); k++) {
+				if (!nodeVolume.verts[k].visible)
+					continue;
+				vec3 v = nodeVolume.verts[k].pos;
+
+				expandBoundingBox(v, mins, maxs);
+			}
+
+			if (!boxesIntersect(mins, maxs, clipMins, clipMaxs)) {
+				isoob = false; // node can't be empty if both children aren't in the clip box
+			}
+		}
+
+		clipOrder.pop_back();
+	}
+
+	if (isFirstPass) {
+		// only check if each node is ever considered in bounds, after considering all branches.
+		// don't remove anything until the entire tree has been scanned
+
+		if (!isoob) {
+			oobHistory[iNode] = false;
+		}
+	}
+	else if (parentBranch && isoob) {
+		// we know which nodes are OOB now, so it's safe to unlink this node from the paranet
+		*parentBranch = CONTENTS_SOLID;
+		removedNodes++;
+	}
+}
+
+void Bsp::delete_box_data(vec3 clipMins, vec3 clipMaxs) {
+	// TODO: most of this code is duplicated in delete_oob_*
+
+	BSPMODEL& worldmodel = models[0];
+
+	// remove nodes and clipnodes in the clipping box
+	{
+		vector<BSPPLANE> clipOrder;
+
+		bool* oobMarks = new bool[nodeCount];
+
+		// collect oob data, then actually remove the nodes
+		int removedNodes = 0;
+		do {
+			removedNodes = 0;
+			memset(oobMarks, 1, nodeCount * sizeof(bool)); // assume everything is oob at first
+			delete_box_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipMins, clipMaxs, oobMarks, true, removedNodes);
+			delete_box_nodes(worldmodel.iHeadnodes[0], NULL, clipOrder, clipMins, clipMaxs, oobMarks, false, removedNodes);
+		} while (removedNodes);
+		delete[] oobMarks;
+
+		oobMarks = new bool[clipnodeCount];
+		for (int i = 1; i < MAX_MAP_HULLS; i++) {
+			// collect oob data, then actually remove the nodes
+			int removedNodes = 0;
+			do {
+				removedNodes = 0;
+				memset(oobMarks, 1, clipnodeCount * sizeof(bool)); // assume everything is oob at first
+				delete_box_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipMins, clipMaxs, oobMarks, true, removedNodes);
+				delete_box_clipnodes(worldmodel.iHeadnodes[i], NULL, clipOrder, clipMins, clipMaxs, oobMarks, false, removedNodes);
+			} while (removedNodes);
+		}
+		delete[] oobMarks;
+	}
+
+	vector<Entity*> newEnts;
+	newEnts.push_back(ents[0]); // never remove worldspawn
+
+	for (int i = 1; i < ents.size(); i++) {
+		vec3 v = ents[i]->getOrigin();
+		int modelIdx = ents[i]->getBspModelIdx();
+
+		if (modelIdx != -1) {
+			BSPMODEL& model = models[modelIdx];
+
+			vec3 mins, maxs;
+			get_model_vertex_bounds(modelIdx, mins, maxs);
+			mins += v;
+			maxs += v;
+
+			if (!boxesIntersect(mins, maxs, clipMins, clipMaxs)) {
+				newEnts.push_back(ents[i]);
+			}
+		}
+		else {
+			bool isCullEnt = ents[i]->hasKey("classname") && ents[i]->keyvalues["classname"] == "cull";
+			if (!pointInBox(v, clipMins, clipMaxs) || isCullEnt) {
+				newEnts.push_back(ents[i]);
+			}
+		}
+
+	}
+	int deletedEnts = ents.size() - newEnts.size();
+	if (deletedEnts)
+		logf("    Deleted %d entities\n", deletedEnts);
+	ents = newEnts;
+
+	uint8_t* oobFaces = new uint8_t[faceCount];
+	memset(oobFaces, 0, faceCount * sizeof(bool));
+	int oobFaceCount = 0;
+
+	for (int i = 0; i < worldmodel.nFaces; i++) {
+		BSPFACE& face = faces[worldmodel.iFirstFace + i];
+
+		bool isClipped = false;
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+			vec3 v = verts[vertIdx];
+
+			if (pointInBox(v, clipMins, clipMaxs)) {
+				isClipped = true;
+				break;
+			}
+		}
+
+		if (isClipped) {
+			oobFaces[worldmodel.iFirstFace + i] = 1;
+			oobFaceCount++;
+		}
+	}
+
 	BSPFACE* newFaces = new BSPFACE[faceCount - oobFaceCount];
 
 	int outIdx = 0;

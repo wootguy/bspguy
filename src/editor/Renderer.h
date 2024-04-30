@@ -56,6 +56,11 @@ class Renderer {
 	friend class EditBspModelCommand;
 	friend class CleanMapCommand;
 	friend class OptimizeMapCommand;
+	friend class DeleteBoxedDataCommand;
+	friend class DeleteOobDataCommand;
+	friend class FixSurfaceExtentsCommand;
+	friend class DeduplicateModelsCommand;
+	friend class MoveMapCommand;
 
 public:
 	vector<BspRenderer*> mapRenderers;
@@ -213,6 +218,10 @@ private:
 	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
 
+	bool hasCullbox;
+	vec3 cullMins;
+	vec3 cullMaxs;
+
 	vec3 getMoveDir();
 	void controls();
 	void cameraPickingControls();
@@ -237,6 +246,7 @@ private:
 	void drawLine(vec3 start, vec3 end, COLOR4 color);
 	void drawLine2D(vec2 start, vec2 end, COLOR4 color);
 	void drawBox(vec3 center, float width, COLOR4 color);
+	void drawBox(vec3 mins, vec3 maxs, COLOR4 color);
 	float drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color); // returns render scale
 	void drawBox2D(vec2 center, float width, COLOR4 color);
 	void drawPlane(BSPPLANE& plane, COLOR4 color);
@@ -256,6 +266,8 @@ private:
 	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
 	void splitFace();
+
+	void updateCullBox();
 
 	vec3 snapToGrid(vec3 pos);
 
@@ -288,6 +300,7 @@ private:
 
 	void updateEntityState(Entity* ent);
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
+	void updateEntityLumpUndoState(Bsp* map);
 
 	void loadFgds();
 };

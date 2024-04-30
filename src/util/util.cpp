@@ -510,6 +510,12 @@ bool boxesIntersect(const vec3& mins1, const vec3& maxs1, const vec3& mins2, con
 			(maxs1.z >= mins2.z && mins1.z <= maxs2.z);
 }
 
+bool pointInBox(const vec3& p, const vec3& mins, const vec3& maxs) {
+	return (p.x >= mins.x && p.x <= maxs.x &&
+		p.y >= mins.y && p.y <= maxs.y &&
+		p.z >= mins.z && p.z <= maxs.z);
+}
+
 bool isBoxContained(const vec3& innerMins, const vec3& innerMaxs, const vec3& outerMins, const vec3& outerMaxs) {
 	return (innerMins.x >= outerMins.x && innerMins.y >= outerMins.y && innerMins.z >= outerMins.z &&
 			innerMaxs.x <= outerMaxs.x && innerMaxs.y <= outerMaxs.y && innerMaxs.z <= outerMaxs.z);

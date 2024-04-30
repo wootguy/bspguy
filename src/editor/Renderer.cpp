@@ -301,7 +301,7 @@ void Renderer::renderLoop() {
 				glEnable(GL_CULL_FACE);
 			}
 
-			if (g_render_flags & (RENDER_ORIGIN | RENDER_MAP_BOUNDARY)) {
+			if ((g_render_flags & (RENDER_ORIGIN | RENDER_MAP_BOUNDARY)) || hasCullbox) {
 				colorShader->bind();
 				model.loadIdentity();
 				colorShader->pushMatrix(MAT_MODEL);
@@ -310,6 +310,7 @@ void Renderer::renderLoop() {
 					model.translate(offset.x, offset.y, offset.z);
 				}
 				colorShader->updateMatrixes();
+				glDisable(GL_CULL_FACE);
 
 				if (g_render_flags & RENDER_ORIGIN) {
 					drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
@@ -318,11 +319,14 @@ void Renderer::renderLoop() {
 				}
 				
 				if (g_render_flags & RENDER_MAP_BOUNDARY) {
-					glDisable(GL_CULL_FACE);
 					drawBox(mapRenderers[0]->map->ents[0]->getOrigin() * -1, g_limits.max_mapboundary * 2, COLOR4(0, 255, 0, 64));
-					glEnable(GL_CULL_FACE);
 				}
 
+				if (hasCullbox) {
+					drawBox(cullMins, cullMaxs, COLOR4(255, 0, 0, 64));
+				}
+
+				glEnable(GL_CULL_FACE);
 				colorShader->popMatrix(MAT_MODEL);
 			}
 		}
@@ -564,6 +568,8 @@ void Renderer::reloadMaps() {
 		copiedEnt = NULL;
 	}
 
+	updateCullBox();
+
 	logf("Reloaded maps\n");
 }
 
@@ -588,6 +594,8 @@ void Renderer::openMap(const char* fpath) {
 	clearUndoCommands();
 	clearRedoCommands();
 	gui->refresh();
+
+	updateCullBox();
 
 	logf("Loaded map: %s\n", fpath);
 }
@@ -1634,6 +1642,9 @@ void Renderer::addMap(Bsp* map) {
 		}
 		*/
 	}
+
+	updateCullBox();
+	saveLumpState(map, 0xffffffff, false); // set up initial undo state
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
@@ -1675,6 +1686,16 @@ void Renderer::drawBox(vec3 center, float width, COLOR4 color) {
 	vec3 sz = vec3(width, width, width);
 	vec3 pos = vec3(center.x, center.z, -center.y);
 	cCube cube(pos - sz, pos + sz, color);
+
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
+	buffer.draw(GL_TRIANGLES);
+}
+
+void Renderer::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
+	mins = vec3(mins.x, mins.z, -mins.y);
+	maxs = vec3(maxs.x, maxs.z, -maxs.y);
+
+	cCube cube(mins, maxs, color);
 
 	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
 	buffer.draw(GL_TRIANGLES);
@@ -2180,6 +2201,8 @@ void Renderer::updateEntConnections() {
 		entConnections->ownData = true;
 		entConnectionPoints->ownData = true;
 	}
+
+	updateCullBox();
 }
 
 void Renderer::updateEntConnectionPositions() {
@@ -2193,6 +2216,30 @@ void Renderer::updateEntConnectionPositions() {
 			verts[i].z = pos.z;
 		}
 	}
+
+	updateCullBox();
+}
+
+void Renderer::updateCullBox() {
+	if (!mapRenderers.size()) {
+		hasCullbox = false;
+		return;
+	}
+
+	Bsp* map = mapRenderers[0]->map;
+
+	cullMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	cullMaxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	int findCount = 0;
+	for (Entity* ent : map->ents) {
+		if (ent->hasKey("classname") && ent->keyvalues["classname"] == "cull") {
+			expandBoundingBox(ent->getOrigin(), cullMins, cullMaxs);
+			findCount++;
+		}
+	}
+
+	hasCullbox = findCount > 1;
 }
 
 bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
@@ -2927,6 +2974,15 @@ void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 	undoLumpState = map->duplicate_lumps(targetLumps);
 }
 
+void Renderer::updateEntityLumpUndoState(Bsp* map) {
+	if (undoLumpState.lumps[LUMP_ENTITIES])
+		delete[] undoLumpState.lumps[LUMP_ENTITIES];
+
+	LumpState dupLump = map->duplicate_lumps(LUMP_ENTITIES);
+	undoLumpState.lumps[LUMP_ENTITIES] = dupLump.lumps[LUMP_ENTITIES];
+	undoLumpState.lumpLen[LUMP_ENTITIES] = dupLump.lumpLen[LUMP_ENTITIES];
+}
+
 void Renderer::pushEntityUndoState(string actionDesc) {
 	if (!pickInfo.valid || !pickInfo.ent || !undoEntityState) {
 		logf("Invalid entity undo state push\n");
@@ -3123,6 +3179,7 @@ void Renderer::merge(string fpath) {
 	clearUndoCommands();
 	clearRedoCommands();
 	gui->refresh();
+	updateCullBox();
 
 	logf("Merged maps!\n");
 }
