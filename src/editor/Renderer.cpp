@@ -558,6 +558,11 @@ void Renderer::reloadMaps() {
 	
 	clearUndoCommands();
 	clearRedoCommands();
+	
+	if (copiedEnt != NULL) {
+		delete copiedEnt;
+		copiedEnt = NULL;
+	}
 
 	logf("Reloaded maps\n");
 }
@@ -574,6 +579,11 @@ void Renderer::openMap(const char* fpath) {
 	mapRenderers.clear();
 	pickInfo.valid = false;
 	addMap(new Bsp(fpath));
+
+	if (copiedEnt != NULL) {
+		delete copiedEnt;
+		copiedEnt = NULL;
+	}
 
 	clearUndoCommands();
 	clearRedoCommands();
@@ -3104,6 +3114,11 @@ void Renderer::merge(string fpath) {
 	mapRenderers.clear();
 	pickInfo.valid = false;
 	addMap(mergeResult.map);
+
+	if (copiedEnt != NULL) {
+		delete copiedEnt;
+		copiedEnt = NULL;
+	}
 
 	clearUndoCommands();
 	clearRedoCommands();

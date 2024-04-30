@@ -3468,8 +3468,7 @@ bool Bsp::isValid() {
 		&& textureCount < g_limits.max_textures
 		&& lightDataLength < g_limits.max_lightdata
 		&& visDataLength < g_limits.max_visdata
-		&& ents.size() < g_limits.max_entities
-		&& ceilf(calc_allocblock_usage()) < g_limits.max_allocblocks;
+		&& ceilf(calc_allocblock_usage()) <= g_limits.max_allocblocks;
 }
 
 bool Bsp::validate_vis_data() {
