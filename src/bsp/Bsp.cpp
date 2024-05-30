@@ -4944,6 +4944,8 @@ int Bsp::add_texture(const char* name, byte* data, int width, int height) {
 	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[2], mip[2], (width >> 2) * (height >> 2));
 	memcpy(newTexData + newTexOffset + newMipTex->nOffsets[3], mip[3], (width >> 3) * (height >> 3));
 	memcpy(newTexData + newTexOffset + palleteOffset, palette, sizeof(COLOR3)*256);
+	uint16_t* colorCountPtr = (uint16_t*)(newTexData + newTexOffset + palleteOffset - 2);
+	*colorCountPtr = 256; // required for hlrad
 
 	for (int i = 0; i < MIPLEVELS; i++) {
 		delete[] mip[i];
@@ -5007,24 +5009,17 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 	// add new edges (minimum needed to refrence every vertex once)
 	int startEdge = edgeCount;
 	{
-		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 4];
+		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 8];
 		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
 
-		newEdges[startEdge + 0] = BSPEDGE(startVert + 0, startVert + 1);
-		newEdges[startEdge + 1] = BSPEDGE(startVert + 2, startVert + 3);
-		newEdges[startEdge + 2] = BSPEDGE(startVert + 4, startVert + 5);
-		newEdges[startEdge + 3] = BSPEDGE(startVert + 6, startVert + 7);
+		// defining an edge for every vertex because otherwise hlrad crashes, even though
+		// only 4 edges are required to reference every vertex on the cube
+		for (int i = 0; i < 8; i++) {
+			newEdges[startEdge + i] = BSPEDGE(startVert + i, startVert + i);
+		}
 
-		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 4) * sizeof(BSPEDGE));
+		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 8) * sizeof(BSPEDGE));
 	}
-
-	// maps a vertex number to a surfedge value
-	int32_t vertToSurfEdge[8] = {
-		(startEdge + 0), -(startEdge + 0), // negative value = use 2nd vertex in edge struct
-		(startEdge + 1), -(startEdge + 1),
-		(startEdge + 2), -(startEdge + 2),
-		(startEdge + 3), -(startEdge + 3),
-	};
 
 	// add new surfedges (vertex lookups into edges which define the faces, 4 per face, clockwise order)
 	int startSurfedge = surfedgeCount;
@@ -5035,40 +5030,40 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		int32_t surfEdgeIdx = startSurfedge;
 
 		// left face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
+		newSurfedges[surfEdgeIdx++] = startEdge + 7;
+		newSurfedges[surfEdgeIdx++] = startEdge + 4;
+		newSurfedges[surfEdgeIdx++] = startEdge + 0;
+		newSurfedges[surfEdgeIdx++] = startEdge + 3;
 
 		// right face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
+		newSurfedges[surfEdgeIdx++] = startEdge + 5;
+		newSurfedges[surfEdgeIdx++] = startEdge + 6;
+		newSurfedges[surfEdgeIdx++] = startEdge + 2;
+		newSurfedges[surfEdgeIdx++] = startEdge + 1;
 
 		// front face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
+		newSurfedges[surfEdgeIdx++] = startEdge + 4;
+		newSurfedges[surfEdgeIdx++] = startEdge + 5;
+		newSurfedges[surfEdgeIdx++] = startEdge + 1;
+		newSurfedges[surfEdgeIdx++] = startEdge + 0;
 
 		// back face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
+		newSurfedges[surfEdgeIdx++] = startEdge + 6;
+		newSurfedges[surfEdgeIdx++] = startEdge + 7;
+		newSurfedges[surfEdgeIdx++] = startEdge + 3;
+		newSurfedges[surfEdgeIdx++] = startEdge + 2;
 
 		// bottom face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
+		newSurfedges[surfEdgeIdx++] = startEdge + 0;
+		newSurfedges[surfEdgeIdx++] = startEdge + 1;
+		newSurfedges[surfEdgeIdx++] = startEdge + 2;
+		newSurfedges[surfEdgeIdx++] = startEdge + 3;
 
 		// top face
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
-		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
+		newSurfedges[surfEdgeIdx++] = startEdge + 7;
+		newSurfedges[surfEdgeIdx++] = startEdge + 6;
+		newSurfedges[surfEdgeIdx++] = startEdge + 5;
+		newSurfedges[surfEdgeIdx++] = startEdge + 4;
 		
 		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + 24) * sizeof(int32_t));
 	}
