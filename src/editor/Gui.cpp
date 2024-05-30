@@ -513,7 +513,7 @@ void Gui::draw3dContextMenus() {
 			}
 			tooltip(g, "Selects faces connected to this one which lie on the same plane and use the same texture");
 
-			if (ImGui::MenuItem("Downscale texture")) {
+			if (ImGui::MenuItem("Downscale texture", 0, false, !app->isLoading)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
@@ -551,7 +551,7 @@ void Gui::draw3dContextMenus() {
 			}
 			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2.");
 
-			if (ImGui::MenuItem("Subdivide")) {
+			if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
@@ -565,7 +565,7 @@ void Gui::draw3dContextMenus() {
 			}
 			tooltip(g, "Split this face across the axis with the most texture pixels.");
 
-			if (ImGui::MenuItem("Subdivide until valid")) {
+			if (ImGui::MenuItem("Subdivide until valid", 0, false, !app->isLoading)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
