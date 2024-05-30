@@ -2730,13 +2730,14 @@ void Bsp::allocblock_reduction() {
 
 bool Bsp::subdivide_face(int faceIdx) {
 	BSPFACE& face = faces[faceIdx];
+	BSPPLANE& plane = planes[face.iPlane];
 	BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
 
 	vector<vec3> faceVerts;
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = edges[abs(edgeIdx)];
-		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[0] : edge.iVertex[1];
 
 		faceVerts.push_back(verts[vertIdx]);
 	}
@@ -4972,8 +4973,19 @@ int Bsp::create_leaf(int contents) {
 
 void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int textureIdx) {
 
-	// add new verts (1 for each corner)
-	// TODO: subdivide faces to prevent max surface extents error
+	/*
+		vertex and edge numbers on the cube:
+
+			7--<3---6
+		   /|      /|
+		  4-+-2>--5 |
+		  | |     | |   z
+		  | 3--<1-+-2   | y
+		  |/      |/    |/
+		  0---0>--1     +--x
+	*/
+
+	// add new verts (1 for each cube corner)
 	int startVert = vertCount;
 	{
 		vec3* newVerts = new vec3[vertCount + 8];
@@ -4992,52 +5004,71 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		replace_lump(LUMP_VERTICES, newVerts, (vertCount + 8) * sizeof(vec3));
 	}
 
-	// add new edges (4 for each face)
-	// TODO: subdivide >512
+	// add new edges (minimum needed to refrence every vertex once)
 	int startEdge = edgeCount;
 	{
-		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 12];
+		BSPEDGE* newEdges = new BSPEDGE[edgeCount + 4];
 		memcpy(newEdges, edges, edgeCount * sizeof(BSPEDGE));
 
-		// left
-		newEdges[startEdge + 0] = BSPEDGE(startVert + 3, startVert + 0);
-		newEdges[startEdge + 1] = BSPEDGE(startVert + 4, startVert + 7);
+		newEdges[startEdge + 0] = BSPEDGE(startVert + 0, startVert + 1);
+		newEdges[startEdge + 1] = BSPEDGE(startVert + 2, startVert + 3);
+		newEdges[startEdge + 2] = BSPEDGE(startVert + 4, startVert + 5);
+		newEdges[startEdge + 3] = BSPEDGE(startVert + 6, startVert + 7);
 
-		// right
-		newEdges[startEdge + 2] = BSPEDGE(startVert + 1, startVert + 2); // bottom edge
-		newEdges[startEdge + 3] = BSPEDGE(startVert + 6, startVert + 5); // right edge
-
-		// front
-		newEdges[startEdge + 4] = BSPEDGE(startVert + 0, startVert + 1); // bottom edge
-		newEdges[startEdge + 5] = BSPEDGE(startVert + 5, startVert + 4); // top edge
-
-		// back
-		newEdges[startEdge + 6] = BSPEDGE(startVert + 3, startVert + 7); // left edge
-		newEdges[startEdge + 7] = BSPEDGE(startVert + 6, startVert + 2); // right edge
-
-		// bottom
-		newEdges[startEdge + 8] = BSPEDGE(startVert + 3, startVert + 2);
-		newEdges[startEdge + 9] = BSPEDGE(startVert + 1, startVert + 0);
-
-		// top
-		newEdges[startEdge + 10] = BSPEDGE(startVert + 7, startVert + 4);
-		newEdges[startEdge + 11] = BSPEDGE(startVert + 5, startVert + 6);
-
-		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 12) * sizeof(BSPEDGE));
+		replace_lump(LUMP_EDGES, newEdges, (edgeCount + 4) * sizeof(BSPEDGE));
 	}
 
-	// add new surfedges (2 for each edge)
+	// maps a vertex number to a surfedge value
+	int32_t vertToSurfEdge[8] = {
+		(startEdge + 0), -(startEdge + 0), // negative value = use 2nd vertex in edge struct
+		(startEdge + 1), -(startEdge + 1),
+		(startEdge + 2), -(startEdge + 2),
+		(startEdge + 3), -(startEdge + 3),
+	};
+
+	// add new surfedges (vertex lookups into edges which define the faces, 4 per face, clockwise order)
 	int startSurfedge = surfedgeCount;
 	{
 		int32_t* newSurfedges = new int32_t[surfedgeCount + 24];
 		memcpy(newSurfedges, surfedges, surfedgeCount * sizeof(int32_t));
 
-		// reverse cuz i fucked the edge order and I don't wanna redo
-		for (int i = 12-1; i >= 0; i--) {
-			int32_t edgeIdx = startEdge + i;
-			newSurfedges[startSurfedge + (i*2)] = -edgeIdx; // negative = use second vertex in edge
-			newSurfedges[startSurfedge + (i*2) + 1] = edgeIdx;
-		}
+		int32_t surfEdgeIdx = startSurfedge;
+
+		// left face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
+
+		// right face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
+
+		// front face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
+
+		// back face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
+
+		// bottom face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[0];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[1];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[2];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[3];
+
+		// top face
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[7];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[6];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[5];
+		newSurfedges[surfEdgeIdx++] = vertToSurfEdge[4];
 		
 		replace_lump(LUMP_SURFEDGES, newSurfedges, (surfedgeCount + 24) * sizeof(int32_t));
 	}
@@ -5048,6 +5079,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		BSPPLANE* newPlanes = new BSPPLANE[planeCount + 6];
 		memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
 
+		// normals are inverted later using nPlaneSide
 		newPlanes[startPlane + 0] = { vec3(1, 0, 0), min.x, PLANE_X }; // left
 		newPlanes[startPlane + 1] = { vec3(1, 0, 0), max.x, PLANE_X }; // right
 		newPlanes[startPlane + 2] = { vec3(0, 1, 0), min.y, PLANE_Y }; // front
@@ -5063,25 +5095,21 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 		BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[texinfoCount + 6];
 		memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
 
-		vec3 up = vec3(0, 0, 1);
-		vec3 right = vec3(1, 0, 0);
-		vec3 forward = vec3(0, 1, 0);
-
-		vec3 faceNormals[6]{
-			vec3(-1, 0, 0),	// left
-			vec3(1, 0, 0), // right
-			vec3(0, 1, 0), // front
-			vec3(0, -1, 0), // back
-			vec3(0, 0, -1), // bottom
-			vec3(0, 0, 1) // top
-		};
-		vec3 faceUp[6] {
-			vec3(0, 0, 1),	// left
-			vec3(0, 0, 1), // right
-			vec3(0, 0, 1), // front
-			vec3(0, 0, 1), // back
-			vec3(0, -1, 0), // bottom
+		static vec3 faceUp[6] {
+			vec3(0, 0, -1),	// left
+			vec3(0, 0, -1), // right
+			vec3(0, 0, -1), // front
+			vec3(0, 0, -1), // back
+			vec3(0, 1, 0), // bottom
 			vec3(0, 1, 0) // top
+		};
+		static vec3 faceRt[6]{
+			vec3(0, -1, 0),	// left
+			vec3(0, 1, 0), // right
+			vec3(1, 0, 0), // front
+			vec3(-1, 0, 0), // back
+			vec3(1, 0, 0), // bottom
+			vec3(-1, 0, 0) // top
 		};
 
 		for (int i = 0; i < 6; i++) {
@@ -5091,7 +5119,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 			info.shiftS = 0;
 			info.shiftT = 0;
 			info.vT = faceUp[i];
-			info.vS = crossProduct(faceUp[i], faceNormals[i]);
+			info.vS = faceRt[i];
 			// TODO: fit texture to face
 		}
 
@@ -5109,7 +5137,7 @@ void Bsp::create_node_box(vec3 min, vec3 max, BSPMODEL* targetModel, int texture
 			face.iFirstEdge = startSurfedge + i * 4;
 			face.iPlane = startPlane + i;
 			face.nEdges = 4;
-			face.nPlaneSide = i % 2 == 0; // even-numbered planes are inverted
+			face.nPlaneSide = i % 2 == 0; // even-numbered planes use inverted normals
 			face.iTextureInfo = startTexinfo+i;
 			face.nLightmapOffset = 0; // TODO: Lighting
 			memset(face.nStyles, 255, 4);
