@@ -2124,10 +2124,10 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 	if (fgdClass != NULL) {
 
-		static InputData inputData[128];
+		static InputData inputData[MAX_KEYS_PER_ENT];
 		static int lastPickCount = 0;
 
-		for (int i = 0; i < fgdClass->keyvalues.size() && i < 128; i++) {
+		for (int i = 0; i < fgdClass->keyvalues.size() && i < MAX_KEYS_PER_ENT; i++) {
 			KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
 			string key = keyvalue.name;
 			if (key == "spawnflags") {

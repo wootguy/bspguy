@@ -1001,7 +1001,7 @@ void Renderer::cameraPickingControls() {
 			draggingAxis = -1;
 			applyTransform();
 
-			if (pickInfo.valid && pickInfo.ent && undoEntityState->getOrigin() != pickInfo.ent->getOrigin()) {
+			if (pickInfo.valid && pickInfo.ent && undoEntityState && undoEntityState->getOrigin() != pickInfo.ent->getOrigin()) {
 				pushEntityUndoState("Move Entity");
 			}
 		}

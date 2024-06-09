@@ -4448,6 +4448,10 @@ bool Bsp::is_leaf_visible(int ileaf, vec3 pos) {
 	bool isVisible = false;
 	int numVisible = 0;
 
+	if (!pvs) {
+		return true;
+	}
+
 	//logf("leaf %d can see:", ipvsLeaf);
 
 	for (int lf = 1; lf < leafCount; p++)
