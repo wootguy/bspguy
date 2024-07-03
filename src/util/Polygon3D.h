@@ -73,7 +73,10 @@ public:
 
 	// returns the area of intersection if polys are coplaner and overlap
 	// otherwise returns an empty polygon
-	Polygon3D intersect(Polygon3D otherPoly);
+	Polygon3D coplanerIntersectArea(Polygon3D otherPoly);
+
+	// returns true if the polygons intersect
+	bool intersects(Polygon3D& otherPoly);
 
 	// is point inside this polygon? Coordinates are in world space.
 	// Points within EPSILON of an edge are not inside.

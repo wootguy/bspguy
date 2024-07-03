@@ -6,7 +6,7 @@
 #include "LeafNavMesh.h"
 #include <set>
 #include "util.h"
-#include "PolyOctree.h"
+#include "LeafOctree.h"
 #include <algorithm>
 
 LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map, int hull) {
@@ -21,6 +21,7 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map, int hull) {
 
 	LeafNavMesh* navmesh = new LeafNavMesh(emptyLeaves);
 	linkNavLeaves(map, navmesh);
+	markWalkableLinks(map, navmesh);
 
 	return navmesh;
 }
@@ -42,6 +43,8 @@ vector<LeafMesh> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
 		CMesh& mesh = emptyMeshes[m];
 
 		LeafMesh leaf = LeafMesh();
+		leaf.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+		leaf.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 		for (int f = 0; f < mesh.faces.size(); f++) {
 			CFace& face = mesh.faces[f];
@@ -86,12 +89,18 @@ vector<LeafMesh> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
 			leaf.leafFaces.push_back(poly);
 		}
 
-		if (leaf.leafFaces.size()) {
+		if (leaf.leafFaces.size() > 2) {
 			leaf.center = vec3();
 			for (int i = 0; i < leaf.leafFaces.size(); i++) {
-				leaf.center += leaf.leafFaces[i].center;
+				Polygon3D& face = leaf.leafFaces[i];
+				leaf.center += face.center;
+
+				for (int k = 0; k < face.verts.size(); k++) {
+					expandBoundingBox(face.verts[k], leaf.mins, leaf.maxs);
+				}
 			}
 			leaf.center /= leaf.leafFaces.size();
+			leaf.idx = emptyLeaves.size();
 
 			emptyLeaves.push_back(leaf);
 		}
@@ -114,16 +123,20 @@ void LeafNavMeshGenerator::getOctreeBox(Bsp* map, vec3& min, vec3& max) {
 	}
 }
 
-PolygonOctree* LeafNavMeshGenerator::createPolyOctree(Bsp* map, const vector<LeafMesh*>& leaves, int treeDepth) {
+LeafOctree* LeafNavMeshGenerator::createLeafOctree(Bsp* map, LeafNavMesh* mesh, int treeDepth) {
+	float treeStart = glfwGetTime();
+
 	vec3 treeMin, treeMax;
 	getOctreeBox(map, treeMin, treeMax);
 
-	logf("Create octree depth %d, size %f -> %f\n", treeDepth, treeMax.x, treeMax.x / pow(2, treeDepth));
-	PolygonOctree* octree = new PolygonOctree(treeMin, treeMax, treeDepth);
+	LeafOctree* octree = new LeafOctree(treeMin, treeMax, treeDepth);
 
-	for (int i = 0; i < leaves.size(); i++) {
-		//octree->insertPolygon(leaves[i]);
+	for (int i = 0; i < mesh->numLeaves; i++) {
+		octree->insertLeaf(&mesh->leaves[i]);
 	}
+
+	logf("Create octree depth %d, size %f -> %f in %.2fs\n", treeDepth,
+		treeMax.x, treeMax.x / pow(2, treeDepth), (float)glfwGetTime() - treeStart);
 
 	return octree;
 }
@@ -137,8 +150,15 @@ void LeafNavMeshGenerator::cullTinyLeaves(vector<LeafMesh>& leaves) {
 }
 
 void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
+	
+	
+	LeafOctree* octree = createLeafOctree(map, mesh, octreeDepth);
+
 	int numLinks = 0;
 	float linkStart = glfwGetTime();
+
+	vector<bool> regionLeaves;
+	regionLeaves.resize(mesh->numLeaves);
 
 	for (int i = 0; i < mesh->numLeaves; i++) {
 		LeafMesh& leaf = mesh->leaves[i];
@@ -148,10 +168,18 @@ void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
 			mesh->leafMap[leafIdx] = i;
 		}
 
+		octree->getLeavesInRegion(&leaf, regionLeaves);
+
 		for (int k = i + 1; k < mesh->numLeaves; k++) {
+			if (!regionLeaves[k]) {
+				continue;
+			}
+
 			numLinks += tryFaceLinkLeaves(map, mesh, i, k);
 		}
 	}
+
+	delete octree;
 
 	logf("Added %d nav leaf links in %.2fs\n", numLinks, (float)glfwGetTime() - linkStart);
 }
@@ -166,14 +194,7 @@ int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int src
 		for (int k = 0; k < dstLeaf.leafFaces.size(); k++) {
 			Polygon3D& dstFace = dstLeaf.leafFaces[k];
 
-			Polygon3D intersectFace = srcFace.intersect(dstFace);
-
-			if (srcLeafIdx == 83 && dstLeafIdx == 84) {
-				if (fabs(-srcFace.fdist - dstFace.fdist) < 0.1f && dotProduct(srcFace.plane_z, dstFace.plane_z) < -0.99f) {
-					logf("zomg\n");
-					intersectFace = srcFace.intersect(dstFace);
-				}
-			}
+			Polygon3D intersectFace = srcFace.coplanerIntersectArea(dstFace);
 
 			if (intersectFace.isValid) {
 				mesh->addLink(srcLeafIdx, dstLeafIdx, intersectFace);
@@ -184,4 +205,34 @@ int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int src
 	}
 
 	return 0;
+}
+
+void LeafNavMeshGenerator::markWalkableLinks(Bsp* bsp, LeafNavMesh* mesh) {
+	float markStart = glfwGetTime();
+
+	for (int i = 0; i < mesh->numLeaves; i++) {
+		LeafMesh& leaf = mesh->leaves[i];
+		LeafNavNode& node = mesh->nodes[i];
+		
+		for (int k = 0; k < MAX_NAV_LEAF_LINKS; k++) {
+			LeafNavLink& link = node.links[k];
+
+			if (link.node == -1) {
+				break;
+			}
+
+			LeafMesh& otherMesh = mesh->leaves[link.node];
+
+			vec3 start = leaf.center;
+			vec3 end = link.linkArea.center;
+
+
+		}
+	}
+
+	logf("Marked link walkability in %.2fs\n", (float)glfwGetTime() - markStart);
+}
+
+bool LeafNavMeshGenerator::isWalkable(Bsp* bsp, vec3 start, vec3 end) {
+	return true;
 }

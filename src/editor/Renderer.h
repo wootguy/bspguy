@@ -62,6 +62,7 @@ class Renderer {
 	friend class FixSurfaceExtentsCommand;
 	friend class DeduplicateModelsCommand;
 	friend class MoveMapCommand;
+	friend class LeafNavMesh;
 
 public:
 	vector<BspRenderer*> mapRenderers;

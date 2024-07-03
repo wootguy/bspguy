@@ -457,7 +457,8 @@ void Renderer::renderLoop() {
 			if (debugLeafNavMesh) {
 				glLineWidth(1);
 
-				int leafIdx = mapRenderers[0]->map->get_leaf(cameraOrigin, 3);
+				Bsp* map = mapRenderers[0]->map;
+				int leafIdx = map->get_leaf(cameraOrigin, 3);
 				int leafNavIdx = MAX_NAV_LEAVES;
 
 				if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
@@ -465,37 +466,77 @@ void Renderer::renderLoop() {
 				}
 
 				if (leafNavIdx < MAX_NAV_LEAVES) {
-					LeafNavNode& node = debugLeafNavMesh->nodes[leafNavIdx];
-					LeafMesh& leaf = debugLeafNavMesh->leaves[leafNavIdx];
 
-					drawBox(leaf.center, 2, COLOR4(0, 255, 0, 255));
+					if (pickInfo.valid && pickInfo.ent && pickInfo.entIdx != 0) {
+						glDisable(GL_DEPTH_TEST);
+						
+						int endNode = debugLeafNavMesh->getNodeIdx(map, pickInfo.ent);
+						vector<int> route = debugLeafNavMesh->AStarRoute(map, leafNavIdx, endNode);
 
-					std::string linkStr;
+						if (route.size()) {
+							LeafMesh& firstNode = debugLeafNavMesh->leaves[route[route.size() - 1]];
 
-					for (int i = 0; i < MAX_NAV_LEAF_LINKS; i++) {
-						LeafNavLink& link = node.links[i];
-						if (link.node == -1) {
-							break;
+							vec3 lastPos = firstNode.center;
+							drawBox(firstNode.center, 2, COLOR4(0, 255, 255, 255));
+
+							for (int i = route.size() - 2; i >= 0; i--) {
+								LeafNavNode& node = debugLeafNavMesh->nodes[route[i]];
+								LeafMesh& mesh = debugLeafNavMesh->leaves[route[i]];
+
+								vec3 nodeCenter = mesh.center;
+
+								for (int k = 0; k < MAX_NAV_LEAF_LINKS; k++) {
+									LeafNavLink& link = node.links[k];
+
+									if (link.node == route[i + 1]) {
+										vec3 linkPoint = link.linkArea.center;
+
+										drawLine(lastPos, linkPoint, COLOR4(0, 255, 255, 255));
+										drawLine(linkPoint, mesh.center, COLOR4(0, 255, 255, 255));
+										drawBox(nodeCenter, 2, COLOR4(0, 255, 255, 255));
+										lastPos = nodeCenter;
+										break;
+									}
+								}
+							}
+
+							drawLine(lastPos, pickInfo.ent->getHullOrigin(map), COLOR4(0, 255, 255, 255));
 						}
-						LeafMesh& linkLeaf = debugLeafNavMesh->leaves[link.node];
-						Polygon3D& linkArea = link.linkArea;
+					}
+					else {
+						LeafNavNode& node = debugLeafNavMesh->nodes[leafNavIdx];
+						LeafMesh& leaf = debugLeafNavMesh->leaves[leafNavIdx];
 
-						drawLine(leaf.center, linkArea.center, COLOR4(0, 255, 255, 255));
-						drawLine(linkArea.center, linkLeaf.center, COLOR4(0, 255, 255, 255));
+						drawBox(leaf.center, 2, COLOR4(0, 255, 0, 255));
 
-						for (int k = 0; k < linkArea.verts.size(); k++) {
-							drawBox(linkArea.verts[k], 1, COLOR4(255, 255, 0, 255));
+						std::string linkStr;
+
+						for (int i = 0; i < MAX_NAV_LEAF_LINKS; i++) {
+							LeafNavLink& link = node.links[i];
+							if (link.node == -1) {
+								break;
+							}
+							LeafMesh& linkLeaf = debugLeafNavMesh->leaves[link.node];
+							Polygon3D& linkArea = link.linkArea;
+
+							drawLine(leaf.center, linkArea.center, COLOR4(0, 255, 255, 255));
+							drawLine(linkArea.center, linkLeaf.center, COLOR4(0, 255, 255, 255));
+
+							for (int k = 0; k < linkArea.verts.size(); k++) {
+								drawBox(linkArea.verts[k], 1, COLOR4(255, 255, 0, 255));
+							}
+							drawBox(linkArea.center, 1, COLOR4(0, 255, 0, 255));
+							drawBox(linkLeaf.center, 2, COLOR4(0, 255, 255, 255));
+							linkStr += to_string(link.node) + " (" + to_string(linkArea.verts.size()) + "v), ";
 						}
-						drawBox(linkArea.center, 1, COLOR4(0, 255, 0, 255));
-						drawBox(linkLeaf.center, 2, COLOR4(0, 255, 255, 255));
-						linkStr += to_string(link.node) + " (" + to_string(linkArea.verts.size()) + "v), ";
+
+						//logf("Leaf node idx: %d, links: %s\n", leafNavIdx, linkStr.c_str());
 					}
 
-					//logf("Leaf node idx: %d, links: %s\n", leafNavIdx, linkStr.c_str());
 				}
 
 				glDisable(GL_DEPTH_TEST);
-
+				/*
 				colorShader->pushMatrix(MAT_PROJECTION);
 				colorShader->pushMatrix(MAT_VIEW);
 				projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
@@ -505,18 +546,9 @@ void Renderer::renderLoop() {
 				Line2D edge(vec2(1000, 400), vec2(1400, 630));
 				drawLine2D(edge.start, edge.end, COLOR4(255, 0, 0, 255));
 
-				/*
-				double xpos, ypos;
-				glfwGetCursorPos(window, &xpos, &ypos);
-				vec2 mousepos = vec2(xpos, ypos);
-				drawBox2D(mousepos, 8, COLOR4(255, 0, 0, 255));
-				drawBox2D(edge.project(mousepos), 8, COLOR4(255, 0, 0, 255));
-				float dist = edge.distance(mousepos);
-				logf("dist: %f\n", edge.distance(mousepos));
-				*/
-
 				colorShader->popMatrix(MAT_PROJECTION);
 				colorShader->popMatrix(MAT_VIEW);
+				*/
 			}
 
 			if (debugPoly.isValid) {

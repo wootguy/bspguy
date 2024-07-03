@@ -404,7 +404,7 @@ Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
 	return newPoly;
 }
 
-Polygon3D Polygon3D::intersect(Polygon3D otherPoly) {
+Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 	vector<vec3> outVerts;
 
 	float epsilon = 1.0f;
@@ -473,4 +473,8 @@ Polygon3D Polygon3D::intersect(Polygon3D otherPoly) {
 	}
 
 	return outVerts;
+}
+
+bool Polygon3D::intersects(Polygon3D& otherPoly) {
+	return false;
 }

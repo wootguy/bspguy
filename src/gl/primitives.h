@@ -39,6 +39,7 @@ struct cVert
 	cVert() {}
 	cVert(float x, float y, float z, COLOR4 c) : c(c), x(x), y(y), z(z) {}
 	cVert(vec3 p, COLOR4 c) : c(c), x(p.x), y(p.y), z(p.z) {}
+	vec3 pos() { return vec3(x, y, z); }
 };
 
 struct tTri

@@ -3,7 +3,7 @@
 #include "LeafNavMesh.h"
 
 class Bsp;
-class PolygonOctree;
+class LeafOctree;
 
 // generates a navigation mesh for a BSP
 class LeafNavMeshGenerator {
@@ -24,7 +24,7 @@ private:
 	void getOctreeBox(Bsp* map, vec3& min, vec3& max);
 
 	// group polys that are close together for fewer collision checks later
-	PolygonOctree* createPolyOctree(Bsp* map, const vector<LeafMesh*>& leaves, int treeDepth);
+	LeafOctree* createLeafOctree(Bsp* map, LeafNavMesh* mesh, int treeDepth);
 
 	// merged polys adjacent to each other to reduce node count
 	void mergeLeaves(Bsp* map, vector<LeafMesh>& leaves);
@@ -37,4 +37,8 @@ private:
 	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh);
 
 	int tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx);
+
+	void markWalkableLinks(Bsp* bsp, LeafNavMesh* mesh);
+
+	bool isWalkable(Bsp* bsp, vec3 start, vec3 end);
 };

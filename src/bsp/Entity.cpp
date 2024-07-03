@@ -3,6 +3,7 @@
 #include <set>
 #include <algorithm>
 #include <sstream>
+#include "Bsp.h"
 
 using namespace std;
 
@@ -147,6 +148,21 @@ bool Entity::isBspModel() {
 
 vec3 Entity::getOrigin() {
 	return hasKey("origin") ? parseVector(keyvalues["origin"]) : vec3(0, 0, 0);
+}
+
+vec3 Entity::getHullOrigin(Bsp* map) {
+	vec3 ori = getOrigin();
+	int modelIdx = getBspModelIdx();
+
+	if (modelIdx != -1) {
+		BSPMODEL& model = map->models[modelIdx];
+
+		vec3 mins, maxs;
+		map->get_model_vertex_bounds(modelIdx, mins, maxs);
+		ori += (maxs + mins) * 0.5f;
+	}
+
+	return ori;
 }
 
 // TODO: maybe store this in a text file or something

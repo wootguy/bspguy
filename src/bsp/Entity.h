@@ -4,6 +4,8 @@
 #include <map>
 #include <vector>
 
+class Bsp;
+
 class Entity
 {
 public:
@@ -33,6 +35,8 @@ public:
 	bool isBspModel();
 
 	vec3 getOrigin();
+
+	vec3 getHullOrigin(Bsp* map);
 
 	bool hasKey(const std::string& key);
 

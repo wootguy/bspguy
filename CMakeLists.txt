@@ -32,7 +32,6 @@ set(SOURCE_FILES
 	src/util/mat4x4.h		src/util/mat4x4.cpp
 	src/util/Polygon3D.h	src/util/Polygon3D.cpp
 	src/util/Line2D.h		src/util/Line2D.cpp
-	src/util/PolyOctree.h	src/util/PolyOctree.cpp
 	src/globals.h			src/globals.cpp
 	
 	# Navigation meshes
@@ -40,6 +39,8 @@ set(SOURCE_FILES
 	src/nav/NavMeshGenerator.h		src/nav/NavMeshGenerator.cpp
 	src/nav/LeafNavMeshGenerator.h	src/nav/LeafNavMeshGenerator.cpp
 	src/nav/LeafNavMesh.h			src/nav/LeafNavMesh.cpp
+	src/nav/PolyOctree.h			src/nav/PolyOctree.cpp
+	src/nav/LeafOctree.h			src/nav/LeafOctree.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -182,25 +183,27 @@ if(MSVC)
 												src/util/vectors.h
 												src/util/Polygon3D.h
 												src/util/Line2D.h
-												src/util/PolyOctree.h
 												src/util/mat4x4.h)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
 												src/util/vectors.cpp
 												src/util/Polygon3D.cpp
 												src/util/Line2D.cpp
-												src/util/PolyOctree.cpp
 												src/util/mat4x4.cpp)
 												
 	source_group("Header Files\\nav" FILES		src/nav/NavMesh.h
 												src/nav/NavMeshGenerator.h
 												src/nav/LeafNavMeshGenerator.h
-												src/nav/LeafNavMesh.h)
+												src/nav/LeafNavMesh.h
+												src/nav/PolyOctree.h
+												src/nav/LeafOctree.h)
 												
 	source_group("Source Files\\nav" FILES		src/nav/NavMesh.cpp
 												src/nav/NavMeshGenerator.cpp
 												src/nav/LeafNavMeshGenerator.cpp
-												src/nav/LeafNavMesh.cpp)
+												src/nav/LeafNavMesh.cpp
+												src/nav/PolyOctree.cpp
+												src/nav/LeafOctree.cpp)
 	
 	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)
 	

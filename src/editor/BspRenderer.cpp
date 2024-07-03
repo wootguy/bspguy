@@ -1940,8 +1940,7 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 				pickInfo.faceIdx = -1;
 
 				// Nav mesh WIP code
-				/*
-				if (modelIdx == 0 && hullIdx == 3) {
+				if (g_app->debugNavMesh && modelIdx == 0 && hullIdx == 3) {
 					static int lastPick = 0;
 					
 					g_app->debugPoly = debugFaces[i];
@@ -1956,7 +1955,6 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 					lastPick = i;
 					logf("Picked hull %d, face %d, verts %d, area %.1f\nNav links %d\n", hullIdx, i, debugFaces[i].verts.size(), debugFaces[i].area, node.numLinks());
 				}
-				*/
 			}
 		}
 	}
