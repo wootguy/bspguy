@@ -11,7 +11,13 @@ struct Line2D {
 	Line2D(vec2 start, vec2 end);
 
 	// distance between this point and the axis of this line
+	float distanceAxis(vec2 p);
+
+	// distance between this point and line segment, accounting for points beyond the start/end
 	float distance(vec2 p);
+
+	// projects a point onto the line segment
+	vec2 project(vec2 p);
 
 	bool doesIntersect(const Line2D& l2);
 

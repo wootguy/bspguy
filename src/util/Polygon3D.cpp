@@ -112,13 +112,12 @@ float isLeft(const vec2& p1, const vec2& p2, const vec2& point) {
 }
 
 // winding method
-bool Polygon3D::isInside(vec2 p) {
+bool Polygon3D::isInside(vec2 p, bool includeEdge) {
 	int windingNumber = 0;
 
 	for (int i = 0; i < localVerts.size(); i++) {
 		const vec2& p1 = localVerts[i];
 		const vec2& p2 = localVerts[(i + 1) % localVerts.size()];
-		vec2 dir = (p2 - p1).normalize();
 
 		if (p1.y <= p.y) {
 			if (p2.y > p.y && isLeft(p1, p2, p) > 0) {
@@ -129,9 +128,11 @@ bool Polygon3D::isInside(vec2 p) {
 			windingNumber -= 1;
 		}
 
-		float dist = crossProduct(dir, p1 - p);
+		Line2D edge(p1, p2);
+		float dist = edge.distance(p);
+
 		if (fabs(dist) < INPOLY_EPSILON) {
-			return false; // point is too close to an edge
+			return includeEdge; // point is too close to an edge
 		}
 	}
 
@@ -172,8 +173,8 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 		vec2 e1 = localVerts[i];
 		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
 
-		float dist1 = fabs(cutLine.distance(e1));
-		float dist2 = fabs(cutLine.distance(e2));
+		float dist1 = fabs(cutLine.distanceAxis(e1));
+		float dist2 = fabs(cutLine.distanceAxis(e2));
 
 		if (dist1 < COLINEAR_CUT_EPSILON && dist2 < COLINEAR_CUT_EPSILON) {
 			//logf("cut is colinear with an edge\n");
@@ -212,7 +213,7 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 
 	// define new polys (separate by left/right of line
 	for (int i = 0; i < newLocalVerts.size(); i++) {
-		float dist = cutLine.distance(newLocalVerts[i]);
+		float dist = cutLine.distanceAxis(newLocalVerts[i]);
 
 		if (dist < -SAME_VERT_EPSILON) {
 			splitPolys[0].push_back(newVerts[i]);
@@ -292,14 +293,14 @@ bool Polygon3D::isConvex() {
 	return true;
 }
 
-void Polygon3D::removeDuplicateVerts() {
+void Polygon3D::removeDuplicateVerts(float epsilon) {
 	vector<vec3> newVerts;
 
-	int sz = localVerts.size();
+	int sz = verts.size();
 	for (int i = 0; i < sz; i++) {
 		int last = (i + (sz - 1)) % sz;
 
-		if (!vec3Equal(verts[i], verts[last], SAME_VERT_EPSILON))
+		if (!vec3Equal(verts[i], verts[last], epsilon))
 			newVerts.push_back(verts[i]);
 	}
 
@@ -401,4 +402,75 @@ Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
 	newPoly.removeColinearVerts();
 
 	return newPoly;
+}
+
+Polygon3D Polygon3D::intersect(Polygon3D otherPoly) {
+	vector<vec3> outVerts;
+
+	float epsilon = 1.0f;
+
+	if (fabs(-fdist - otherPoly.fdist) > epsilon || dotProduct(plane_z, otherPoly.plane_z) > -0.99f)
+		return outVerts; // faces are not coplaner with opposite normals
+
+	// project other polys verts onto the same coordinate system as this face
+	vector<vec2> otherLocalVerts;
+	for (int i = 0; i < otherPoly.verts.size(); i++) {
+		otherLocalVerts.push_back(project(otherPoly.verts[i]));
+	}
+	otherPoly.localVerts = otherLocalVerts;
+
+	vector<vec2> localOutVerts;
+
+	// find intersection points
+	for (int i = 0; i < localVerts.size(); i++) {
+		vec2& va1 = localVerts[i];
+		vec2& va2 = localVerts[(i + 1) % localVerts.size()];
+		Line2D edgeA(va1, va2);
+
+		if (otherPoly.isInside(va1, true)) {
+			otherPoly.isInside(va1, true);
+			localOutVerts.push_back(va1);
+		}
+
+		for (int k = 0; k < otherLocalVerts.size(); k++) {
+			vec2& vb1 = otherLocalVerts[k];
+			vec2& vb2 = otherLocalVerts[(k + 1) % otherLocalVerts.size()];
+			Line2D edgeB(vb1, vb2);
+
+			if (!edgeA.isAlignedWith(edgeB) && edgeA.doesIntersect(edgeB)) {
+				localOutVerts.push_back(edgeA.intersect(edgeB));
+			}
+
+			if (isInside(vb1, true)) {
+				localOutVerts.push_back(vb1);
+			}
+		}
+	}
+
+	vector<vec2> newLocalOutVerts;
+	for (int i = 0; i < localOutVerts.size(); i++) {
+
+		bool isUnique = true;
+		for (int k = 0; k < newLocalOutVerts.size(); k++) {
+			if ((newLocalOutVerts[k] - localOutVerts[i]).length() < 0.125f) {
+				isUnique = false;
+				break;
+			}
+		}
+
+		if (isUnique) {
+			newLocalOutVerts.push_back(localOutVerts[i]);
+		}
+	}
+	localOutVerts = newLocalOutVerts;
+
+	if (localOutVerts.size() < 3) {
+		return outVerts;
+	}
+
+	for (int i = 0; i < localOutVerts.size(); i++) {
+		outVerts.push_back(unproject(localOutVerts[i]));
+	}
+
+	return outVerts;
 }

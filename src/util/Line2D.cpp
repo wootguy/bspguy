@@ -8,8 +8,26 @@ Line2D::Line2D(vec2 start, vec2 end) {
 	dir = (end - start).normalize();
 }
 
-float Line2D::distance(vec2 p) {
+float Line2D::distanceAxis(vec2 p) {
 	return crossProduct(dir, start - p);
+}
+
+float Line2D::distance(vec2 p) {
+	float len = (end - start).length();
+	float t = dotProduct(p - start, dir) / len;
+
+	if (t < 0) {
+		return (p - start).length();
+	} else if (t > 1) {
+		return (p - end).length();
+	}
+
+	return distanceAxis(p);
+}
+
+vec2 Line2D::project(vec2 p) {
+	float dot = dotProduct(p - start, dir);
+	return start + dir*dot;
 }
 
 bool Line2D::isAlignedWith(const Line2D& other) {

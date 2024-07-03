@@ -52,7 +52,7 @@ public:
 	bool isConvex();
 
 	void removeColinearVerts();
-	void removeDuplicateVerts();
+	void removeDuplicateVerts(float epsilon=0.125f);
 
 	void extendAlongAxis(float amt);
 
@@ -68,8 +68,12 @@ public:
 	vector<vector<vec3>> cut(Line2D cutLine);
 
 	// returns merged polygon vertices if polys are coplaner and share an edge
-	// otherwise returns an empty vector
+	// otherwise returns an empty polygon
 	Polygon3D merge(const Polygon3D& mergePoly);
+
+	// returns the area of intersection if polys are coplaner and overlap
+	// otherwise returns an empty polygon
+	Polygon3D intersect(Polygon3D otherPoly);
 
 	// is point inside this polygon? Coordinates are in world space.
 	// Points within EPSILON of an edge are not inside.
@@ -77,7 +81,7 @@ public:
 
 	// is point inside this polygon? coordinates are in polygon's local space.
 	// Points within EPSILON of an edge are not inside.
-	bool isInside(vec2 p);
+	bool isInside(vec2 p, bool includeEdge=false);
 
 	// project a 3d point onto this polygon's local coordinate system
 	vec2 project(vec3 p);

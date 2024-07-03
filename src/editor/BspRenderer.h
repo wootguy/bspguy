@@ -205,6 +205,7 @@ private:
 	void loadClipnodes();
 	void generateClipnodeBuffer(int modelIdx);
 	void generateNavMeshBuffer();
+	void generateLeafNavMeshBuffer();
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
 	void deleteRenderClipnodes();

@@ -7,6 +7,7 @@
 #include "Clipper.h"
 #include "Polygon3D.h"
 #include "NavMeshGenerator.h"
+#include "LeafNavMeshGenerator.h"
 #include "PointEntRenderer.h"
 #include "Texture.h"
 #include "LightmapNode.h"
@@ -956,6 +957,129 @@ void BspRenderer::generateNavMeshBuffer() {
 	file.close();
 }
 
+void BspRenderer::generateLeafNavMeshBuffer() {
+	int hull = 3;
+	RenderClipnodes* renderClip = &renderClipnodes[0];
+	renderClip->clipnodeBuffer[hull] = NULL;
+	renderClip->wireframeClipnodeBuffer[hull] = NULL;
+
+	LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map, hull);
+	g_app->debugLeafNavMesh = navMesh;
+
+	static COLOR4 hullColors[] = {
+		COLOR4(255, 255, 255, 128),
+		COLOR4(96, 255, 255, 128),
+		COLOR4(255, 96, 255, 128),
+		COLOR4(255, 255, 96, 128),
+	};
+	COLOR4 color = hullColors[hull];
+
+	vector<cVert> allVerts;
+	vector<cVert> wireframeVerts;
+	vector<FaceMath> faceMaths;
+
+	for (int lf = 0; lf < navMesh->numLeaves; lf++) {
+		LeafMesh& mesh = navMesh->leaves[lf];
+
+		color = hullColors[hull];
+		static int r = 0;
+		r = (r + 1) % 8;
+		if (r == 0) {
+			color = COLOR4(255, 32, 32, 128);
+		}
+		else if (r == 1) {
+			color = COLOR4(255, 255, 32, 128);
+		}
+		else if (r == 2) {
+			color = COLOR4(255, 32, 255, 128);
+		}
+		else if (r == 3) {
+			color = COLOR4(255, 128, 255, 128);
+		}
+		else if (r == 4) {
+			color = COLOR4(32, 32, 255, 128);
+		}
+		else if (r == 5) {
+			color = COLOR4(32, 255, 255, 128);
+		}
+		else if (r == 6) {
+			color = COLOR4(32, 128, 255, 128);
+		}
+		else if (r == 7) {
+			color = COLOR4(32, 255, 128, 128);
+		}
+
+		for (int m = 0; m < mesh.leafFaces.size(); m++) {
+			Polygon3D& poly = mesh.leafFaces[m];
+
+			vec3 normal = poly.plane_z;
+
+			// calculations for face picking
+			{
+				FaceMath faceMath;
+				faceMath.normal = normal;
+				faceMath.fdist = poly.fdist;
+				faceMath.worldToLocal = poly.worldToLocal;
+				faceMath.localVerts = poly.localVerts;
+				faceMaths.push_back(faceMath);
+			}
+
+			// create the verts for rendering
+			{
+				vector<vec3> renderVerts;
+				renderVerts.resize(poly.verts.size());
+				for (int i = 0; i < poly.verts.size(); i++) {
+					renderVerts[i] = poly.verts[i].flip();
+				}
+
+				COLOR4 wireframeColor = { 0, 0, 0, 255 };
+				for (int k = 0; k < renderVerts.size(); k++) {
+					wireframeVerts.push_back(cVert(renderVerts[k], wireframeColor));
+					wireframeVerts.push_back(cVert(renderVerts[(k + 1) % renderVerts.size()], wireframeColor));
+				}
+
+				vec3 lightDir = vec3(1, 1, -1).normalize();
+				float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
+				if (dot > 0.5f) {
+					dot = dot * dot;
+				}
+				COLOR4 faceColor = color * (dot);
+
+				// convert from TRIANGLE_FAN style verts to TRIANGLES
+				for (int k = 2; k < renderVerts.size(); k++) {
+					allVerts.push_back(cVert(renderVerts[0], faceColor));
+					allVerts.push_back(cVert(renderVerts[k - 1], faceColor));
+					allVerts.push_back(cVert(renderVerts[k], faceColor));
+				}
+			}
+		}
+	}
+
+	cVert* output = new cVert[allVerts.size()];
+	for (int i = 0; i < allVerts.size(); i++) {
+		output[i] = allVerts[i];
+	}
+
+	cVert* wireOutput = new cVert[wireframeVerts.size()];
+	for (int i = 0; i < wireframeVerts.size(); i++) {
+		wireOutput[i] = wireframeVerts[i];
+	}
+
+	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+		renderClip->clipnodeBuffer[hull] = NULL;
+		renderClip->wireframeClipnodeBuffer[hull] = NULL;
+		return;
+	}
+
+	renderClip->clipnodeBuffer[hull] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+	renderClip->clipnodeBuffer[hull]->ownData = true;
+
+	renderClip->wireframeClipnodeBuffer[hull] = new VertexBuffer(colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+	renderClip->wireframeClipnodeBuffer[hull]->ownData = true;
+
+	renderClip->faceMaths[hull] = faceMaths;
+}
+
 void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	BSPMODEL& model = map->models[modelIdx];
 	RenderClipnodes* renderClip = &renderClipnodes[modelIdx];
@@ -1120,6 +1244,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 	if (modelIdx == 0) {
 		//generateNavMeshBuffer();
+		//generateLeafNavMeshBuffer();
 	}
 }
 

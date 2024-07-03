@@ -14,6 +14,7 @@ class ShaderProgram;
 class PointEntRenderer;
 class Entity;
 class Bsp;
+class LeafNavMesh;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -77,6 +78,7 @@ public:
 	Polygon3D debugPoly;
 	Polygon3D debugPoly2;
 	NavMesh* debugNavMesh = NULL;
+	LeafNavMesh* debugLeafNavMesh = NULL;
 	int debugNavPoly = -1;
 	vec3 debugTraceStart;
 	TraceResult debugTrace;

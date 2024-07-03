@@ -103,7 +103,7 @@ public:
 	int count_visible_polys(vec3 pos, vec3 angles);
 
 	// get leaf index from world position
-	int get_leaf(vec3 pos);
+	int get_leaf(vec3 pos, int hull);
 
 	// strips a collision hull from the given model index
 	// and redirects to the given hull, if redirect>0

@@ -4418,28 +4418,55 @@ const char* Bsp::getLeafContentsName(int32_t contents) {
 	}
 }
 
-int Bsp::get_leaf(vec3 pos) {
-	int iNode = models->iHeadnodes[0];
+int Bsp::get_leaf(vec3 pos, int hull) {
+	int iNode = models->iHeadnodes[hull];
+
+	if (hull == 0) {
+		while (iNode >= 0)
+		{
+			BSPNODE& node = nodes[iNode];
+			BSPPLANE& plane = planes[node.iPlane];
+
+			float d = dotProduct(plane.vNormal, pos) - plane.fDist;
+			if (d < 0) {
+				iNode = node.iChildren[1];
+			}
+			else {
+				iNode = node.iChildren[0];
+			}
+		}
+
+		return ~iNode;
+	}
+
+	int lastNode = -1;
+	int lastSide = 0;
 
 	while (iNode >= 0)
 	{
-		BSPNODE& node = nodes[iNode];
+		BSPCLIPNODE& node = clipnodes[iNode];
 		BSPPLANE& plane = planes[node.iPlane];
 
 		float d = dotProduct(plane.vNormal, pos) - plane.fDist;
 		if (d < 0) {
+			lastNode = iNode;
 			iNode = node.iChildren[1];
+			lastSide = 1;
 		}
 		else {
+			lastNode = iNode;
 			iNode = node.iChildren[0];
+			lastSide = 0;
 		}
 	}
 
-	return ~iNode;
+	// clipnodes don't have leaf structs, so generate an id based on the last clipnode index and
+	// the side of the plane that would be recursed to reach the leaf contents, if there were a leaf
+	return lastNode * 2 + lastSide;
 }
 
 bool Bsp::is_leaf_visible(int ileaf, vec3 pos) {
-	int ipvsLeaf = get_leaf(pos);
+	int ipvsLeaf = get_leaf(pos, 0);
 	BSPLEAF& pvsLeaf = leaves[ipvsLeaf];
 
 	int p = pvsLeaf.nVisOffset; // pvs offset
@@ -4491,7 +4518,7 @@ bool Bsp::is_face_visible(int faceIdx, vec3 pos, vec3 angles) {
 }
 
 int Bsp::count_visible_polys(vec3 pos, vec3 angles) {
-	int ipvsLeaf = get_leaf(pos);
+	int ipvsLeaf = get_leaf(pos, 0);
 	BSPLEAF& pvsLeaf = leaves[ipvsLeaf];
 
 	int p = pvsLeaf.nVisOffset; // pvs offset

@@ -33,9 +33,13 @@ set(SOURCE_FILES
 	src/util/Polygon3D.h	src/util/Polygon3D.cpp
 	src/util/Line2D.h		src/util/Line2D.cpp
 	src/util/PolyOctree.h	src/util/PolyOctree.cpp
-	src/bsp/NavMesh.h		src/bsp/NavMesh.cpp
-	src/bsp/NavMeshGenerator.h		src/bsp/NavMeshGenerator.cpp
 	src/globals.h			src/globals.cpp
+	
+	# Navigation meshes
+	src/nav/NavMesh.h				src/nav/NavMesh.cpp
+	src/nav/NavMeshGenerator.h		src/nav/NavMeshGenerator.cpp
+	src/nav/LeafNavMeshGenerator.h	src/nav/LeafNavMeshGenerator.cpp
+	src/nav/LeafNavMesh.h			src/nav/LeafNavMesh.cpp
 	
 	# OpenGL rendering
 	src/gl/shaders.h			src/gl/shaders.cpp
@@ -83,6 +87,7 @@ include_directories(src/editor)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
+include_directories(src/nav)
 include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(imgui/backends)
@@ -186,6 +191,16 @@ if(MSVC)
 												src/util/Line2D.cpp
 												src/util/PolyOctree.cpp
 												src/util/mat4x4.cpp)
+												
+	source_group("Header Files\\nav" FILES		src/nav/NavMesh.h
+												src/nav/NavMeshGenerator.h
+												src/nav/LeafNavMeshGenerator.h
+												src/nav/LeafNavMesh.h)
+												
+	source_group("Source Files\\nav" FILES		src/nav/NavMesh.cpp
+												src/nav/NavMeshGenerator.cpp
+												src/nav/LeafNavMeshGenerator.cpp
+												src/nav/LeafNavMesh.cpp)
 	
 	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)
 	

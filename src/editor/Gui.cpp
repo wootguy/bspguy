@@ -1951,6 +1951,9 @@ void Gui::drawDebugWidget() {
 							if (i == 0) {
 								ImGui::Text("Leaf: %d", leafIdx);
 							}
+							else {
+								ImGui::Text("Pseudo ID: %d", map->get_leaf(localCamera, i));
+							}
 							ImGui::Text("Parent Node: %d (child %d)",
 								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
 								childIdx);
