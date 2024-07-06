@@ -382,7 +382,8 @@ void Fgd::processClassInheritance() {
 
 		if (allBaseClasses.size() != 0)
 		{
-			vector<KeyvalueDef> newKeyvalues;
+			vector<KeyvalueDef> childKeyvalues;
+			vector<KeyvalueDef> baseKeyvalues;
 			vector<KeyvalueChoice> newSpawnflags;
 			set<string> addedKeys;
 			set<string> addedSpawnflags;
@@ -393,7 +394,7 @@ void Fgd::processClassInheritance() {
 			// add in fields from the child class
 			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
 				if (!addedKeys.count(classes[i]->keyvalues[c].name)) {
-					newKeyvalues.push_back(classes[i]->keyvalues[c]);
+					childKeyvalues.push_back(classes[i]->keyvalues[c]);
 					addedKeys.insert(classes[i]->keyvalues[c].name);
 				}
 				if (classes[i]->keyvalues[c].iType == FGD_KEY_FLAGS) {
@@ -416,7 +417,7 @@ void Fgd::processClassInheritance() {
 				}
 				for (int c = 0; c < allBaseClasses[k]->keyvalues.size(); c++) {
 					if (!addedKeys.count(allBaseClasses[k]->keyvalues[c].name)) {
-						newKeyvalues.push_back(allBaseClasses[k]->keyvalues[c]);
+						baseKeyvalues.push_back(allBaseClasses[k]->keyvalues[c]);
 						addedKeys.insert(allBaseClasses[k]->keyvalues[c].name);
 					}
 					if (allBaseClasses[k]->keyvalues[c].iType == FGD_KEY_FLAGS) {
@@ -431,6 +432,13 @@ void Fgd::processClassInheritance() {
 				}
 				if (verbose) logf("  %s\n", allBaseClasses[k]->name.c_str());
 			}
+
+			// base keyvalues are usually important things like "targetname" and should come first
+			vector<KeyvalueDef> newKeyvalues;
+			for (int i = 0; i < baseKeyvalues.size(); i++)
+				newKeyvalues.push_back(baseKeyvalues[i]);
+			for (int i = 0; i < childKeyvalues.size(); i++)
+				newKeyvalues.push_back(childKeyvalues[i]);
 
 			classes[i]->keyvalues = newKeyvalues;
 
