@@ -8,6 +8,7 @@
 #include "util.h"
 #include "LeafOctree.h"
 #include <algorithm>
+#include <float.h>
 
 LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map, int hull) {
 	float NavMeshGeneratorGenStart = glfwGetTime();

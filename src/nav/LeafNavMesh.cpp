@@ -11,6 +11,8 @@
 #include "Fgd.h"
 #include "globals.h"
 #include <queue>
+#include <algorithm>
+#include <limits.h>
 
 LeafNode::LeafNode() {
 	links.clear();
