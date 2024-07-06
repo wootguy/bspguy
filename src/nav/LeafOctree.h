@@ -6,14 +6,14 @@
 struct LeafOctant {
     vec3 min;
     vec3 max;
-    vector<LeafMesh*> leaves;
+    vector<LeafNode*> leaves;
     LeafOctant* children[8]; // Eight children octants
 
     LeafOctant(vec3 min, vec3 max);
 
     ~LeafOctant();
 
-    void removeLeaf(LeafMesh* polygon);
+    void removeLeaf(LeafNode* polygon);
 };
 
 class LeafOctree {
@@ -25,18 +25,18 @@ public:
 
     ~LeafOctree();
 
-    void insertLeaf(LeafMesh* leaf);
+    void insertLeaf(LeafNode* leaf);
 
-    void removeLeaf(LeafMesh* leaf);
+    void removeLeaf(LeafNode* leaf);
 
-    bool isLeafInOctant(LeafMesh* leaf, LeafOctant* node);
+    bool isLeafInOctant(LeafNode* leaf, LeafOctant* node);
 
-    void getLeavesInRegion(LeafMesh* leaf, vector<bool>& regionLeaves);
+    void getLeavesInRegion(LeafNode* leaf, vector<bool>& regionLeaves);
 
 private:
     void buildOctree(LeafOctant* node, int currentDepth);
 
-    void getLeavesInRegion(LeafOctant* node, LeafMesh* leaf, int currentDepth, vector<bool>& regionLeaves);
+    void getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves);
 
-    void insertLeaf(LeafOctant* node, LeafMesh* leaf, int currentDepth);
+    void insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth);
 };

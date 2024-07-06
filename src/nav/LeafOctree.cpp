@@ -15,7 +15,7 @@ LeafOctant::~LeafOctant() {
     }
 }
 
-void LeafOctant::removeLeaf(LeafMesh* leaf) {
+void LeafOctant::removeLeaf(LeafNode* leaf) {
     leaves.erase(std::remove(leaves.begin(), leaves.end(), leaf), leaves.end());
     for (int i = 0; i < 8; i++) {
         if (children[i])
@@ -56,11 +56,11 @@ void LeafOctree::buildOctree(LeafOctant* node, int currentDepth) {
     }
 }
 
-void LeafOctree::insertLeaf(LeafMesh* leaf) {
+void LeafOctree::insertLeaf(LeafNode* leaf) {
     insertLeaf(root, leaf, 0);
 }
 
-void LeafOctree::insertLeaf(LeafOctant* node, LeafMesh* leaf, int currentDepth) {
+void LeafOctree::insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth) {
     if (currentDepth >= maxDepth) {
         node->leaves.push_back(leaf);
         return;
@@ -72,24 +72,25 @@ void LeafOctree::insertLeaf(LeafOctant* node, LeafMesh* leaf, int currentDepth) 
     }
 }
 
-void LeafOctree::removeLeaf(LeafMesh* leaf) {
+void LeafOctree::removeLeaf(LeafNode* leaf) {
     root->removeLeaf(leaf);
 }
 
-bool LeafOctree::isLeafInOctant(LeafMesh* leaf, LeafOctant* node) {
-    return boxesIntersect(leaf->mins, leaf->maxs, node->min, node->max);
+bool LeafOctree::isLeafInOctant(LeafNode* leaf, LeafOctant* node) {
+    vec3 epsilon = vec3(1, 1, 1); // in case leaves are touching right on the border of an octree leaf
+    return boxesIntersect(leaf->mins - epsilon, leaf->maxs + epsilon, node->min, node->max);
 }
 
-void LeafOctree::getLeavesInRegion(LeafMesh* leaf, vector<bool>& regionLeaves) {
+void LeafOctree::getLeavesInRegion(LeafNode* leaf, vector<bool>& regionLeaves) {
     fill(regionLeaves.begin(), regionLeaves.end(), false);
     getLeavesInRegion(root, leaf, 0, regionLeaves);
 }
 
-void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafMesh* leaf, int currentDepth, vector<bool>& regionLeaves) {
+void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves) {
     if (currentDepth >= maxDepth) {
         for (auto p : node->leaves) {
-            if (p->idx != -1)
-                regionLeaves[p->idx] = true;
+            if (p->id != -1)
+                regionLeaves[p->id] = true;
         }
         return;
     }

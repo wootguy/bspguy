@@ -978,8 +978,8 @@ void BspRenderer::generateLeafNavMeshBuffer() {
 	vector<cVert> wireframeVerts;
 	vector<FaceMath> faceMaths;
 
-	for (int lf = 0; lf < navMesh->numLeaves; lf++) {
-		LeafMesh& mesh = navMesh->leaves[lf];
+	for (int lf = 0; lf < navMesh->nodes.size(); lf++) {
+		LeafNode& mesh = navMesh->nodes[lf];
 
 		color = hullColors[hull];
 		static int r = 0;

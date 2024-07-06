@@ -250,6 +250,7 @@ private:
 	void drawLine2D(vec2 start, vec2 end, COLOR4 color);
 	void drawBox(vec3 center, float width, COLOR4 color);
 	void drawBox(vec3 mins, vec3 maxs, COLOR4 color);
+	void drawPolygon3D(Polygon3D& poly, COLOR4 color);
 	float drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color); // returns render scale
 	void drawBox2D(vec2 center, float width, COLOR4 color);
 	void drawPlane(BSPPLANE& plane, COLOR4 color);

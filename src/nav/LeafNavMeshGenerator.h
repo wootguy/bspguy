@@ -18,7 +18,7 @@ private:
 	int octreeDepth = 6;
 
 	// get empty leaves of the bsp tree
-	vector<LeafMesh> getHullLeaves(Bsp* map, int hull);
+	vector<LeafNode> getHullLeaves(Bsp* map, int hull);
 
 	// get smallest octree box that can contain the entire map
 	void getOctreeBox(Bsp* map, vec3& min, vec3& max);
@@ -27,18 +27,17 @@ private:
 	LeafOctree* createLeafOctree(Bsp* map, LeafNavMesh* mesh, int treeDepth);
 
 	// merged polys adjacent to each other to reduce node count
-	void mergeLeaves(Bsp* map, vector<LeafMesh>& leaves);
+	void mergeLeaves(Bsp* map, vector<LeafNode>& leaves);
 
 	// removes tiny faces
-	void cullTinyLeaves(vector<LeafMesh>& leaves);
+	void cullTinyLeaves(vector<LeafNode>& leaves);
 
-	// links nav polys that share an edge from a top-down view
-	// climbability depends on game settings (gravity, stepsize, autoclimb, grapple/gauss weapon, etc.)
+	// links nav leaves which have faces touching each other
 	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh);
 
 	int tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx);
 
 	void markWalkableLinks(Bsp* bsp, LeafNavMesh* mesh);
 
-	bool isWalkable(Bsp* bsp, vec3 start, vec3 end);
+	void calcPathCost(LeafLink& link, Bsp* bsp, vec3 start, vec3 end);
 };

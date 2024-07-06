@@ -78,6 +78,13 @@ public:
 	// returns true if the polygons intersect
 	bool intersects(Polygon3D& otherPoly);
 
+	// if true, ipos is set to the intersection point with the given line segment
+	bool intersect(vec3 p1, vec3 p2, vec3& ipos);
+
+	// if true, ipos is set to the projected intersection point of the given line segment
+	// the line segment is first projected onto the plane for a 2D intersect test
+	bool intersect2D(vec3 p1, vec3 p2, vec3& ipos);
+
 	// is point inside this polygon? Coordinates are in world space.
 	// Points within EPSILON of an edge are not inside.
 	bool isInside(vec3 p);

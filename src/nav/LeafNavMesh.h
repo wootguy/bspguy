@@ -2,58 +2,66 @@
 #include "Polygon3D.h"
 #include <map>
 
-#define MAX_NAV_LEAVES 4096
-#define MAX_NAV_LEAF_LINKS 128
 #define MAX_MAP_CLIPNODE_LEAVES 65536 // doubled to account for each clipnode's child contents having its own ID
+
+#define NAV_STEP_HEIGHT 18
+#define NAV_JUMP_HEIGHT 44
+#define NAV_CROUCHJUMP_HEIGHT 63	// 208 gravity 50%
+#define NAV_CROUCHJUMP_STACK_HEIGHT 135
+#define NAV_AUTOCLIMB_HEIGHT 117
+
+#define NAV_BOTTOM_EPSILON 1.0f // move waypoints this far from the bottom of the node
 
 class Bsp;
 class Entity;
 
-struct LeafMesh {
+struct LeafLink {
+	int16_t node; // which leaf is linked to. -1 = end of links
+	Polygon3D linkArea; // region in which leaves are making contact
+	vec3 bottom; // centered at the bottom of the polygon intersection
+	float baseCost; // flat cost for using this path
+	float costMultiplier; // cost applied to length of path
+	bool useMiddleLink;
+};
+
+struct LeafNode {
+	vector<LeafLink> links;
+	uint16_t id;
+
 	vec3 center;
+	vec3 bottom;
+	vec3 top;
 	vec3 mins;
 	vec3 maxs;
-	int idx;
 	vector<Polygon3D> leafFaces;
-	
-	// returns true if point is inside leaf volume
-	bool isInside(vec3 p);
-};
 
-struct LeafNavLink {
-	int16_t node; // which poly is linked to. -1 = end of links
-	Polygon3D linkArea; // region in which leaves are making contact
-	bool walkable;
-};
-
-struct LeafNavNode {
-	LeafNavLink links[MAX_NAV_LEAF_LINKS];
-	uint32_t flags;
-	uint16_t id;
+	LeafNode();
 
 	// adds a link to node "node" on edge "edge" with height difference "zDist"
 	bool addLink(int node, Polygon3D linkArea);
 	int numLinks();
+
+	// returns true if point is inside leaf volume
+	bool isInside(vec3 p);
 };
 
 
 class LeafNavMesh {
 public:
-	LeafNavNode nodes[MAX_NAV_LEAVES];
-	LeafMesh leaves[MAX_NAV_LEAVES];
+	vector<LeafNode> nodes;
 	uint16_t leafMap[MAX_MAP_CLIPNODE_LEAVES]; // maps a BSP leaf index to nav mesh node index
-
-	int numLeaves;
 
 	LeafNavMesh();
 
-	LeafNavMesh(vector<LeafMesh> polys);
+	LeafNavMesh(vector<LeafNode> polys);
 
 	bool addLink(int from, int to, Polygon3D linkArea);
 
 	void clear();
 
-	vector<int> LeafNavMesh::AStarRoute(Bsp* map, int startNodeIdx, int endNodeIdx);
+	vector<int> AStarRoute(int startNodeIdx, int endNodeIdx);
+
+	vector<int> dijkstraRoute(int start, int end);
 
 	float path_cost(int a, int b);
 

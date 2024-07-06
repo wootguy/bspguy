@@ -13,21 +13,21 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map, int hull) {
 	float NavMeshGeneratorGenStart = glfwGetTime();
 	BSPMODEL& model = map->models[0];
 
-	vector<LeafMesh> emptyLeaves = getHullLeaves(map, hull);
+	vector<LeafNode> emptyLeaves = getHullLeaves(map, hull);
 	//mergeLeaves(map, emptyLeaves);
 	//cullTinyLeaves(emptyLeaves);
-
-	logf("Generated nav mesh in %.2fs\n", glfwGetTime() - NavMeshGeneratorGenStart);
 
 	LeafNavMesh* navmesh = new LeafNavMesh(emptyLeaves);
 	linkNavLeaves(map, navmesh);
 	markWalkableLinks(map, navmesh);
 
+	logf("Generated nav mesh in %.2fs\n", glfwGetTime() - NavMeshGeneratorGenStart);
+
 	return navmesh;
 }
 
-vector<LeafMesh> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
-	vector<LeafMesh> emptyLeaves;
+vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
+	vector<LeafNode> emptyLeaves;
 
 	Clipper clipper;
 
@@ -42,7 +42,7 @@ vector<LeafMesh> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
 	for (int m = 0; m < emptyMeshes.size(); m++) {
 		CMesh& mesh = emptyMeshes[m];
 
-		LeafMesh leaf = LeafMesh();
+		LeafNode leaf = LeafNode();
 		leaf.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 		leaf.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
@@ -100,7 +100,17 @@ vector<LeafMesh> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int hull) {
 				}
 			}
 			leaf.center /= leaf.leafFaces.size();
-			leaf.idx = emptyLeaves.size();
+			leaf.id = emptyLeaves.size();
+
+			vec3 testBottom = leaf.center - vec3(0,0,4096);
+			leaf.bottom = leaf.center;
+			for (int i = 0; i < leaf.leafFaces.size(); i++) {
+				Polygon3D& face = leaf.leafFaces[i];
+				if (face.intersect(leaf.center, testBottom, leaf.bottom)) {
+					break;
+				}
+			}
+			leaf.bottom.z += NAV_BOTTOM_EPSILON;
 
 			emptyLeaves.push_back(leaf);
 		}
@@ -131,8 +141,8 @@ LeafOctree* LeafNavMeshGenerator::createLeafOctree(Bsp* map, LeafNavMesh* mesh, 
 
 	LeafOctree* octree = new LeafOctree(treeMin, treeMax, treeDepth);
 
-	for (int i = 0; i < mesh->numLeaves; i++) {
-		octree->insertLeaf(&mesh->leaves[i]);
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		octree->insertLeaf(&mesh->nodes[i]);
 	}
 
 	logf("Create octree depth %d, size %f -> %f in %.2fs\n", treeDepth,
@@ -141,27 +151,25 @@ LeafOctree* LeafNavMeshGenerator::createLeafOctree(Bsp* map, LeafNavMesh* mesh, 
 	return octree;
 }
 
-void LeafNavMeshGenerator::mergeLeaves(Bsp* map, vector<LeafMesh>& leaves) {
+void LeafNavMeshGenerator::mergeLeaves(Bsp* map, vector<LeafNode>& leaves) {
 	
 }
 
-void LeafNavMeshGenerator::cullTinyLeaves(vector<LeafMesh>& leaves) {
+void LeafNavMeshGenerator::cullTinyLeaves(vector<LeafNode>& leaves) {
 	
 }
 
 void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
-	
-	
 	LeafOctree* octree = createLeafOctree(map, mesh, octreeDepth);
 
 	int numLinks = 0;
 	float linkStart = glfwGetTime();
 
 	vector<bool> regionLeaves;
-	regionLeaves.resize(mesh->numLeaves);
+	regionLeaves.resize(mesh->nodes.size());
 
-	for (int i = 0; i < mesh->numLeaves; i++) {
-		LeafMesh& leaf = mesh->leaves[i];
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		LeafNode& leaf = mesh->nodes[i];
 		int leafIdx = map->get_leaf(leaf.center, 3);
 
 		if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
@@ -170,7 +178,7 @@ void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 		octree->getLeavesInRegion(&leaf, regionLeaves);
 
-		for (int k = i + 1; k < mesh->numLeaves; k++) {
+		for (int k = i + 1; k < mesh->nodes.size(); k++) {
 			if (!regionLeaves[k]) {
 				continue;
 			}
@@ -185,8 +193,8 @@ void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
 }
 
 int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx) {
-	LeafMesh& srcLeaf = mesh->leaves[srcLeafIdx];
-	LeafMesh& dstLeaf = mesh->leaves[dstLeafIdx];
+	LeafNode& srcLeaf = mesh->nodes[srcLeafIdx];
+	LeafNode& dstLeaf = mesh->nodes[dstLeafIdx];
 
 	for (int i = 0; i < srcLeaf.leafFaces.size(); i++) {
 		Polygon3D& srcFace = srcLeaf.leafFaces[i];
@@ -210,29 +218,85 @@ int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int src
 void LeafNavMeshGenerator::markWalkableLinks(Bsp* bsp, LeafNavMesh* mesh) {
 	float markStart = glfwGetTime();
 
-	for (int i = 0; i < mesh->numLeaves; i++) {
-		LeafMesh& leaf = mesh->leaves[i];
-		LeafNavNode& node = mesh->nodes[i];
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		LeafNode& node = mesh->nodes[i];
 		
-		for (int k = 0; k < MAX_NAV_LEAF_LINKS; k++) {
-			LeafNavLink& link = node.links[k];
+		for (int k = 0; k < node.links.size(); k++) {
+			LeafLink& link = node.links[k];
 
-			if (link.node == -1) {
-				break;
+			LeafNode& otherMesh = mesh->nodes[link.node];
+
+			vec3 start = node.bottom;
+			vec3 mid = link.bottom;
+			vec3 end = otherMesh.bottom;
+
+			link.baseCost = 0;
+			link.costMultiplier = 1.0f;
+
+			TraceResult tr;
+			bsp->traceHull(node.bottom, link.bottom, 3, &tr);
+			link.useMiddleLink = tr.flFraction < 1.0f;
+			link.useMiddleLink = true; // TODO: downward paths are already working well without skipping middle links
+
+			if (!link.useMiddleLink) {
+				calcPathCost(link, bsp, start, end);
 			}
-
-			LeafMesh& otherMesh = mesh->leaves[link.node];
-
-			vec3 start = leaf.center;
-			vec3 end = link.linkArea.center;
-
-
+			else {
+				calcPathCost(link, bsp, start, mid);
+				calcPathCost(link, bsp, mid, end);
+			}
 		}
 	}
 
-	logf("Marked link walkability in %.2fs\n", (float)glfwGetTime() - markStart);
+	logf("Calculated path costs in %.2fs\n", (float)glfwGetTime() - markStart);
 }
 
-bool LeafNavMeshGenerator::isWalkable(Bsp* bsp, vec3 start, vec3 end) {
-	return true;
+void LeafNavMeshGenerator::calcPathCost(LeafLink& link, Bsp* bsp, vec3 start, vec3 end) {
+	TraceResult tr;
+
+	int steps = (end - start).length() / 8.0f;
+	vec3 delta = end - start;
+	vec3 dir = delta.normalize();
+
+	bool flyingNeeded = false;
+	bool stackingNeeded = false;
+
+	if (dir.z > -0.5f) {
+		for (int i = 0; i < steps; i++) {
+			float t = i * (1.0f / (float)steps);
+
+			vec3 top = start + delta * t;
+			vec3 bottom = top + vec3(0, 0, -4096);
+
+			bsp->traceHull(top, bottom, 3, &tr);
+
+			if (tr.flFraction >= 1.0f) {
+				flyingNeeded = true;
+			}
+			else {
+				float height = (tr.vecEndPos - top).length();
+
+				if (height > NAV_CROUCHJUMP_STACK_HEIGHT) {
+					flyingNeeded = true;
+				}
+				else if (height > NAV_CROUCHJUMP_HEIGHT) {
+					stackingNeeded = true;
+				}
+			}
+		}
+	}
+	if (dir.z <= 0 && (flyingNeeded || stackingNeeded)) {
+		// probably falling. not much cost but prefer hitting the ground
+		link.costMultiplier = max(link.costMultiplier, 10.0f);
+	}
+	else if (flyingNeeded) {
+		link.baseCost = max(link.baseCost, 32000.0f);
+		link.costMultiplier = max(link.costMultiplier, 10.0f);
+	}
+	else if (stackingNeeded) {
+		link.baseCost = max(link.baseCost, 8000.0f);
+	}
+	else if (dir.z > 0.7) { // TODO: staircases trigger this, not just slopes
+		link.costMultiplier = max(link.costMultiplier, 10.0f);
+	}
 }

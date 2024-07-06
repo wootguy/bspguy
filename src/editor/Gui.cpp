@@ -15,6 +15,7 @@
 #include "tinyfiledialogs.h"
 #include <algorithm>
 #include "BspMerger.h"
+#include "LeafNavMesh.h"
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -1951,8 +1952,15 @@ void Gui::drawDebugWidget() {
 							if (i == 0) {
 								ImGui::Text("Leaf: %d", leafIdx);
 							}
-							else {
-								ImGui::Text("Pseudo ID: %d", map->get_leaf(localCamera, i));
+							else if (i == 3 && g_app->debugLeafNavMesh) {
+								int leafIdx = map->get_leaf(localCamera, 3);
+								int leafNavIdx = -1;
+
+								if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
+									leafNavIdx = g_app->debugLeafNavMesh->leafMap[leafIdx];
+								}
+
+								ImGui::Text("Nav ID: %d", leafNavIdx);
 							}
 							ImGui::Text("Parent Node: %d (child %d)",
 								nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,

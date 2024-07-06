@@ -3,6 +3,7 @@
 #include "Renderer.h"
 #include "globals.h"
 #include <float.h>
+#include <stack>
 
 #define COLINEAR_EPSILON 0.125f
 #define SAME_VERT_EPSILON 0.125f
@@ -404,6 +405,98 @@ Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
 	return newPoly;
 }
 
+void push_unique_vert(vector<vec2>& verts, vec2 vert) {
+	for (int k = 0; k < verts.size(); k++) {
+		if ((verts[k] - vert).length() < 0.125f) {
+			return;
+		}
+	}
+
+	verts.push_back(vert);
+}
+
+
+namespace GrahamScan {
+	// https://www.tutorialspoint.com/cplusplus-program-to-implement-graham-scan-algorithm-to-find-the-convex-hull
+	vec2 p0;
+
+	vec2 secondTop(stack<vec2>& stk) {
+		vec2 tempvec2 = stk.top();
+		stk.pop();
+		vec2 res = stk.top();    //get the second top element
+		stk.push(tempvec2);      //push previous top again
+		return res;
+	}
+
+	int squaredDist(vec2 p1, vec2 p2) {
+		return ((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
+	}
+
+	int direction(vec2 a, vec2 b, vec2 c) {
+		int val = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+		if (val == 0)
+			return 0;    //colinear
+		else if (val < 0)
+			return 2;    //anti-clockwise direction
+		return 1;    //clockwise direction
+	}
+
+	int comp(const void* point1, const void* point2) {
+		vec2* p1 = (vec2*)point1;
+		vec2* p2 = (vec2*)point2;
+		int dir = direction(p0, *p1, *p2);
+		if (dir == 0)
+			return (squaredDist(p0, *p2) >= squaredDist(p0, *p1)) ? -1 : 1;
+		return (dir == 2) ? -1 : 1;
+	}
+
+	vector<vec2> findConvexHull(vec2 points[], int n) {
+		vector<vec2> convexHullPoints;
+		int minY = points[0].y, min = 0;
+
+		for (int i = 1; i < n; i++) {
+			int y = points[i].y;
+			//find bottom most or left most point
+			if ((y < minY) || (minY == y) && points[i].x < points[min].x) {
+				minY = points[i].y;
+				min = i;
+			}
+		}
+
+		swap(points[0], points[min]);    //swap min point to 0th location
+		p0 = points[0];
+		qsort(&points[1], n - 1, sizeof(vec2), comp);    //sort points from 1 place to end
+
+		int arrSize = 1;    //used to locate items in modified array
+		for (int i = 1; i < n; i++) {
+			//when the angle of ith and (i+1)th elements are same, remove points
+			while (i < n - 1 && direction(p0, points[i], points[i + 1]) == 0)
+				i++;
+			points[arrSize] = points[i];
+			arrSize++;
+		}
+
+		if (arrSize < 3)
+			return convexHullPoints;    //there must be at least 3 points, return empty list.
+			//create a stack and add first three points in the stack
+
+		stack<vec2> stk;
+		stk.push(points[0]); stk.push(points[1]); stk.push(points[2]);
+		for (int i = 3; i < arrSize; i++) {    //for remaining vertices
+			while (direction(secondTop(stk), stk.top(), points[i]) != 2)
+				stk.pop();    //when top, second top and ith point are not making left turn, remove point
+			stk.push(points[i]);
+		}
+
+		while (!stk.empty()) {
+			convexHullPoints.push_back(stk.top());    //add points from stack
+			stk.pop();
+		}
+
+		return convexHullPoints;
+	}
+};
+
 Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 	vector<vec3> outVerts;
 
@@ -429,7 +522,7 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 
 		if (otherPoly.isInside(va1, true)) {
 			otherPoly.isInside(va1, true);
-			localOutVerts.push_back(va1);
+			push_unique_vert(localOutVerts, va1);
 		}
 
 		for (int k = 0; k < otherLocalVerts.size(); k++) {
@@ -438,35 +531,20 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 			Line2D edgeB(vb1, vb2);
 
 			if (!edgeA.isAlignedWith(edgeB) && edgeA.doesIntersect(edgeB)) {
-				localOutVerts.push_back(edgeA.intersect(edgeB));
+				push_unique_vert(localOutVerts, edgeA.intersect(edgeB));
 			}
 
 			if (isInside(vb1, true)) {
-				localOutVerts.push_back(vb1);
+				push_unique_vert(localOutVerts, vb1);
 			}
 		}
 	}
-
-	vector<vec2> newLocalOutVerts;
-	for (int i = 0; i < localOutVerts.size(); i++) {
-
-		bool isUnique = true;
-		for (int k = 0; k < newLocalOutVerts.size(); k++) {
-			if ((newLocalOutVerts[k] - localOutVerts[i]).length() < 0.125f) {
-				isUnique = false;
-				break;
-			}
-		}
-
-		if (isUnique) {
-			newLocalOutVerts.push_back(localOutVerts[i]);
-		}
-	}
-	localOutVerts = newLocalOutVerts;
 
 	if (localOutVerts.size() < 3) {
 		return outVerts;
 	}
+
+	localOutVerts = GrahamScan::findConvexHull(&localOutVerts[0], localOutVerts.size());
 
 	for (int i = 0; i < localOutVerts.size(); i++) {
 		outVerts.push_back(unproject(localOutVerts[i]));
@@ -476,5 +554,51 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 }
 
 bool Polygon3D::intersects(Polygon3D& otherPoly) {
+	return false;
+}
+
+bool Polygon3D::intersect(vec3 p1, vec3 p2, vec3& ipos) {
+	float t1 = dotProduct(plane_z, p1) - fdist;
+	float t2 = dotProduct(plane_z, p2) - fdist;
+
+	if ((t1 >= 0.0f && t2 >= 0.0f) || (t1 < 0.0f && t2 < 0.0f)) {
+		return false;
+	}
+
+	float frac = t1 / (t1 - t2);
+	frac = clamp(frac, 0.0f, 1.0f);
+
+	if (frac != frac) {
+		return false; // NaN
+	}
+
+	ipos = p1 + (p2 - p1) * frac;
+
+	return isInside(project(ipos));
+}
+
+bool Polygon3D::intersect2D(vec3 p1, vec3 p2, vec3& ipos) {
+	vec2 p1_2d = project(p1);
+	vec2 p2_2d = project(p2);
+
+	Line2D line(p1_2d, p2_2d);
+
+	if (isInside(p1_2d, false) == isInside(p2_2d, false)) {
+		ipos = p1;
+		return false;
+	}
+
+	for (int i = 0; i < localVerts.size(); i++) {
+		vec2 e1 = localVerts[i];
+		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
+		Line2D edge(e1, e2);
+
+		if (edge.doesIntersect(line)) {
+			ipos = unproject(edge.intersect(line));
+			return true;
+		}
+	}
+
+	ipos = p1;
 	return false;
 }
