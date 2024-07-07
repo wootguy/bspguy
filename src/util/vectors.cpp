@@ -202,6 +202,11 @@ float vec3::length()
 	return sqrt( (x*x) + (y*y) + (z*z) );
 }
 
+float vec3::lengthSquared()
+{
+	return (x * x) + (y * y) + (z * z);
+}
+
 string vec3::toKeyvalueString(bool truncate, string suffix_x, string suffix_y, string suffix_z) {
 	string parts[3] = { to_string(x) , to_string(y), to_string(z) };
 

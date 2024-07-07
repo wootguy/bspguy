@@ -478,31 +478,43 @@ void Renderer::renderLoop() {
 						if (route.size()) {
 							LeafNode* lastNode = &debugLeafNavMesh->nodes[route[0]];
 
-							vec3 lastPos = lastNode->bottom;
-							drawBox(lastNode->bottom, 2, COLOR4(0, 255, 255, 255));
+							vec3 lastPos = lastNode->origin;
+							drawBox(lastNode->origin, 2, COLOR4(0, 255, 255, 255));
 
 							for (int i = 1; i < route.size(); i++) {
 								LeafNode& node = debugLeafNavMesh->nodes[route[i]];
 
-								vec3 nodeCenter = node.bottom;
+								vec3 nodeCenter = node.origin;
 
 								for (int k = 0; k < lastNode->links.size(); k++) {
 									LeafLink& link = lastNode->links[k];
 
 									if (link.node == route[i]) {
-										vec3 linkPoint = link.bottom;
+										vec3 linkPoint = link.pos;
 
 										if (link.baseCost > 16000) {
 											drawLine(lastPos, linkPoint, COLOR4(255, 0, 0, 255));
-											drawLine(linkPoint, node.bottom, COLOR4(255, 0, 0, 255));
+											drawLine(linkPoint, node.origin, COLOR4(255, 0, 0, 255));
 										}
 										else if (link.baseCost > 0) {
+											drawLine(lastPos, linkPoint, COLOR4(255, 64, 0, 255));
+											drawLine(linkPoint, node.origin, COLOR4(255, 64, 0, 255));
+										}
+										else if (link.costMultiplier > 99.0f) {
 											drawLine(lastPos, linkPoint, COLOR4(255, 255, 0, 255));
-											drawLine(linkPoint, node.bottom, COLOR4(255, 255, 0, 255));
+											drawLine(linkPoint, node.origin, COLOR4(255, 255, 0, 255));
+										}
+										else if (link.costMultiplier > 9.0f) {
+											drawLine(lastPos, linkPoint, COLOR4(255, 0, 255, 255));
+											drawLine(linkPoint, node.origin, COLOR4(255, 0, 255, 255));
+										}
+										else if (link.costMultiplier > 1.9f) {
+											drawLine(lastPos, linkPoint, COLOR4(64, 255, 0, 255));
+											drawLine(linkPoint, node.origin, COLOR4(64, 255, 0, 255));
 										}
 										else {
 											drawLine(lastPos, linkPoint, COLOR4(0, 255, 255, 255));
-											drawLine(linkPoint, node.bottom, COLOR4(0, 255, 255, 255));
+											drawLine(linkPoint, node.origin, COLOR4(0, 255, 255, 255));
 										}
 										drawBox(nodeCenter, 2, COLOR4(0, 255, 255, 255));
 										lastPos = nodeCenter;
@@ -519,7 +531,7 @@ void Renderer::renderLoop() {
 					else {
 						LeafNode& node = debugLeafNavMesh->nodes[leafNavIdx];
 
-						drawBox(node.bottom, 2, COLOR4(0, 255, 0, 255));
+						drawBox(node.origin, 2, COLOR4(0, 255, 0, 255));
 
 						std::string linkStr;
 
@@ -532,90 +544,63 @@ void Renderer::renderLoop() {
 							Polygon3D& linkArea = link.linkArea;
 
 							if (link.baseCost > 16000) {
-								drawLine(node.bottom, link.bottom, COLOR4(255, 0, 0, 255));
-								drawLine(link.bottom, linkLeaf.bottom, COLOR4(255, 0, 0, 255));
+								drawLine(node.origin, link.pos, COLOR4(255, 0, 0, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(255, 0, 0, 255));
 							}
 							else if (link.baseCost > 0) {
-								drawLine(node.bottom, link.bottom, COLOR4(255, 255, 0, 255));
-								drawLine(link.bottom, linkLeaf.bottom, COLOR4(255, 255, 0, 255));
+								drawLine(node.origin, link.pos, COLOR4(255, 128, 0, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(255, 128, 0, 255));
+							}
+							else if (link.costMultiplier > 99.0f) {
+								drawLine(node.origin, link.pos, COLOR4(255, 255, 0, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(255, 255, 0, 255));
+							}
+							else if (link.costMultiplier > 9.0f) {
+								drawLine(node.origin, link.pos, COLOR4(255, 0, 255, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(255, 0, 255, 255));
+							}
+							else if (link.costMultiplier > 1.9f) {
+								drawLine(node.origin, link.pos, COLOR4(64, 255, 0, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(64, 255, 0, 255));
 							}
 							else {
-								drawLine(node.bottom, link.bottom, COLOR4(0, 255, 255, 255));
-								drawLine(link.bottom, linkLeaf.bottom, COLOR4(0, 255, 255, 255));
+								drawLine(node.origin, link.pos, COLOR4(0, 255, 255, 255));
+								drawLine(link.pos, linkLeaf.origin, COLOR4(0, 255, 255, 255));
 							}
 
 							for (int k = 0; k < linkArea.verts.size(); k++) {
 								//drawBox(linkArea.verts[k], 1, COLOR4(255, 255, 0, 255));
 							}
-							drawBox(link.bottom, 1, COLOR4(0, 255, 0, 255));
-							drawBox(linkLeaf.bottom, 2, COLOR4(0, 255, 255, 255));
+							drawBox(link.pos, 1, COLOR4(0, 255, 0, 255));
+							drawBox(linkLeaf.origin, 2, COLOR4(0, 255, 255, 255));
 							linkStr += to_string(link.node) + " (" + to_string(linkArea.verts.size()) + "v), ";
+						
+							/*
+							for (int k = 0; k < node.links.size(); k++) {
+								if (i == k)
+									continue;
+								drawLine(link.pos, node.links[k].pos, COLOR4(64, 0, 255, 255));
+							}
+							*/
 						}
 
 						//logf("Leaf node idx: %d, links: %s\n", leafNavIdx, linkStr.c_str());
 					}
 
 				}
+
 				/*
-				Polygon3D linkPoly;
-				LeafNode& node = debugLeafNavMesh->nodes[1441];
-				for (int i = 0; i < MAX_NAV_LEAF_LINKS; i++) {
-					LeafLink& link = node.links[i];
-
-					if (link.node == 1442) {
-						linkPoly = link.linkArea;
-						break;
-					}
-				}
-
-				drawPolygon3D(linkPoly, COLOR4(255, 255, 255, 255));
-
 				colorShader->pushMatrix(MAT_PROJECTION);
 				colorShader->pushMatrix(MAT_VIEW);
 				projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
 				view.loadIdentity();
 				colorShader->updateMatrixes();
 
-				drawPolygon2D(linkPoly, vec2(800, 100), vec2(500, 500), COLOR4(255, 0, 0, 255));
+				drawPolygon2D(debugPoly, vec2(800, 100), vec2(500, 500), COLOR4(255, 0, 0, 255));
 
 				colorShader->popMatrix(MAT_PROJECTION);
 				colorShader->popMatrix(MAT_VIEW);
 				*/
-			}
-
-			if (debugPoly.isValid) {
-				if (debugPoly.verts.size() > 1) {
-					vec3 v1 = debugPoly.verts[0];
-					vec3 v2 = debugPoly.verts[1];
-					drawLine(v1, v1 + (v2 - v1) * 0.5f, COLOR4(0, 255, 0, 255));
-				}
-				for (int i = 0; i < debugPoly.verts.size(); i++) {
-					drawBox(debugPoly.verts[i], 4, COLOR4(128, 128, 0, 255));
-				}
-
-				glLineWidth(1);
-				vec3 xaxis = debugPoly.plane_x * 16;
-				vec3 yaxis = debugPoly.plane_y * 16;
-				vec3 zaxis = debugPoly.plane_z * 16;
-				vec3 center = getCenter(debugPoly.verts) + debugPoly.plane_z*8;
-				drawLine(center, center + xaxis, COLOR4(255, 0, 0, 255));
-				drawLine(center, center + yaxis, COLOR4(255, 255, 0, 255));
-				drawLine(center, center + zaxis, COLOR4(0, 255, 0, 255));				
-
-				glDisable(GL_DEPTH_TEST);
-
-				colorShader->pushMatrix(MAT_PROJECTION);
-				colorShader->pushMatrix(MAT_VIEW);
-				projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
-				view.loadIdentity();
-				float sz = min(windowWidth*0.8f, windowHeight*0.8f);
-				model.translate((windowWidth- sz)*0.5f, (windowHeight- sz)*0.5f, 0);
-				colorShader->updateMatrixes();
-
-				float scale = drawPolygon2D(debugPoly, vec2(0, 0), vec2(sz, sz), COLOR4(255, 255, 0, 255));
-
-				colorShader->popMatrix(MAT_PROJECTION);
-				colorShader->popMatrix(MAT_VIEW);
 			}
 
 			glLineWidth(1);
@@ -1861,12 +1846,12 @@ float Renderer::drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color
 		}
 	}
 
+	// draw camera origin in the same coordinate space
 	{
 		vec2 cam = poly.project(cameraOrigin);
-		drawBox2D(offset + cam*scale, 16, poly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
+		drawBox2D(offset + cam * scale, 16, poly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
 	}
-	
-	drawLine2D(offset + debugCut.start * scale, offset + debugCut.end * scale, color);
+
 
 	return scale;
 }

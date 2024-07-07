@@ -26,11 +26,11 @@ private:
 	// group polys that are close together for fewer collision checks later
 	LeafOctree* createLeafOctree(Bsp* map, vector<LeafNode>& mesh, int treeDepth);
 
-	// merged polys adjacent to each other to reduce node count
-	void mergeLeaves(Bsp* map, vector<LeafNode>& leaves);
+	// finds best origin for a leaf
+	void setLeafOrigins(Bsp* map, LeafNavMesh* mesh);
 
-	// removes tiny faces
-	void cullTinyLeaves(vector<LeafNode>& leaves);
+	// find point on poly which is closest to a floor, using distance to the bias point as a tie breaker
+	vec3 getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bias);
 
 	// links nav leaves which have faces touching each other
 	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh);

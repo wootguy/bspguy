@@ -44,6 +44,7 @@ struct vec3
 	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
 	vec3 normalize(float length=1.0f);
 	float length();
+	float lengthSquared(); // faster than length
 	vec3 invert();
 	std::string toKeyvalueString(bool truncate=false, std::string suffix_x=" ", std::string suffix_y=" ", std::string suffix_z="");
 	vec3 flip(); // flip from opengl to Half-life coordinate system and vice versa
