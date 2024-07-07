@@ -4018,6 +4018,28 @@ bool Bsp::validate() {
 		isValid = false;
 	}
 
+	for (Entity* ent : ents) {
+		vec3 ori = ent->getOrigin();
+		//float oob = g_engine_limits->max_mapboundary;
+		float oob = 8192;
+
+		if (fabs(ori.x) > oob || fabs(ori.y) > oob || fabs(ori.z) > oob) {
+			logf("Entity '%s' (%s) outside map boundary at (%d %d %d)\n",
+				ent->hasKey("targetname") ? ent->keyvalues["targetname"].c_str() : "",
+				ent->hasKey("classname") ? ent->keyvalues["classname"].c_str() : "",
+				(int)ori.x, (int)ori.y, (int)ori.z);
+		}
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
+			logf("Texture '%s' too large (%dx%d)\n", tex.szName, tex.nWidth, tex.nHeight);
+		}
+	}
+
 	return isValid;
 }
 
