@@ -15,10 +15,9 @@
 #include <limits.h>
 
 LeafNode::LeafNode() {
-	links.clear();
-	leafFaces.clear();
 	id = -1;
-	center = bottom = top = mins = maxs = vec3();
+	entidx = 0;
+	center = origin = mins = maxs = vec3();
 }
 
 bool LeafNode::isInside(vec3 p) {
@@ -42,10 +41,11 @@ bool LeafNode::addLink(int node, Polygon3D linkArea) {
 	link.linkArea = linkArea;
 	link.node = node;
 
-	link.bottom = linkArea.center;
+	link.pos = linkArea.center;
 	if (fabs(linkArea.plane_z.z) < 0.7f) {
-		linkArea.intersect2D(linkArea.center, linkArea.center - vec3(0, 0, 4096), link.bottom);
-		link.bottom.z += NAV_BOTTOM_EPSILON;
+		// wall links should be positioned at the bottom of the intersection to keep paths near the floor
+		linkArea.intersect2D(linkArea.center, linkArea.center - vec3(0, 0, 4096), link.pos);
+		link.pos.z += NAV_BOTTOM_EPSILON;
 	}
 
 	links.push_back(link);
@@ -53,14 +53,19 @@ bool LeafNode::addLink(int node, Polygon3D linkArea) {
 	return true;
 }
 
-int LeafNode::numLinks() {
-	int numLinks = 0;
-
+bool LeafNode::addLink(int node, vec3 linkPos) {
 	for (int i = 0; i < links.size(); i++) {
-		numLinks++;
+		if (links[i].node == node) {
+			return true;
+		}
 	}
 
-	return numLinks;
+	LeafLink link;
+	link.node = node;
+	link.pos = linkPos;
+	links.push_back(link);
+
+	return true;
 }
 
 LeafNavMesh::LeafNavMesh() {
@@ -72,21 +77,11 @@ void LeafNavMesh::clear() {
 	nodes.clear();
 }
 
-LeafNavMesh::LeafNavMesh(vector<LeafNode> inleaves) {
+LeafNavMesh::LeafNavMesh(vector<LeafNode> inleaves, LeafOctree* octree) {
 	clear();
 
-	nodes = inleaves;
-
-	int totalSz = 0;
-	for (int i = 0; i < nodes.size(); i++) {
-		totalSz += sizeof(LeafNode) + (sizeof(LeafLink) * nodes[i].links.size());
-	}
-
-	logf("Created leaf nav mesh with %d leaves (%d KB)\n", 
-		nodes.size(), totalSz / 1024);
-
-	logf("LeafNode = %d bytes, LeafLink = %d bytes\n",
-		sizeof(LeafNode), sizeof(LeafLink));
+	this->nodes = inleaves;
+	this->octree = octree;
 }
 
 bool LeafNavMesh::addLink(int from, int to, Polygon3D linkArea) {
@@ -196,7 +191,7 @@ float LeafNavMesh::path_cost(int a, int b) {
 
 	LeafNode& nodea = nodes[a];
 	LeafNode& nodeb = nodes[b];
-	vec3 delta = nodea.bottom - nodeb.bottom;
+	vec3 delta = nodea.origin - nodeb.origin;
 
 	for (int i = 0; i < nodea.links.size(); i++) {
 		LeafLink& link = nodea.links[i];
@@ -398,7 +393,7 @@ vector<int> LeafNavMesh::dijkstraRoute(int start, int end) {
 	for (int i = 1; i < path.size(); i++) {
 		LeafNode& mesha = nodes[path[i-1]];
 		LeafNode& meshb = nodes[path[i]];
-		len += (mesha.bottom - meshb.bottom).length();
+		len += (mesha.origin - meshb.origin).length();
 		cost += path_cost(path[i - 1], path[i]);
 	}
 	logf("Path length: %d, cost: %d\n", (int)len, (int)cost);

@@ -47,6 +47,8 @@ public:
 
 	void init();
 
+	int sizeBytes();
+
 	float distance(const vec3& p);
 
 	bool isConvex();

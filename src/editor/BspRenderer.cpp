@@ -958,12 +958,12 @@ void BspRenderer::generateNavMeshBuffer() {
 }
 
 void BspRenderer::generateLeafNavMeshBuffer() {
-	int hull = 3;
+	int hull = NAV_HULL;
 	RenderClipnodes* renderClip = &renderClipnodes[0];
 	renderClip->clipnodeBuffer[hull] = NULL;
 	renderClip->wireframeClipnodeBuffer[hull] = NULL;
 
-	LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map, hull);
+	LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map);
 	g_app->debugLeafNavMesh = navMesh;
 
 	static COLOR4 hullColors[] = {

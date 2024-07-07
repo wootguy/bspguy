@@ -32,6 +32,13 @@ Polygon3D::Polygon3D(const vector<vec3>& verts, int idx) {
 	init();
 }
 
+int Polygon3D::sizeBytes() {
+	return sizeof(Polygon3D) 
+		+ sizeof(vec3) * verts.size() 
+		+ sizeof(vec2) * localVerts.size()
+		+ sizeof(vec2) * topdownVerts.size();
+}
+
 void Polygon3D::init() {
 	vector<vec3> triangularVerts = getTriangularVerts(this->verts);
 	localVerts.clear();
