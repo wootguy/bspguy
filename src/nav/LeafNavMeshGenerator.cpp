@@ -27,7 +27,7 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map) {
 
 	linkNavLeaves(map, navmesh);
 	setLeafOrigins(map, navmesh);
-	linkLadderLeaves(map, navmesh);
+	linkEntityLeaves(map, navmesh);
 	calcPathCosts(map, navmesh);
 
 	int totalSz = 0;
@@ -278,54 +278,131 @@ void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
 	logf("Added %d nav leaf links in %.2fs\n", numLinks, (float)glfwGetTime() - linkStart);
 }
 
-void LeafNavMeshGenerator::linkLadderLeaves(Bsp* map, LeafNavMesh* mesh) {
+void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
+	vector<bool> regionLeaves;
+	regionLeaves.resize(mesh->nodes.size());
+
+	const vec3 pointMins = vec3(-16, -16, -36);
+	const vec3 pointMaxs = vec3(16, 16, 36);
+	
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
 
 		if (ent->keyvalues["classname"] == "func_ladder") {
-			vector<LeafNode> leaves = getHullLeaves(map, ent->getBspModelIdx(), CONTENTS_SOLID);
+			LeafNode& entNode = addSolidEntityNode(map, mesh, i);
+			entNode.maxs.z += NAV_CROUCHJUMP_HEIGHT; // players can stand on top of the ladder for more height
+			entNode.origin = (entNode.mins + entNode.maxs) * 0.5f;
 
-			// create a special ladder node which is a combination of all its leaves
-			LeafNode ladderNode = LeafNode();
-			ladderNode.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-			ladderNode.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+			linkEntityLeaves(map, mesh, entNode, regionLeaves);
+		}
+		else if (ent->keyvalues["classname"] == "trigger_teleport") {
+			LeafNode& teleNode = addSolidEntityNode(map, mesh, i);
+			linkEntityLeaves(map, mesh, teleNode, regionLeaves);
 
-			for (LeafNode& node : leaves) {
-				expandBoundingBox(node.mins, ladderNode.mins, ladderNode.maxs);
-				expandBoundingBox(node.maxs, ladderNode.mins, ladderNode.maxs);
+			// link teleport destination(s) to touched nodes
+			int pentTarget = -1;
+			vector<int> targets;
 
-				for (int i = 0; i < node.leafFaces.size(); i++) {
-					ladderNode.leafFaces.push_back(node.leafFaces[i]);
-				}
+			const int SF_TELE_RANDOM_DESTINATION = 64;
+			string target = ent->keyvalues["target"];
+			bool randomDestinations = atoi(ent->keyvalues["spawnflags"].c_str()) & SF_TELE_RANDOM_DESTINATION;
+
+			if (!target.length()) {
+				continue;
 			}
-			ladderNode.maxs.z += NAV_CROUCHJUMP_HEIGHT; // players can stand on top of the ladder for more height
-			ladderNode.origin = (ladderNode.mins + ladderNode.maxs) * 0.5f;
-			ladderNode.id = mesh->nodes.size();
-			ladderNode.entidx = i;
 
-			vector<bool> regionLeaves;
-			regionLeaves.resize(mesh->nodes.size());
-			mesh->octree->getLeavesInRegion(&ladderNode, regionLeaves);
-
-			for (int i = 0; i < mesh->nodes.size(); i++) {
-				if (!regionLeaves[i]) {
-					continue;
-				}
-
-				LeafNode& node = mesh->nodes[i];
-				if (boxesIntersect(node.mins, node.maxs, ladderNode.mins, ladderNode.maxs)) {
-					// ladder can connect these leaves
-					vec3 linkPos = ladderNode.origin;
-					linkPos.z = node.origin.z;
-
-					ladderNode.addLink(i, linkPos);
-					node.addLink(ladderNode.id, linkPos);
+			for (int k = 0; k < map->ents.size(); k++) {
+				Entity* tar = map->ents[k];
+				if (tar->keyvalues["targetname"] == target) {
+					if (tar->keyvalues["classname"] == "info_teleport_destination") {
+						targets.push_back(k);
+					}
+					else if (pentTarget == -1) {
+						pentTarget = k;
+					}
 				}
 			}
 
-			mesh->nodes.push_back(ladderNode);
+			if (!randomDestinations && targets.size()) {
+				pentTarget = targets[0]; // prefer teleport destinations
+			}
+
+			if (randomDestinations && !targets.empty()) {
+				// link all possible targets
+				for (int k = 0; k < targets.size(); k++) {
+					LeafNode& entNode = addPointEntityNode(map, mesh, targets[k], pointMins, pointMaxs);
+					linkEntityLeaves(map, mesh, entNode, regionLeaves);
+
+					teleNode.addLink(entNode.id, teleNode.origin);
+				}
+			}
+			else if (pentTarget != -1) {
+				LeafNode& entNode = addPointEntityNode(map, mesh, pentTarget, pointMins, pointMaxs);
+				linkEntityLeaves(map, mesh, entNode, regionLeaves);
+
+				teleNode.addLink(entNode.id, teleNode.origin);
+			}			
 		}
 	}
+}
+
+void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNode& entNode, vector<bool>& regionLeaves) {
+	mesh->octree->getLeavesInRegion(&entNode, regionLeaves);
+
+	// link teleport destinations to touched nodes
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		if (!regionLeaves[i]) {
+			continue;
+		}
+
+		LeafNode& node = mesh->nodes[i];
+		if (boxesIntersect(node.mins, node.maxs, entNode.mins, entNode.maxs)) {
+			vec3 linkPos = entNode.origin;
+			linkPos.z = node.origin.z;
+
+			entNode.addLink(i, linkPos);
+			node.addLink(entNode.id, linkPos);
+		}
+	}
+}
+
+LeafNode& LeafNavMeshGenerator::addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx) {
+	Entity* ent = map->ents[entidx];
+	vector<LeafNode> leaves = getHullLeaves(map, ent->getBspModelIdx(), CONTENTS_SOLID);
+
+	// create a special ladder node which is a combination of all its leaves
+	LeafNode ladderNode = LeafNode();
+	ladderNode.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	ladderNode.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for (LeafNode& node : leaves) {
+		expandBoundingBox(node.mins, ladderNode.mins, ladderNode.maxs);
+		expandBoundingBox(node.maxs, ladderNode.mins, ladderNode.maxs);
+
+		for (int i = 0; i < node.leafFaces.size(); i++) {
+			ladderNode.leafFaces.push_back(node.leafFaces[i]);
+		}
+	}
+	ladderNode.origin = (ladderNode.mins + ladderNode.maxs) * 0.5f;
+	ladderNode.id = mesh->nodes.size();
+	ladderNode.entidx = entidx;
+
+	mesh->nodes.push_back(ladderNode);
+	return mesh->nodes[mesh->nodes.size() - 1];
+}
+
+LeafNode& LeafNavMeshGenerator::addPointEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx, vec3 mins, vec3 maxs) {
+	Entity* ent = map->ents[entidx];
+
+	LeafNode node = LeafNode();
+	node.origin = node.center = ent->getOrigin();
+	node.mins = node.origin + mins;
+	node.maxs = node.origin + maxs;
+	node.id = mesh->nodes.size();
+	node.entidx = entidx;
+
+	mesh->nodes.push_back(node);
+	return mesh->nodes[mesh->nodes.size() - 1];
 }
 
 int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx) {

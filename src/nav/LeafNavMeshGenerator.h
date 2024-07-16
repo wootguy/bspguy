@@ -35,8 +35,16 @@ private:
 	// links nav leaves which have faces touching each other
 	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh);
 
-	// use ladder entities to create cheaper paths between leaves
-	void linkLadderLeaves(Bsp* map, LeafNavMesh* mesh);
+	// use entities to create cheaper paths between leaves
+	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh);
+
+	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNode& entNode, vector<bool>& regionLeaves);
+
+	// returns a combined node for an entity, which is the bounding box of all its model leaves
+	LeafNode& addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx);
+
+	// returns a node for an entity, which is its bounding box
+	LeafNode& addPointEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx, vec3 mins, vec3 maxs);
 
 	int tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx);
 
