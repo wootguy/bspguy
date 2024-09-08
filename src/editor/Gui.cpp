@@ -544,7 +544,7 @@ void Gui::draw3dContextMenus() {
 					else if (maxDim > 32) { nextBestDim = 32; }
 
 					downscaled.insert(info.iMiptex);
-					map->downscale_texture(info.iMiptex, nextBestDim);
+					map->downscale_texture(info.iMiptex, nextBestDim, true);
 				}
 				
 				app->deselectFaces();

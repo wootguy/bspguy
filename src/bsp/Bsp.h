@@ -216,10 +216,14 @@ public:
 	void downscale_textures(int maxDim);
 
 	// downscales a texture to the maximum specified width/height
-	// true if was downscaled
-	bool downscale_texture(int textureId, int maxDim);
+	// allowWad:true = texture coordinates will be scaled even if the the texture is from a WAD and must be scaled separately
+	// returns true if was downscaled
+	bool downscale_texture(int textureId, int maxDim, bool allowWad);
 
 	bool downscale_texture(int textureId, int newWidth, int newHeight);
+
+	// updates texture coordinates after a texture has been downscaled
+	void adjust_downscaled_texture_coordinates(int textureId, int oldWidth, int oldHeight);
 
 	vec3 get_face_center(int faceIdx);
 

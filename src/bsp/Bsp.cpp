@@ -2982,7 +2982,7 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, bool downscaleOnly, in
 				continue;
 			}
 
-			if (maxTextureDim > 0 && downscale_texture(info.iMiptex, maxTextureDim)) {
+			if (maxTextureDim > 0 && downscale_texture(info.iMiptex, maxTextureDim, false)) {
 				// retry after downscaling
 				numShrink++;
 				fa--;
@@ -3125,9 +3125,89 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 		tex.nOffsets[i] = newOffset[i];
 	}
 
+	adjust_downscaled_texture_coordinates(textureId, oldWidth, oldHeight);
+
+	// shrink texture lump
+	int removedBytes = palette - newPalette;
+	byte* texEnd = newPalette + 256 * sizeof(COLOR3);
+	int shiftBytes = (texEnd - textures) + removedBytes;
+
+	memcpy(texEnd, texEnd + removedBytes, header.lump[LUMP_TEXTURES].nLength - shiftBytes);
+	for (int k = textureId + 1; k < textureCount; k++) {
+		((int32_t*)textures)[k + 1] -= removedBytes;
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+	}
+
+	logf("Downscale %s %dx%d -> %dx%d\n", tex.szName, oldWidth, oldHeight, tex.nWidth, tex.nHeight);
+
+	return true;
+}
+
+bool Bsp::downscale_texture(int textureId, int maxDim, bool allowWad) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	int oldWidth = tex.nWidth;
+	int oldHeight = tex.nHeight;
+	int newWidth = tex.nWidth;
+	int newHeight = tex.nHeight;
+
+	if (tex.nWidth > maxDim && tex.nWidth > tex.nHeight) {
+		float ratio = oldHeight / (float)oldWidth;
+		newWidth = maxDim;
+		newHeight = (int)(((newWidth * ratio) + 8) / 16) * 16;
+		if (newHeight > oldHeight) {
+			newHeight = (int)((newWidth * ratio) / 16) * 16;
+		}
+	}
+	else if (tex.nHeight > maxDim) {
+		float ratio = oldWidth / (float)oldHeight;
+		newHeight = maxDim;
+		newWidth = (int)(((newHeight * ratio) + 8) / 16) * 16;
+		if (newWidth > oldWidth) {
+			newWidth = (int)((newHeight * ratio) / 16) * 16;
+		}
+	}
+	else {
+		return false; // no need to downscale
+	}
+
+	if (oldWidth == newWidth && oldHeight == newHeight) {
+		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
+		return false;
+	}
+
+	if (tex.nOffsets[0] == 0) {
+		if (allowWad) {
+			tex.nWidth = newWidth;
+			tex.nHeight = newHeight;
+			adjust_downscaled_texture_coordinates(textureId, oldWidth, oldHeight);
+			logf("Texture coords were updated for %s. The WAD texture must be updated separately.\n", tex.szName);
+		}
+		else {
+			logf("Can't downscale WAD texture %s\n", tex.szName);
+		}
+		
+		return false;
+	}
+
+	return downscale_texture(textureId, newWidth, newHeight);
+}
+
+void Bsp::adjust_downscaled_texture_coordinates(int textureId, int oldWidth, int oldHeight) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+	
+	int newWidth = tex.nWidth;
+	int newHeight = tex.nHeight;
+
 	// scale up face texture coordinates
-	float scaleX = tex.nWidth / (float)oldWidth;
-	float scaleY = tex.nHeight / (float)oldHeight;
+	float scaleX = newWidth / (float)oldWidth;
+	float scaleY = newHeight / (float)oldHeight;
 
 	for (int i = 0; i < faceCount; i++) {
 		BSPFACE& face = faces[i];
@@ -3160,70 +3240,9 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 		float v = dotProduct(info->vT, vert) + info->shiftT;
 
 		// undo the shift in uv coordinates for this face
-		info->shiftS += (oldu * tex.nWidth) - u;
-		info->shiftT += (oldv * tex.nHeight) - v;
+		info->shiftS += (oldu * newWidth) - u;
+		info->shiftT += (oldv * newHeight) - v;
 	}
-
-	// shrink texture lump
-	int removedBytes = palette - newPalette;
-	byte* texEnd = newPalette + 256 * sizeof(COLOR3);
-	int shiftBytes = (texEnd - textures) + removedBytes;
-
-	memcpy(texEnd, texEnd + removedBytes, header.lump[LUMP_TEXTURES].nLength - shiftBytes);
-	for (int k = textureId + 1; k < textureCount; k++) {
-		((int32_t*)textures)[k + 1] -= removedBytes;
-	}
-
-	for (int i = 0; i < textureCount; i++) {
-		int32_t texOffset = ((int32_t*)textures)[i + 1];
-		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-	}
-
-	logf("Downscale %s %dx%d -> %dx%d\n", tex.szName, oldWidth, oldHeight, tex.nWidth, tex.nHeight);
-
-	return true;
-}
-
-bool Bsp::downscale_texture(int textureId, int maxDim) {
-	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
-	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-
-	if (tex.nOffsets[0] == 0) {
-		logf("Can't downscale WAD texture %s\n", tex.szName);
-		return false;
-	}
-
-	int oldWidth = tex.nWidth;
-	int oldHeight = tex.nHeight;
-	int newWidth = tex.nWidth;
-	int newHeight = tex.nHeight;
-
-	if (tex.nWidth > maxDim && tex.nWidth > tex.nHeight) {
-		float ratio = oldHeight / (float)oldWidth;
-		newWidth = maxDim;
-		newHeight = (int)(((newWidth * ratio) + 8) / 16) * 16;
-		if (newHeight > oldHeight) {
-			newHeight = (int)((newWidth * ratio) / 16) * 16;
-		}
-	}
-	else if (tex.nHeight > maxDim) {
-		float ratio = oldWidth / (float)oldHeight;
-		newHeight = maxDim;
-		newWidth = (int)(((newHeight * ratio) + 8) / 16) * 16;
-		if (newWidth > oldWidth) {
-			newWidth = (int)((newHeight * ratio) / 16) * 16;
-		}
-	}
-	else {
-		return false; // no need to downscale
-	}
-
-	if (oldWidth == newWidth && oldHeight == newHeight) {
-		logf("Failed to downscale texture %s %dx%d to max dim %d\n", tex.szName, oldWidth, oldHeight, maxDim);
-		return false;
-	}
-
-	return downscale_texture(textureId, newWidth, newHeight);
 }
 
 void Bsp::downscale_invalid_textures() {
