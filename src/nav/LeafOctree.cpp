@@ -15,14 +15,6 @@ LeafOctant::~LeafOctant() {
     }
 }
 
-void LeafOctant::removeLeaf(LeafNode* leaf) {
-    leaves.erase(std::remove(leaves.begin(), leaves.end(), leaf), leaves.end());
-    for (int i = 0; i < 8; i++) {
-        if (children[i])
-            children[i]->removeLeaf(leaf);
-    }
-}
-
 LeafOctree::~LeafOctree() {
     delete root;
 }
@@ -62,7 +54,7 @@ void LeafOctree::insertLeaf(LeafNode* leaf) {
 
 void LeafOctree::insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth) {
     if (currentDepth >= maxDepth) {
-        node->leaves.push_back(leaf);
+        node->leaves.push_back(leaf->id);
         return;
     }
     for (int i = 0; i < 8; ++i) {
@@ -73,7 +65,19 @@ void LeafOctree::insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth) 
 }
 
 void LeafOctree::removeLeaf(LeafNode* leaf) {
-    root->removeLeaf(leaf);
+    removeLeaf(root, leaf, 0);
+}
+
+void LeafOctree::removeLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth) {
+    if (currentDepth >= maxDepth) {
+        node->leaves.erase(std::remove(node->leaves.begin(), node->leaves.end(), leaf->id), node->leaves.end());
+        return;
+    }
+    for (int i = 0; i < 8; ++i) {
+        if (isLeafInOctant(leaf, node->children[i])) {
+            removeLeaf(node->children[i], leaf, currentDepth + 1);
+        }
+    }
 }
 
 bool LeafOctree::isLeafInOctant(LeafNode* leaf, LeafOctant* node) {
@@ -88,9 +92,8 @@ void LeafOctree::getLeavesInRegion(LeafNode* leaf, vector<bool>& regionLeaves) {
 
 void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves) {
     if (currentDepth >= maxDepth) {
-        for (auto p : node->leaves) {
-            if (p->id != -1)
-                regionLeaves[p->id] = true;
+        for (uint16_t p : node->leaves) {
+            regionLeaves[p] = true;
         }
         return;
     }

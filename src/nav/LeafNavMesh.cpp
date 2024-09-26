@@ -13,21 +13,46 @@
 #include <queue>
 #include <algorithm>
 #include <limits.h>
+#include "LeafOctree.h"
+#include "LeafNavMeshGenerator.h"
 
 LeafNode::LeafNode() {
 	id = -1;
 	entidx = 0;
 	center = origin = mins = maxs = vec3();
+	parentIdx = NAV_INVALID_IDX;
+	childIdx = NAV_INVALID_IDX;
+	face_buffer = wireframe_buffer = NULL;
 }
 
-bool LeafNode::isInside(vec3 p) {
+bool LeafNode::isInside(vec3 p, float epsilon) {
 	for (int i = 0; i < leafFaces.size(); i++) {
-		if (leafFaces[i].distance(p) > 0) {
+		if (leafFaces[i].distance(p) > -epsilon) {
 			return false;
 		}
 	}
 
 	return true;
+}
+
+bool LeafNode::intersects(Polygon3D& poly) {
+	if (isInside(poly.center, 1.0f)) {
+		return true;
+	}
+
+	for (int i = 0; i < poly.verts.size(); i++) {
+		if (isInside(poly.verts[i], 1.0f)) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < leafFaces.size(); i++) {
+		if (poly.intersects(leafFaces[i])) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool LeafNode::addLink(int node, Polygon3D linkArea) {	
@@ -40,6 +65,8 @@ bool LeafNode::addLink(int node, Polygon3D linkArea) {
 	LeafLink link;
 	link.linkArea = linkArea;
 	link.node = node;
+	link.baseCost = 0;
+	link.costMultiplier = 1.0f;
 
 	link.pos = linkArea.center;
 	if (fabs(linkArea.plane_z.z) < 0.7f) {
@@ -63,6 +90,8 @@ bool LeafNode::addLink(int node, vec3 linkPos) {
 	LeafLink link;
 	link.node = node;
 	link.pos = linkPos;
+	link.baseCost = 0;
+	link.costMultiplier = 1.0f;
 	links.push_back(link);
 
 	return true;
@@ -137,14 +166,10 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 	};
 
 	for (int i = 0; i < 10; i++) {
-		int targetLeaf = map->get_leaf(testPoints[i], 3);
+		uint16_t nodeId = getNodeIdx(map, testPoints[i]);
 
-		if (targetLeaf >= 0 && targetLeaf < MAX_MAP_CLIPNODE_LEAVES) {
-			int navIdx = leafMap[targetLeaf];
-			
-			if (navIdx < 65535) {
-				return navIdx;
-			}
+		if (nodeId != NAV_INVALID_IDX) {
+			return nodeId;
 		}
 	}
 
@@ -172,6 +197,10 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 
 	for (int i = 0; i < nodes.size(); i++) {
 		LeafNode& mesh = nodes[i];
+
+		if (mesh.childIdx != NAV_INVALID_IDX) {
+			continue;
+		}
 		
 		for (int k = 0; k < mesh.leafFaces.size(); k++) {
 			Polygon3D& leafFace = mesh.leafFaces[k];
@@ -185,6 +214,39 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 	}
 
 	return -1;
+}
+
+uint16_t LeafNavMesh::getNodeIdx(Bsp* map, vec3 pos) {
+	int bspLeaf = map->get_leaf(pos, NAV_HULL);
+
+	if (bspLeaf < 0 || bspLeaf >= MAX_MAP_CLIPNODE_LEAVES) {
+		return NAV_INVALID_IDX;
+	}
+
+	uint16_t idx = leafMap[bspLeaf];
+
+	if (idx >= nodes.size()) {
+		return NAV_INVALID_IDX;
+	}
+
+	if (nodes[idx].childIdx == NAV_INVALID_IDX) {
+		return nodes[idx].id;
+	}
+
+	for (int i = nodes[idx].childIdx; i < nodes.size(); i++) {
+		if (nodes[i].parentIdx != idx) {
+			if (i == nodes[idx].childIdx) {
+				logf("Invalid child leaf offset!\n");
+			}
+			break;
+		}
+
+		if (nodes[i].isInside(pos)) {
+			return nodes[i].id;
+		}
+	}
+
+	return NAV_INVALID_IDX;
 }
 
 float LeafNavMesh::path_cost(int a, int b) {
@@ -363,6 +425,11 @@ vector<int> LeafNavMesh::dijkstraRoute(int start, int end) {
 				break;
 			}
 
+			LeafNode& linkNode = nodes[link.node];
+			if (linkNode.childIdx != NAV_INVALID_IDX) {
+				continue; // don't link to split parent nodes
+			}
+
 			int v = link.node;
 			float weight = path_cost(u, link.node);
 
@@ -399,4 +466,67 @@ vector<int> LeafNavMesh::dijkstraRoute(int start, int end) {
 	logf("Path length: %d, cost: %d\n", (int)len, (int)cost);
 
 	return path;
+}
+
+void LeafNavMesh::refreshNodes(Bsp* map) {
+	double refreshStart = glfwGetTime();
+	LeafNavMeshGenerator generator;
+
+	int deleteCount = 0;
+
+	// delete all child nodes
+	for (int i = 0; i < nodes.size(); i++) {
+		LeafNode& node = nodes[i];
+
+		if (node.childIdx != NAV_INVALID_IDX) {
+			node.childIdx = NAV_INVALID_IDX;
+		}
+
+		for (int k = 0; k < node.links.size(); k++) {
+			if (node.links[k].node >= nodes.size() || nodes[node.links[k].node].parentIdx != NAV_INVALID_IDX) {
+				node.links.erase(node.links.begin() + k);
+				k--;
+			}
+		}
+
+		if (node.parentIdx != NAV_INVALID_IDX) {
+			if (node.face_buffer) {
+				delete node.face_buffer;
+			}
+			if (node.wireframe_buffer) {
+				delete node.wireframe_buffer;
+			}
+
+			octree->removeLeaf(&node);
+			nodes.erase(nodes.begin() + i);
+			i--;
+			deleteCount++;
+			continue;
+		}
+	}
+
+	// really shouldnt be needed
+	for (int i = 0; i < nodes.size(); i++) {
+		LeafNode& node = nodes[i];
+
+		for (int k = 0; k < node.links.size(); k++) {
+			if (node.links[k].node >= nodes.size() || nodes[node.links[k].node].parentIdx != NAV_INVALID_IDX) {
+				node.links.erase(node.links.begin() + k);
+				k--;
+			}
+		}
+	}
+
+	//logf("Delete %d children in %.2fs\n", deleteCount, (float)(glfwGetTime() - refreshStart));
+
+	int childOffset = nodes.size();
+
+	// split leaves again
+	generator.splitEntityLeaves(map, this);
+
+	generator.setLeafOrigins(map, this, childOffset);
+	generator.linkNavChildLeaves(map, this, childOffset);
+	//generator.linkEntityLeaves(map, this, 0);
+
+	//logf("Split %.2fs\n", (float)(glfwGetTime() - refreshStart));
 }

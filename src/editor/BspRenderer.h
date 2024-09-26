@@ -15,6 +15,7 @@ struct lightmapVert;
 struct cCube;
 class Bsp;
 class Entity;
+struct LeafNode;
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
@@ -151,6 +152,8 @@ public:
 
 	void write_obj_file();
 
+	void generateSingleLeafNavMeshBuffer(LeafNode* node);
+
 private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
@@ -205,7 +208,6 @@ private:
 	void loadClipnodes();
 	void generateClipnodeBuffer(int modelIdx);
 	void generateNavMeshBuffer();
-	void generateLeafNavMeshBuffer();
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
 	void deleteRenderClipnodes();

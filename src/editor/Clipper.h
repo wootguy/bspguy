@@ -1,4 +1,6 @@
+#pragma once
 #include "bsptypes.h"
+#include "Polygon3D.h"
 
 // https://www.geometrictools.com/Documentation/ClipMesh.pdf
 
@@ -55,6 +57,12 @@ public:
 
 	// clips a box against the list of clipping planes, in order, to create a convex volume
 	CMesh clip(vector<BSPPLANE>& clips);
+
+	// load mesh from a set of polygons and clip it by another poly
+	// 0 = nothing clipped
+	// 1 = clipped
+	// -1 = everything clipped
+	int clip(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& mesh);
 
 private:
 

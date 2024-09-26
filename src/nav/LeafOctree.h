@@ -2,18 +2,17 @@
 #include "Polygon3D.h"
 #include <vector>
 #include "LeafNavMesh.h"
+#include <list>
 
 struct LeafOctant {
     vec3 min;
     vec3 max;
-    vector<LeafNode*> leaves;
+    list<uint16_t> leaves;
     LeafOctant* children[8]; // Eight children octants
 
     LeafOctant(vec3 min, vec3 max);
 
     ~LeafOctant();
-
-    void removeLeaf(LeafNode* polygon);
 };
 
 class LeafOctree {
@@ -39,4 +38,6 @@ private:
     void getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves);
 
     void insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth);
+
+    void removeLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth);
 };

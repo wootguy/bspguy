@@ -30,6 +30,50 @@ CMesh Clipper::clip(vector<BSPPLANE>& clips) {
 	return mesh;
 }
 
+int Clipper::clip(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& mesh) {
+	mesh = createMaxSizeVolume();
+
+	for (int i = 0; i < polys.size(); i++) {
+		Polygon3D& poly = polys[i];
+		BSPPLANE clip;
+		clip.fDist = poly.fdist*-1;
+		clip.vNormal = poly.plane_z*-1;
+
+		int result = clipVertices(mesh, clip);
+
+		if (result == -1) {
+			// everything clipped
+			logf("Should never happen!\n");
+			mesh = CMesh();
+			return -1;
+		}
+		if (result == 1) {
+			// nothing clipped
+			continue;
+		}
+
+		clipEdges(mesh, clip);
+		clipFaces(mesh, clip);
+	}
+
+	// final clip
+	int result = clipVertices(mesh, clipPoly);
+
+	if (result == -1) {
+		// everything clipped
+		return -1;
+	}
+	if (result == 1) {
+		// nothing clipped
+		return 0;
+	}
+
+	clipEdges(mesh, clipPoly);
+	clipFaces(mesh, clipPoly);
+
+	return 1;
+}
+
 int Clipper::clipVertices(CMesh& mesh, BSPPLANE& clip) {
 	int positive = 0;
 	int negative = 0;

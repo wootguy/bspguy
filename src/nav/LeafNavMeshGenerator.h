@@ -1,6 +1,7 @@
 #pragma once
 #include "Polygon3D.h"
 #include "LeafNavMesh.h"
+#include "Clipper.h"
 
 class Bsp;
 class LeafOctree;
@@ -14,29 +15,41 @@ public:
 	// returns polygons used to construct the mesh
 	LeafNavMesh* generate(Bsp* map);
 
+	// splits leaves by solid entity faces
+	void splitEntityLeaves(Bsp* map, LeafNavMesh* mesh);
+
+	// finds best origin for a leaf
+	void setLeafOrigins(Bsp* map, LeafNavMesh* mesh, int offset);
+
+	// links nav leaves which have faces touching each other
+	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
+
+	// use on a mesh that has already had all parent leaves linked
+	void linkNavChildLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
+
+	// use entities to create cheaper paths between leaves
+	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
+
 private:
 	int octreeDepth = 6;
 
 	// get leaves of the bsp tree with the given contents
 	vector<LeafNode> getHullLeaves(Bsp* map, int modelIdx, int contents);
 
+	LeafNode getHullForClipperMesh(CMesh& mesh);
+
 	// get smallest octree box that can contain the entire map
 	void getOctreeBox(Bsp* map, vec3& min, vec3& max);
 
-	// group polys that are close together for fewer collision checks later
+	// group leaves that are close together for fewer collision checks later
 	LeafOctree* createLeafOctree(Bsp* map, vector<LeafNode>& mesh, int treeDepth);
 
-	// finds best origin for a leaf
-	void setLeafOrigins(Bsp* map, LeafNavMesh* mesh);
+	// splits a leaf by an entity's leaf
+	// includeSolidNode = true if the entity can be passed through without noclip
+	void splitEntityLeaf(Bsp* map, LeafNavMesh* mesh, LeafNode& node, LeafNode& entNode, bool includeSolidNode);
 
 	// find point on poly which is closest to a floor, using distance to the bias point as a tie breaker
 	vec3 getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bias);
-
-	// links nav leaves which have faces touching each other
-	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh);
-
-	// use entities to create cheaper paths between leaves
-	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh);
 
 	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNode& entNode, vector<bool>& regionLeaves);
 
@@ -49,6 +62,8 @@ private:
 	int tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx);
 
 	void calcPathCosts(Bsp* bsp, LeafNavMesh* mesh);
+
+	void calcPathCost(Bsp* bsp, LeafNavMesh* mesh, LeafNode& node, LeafLink& link);
 
 	void addPathCost(LeafLink& link, Bsp* bsp, vec3 start, vec3 end, bool isDrop);
 };

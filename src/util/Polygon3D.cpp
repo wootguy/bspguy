@@ -561,6 +561,37 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 }
 
 bool Polygon3D::intersects(Polygon3D& otherPoly) {
+	vec3 isect;
+	const float eps = 0.5f;
+
+	for (int i = 0; i < verts.size(); i++) {
+		vec3 va = verts[i];
+		vec3 vb = verts[(i + 1) % verts.size()];
+
+		if (fabs(otherPoly.distance(va)) < eps ||fabs( otherPoly.distance(vb)) < eps) {
+			// edge is touching the face, but otherwise fully on one side of it
+			continue;
+		}
+
+		if (otherPoly.intersect(va, vb, isect)) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < otherPoly.verts.size(); i++) {
+		vec3 va = otherPoly.verts[i];
+		vec3 vb = otherPoly.verts[(i + 1) % verts.size()];
+
+		if (fabs(distance(va)) < eps || fabs(distance(vb)) < eps) {
+			// edge is touching the face, but otherwise fully on one side of it
+			continue;
+		}
+
+		if (intersect(va, vb, isect)) {
+			return true;
+		}
+	}
+
 	return false;
 }
 

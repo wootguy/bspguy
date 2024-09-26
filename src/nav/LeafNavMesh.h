@@ -3,6 +3,7 @@
 #include <map>
 
 #define MAX_MAP_CLIPNODE_LEAVES 65536 // doubled to account for each clipnode's child contents having its own ID
+#define NAV_INVALID_IDX 65535
 
 #define NAV_STEP_HEIGHT 18
 #define NAV_JUMP_HEIGHT 44
@@ -13,9 +14,13 @@
 
 #define NAV_BOTTOM_EPSILON 1.0f // move waypoints this far from the bottom of the node
 
+#define NAV_LEAF_PARENT 1 // node was split by entity leaves and should not be used
+#define NAV_LEAF_CHILD 2 // node was created by splitting a world leaf by an entity
+
 class Bsp;
 class Entity;
 class LeafOctree;
+class VertexBuffer;
 
 struct LeafLink {
 	uint16_t node; // which leaf is linked to
@@ -32,11 +37,16 @@ struct LeafNode {
 	uint16_t id;
 	vec3 origin; // the best position for pathing (not necessarily the center)
 	int16_t entidx; // 0 for world leaves, else an entity leaf which may be relocated, enabled, or disabled
+	uint16_t parentIdx; // parent leaf idx if this node is the child of another leaf, else 65535
+	uint16_t childIdx; // first child idx if this node contains split leaves, else 65535
+
 
 	// for debugging
 	vec3 center;
 	vec3 mins, maxs; // for octree insertion, not needed after generation
 	vector<Polygon3D> leafFaces;
+	VertexBuffer* face_buffer;
+	VertexBuffer* wireframe_buffer;
 
 	LeafNode();
 
@@ -45,7 +55,9 @@ struct LeafNode {
 	bool addLink(int node, vec3 linkPos);
 
 	// returns true if point is inside leaf volume
-	bool isInside(vec3 p);
+	bool isInside(vec3 p, float epsilon=0.0f);
+
+	bool intersects(Polygon3D& poly);
 };
 
 
@@ -71,5 +83,11 @@ public:
 
 	int getNodeIdx(Bsp* map, Entity* ent);
 
-private:
+	// accounts for leaves that have been split by entities
+	uint16_t getNodeIdx(Bsp* map, vec3 pos);
+
+	// splits nodes again when entities change
+	void refreshNodes(Bsp* map);
+
+private:	
 };

@@ -15,6 +15,7 @@
 #include "globals.h"
 #include "NavMesh.h"
 #include "LeafNavMesh.h"
+#include "LeafNavMeshGenerator.h"
 #include <algorithm>
 #include "BspMerger.h"
 
@@ -368,6 +369,8 @@ void Renderer::renderLoop() {
 			
 			drawLine(debugTraceStart, debugTrace.vecEndPos, COLOR4(255, 0, 0, 255));
 			
+			Bsp* map = mapRenderers[0]->map;
+
 			if (debugNavMesh && debugNavPoly != -1) {
 				glLineWidth(1);
 				NavNode& node = debugNavMesh->nodes[debugNavPoly];
@@ -454,17 +457,39 @@ void Renderer::renderLoop() {
 				}
 			}
 
-			if (debugLeafNavMesh) {
+			if (!debugLeafNavMesh) {
+				LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map);
+				g_app->debugLeafNavMesh = navMesh;
+			}
+
+			if (debugLeafNavMesh && !isLoading) {
 				glLineWidth(1);
-				glDisable(GL_DEPTH_TEST);
 
-				Bsp* map = mapRenderers[0]->map;
-				int leafIdx = map->get_leaf(cameraOrigin, 3);
-				int leafNavIdx = -1;
+				debugLeafNavMesh->refreshNodes(map);
 
-				if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
-					leafNavIdx = debugLeafNavMesh->leafMap[leafIdx];
+				glEnable(GL_DEPTH_TEST);
+				glEnable(GL_CULL_FACE);
+				
+				int leafNavIdx = debugLeafNavMesh->getNodeIdx(map, cameraOrigin);
+
+				// draw split leaves
+				for (int i = 0; i < debugLeafNavMesh->nodes.size(); i++) {
+					LeafNode& node = debugLeafNavMesh->nodes[i];
+
+					if (node.childIdx != NAV_INVALID_IDX) {
+						continue;
+					}
+
+					if (!node.face_buffer) {
+						mapRenderers[0]->generateSingleLeafNavMeshBuffer(&node);
+					}
+						
+					node.face_buffer->draw(GL_TRIANGLES);
+					node.wireframe_buffer->draw(GL_LINES);
 				}
+
+				glDisable(GL_CULL_FACE);
+				glDisable(GL_DEPTH_TEST);
 
 				if (leafNavIdx >= 0 && leafNavIdx < debugLeafNavMesh->nodes.size()) {
 
@@ -601,6 +626,28 @@ void Renderer::renderLoop() {
 				colorShader->popMatrix(MAT_PROJECTION);
 				colorShader->popMatrix(MAT_VIEW);
 				*/
+			}
+
+			if (pickInfo.faceIdx != -1) {
+				BSPFACE& face = map->faces[pickInfo.faceIdx];
+				BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+
+				vector<vec3> faceVerts;
+				for (int e = 0; e < face.nEdges; e++) {
+					int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+					BSPEDGE& edge = map->edges[abs(edgeIdx)];
+					int vertIdx = edgeIdx >= 0 ? edge.iVertex[0] : edge.iVertex[1];
+
+					faceVerts.push_back(map->verts[vertIdx]);
+				}
+
+				Polygon3D poly(faceVerts);
+				//vec3 center = poly.center + pickInfo.ent->getOrigin();
+				vec3 center = poly.center - poly.plane_z;
+
+				drawLine(center, center + info.vS * -10, { 128, 0, 255, 255 });
+				drawLine(center, center + info.vT * -10, { 0, 255, 0, 255 });
+				drawLine(center, center + poly.plane_z * -10, { 255, 255, 255, 255 });
 			}
 
 			glLineWidth(1);

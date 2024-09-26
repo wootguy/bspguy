@@ -25,9 +25,11 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map) {
 	LeafOctree* octree = createLeafOctree(map, leaves, octreeDepth);
 	LeafNavMesh* navmesh = new LeafNavMesh(leaves, octree);
 
-	linkNavLeaves(map, navmesh);
-	setLeafOrigins(map, navmesh);
-	linkEntityLeaves(map, navmesh);
+	//splitEntityLeaves(map, navmesh);
+
+	linkNavLeaves(map, navmesh, 0);
+	setLeafOrigins(map, navmesh, 0);
+	linkEntityLeaves(map, navmesh, 0);
 	calcPathCosts(map, navmesh);
 
 	int totalSz = 0;
@@ -59,81 +61,85 @@ vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int modelIdx, int
 
 	vector<NodeVolumeCuts> emptyNodes = map->get_model_leaf_volume_cuts(modelIdx, NAV_HULL, contents);
 
-	vector<CMesh> emptyMeshes;
-	for (int k = 0; k < emptyNodes.size(); k++) {
-		emptyMeshes.push_back(clipper.clip(emptyNodes[k].cuts));
-	}
+	for (int m = 0; m < emptyNodes.size(); m++) {
+		CMesh mesh = clipper.clip(emptyNodes[m].cuts);
+		LeafNode hull = getHullForClipperMesh(mesh);
 
-	// GET FACES FROM MESHES
-	for (int m = 0; m < emptyMeshes.size(); m++) {
-		CMesh& mesh = emptyMeshes[m];
-
-		LeafNode leaf = LeafNode();
-		leaf.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-		leaf.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
-		for (int f = 0; f < mesh.faces.size(); f++) {
-			CFace& face = mesh.faces[f];
-			if (!face.visible) {
-				continue;
-			}
-
-			set<int> uniqueFaceVerts;
-
-			for (int k = 0; k < face.edges.size(); k++) {
-				for (int v = 0; v < 2; v++) {
-					int vertIdx = mesh.edges[face.edges[k]].verts[v];
-					if (!mesh.verts[vertIdx].visible) {
-						continue;
-					}
-					uniqueFaceVerts.insert(vertIdx);
-				}
-			}
-
-			vector<vec3> faceVerts;
-			for (auto vertIdx : uniqueFaceVerts) {
-				faceVerts.push_back(mesh.verts[vertIdx].pos);
-			}
-
-			faceVerts = getSortedPlanarVerts(faceVerts);
-
-			if (faceVerts.size() < 3) {
-				//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
-				continue;
-			}
-
-			vec3 normal = getNormalFromVerts(faceVerts);
-
-			if (dotProduct(face.normal, normal) < 0) {
-				reverse(faceVerts.begin(), faceVerts.end());
-				normal = normal.invert();
-			}
-
-			Polygon3D poly = Polygon3D(faceVerts);
-			poly.removeDuplicateVerts();
-
-			leaf.leafFaces.push_back(poly);
-		}
-
-		if (leaf.leafFaces.size() > 2) {
-			leaf.center = vec3();
-			for (int i = 0; i < leaf.leafFaces.size(); i++) {
-				Polygon3D& face = leaf.leafFaces[i];
-				leaf.center += face.center;
-
-				for (int k = 0; k < face.verts.size(); k++) {
-					expandBoundingBox(face.verts[k], leaf.mins, leaf.maxs);
-				}
-			}
-			leaf.center /= leaf.leafFaces.size();
-			leaf.id = emptyLeaves.size();
-			leaf.origin = leaf.center;
-
-			emptyLeaves.push_back(leaf);
+		if (hull.leafFaces.size()) {
+			hull.id = emptyLeaves.size();
+			emptyLeaves.push_back(hull);
 		}
 	}
 
 	return emptyLeaves;
+}
+
+LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
+	LeafNode leaf = LeafNode();
+	leaf.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	leaf.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for (int f = 0; f < mesh.faces.size(); f++) {
+		CFace& face = mesh.faces[f];
+		if (!face.visible) {
+			continue;
+		}
+
+		set<int> uniqueFaceVerts;
+
+		for (int k = 0; k < face.edges.size(); k++) {
+			for (int v = 0; v < 2; v++) {
+				int vertIdx = mesh.edges[face.edges[k]].verts[v];
+				if (!mesh.verts[vertIdx].visible) {
+					continue;
+				}
+				uniqueFaceVerts.insert(vertIdx);
+			}
+		}
+
+		vector<vec3> faceVerts;
+		for (auto vertIdx : uniqueFaceVerts) {
+			faceVerts.push_back(mesh.verts[vertIdx].pos);
+		}
+
+		faceVerts = getSortedPlanarVerts(faceVerts);
+
+		if (faceVerts.size() < 3) {
+			//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
+			continue;
+		}
+
+		vec3 normal = getNormalFromVerts(faceVerts);
+
+		if (dotProduct(face.normal, normal) < 0) {
+			reverse(faceVerts.begin(), faceVerts.end());
+			normal = normal.invert();
+		}
+
+		Polygon3D poly = Polygon3D(faceVerts);
+		poly.removeDuplicateVerts();
+
+		leaf.leafFaces.push_back(poly);
+	}
+
+	if (leaf.leafFaces.size() > 2) {
+		leaf.center = vec3();
+		for (int i = 0; i < leaf.leafFaces.size(); i++) {
+			Polygon3D& face = leaf.leafFaces[i];
+			leaf.center += face.center;
+
+			for (int k = 0; k < face.verts.size(); k++) {
+				expandBoundingBox(face.verts[k], leaf.mins, leaf.maxs);
+			}
+		}
+		leaf.center /= leaf.leafFaces.size();
+		leaf.origin = leaf.center;
+	}
+	else {
+		leaf.leafFaces.clear();
+	}
+
+	return leaf;
 }
 
 void LeafNavMeshGenerator::getOctreeBox(Bsp* map, vec3& min, vec3& max) {
@@ -168,10 +174,106 @@ LeafOctree* LeafNavMeshGenerator::createLeafOctree(Bsp* map, vector<LeafNode>& n
 	return octree;
 }
 
-void LeafNavMeshGenerator::setLeafOrigins(Bsp* map, LeafNavMesh* mesh) {
+void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
+	vector<bool> regionLeaves;
+	regionLeaves.resize(mesh->nodes.size());
+
+	int oldNodeCount = mesh->nodes.size();
+
+	for (int i = 0; i < map->ents.size(); i++) {
+		Entity* ent = map->ents[i];
+
+		if (ent->keyvalues["classname"] == "func_wall") {
+			LeafNode entNode = addSolidEntityNode(map, mesh, i);
+			mesh->nodes.pop_back(); // solid node will be added during split
+
+			mesh->octree->getLeavesInRegion(&entNode, regionLeaves);
+
+			for (int k = 0; k < regionLeaves.size(); k++) {
+				if (regionLeaves[k]) {
+					splitEntityLeaf(map, mesh, mesh->nodes[k], entNode, false);
+				}
+			}
+		}
+	}
+
+	// add new nodes to the octree
+	for (int i = oldNodeCount; i < mesh->nodes.size(); i++) {
+		mesh->octree->insertLeaf(&mesh->nodes[i]);
+	}
+}
+
+void LeafNavMeshGenerator::splitEntityLeaf(Bsp* map, LeafNavMesh* mesh, LeafNode& node, LeafNode& entNode, bool includeSolidNode) {
+	Clipper clipper = Clipper();
+	
+	vector<LeafNode> splitNodes;
+	splitNodes.push_back(node);
+
+	for (int i = 0; i < entNode.leafFaces.size(); i++) {
+		Polygon3D& face = entNode.leafFaces[i];
+
+		BSPPLANE clipFront;
+		clipFront.fDist = face.fdist;
+		clipFront.vNormal = face.plane_z;
+
+		BSPPLANE clipBack;
+		clipBack.fDist = -face.fdist;
+		clipBack.vNormal = face.plane_z * -1;
+
+		CMesh cmesh;
+
+		vector<LeafNode> newSplitNodes;
+
+		//logf("Split %d nodes\n", (int)splitNodes.size());
+		for (int k = 0; k < splitNodes.size(); k++) {
+
+			if (!splitNodes[k].intersects(face)) {
+				// face is not touching the volume so shouldn't cut
+				newSplitNodes.push_back(splitNodes[k]);
+				continue;
+			}
+
+			int ret = clipper.clip(splitNodes[k].leafFaces, clipFront, cmesh);
+
+			if (ret == 1) {
+				// clipped
+				newSplitNodes.push_back(getHullForClipperMesh(cmesh));
+
+				if (clipper.clip(splitNodes[k].leafFaces, clipBack, cmesh) == 1)
+					newSplitNodes.push_back(getHullForClipperMesh(cmesh));
+				else
+					logf("Failed to clip with back plane!\n");
+			}
+			else if (ret == 0 || ret == -1) {
+				// not clipped at all or fully clipped, no splitting done
+				newSplitNodes.push_back(splitNodes[k]);
+			}
+		}
+
+		splitNodes = newSplitNodes;
+	}
+
+	if (!includeSolidNode) {
+		splitNodes.pop_back();
+	}
+
+	if (splitNodes.size() > 1) {
+		node.childIdx = mesh->nodes.size();
+
+		for (int i = 0; i < splitNodes.size(); i++) {
+			splitNodes[i].id = mesh->nodes.size();
+			splitNodes[i].parentIdx = node.id;
+			mesh->nodes.push_back(splitNodes[i]);
+		}
+
+		//logf("Node %d split into %d leaves\n", (int)node.id, (int)splitNodes.size());
+	}
+}
+
+void LeafNavMeshGenerator::setLeafOrigins(Bsp* map, LeafNavMesh* mesh, int offset) {
 	float timeStart = glfwGetTime();
 
-	for (int i = 0; i < mesh->nodes.size(); i++) {
+	for (int i = offset; i < mesh->nodes.size(); i++) {
 		LeafNode& node = mesh->nodes[i];
 
 		vec3 testBottom = node.center - vec3(0, 0, 4096);
@@ -197,7 +299,7 @@ void LeafNavMeshGenerator::setLeafOrigins(Bsp* map, LeafNavMesh* mesh) {
 		}
 	}
 
-	logf("Set leaf origins in %.2fs\n", (float)glfwGetTime() - timeStart);
+	//logf("Set leaf origins in %.2fs\n", (float)glfwGetTime() - timeStart);
 }
 
 vec3 LeafNavMeshGenerator::getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bias) {
@@ -249,25 +351,33 @@ vec3 LeafNavMeshGenerator::getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bia
 	return bestPos;
 }
 
-void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
+void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh, int offset) {
 	int numLinks = 0;
 	float linkStart = glfwGetTime();
 
 	vector<bool> regionLeaves;
 	regionLeaves.resize(mesh->nodes.size());
 
-	for (int i = 0; i < mesh->nodes.size(); i++) {
+	for (int i = offset; i < mesh->nodes.size(); i++) {
 		LeafNode& leaf = mesh->nodes[i];
-		int leafIdx = map->get_leaf(leaf.center, 3);
 
-		if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
-			mesh->leafMap[leafIdx] = i;
+		if (leaf.parentIdx == NAV_INVALID_IDX) {
+			// only link parent leaves to world leaves
+			int leafIdx = map->get_leaf(leaf.center, NAV_HULL);
+
+			if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
+				mesh->leafMap[leafIdx] = i;
+			}
 		}
 
 		mesh->octree->getLeavesInRegion(&leaf, regionLeaves);
 
 		for (int k = i + 1; k < mesh->nodes.size(); k++) {
 			if (!regionLeaves[k]) {
+				continue;
+			}
+
+			if (mesh->nodes[k].childIdx != NAV_INVALID_IDX) {
 				continue;
 			}
 
@@ -278,14 +388,94 @@ void LeafNavMeshGenerator::linkNavLeaves(Bsp* map, LeafNavMesh* mesh) {
 	logf("Added %d nav leaf links in %.2fs\n", numLinks, (float)glfwGetTime() - linkStart);
 }
 
-void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
+void LeafNavMeshGenerator::linkNavChildLeaves(Bsp* map, LeafNavMesh* mesh, int offset) {
+	int numLinks = 0;
+	float linkStart = glfwGetTime();
+
+	for (int i = offset; i < mesh->nodes.size(); i++) {
+		LeafNode& leaf = mesh->nodes[i];
+
+		if (leaf.parentIdx == NAV_INVALID_IDX) {
+			continue; // parents should already be linked
+		}
+
+		if (leaf.parentIdx >= mesh->nodes.size()) {
+			logf("Invalid parent idx in child leaf %d\n", i);
+			continue;
+		}
+
+		LeafNode& parent = mesh->nodes[leaf.parentIdx];
+
+		// link to other children in this same node
+		for (int k = parent.childIdx; k < mesh->nodes.size(); k++) {
+			if (k == i) {
+				continue;
+			}
+
+			LeafNode& sibling = mesh->nodes[k];
+
+			if (sibling.parentIdx != parent.id) {
+				break;
+			}
+
+			numLinks += tryFaceLinkLeaves(map, mesh, i, k);
+		}
+
+		// link to nodes touching our parent
+		for (int k = 0; k < parent.links.size(); k++) {
+			LeafNode& parentSibling = mesh->nodes[parent.links[k].node];
+
+			if (parentSibling.childIdx == NAV_INVALID_IDX) {
+				// parent's neighbor wasn't split
+				numLinks += tryFaceLinkLeaves(map, mesh, i, parentSibling.id);
+			}
+			else {
+				// parent's neighbor was split into child leaves
+				for (int j = parentSibling.childIdx; j < mesh->nodes.size(); j++) {
+					LeafNode& cousin = mesh->nodes[j];
+
+					if (cousin.parentIdx != parentSibling.id) {
+						break;
+					}
+
+					numLinks += tryFaceLinkLeaves(map, mesh, i, j);
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		LeafNode& node = mesh->nodes[i];
+
+		if (node.parentIdx == NAV_INVALID_IDX) {
+			// update costs to new child links, if any
+			for (int k = 0; k < node.links.size(); k++) {
+				LeafLink& link = node.links[k];
+				if (mesh->nodes[link.node].parentIdx != NAV_INVALID_IDX) {
+					calcPathCost(map, mesh, node, link);
+				}
+			}
+		}
+		else {
+			// child leaf with all new links
+			for (int k = 0; k < node.links.size(); k++) {
+				LeafLink& link = node.links[k];
+				calcPathCost(map, mesh, node, link);
+			}
+		}		
+	}
+
+	//logf("Added %d nav child leaf links in %.2fs\n", numLinks, (float)glfwGetTime() - linkStart);
+}
+
+void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int offset) {
 	vector<bool> regionLeaves;
 	regionLeaves.resize(mesh->nodes.size());
 
 	const vec3 pointMins = vec3(-16, -16, -36);
 	const vec3 pointMaxs = vec3(16, 16, 36);
 	
-	for (int i = 0; i < map->ents.size(); i++) {
+	for (int i = offset; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
 
 		if (ent->keyvalues["classname"] == "func_ladder") {
@@ -341,7 +531,7 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 				linkEntityLeaves(map, mesh, entNode, regionLeaves);
 
 				teleNode.addLink(entNode.id, teleNode.origin);
-			}			
+			}
 		}
 	}
 }
@@ -350,7 +540,7 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNod
 	mesh->octree->getLeavesInRegion(&entNode, regionLeaves);
 
 	// link teleport destinations to touched nodes
-	for (int i = 0; i < mesh->nodes.size(); i++) {
+	for (int i = 0; i < regionLeaves.size(); i++) {
 		if (!regionLeaves[i]) {
 			continue;
 		}
@@ -371,23 +561,33 @@ LeafNode& LeafNavMeshGenerator::addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, 
 	vector<LeafNode> leaves = getHullLeaves(map, ent->getBspModelIdx(), CONTENTS_SOLID);
 
 	// create a special ladder node which is a combination of all its leaves
-	LeafNode ladderNode = LeafNode();
-	ladderNode.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	ladderNode.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	LeafNode node = LeafNode();
+	node.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	node.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-	for (LeafNode& node : leaves) {
-		expandBoundingBox(node.mins, ladderNode.mins, ladderNode.maxs);
-		expandBoundingBox(node.maxs, ladderNode.mins, ladderNode.maxs);
+	vec3 origin = ent->getOrigin();
 
-		for (int i = 0; i < node.leafFaces.size(); i++) {
-			ladderNode.leafFaces.push_back(node.leafFaces[i]);
+	for (LeafNode& leaf : leaves) {
+		expandBoundingBox(leaf.mins, node.mins, node.maxs);
+		expandBoundingBox(leaf.maxs, node.mins, node.maxs);
+
+		for (int i = 0; i < leaf.leafFaces.size(); i++) {
+			vector<vec3> newVerts;
+			for (int k = 0; k < leaf.leafFaces[i].verts.size(); k++) {
+				newVerts.push_back(leaf.leafFaces[i].verts[k] + origin);
+			}
+			node.leafFaces.push_back(newVerts);
 		}
 	}
-	ladderNode.origin = (ladderNode.mins + ladderNode.maxs) * 0.5f;
-	ladderNode.id = mesh->nodes.size();
-	ladderNode.entidx = entidx;
 
-	mesh->nodes.push_back(ladderNode);
+	node.mins += origin;
+	node.maxs += origin;
+
+	node.origin = (node.mins + node.maxs) * 0.5f;
+	node.id = mesh->nodes.size();
+	node.entidx = entidx;
+
+	mesh->nodes.push_back(node);
 	return mesh->nodes[mesh->nodes.size() - 1];
 }
 
@@ -433,34 +633,38 @@ void LeafNavMeshGenerator::calcPathCosts(Bsp* bsp, LeafNavMesh* mesh) {
 
 	for (int i = 0; i < mesh->nodes.size(); i++) {
 		LeafNode& node = mesh->nodes[i];
-		
+
 		for (int k = 0; k < node.links.size(); k++) {
 			LeafLink& link = node.links[k];
-			LeafNode& otherNode = mesh->nodes[link.node];
-
-			link.baseCost = 0;
-			link.costMultiplier = 1.0f;
-
-			if (node.entidx != 0 || otherNode.entidx != 0) {
-				// entity links are things like ladders and elevators and cost nothing to use
-				// so that the path finder prefers them to flying or jumping off ledges
-				continue;
-			}
-
-			vec3 start = node.origin;
-			vec3 mid = link.pos;
-			vec3 end = otherNode.origin;
-			bool isDrop = end.z + EPSILON < start.z;
-
-			TraceResult tr;
-			bsp->traceHull(node.origin, link.pos, NAV_HULL, &tr);
-
-			addPathCost(link, bsp, start, mid, isDrop);
-			addPathCost(link, bsp, mid, end, isDrop);
+			calcPathCost(bsp, mesh, node, link);
 		}
 	}
 
 	logf("Calculated path costs in %.2fs\n", (float)glfwGetTime() - markStart);
+}
+
+void LeafNavMeshGenerator::calcPathCost(Bsp* bsp, LeafNavMesh* mesh, LeafNode& node, LeafLink& link) {
+	LeafNode& otherNode = mesh->nodes[link.node];
+
+	link.baseCost = 0;
+	link.costMultiplier = 1.0f;
+
+	if (node.entidx != 0 || otherNode.entidx != 0) {
+		// entity links are things like ladders and elevators and cost nothing to use
+		// so that the path finder prefers them to flying or jumping off ledges
+		return;
+	}
+
+	vec3 start = node.origin;
+	vec3 mid = link.pos;
+	vec3 end = otherNode.origin;
+	bool isDrop = end.z + EPSILON < start.z;
+
+	TraceResult tr;
+	bsp->traceHull(node.origin, link.pos, NAV_HULL, &tr);
+
+	addPathCost(link, bsp, start, mid, isDrop);
+	addPathCost(link, bsp, mid, end, isDrop);
 }
 
 void LeafNavMeshGenerator::addPathCost(LeafLink& link, Bsp* bsp, vec3 start, vec3 end, bool isDrop) {
