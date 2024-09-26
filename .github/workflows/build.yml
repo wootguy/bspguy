@@ -8,7 +8,7 @@ jobs:
   
     steps: 
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: 'true'
 
@@ -27,7 +27,7 @@ jobs:
         cmake --build . --config Release
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: bspguy-windows
         path: build/Release
@@ -37,7 +37,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: 'true'
     
@@ -52,7 +52,7 @@ jobs:
         make
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: bspguy-linux
         path: build/bspguy
