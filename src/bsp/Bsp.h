@@ -222,6 +222,8 @@ public:
 
 	bool downscale_texture(int textureId, int newWidth, int newHeight);
 
+	bool rename_texture(const char* oldName, const char* newName);
+
 	// updates texture coordinates after a texture has been downscaled
 	void adjust_downscaled_texture_coordinates(int textureId, int oldWidth, int oldHeight);
 

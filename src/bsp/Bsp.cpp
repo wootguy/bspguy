@@ -3287,6 +3287,27 @@ void Bsp::downscale_invalid_textures() {
 	logf("Downscaled %d textures\n", count);
 }
 
+bool Bsp::rename_texture(const char* oldName, const char* newName) {
+	if (strlen(newName) > 16) {
+		logf("ERROR: New texture name longer than 15 characters (%d)\n", strlen(newName));
+		return false;
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+		
+		if (!strncmp(tex.szName, oldName, 16)) {
+			strncpy(tex.szName, newName, 16);
+			logf("Renamed texture '%s' -> '%s'\n", oldName, newName);
+			return true;
+		}
+	}
+
+	logf("No texture found with name '%s'\n", oldName);
+	return false;
+}
+
 set<int> Bsp::selectConnectedTexture(int modelId, int faceId) {
 	set<int> selected;
 	const float epsilon = 1.0f;

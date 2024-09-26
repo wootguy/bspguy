@@ -519,6 +519,25 @@ int unembed(CommandLine& cli) {
 	return 0;
 }
 
+int rename_texture(CommandLine& cli) {
+	Bsp* map = new Bsp(cli.bspfile);
+	if (!map->valid)
+		return 1;
+
+	string oldName = cli.getOption("-old");
+	string newName = cli.getOption("-new");
+
+	map->rename_texture(oldName.c_str(), newName.c_str());
+
+	if (map->isValid()) map->write(cli.hasOption("-o") ? cli.getOption("-o") : map->path);
+	logf("\n");
+
+	delete map;
+
+	return 0;
+}
+
+
 void print_help(string command) {
 	if (command == "merge") {
 		logf(
@@ -631,6 +650,14 @@ void print_help(string command) {
 		"Example: bspguy unembed c1a0.bsp\n"
 	);
 	}
+	else if (command == "renametex") {
+	logf(
+		"renametex - Renames a texture. This changes the texture if it's loaded from a WAD.\n\n"
+
+		"Usage:   bspguy renametex <mapname> -old <oldname> -new <newname>\n"
+		"Example: bspguy rename c1a0.bsp -old aaatrigger -new aaadigger\n"
+	);
+	}
 	else {
 		logf("%s\n\n", g_version_string);
 		logf(
@@ -645,6 +672,7 @@ void print_help(string command) {
 			"  simplify  : Simplify BSP models\n"
 			"  transform : Apply 3D transformations to the BSP\n"
 			"  unembed   : Deletes embedded texture data\n"
+			"  renametex : Renames/replaces a texture in the BSP\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor. Drag and drop a .bsp file onto the executable,\n"
@@ -755,6 +783,9 @@ int main(int argc, char* argv[])
 		}
 		else if (cli.command == "unembed") {
 			return unembed(cli);
+		}
+		else if (cli.command == "renametex") {
+			return rename_texture(cli);
 		}
 		else {
 			logf("unrecognized command: %d\n", cli.command.c_str());
