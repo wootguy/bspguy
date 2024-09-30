@@ -1,6 +1,7 @@
 #pragma once
 #include "Polygon3D.h"
 #include <map>
+#include "Clipper.h"
 
 #define MAX_MAP_CLIPNODE_LEAVES 65536 // doubled to account for each clipnode's child contents having its own ID
 #define NAV_INVALID_IDX 65535
@@ -40,6 +41,7 @@ struct LeafNode {
 	uint16_t parentIdx; // parent leaf idx if this node is the child of another leaf, else 65535
 	uint16_t childIdx; // first child idx if this node contains split leaves, else 65535
 
+	CMesh clipMesh; // cached clip mesh for faster splitting
 
 	// for debugging
 	vec3 center;
@@ -66,6 +68,7 @@ public:
 	vector<LeafNode> nodes;
 	LeafOctree* octree; // finds nearby leaves from any point in space, even outside of the BSP tree
 	uint16_t leafMap[MAX_MAP_CLIPNODE_LEAVES]; // maps a BSP leaf index to nav mesh node index
+	vector<vector<LeafNode>> bspModelLeaves; // cached entity model leaves
 
 	LeafNavMesh();
 

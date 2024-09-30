@@ -521,6 +521,29 @@ bool isBoxContained(const vec3& innerMins, const vec3& innerMaxs, const vec3& ou
 			innerMaxs.x <= outerMaxs.x && innerMaxs.y <= outerMaxs.y && innerMaxs.z <= outerMaxs.z);
 }
 
+void push_unique_vec2(vector<vec2>& verts, vec2 a) {
+	for (int k = 0; k < verts.size(); k++) {
+		vec2& b = verts[k];
+
+		if (fabs(a.x - b.x) < 0.125f && fabs(a.y - b.y) < 0.125f) {
+			return;
+		}
+	}
+
+	verts.push_back(a);
+}
+
+void push_unique_vec3(vector<vec3>& verts, vec3 a) {
+	for (int k = 0; k < verts.size(); k++) {
+		vec3& b = verts[k];
+		if (fabs(a.x - b.x) < 0.125f && fabs(a.y - b.y) < 0.125f && fabs(a.z - b.z) < 0.125f) {
+			return;
+		}
+	}
+
+	verts.push_back(a);
+}
+
 vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 	int i0 = 0;
 	int i1 = -1;
@@ -648,16 +671,44 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
 	return orderedVerts;
 }
 
-vector<vec3> getSortedPlanarVerts(vector<vec3>& verts) {
-	vector<vec3> outVerts(verts.size());
-	vector<int> vertOrder = getSortedPlanarVertOrder(verts);
-	if (vertOrder.empty()) {
-		return vector<vec3>();
+void sortPlanarVerts(vector<vec3>& verts) {
+	vector<vec2> localVerts = localizeVerts(verts);
+	if (localVerts.empty()) {
+		verts.clear();
+		return;
 	}
-	for (int i = 0; i < vertOrder.size(); i++) {
-		outVerts[i] = verts[vertOrder[i]];
+
+	// Compute the center point
+	vec2 center = getCenter(localVerts);
+
+	// Create a structure that stores both the angle and the vertex
+	struct VertexWithAngle {
+		float angle;
+		vec3 vert;  // Store the 3D vertex itself
+		VertexWithAngle(float angle, vec3 vert) : angle(angle), vert(vert) {}
+	};
+
+	vector<VertexWithAngle> verticesWithAngles;
+	verticesWithAngles.reserve(verts.size());
+
+	// Precompute polar angles and store both the angle and corresponding vertex
+	for (int i = 0; i < localVerts.size(); i++) {
+		vec2 v = localVerts[i];
+		float angle = atan2f(v.y - center.y, v.x - center.x);
+		if (angle < 0)
+			angle += 2 * PI;  // Ensure angle is positive
+		verticesWithAngles.emplace_back(angle, verts[i]);
 	}
-	return outVerts;
+
+	// Sort vertices based on the polar angle
+	sort(verticesWithAngles.begin(), verticesWithAngles.end(), [](const VertexWithAngle& a, const VertexWithAngle& b) {
+		return a.angle < b.angle;
+	});
+
+	// Now replace the original verts with the sorted vertices
+	for (int i = 0; i < verts.size(); i++) {
+		verts[i] = verticesWithAngles[i].vert;
+	}
 }
 
 bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {

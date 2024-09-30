@@ -36,6 +36,10 @@ bool LeafNode::isInside(vec3 p, float epsilon) {
 }
 
 bool LeafNode::intersects(Polygon3D& poly) {
+	if (!boxesIntersect(poly.worldMins, poly.worldMaxs, mins, maxs)) {
+		return false;
+	}
+
 	if (isInside(poly.center, 1.0f)) {
 		return true;
 	}
@@ -476,6 +480,7 @@ vector<int> LeafNavMesh::dijkstraRoute(int start, int end) {
 void LeafNavMesh::refreshNodes(Bsp* map) {
 	double refreshStart = glfwGetTime();
 	LeafNavMeshGenerator generator;
+	g_app->debugInt = 0;
 
 	int deleteCount = 0;
 
@@ -523,5 +528,6 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 	generator.linkNavChildLeaves(map, this, childOffset);
 	generator.linkEntityLeaves(map, this, 0);
 
-	logf("Split %d nodes into %d in %.2fs\n", childOffset, (int)nodes.size(), (float)(glfwGetTime() - refreshStart));
+	logf("Split %d nodes into %d in %.2fs (%d poly tests)\n",
+		childOffset, (int)nodes.size(), (float)(glfwGetTime() - refreshStart), g_app->debugInt);
 }

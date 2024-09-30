@@ -6,7 +6,7 @@
 #include "Clipper.h"
 #include "Bsp.h"
 #include "LeafNavMesh.h"
-#include <set>
+#include <unordered_set>
 #include "util.h"
 #include "LeafOctree.h"
 #include <algorithm>
@@ -29,8 +29,15 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map) {
 
 	linkNavLeaves(map, navmesh, 0);
 	setLeafOrigins(map, navmesh, 0);
-	linkEntityLeaves(map, navmesh, 0);
+	//linkEntityLeaves(map, navmesh, 0);
 	calcPathCosts(map, navmesh);
+
+	navmesh->bspModelLeaves.clear();
+	navmesh->bspModelLeaves.resize(map->modelCount);
+
+	for (int i = 1; i < map->modelCount; i++) {
+		getSolidEntityNode(map, navmesh, i, vec3());
+	}
 
 	int totalSz = 0;
 	for (int i = 0; i < navmesh->nodes.size(); i++) {
@@ -63,7 +70,8 @@ vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int modelIdx, int
 
 	for (int m = 0; m < nodes.size(); m++) {
 		CMesh mesh = clipper.clip(nodes[m].cuts);
-		LeafNode hull = getHullForClipperMesh(mesh);
+		LeafNode hull;
+		getHullForClipperMesh(mesh, hull);
 
 		if (hull.leafFaces.size()) {
 			hull.id = leaves.size();
@@ -74,8 +82,8 @@ vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int modelIdx, int
 	return leaves;
 }
 
-LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
-	LeafNode leaf = LeafNode();
+bool LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh, LeafNode& leaf) {
+	leaf = LeafNode();
 	leaf.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	leaf.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
@@ -85,46 +93,46 @@ LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
 			continue;
 		}
 
-		set<int> uniqueFaceVerts;
+		vector<vec3> faceVerts;
 
 		for (int k = 0; k < face.edges.size(); k++) {
+			CEdge& edge = mesh.edges[face.edges[k]];
+			if (!edge.visible) {
+				continue;
+			}
+
 			for (int v = 0; v < 2; v++) {
-				int vertIdx = mesh.edges[face.edges[k]].verts[v];
+				int vertIdx = edge.verts[v];
 				if (!mesh.verts[vertIdx].visible) {
 					continue;
 				}
-				uniqueFaceVerts.insert(vertIdx);
+
+				push_unique_vec3(faceVerts, mesh.verts[vertIdx].pos);
 			}
 		}
 
-		vector<vec3> faceVerts;
-		for (auto vertIdx : uniqueFaceVerts) {
-			faceVerts.push_back(mesh.verts[vertIdx].pos);
+		sortPlanarVerts(faceVerts);
+
+		vector<vec3> triangularVerts = getTriangularVerts(faceVerts);
+
+		if (faceVerts.size() < 3 || triangularVerts.empty()) {
+			leaf.leafFaces.clear();
+			break;
 		}
 
-		faceVerts = getSortedPlanarVerts(faceVerts);
+		Axes axes;
+		vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
+		vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
+		axes.z = crossProduct(e1, e2).normalize();
+		axes.x = e1;
+		axes.y = crossProduct(axes.z, axes.x).normalize();
 
-		if (faceVerts.size() < 3) {
-			//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
-			continue;
-		}
-
-		vec3 normal = getNormalFromVerts(faceVerts);
-
-		if (dotProduct(face.normal, normal) < 0) {
+		if (dotProduct(face.normal, axes.z) < 0) {
 			reverse(faceVerts.begin(), faceVerts.end());
-			normal = normal.invert();
+			axes.z *= -1;
 		}
 
-		Polygon3D poly = Polygon3D(faceVerts);
-		poly.removeDuplicateVerts();
-
-		if (poly.verts.size() < 3) {
-			//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
-			continue;
-		}
-
-		leaf.leafFaces.push_back(poly);
+		leaf.leafFaces.emplace_back(faceVerts, axes, true);
 	}
 
 	if (leaf.leafFaces.size() > 2) {
@@ -142,9 +150,10 @@ LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
 	}
 	else {
 		leaf.leafFaces.clear();
+		return false;
 	}
 
-	return leaf;
+	return true;
 }
 
 void LeafNavMeshGenerator::getOctreeBox(Bsp* map, vec3& min, vec3& max) {
@@ -191,18 +200,19 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
+		int bspModelIdx = ent->getBspModelIdx();
 		std::string cname = ent->keyvalues["classname"];
 
-		//if (cname == "func_wall" || cname == "func_door" || cname == "func_breakable") {
+		if (cname == "func_wall" || cname == "func_door" || cname == "func_breakable") {
 		//if (cname == "func_wall" && ent->getBspModelIdx() == 129) {
-		if (cname == "func_wall") {
-			LeafNode entNode = addSolidEntityNode(map, mesh, i);
-			mesh->nodes.pop_back(); // solid node will be added during split
+		//if (cname == "func_wall") {
+			LeafNode entNode = getSolidEntityNode(map, mesh, bspModelIdx, ent->getOrigin());
+			entNode.entidx = i;
 
 			mesh->octree->getLeavesInRegion(&entNode, regionLeaves);
 
 			for (int k = 0; k < regionLeaves.size(); k++) {
-				if (regionLeaves[k]) {
+				if (regionLeaves[k] && boxesIntersect(entNode.mins, entNode.maxs, mesh->nodes[k].mins, mesh->nodes[k].maxs)) {
 					nodeSplits[k].push_back(entNode);
 				}
 			}
@@ -225,7 +235,7 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 void LeafNavMeshGenerator::splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, LeafNode& node, vector<LeafNode>& entNodes, bool includeSolidNode) {
 	Clipper clipper = Clipper();
-	
+
 	vector<LeafNode> splitNodes;
 	splitNodes.push_back(node);
 
@@ -243,57 +253,60 @@ void LeafNavMeshGenerator::splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, LeafNode
 			clipBack.fDist = -face.fdist;
 			clipBack.vNormal = face.plane_z * -1;
 
-			CMesh cmesh;
+			CMesh cmeshFront;
+			CMesh cmeshBack;
 
 			if (i > g_app->debugInt % entNode.leafFaces.size()) {
 				//break;
 			}
 			//g_app->debugPoly = face;
 
-			vector<LeafNode> newSplitNodes;
-
 			//logf("Split %d nodes\n", (int)splitNodes.size());
 			for (int k = 0; k < splitNodes.size(); k++) {
 
 				if (!splitNodes[k].intersects(face)) {
 					// face is not touching the volume so shouldn't cut
-					newSplitNodes.push_back(splitNodes[k]);
 					continue;
 				}
 
-				int ret = clipper.clip(splitNodes[k].leafFaces, clipFront, cmesh);
+				int ret;
+
+				if (splitNodes[k].clipMesh.empty()) {
+					ret = clipper.split(splitNodes[k].leafFaces, clipFront, cmeshFront, cmeshBack);
+				}
+				else {
+					ret = clipper.split(splitNodes[k].clipMesh, clipFront, cmeshFront, cmeshBack);
+				}
 
 				if (ret == 1) {
+					float sizeEpsilon = 100.0f;
+					float originalSize = (splitNodes[k].maxs - splitNodes[k].mins).length() + sizeEpsilon;
 
 					// clipped
-					LeafNode frontNode = getHullForClipperMesh(cmesh);
-					if (clipper.clip(splitNodes[k].leafFaces, clipBack, cmesh) == 1) {
-						LeafNode backNode = getHullForClipperMesh(cmesh);
+					splitNodes.insert(splitNodes.begin() + k + 1, LeafNode());
+					getHullForClipperMesh(cmeshFront, splitNodes[k]);
+					getHullForClipperMesh(cmeshBack, splitNodes[k+1]);
+					
+					LeafNode& frontNode = splitNodes[k];
+					LeafNode& backNode = splitNodes[k+1];
+					frontNode.clipMesh = cmeshFront;
+					backNode.clipMesh = cmeshBack;
+					
+					k++;
 
-						float sizeEpsilon = 100.0f;
-						float originalSize = (splitNodes[k].maxs - splitNodes[k].mins).length() + sizeEpsilon;
-
-						if ((frontNode.maxs - frontNode.mins).length() > originalSize ||
-							(backNode.maxs - backNode.mins).length() > originalSize ||
-							frontNode.leafFaces.size() < 3 || backNode.leafFaces.size () < 3) {
-							int entModel = map->ents[entNode.entidx]->getBspModelIdx();
-							logf("Failed to clip with ent model %d! Degenerate hull.\n", entModel);
-						}
-						else {
-							newSplitNodes.push_back(frontNode);
-							newSplitNodes.push_back(backNode);
-						}
+					if ((frontNode.maxs - frontNode.mins).length() > originalSize ||
+						(backNode.maxs - backNode.mins).length() > originalSize ||
+						frontNode.leafFaces.size() < 3 || backNode.leafFaces.size () < 3) {
+						int entModel = map->ents[entNode.entidx]->getBspModelIdx();
+						logf("Failed to clip with ent model %d! Degenerate hull.\n", entModel);
+						splitNodes.erase(splitNodes.begin() + k);
+						k--;
 					}
-					else
-						logf("Failed to clip with back plane!\n");
 				}
 				else if (ret == 0 || ret == -1) {
 					// not clipped at all or fully clipped, no splitting done
-					newSplitNodes.push_back(splitNodes[k]);
 				}
 			}
-
-			splitNodes = newSplitNodes;
 		}
 	}
 
@@ -538,16 +551,23 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int off
 	
 	for (int i = offset; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
+		int bspModelIdx = ent->getBspModelIdx();
 
 		if (ent->keyvalues["classname"] == "func_ladder") {
-			LeafNode& entNode = addSolidEntityNode(map, mesh, i);
+			LeafNode entNode = getSolidEntityNode(map, mesh, bspModelIdx, ent->getOrigin());
+			entNode.entidx = i;
+			entNode.id = mesh->nodes.size();
+			mesh->nodes.push_back(entNode);
 			entNode.maxs.z += NAV_CROUCHJUMP_HEIGHT; // players can stand on top of the ladder for more height
 			entNode.origin = (entNode.mins + entNode.maxs) * 0.5f;
 
 			linkEntityLeaves(map, mesh, entNode, regionLeaves);
 		}
 		else if (ent->keyvalues["classname"] == "trigger_teleport") {
-			LeafNode& teleNode = addSolidEntityNode(map, mesh, i);
+			LeafNode teleNode = getSolidEntityNode(map, mesh, bspModelIdx, ent->getOrigin());
+			teleNode.entidx = i;
+			teleNode.id = mesh->nodes.size();
+			mesh->nodes.push_back(teleNode);
 			linkEntityLeaves(map, mesh, teleNode, regionLeaves);
 
 			// link teleport destination(s) to touched nodes
@@ -617,16 +637,17 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNod
 	}
 }
 
-LeafNode& LeafNavMeshGenerator::addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx) {
-	Entity* ent = map->ents[entidx];
-	vector<LeafNode> leaves = getHullLeaves(map, ent->getBspModelIdx(), CONTENTS_SOLID);
+LeafNode LeafNavMeshGenerator::getSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int bspmodelIdx, vec3 origin) {	
+	
+	if (mesh->bspModelLeaves[bspmodelIdx].empty()) {
+		mesh->bspModelLeaves[bspmodelIdx] = getHullLeaves(map, bspmodelIdx, CONTENTS_SOLID);
+	}
+	vector<LeafNode>& leaves = mesh->bspModelLeaves[bspmodelIdx];
 
 	// create a special ladder node which is a combination of all its leaves
 	LeafNode node = LeafNode();
 	node.mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	node.maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
-	vec3 origin = ent->getOrigin();
 
 	for (LeafNode& leaf : leaves) {
 		expandBoundingBox(leaf.mins, node.mins, node.maxs);
@@ -635,6 +656,7 @@ LeafNode& LeafNavMeshGenerator::addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, 
 		for (int i = 0; i < leaf.leafFaces.size(); i++) {
 			vector<vec3> newVerts;
 			for (int k = 0; k < leaf.leafFaces[i].verts.size(); k++) {
+				leaf.leafFaces[i].verts[k] += origin;
 				newVerts.push_back(leaf.leafFaces[i].verts[k] + origin);
 			}
 			node.leafFaces.push_back(newVerts);
@@ -645,11 +667,8 @@ LeafNode& LeafNavMeshGenerator::addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, 
 	node.maxs += origin;
 
 	node.origin = (node.mins + node.maxs) * 0.5f;
-	node.id = mesh->nodes.size();
-	node.entidx = entidx;
 
-	mesh->nodes.push_back(node);
-	return mesh->nodes[mesh->nodes.size() - 1];
+	return node;
 }
 
 LeafNode& LeafNavMeshGenerator::addPointEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx, vec3 mins, vec3 maxs) {
@@ -669,6 +688,11 @@ LeafNode& LeafNavMeshGenerator::addPointEntityNode(Bsp* map, LeafNavMesh* mesh, 
 int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx) {
 	LeafNode& srcLeaf = mesh->nodes[srcLeafIdx];
 	LeafNode& dstLeaf = mesh->nodes[dstLeafIdx];
+
+	vec3 eps = vec3(EPSILON, EPSILON, EPSILON);
+	if (!boxesIntersect(srcLeaf.mins - eps, srcLeaf.maxs + eps, dstLeaf.mins - eps, dstLeaf.maxs + eps)) {
+		return 0;
+	}
 
 	for (int i = 0; i < srcLeaf.leafFaces.size(); i++) {
 		Polygon3D& srcFace = srcLeaf.leafFaces[i];

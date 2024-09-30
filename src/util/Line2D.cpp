@@ -136,7 +136,7 @@ vec2 Line2D::intersect(const Line2D& l2) {
 	float determinant = a1 * b2 - a2 * b1;
 
 	if (determinant == 0.0) {
-		logf("Line2D intersect:determinant is 0\n");
+		//logf("Line2D intersect:determinant is 0\n");
 		return vec2();
 	}
 	else {

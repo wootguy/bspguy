@@ -9,6 +9,8 @@
 #define SAME_VERT_EPSILON 0.125f
 #define COLINEAR_CUT_EPSILON 0.25f // increase if cutter gets stuck in a loop cutting the same polys
 
+const bool ALLOW_FAST_INIT = false;
+
 bool vec3Equal(vec3 v1, vec3 v2, float epsilon)
 {
 	vec3 v = v1 - v2;
@@ -21,14 +23,25 @@ bool vec3Equal(vec3 v1, vec3 v2, float epsilon)
 	return true;
 }
 
-Polygon3D::Polygon3D(const vector<vec3>& verts) {
+Polygon3D::Polygon3D(const vector<vec3>& verts, bool fast) {
 	this->verts = verts;
+	this->fast = ALLOW_FAST_INIT ? fast : false;
 	init();
 }
 
-Polygon3D::Polygon3D(const vector<vec3>& verts, int idx) {
+Polygon3D::Polygon3D(const vector<vec3>& verts, Axes axes, bool fast) {
+	this->verts = verts;
+	this->fast = ALLOW_FAST_INIT ? fast : false;
+	this->plane_x = axes.x;
+	this->plane_y = axes.y;
+	this->plane_z = axes.z;
+	init(true);
+}
+
+Polygon3D::Polygon3D(const vector<vec3>& verts, int idx, bool fast) {
 	this->verts = verts;
 	this->idx = idx;
+	this->fast = ALLOW_FAST_INIT ? fast : false;
 	init();
 }
 
@@ -39,10 +52,25 @@ int Polygon3D::sizeBytes() {
 		+ sizeof(vec2) * topdownVerts.size();
 }
 
-void Polygon3D::init() {
-	vector<vec3> triangularVerts = getTriangularVerts(this->verts);
+void Polygon3D::init(bool skipAxes) {
+
+	if (!skipAxes) {
+		vector<vec3> triangularVerts = getTriangularVerts(this->verts);
+
+		if (triangularVerts.empty())
+			return;
+
+		vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
+		vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
+
+		plane_z = crossProduct(e1, e2).normalize();
+		plane_x = e1;
+		plane_y = crossProduct(plane_z, plane_x).normalize();
+	}
+
 	localVerts.clear();
 	topdownVerts.clear();
+
 	isValid = false;
 	center = vec3();
 	area = 0;
@@ -53,16 +81,7 @@ void Polygon3D::init() {
 	worldMins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	worldMaxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-	if (triangularVerts.empty())
-		return;
-
-	vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
-	vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
-
-	plane_z = crossProduct(e1, e2).normalize();
-	plane_x = e1;
-	plane_y = crossProduct(plane_z, plane_x).normalize();
-	fdist = dotProduct(triangularVerts[0], plane_z);
+	fdist = dotProduct(verts[0], plane_z);
 
 	worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 	localToWorld = worldToLocal.invert();
@@ -72,21 +91,37 @@ void Polygon3D::init() {
 		return;
 	}
 
-	for (int e = 0; e < verts.size(); e++) {
-		vec2 localPoint = project(verts[e]);
-		localVerts.push_back(localPoint);
-		topdownVerts.push_back(vec2(verts[e].x, verts[e].y));
-		expandBoundingBox(localPoint, localMins, localMaxs);
-		expandBoundingBox(verts[e], worldMins, worldMaxs);
-		center += verts[e];
-	}
+	if (fast) {
+		localVerts.reserve(verts.size());
 
-	for (int i = 0; i < localVerts.size(); i++) {
-		area += crossProduct(localVerts[i], localVerts[(i+1) % localVerts.size()]);
+		for (int e = 0; e < verts.size(); e++) {
+			vec2 localPoint = project(verts[e]);
+			localVerts.push_back(localPoint);
+			expandBoundingBox(verts[e], worldMins, worldMaxs);
+			center += verts[e];
+		}
+		center /= (float)verts.size();
 	}
-	area = fabs(area) * 0.5f;
+	else {
+		localVerts.reserve(verts.size());
+		topdownVerts.reserve(verts.size());
 
-	center /= (float)verts.size();
+		for (int e = 0; e < verts.size(); e++) {
+			vec2 localPoint = project(verts[e]);
+			localVerts.push_back(localPoint);
+			topdownVerts.emplace_back(verts[e].x, verts[e].y);
+			expandBoundingBox(localPoint, localMins, localMaxs);
+			expandBoundingBox(verts[e], worldMins, worldMaxs);
+			center += verts[e];
+		}
+
+		for (int i = 0; i < localVerts.size(); i++) {
+			area += crossProduct(localVerts[i], localVerts[(i + 1) % localVerts.size()]);
+		}
+		area = fabs(area) * 0.5f;
+
+		center /= (float)verts.size();
+	}
 
 	vec3 vep(EPSILON, EPSILON, EPSILON);
 	worldMins -= vep;
@@ -137,7 +172,7 @@ bool Polygon3D::isInside(vec2 p, bool includeEdge) {
 		}
 
 		Line2D edge(p1, p2);
-		float dist = edge.distance(p);
+		float dist = edge.distanceAxis(p);
 
 		if (fabs(dist) < INPOLY_EPSILON) {
 			return includeEdge; // point is too close to an edge
@@ -412,17 +447,6 @@ Polygon3D Polygon3D::merge(const Polygon3D& mergePoly) {
 	return newPoly;
 }
 
-void push_unique_vert(vector<vec2>& verts, vec2 vert) {
-	for (int k = 0; k < verts.size(); k++) {
-		if ((verts[k] - vert).length() < 0.125f) {
-			return;
-		}
-	}
-
-	verts.push_back(vert);
-}
-
-
 namespace GrahamScan {
 	// https://www.tutorialspoint.com/cplusplus-program-to-implement-graham-scan-algorithm-to-find-the-convex-hull
 	vec2 p0;
@@ -490,7 +514,7 @@ namespace GrahamScan {
 		stack<vec2> stk;
 		stk.push(points[0]); stk.push(points[1]); stk.push(points[2]);
 		for (int i = 3; i < arrSize; i++) {    //for remaining vertices
-			while (direction(secondTop(stk), stk.top(), points[i]) != 2)
+			while (stk.size() > 1 && direction(secondTop(stk), stk.top(), points[i]) != 2)
 				stk.pop();    //when top, second top and ith point are not making left turn, remove point
 			stk.push(points[i]);
 		}
@@ -529,7 +553,7 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 
 		if (otherPoly.isInside(va1, true)) {
 			otherPoly.isInside(va1, true);
-			push_unique_vert(localOutVerts, va1);
+			push_unique_vec2(localOutVerts, va1);
 		}
 
 		for (int k = 0; k < otherLocalVerts.size(); k++) {
@@ -538,11 +562,11 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 			Line2D edgeB(vb1, vb2);
 
 			if (!edgeA.isAlignedWith(edgeB) && edgeA.doesIntersect(edgeB)) {
-				push_unique_vert(localOutVerts, edgeA.intersect(edgeB));
+				push_unique_vec2(localOutVerts, edgeA.intersect(edgeB));
 			}
 
 			if (isInside(vb1, true)) {
-				push_unique_vert(localOutVerts, vb1);
+				push_unique_vec2(localOutVerts, vb1);
 			}
 		}
 	}
@@ -563,7 +587,7 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 bool Polygon3D::intersects(Polygon3D& otherPoly) {
 	vec3 isect;
 	const float eps = 0.5f;
-
+	g_app->debugInt++;
 
 	vec3 cutStart, cutEnd;
 	if (!planeIntersectionLine(otherPoly, cutStart, cutEnd)) {
@@ -664,7 +688,7 @@ bool Polygon3D::cut2D(vec3 p1, vec3 p2, vec3& ipos1, vec3& ipos2, bool& isEdgeAl
 		Line2D edge(e1, e2);
 
 		// abort if aligned with an edge
-		if (fabs(edge.distanceAxis(p1_2d)) < eps && fabs(edge.distanceAxis(p2_2d)) < eps) {
+		if (!isEdgeAligned && fabs(edge.distanceAxis(p1_2d)) < eps && fabs(edge.distanceAxis(p2_2d)) < eps) {
 			isEdgeAligned = true;
 		}
 
@@ -720,4 +744,19 @@ void Polygon3D::print() {
 		logf("vec3(%f, %f, %f), ", v.x, v.y, v.z);
 	}
 	logf("}\n");
+}
+
+void Polygon3D::flip() {
+	reverse(verts.begin(), verts.end());
+	init();
+	/*
+	reverse(localVerts.begin(), localVerts.end());
+	reverse(topdownVerts.begin(), topdownVerts.end());
+
+	plane_z *= -1.0f;
+	fdist *= -1.0f;
+
+	worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
+	localToWorld = worldToLocal.invert();
+	*/
 }

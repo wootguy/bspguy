@@ -9,10 +9,15 @@
 // smaller than the starting offset for content checks
 #define INPOLY_EPSILON (0.4f)
 
+struct Axes {
+	vec3 x, y, z;
+};
+
 // convex 3D polygon
 class Polygon3D {
 public:
 	bool isValid = false;
+	bool fast;
 	vec3 plane_x;
 	vec3 plane_y;
 	vec3 plane_z; // plane normal
@@ -41,11 +46,13 @@ public:
 
 	Polygon3D() {}
 
-	Polygon3D(const std::vector<vec3>& verts);
-	
-	Polygon3D(const std::vector<vec3>& verts, int idx);
+	Polygon3D(const std::vector<vec3>& verts, bool fast=false);
 
-	void init();
+	Polygon3D(const std::vector<vec3>& verts, Axes axes, bool fast = false);
+	
+	Polygon3D(const std::vector<vec3>& verts, int idx, bool fast=false);
+
+	void init(bool skipAxes=false);
 
 	int sizeBytes();
 
@@ -111,4 +118,7 @@ public:
 	vec3 unproject(vec2 p);
 
 	void print();
+
+	// reverse vertex order and normal
+	void flip();
 };

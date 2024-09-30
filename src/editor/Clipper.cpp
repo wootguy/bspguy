@@ -30,8 +30,21 @@ CMesh Clipper::clip(vector<BSPPLANE>& clips) {
 	return mesh;
 }
 
-int Clipper::clip(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& mesh) {
-	mesh = createMaxSizeVolume();
+CMesh Clipper::clip(vector<Polygon3D>& clips) {
+	vector<BSPPLANE> planes;
+
+	for (int i = 0; i < clips.size(); i++) {
+		BSPPLANE plane;
+		plane.vNormal = clips[i].plane_z*-1;
+		plane.fDist = clips[i].fdist * -1;
+		planes.push_back(plane);
+	}
+
+	return clip(planes);
+}
+
+int Clipper::split(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh) {
+	frontMesh = createMaxSizeVolume();
 
 	for (int i = 0; i < polys.size(); i++) {
 		Polygon3D& poly = polys[i];
@@ -39,37 +52,68 @@ int Clipper::clip(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& mesh) {
 		clip.fDist = poly.fdist*-1;
 		clip.vNormal = poly.plane_z*-1;
 
-		int result = clipVertices(mesh, clip);
+		int result = clipVertices(frontMesh, clip);
 
 		if (result == -1) {
 			// everything clipped
 			logf("Should never happen!\n");
-			mesh = CMesh();
-			return -1;
+			frontMesh = CMesh();
+			backMesh = CMesh();
+			return 0;
 		}
 		if (result == 1) {
 			// nothing clipped
 			continue;
 		}
 
-		clipEdges(mesh, clip);
-		clipFaces(mesh, clip);
+		clipEdges(frontMesh, clip);
+		clipFaces(frontMesh, clip);
 	}
 
-	// final clip
-	int result = clipVertices(mesh, clipPoly);
+	BSPPLANE backClip = clipPoly;
+	backClip.fDist *= -1;
+	backClip.vNormal *= -1;
+	backMesh = frontMesh;
 
-	if (result == -1) {
-		// everything clipped
-		return -1;
-	}
-	if (result == 1) {
-		// nothing clipped
+	if (clipVertices(frontMesh, clipPoly) != 0) {
+		// everything/nothing clipped
 		return 0;
 	}
 
-	clipEdges(mesh, clipPoly);
-	clipFaces(mesh, clipPoly);
+	if (clipVertices(backMesh, backClip) != 0) {
+		// everything/nothing clipped
+		return 0;
+	}
+
+	clipEdges(frontMesh, clipPoly);
+	clipFaces(frontMesh, clipPoly);
+	clipEdges(backMesh, backClip);
+	clipFaces(backMesh, backClip);
+
+	return 1;
+}
+
+int Clipper::split(CMesh& mesh, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh) {
+	BSPPLANE backClip = clipPoly;
+	backClip.fDist *= -1;
+	backClip.vNormal *= -1;
+	frontMesh = mesh;
+	backMesh = mesh;
+
+	if (clipVertices(frontMesh, clipPoly) != 0) {
+		// everything/nothing clipped
+		return 0;
+	}
+
+	if (clipVertices(backMesh, backClip) != 0) {
+		// everything/nothing clipped
+		return 0;
+	}
+
+	clipEdges(frontMesh, clipPoly);
+	clipFaces(frontMesh, clipPoly);
+	clipEdges(backMesh, backClip);
+	clipFaces(backMesh, backClip);
 
 	return 1;
 }

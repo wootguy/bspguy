@@ -36,7 +36,7 @@ private:
 	// get leaves of the bsp tree with the given contents
 	vector<LeafNode> getHullLeaves(Bsp* map, int modelIdx, int contents);
 
-	LeafNode getHullForClipperMesh(CMesh& mesh);
+	bool getHullForClipperMesh(CMesh& mesh, LeafNode& node);
 
 	// get smallest octree box that can contain the entire map
 	void getOctreeBox(Bsp* map, vec3& min, vec3& max);
@@ -54,7 +54,7 @@ private:
 	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNode& entNode, vector<bool>& regionLeaves);
 
 	// returns a combined node for an entity, which is the bounding box of all its model leaves
-	LeafNode& addSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx);
+	LeafNode getSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int bspModelIdx, vec3 origin);
 
 	// returns a node for an entity, which is its bounding box
 	LeafNode& addPointEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx, vec3 mins, vec3 maxs);

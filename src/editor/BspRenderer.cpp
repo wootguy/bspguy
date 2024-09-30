@@ -1097,7 +1097,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 					faceVerts.push_back(mesh.verts[vertIdx].pos);
 				}
 
-				faceVerts = getSortedPlanarVerts(faceVerts);
+				sortPlanarVerts(faceVerts);
 
 				if (faceVerts.size() < 3) {
 					//logf("Degenerate clipnode face discarded\n");

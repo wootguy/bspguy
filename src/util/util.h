@@ -101,7 +101,7 @@ vector<vec2> localizeVerts(vector<vec3>& verts);
 // Returns CCW sorted indexes into the verts, as viewed on the plane the verts define
 vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
 
-vector<vec3> getSortedPlanarVerts(vector<vec3>& verts);
+void sortPlanarVerts(vector<vec3>& verts);
 
 bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
 
@@ -116,3 +116,7 @@ void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLAS
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
 void sleepms(uint32_t ms);
+
+void push_unique_vec2(vector<vec2>& verts, vec2 vert);
+
+void push_unique_vec3(vector<vec3>& verts, vec3 vert);

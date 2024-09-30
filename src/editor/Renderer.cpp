@@ -465,7 +465,7 @@ void Renderer::renderLoop() {
 			if (debugLeafNavMesh && !isLoading) {
 				glLineWidth(1);
 
-				//debugLeafNavMesh->refreshNodes(map);
+				debugLeafNavMesh->refreshNodes(map);
 
 				glEnable(GL_DEPTH_TEST);
 				glEnable(GL_CULL_FACE);
@@ -665,8 +665,6 @@ void Renderer::renderLoop() {
 					vec3 ipos;
 					COLOR4 c1 = poly1.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
 					COLOR4 c2 = poly2.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
-
-					Polygon3D;
 
 					//drawPolygon3D(Polygon3D(poly1), c1);
 					//drawPolygon3D(Polygon3D(poly2), c2);

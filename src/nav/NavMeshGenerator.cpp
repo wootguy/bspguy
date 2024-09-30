@@ -71,7 +71,7 @@ vector<Polygon3D*> NavMeshGenerator::getHullFaces(Bsp* map, int hull) {
 				faceVerts.push_back(mesh.verts[vertIdx].pos);
 			}
 
-			faceVerts = getSortedPlanarVerts(faceVerts);
+			sortPlanarVerts(faceVerts);
 
 			if (faceVerts.size() < 3) {
 				//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
@@ -85,7 +85,7 @@ vector<Polygon3D*> NavMeshGenerator::getHullFaces(Bsp* map, int hull) {
 				normal = normal.invert();
 			}
 
-			Polygon3D* poly = new Polygon3D(faceVerts, solidFaces.size());
+			Polygon3D* poly = new Polygon3D(faceVerts, solidFaces.size(), false);
 			poly->removeDuplicateVerts();
 			if (hullShrink)
 				poly->extendAlongAxis(hullShrink);
@@ -191,8 +191,8 @@ vector<Polygon3D> NavMeshGenerator::getInteriorFaces(Bsp* map, int hull, vector<
 			vector<vector<vec3>> splitPolys = poly->split(*cutPoly);
 
 			if (splitPolys.size()) {
-				Polygon3D* newpoly0 = new Polygon3D(splitPolys[0], faces.size());
-				Polygon3D* newpoly1 = new Polygon3D(splitPolys[1], faces.size());
+				Polygon3D* newpoly0 = new Polygon3D(splitPolys[0], faces.size(), false);
+				Polygon3D* newpoly1 = new Polygon3D(splitPolys[1], faces.size(), false);
 
 				if (newpoly0->area < EPSILON || newpoly1->area < EPSILON) {
 					delete newpoly0;
