@@ -69,6 +69,8 @@ public:
 
 	LeafNavMesh();
 
+	~LeafNavMesh();
+
 	LeafNavMesh(vector<LeafNode> polys, LeafOctree* octree);
 
 	bool addLink(int from, int to, Polygon3D linkArea);

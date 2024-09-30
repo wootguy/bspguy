@@ -68,7 +68,7 @@ float Line2D::getOverlapRanges(Line2D& other, float& t0, float& t1, float& t2, f
 	float len2 = d4 - d3;
 
 	if (len1 == 0 || len2 == 0) {
-		logf("%s: 0 length segments\n", __func__);
+		//logf("%s: 0 length segments\n", __func__);
 		return 0;
 	}
 

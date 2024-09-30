@@ -457,15 +457,15 @@ void Renderer::renderLoop() {
 				}
 			}
 
-			if (!debugLeafNavMesh) {
+			if (!debugLeafNavMesh && !isLoading) {
 				LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map);
-				g_app->debugLeafNavMesh = navMesh;
+				debugLeafNavMesh = navMesh;
 			}
 
 			if (debugLeafNavMesh && !isLoading) {
 				glLineWidth(1);
 
-				debugLeafNavMesh->refreshNodes(map);
+				//debugLeafNavMesh->refreshNodes(map);
 
 				glEnable(GL_DEPTH_TEST);
 				glEnable(GL_CULL_FACE);
@@ -482,6 +482,10 @@ void Renderer::renderLoop() {
 
 					if (!node.face_buffer) {
 						mapRenderers[0]->generateSingleLeafNavMeshBuffer(&node);
+
+						if (!node.face_buffer) {
+							continue;
+						}
 					}
 						
 					node.face_buffer->draw(GL_TRIANGLES);
@@ -566,6 +570,10 @@ void Renderer::renderLoop() {
 								break;
 							}
 							LeafNode& linkLeaf = debugLeafNavMesh->nodes[link.node];
+							if (linkLeaf.childIdx != NAV_INVALID_IDX) {
+								continue;
+							}
+
 							Polygon3D& linkArea = link.linkArea;
 
 							if (link.baseCost > 16000) {
@@ -613,7 +621,59 @@ void Renderer::renderLoop() {
 					}
 
 				}
+				if (false) {
+					// special case: touching on a single edge point
+					//Polygon3D poly1({ vec3(213.996979, 202.000000, 362.000000), vec3(213.996979, 202.000000, 198.000824), vec3(213.996979, 105.996414, 198.000824), vec3(213.996979, 105.996414, 362.000000), });
+					//Polygon3D poly2({ vec3(80.000969, -496.000000, 266.002014), vec3(310.000000, -496.000000, 266.002014), vec3(310.000000, 106.003876, 266.002014), vec3(80.000999, 106.003876, 266.002014), });
 
+					Polygon3D poly1({ vec3(310.000000, 330.000000, 294.000000), vec3(213.996979, 330.000000, 294.000000), vec3(213.996979, 330.000000, 362.001282), vec3(310.000000, 330.000000, 362.001282), });
+					Polygon3D poly2({ vec3(496.000000, -496.000000, 294.000000), vec3(496.000000, 431.998474, 294.000000), vec3(80.002045, 431.998474, 294.000000), vec3(80.002045, -496.000000, 294.000000), });
+
+					vec3 start, end;
+					poly1.planeIntersectionLine(poly2, start, end);
+
+					vec3 ipos;
+					COLOR4 c1 = poly1.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
+					COLOR4 c2 = poly2.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
+					COLOR4 c3 = poly1.intersects(poly2) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
+
+					//drawPolygon3D(Polygon3D(poly1), c3);
+					//drawPolygon3D(Polygon3D(poly2), c3);
+					//drawLine(start, end, COLOR4(100, 0, 255, 255));
+
+					//drawPolygon3D(g_app->debugPoly, COLOR4(255, 255, 255, 150));
+				}
+
+				{
+					Polygon3D poly1({ vec3(0,0,-50), vec3(0,100,-50), vec3(0,100,100), vec3(0,0,100) });
+					Polygon3D poly2({ vec3(-100,0,0), vec3(-100,100,0), vec3(100,100,0), vec3(100,0,0) });
+
+					static float test = 0;
+
+					float a = cos(test) * 100;
+					float b = sin(test) * 200;
+
+					poly1.verts[0] += vec3(b, 0, a);
+					poly1.verts[1] += vec3(b, 0, a);
+
+					test += 0.01f;
+					poly1 = Polygon3D(poly1.verts);
+
+					vec3 start, end;
+					poly1.planeIntersectionLine(poly2, start, end);
+
+					vec3 ipos;
+					COLOR4 c1 = poly1.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
+					COLOR4 c2 = poly2.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
+
+					Polygon3D;
+
+					//drawPolygon3D(Polygon3D(poly1), c1);
+					//drawPolygon3D(Polygon3D(poly2), c2);
+					//drawLine(start, end, COLOR4(100, 0, 255, 255));
+				}
+				//g_app->debugPoly.print();
+				
 				/*
 				colorShader->pushMatrix(MAT_PROJECTION);
 				colorShader->pushMatrix(MAT_VIEW);
@@ -1075,12 +1135,36 @@ void Renderer::vertexEditControls() {
 	{
 		if (!anyCtrlPressed)
 		{
-			splitFace();
+			if (pickMode == PICK_OBJECT) {
+				if (debugLeafNavMesh && !isLoading) {
+					Bsp* map = mapRenderers[0]->map;
+					debugLeafNavMesh->refreshNodes(map);
+					debugInt++;
+				}
+			}
+			else {
+				splitFace();
+			}
+			
 		}
 		else
 		{
 			gui->showEntityReport = true;
 		}
+	}
+
+	if (pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
+		debugInt -= 2;
+		Bsp* map = mapRenderers[0]->map;
+		debugLeafNavMesh->refreshNodes(map);
+		debugInt++;
+	}
+
+	if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
+		debugInt = 269;
+		Bsp* map = mapRenderers[0]->map;
+		debugLeafNavMesh->refreshNodes(map);
+		debugInt++;
 	}
 }
 
@@ -1775,6 +1859,11 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
+	if (debugLeafNavMesh) {
+		delete debugLeafNavMesh;
+		debugLeafNavMesh = NULL;
+	}
+
 	BspRenderer* mapRenderer = new BspRenderer(map, bspShader, fullBrightBspShader, colorShader, pointEntRenderer);
 
 	mapRenderers.push_back(mapRenderer);

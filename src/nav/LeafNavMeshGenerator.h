@@ -44,9 +44,9 @@ private:
 	// group leaves that are close together for fewer collision checks later
 	LeafOctree* createLeafOctree(Bsp* map, vector<LeafNode>& mesh, int treeDepth);
 
-	// splits a leaf by an entity's leaf
+	// splits a leaf by one or more entities
 	// includeSolidNode = true if the entity can be passed through without noclip
-	void splitEntityLeaf(Bsp* map, LeafNavMesh* mesh, LeafNode& node, LeafNode& entNode, bool includeSolidNode);
+	void splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, LeafNode& node, vector<LeafNode>& entNodes, bool includeSolidNode);
 
 	// find point on poly which is closest to a floor, using distance to the bias point as a tie breaker
 	vec3 getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bias);

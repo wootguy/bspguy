@@ -101,6 +101,11 @@ LeafNavMesh::LeafNavMesh() {
 	clear();
 }
 
+LeafNavMesh::~LeafNavMesh() {
+	clear();
+	delete octree;
+}
+
 void LeafNavMesh::clear() {
 	memset(leafMap, 65535, sizeof(uint16_t) * MAX_MAP_CLIPNODE_LEAVES);
 	nodes.clear();
@@ -474,7 +479,7 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 
 	int deleteCount = 0;
 
-	// delete all child nodes
+	// delete all child nodes and entity nodes
 	for (int i = 0; i < nodes.size(); i++) {
 		LeafNode& node = nodes[i];
 
@@ -483,13 +488,15 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 		}
 
 		for (int k = 0; k < node.links.size(); k++) {
-			if (node.links[k].node >= nodes.size() || nodes[node.links[k].node].parentIdx != NAV_INVALID_IDX) {
+			uint16_t linkId = node.links[k].node;
+
+			if (linkId >= nodes.size() || nodes[linkId].parentIdx != NAV_INVALID_IDX || nodes[linkId].entidx != 0) {
 				node.links.erase(node.links.begin() + k);
 				k--;
 			}
 		}
 
-		if (node.parentIdx != NAV_INVALID_IDX) {
+		if (node.parentIdx != NAV_INVALID_IDX || node.entidx != 0) {
 			if (node.face_buffer) {
 				delete node.face_buffer;
 			}
@@ -505,18 +512,6 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 		}
 	}
 
-	// really shouldnt be needed
-	for (int i = 0; i < nodes.size(); i++) {
-		LeafNode& node = nodes[i];
-
-		for (int k = 0; k < node.links.size(); k++) {
-			if (node.links[k].node >= nodes.size() || nodes[node.links[k].node].parentIdx != NAV_INVALID_IDX) {
-				node.links.erase(node.links.begin() + k);
-				k--;
-			}
-		}
-	}
-
 	//logf("Delete %d children in %.2fs\n", deleteCount, (float)(glfwGetTime() - refreshStart));
 
 	int childOffset = nodes.size();
@@ -526,7 +521,7 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 
 	generator.setLeafOrigins(map, this, childOffset);
 	generator.linkNavChildLeaves(map, this, childOffset);
-	//generator.linkEntityLeaves(map, this, 0);
+	generator.linkEntityLeaves(map, this, 0);
 
-	//logf("Split %.2fs\n", (float)(glfwGetTime() - refreshStart));
+	logf("Split %d nodes into %d in %.2fs\n", childOffset, (int)nodes.size(), (float)(glfwGetTime() - refreshStart));
 }

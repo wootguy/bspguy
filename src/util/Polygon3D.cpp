@@ -564,35 +564,48 @@ bool Polygon3D::intersects(Polygon3D& otherPoly) {
 	vec3 isect;
 	const float eps = 0.5f;
 
-	for (int i = 0; i < verts.size(); i++) {
-		vec3 va = verts[i];
-		vec3 vb = verts[(i + 1) % verts.size()];
 
-		if (fabs(otherPoly.distance(va)) < eps ||fabs( otherPoly.distance(vb)) < eps) {
-			// edge is touching the face, but otherwise fully on one side of it
-			continue;
+	vec3 cutStart, cutEnd;
+	if (!planeIntersectionLine(otherPoly, cutStart, cutEnd)) {
+		return false; // parallel planes
+	}
+
+	vec3 ipos[4];
+	bool edgeAligned[2];
+	cut2D(cutStart, cutEnd, ipos[0], ipos[1], edgeAligned[0]);
+	otherPoly.cut2D(cutStart, cutEnd, ipos[2], ipos[3], edgeAligned[1]);
+
+	Line2D cut1(project(ipos[0]), project(ipos[1]));
+	Line2D cut2(project(ipos[2]), project(ipos[3]));
+	
+	float t0, t1, t2, t3;
+	float overlapDist = cut1.getOverlapRanges(cut2, t0, t1, t2, t3);
+
+	if (overlapDist < eps) {
+		return false;
+	}
+
+	// HACK: leaf-specific code here
+	{
+		if (edgeAligned[1]) {
+			// don't cut volume if it's intersected only on its edge
+			return false;
 		}
 
-		if (otherPoly.intersect(va, vb, isect)) {
-			return true;
+		if (edgeAligned[0]) {
+			// polygon doing the cutting is intersected by its edge
+			// that's ok if the polygon is inside the volume being cut
+			// the other poly is assumed to be part of that volume
+
+			for (int i = 0; i < verts.size(); i++) {
+				if (otherPoly.distance(verts[i]) > EPSILON) {
+					return false; // cutting from outside not allowed
+				}
+			}
 		}
 	}
 
-	for (int i = 0; i < otherPoly.verts.size(); i++) {
-		vec3 va = otherPoly.verts[i];
-		vec3 vb = otherPoly.verts[(i + 1) % verts.size()];
-
-		if (fabs(distance(va)) < eps || fabs(distance(vb)) < eps) {
-			// edge is touching the face, but otherwise fully on one side of it
-			continue;
-		}
-
-		if (intersect(va, vb, isect)) {
-			return true;
-		}
-	}
-
-	return false;
+	return true;
 }
 
 bool Polygon3D::intersect(vec3 p1, vec3 p2, vec3& ipos) {
@@ -618,13 +631,9 @@ bool Polygon3D::intersect(vec3 p1, vec3 p2, vec3& ipos) {
 bool Polygon3D::intersect2D(vec3 p1, vec3 p2, vec3& ipos) {
 	vec2 p1_2d = project(p1);
 	vec2 p2_2d = project(p2);
+	float eps = 0.5f;
 
 	Line2D line(p1_2d, p2_2d);
-
-	if (isInside(p1_2d, false) == isInside(p2_2d, false)) {
-		ipos = p1;
-		return false;
-	}
 
 	for (int i = 0; i < localVerts.size(); i++) {
 		vec2 e1 = localVerts[i];
@@ -639,4 +648,76 @@ bool Polygon3D::intersect2D(vec3 p1, vec3 p2, vec3& ipos) {
 
 	ipos = p1;
 	return false;
+}
+
+bool Polygon3D::cut2D(vec3 p1, vec3 p2, vec3& ipos1, vec3& ipos2, bool& isEdgeAligned) {
+	vec2 p1_2d = project(p1);
+	vec2 p2_2d = project(p2);
+	float eps = 0.5f;
+	int num_isect = 0;
+	isEdgeAligned = false;
+
+	Line2D line(p1_2d, p2_2d);
+	for (int i = 0; i < localVerts.size(); i++) {
+		vec2 e1 = localVerts[i];
+		vec2 e2 = localVerts[(i + 1) % localVerts.size()];
+		Line2D edge(e1, e2);
+
+		// abort if aligned with an edge
+		if (fabs(edge.distanceAxis(p1_2d)) < eps && fabs(edge.distanceAxis(p2_2d)) < eps) {
+			isEdgeAligned = true;
+		}
+
+		if (edge.doesIntersect(line)) {
+			vec3 ipos = unproject(edge.intersect(line));
+			if (num_isect++ == 0) {
+				ipos1 = ipos;
+			}
+			else {
+				ipos2 = ipos;
+			}
+		}
+	}
+
+	if (num_isect < 2) {
+		ipos1 = ipos2 = p1;
+		return false;
+	}
+
+	return true;
+}
+
+bool Polygon3D::planeIntersectionLine(Polygon3D& otherPoly, vec3& start, vec3& end) {
+	// logically the 3rd plane, but we only use the normal component.
+	vec3 p1_normal = plane_z;
+	vec3 p2_normal = otherPoly.plane_z;
+	vec3 p3_normal = crossProduct(plane_z, otherPoly.plane_z);
+	float det = -dotProduct(p3_normal, p3_normal);
+
+	// If the determinant is 0, that means parallel planes, no intersection.
+	// note: you may want to check against an epsilon value here.
+	if (fabs(det) > EPSILON) {
+		// calculate the final (point, normal)
+		vec3 r_point = ((crossProduct(p3_normal, p2_normal) * fdist) +
+			(crossProduct(p1_normal, p3_normal) * otherPoly.fdist)) / det;
+		vec3 r_normal = p3_normal;
+
+		p3_normal = p3_normal.normalize();
+		start = r_point - p3_normal * 65536;
+		end = r_point + p3_normal * 65536;
+
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+void Polygon3D::print() {
+	logf("{");
+	for (int i = 0; i < verts.size(); i++) {
+		vec3 v = verts[i];
+		logf("vec3(%f, %f, %f), ", v.x, v.y, v.z);
+	}
+	logf("}\n");
 }

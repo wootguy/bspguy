@@ -51,27 +51,27 @@ LeafNavMesh* LeafNavMeshGenerator::generate(Bsp* map) {
 }
 
 vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int modelIdx, int contents) {
-	vector<LeafNode> emptyLeaves;
+	vector<LeafNode> leaves;
 
 	if (modelIdx < 0 || modelIdx >= map->modelCount) {
-		return emptyLeaves;
+		return leaves;
 	}
 
 	Clipper clipper;
 
-	vector<NodeVolumeCuts> emptyNodes = map->get_model_leaf_volume_cuts(modelIdx, NAV_HULL, contents);
+	vector<NodeVolumeCuts> nodes = map->get_model_leaf_volume_cuts(modelIdx, NAV_HULL, contents);
 
-	for (int m = 0; m < emptyNodes.size(); m++) {
-		CMesh mesh = clipper.clip(emptyNodes[m].cuts);
+	for (int m = 0; m < nodes.size(); m++) {
+		CMesh mesh = clipper.clip(nodes[m].cuts);
 		LeafNode hull = getHullForClipperMesh(mesh);
 
 		if (hull.leafFaces.size()) {
-			hull.id = emptyLeaves.size();
-			emptyLeaves.push_back(hull);
+			hull.id = leaves.size();
+			leaves.push_back(hull);
 		}
 	}
 
-	return emptyLeaves;
+	return leaves;
 }
 
 LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
@@ -118,6 +118,11 @@ LeafNode LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh) {
 
 		Polygon3D poly = Polygon3D(faceVerts);
 		poly.removeDuplicateVerts();
+
+		if (poly.verts.size() < 3) {
+			//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
+			continue;
+		}
 
 		leaf.leafFaces.push_back(poly);
 	}
@@ -180,10 +185,17 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 	int oldNodeCount = mesh->nodes.size();
 
+	// maps a node to a list of entities that will split it
+	vector<vector<LeafNode>> nodeSplits;
+	nodeSplits.resize(mesh->nodes.size());
+
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
+		std::string cname = ent->keyvalues["classname"];
 
-		if (ent->keyvalues["classname"] == "func_wall") {
+		//if (cname == "func_wall" || cname == "func_door" || cname == "func_breakable") {
+		//if (cname == "func_wall" && ent->getBspModelIdx() == 129) {
+		if (cname == "func_wall") {
 			LeafNode entNode = addSolidEntityNode(map, mesh, i);
 			mesh->nodes.pop_back(); // solid node will be added during split
 
@@ -191,10 +203,18 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 			for (int k = 0; k < regionLeaves.size(); k++) {
 				if (regionLeaves[k]) {
-					splitEntityLeaf(map, mesh, mesh->nodes[k], entNode, false);
+					nodeSplits[k].push_back(entNode);
 				}
 			}
 		}
+	}
+
+	for (int i = 0; i < nodeSplits.size(); i++) {
+		if (!nodeSplits[i].size()) {
+			continue;
+		}
+
+		splitLeafByEnts(map, mesh, mesh->nodes[i], nodeSplits[i], false);
 	}
 
 	// add new nodes to the octree
@@ -203,66 +223,107 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 	}
 }
 
-void LeafNavMeshGenerator::splitEntityLeaf(Bsp* map, LeafNavMesh* mesh, LeafNode& node, LeafNode& entNode, bool includeSolidNode) {
+void LeafNavMeshGenerator::splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, LeafNode& node, vector<LeafNode>& entNodes, bool includeSolidNode) {
 	Clipper clipper = Clipper();
 	
 	vector<LeafNode> splitNodes;
 	splitNodes.push_back(node);
 
-	for (int i = 0; i < entNode.leafFaces.size(); i++) {
-		Polygon3D& face = entNode.leafFaces[i];
+	for (int n = 0; n < entNodes.size(); n++) {
+		LeafNode& entNode = entNodes[n];
 
-		BSPPLANE clipFront;
-		clipFront.fDist = face.fdist;
-		clipFront.vNormal = face.plane_z;
+		for (int i = 0; i < entNode.leafFaces.size(); i++) {
+			Polygon3D& face = entNode.leafFaces[i];
 
-		BSPPLANE clipBack;
-		clipBack.fDist = -face.fdist;
-		clipBack.vNormal = face.plane_z * -1;
+			BSPPLANE clipFront;
+			clipFront.fDist = face.fdist;
+			clipFront.vNormal = face.plane_z;
 
-		CMesh cmesh;
+			BSPPLANE clipBack;
+			clipBack.fDist = -face.fdist;
+			clipBack.vNormal = face.plane_z * -1;
 
-		vector<LeafNode> newSplitNodes;
+			CMesh cmesh;
 
-		//logf("Split %d nodes\n", (int)splitNodes.size());
-		for (int k = 0; k < splitNodes.size(); k++) {
+			if (i > g_app->debugInt % entNode.leafFaces.size()) {
+				//break;
+			}
+			//g_app->debugPoly = face;
 
-			if (!splitNodes[k].intersects(face)) {
-				// face is not touching the volume so shouldn't cut
-				newSplitNodes.push_back(splitNodes[k]);
-				continue;
+			vector<LeafNode> newSplitNodes;
+
+			//logf("Split %d nodes\n", (int)splitNodes.size());
+			for (int k = 0; k < splitNodes.size(); k++) {
+
+				if (!splitNodes[k].intersects(face)) {
+					// face is not touching the volume so shouldn't cut
+					newSplitNodes.push_back(splitNodes[k]);
+					continue;
+				}
+
+				int ret = clipper.clip(splitNodes[k].leafFaces, clipFront, cmesh);
+
+				if (ret == 1) {
+
+					// clipped
+					LeafNode frontNode = getHullForClipperMesh(cmesh);
+					if (clipper.clip(splitNodes[k].leafFaces, clipBack, cmesh) == 1) {
+						LeafNode backNode = getHullForClipperMesh(cmesh);
+
+						float sizeEpsilon = 100.0f;
+						float originalSize = (splitNodes[k].maxs - splitNodes[k].mins).length() + sizeEpsilon;
+
+						if ((frontNode.maxs - frontNode.mins).length() > originalSize ||
+							(backNode.maxs - backNode.mins).length() > originalSize ||
+							frontNode.leafFaces.size() < 3 || backNode.leafFaces.size () < 3) {
+							int entModel = map->ents[entNode.entidx]->getBspModelIdx();
+							logf("Failed to clip with ent model %d! Degenerate hull.\n", entModel);
+						}
+						else {
+							newSplitNodes.push_back(frontNode);
+							newSplitNodes.push_back(backNode);
+						}
+					}
+					else
+						logf("Failed to clip with back plane!\n");
+				}
+				else if (ret == 0 || ret == -1) {
+					// not clipped at all or fully clipped, no splitting done
+					newSplitNodes.push_back(splitNodes[k]);
+				}
 			}
 
-			int ret = clipper.clip(splitNodes[k].leafFaces, clipFront, cmesh);
-
-			if (ret == 1) {
-				// clipped
-				newSplitNodes.push_back(getHullForClipperMesh(cmesh));
-
-				if (clipper.clip(splitNodes[k].leafFaces, clipBack, cmesh) == 1)
-					newSplitNodes.push_back(getHullForClipperMesh(cmesh));
-				else
-					logf("Failed to clip with back plane!\n");
-			}
-			else if (ret == 0 || ret == -1) {
-				// not clipped at all or fully clipped, no splitting done
-				newSplitNodes.push_back(splitNodes[k]);
-			}
+			splitNodes = newSplitNodes;
 		}
-
-		splitNodes = newSplitNodes;
 	}
 
-	if (!includeSolidNode) {
-		splitNodes.pop_back();
-	}
-
+	int parentId = node.id;
 	if (splitNodes.size() > 1) {
 		node.childIdx = mesh->nodes.size();
 
 		for (int i = 0; i < splitNodes.size(); i++) {
+			if (!includeSolidNode) {
+				bool isSolid = false;
+
+				for (int k = 0; k < entNodes.size(); k++) {
+					Entity* ent = map->ents[entNodes[k].entidx];
+					int modelIdx = ent->getBspModelIdx();
+					int headnode = map->models[modelIdx].iHeadnodes[NAV_HULL];
+					vec3 testPos = splitNodes[i].center - ent->getOrigin();
+
+					if (map->pointContents(headnode, testPos, NAV_HULL) == CONTENTS_SOLID) {
+						isSolid = true;
+						break;
+					}
+				}
+
+				if (isSolid) {
+					continue;
+				}
+			}
+
 			splitNodes[i].id = mesh->nodes.size();
-			splitNodes[i].parentIdx = node.id;
+			splitNodes[i].parentIdx = parentId;
 			mesh->nodes.push_back(splitNodes[i]);
 		}
 

@@ -73,6 +73,14 @@ public:
 	vec3 debugVec2;
 	vec3 debugVec3;
 
+	int debugInt = 0;
+	int debugIntMax = 0;
+	int debugNode = 0;
+	int debugNodeMax = 0;
+	bool debugClipnodes = false;
+	bool debugNodes = false;
+	int clipnodeRenderHull = -1;
+
 	vec3 debugLine0;
 	vec3 debugLine1;
 	Line2D debugCut;
@@ -204,14 +212,6 @@ private:
 	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
-
-	int debugInt = 0;
-	int debugIntMax = 0;
-	int debugNode = 0;
-	int debugNodeMax = 0;
-	bool debugClipnodes = false;
-	bool debugNodes = false;
-	int clipnodeRenderHull = -1;
 
 	int undoLevels = 64;
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history

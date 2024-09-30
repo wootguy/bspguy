@@ -83,9 +83,18 @@ public:
 	// if true, ipos is set to the intersection point with the given line segment
 	bool intersect(vec3 p1, vec3 p2, vec3& ipos);
 
-	// if true, ipos is set to the projected intersection point of the given line segment
+	// if true, ipos is set to the world intersection point of the given line segment
 	// the line segment is first projected onto the plane for a 2D intersect test
 	bool intersect2D(vec3 p1, vec3 p2, vec3& ipos);
+
+	// if true, ipos1 and ipos2 are set to the world intersection points of the given line
+	// the line segment is first projected onto the plane for a 2D intersect test
+	// isEdgeAligned if the cut line overlaps an edge of the polygon
+	bool cut2D(vec3 p1, vec3 p2, vec3& ipos1, vec3& ipos2, bool& isEdgeAligned);
+
+	// gets the line of intersection between 2 planes
+	// returns false for parallel planes
+	bool planeIntersectionLine(Polygon3D& otherPoly, vec3& start, vec3& end);
 
 	// is point inside this polygon? Coordinates are in world space.
 	// Points within EPSILON of an edge are not inside.
@@ -100,4 +109,6 @@ public:
 
 	// get the world position of a point in the polygon's local coordinate system
 	vec3 unproject(vec2 p);
+
+	void print();
 };
