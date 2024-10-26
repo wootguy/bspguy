@@ -229,7 +229,7 @@ vec3 parseVector(string s) {
 	vector<string> parts = splitString(s, " ");
 
 	if (parts.size() != 3) {
-		logf("Not enough coordinates in vector %s\n", s.c_str());
+		//logf("Not enough coordinates in vector %s\n", s.c_str());
 		return v;
 	}
 

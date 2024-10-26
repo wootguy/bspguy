@@ -43,13 +43,13 @@ CMesh Clipper::clip(vector<Polygon3D>& clips) {
 	return clip(planes);
 }
 
-int Clipper::split(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh) {
+int Clipper::split(vector<Polygon3D>& polys, vec3 offset, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh) {
 	frontMesh = createMaxSizeVolume();
 
 	for (int i = 0; i < polys.size(); i++) {
 		Polygon3D& poly = polys[i];
 		BSPPLANE clip;
-		clip.fDist = poly.fdist*-1;
+		clip.fDist = poly.fdist*-1 + dotProduct(offset, poly.plane_z*-1);
 		clip.vNormal = poly.plane_z*-1;
 
 		int result = clipVertices(frontMesh, clip);

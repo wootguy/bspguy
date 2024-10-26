@@ -90,6 +90,50 @@ void LeafOctree::getLeavesInRegion(LeafNode* leaf, vector<bool>& regionLeaves) {
     getLeavesInRegion(root, leaf, 0, regionLeaves);
 }
 
+bool LeafOctree::validate(LeafOctant* node, int currentDepth, int maxNodes) {
+    bool valid = true;
+
+    if (currentDepth >= maxDepth) {
+        for (uint16_t p : node->leaves) {
+            if (p >= maxNodes) {
+                logf("Invalid node in octant: %d / %d\n", (int)p, maxNodes);
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    for (int i = 0; i < 8; ++i) {
+        if (!validate(node->children[i], currentDepth + 1, maxNodes)) {
+            valid = false;
+        }
+    }
+
+    return valid;
+}
+
+bool LeafOctree::validate(int maxNodes) {
+    return validate(root, 0, maxNodes);
+}
+
+void LeafOctree::shiftLeafIds(LeafOctant* node, int currentDepth, int shiftStart, int shiftAmount) {
+    if (currentDepth >= maxDepth) {
+        for (uint16_t& p : node->leaves) {
+            if (p >= shiftStart) {
+                p -= shiftAmount;
+            }
+        }
+        return;
+    }
+    for (int i = 0; i < 8; ++i) {
+        shiftLeafIds(node->children[i], currentDepth + 1, shiftStart, shiftAmount);
+    }
+}
+
+void LeafOctree::shiftLeafIds(int shiftStart, int shiftAmount) {
+    shiftLeafIds(root, 0, shiftStart, shiftAmount);
+}
+
 void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves) {
     if (currentDepth >= maxDepth) {
         for (uint16_t p : node->leaves) {

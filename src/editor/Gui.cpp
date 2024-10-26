@@ -1952,13 +1952,8 @@ void Gui::drawDebugWidget() {
 							if (i == 0) {
 								ImGui::Text("Leaf: %d", leafIdx);
 							}
-							else if (i == 3 && g_app->debugLeafNavMesh) {
-								int leafIdx = map->get_leaf(localCamera, 3);
-								int leafNavIdx = -1;
-
-								if (leafIdx >= 0 && leafIdx < MAX_MAP_CLIPNODE_LEAVES) {
-									leafNavIdx = g_app->debugLeafNavMesh->leafMap[leafIdx];
-								}
+							else if (i == NAV_HULL && g_app->debugLeafNavMesh) {
+								int leafNavIdx = app->debugLeafNavMesh->getNodeIdx(map, localCamera);
 
 								ImGui::Text("Nav ID: %d", leafNavIdx);
 							}

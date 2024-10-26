@@ -33,6 +33,12 @@ struct LeafLink {
 	Polygon3D linkArea; // region in which leaves are making contact
 };
 
+struct EntState {
+	vec3 origin;
+	vec3 angles;
+	uint16_t model; // 0 = point entity box as hull
+};
+
 struct LeafNode {
 	vector<LeafLink> links;
 	uint16_t id;
@@ -40,6 +46,8 @@ struct LeafNode {
 	int16_t entidx; // 0 for world leaves, else an entity leaf which may be relocated, enabled, or disabled
 	uint16_t parentIdx; // parent leaf idx if this node is the child of another leaf, else 65535
 	uint16_t childIdx; // first child idx if this node contains split leaves, else 65535
+
+	vector<EntState> splittingEnts; // entities which are splitting this node
 
 	CMesh clipMesh; // cached clip mesh for faster splitting
 
@@ -69,6 +77,7 @@ public:
 	LeafOctree* octree; // finds nearby leaves from any point in space, even outside of the BSP tree
 	uint16_t leafMap[MAX_MAP_CLIPNODE_LEAVES]; // maps a BSP leaf index to nav mesh node index
 	vector<vector<LeafNode>> bspModelLeaves; // cached entity model leaves
+	vector<LeafNode> bspModelNodes; // cached entity model nodes
 
 	LeafNavMesh();
 
@@ -91,8 +100,17 @@ public:
 	// accounts for leaves that have been split by entities
 	uint16_t getNodeIdx(Bsp* map, vec3 pos);
 
+	// unsplits a node that was divided by one or more entities
+	// use when the entities that did the splitting have moved/rotated
+	void unsplitNode(uint16_t idx);
+
 	// splits nodes again when entities change
 	void refreshNodes(Bsp* map);
+
+	// verifies all node ids and links are valid
+	bool validate();
+
+	LeafNode* findEntNode(int entidx);
 
 private:	
 };

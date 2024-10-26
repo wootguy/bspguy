@@ -6,6 +6,11 @@
 class Bsp;
 class LeafOctree;
 
+struct EntSplitter {
+	EntState entState;
+	LeafNode* node;
+};
+
 // generates a navigation mesh for a BSP
 class LeafNavMeshGenerator {
 public:
@@ -19,13 +24,14 @@ public:
 	void splitEntityLeaves(Bsp* map, LeafNavMesh* mesh);
 
 	// finds best origin for a leaf
-	void setLeafOrigins(Bsp* map, LeafNavMesh* mesh, int offset);
+	void setLeafOrigin(Bsp* map, LeafNavMesh* mesh, int nodeIdx);
 
 	// links nav leaves which have faces touching each other
 	void linkNavLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
 
-	// use on a mesh that has already had all parent leaves linked
-	void linkNavChildLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
+	// use on a node that was just split into child leaves
+	// will link all children to each other and neighboring nodes
+	void linkNavChildLeaves(Bsp* map, LeafNavMesh* mesh, int nodeIdx);
 
 	// use entities to create cheaper paths between leaves
 	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int offset);
@@ -46,7 +52,7 @@ private:
 
 	// splits a leaf by one or more entities
 	// includeSolidNode = true if the entity can be passed through without noclip
-	void splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, LeafNode& node, vector<LeafNode>& entNodes, bool includeSolidNode);
+	void splitLeafByEnts(Bsp* map, LeafNavMesh* mesh, int nodeIdx, vector<EntSplitter>& entNodes, bool includeSolidNode);
 
 	// find point on poly which is closest to a floor, using distance to the bias point as a tie breaker
 	vec3 getBestPolyOrigin(Bsp* map, Polygon3D& poly, vec3 bias);
@@ -54,14 +60,12 @@ private:
 	void linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, LeafNode& entNode, vector<bool>& regionLeaves);
 
 	// returns a combined node for an entity, which is the bounding box of all its model leaves
-	LeafNode getSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int bspModelIdx, vec3 origin);
+	void getSolidEntityNode(Bsp* map, LeafNavMesh* mesh, int bspModelIdx, vec3 origin, LeafNode& node);
 
 	// returns a node for an entity, which is its bounding box
 	LeafNode& addPointEntityNode(Bsp* map, LeafNavMesh* mesh, int entidx, vec3 mins, vec3 maxs);
 
 	int tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int srcLeafIdx, int dstLeafIdx);
-
-	void calcPathCosts(Bsp* bsp, LeafNavMesh* mesh);
 
 	void calcPathCost(Bsp* bsp, LeafNavMesh* mesh, LeafNode& node, LeafLink& link);
 

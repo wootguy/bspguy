@@ -74,7 +74,7 @@ public:
 	// load mesh from a set of polygons and split it by another poly
 	// 0 = no splitting done
 	// 1 = successful split
-	int split(vector<Polygon3D>& polys, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh);
+	int split(vector<Polygon3D>& polys, vec3 offset, BSPPLANE& clipPoly, CMesh& frontMesh, CMesh& backMesh);
 
 	// load mesh from a set of polygons and split it by another poly
 	// 0 = no splitting done

@@ -32,6 +32,10 @@ public:
 
     void getLeavesInRegion(LeafNode* leaf, vector<bool>& regionLeaves);
 
+    bool validate(int maxNodes);
+
+    void shiftLeafIds(int shiftStart, int shiftAmount);
+
 private:
     void buildOctree(LeafOctant* node, int currentDepth);
 
@@ -40,4 +44,8 @@ private:
     void insertLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth);
 
     void removeLeaf(LeafOctant* node, LeafNode* leaf, int currentDepth);
+
+    void shiftLeafIds(LeafOctant* node, int currentDepth, int shiftStart, int shiftAmount);
+
+    bool validate(LeafOctant* node, int currentDepth, int maxNodes);
 };

@@ -472,9 +472,128 @@ vector<int> LeafNavMesh::dijkstraRoute(int start, int end) {
 		len += (mesha.origin - meshb.origin).length();
 		cost += path_cost(path[i - 1], path[i]);
 	}
-	logf("Path length: %d, cost: %d\n", (int)len, (int)cost);
+	//logf("Path length: %d, cost: %d\n", (int)len, (int)cost);
 
 	return path;
+}
+
+LeafNode* LeafNavMesh::findEntNode(int entidx) {
+	for (int i = 0; i < nodes.size(); i++) {
+		LeafNode& node = nodes[i];
+
+		if (node.entidx == entidx) {
+			return &node;
+		}
+	}
+
+	return NULL;
+}
+
+bool LeafNavMesh::validate() {
+	int maxNodes = nodes.size();
+	bool valid = octree->validate(maxNodes);
+
+	for (int i = 0; i < nodes.size(); i++) {
+		LeafNode& node = nodes[i];
+
+		if (node.id != i) {
+			valid = false;
+			logf("Node %d has bad id (expected %d)\n", (int)node.id, i);
+		}
+
+		if (node.childIdx != NAV_INVALID_IDX && node.childIdx >= nodes.size()) {
+			valid = false;
+			logf("Node %d has bad child id %d (max %d)\n", (int)node.id, (int)node.childIdx, maxNodes);
+		}
+
+		if (node.parentIdx != NAV_INVALID_IDX && node.parentIdx >= nodes.size()) {
+			valid = false;
+			logf("Node %d has bad parent id %d (max %d)\n", (int)node.id, (int)node.parentIdx, maxNodes);
+		}
+
+		if (node.parentIdx != NAV_INVALID_IDX && node.childIdx != NAV_INVALID_IDX) {
+			valid = false;
+			logf("Node %d is both a child and a parent\n", (int)node.id);
+		}
+		
+		for (int k = 0; k < node.links.size(); k++) {
+			LeafLink& link = node.links[k];
+
+			if (link.node >= nodes.size()) {
+				valid = false;
+				logf("node %d has bad link to %d (max %d)\n", (int)node.id, (int)link.node, maxNodes);
+			}
+		}
+	}
+
+	return valid;
+}
+
+void LeafNavMesh::unsplitNode(uint16_t idx) {
+	if (idx > nodes.size()) {
+		logf("Can't unsplit node %d / %d\n", idx, (int)nodes.size());
+		return;
+	}
+
+	LeafNode& parent = nodes[idx];
+
+	if (parent.childIdx == NAV_INVALID_IDX || parent.parentIdx != NAV_INVALID_IDX) {
+		logf("Can't unsplit node %d - not a valid parent\n", idx);
+		return;
+	}
+
+	uint16_t unsplitStart = parent.childIdx;
+	uint16_t unsplitEnd = parent.childIdx + 1;
+
+	for (int i = parent.childIdx + 1; i < nodes.size(); i++) {
+		LeafNode& child = nodes[i];
+
+		if (child.parentIdx != parent.id) {
+			break;
+		}
+
+		unsplitEnd++;
+	}
+
+	int deleteCount = unsplitEnd - unsplitStart;
+
+	for (int i = 0; i < nodes.size(); i++) {
+		LeafNode& node = nodes[i];
+
+		if (node.parentIdx == parent.id) {
+			//octree->removeLeaf(&node);
+			continue; // deleting this later, don't adjust it
+		}
+
+		if (i > unsplitStart) {
+			node.id -= deleteCount;
+		}
+
+		if (node.childIdx != NAV_INVALID_IDX && node.childIdx > unsplitStart) {
+			node.childIdx -= deleteCount;
+		}
+
+		for (int k = 0; k < node.links.size(); k++) {
+			LeafLink& link = node.links[k];
+
+			if (link.node >= unsplitEnd) {
+				link.node -= deleteCount;
+			}
+			else if (link.node >= unsplitStart && link.node < unsplitEnd) {
+				node.links.erase(node.links.begin() + k);
+				k--;
+			}
+		}
+	}
+
+	nodes.erase(nodes.begin() + unsplitStart, nodes.begin() + unsplitEnd);
+	//octree->shiftLeafIds(unsplitStart, deleteCount);
+
+	//if (!validate()) {
+	//	logf("Zomg bad mesh\n");
+	//}
+
+	parent.childIdx = NAV_INVALID_IDX;
 }
 
 void LeafNavMesh::refreshNodes(Bsp* map) {
@@ -485,49 +604,52 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 	int deleteCount = 0;
 
 	// delete all child nodes and entity nodes
-	for (int i = 0; i < nodes.size(); i++) {
-		LeafNode& node = nodes[i];
+	if (false) {
+		for (int i = 0; i < nodes.size(); i++) {
+			LeafNode& node = nodes[i];
 
-		if (node.childIdx != NAV_INVALID_IDX) {
-			node.childIdx = NAV_INVALID_IDX;
-		}
-
-		for (int k = 0; k < node.links.size(); k++) {
-			uint16_t linkId = node.links[k].node;
-
-			if (linkId >= nodes.size() || nodes[linkId].parentIdx != NAV_INVALID_IDX || nodes[linkId].entidx != 0) {
-				node.links.erase(node.links.begin() + k);
-				k--;
-			}
-		}
-
-		if (node.parentIdx != NAV_INVALID_IDX || node.entidx != 0) {
-			if (node.face_buffer) {
-				delete node.face_buffer;
-			}
-			if (node.wireframe_buffer) {
-				delete node.wireframe_buffer;
+			if (node.childIdx != NAV_INVALID_IDX) {
+				node.childIdx = NAV_INVALID_IDX;
 			}
 
-			octree->removeLeaf(&node);
-			nodes.erase(nodes.begin() + i);
-			i--;
-			deleteCount++;
-			continue;
+			for (int k = 0; k < node.links.size(); k++) {
+				uint16_t linkId = node.links[k].node;
+
+				if (linkId >= nodes.size() || nodes[linkId].parentIdx != NAV_INVALID_IDX || nodes[linkId].entidx != 0) {
+					node.links.erase(node.links.begin() + k);
+					k--;
+				}
+			}
+
+			if (node.parentIdx != NAV_INVALID_IDX || node.entidx != 0) {
+				if (node.face_buffer) {
+					delete node.face_buffer;
+				}
+				if (node.wireframe_buffer) {
+					delete node.wireframe_buffer;
+				}
+
+				if (node.entidx != 0) {
+					octree->removeLeaf(&node);
+				}
+
+				nodes.erase(nodes.begin() + i);
+				i--;
+				deleteCount++;
+				continue;
+			}
 		}
 	}
+	
 
 	//logf("Delete %d children in %.2fs\n", deleteCount, (float)(glfwGetTime() - refreshStart));
 
-	int childOffset = nodes.size();
+	int oldNodeCount = nodes.size();
 
 	// split leaves again
 	generator.splitEntityLeaves(map, this);
 
-	generator.setLeafOrigins(map, this, childOffset);
-	generator.linkNavChildLeaves(map, this, childOffset);
-	generator.linkEntityLeaves(map, this, 0);
-
-	logf("Split %d nodes into %d in %.2fs (%d poly tests)\n",
-		childOffset, (int)nodes.size(), (float)(glfwGetTime() - refreshStart), g_app->debugInt);
+	if (oldNodeCount != nodes.size())
+		logf("Split %d nodes into %d in %.2fs (%d poly tests)\n",
+			oldNodeCount, (int)nodes.size(), (float)(glfwGetTime() - refreshStart), g_app->debugInt);
 }
