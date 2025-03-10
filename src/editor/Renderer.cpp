@@ -358,7 +358,8 @@ void Renderer::renderLoop() {
 			}
 		}
 
-		{
+		const bool navmeshwipcode = false;
+		if (navmeshwipcode) {
 			colorShader->bind();
 			model.loadIdentity();
 			colorShader->updateMatrixes();
