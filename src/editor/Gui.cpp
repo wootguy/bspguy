@@ -16,6 +16,7 @@
 #include <algorithm>
 #include "BspMerger.h"
 #include "LeafNavMesh.h"
+#include <unordered_map>
 
 // embedded binary data
 #include "fonts/robotomono.h"
@@ -561,6 +562,7 @@ void Gui::draw3dContextMenus() {
 				
 				app->deselectFaces();
 				app->mapRenderers[0]->reload();
+				reloadLimits();
 			}
 			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2\n\nThis will break lightmaps.");
 
@@ -3425,6 +3427,12 @@ void Gui::drawLimits() {
 					drawLimitTab(map, SORT_VERTS);
 					ImGui::EndTabItem();
 				}
+
+				if (ImGui::BeginTabItem("AllocBlock")) {
+					loadedStats = false;
+					drawAllocBlockLimitTab(map);
+					ImGui::EndTabItem();
+				}
 			}
 
 			ImGui::EndTabBar();
@@ -3546,6 +3554,162 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	ImGui::PopFont();
 	ImGui::EndChild();
 }
+
+bool sortAllocInfos(const AllocInfo& a, const AllocInfo& b) {
+	return a.sort > b.sort;
+}
+
+void Gui::drawAllocBlockLimitTab(Bsp* map) {
+
+	int maxCount;
+	const int allocBlockSize = 128 * 128;
+
+	if (!loadedLimit[SORT_ALLOCBLOCK]) {
+		limitAllocs.clear();
+
+		struct AllocInfoInt {
+			int faceCount = 0;
+			int val = 0;
+			int faceIdx = -1;
+		};
+
+		unordered_map<string, AllocInfoInt> infos;
+
+		for (int i = 0; i < map->faceCount; i++) {
+			int size[2];
+			GetFaceLightmapSize(map, i, size);
+
+			BSPFACE& f = map->faces[i];
+			BSPTEXTUREINFO& tinfo = map->texinfos[f.iTextureInfo];
+			int32_t texOffset = ((int32_t*)map->textures)[tinfo.iMiptex + 1];
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+
+			string texname = tex.szName;
+			AllocInfoInt& info = infos[texname];
+			info.faceCount++;
+			info.val += size[0] * size[1];
+			info.faceIdx = i;
+		}
+
+		static char tmp[256];
+
+		for (auto item : infos) {
+			AllocInfo info;
+			info.texname = item.first;
+			info.faceCount = to_string(item.second.faceCount);
+			
+			sprintf(tmp, "%.1f", item.second.val / (float)allocBlockSize);
+			info.val = tmp;
+
+			sprintf(tmp, "%.1f", (item.second.val / (float)(64 * allocBlockSize))*100);
+			info.usage = std::string(tmp) + "%%";
+			
+			info.sort = item.second.val;
+			info.faceIdx = item.second.faceIdx;
+			
+			limitAllocs.push_back(info);
+		}
+
+		sort(limitAllocs.begin(), limitAllocs.end(), sortAllocInfos);
+
+		loadedLimit[SORT_ALLOCBLOCK] = true;
+	}
+	vector<AllocInfo>& allocInfos = limitAllocs;
+
+	ImGui::BeginChild("content");
+	ImGui::Dummy(ImVec2(0, 10));
+	ImGui::PushFont(consoleFontLarge);
+
+	int valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
+	int usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
+	int modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
+	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
+	ImGui::Columns(4);
+	ImGui::SetColumnWidth(0, bigWidth);
+	ImGui::SetColumnWidth(1, modelWidth);
+	ImGui::SetColumnWidth(2, valWidth);
+	ImGui::SetColumnWidth(3, usageWidth);
+
+	ImGui::Text("Texture"); ImGui::NextColumn();
+	ImGui::Text("Faces"); ImGui::NextColumn();
+	ImGui::Text("Blocks"); ImGui::NextColumn();
+	ImGui::Text("Usage"); ImGui::NextColumn();
+
+	ImGui::Columns(1);
+	ImGui::Separator();
+	ImGui::BeginChild("chart");
+	ImGui::Columns(4);
+	ImGui::SetColumnWidth(0, bigWidth);
+	ImGui::SetColumnWidth(1, modelWidth);
+	ImGui::SetColumnWidth(2, valWidth);
+	ImGui::SetColumnWidth(3, usageWidth);
+
+	int selected = app->pickInfo.valid ? app->pickInfo.faceIdx : -1;
+
+	for (int i = 0; i < limitAllocs.size(); i++) {
+
+		if (limitAllocs[i].val == "0.0") {
+			break;
+		}
+
+		string texname = limitAllocs[i].texname + "##" + "select" + to_string(i);
+		int flags = ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns;
+		if (ImGui::Selectable(texname.c_str(), false, flags)) {
+			selected = i;
+
+			int faceIdx = limitAllocs[i].faceIdx;
+			int modelIdx = 0;
+			for (int i = 0; i < map->modelCount; i++) {
+				BSPMODEL& model = map->models[i];
+				if (model.iFirstFace <= faceIdx && model.iFirstFace + model.nFaces > faceIdx) {
+					modelIdx = i;
+					break;
+				}
+			}
+
+			app->deselectFaces();
+			app->pickInfo.ent = NULL;
+			app->pickInfo.entIdx = -1;
+			app->pickInfo.modelIdx = -1;
+			app->pickInfo.faceIdx = faceIdx;
+			app->pickMode = PICK_FACE;
+			app->selectedFaces.push_back(faceIdx);
+			app->selectMapIdx = 0;
+			app->pickInfo.mapIdx = 0;
+			app->pickInfo.modelIdx = modelIdx;
+			app->pickInfo.map = g_app->mapRenderers[0]->map;
+			showTextureWidget = true;
+			app->pickInfo.valid = true;
+			app->pickCount++;
+			refreshSelectedFaces = true;
+			app->goToFace(map, faceIdx);
+		}
+		ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(limitAllocs[i].faceCount.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(limitAllocs[i].faceCount.c_str()); ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(limitAllocs[i].val.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(limitAllocs[i].val.c_str()); ImGui::NextColumn();
+
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
+			- ImGui::CalcTextSize(limitAllocs[i].usage.c_str()).x
+			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Text(limitAllocs[i].usage.c_str()); ImGui::NextColumn();
+	}
+
+
+	ImGui::Columns(1);
+	ImGui::EndChild();
+
+	ImGui::PopFont();
+	ImGui::EndChild();
+}
+
 
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);

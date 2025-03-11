@@ -291,6 +291,7 @@ private:
 	void selectEnt(Bsp* map, int entIdx);
 	void goToEnt(Bsp* map, int entIdx);
 	void goToCoords(float x, float y, float z);
+	void goToFace(Bsp* map, int faceIdx);
 	void ungrabEnt();
 
 	void pushEntityUndoState(string actionDesc);

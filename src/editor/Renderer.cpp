@@ -3175,8 +3175,10 @@ void Renderer::deselectObject() {
 }
 
 void Renderer::deselectFaces() {
-	for (int i = 0; i < selectedFaces.size(); i++) {
-		mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
+	if (selectMapIdx >= 0) {
+		for (int i = 0; i < selectedFaces.size(); i++) {
+			mapRenderers[selectMapIdx]->highlightFace(selectedFaces[i], false);
+		}
 	}
 	selectedFaces.clear();
 }
@@ -3215,6 +3217,43 @@ void Renderer::goToEnt(Bsp* map, int entIdx) {
 
 	cameraOrigin = getEntOrigin(map, ent) - cameraForward * (size.length() + 64.0f);
 }
+
+void Renderer::goToFace(Bsp* map, int faceIdx) {
+
+	int modelIdx = 0;
+	for (int i = 0; i < map->modelCount; i++) {
+		BSPMODEL& model = map->models[i];
+		if (model.iFirstFace <= faceIdx && model.iFirstFace + model.nFaces > faceIdx) {
+			modelIdx = i;
+			break;
+		}
+	}
+
+	vec3 offset;
+	for (int i = 0; i < map->ents.size(); i++) {
+		if (map->ents[i]->getBspModelIdx() == modelIdx) {
+			offset = map->ents[i]->getOrigin();
+		}
+	}
+
+	BSPFACE& face = map->faces[faceIdx];
+
+	vec3 mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	vec3 maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for (int e = 0; e < face.nEdges; e++) {
+		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+		BSPEDGE& edge = map->edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+
+		expandBoundingBox(map->verts[vertIdx], mins, maxs);
+	}
+	vec3 size = maxs - mins;
+	vec3 center = (mins + maxs) * 0.5f;
+
+	cameraOrigin = (offset + center) - cameraForward * (size.length() + 64.0f);
+}
+
 
 void Renderer::ungrabEnt() {
 	if (!movingEnt) {

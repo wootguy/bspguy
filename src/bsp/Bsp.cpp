@@ -4898,10 +4898,15 @@ bool Bsp::is_leaf_visible(int ileaf, vec3 pos) {
 
 	//logf("leaf %d can see:", ipvsLeaf);
 
-	for (int lf = 1; lf < leafCount; p++)
+	for (int lf = 1; lf < leafCount && p < header.lump[LUMP_VISIBILITY].nLength; p++)
 	{
-		if (pvs[p] == 0) // prepare to skip leafs
+		if (pvs[p] == 0) { // prepare to skip leafs
+			if (p + 1 >= header.lump[LUMP_VISIBILITY].nLength) {
+				logf("Failed to read VIS data\n");
+				break;
+			}
 			lf += 8 * pvs[++p]; // next byte holds number of leafs to skip
+		}
 		else
 		{
 			for (byte bit = 1; bit != 0; bit *= 2, lf++)
