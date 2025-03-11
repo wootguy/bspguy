@@ -102,50 +102,7 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 }
 
 void BspRenderer::loadTextures() {
-	vector<Wad*> wads;
-	vector<string> wadNames;
-	for (int i = 0; i < map->ents.size(); i++) {
-		if (map->ents[i]->keyvalues["classname"] == "worldspawn") {
-			wadNames = splitString(map->ents[i]->keyvalues["wad"], ";");
-
-			for (int k = 0; k < wadNames.size(); k++) {
-				wadNames[k] = basename(wadNames[k]);
-			}
-			break;
-		}
-	}
-
-	vector<string> tryPaths = {
-		"./"
-	};
-
-	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
-	
-	for (int i = 0; i < wadNames.size(); i++) {
-		string path;
-		for (int k = 0; k < tryPaths.size(); k++) {
-			string tryPath = tryPaths[k] + wadNames[i];
-			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
-			if (fileExists(tryPath)) {
-				path = tryPath;
-				break;
-			}
-			if (fileExists(tryPath_full)) {
-				path = tryPath_full;
-				break;
-			}
-		}
-
-		if (path.empty()) {
-			logf("Missing WAD: %s\n", wadNames[i].c_str());
-			continue;
-		}
-
-		logf("Loading WAD %s\n", path.c_str());
-		Wad* wad = new Wad(path);
-		wad->readInfo();
-		wads.push_back(wad);
-	}
+	vector<Wad*> wads = map->load_wads(true);
 
 	int wadTexCount = 0;
 	int missingCount = 0;

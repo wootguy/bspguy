@@ -9,7 +9,7 @@
 #include <set>
 
 class Entity;
-
+class Wad;
 
 #define OOB_CLIP_X 1
 #define OOB_CLIP_X_NEG 2
@@ -224,8 +224,16 @@ public:
 
 	bool rename_texture(const char* oldName, const char* newName);
 
-	// updates texture coordinates after a texture has been downscaled
-	void adjust_downscaled_texture_coordinates(int textureId, int oldWidth, int oldHeight);
+	bool embed_texture(int textureId);
+
+	bool unembed_texture(int textureId);
+
+	vector<string> get_wad_names();
+
+	vector<Wad*> load_wads(bool verbosePrinting);
+
+	// updates texture coordinates after a texture has been resized
+	void adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight);
 
 	vec3 get_face_center(int faceIdx);
 

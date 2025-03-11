@@ -514,7 +514,19 @@ void Gui::draw3dContextMenus() {
 			}
 			tooltip(g, "Selects faces connected to this one which lie on the same plane and use the same texture");
 
-			if (ImGui::MenuItem("Downscale texture", 0, false, !app->isLoading)) {
+			Bsp* map = app->pickInfo.map;
+			bool isEmbedded = false;
+			if (app->pickInfo.valid && map && app->pickInfo.faceIdx > 0 && app->pickInfo.faceIdx < map->faceCount) {
+				BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+				BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+				if (info.iMiptex > 0 && info.iMiptex < map->textureCount) {
+					int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+					isEmbedded = tex.nOffsets[0] != 0;
+				}
+			}
+
+			if (ImGui::MenuItem("Downscale texture", 0, false, !app->isLoading && isEmbedded)) {
 				if (!app->pickInfo.valid) {
 					return;
 				}
@@ -550,7 +562,7 @@ void Gui::draw3dContextMenus() {
 				app->deselectFaces();
 				app->mapRenderers[0]->reload();
 			}
-			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2.");
+			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2\n\nThis will break lightmaps.");
 
 			if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading)) {
 				if (!app->pickInfo.valid) {
@@ -1254,7 +1266,7 @@ void Gui::drawMenuBar() {
 				"This lowers the model count and allows more game models to be precached.\n\n"
 				"This does not delete BSP data structures unless you run the Clean command afterward.");
 
-			if (ImGui::MenuItem("Downscale Invalid Textures", "(WIP)", false, !app->isLoading && mapSelected)) {
+			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading && mapSelected)) {
 				map->downscale_invalid_textures();
 
 				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
@@ -1264,7 +1276,7 @@ void Gui::drawMenuBar() {
 					reloadLimits();
 				}
 			}
-			tooltip(g, "Shrinks textures that exceed the max texture size and adjusts texture coordinates accordingly. Does not work with WAD textures yet.\n");
+			tooltip(g, "Shrinks textures that exceed the max texture size and adjusts texture coordinates accordingly.\n\nIf a texture is stored in a WAD, it is first embedded into the BSP before being downscaled.\n");
 
 			if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading && mapSelected)) {
 				if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading && mapSelected)) {
@@ -4233,6 +4245,7 @@ void Gui::drawTextureTool() {
 		static char textureName[16];
 		static int lastPickCount = -1;
 		static bool validTexture = true;
+		static bool isEmbedded = false;
 		BspRenderer* mapRenderer = app->selectMapIdx >= 0 && app->selectMapIdx < app->mapRenderers.size() ? app->mapRenderers[app->selectMapIdx] : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
@@ -4254,6 +4267,7 @@ void Gui::drawTextureTool() {
 					width = tex.nWidth;
 					height = tex.nHeight;
 					strncpy(textureName, tex.szName, MAXTEXTURENAME);
+					isEmbedded = tex.nOffsets[0] != 0;
 				}
 				else {
 					textureName[0] = '\0';
@@ -4367,6 +4381,48 @@ void Gui::drawTextureTool() {
 			ImGui::TextUnformatted("Used with invisible faces to bypass the surface extent limit."
 				"\nLightmaps may break in strange ways if this is used on a normal face.");
 			ImGui::EndTooltip();
+		}
+
+		ImGui::SameLine(0, 20);
+		
+		if (g_app->isLoading) {
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+		}
+		if (ImGui::Checkbox("Embed", &isEmbedded)) {
+			Bsp* map = app->pickInfo.map;
+			bool isActuallyEmbedded = false;
+
+			if (app->pickInfo.valid && map && app->pickInfo.faceIdx > 0 && app->pickInfo.faceIdx < map->faceCount) {
+				BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+				BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+				if (info.iMiptex > 0 && info.iMiptex < map->textureCount) {
+					int32_t texOffset = ((int32_t*)map->textures)[info.iMiptex + 1];
+					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
+					isActuallyEmbedded = tex.nOffsets[0] != 0;
+				}
+			}
+
+			BSPFACE& face = map->faces[app->pickInfo.faceIdx];
+			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+			if (isActuallyEmbedded) {
+				isEmbedded = !map->unembed_texture(info.iMiptex);
+			}
+			else {
+				isEmbedded = map->embed_texture(info.iMiptex);
+			}
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted("Embedded textures are stored in this BSP rather than a WAD."
+				"\n\nEmbedding allows the texture to be downscaled, but inflates the size of the BSP."
+				"\nUnembedding is not possible if no referenced WAD has a texture by this name.\n");
+			ImGui::EndTooltip();
+		}
+		if (g_app->isLoading) {
+			ImGui::PopItemFlag();
+			ImGui::PopStyleVar();
 		}
 
 		ImGui::Dummy(ImVec2(0, 8));

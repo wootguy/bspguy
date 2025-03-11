@@ -12,6 +12,7 @@
 #include <algorithm>
 #include "Clipper.h"
 #include <float.h>
+#include "Wad.h"
 
 
 typedef map< string, vec3 > mapStringToVector;
@@ -3125,7 +3126,7 @@ bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 		tex.nOffsets[i] = newOffset[i];
 	}
 
-	adjust_downscaled_texture_coordinates(textureId, oldWidth, oldHeight);
+	adjust_resized_texture_coordinates(textureId, oldWidth, oldHeight);
 
 	// shrink texture lump
 	int removedBytes = palette - newPalette;
@@ -3185,7 +3186,7 @@ bool Bsp::downscale_texture(int textureId, int maxDim, bool allowWad) {
 		if (allowWad) {
 			tex.nWidth = newWidth;
 			tex.nHeight = newHeight;
-			adjust_downscaled_texture_coordinates(textureId, oldWidth, oldHeight);
+			adjust_resized_texture_coordinates(textureId, oldWidth, oldHeight);
 			logf("Texture coords were updated for %s. The WAD texture must be updated separately.\n", tex.szName);
 		}
 		else {
@@ -3198,7 +3199,200 @@ bool Bsp::downscale_texture(int textureId, int maxDim, bool allowWad) {
 	return downscale_texture(textureId, newWidth, newHeight);
 }
 
-void Bsp::adjust_downscaled_texture_coordinates(int textureId, int oldWidth, int oldHeight) {
+vector<Wad*> Bsp::load_wads(bool verbosePrinting) {
+	vector<string> wadNames = get_wad_names();
+	vector<Wad*> wads;
+
+	vector<string> tryPaths = {
+		"./"
+	};
+
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+
+	for (int i = 0; i < wadNames.size(); i++) {
+		string path;
+		for (int k = 0; k < tryPaths.size(); k++) {
+			string tryPath = tryPaths[k] + wadNames[i];
+			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
+			if (fileExists(tryPath)) {
+				path = tryPath;
+				break;
+			}
+			if (fileExists(tryPath_full)) {
+				path = tryPath_full;
+				break;
+			}
+		}
+
+		if (path.empty()) {
+			if (verbosePrinting)
+				logf("Missing WAD: %s\n", wadNames[i].c_str());
+			continue;
+		}
+
+		if (verbosePrinting)
+			logf("Loading WAD %s\n", path.c_str());
+		Wad* wad = new Wad(path);
+		wad->readInfo();
+		wads.push_back(wad);
+	}
+
+	return wads;
+}
+
+vector<string> Bsp::get_wad_names() {
+	vector<string> wadNames;
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->keyvalues["classname"] == "worldspawn") {
+			wadNames = splitString(ents[i]->keyvalues["wad"], ";");
+
+			for (int k = 0; k < wadNames.size(); k++) {
+				wadNames[k] = basename(wadNames[k]);
+			}
+			break;
+		}
+	}
+
+	return wadNames;
+}
+
+bool Bsp::embed_texture(int textureId) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	if (tex.nOffsets[0] != 0) {
+		logf("Texture %s is already embedded\n", tex.szName);
+		return false;
+	}
+
+	vector<Wad*> wads = load_wads(false);
+
+	bool embedded = false;
+	for (int k = 0; k < wads.size(); k++) {
+		if (wads[k]->hasTexture(tex.szName)) {
+			WADTEX* wadTex = wads[k]->readTexture(tex.szName);
+
+			for (int i = 0; i < 4; i++) {
+				tex.nOffsets[i] = wadTex->nOffsets[i];
+			}
+			if (tex.nHeight != wadTex->nHeight || tex.nWidth != wadTex->nWidth) {
+				logf("Failed to embed texture %s from wad %s (dimensions don't match)\n", tex.szName, wads[k]->filename.c_str());
+				delete wadTex;
+				continue;
+			}
+
+			int sz = tex.nWidth * tex.nHeight;	   // miptex 0
+			int sz2 = sz / 4;  // miptex 1
+			int sz3 = sz2 / 4; // miptex 2
+			int sz4 = sz3 / 4; // miptex 3
+			int texDataSz = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
+			int startOffset = texOffset + sizeof(BSPMIPTEX);
+			int oldRemainder = header.lump[LUMP_TEXTURES].nLength - startOffset;
+
+			for (int i = 0; i < textureCount; i++) {
+				int32_t& offset = ((int32_t*)textures)[i+1];
+
+				if (offset >= startOffset) {
+					offset += texDataSz;
+				}
+			}
+
+			byte* newTexData = new byte[header.lump[LUMP_TEXTURES].nLength + texDataSz];
+			memcpy(newTexData, lumps[LUMP_TEXTURES], startOffset);
+			memcpy(newTexData + startOffset, wadTex->data, texDataSz);
+			memcpy(newTexData + startOffset + texDataSz, lumps[LUMP_TEXTURES] + startOffset, oldRemainder);
+
+			logf("Embedded texture %s from wad %s\n", tex.szName, wads[k]->filename.c_str());
+
+			delete wadTex;
+			delete[] lumps[LUMP_TEXTURES];
+			lumps[LUMP_TEXTURES] = newTexData;
+			header.lump[LUMP_TEXTURES].nLength += texDataSz;
+			update_lump_pointers();
+
+			break;
+		}
+	}
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+
+	return embedded;
+}
+
+bool Bsp::unembed_texture(int textureId) {
+	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
+	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+	if (tex.nOffsets[0] == 0) {
+		logf("Texture %s is already unembedded\n", tex.szName);
+		return false;
+	}
+
+	int sz = tex.nWidth * tex.nHeight;	   // miptex 0
+	int sz2 = sz / 4;  // miptex 1
+	int sz3 = sz2 / 4; // miptex 2
+	int sz4 = sz3 / 4; // miptex 3
+	int texDataSz = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
+	int endOffset = texOffset + sizeof(BSPMIPTEX);
+	int newTexBufferSz = header.lump[LUMP_TEXTURES].nLength - texDataSz;
+
+	// reset texture dimensions in case it was edited inside the BSP
+	vector<Wad*> wads = load_wads(false);
+	bool isInWad = false;
+	for (int k = 0; k < wads.size(); k++) {
+		if (wads[k]->hasTexture(tex.szName)) {
+			WADTEX* wadTex = wads[k]->readTexture(tex.szName);
+
+			if (tex.nWidth != wadTex->nWidth || tex.nHeight != wadTex->nHeight) {
+				int oldWidth = tex.nWidth;
+				int oldHeight = tex.nHeight;
+				tex.nWidth = wadTex->nWidth;
+				tex.nHeight = wadTex->nHeight;
+				adjust_resized_texture_coordinates(textureId, oldWidth, oldHeight);
+				break;
+			}
+			isInWad = true;
+			
+			delete wadTex;
+		}
+	}
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	if (!isInWad) {
+		logf("Aborted unembed of %s. No WAD contains this texture. Data would be lost.\n", tex.szName);
+		return false;
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t& offset = ((int32_t*)textures)[i + 1];
+
+		if (offset >= endOffset) {
+			offset -= texDataSz;
+		}
+	}
+
+	for (int i = 0; i < 4; i++) {
+		tex.nOffsets[i] = 0;
+	}
+
+	byte* newTexData = new byte[newTexBufferSz];
+	memcpy(newTexData, lumps[LUMP_TEXTURES], endOffset);
+	memcpy(newTexData + endOffset, lumps[LUMP_TEXTURES] + endOffset + texDataSz, newTexBufferSz - endOffset);
+
+	logf("Unembedded texture %s\n", tex.szName);
+	delete[] lumps[LUMP_TEXTURES];
+	lumps[LUMP_TEXTURES] = newTexData;
+	header.lump[LUMP_TEXTURES].nLength -= texDataSz;
+	update_lump_pointers();
+
+	return true;
+}
+
+void Bsp::adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight) {
 	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
 	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 	
@@ -3251,14 +3445,22 @@ void Bsp::downscale_invalid_textures() {
 	for (int i = 0; i < textureCount; i++) {
 		int32_t texOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
-		
-		if (tex.nOffsets[0] == 0) {
-			logf("Skipping WAD texture %s\n", tex.szName);
-			continue;
-		}
 
 		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
-			
+			embed_texture(i);
+		}
+	}
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
+			if (tex.nOffsets[0] == 0) {
+				logf("Skipping WAD texture %s (failed to embed)\n", tex.szName);
+				continue;
+			}
+
 			int oldWidth = tex.nWidth;
 			int oldHeight = tex.nHeight;
 			int newWidth = tex.nWidth;
