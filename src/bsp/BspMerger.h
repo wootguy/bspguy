@@ -50,10 +50,11 @@ public:
 	// noripent - don't change any entity logic
 	// noscript - don't add support for the bspguy map script (worse performance + buggy, but simpler)
 	// nomove - abort the merge if the maps overlap
-	MergeResult merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript, bool nomove);
+	MergeResult merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript, bool nomove, int max_dim);
 
 private:
 	int merge_ops = 0;
+	int merge_max_dim;
 
 	// wrapper around BSP data merging for nicer console output
 	void merge(MAPBLOCK& dst, MAPBLOCK& src, string resultName);

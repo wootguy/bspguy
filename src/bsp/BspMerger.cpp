@@ -11,7 +11,9 @@ BspMerger::BspMerger() {
 
 }
 
-MergeResult BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript, bool nomove) {
+MergeResult BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bool noripent, bool noscript, bool nomove, int max_dim) {
+	merge_max_dim = max_dim;
+
 	MergeResult result;
 	result.fpath = "";
 	result.map = NULL;
@@ -205,9 +207,9 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 
 	maxDims += gap;
 
-	int maxMapsPerRow = (MAX_MAP_COORD * 2.0f) / maxDims.x;
-	int maxMapsPerCol = (MAX_MAP_COORD * 2.0f) / maxDims.y;
-	int maxMapsPerLayer = (MAX_MAP_COORD * 2.0f) / maxDims.z;
+	int maxMapsPerRow = (merge_max_dim * 2.0f) / maxDims.x;
+	int maxMapsPerCol = (merge_max_dim * 2.0f) / maxDims.y;
+	int maxMapsPerLayer = (merge_max_dim * 2.0f) / maxDims.z;
 
 	int idealMapsPerAxis = floor(pow(maps.size(), 1 / 3.0f));
 
@@ -222,6 +224,9 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 
 	vec3 mergedMapSize = maxDims * (float)idealMapsPerAxis;
 	vec3 mergedMapMin = mergedMapSize * -0.5f;
+	mergedMapMin.x = max(-merge_max_dim, (int)mergedMapMin.x);
+	mergedMapMin.y = max(-merge_max_dim, (int)mergedMapMin.y);
+	mergedMapMin.z = max(-merge_max_dim, (int)mergedMapMin.z);
 	vec3 mergedMapMax = mergedMapMin + mergedMapSize;
 
 	logf("Max map size:      width=%.0f length=%.0f height=%.0f\n", maxDims.x, maxDims.y, maxDims.z);

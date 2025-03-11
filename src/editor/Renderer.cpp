@@ -3420,7 +3420,7 @@ void Renderer::merge(string fpath) {
 	maps.push_back(map2);
 
 	BspMerger merger;
-	mergeResult = merger.merge(maps, vec3(), thismap->name, true, true, true);
+	mergeResult = merger.merge(maps, vec3(), thismap->name, true, true, true, g_engine_limits->max_mapboundary);
 
 	if (!mergeResult.map || !mergeResult.map->valid) {
 		delete map2;

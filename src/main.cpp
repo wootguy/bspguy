@@ -170,7 +170,7 @@ int test() {
 	removed.print_delete_stats(1);
 
 	BspMerger merger;
-	Bsp* result = merger.merge(maps, vec3(1, 1, 1), "yabma_move", false, false, false).map;
+	Bsp* result = merger.merge(maps, vec3(1, 1, 1), "yabma_move", false, false, false, 32768).map;
 	logf("\n");
 	if (result != NULL) {
 		result->write("yabma_move.bsp");
@@ -226,9 +226,11 @@ int merge_maps(CommandLine& cli) {
 
 	string output_name = cli.hasOption("-o") ? cli.getOption("-o") : cli.bspfile;
 
+	int max_dim = cli.hasOption("-hl") ? 4096 : 32768;
+
 	BspMerger merger;
 	Bsp* result = merger.merge(maps, gap, output_name,
-		cli.hasOption("-noripent"), cli.hasOption("-noscript"), false).map;
+		cli.hasOption("-noripent"), cli.hasOption("-noscript"), false, max_dim).map;
 
 	logf("\n");
 	if (result->isValid()) result->write(output_name);
@@ -563,6 +565,8 @@ void print_help(string command) {
 			"                 effective entity logic. This may cause lag in maps with lots of\n"
 			"                 entities, and some ents might not spawn properly. The benefit\n"
 			"                 to this flag is that you don't have deal with script setup.\n"
+			"  -hl          : Arranges maps to fit inside the vanilla Half-Life engine (+/-4096).\n"
+			"                 Otherwise uses the Sven Co-op limit of +/-32768.\n"
 			"  -gap \"X,Y,Z\" : Amount of extra space to add between each map\n"
 			"  -v           : Verbose console output.\n"
 			);
