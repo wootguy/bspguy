@@ -4,6 +4,7 @@
 #include "globals.h"
 #include <float.h>
 #include <stack>
+#include <algorithm>
 
 #define COLINEAR_EPSILON 0.125f
 #define SAME_VERT_EPSILON 0.125f

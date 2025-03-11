@@ -1266,6 +1266,11 @@ void Gui::drawMenuBar() {
 				"This lowers the model count and allows more game models to be precached.\n\n"
 				"This does not delete BSP data structures unless you run the Clean command afterward.");
 
+			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading && mapSelected)) {
+				map->remove_unused_wads();
+			}
+			tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
+
 			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading && mapSelected)) {
 				map->downscale_invalid_textures();
 

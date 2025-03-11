@@ -26,6 +26,15 @@ Wad::~Wad(void)
 		delete [] dirEntries;
 }
 
+string Wad::getName() {
+	string wadname = filename;
+	int lastSlash = wadname.find_last_of("/\\");
+	if (lastSlash != -1) {
+		wadname = wadname.substr(lastSlash + 1);
+	}
+	return wadname;
+}
+
 bool Wad::readInfo()
 {
 	string file = filename;

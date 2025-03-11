@@ -62,6 +62,8 @@ public:
 	Wad(void);
 	~Wad(void);
 
+	string getName();
+
 	bool readInfo();
 	bool hasTexture(std::string name);
 

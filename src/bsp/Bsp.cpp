@@ -13,6 +13,7 @@
 #include "Clipper.h"
 #include <float.h>
 #include "Wad.h"
+#include <unordered_set>
 
 
 typedef map< string, vec3 > mapStringToVector;
@@ -3240,6 +3241,63 @@ vector<Wad*> Bsp::load_wads(bool verbosePrinting) {
 	return wads;
 }
 
+void Bsp::remove_unused_wads() {
+	vector<string> wadNames = get_wad_names();
+	vector<Wad*> wads = load_wads(false);
+	unordered_set<Wad*> used_wads;
+
+	int missing_textures = 0;
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+		if (tex.nOffsets[0] == 0) {
+			bool foundTexture = false;
+			for (int k = 0; k < wads.size(); k++) {
+				if (wads[k]->hasTexture(tex.szName)) {
+					used_wads.insert(wads[k]);
+					foundTexture = true;
+					break;
+				}
+			}
+			if (!foundTexture) {
+				missing_textures++;
+			}
+		}
+	}
+
+	string newWadList = "";
+
+	for (Wad* wad : used_wads) {
+		newWadList += toLowerCase(wad->getName()) + ";";
+	}
+
+	for (Wad* wad : wads) {
+		if (!used_wads.count(wad)) {
+			logf("Removed unused WAD: %s\n", wad->getName().c_str());
+		}
+	}
+
+	logf("Kept %d of %d wads.\n", used_wads.size(), wadNames.size());
+
+	if (missing_textures && wadNames.size() != wads.size()) {
+		logf("Warning: The map has missing textures. Missing WADs were removed which may actually be required.\n");
+	}
+
+	int worldspawn_count = 0;
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->keyvalues["classname"] == "worldspawn") {
+			ents[i]->keyvalues["wad"] = newWadList;
+			break;
+		}
+	}
+
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+}
+
 vector<string> Bsp::get_wad_names() {
 	vector<string> wadNames;
 
@@ -4260,26 +4318,58 @@ bool Bsp::validate() {
 		isValid = false;
 	}
 
+	int oobCount = 0;
 	for (Entity* ent : ents) {
 		vec3 ori = ent->getOrigin();
 		//float oob = g_engine_limits->max_mapboundary;
 		float oob = 8192;
 
 		if (fabs(ori.x) > oob || fabs(ori.y) > oob || fabs(ori.z) > oob) {
+			/*
 			logf("Entity '%s' (%s) outside map boundary at (%d %d %d)\n",
 				ent->hasKey("targetname") ? ent->keyvalues["targetname"].c_str() : "",
 				ent->hasKey("classname") ? ent->keyvalues["classname"].c_str() : "",
 				(int)ori.x, (int)ori.y, (int)ori.z);
+				*/
+			oobCount++;
 		}
 	}
+	if (oobCount) {
+		logf("%d entities outside of the map boundaries\n", oobCount);
+	}
+
+	vector<Wad*> wads = load_wads(false);
+
+	int missing_textures = 0;
 
 	for (int i = 0; i < textureCount; i++) {
 		int32_t texOffset = ((int32_t*)textures)[i + 1];
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
+		if (tex.nOffsets[0] == 0) {
+			bool foundTexture = false;
+			for (int k = 0; k < wads.size(); k++) {
+				if (wads[k]->hasTexture(tex.szName)) {
+					foundTexture = true;
+					break;
+				}
+			}
+			if (!foundTexture) {
+				missing_textures++;
+			}
+		}
+
 		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
 			logf("Texture '%s' too large (%dx%d)\n", tex.szName, tex.nWidth, tex.nHeight);
 		}
+	}
+
+	for (Wad* wad : wads) {
+		delete wad;
+	}
+
+	if (missing_textures) {
+		logf("%d missing textures\n", missing_textures);
 	}
 
 	return isValid;

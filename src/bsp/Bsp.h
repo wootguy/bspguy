@@ -232,6 +232,8 @@ public:
 
 	vector<Wad*> load_wads(bool verbosePrinting);
 
+	void remove_unused_wads();
+
 	// updates texture coordinates after a texture has been resized
 	void adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight);
 
