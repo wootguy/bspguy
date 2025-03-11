@@ -158,6 +158,15 @@ void Bsp::get_model_vertex_bounds(int modelIdx, vec3& mins, vec3& maxs) {
 		// use the clipping hull "faces" instead
 		Clipper clipper;
 		vector<NodeVolumeCuts> solidNodes = get_model_leaf_volume_cuts(modelIdx, 0, CONTENTS_SOLID);
+		if (solidNodes.empty()) {
+			solidNodes = get_model_leaf_volume_cuts(modelIdx, 3, CONTENTS_SOLID);
+		}
+		if (solidNodes.empty()) {
+			solidNodes = get_model_leaf_volume_cuts(modelIdx, 1, CONTENTS_SOLID);
+		}
+		if (solidNodes.empty()) {
+			solidNodes = get_model_leaf_volume_cuts(modelIdx, 2, CONTENTS_SOLID);
+		}
 
 		vector<CMesh> solidMeshes;
 		for (int k = 0; k < solidNodes.size(); k++) {
