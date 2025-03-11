@@ -1964,7 +1964,7 @@ void Gui::drawDebugWidget() {
 			}
 			if (ImGui::CollapsingHeader((bspTreeTitle + "##bsptree").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 
-				if (app->pickInfo.map && app->pickInfo.modelIdx >= 0) {
+				if (app->pickInfo.map && app->pickInfo.modelIdx >= 0 && app->pickInfo.modelIdx < app->pickInfo.map->modelCount) {
 					Bsp* map = app->pickInfo.map;
 
 					vec3 localCamera = app->cameraOrigin - app->mapRenderers[app->pickInfo.mapIdx]->mapOffset;

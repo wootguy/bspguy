@@ -1152,18 +1152,20 @@ void Renderer::vertexEditControls() {
 		}
 	}
 
-	if (pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
-		debugInt -= 2;
-		Bsp* map = mapRenderers[0]->map;
-		debugLeafNavMesh->refreshNodes(map);
-		debugInt++;
-	}
+	if (debugLeafNavMesh) {
+		if (pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
+			debugInt -= 2;
+			Bsp* map = mapRenderers[0]->map;
+			debugLeafNavMesh->refreshNodes(map);
+			debugInt++;
+		}
 
-	if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
-		debugInt = 269;
-		Bsp* map = mapRenderers[0]->map;
-		debugLeafNavMesh->refreshNodes(map);
-		debugInt++;
+		if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
+			debugInt = 269;
+			Bsp* map = mapRenderers[0]->map;
+			debugLeafNavMesh->refreshNodes(map);
+			debugInt++;
+		}
 	}
 }
 
@@ -2061,8 +2063,9 @@ vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
 }
 
 vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
-	if (ent->isBspModel()) {
-		BSPMODEL& model = map->models[ent->getBspModelIdx()];
+	int modelIdx = ent->getBspModelIdx();
+	if (modelIdx > 0 && modelIdx < map->modelCount) {
+		BSPMODEL& model = map->models[modelIdx];
 		return model.nMins + (model.nMaxs - model.nMins) * 0.5f;
 	}
 	return vec3(0, 0, 0);
@@ -2355,7 +2358,7 @@ void Renderer::updateSelectionSize() {
 		pickInfo.map->get_bounding_box(mins, maxs);
 		selectionSize = maxs - mins;
 	}
-	else if (pickInfo.modelIdx > 0) {
+	else if (pickInfo.modelIdx > 0 && pickInfo.modelIdx < pickInfo.map->modelCount) {
 		vec3 mins, maxs;
 		if (pickInfo.map->models[pickInfo.modelIdx].nFaces == 0) {
 			mins = pickInfo.map->models[pickInfo.modelIdx].nMins;
