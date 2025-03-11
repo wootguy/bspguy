@@ -111,6 +111,9 @@ MergeResult BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bo
 	}
 
 	Bsp* output = layerStart.map;
+	output->zero_entity_origins("func_water");
+	output->zero_entity_origins("func_ladder");
+	output->zero_entity_origins("func_mortar_field");
 
 	if (!noripent) {
 		vector<MAPBLOCK> flattenedBlocks;

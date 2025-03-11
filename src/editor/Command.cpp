@@ -941,6 +941,10 @@ void MoveMapCommand::execute() {
 	map->ents[0]->removeKeyvalue("origin");
 	map->move(offset);
 
+	map->zero_entity_origins("func_ladder");
+	map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+	map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+
 	refresh();
 }
 

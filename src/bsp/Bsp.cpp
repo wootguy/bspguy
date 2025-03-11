@@ -3298,6 +3298,37 @@ void Bsp::remove_unused_wads() {
 	}
 }
 
+int Bsp::zero_entity_origins(string classname) {
+	int moveCount = 0;
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->keyvalues["classname"] == classname) {
+			vec3 ori = ents[i]->getOrigin();
+			if (ori.x || ori.y || ori.z) {
+				int modelIdx = ents[i]->getBspModelIdx();
+				if (modelIdx > 0) {
+					if (does_model_use_shared_structures(modelIdx)) {
+						modelIdx = duplicate_model(modelIdx);
+						ents[i]->setOrAddKeyvalue("model", "*" + to_string(modelIdx));
+					}
+
+					g_progress.hide = true;
+					move(ori, modelIdx);
+					g_progress.hide = false;
+
+					ents[i]->setOrAddKeyvalue("origin", "0 0 0");
+					moveCount++;
+				}
+			}
+		}
+	}
+
+	if (moveCount)
+		logf("Zeroed %d %s origins\n", moveCount, classname.c_str());
+
+	return moveCount;
+}
+
 vector<string> Bsp::get_wad_names() {
 	vector<string> wadNames;
 
@@ -4319,10 +4350,18 @@ bool Bsp::validate() {
 	}
 
 	int oobCount = 0;
+	int badOriginCount = 0;
 	for (Entity* ent : ents) {
 		vec3 ori = ent->getOrigin();
 		//float oob = g_engine_limits->max_mapboundary;
 		float oob = 8192;
+
+		if (ori.x || ori.y || ori.z) {
+			string cname = ent->keyvalues["classname"];
+			if (cname == "func_ladder" || cname == "func_water" || cname == "func_mortar_field") {
+				badOriginCount++;
+			}
+		}
 
 		if (fabs(ori.x) > oob || fabs(ori.y) > oob || fabs(ori.z) > oob) {
 			/*
@@ -4336,6 +4375,9 @@ bool Bsp::validate() {
 	}
 	if (oobCount) {
 		logf("%d entities outside of the map boundaries\n", oobCount);
+	}
+	if (badOriginCount) {
+		logf("%d entities have origins that may cause problems (see \"Zero Entity Origins\" tool)\n", badOriginCount);
 	}
 
 	vector<Wad*> wads = load_wads(false);

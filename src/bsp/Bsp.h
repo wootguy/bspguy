@@ -237,6 +237,9 @@ public:
 	// updates texture coordinates after a texture has been resized
 	void adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight);
 
+	// moves entity models to (0,0,0), duplicating the BSP model if necessary
+	int zero_entity_origins(string classname);
+
 	vec3 get_face_center(int faceIdx);
 
 	// scales up texture sizes on models that aren't used by visible entities

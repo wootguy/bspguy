@@ -1266,6 +1266,28 @@ void Gui::drawMenuBar() {
 				"This lowers the model count and allows more game models to be precached.\n\n"
 				"This does not delete BSP data structures unless you run the Clean command afterward.");
 
+			if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading && mapSelected)) {
+				int moveCount = 0;
+				moveCount += map->zero_entity_origins("func_ladder");
+				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+
+				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+
+				if (moveCount) {
+					if (renderer) {
+						renderer->reload();
+					}
+					refresh();
+				}
+				else {
+					logf("No entity origins need moving\n");
+				}
+
+				g_app->deselectObject();
+			}
+			tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
+
 			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading && mapSelected)) {
 				map->remove_unused_wads();
 			}
