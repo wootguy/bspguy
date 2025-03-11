@@ -102,7 +102,44 @@ BspRenderer::BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* full
 }
 
 void BspRenderer::loadTextures() {
-	vector<Wad*> wads = map->load_wads(true);
+	for (int i = 0; i < wads.size(); i++) {
+		delete wads[i];
+	}
+	wads.clear();
+
+	vector<string> wadNames = map->get_wad_names();
+
+	vector<string> tryPaths = {
+		"./"
+	};
+
+	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+
+	for (int i = 0; i < wadNames.size(); i++) {
+		string path;
+		for (int k = 0; k < tryPaths.size(); k++) {
+			string tryPath = tryPaths[k] + wadNames[i];
+			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
+			if (fileExists(tryPath)) {
+				path = tryPath;
+				break;
+			}
+			if (fileExists(tryPath_full)) {
+				path = tryPath_full;
+				break;
+			}
+		}
+
+		if (path.empty()) {
+			logf("Missing WAD: %s\n", wadNames[i].c_str());
+			continue;
+		}
+
+		logf("Loading WAD %s\n", path.c_str());
+		Wad* wad = new Wad(path);
+		wad->readInfo();
+		wads.push_back(wad);
+	}
 
 	int wadTexCount = 0;
 	int missingCount = 0;
@@ -167,10 +204,6 @@ void BspRenderer::loadTextures() {
 		// map->textures + texOffset + tex.nOffsets[0]
 
 		glTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, imageData);
-	}
-
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
 	}
 
 	if (wadTexCount)
@@ -1475,7 +1508,40 @@ bool BspRenderer::getRenderPointers(int faceIdx, RenderFace** renderFace, Render
 uint BspRenderer::getFaceTextureId(int faceIdx) {
 	BSPFACE& face = map->faces[faceIdx];
 	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-	return glTextures[texinfo.iMiptex]->id;
+
+	if (texinfo.iMiptex > 0 && texinfo.iMiptex < numLoadedTextures)
+		return glTextures[texinfo.iMiptex]->id;
+	else
+		return 0;
+}
+
+Texture* BspRenderer::uploadTexture(WADTEX* tex) {
+	int lastMipSize = (tex->nWidth / 8) * (tex->nHeight / 8);
+	COLOR3* palette = (COLOR3*)(tex->data + tex->nOffsets[3] + lastMipSize + 2 - 40);
+	byte* src = tex->data;
+
+	COLOR3* imageData = new COLOR3[tex->nWidth * tex->nHeight];
+
+	int sz = tex->nWidth * tex->nHeight;
+
+	for (int k = 0; k < sz; k++) {
+		imageData[k] = palette[src[k]];
+	}
+
+	Texture* newTex = new Texture(tex->nWidth, tex->nHeight, imageData);
+	newTex->upload(GL_RGB);
+
+	return newTex;
+}
+
+void BspRenderer::loadTexture(WADTEX* tex) {
+	Texture** newTextures = new Texture*[numLoadedTextures + 1];
+	memcpy(newTextures, glTextures, sizeof(Texture*) * numLoadedTextures);
+
+	newTextures[numLoadedTextures++] = uploadTexture(tex);
+
+	delete[] glTextures;
+	glTextures = newTextures;
 }
 
 void BspRenderer::render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull) {

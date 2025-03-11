@@ -14,7 +14,7 @@
 #include <float.h>
 #include "Wad.h"
 #include <unordered_set>
-
+#include "Renderer.h"
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -3209,50 +3209,30 @@ bool Bsp::downscale_texture(int textureId, int maxDim, bool allowWad) {
 	return downscale_texture(textureId, newWidth, newHeight);
 }
 
-vector<Wad*> Bsp::load_wads(bool verbosePrinting) {
-	vector<string> wadNames = get_wad_names();
-	vector<Wad*> wads;
+string Bsp::get_texture_source(string texname, vector<Wad*>& wads) {
+	for (int i = 0; i < textureCount; i++) {
+		int32_t texOffset = ((int32_t*)textures)[i + 1];
+		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
-	vector<string> tryPaths = {
-		"./"
-	};
-
-	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
-
-	for (int i = 0; i < wadNames.size(); i++) {
-		string path;
-		for (int k = 0; k < tryPaths.size(); k++) {
-			string tryPath = tryPaths[k] + wadNames[i];
-			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
-			if (fileExists(tryPath)) {
-				path = tryPath;
-				break;
-			}
-			if (fileExists(tryPath_full)) {
-				path = tryPath_full;
-				break;
-			}
+		if (tex.nOffsets[0] != 0 && !strcasecmp(tex.szName, texname.c_str())) {
+			return name + ".bsp";
 		}
-
-		if (path.empty()) {
-			if (verbosePrinting)
-				logf("Missing WAD: %s\n", wadNames[i].c_str());
-			continue;
-		}
-
-		if (verbosePrinting)
-			logf("Loading WAD %s\n", path.c_str());
-		Wad* wad = new Wad(path);
-		wad->readInfo();
-		wads.push_back(wad);
 	}
 
-	return wads;
+	string src;
+
+	for (int k = 0; k < wads.size(); k++) {
+		if (wads[k]->hasTexture(texname.c_str())) {
+			src = wads[k]->getName();
+			break;
+		}
+	}
+
+	return src;
 }
 
-void Bsp::remove_unused_wads() {
+void Bsp::remove_unused_wads(vector<Wad*>& wads) {
 	vector<string> wadNames = get_wad_names();
-	vector<Wad*> wads = load_wads(false);
 	unordered_set<Wad*> used_wads;
 
 	int missing_textures = 0;
@@ -3300,10 +3280,6 @@ void Bsp::remove_unused_wads() {
 			ents[i]->keyvalues["wad"] = newWadList;
 			break;
 		}
-	}
-
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
 	}
 }
 
@@ -3355,7 +3331,7 @@ vector<string> Bsp::get_wad_names() {
 	return wadNames;
 }
 
-bool Bsp::embed_texture(int textureId) {
+bool Bsp::embed_texture(int textureId, vector<Wad*>& wads) {
 	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
 	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
@@ -3363,8 +3339,6 @@ bool Bsp::embed_texture(int textureId) {
 		logf("Texture %s is already embedded\n", tex.szName);
 		return false;
 	}
-
-	vector<Wad*> wads = load_wads(false);
 
 	bool embedded = false;
 	for (int k = 0; k < wads.size(); k++) {
@@ -3408,19 +3382,16 @@ bool Bsp::embed_texture(int textureId) {
 			lumps[LUMP_TEXTURES] = newTexData;
 			header.lump[LUMP_TEXTURES].nLength += texDataSz;
 			update_lump_pointers();
+			embedded = true;
 
 			break;
 		}
 	}
 
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
-	}
-
 	return embedded;
 }
 
-bool Bsp::unembed_texture(int textureId) {
+bool Bsp::unembed_texture(int textureId, vector<Wad*>& wads) {
 	int32_t texOffset = ((int32_t*)textures)[textureId + 1];
 	BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
@@ -3438,7 +3409,6 @@ bool Bsp::unembed_texture(int textureId) {
 	int newTexBufferSz = header.lump[LUMP_TEXTURES].nLength - texDataSz;
 
 	// reset texture dimensions in case it was edited inside the BSP
-	vector<Wad*> wads = load_wads(false);
 	bool isInWad = false;
 	for (int k = 0; k < wads.size(); k++) {
 		if (wads[k]->hasTexture(tex.szName)) {
@@ -3456,9 +3426,6 @@ bool Bsp::unembed_texture(int textureId) {
 			
 			delete wadTex;
 		}
-	}
-	for (int i = 0; i < wads.size(); i++) {
-		delete wads[i];
 	}
 	if (!isInWad) {
 		logf("Aborted unembed of %s. No WAD contains this texture. Data would be lost.\n", tex.szName);
@@ -3488,6 +3455,50 @@ bool Bsp::unembed_texture(int textureId) {
 	update_lump_pointers();
 
 	return true;
+}
+
+int Bsp::add_texture_from_wad(WADTEX* tex) {
+	((int32_t*)textures)[0]++;
+
+	for (int i = 0; i < textureCount; i++) {
+		int32_t& offset = ((int32_t*)textures)[i + 1];
+		offset += sizeof(int32_t); // shift after the new header int
+	}
+
+	BSPMIPTEX newTex;
+	memset(&newTex, 0, sizeof(BSPMIPTEX));
+	memcpy(newTex.szName, tex->szName, 16);
+	newTex.szName[15] = 0;
+	memcpy(newTex.nOffsets, tex->nOffsets, sizeof(newTex.nOffsets));
+	newTex.nWidth = tex->nWidth;
+	newTex.nHeight = tex->nHeight;
+
+	int addedSz = sizeof(BSPMIPTEX) + sizeof(int32_t);
+	byte* newTexData = new byte[header.lump[LUMP_TEXTURES].nLength + addedSz];
+	byte* srcData = lumps[LUMP_TEXTURES];
+	byte* dstData = newTexData;
+
+	int headerCopySz = sizeof(int32_t) * (textureCount+1);
+	memcpy(dstData, srcData, headerCopySz);
+	dstData += headerCopySz;
+	srcData += headerCopySz;
+
+	int32_t newOffset = header.lump[LUMP_TEXTURES].nLength + sizeof(int32_t);
+	memcpy(dstData, &newOffset, sizeof(int32_t));
+	dstData += sizeof(int32_t);
+
+	int oldDataLeft = header.lump[LUMP_TEXTURES].nLength - (srcData - lumps[LUMP_TEXTURES]);
+	memcpy(dstData, srcData, oldDataLeft);
+	dstData += oldDataLeft;
+
+	memcpy(dstData, &newTex, sizeof(BSPMIPTEX));
+
+	delete[] lumps[LUMP_TEXTURES];
+	lumps[LUMP_TEXTURES] = newTexData;
+	header.lump[LUMP_TEXTURES].nLength += addedSz;
+	update_lump_pointers();
+
+	return textureCount-1;
 }
 
 void Bsp::adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight) {
@@ -3537,7 +3548,7 @@ void Bsp::adjust_resized_texture_coordinates(int textureId, int oldWidth, int ol
 	}
 }
 
-void Bsp::downscale_invalid_textures() {
+void Bsp::downscale_invalid_textures(vector<Wad*>& wads) {
 	int count = 0;
 
 	for (int i = 0; i < textureCount; i++) {
@@ -3545,7 +3556,7 @@ void Bsp::downscale_invalid_textures() {
 		BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
 
 		if (tex.nWidth * tex.nHeight > g_limits.max_texturepixels) {
-			embed_texture(i);
+			embed_texture(i, wads);
 		}
 	}
 
@@ -4389,7 +4400,8 @@ bool Bsp::validate() {
 		logf("%d entities have origins that may cause problems (see \"Zero Entity Origins\" tool)\n", badOriginCount);
 	}
 
-	vector<Wad*> wads = load_wads(false);
+	static vector<Wad*> emptyWads;
+	vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
 
 	int missing_textures = 0;
 

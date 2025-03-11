@@ -16,6 +16,7 @@ struct cCube;
 class Bsp;
 class Entity;
 struct LeafNode;
+struct WADTEX;
 
 #define LIGHTMAP_ATLAS_SIZE 512
 
@@ -102,12 +103,15 @@ struct PickInfo {
 	Entity* ent = NULL;
 };
 
+class Wad;
+
 class BspRenderer {
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
 	vec3 mapOffset;
 	int showLightFlag = -1;
+	vector<Wad*> wads;
 
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
@@ -149,6 +153,8 @@ public:
 	void highlightFace(int faceIdx, bool highlight);
 	void updateFaceUVs(int faceIdx);
 	uint getFaceTextureId(int faceIdx);
+	void loadTexture(WADTEX* tex);
+	Texture* uploadTexture(WADTEX* tex);
 
 	void write_obj_file();
 

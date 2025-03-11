@@ -6,6 +6,7 @@
 #include <mutex>
 #include "ProgressMeter.h"
 #include "bsptypes.h"
+#include <string.h>
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -18,6 +19,9 @@
 
 #define __WINDOWS__
 
+#ifdef WIN32
+#define strcasecmp _stricmp
+#endif
 
 void logf(const char* format, ...);
 

@@ -1124,6 +1124,9 @@ void Gui::drawMenuBar() {
 		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
 		Bsp* map = mapSelected ? app->pickInfo.map : NULL;
 
+		static vector<Wad*> emptyWads;
+		vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
+
 		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading && mapSelected)) {
 			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
 			g_app->saveLumpState(map, 0xffffffff, false);
@@ -1289,12 +1292,12 @@ void Gui::drawMenuBar() {
 			tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
 
 			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading && mapSelected)) {
-				map->remove_unused_wads();
+				map->remove_unused_wads(wads);
 			}
 			tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
 
 			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading && mapSelected)) {
-				map->downscale_invalid_textures();
+				map->downscale_invalid_textures(wads);
 
 				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
 				if (renderer) {
@@ -4273,8 +4276,13 @@ void Gui::drawTextureTool() {
 		static int lastPickCount = -1;
 		static bool validTexture = true;
 		static bool isEmbedded = false;
+		static string texture_src;
+		static string last_texture_name;
+		static int tex_size_kb;
 		BspRenderer* mapRenderer = app->selectMapIdx >= 0 && app->selectMapIdx < app->mapRenderers.size() ? app->mapRenderers[app->selectMapIdx] : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
+		vector<Wad*> wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : vector<Wad*>();
+
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
 			ImGui::Text("No face selected");
@@ -4295,9 +4303,24 @@ void Gui::drawTextureTool() {
 					height = tex.nHeight;
 					strncpy(textureName, tex.szName, MAXTEXTURENAME);
 					isEmbedded = tex.nOffsets[0] != 0;
+
+					int w = tex.nWidth;
+					int h = tex.nHeight;
+					int sz = w * h;	   // miptex 0
+					int sz2 = sz / 4;  // miptex 1
+					int sz3 = sz2 / 4; // miptex 2
+					int sz4 = sz3 / 4; // miptex 3
+					int szAll = sizeof(BSPMIPTEX) + sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
+					tex_size_kb = (szAll + 512) / 1024;
 				}
 				else {
 					textureName[0] = '\0';
+				}
+
+				if (textureName != last_texture_name) {
+					last_texture_name = textureName;
+					texture_src = map->get_texture_source(textureName, wads);
+					// TODO: this is slow. cache loaded wads
 				}
 
 				int miptex = texinfo.iMiptex;
@@ -4433,11 +4456,15 @@ void Gui::drawTextureTool() {
 			BSPFACE& face = map->faces[app->pickInfo.faceIdx];
 			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
 			if (isActuallyEmbedded) {
-				isEmbedded = !map->unembed_texture(info.iMiptex);
+				isEmbedded = !map->unembed_texture(info.iMiptex, wads);
 			}
 			else {
-				isEmbedded = map->embed_texture(info.iMiptex);
+				isEmbedded = map->embed_texture(info.iMiptex, wads);
 			}
+
+			// refresh texture source
+			app->pickCount++;
+			last_texture_name = "";
 		}
 		if (ImGui::IsItemHovered())
 		{
@@ -4485,13 +4512,33 @@ void Gui::drawTextureTool() {
 				for (uint i = 0; i < totalTextures; i++) {
 					int32_t texOffset = ((int32_t*)map->textures)[i + 1];
 					BSPMIPTEX& tex = *((BSPMIPTEX*)(map->textures + texOffset));
-					if (strcmp(tex.szName, textureName) == 0) {
+					if (!strcasecmp(tex.szName, textureName)) {
 						validTexture = true;
 						newMiptex = i;
+						// force matching case of real texture reference
+						strncpy(textureName, tex.szName, MAXTEXTURENAME);
+						textureName[MAXTEXTURENAME-1] = 0;
 						break;
 					}
 				}
+
+				if (!validTexture) {
+					for (int i = 0; i < wads.size(); i++) {
+						if (wads[i]->hasTexture(textureName)) {
+							validTexture = true;
+							WADTEX* tex = wads[i]->readTexture(textureName);
+							newMiptex = map->add_texture_from_wad(tex);
+							
+							// Note: texture offset must match lump texture index, it's lucky that this just works
+							mapRenderer->loadTexture(tex);
+
+							delete tex;
+							break;
+						}
+					}
+				}
 			}
+
 			set<int> modelRefreshes;
 			for (int i = 0; i < app->selectedFaces.size(); i++) {
 				int faceIdx = app->selectedFaces[i];
@@ -4552,6 +4599,9 @@ void Gui::drawTextureTool() {
 			ImGui::SetItemDefaultFocus();
 			ImGui::EndPopup();
 		}
+
+		ImGui::Text(("Source: " + texture_src).c_str());
+		ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
 	}
 
 	ImGui::End();

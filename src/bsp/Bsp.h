@@ -10,6 +10,7 @@
 
 class Entity;
 class Wad;
+struct WADTEX;
 
 #define OOB_CLIP_X 1
 #define OOB_CLIP_X_NEG 2
@@ -211,7 +212,7 @@ public:
 	void fix_bad_surface_extents_with_subdivide(int faceIdx);
 
 	// reduces size of textures that exceed game limits and adjusts face scales accordingly
-	void downscale_invalid_textures();
+	void downscale_invalid_textures(vector<Wad*>& wads);
 
 	void downscale_textures(int maxDim);
 
@@ -224,15 +225,20 @@ public:
 
 	bool rename_texture(const char* oldName, const char* newName);
 
-	bool embed_texture(int textureId);
+	bool embed_texture(int textureId, vector<Wad*>& wads);
 
-	bool unembed_texture(int textureId);
+	bool unembed_texture(int textureId, vector<Wad*>& wads);
+
+	// adds a texture reference to the BSP (does not embed it)
+	// returns an iMipTex for use in texture infos
+	int add_texture_from_wad(WADTEX* tex);
 
 	vector<string> get_wad_names();
 
-	vector<Wad*> load_wads(bool verbosePrinting);
+	// returns the WAD or BSP name the texture is loaded from
+	string get_texture_source(string texname, vector<Wad*>& wads);
 
-	void remove_unused_wads();
+	void remove_unused_wads(vector<Wad*>& wads);
 
 	// updates texture coordinates after a texture has been resized
 	void adjust_resized_texture_coordinates(int textureId, int oldWidth, int oldHeight);
