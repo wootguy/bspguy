@@ -4427,10 +4427,6 @@ bool Bsp::validate() {
 		}
 	}
 
-	for (Wad* wad : wads) {
-		delete wad;
-	}
-
 	if (missing_textures) {
 		logf("%d missing textures\n", missing_textures);
 	}
