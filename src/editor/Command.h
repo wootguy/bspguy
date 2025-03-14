@@ -7,10 +7,9 @@
 class Command {
 public:
 	string desc;
-	int mapIdx;
 	bool allowedDuringLoad = false;
 
-	Command(string desc, int mapIdx);
+	Command(string desc);
 	virtual void execute() = 0;
 	virtual void undo() = 0;
 	virtual int memoryUsage() = 0;
@@ -56,7 +55,7 @@ class CreateEntityCommand : public Command {
 public:
 	Entity* entData;
 
-	CreateEntityCommand(string desc, int mapIdx, Entity* entData);
+	CreateEntityCommand(string desc, Entity* entData);
 	~CreateEntityCommand();
 
 	void execute();
@@ -71,7 +70,7 @@ public:
 	string textData;
 	int createdEnts;
 
-	CreateEntityFromTextCommand(string desc, int mapIdx, string textData);
+	CreateEntityFromTextCommand(string desc, string textData);
 	~CreateEntityFromTextCommand();
 
 	void execute();
@@ -105,7 +104,7 @@ public:
 	bool initialized = false;
 	float size;
 
-	CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size);
+	CreateBspModelCommand(string desc, Entity* entData, float size);
 	~CreateBspModelCommand();
 
 	void execute();
@@ -141,7 +140,7 @@ class CleanMapCommand : public Command {
 public:
 	LumpState oldLumps = LumpState();
 
-	CleanMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	CleanMapCommand(string desc, LumpState oldLumps);
 	~CleanMapCommand();
 
 	void execute();
@@ -155,7 +154,7 @@ class OptimizeMapCommand : public Command {
 public:
 	LumpState oldLumps = LumpState();
 
-	OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps);
+	OptimizeMapCommand(string desc, LumpState oldLumps);
 	~OptimizeMapCommand();
 
 	void execute();
@@ -169,7 +168,7 @@ public:
 	LumpState oldLumps = LumpState();
 	vec3 mins, maxs;
 
-	DeleteBoxedDataCommand(string desc, int mapIdx, vec3 mins, vec3 maxs, LumpState oldLumps);
+	DeleteBoxedDataCommand(string desc, vec3 mins, vec3 maxs, LumpState oldLumps);
 	~DeleteBoxedDataCommand();
 
 	void execute();
@@ -183,7 +182,7 @@ public:
 	LumpState oldLumps = LumpState();
 	int clipFlags;
 
-	DeleteOobDataCommand(string desc, int mapIdx, int clipFlags, LumpState oldLumps);
+	DeleteOobDataCommand(string desc, int clipFlags, LumpState oldLumps);
 	~DeleteOobDataCommand();
 
 	void execute();
@@ -199,7 +198,7 @@ public:
 	bool downscaleOnly;
 	int maxTextureDim;
 
-	FixSurfaceExtentsCommand(string desc, int mapIdx, bool scaleNotSubdivide, bool downscaleOnly, int maxTextureDim, LumpState oldLumps);
+	FixSurfaceExtentsCommand(string desc, bool scaleNotSubdivide, bool downscaleOnly, int maxTextureDim, LumpState oldLumps);
 	~FixSurfaceExtentsCommand();
 
 	void execute();
@@ -212,7 +211,7 @@ class DeduplicateModelsCommand : public Command {
 public:
 	LumpState oldLumps = LumpState();
 
-	DeduplicateModelsCommand(string desc, int mapIdx, LumpState oldLumps);
+	DeduplicateModelsCommand(string desc, LumpState oldLumps);
 	~DeduplicateModelsCommand();
 
 	void execute();
@@ -226,7 +225,7 @@ public:
 	LumpState oldLumps = LumpState();
 	vec3 offset;
 
-	MoveMapCommand(string desc, int mapIdx, vec3 offset, LumpState oldLumps);
+	MoveMapCommand(string desc, vec3 offset, LumpState oldLumps);
 	~MoveMapCommand();
 
 	void execute();

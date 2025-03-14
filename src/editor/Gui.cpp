@@ -240,7 +240,7 @@ void Gui::pasteLightmap() {
 	dst.nLightmapOffset = src.nLightmapOffset;
 	memcpy(dst.nStyles, src.nStyles, 4);
 
-	app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
+	app->mapRenderer->reloadLightmaps();
 }
 
 void Gui::draw3dContextMenus() {
@@ -341,7 +341,7 @@ void Gui::draw3dContextMenus() {
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
 						map->delete_hull(2, app->pickInfo.modelIdx, -1);
 						map->delete_hull(3, app->pickInfo.modelIdx, -1);
-						app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+						app->mapRenderer->refreshModel(app->pickInfo.modelIdx);
 						checkValidHulls();
 						logf("Deleted all hulls on model %d\n", app->pickInfo.modelIdx);
 					}
@@ -349,7 +349,7 @@ void Gui::draw3dContextMenus() {
 						map->delete_hull(1, app->pickInfo.modelIdx, -1);
 						map->delete_hull(2, app->pickInfo.modelIdx, -1);
 						map->delete_hull(3, app->pickInfo.modelIdx, -1);
-						app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
+						app->mapRenderer->refreshModelClipnodes(app->pickInfo.modelIdx);
 						checkValidHulls();
 						logf("Deleted hulls 1-3 on model %d\n", app->pickInfo.modelIdx);
 					}
@@ -363,9 +363,9 @@ void Gui::draw3dContextMenus() {
 							map->delete_hull(i, app->pickInfo.modelIdx, -1);
 							checkValidHulls();
 							if (i == 0)
-								app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(app->pickInfo.modelIdx);
+								app->mapRenderer->refreshModel(app->pickInfo.modelIdx);
 							else
-								app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
+								app->mapRenderer->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Deleted hull %d on model %d\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -378,7 +378,7 @@ void Gui::draw3dContextMenus() {
 						map->simplify_model_collision(app->pickInfo.modelIdx, 1);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 2);
 						map->simplify_model_collision(app->pickInfo.modelIdx, 3);
-						app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
+						app->mapRenderer->refreshModelClipnodes(app->pickInfo.modelIdx);
 						logf("Replaced hulls 1-3 on model %d with a box-shaped hull\n", app->pickInfo.modelIdx);
 					}
 
@@ -389,7 +389,7 @@ void Gui::draw3dContextMenus() {
 
 						if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), 0, false, isHullValid)) {
 							map->simplify_model_collision(app->pickInfo.modelIdx, 1);
-							app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
+							app->mapRenderer->refreshModelClipnodes(app->pickInfo.modelIdx);
 							logf("Replaced hull %d on model %d with a box-shaped hull\n", i, app->pickInfo.modelIdx);
 						}
 					}
@@ -411,7 +411,7 @@ void Gui::draw3dContextMenus() {
 
 								if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), 0, false, isHullValid)) {
 									model.iHeadnodes[i] = model.iHeadnodes[k];
-									app->mapRenderers[app->pickInfo.mapIdx]->refreshModelClipnodes(app->pickInfo.modelIdx);
+									app->mapRenderer->refreshModelClipnodes(app->pickInfo.modelIdx);
 									checkValidHulls();
 									logf("Redirected hull %d to hull %d on model %d\n", i, k, app->pickInfo.modelIdx);
 								}
@@ -607,7 +607,7 @@ void Gui::draw3dContextMenus() {
 				}
 				
 				app->deselectFaces();
-				app->mapRenderers[0]->reload();
+				app->mapRenderer->reload();
 				reloadLimits();
 			}
 			tooltip(g, "Reduces the dimensions of this texture down to the next power of 2\n\nThis will break lightmaps.");
@@ -622,7 +622,7 @@ void Gui::draw3dContextMenus() {
 					map->subdivide_face(app->pickInfo.faceIdx);
 				}
 				app->deselectFaces();
-				app->mapRenderers[0]->reload();
+				app->mapRenderer->reload();
 			}
 			tooltip(g, "Split this face across the axis with the most texture pixels.");
 
@@ -637,7 +637,7 @@ void Gui::draw3dContextMenus() {
 				}
 				
 				app->deselectFaces();
-				app->mapRenderers[0]->reload();
+				app->mapRenderer->reload();
 			} 
 			tooltip(g, "Subdivide this face until it has valid surface extents.");
 
@@ -721,9 +721,7 @@ void ImportWad(Bsp* map, Renderer* app)
 			delete[] imageData;
 			delete wadTex;
 		}
-		for (int i = 0; i < app->mapRenderers.size(); i++) {
-			app->mapRenderers[i]->reloadTextures();
-		}
+		app->mapRenderer->reloadTextures();
 	}
 	delete tmpWad;
 }
@@ -897,7 +895,7 @@ void Gui::drawMenuBar() {
 			if (fname)
 				g_app->merge(fname);
 		}
-		Bsp* map = g_app->mapRenderers[0]->map;
+		Bsp* map = g_app->mapRenderer->map;
 		tooltip(g, ("Merge one other BSP into the current file.\n\n"
 			"Equivalent CLI command:\nbspguy merge " + map->name + " -noscript -noripent -maps \""
 			+ map->name + ",other_map\"\n\nUse the CLI for automatic arrangement and optimization of "
@@ -911,11 +909,9 @@ void Gui::drawMenuBar() {
 		tooltip(g, "Discard all changes and reload the map.\n");
 
 		if (ImGui::MenuItem("Validate")) {
-			for (int i = 0; i < app->mapRenderers.size(); i++) {
-				Bsp* map = app->mapRenderers[i]->map;
-				logf("Validating %s\n", map->name.c_str());
-				map->validate();
-			}
+			Bsp* map = app->mapRenderer->map;
+			logf("Validating %s\n", map->name.c_str());
+			map->validate();
 		}
 		tooltip(g, "Checks BSP data structures for invalid values and references. Trivial problems are fixed automatically. Results are output to the Log widget.");
 
@@ -1071,7 +1067,7 @@ void Gui::drawMenuBar() {
 
 		if (ImGui::MenuItem("Clipnode Transparency", 0, transparentClipnodes)) {
 			transparentClipnodes = !transparentClipnodes;
-			g_app->mapRenderers[0]->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
+			g_app->mapRenderer->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
 		}
 		tooltip(g, "Render clipnode meshes with transparency.");
 		g_settings.render_flags = g_render_flags;
@@ -1160,7 +1156,7 @@ void Gui::drawMenuBar() {
 
 			if (changed) {
 				g_limits = g_engine_limits[g_settings.engine];
-				app->mapRenderers[0]->reload();
+				app->mapRenderer->reload();
 				reloadLimits();
 			}
 
@@ -1173,10 +1169,10 @@ void Gui::drawMenuBar() {
 		Bsp* map = mapSelected ? app->pickInfo.map : NULL;
 
 		static vector<Wad*> emptyWads;
-		vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
+		vector<Wad*>& wads = g_app->mapRenderer ? g_app->mapRenderer->wads : emptyWads;
 
 		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading && mapSelected)) {
-			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
+			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->undoLumpState);
 			g_app->saveLumpState(map, 0xffffffff, false);
 			command->execute();
 			app->pushUndoCommand(command);
@@ -1187,7 +1183,7 @@ void Gui::drawMenuBar() {
 			"and editing models. Watch the Limits and Log widgets to see how many structures were removed.");
 
 		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading && mapSelected)) {
-			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->pickInfo.mapIdx, app->undoLumpState);
+			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->undoLumpState);
 			g_app->saveLumpState(map, 0xffffffff, false);
 			command->execute();
 			app->pushUndoCommand(command);
@@ -1210,7 +1206,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading && mapSelected)) {
 				map->allocblock_reduction();
 
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				BspRenderer* renderer = mapSelected ? app->mapRenderer : NULL;
 				if (renderer) {
 					renderer->preRenderFaces();
 					g_app->gui->refresh();
@@ -1221,7 +1217,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Apply Worldspawn Transform", 0, false, !app->isLoading && mapSelected)) {
 				if (map->ents[0]->hasKey("origin")) {
 					MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
-						app->pickInfo.mapIdx, map->ents[0]->getOrigin(), app->undoLumpState);
+						map->ents[0]->getOrigin(), app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1272,7 +1268,7 @@ void Gui::drawMenuBar() {
 
 						g_app->updateEntityLumpUndoState(map);
 						DeleteOobDataCommand* command = new DeleteOobDataCommand("Delete OOB Data",
-							app->pickInfo.mapIdx, clipFlags[i], app->undoLumpState);
+							clipFlags[i], app->undoLumpState);
 						g_app->saveLumpState(map, 0xffffffff, false);
 						command->execute();
 						app->pushUndoCommand(command);
@@ -1292,7 +1288,7 @@ void Gui::drawMenuBar() {
 				else {
 					g_app->updateEntityLumpUndoState(map);
 					DeleteBoxedDataCommand* command = new DeleteBoxedDataCommand("Delete Boxed Data", 
-						app->pickInfo.mapIdx, g_app->cullMins, g_app->cullMaxs, app->undoLumpState);
+						g_app->cullMins, g_app->cullMaxs, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1308,7 +1304,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading && mapSelected)) {
 				g_app->updateEntityLumpUndoState(map);
 				DeduplicateModelsCommand* command = new DeduplicateModelsCommand("Deduplicate models",
-					app->pickInfo.mapIdx, app->undoLumpState);
+					app->undoLumpState);
 				g_app->saveLumpState(map, 0xffffffff, false);
 				command->execute();
 				app->pushUndoCommand(command);
@@ -1323,7 +1319,7 @@ void Gui::drawMenuBar() {
 				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
 				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
 
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				BspRenderer* renderer = mapSelected ? app->mapRenderer : NULL;
 
 				if (moveCount) {
 					if (renderer) {
@@ -1347,7 +1343,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading && mapSelected)) {
 				map->downscale_invalid_textures(wads);
 
-				BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+				BspRenderer* renderer = mapSelected ? app->mapRenderer : NULL;
 				if (renderer) {
 					renderer->preRenderFaces();
 					g_app->gui->refresh();
@@ -1359,7 +1355,7 @@ void Gui::drawMenuBar() {
 			if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading && mapSelected)) {
 				if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (512)",
-						app->pickInfo.mapIdx, false, true, 512, app->undoLumpState);
+						false, true, 512, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1370,7 +1366,7 @@ void Gui::drawMenuBar() {
 
 				if (ImGui::MenuItem("Shrink Textures (256)", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (256)",
-						app->pickInfo.mapIdx, false, true, 256, app->undoLumpState);
+						false, true, 256, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1381,7 +1377,7 @@ void Gui::drawMenuBar() {
 
 				if (ImGui::MenuItem("Shrink Textures (128)", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (128)",
-						app->pickInfo.mapIdx, false, true, 128, app->undoLumpState);
+						false, true, 128, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1392,7 +1388,7 @@ void Gui::drawMenuBar() {
 
 				if (ImGui::MenuItem("Shrink Textures (64)", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (64)",
-						app->pickInfo.mapIdx, false, true, 64, app->undoLumpState);
+						false, true, 64, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1405,7 +1401,7 @@ void Gui::drawMenuBar() {
 
 				if (ImGui::MenuItem("Scale", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Scale faces",
-						app->pickInfo.mapIdx, true, false, 0, app->undoLumpState);
+						true, false, 0, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1414,7 +1410,7 @@ void Gui::drawMenuBar() {
 
 				if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading && mapSelected)) {
 					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Subdivide faces",
-						app->pickInfo.mapIdx, false, false, 0, app->undoLumpState);
+						false, false, 0, app->undoLumpState);
 					g_app->saveLumpState(map, 0xffffffff, false);
 					command->execute();
 					app->pushUndoCommand(command);
@@ -1439,12 +1435,10 @@ void Gui::drawMenuBar() {
 		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision && !app->isLoading)) {
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
-					for (int k = 0; k < app->mapRenderers.size(); k++) {
-						Bsp* map = app->mapRenderers[k]->map;
-						map->delete_hull(i, -1);
-						app->mapRenderers[k]->reloadClipnodes();
-						logf("Deleted hull %d in map %s\n", i, map->name.c_str());
-					}
+					Bsp* map = app->mapRenderer->map;
+					map->delete_hull(i, -1);
+					app->mapRenderer->reloadClipnodes();
+					logf("Deleted hull %d in map %s\n", i, map->name.c_str());
 					checkValidHulls();
 				}
 			}
@@ -1458,12 +1452,10 @@ void Gui::drawMenuBar() {
 						if (i == k)
 							continue;
 						if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), "", false, anyHullValid[k])) {
-							for (int j = 0; j < app->mapRenderers.size(); j++) {
-								Bsp* map = app->mapRenderers[j]->map;
-								map->delete_hull(i, k);
-								app->mapRenderers[j]->reloadClipnodes();
-								logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
-							}
+							Bsp* map = app->mapRenderer->map;
+							map->delete_hull(i, k);
+							app->mapRenderer->reloadClipnodes();
+							logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
 							checkValidHulls();
 						}
 					}
@@ -1479,8 +1471,8 @@ void Gui::drawMenuBar() {
 	if (ImGui::BeginMenu("Create"))
 	{
 		bool mapSelected = app->pickInfo.valid && app->pickInfo.map;
-		Bsp* map = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
-		BspRenderer* renderer = mapSelected ? app->mapRenderers[app->pickInfo.mapIdx] : NULL;
+		Bsp* map = mapSelected ? app->mapRenderer->map : NULL;
+		BspRenderer* renderer = mapSelected ? app->mapRenderer : NULL;
 
 		if (ImGui::MenuItem("Point Entity", 0, false, mapSelected)) {
 			Entity* newEnt = new Entity();
@@ -1490,7 +1482,7 @@ void Gui::drawMenuBar() {
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "info_player_deathmatch");
 
-			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->pickInfo.mapIdx, newEnt);
+			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", newEnt);
 			delete newEnt;
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
@@ -1511,7 +1503,7 @@ void Gui::drawMenuBar() {
 				snapSize = 16;
 			}
 
-			CreateBspModelCommand* command = new CreateBspModelCommand("Create Model", app->pickInfo.mapIdx, newEnt, snapSize);
+			CreateBspModelCommand* command = new CreateBspModelCommand("Create Model", newEnt, snapSize);
 			command->execute();
 			delete newEnt;
 			app->pushUndoCommand(command);
@@ -1526,7 +1518,7 @@ void Gui::drawMenuBar() {
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "cull");
 
-			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", app->pickInfo.mapIdx, newEnt);
+			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", newEnt);
 			delete newEnt;
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
@@ -1583,7 +1575,7 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginPopupModal("Merge Overlap", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		Bsp* thismap = g_app->mapRenderers[0]->map;
+		Bsp* thismap = g_app->mapRenderer->map;
 		string name = stripExt(basename(g_app->mergeResult.fpath));
 		vec3 mergeMove = g_app->mergeResult.moveFixes;
 		vec3 mergeMove2 = g_app->mergeResult.moveFixes2;
@@ -1747,7 +1739,7 @@ void Gui::drawToolbar() {
 		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
 			if (app->pickInfo.valid && app->pickInfo.modelIdx >= 0) {
 				Bsp* map = app->pickInfo.map;
-				BspRenderer* mapRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+				BspRenderer* mapRenderer = app->mapRenderer;
 
 				// don't select all worldspawn faces because it lags the program
 				if (app->pickInfo.modelIdx != 0) {
@@ -1759,7 +1751,6 @@ void Gui::drawToolbar() {
 					}
 				}
 			}
-			app->selectMapIdx = app->pickInfo.mapIdx;
 			app->deselectObject();
 			app->pickMode = PICK_FACE;
 			app->pickCount++; // force texture tool refresh
@@ -1787,8 +1778,8 @@ void Gui::drawFpsOverlay() {
 	{
 		int faceCount = 0;
 
-		if (polycount && g_app->mapRenderers.size()) {
-			Bsp* map = g_app->mapRenderers[0]->map;
+		if (polycount && g_app->mapRenderer) {
+			Bsp* map = g_app->mapRenderer->map;
 			faceCount = map->count_visible_polys(g_app->cameraOrigin, g_app->cameraAngles);
 
 			ImGui::Text("%d Polys    %.0f FPS", faceCount, ImGui::GetIO().Framerate);
@@ -2018,7 +2009,7 @@ void Gui::drawDebugWidget() {
 				if (app->pickInfo.map && app->pickInfo.modelIdx >= 0 && app->pickInfo.modelIdx < app->pickInfo.map->modelCount) {
 					Bsp* map = app->pickInfo.map;
 
-					vec3 localCamera = app->cameraOrigin - app->mapRenderers[app->pickInfo.mapIdx]->mapOffset;
+					vec3 localCamera = app->cameraOrigin - app->mapRenderer->mapOffset;
 
 					static ImVec4 hullColors[] = {
 						ImVec4(1, 1, 1, 1),
@@ -2142,7 +2133,7 @@ void Gui::drawKeyvalueEditor() {
 						for (int k = 0; k < group.classes.size(); k++) {
 							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
 								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
-								app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+								app->mapRenderer->refreshEnt(app->pickInfo.entIdx);
 								app->pushEntityUndoState("Change Class");
 								entityReportFilterNeeded = true;
 							}
@@ -2250,7 +2241,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			inputData[i].defaultValue = keyvalue.defaultValue;
 			inputData[i].entIdx = app->pickInfo.entIdx;
 			inputData[i].entRef = ent;
-			inputData[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+			inputData[i].bspRenderer = app->mapRenderer;
 
 			ImGui::SetNextItemWidth(inputWidth);
 			ImGui::AlignTextToFramePadding();
@@ -2279,7 +2270,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 
 						if (ImGui::Selectable(choice.name.c_str(), selected)) {
 							ent->setOrAddKeyvalue(key, choice.svalue);
-							app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+							app->mapRenderer->refreshEnt(app->pickInfo.entIdx);
 							app->updateEntConnections();
 							app->pushEntityUndoState("Edit Keyvalue");
 						}
@@ -2554,7 +2545,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			keyIds[i].idx = i;
 			keyIds[i].entIdx = app->pickInfo.entIdx;
 			keyIds[i].entRef = ent;
-			keyIds[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+			keyIds[i].bspRenderer = app->mapRenderer;
 			keyIds[i].gui = this;
 
 			if (invalidKey) {
@@ -2580,7 +2571,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			valueIds[i].idx = i;
 			valueIds[i].entIdx = app->pickInfo.entIdx;
 			valueIds[i].entRef = ent;
-			valueIds[i].bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+			valueIds[i].bspRenderer = app->mapRenderer;
 			valueIds[i].gui = this;
 
 			if (hoveredDrag[i]) {
@@ -2602,9 +2593,9 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
 			if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
 				ent->removeKeyvalue(key);
-				app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+				app->mapRenderer->refreshEnt(app->pickInfo.entIdx);
 				if (key == "model")
-					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
+					app->mapRenderer->preRenderEnts();
 				ignoreErrors = 2;
 				g_app->updateEntConnections();
 				g_app->pushEntityUndoState("Delete Keyvalue");
@@ -2636,7 +2627,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			keyName = baseKeyName + "#" + to_string(i + 2);
 		}
 		ent->addKeyvalue(keyName, "");
-		app->mapRenderers[app->pickInfo.mapIdx]->refreshEnt(app->pickInfo.entIdx);
+		app->mapRenderer->refreshEnt(app->pickInfo.entIdx);
 		app->updateEntConnections();
 		ignoreErrors = 2;
 		app->pushEntityUndoState("Add Keyvalue");
@@ -2703,7 +2694,7 @@ void Gui::drawTransformWidget() {
 	Entity* ent = NULL;
 	BspRenderer* bspRenderer = NULL;
 	if (transformingEnt) {
-		bspRenderer = app->mapRenderers[app->pickInfo.mapIdx];
+		bspRenderer = app->mapRenderer;
 		Bsp* map = app->pickInfo.map;
 		ent = app->pickInfo.ent;
 	}
@@ -2986,7 +2977,7 @@ void Gui::drawTransformWidget() {
 				else if (app->transformTarget == TRANSFORM_OBJECT) {
 					int modelIdx = ent->getBspModelIdx();
 					app->scaleSelectedObject(sx, sy, sz);
-					app->mapRenderers[app->pickInfo.mapIdx]->refreshModel(ent->getBspModelIdx());
+					app->mapRenderer->refreshModel(ent->getBspModelIdx());
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					logf("Scaling has no effect on origins\n");
@@ -3434,7 +3425,7 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 void Gui::drawLimits() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
-	Bsp* map = app->pickInfo.valid ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+	Bsp* map = app->pickInfo.valid ? app->mapRenderer->map : NULL;
 	string title = map ? "Limits - " + map->name : "Limits";
 
 	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
@@ -3720,10 +3711,8 @@ void Gui::drawAllocBlockLimitTab(Bsp* map) {
 			app->pickInfo.faceIdx = faceIdx;
 			app->pickMode = PICK_FACE;
 			app->selectedFaces.push_back(faceIdx);
-			app->selectMapIdx = 0;
-			app->pickInfo.mapIdx = 0;
 			app->pickInfo.modelIdx = modelIdx;
-			app->pickInfo.map = g_app->mapRenderers[0]->map;
+			app->pickInfo.map = g_app->mapRenderer->map;
 			showTextureWidget = true;
 			app->pickInfo.valid = true;
 			app->pickCount++;
@@ -3760,7 +3749,7 @@ void Gui::drawAllocBlockLimitTab(Bsp* map) {
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
-	Bsp* map = app->pickInfo.valid ? app->mapRenderers[app->pickInfo.mapIdx]->map : NULL;
+	Bsp* map = app->pickInfo.valid ? app->mapRenderer->map : NULL;
 	string title = map ? "Entity Report - " + map->name : "Entity Report";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
@@ -3925,7 +3914,7 @@ void Gui::drawEntityReport() {
 					}
 					map->ents = newEnts;
 					app->deselectObject();
-					app->mapRenderers[app->pickInfo.mapIdx]->preRenderEnts();
+					app->mapRenderer->preRenderEnts();
 					reloadLimits();
 					entityReportFilterNeeded = true;
 				}
@@ -4331,7 +4320,7 @@ void Gui::drawLightMapTool() {
 		}
 
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
-		if (map && app->selectedFaces.size() && app->pickInfo.mapIdx != -1)
+		if (map && app->selectedFaces.size())
 		{
 			int faceIdx = app->selectedFaces[0];
 			BSPFACE& face = map->faces[faceIdx];
@@ -4434,7 +4423,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Separator();
 			ImGui::SetNextItemWidth(100.f);
 			ImGui::Combo(" Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
-			app->mapRenderers[app->pickInfo.mapIdx]->showLightFlag = type - 1;
+			app->mapRenderer->showLightFlag = type - 1;
 			ImGui::Separator();
 			if (ImGui::Button("Save", ImVec2(120, 0)))
 			{
@@ -4445,7 +4434,7 @@ void Gui::drawLightMapTool() {
 					int offset = face.nLightmapOffset + i * lightmapSz;
 					memcpy(map->lightdata + offset, currentlightMap[i]->data, lightmapSz);
 				}
-				app->mapRenderers[app->pickInfo.mapIdx]->reloadLightmaps();
+				app->mapRenderer->reloadLightmaps();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reload", ImVec2(120, 0)))
@@ -4489,9 +4478,9 @@ void Gui::drawTextureTool() {
 		static string texture_src;
 		static string last_texture_name;
 		static int tex_size_kb;
-		BspRenderer* mapRenderer = app->selectMapIdx >= 0 && app->selectMapIdx < app->mapRenderers.size() ? app->mapRenderers[app->selectMapIdx] : NULL;
+		BspRenderer* mapRenderer = app->mapRenderer ? app->mapRenderer : NULL;
 		Bsp* map = app->pickInfo.valid ? app->pickInfo.map : NULL;
-		vector<Wad*> wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : vector<Wad*>();
+		vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
 
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->selectedFaces.size() == 0)
 		{
@@ -4918,14 +4907,12 @@ void Gui::reloadLimits() {
 void Gui::checkValidHulls() {
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		anyHullValid[i] = false;
-		for (int k = 0; k < app->mapRenderers.size() && !anyHullValid[i]; k++) {
-			Bsp* map = app->mapRenderers[k]->map;
+		Bsp* map = app->mapRenderer->map;
 
-			for (int m = 0; m < map->modelCount; m++) {
-				if (map->models[m].iHeadnodes[i] >= 0) {
-					anyHullValid[i] = true;
-					break;
-				}
+		for (int m = 0; m < map->modelCount; m++) {
+			if (map->models[m].iHeadnodes[i] >= 0) {
+				anyHullValid[i] = true;
+				break;
 			}
 		}
 	}

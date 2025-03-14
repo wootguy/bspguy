@@ -2978,7 +2978,7 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, bool downscaleOnly, in
 	}
 	else {
 		static vector<Wad*> emptyWads;
-		vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
+		vector<Wad*>& wads = g_app->mapRenderer ? g_app->mapRenderer->wads : emptyWads;
 
 		for (int i = 0; i < textureCount; i++) {
 			int32_t texOffset = ((int32_t*)textures)[i + 1];
@@ -4417,7 +4417,7 @@ bool Bsp::validate() {
 	}
 
 	static vector<Wad*> emptyWads;
-	vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
+	vector<Wad*>& wads = g_app->mapRenderer ? g_app->mapRenderer->wads : emptyWads;
 
 	int missing_textures = 0;
 

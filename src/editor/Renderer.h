@@ -65,7 +65,7 @@ class Renderer {
 	friend class LeafNavMesh;
 
 public:
-	vector<BspRenderer*> mapRenderers;
+	BspRenderer* mapRenderer;
 
 	vec3 debugPoint;
 	vec3 debugVec0;
@@ -174,7 +174,6 @@ private:
 	bool anyVertSelected = false;
 
 	vector<int> selectedFaces;
-	int selectMapIdx = -1;
 
 	vector<TransformVert> modelVerts; // control points for invisible plane intersection verts in HULL 0
 	vector<TransformVert> modelFaceVerts; // control points for visible face verts

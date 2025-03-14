@@ -10,26 +10,17 @@
 
 #include "icons/aaatrigger.h"
 
-Command::Command(string desc, int mapIdx) {
+Command::Command(string desc) {
 	this->desc = desc;
-	this->mapIdx = mapIdx;
 	debugf("New undo command added: %s\n", desc.c_str());
 }
 
 Bsp* Command::getBsp() {
-	if (mapIdx < 0 || mapIdx >= g_app->mapRenderers.size()) {
-		return NULL;
-	}
-
-	return g_app->mapRenderers[mapIdx]->map;
+	return g_app->mapRenderer->map;
 }
 
 BspRenderer* Command::getBspRenderer() {
-	if (mapIdx < 0 || mapIdx >= g_app->mapRenderers.size()) {
-		return NULL;
-	}
-
-	return g_app->mapRenderers[mapIdx];
+	return g_app->mapRenderer;
 }
 
 
@@ -37,7 +28,7 @@ BspRenderer* Command::getBspRenderer() {
 // Edit entity
 //
 EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc) {
 	this->entIdx = pickInfo.entIdx;
 	this->oldEntData = new Entity();
 	this->newEntData = new Entity();
@@ -97,7 +88,7 @@ int EditEntityCommand::memoryUsage() {
 // Delete entity
 //
 DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc) {
 	this->entIdx = pickInfo.entIdx;
 	this->entData = new Entity();
 	*this->entData = *pickInfo.ent;
@@ -152,7 +143,7 @@ int DeleteEntityCommand::memoryUsage() {
 //
 // Create Entity
 //
-CreateEntityCommand::CreateEntityCommand(string desc, int mapIdx, Entity* entData) : Command(desc, mapIdx) {
+CreateEntityCommand::CreateEntityCommand(string desc, Entity* entData) : Command(desc) {
 	this->entData = new Entity();
 	*this->entData = *entData;
 	this->allowedDuringLoad = true;
@@ -198,7 +189,7 @@ int CreateEntityCommand::memoryUsage() {
 //
 // Create Entities From Text
 //
-CreateEntityFromTextCommand::CreateEntityFromTextCommand(string desc, int mapIdx, string textData) : Command(desc, mapIdx) {
+CreateEntityFromTextCommand::CreateEntityFromTextCommand(string desc, string textData) : Command(desc) {
 	this->textData = textData;
 	this->allowedDuringLoad = true;
 }
@@ -304,7 +295,7 @@ int CreateEntityFromTextCommand::memoryUsage() {
 // Duplicate BSP Model command
 //
 DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
-		: Command(desc, pickInfo.mapIdx) {
+		: Command(desc) {
 	this->oldModelIdx = pickInfo.modelIdx;
 	this->newModelIdx = -1;
 	this->entIdx = pickInfo.entIdx;
@@ -393,7 +384,7 @@ int DuplicateBspModelCommand::memoryUsage() {
 //
 // Create BSP model
 //
-CreateBspModelCommand::CreateBspModelCommand(string desc, int mapIdx, Entity* entData, float size) : Command(desc, mapIdx) {
+CreateBspModelCommand::CreateBspModelCommand(string desc, Entity* entData, float size) : Command(desc) {
 	this->entData = new Entity();
 	*this->entData = *entData;
 	this->size = size;
@@ -511,7 +502,7 @@ int CreateBspModelCommand::addDefaultTexture() {
 // Edit BSP model
 //
 EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
-		vec3 oldOrigin) : Command(desc, pickInfo.mapIdx) {
+		vec3 oldOrigin) : Command(desc) {
 	this->modelIdx = pickInfo.modelIdx;
 	this->entIdx = pickInfo.entIdx;
 	this->oldLumps = oldLumps;
@@ -584,7 +575,7 @@ int EditBspModelCommand::memoryUsage() {
 //
 // Clean Map
 //
-CleanMapCommand::CleanMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+CleanMapCommand::CleanMapCommand(string desc, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 }
@@ -639,7 +630,7 @@ int CleanMapCommand::memoryUsage() {
 //
 // Optimize Map
 //
-OptimizeMapCommand::OptimizeMapCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+OptimizeMapCommand::OptimizeMapCommand(string desc, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 }
@@ -702,7 +693,7 @@ int OptimizeMapCommand::memoryUsage() {
 //
 // Delete boxed data
 //
-DeleteBoxedDataCommand::DeleteBoxedDataCommand(string desc, int mapIdx, vec3 mins, vec3 maxs, LumpState oldLumps) : Command(desc, mapIdx) {
+DeleteBoxedDataCommand::DeleteBoxedDataCommand(string desc, vec3 mins, vec3 maxs, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 	this->mins = mins;
@@ -758,7 +749,7 @@ int DeleteBoxedDataCommand::memoryUsage() {
 //
 // Delete OOB data
 //
-DeleteOobDataCommand::DeleteOobDataCommand(string desc, int mapIdx, int clipFlags, LumpState oldLumps) : Command(desc, mapIdx) {
+DeleteOobDataCommand::DeleteOobDataCommand(string desc, int clipFlags, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 	this->clipFlags = clipFlags;
@@ -812,8 +803,8 @@ int DeleteOobDataCommand::memoryUsage() {
 //
 // Fix bad surface extents
 //
-FixSurfaceExtentsCommand::FixSurfaceExtentsCommand(string desc, int mapIdx, bool scaleNotSubdivide,
-		bool downscaleOnly, int maxTextureDim, LumpState oldLumps) : Command(desc, mapIdx) {
+FixSurfaceExtentsCommand::FixSurfaceExtentsCommand(string desc, bool scaleNotSubdivide,
+		bool downscaleOnly, int maxTextureDim, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 	this->scaleNotSubdivide = scaleNotSubdivide;
@@ -869,7 +860,7 @@ int FixSurfaceExtentsCommand::memoryUsage() {
 //
 // Deduplicate models
 //
-DeduplicateModelsCommand::DeduplicateModelsCommand(string desc, int mapIdx, LumpState oldLumps) : Command(desc, mapIdx) {
+DeduplicateModelsCommand::DeduplicateModelsCommand(string desc, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 }
@@ -922,7 +913,7 @@ int DeduplicateModelsCommand::memoryUsage() {
 //
 // Move the entire map
 //
-MoveMapCommand::MoveMapCommand(string desc, int mapIdx, vec3 offset, LumpState oldLumps) : Command(desc, mapIdx) {
+MoveMapCommand::MoveMapCommand(string desc, vec3 offset, LumpState oldLumps) : Command(desc) {
 	this->oldLumps = oldLumps;
 	this->allowedDuringLoad = false;
 	this->offset = offset;
