@@ -2976,6 +2976,23 @@ void Bsp::fix_bad_surface_extents(bool scaleNotSubdivide, bool downscaleOnly, in
 			get_unique_texinfo(faceIdx);
 		}
 	}
+	else {
+		static vector<Wad*> emptyWads;
+		vector<Wad*>& wads = g_app->mapRenderers.size() ? g_app->mapRenderers[0]->wads : emptyWads;
+
+		for (int i = 0; i < textureCount; i++) {
+			int32_t texOffset = ((int32_t*)textures)[i + 1];
+			BSPMIPTEX& tex = *((BSPMIPTEX*)(textures + texOffset));
+
+			if (tex.nOffsets[0] != 0) {
+				continue;
+			}
+
+			if (tex.nWidth > maxTextureDim || tex.nHeight > maxTextureDim) {
+				embed_texture(i, wads);
+			}
+		}
+	}
 
 	while (anySubdivides) {
 		anySubdivides = false;
@@ -3258,13 +3275,12 @@ void Bsp::remove_unused_wads(vector<Wad*>& wads) {
 
 	string newWadList = "";
 
-	for (Wad* wad : used_wads) {
-		newWadList += toLowerCase(wad->getName()) + ";";
-	}
-
 	for (Wad* wad : wads) {
 		if (!used_wads.count(wad)) {
 			logf("Removed unused WAD: %s\n", wad->getName().c_str());
+		}
+		else {
+			newWadList += toLowerCase(wad->getName()) + ";";
 		}
 	}
 
@@ -3420,11 +3436,11 @@ bool Bsp::unembed_texture(int textureId, vector<Wad*>& wads) {
 				tex.nWidth = wadTex->nWidth;
 				tex.nHeight = wadTex->nHeight;
 				adjust_resized_texture_coordinates(textureId, oldWidth, oldHeight);
-				break;
 			}
+
 			isInWad = true;
-			
 			delete wadTex;
+			break;
 		}
 	}
 	if (!isInWad) {
@@ -4624,7 +4640,7 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch,
 	}
 	
 	if (hull == 0) {
-		while (iNode >= 0)
+		while (iNode >= 0 && iNode < nodeCount)
 		{
 			nodeBranch.push_back(iNode);
 			BSPNODE& node = nodes[iNode];
@@ -4645,7 +4661,7 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch,
 		return leaves[~iNode].nContents;
 	}
 	else {
-		while (iNode >= 0)
+		while (iNode >= 0 && iNode < nodeCount)
 		{
 			nodeBranch.push_back(iNode);
 			BSPCLIPNODE& node = clipnodes[iNode];
@@ -6137,6 +6153,171 @@ int Bsp::duplicate_model(int modelIdx) {
 	newModel.nVisLeafs = 0; // techinically should match the old model, but leaves aren't duplicated yet
 
 	return newModelIdx;
+}
+
+int Bsp::merge_models(int modelIdxA, int modelIdxB) {
+	if (modelIdxA < 0 || modelIdxB < 0 || modelIdxA >= modelCount || modelIdxB >= modelCount) {
+		logf("Invalid model indexes selected for merging\n");
+		return -1;
+	}
+
+	// a lazy way to make the faces contiguous, but this can cause overflows for big models
+	modelIdxA = duplicate_model(modelIdxA);
+	modelIdxB = duplicate_model(modelIdxB);
+
+	BSPMODEL& modelA = models[modelIdxA];
+	BSPMODEL& modelB = models[modelIdxB];
+
+	BSPPLANE separator = get_separation_plane(modelA.nMins, modelA.nMaxs, modelB.nMins, modelB.nMaxs);
+
+	if (separator.nType == -1) {
+		logf("Merge failed. Model bounds overlap.\n");
+		return -1;
+	}
+
+	vec3 amin = modelA.nMins;
+	vec3 amax = modelA.nMaxs;
+	vec3 bmin = modelB.nMins;
+	vec3 bmax = modelB.nMaxs;
+
+	int newIndex = create_model();
+	BSPMODEL& mergedModel = models[newIndex];
+	mergedModel.nMins = vec3(min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z));
+	mergedModel.nMaxs = vec3(max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z));
+	mergedModel.nVisLeafs = 0; // ?
+	mergedModel.iFirstFace = modelA.iFirstFace; // i hope this isn't a problem! Merged faces will not be contiguous
+	mergedModel.nFaces = modelA.nFaces + modelB.nFaces;
+	mergedModel.nVisLeafs = modelA.nVisLeafs + modelB.nVisLeafs; // also hope this isn't a problem
+	mergedModel.vOrigin = vec3();
+
+	// planes with negative normals mess up VIS and lighting stuff, so swap children instead
+	bool swapNodeChildren = separator.vNormal.x < 0 || separator.vNormal.y < 0 || separator.vNormal.z < 0;
+	if (swapNodeChildren)
+		separator.vNormal = separator.vNormal.invert();
+
+	//logf("Separating plane: (%.0f, %.0f, %.0f) %.0f\n", separationPlane.vNormal.x, separationPlane.vNormal.y, separationPlane.vNormal.z, separationPlane.fDist);
+
+	// write separating plane
+
+	BSPPLANE* newPlanes = new BSPPLANE[planeCount + 1];
+	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
+	newPlanes[planeCount] = separator;
+
+	replace_lump(LUMP_PLANES, newPlanes, (planeCount + 1) * sizeof(BSPPLANE));
+
+	int separationPlaneIdx = planeCount - 1;
+
+	// write new head node (visible BSP)
+	{
+		BSPNODE headNode = {
+			separationPlaneIdx,			// plane idx
+			{modelB.iHeadnodes[0], modelA.iHeadnodes[0]},		// child nodes
+			{ mergedModel.nMins.x, mergedModel.nMins.y, mergedModel.nMins.z },	// mins
+			{ mergedModel.nMaxs.x, mergedModel.nMaxs.y, mergedModel.nMaxs.z },	// maxs
+			0, // first face
+			0  // n faces (none since this plane is in the void)
+		};
+
+		if (swapNodeChildren) {
+			int16_t temp = headNode.iChildren[0];
+			headNode.iChildren[0] = headNode.iChildren[1];
+			headNode.iChildren[1] = temp;
+		}
+
+		BSPNODE* newThisNodes = new BSPNODE[nodeCount + 1];
+		memcpy(newThisNodes, nodes, nodeCount * sizeof(BSPNODE));
+		newThisNodes[nodeCount] = headNode;
+
+		replace_lump(LUMP_NODES, newThisNodes, (nodeCount + 1) * sizeof(BSPNODE));
+
+		mergedModel.iHeadnodes[0] = nodeCount;
+	}
+
+	return newIndex;
+
+	// write new head node (clipnode BSP)
+	{
+		const int NEW_NODE_COUNT = MAX_MAP_HULLS - 1;
+
+		BSPCLIPNODE newHeadNodes[NEW_NODE_COUNT];
+		for (int i = 0; i < NEW_NODE_COUNT; i++) {
+			//logf("HULL %d starts at %d\n", i+1, thisWorld.iHeadnodes[i+1]);
+			newHeadNodes[i] = {
+				separationPlaneIdx,	// plane idx
+				{	// child nodes
+					(int16_t)(modelB.iHeadnodes[i + 1]),
+					(int16_t)(modelA.iHeadnodes[i + 1])
+				},
+			};
+
+			if (modelB.iHeadnodes[i + 1] < 0) {
+				newHeadNodes[i].iChildren[0] = CONTENTS_EMPTY;
+			}
+			if (modelA.iHeadnodes[i + 1] < 0) {
+				newHeadNodes[i].iChildren[1] = CONTENTS_EMPTY;
+			}
+
+
+			if (swapNodeChildren) {
+				int16_t temp = newHeadNodes[i].iChildren[0];
+				newHeadNodes[i].iChildren[0] = newHeadNodes[i].iChildren[1];
+				newHeadNodes[i].iChildren[1] = temp;
+			}
+
+			mergedModel.iHeadnodes[i] = clipnodeCount + i;
+		}
+
+		BSPCLIPNODE* newNodes = new BSPCLIPNODE[clipnodeCount + NEW_NODE_COUNT];
+		int oldClipNodeByte = clipnodeCount * sizeof(BSPCLIPNODE);
+		memcpy(newNodes, clipnodes, oldClipNodeByte);
+		memcpy(newNodes + oldClipNodeByte, newHeadNodes, NEW_NODE_COUNT * sizeof(BSPCLIPNODE));
+
+		replace_lump(LUMP_CLIPNODES, newNodes, (clipnodeCount + NEW_NODE_COUNT) * sizeof(BSPCLIPNODE));
+	}
+
+	return newIndex;
+}
+
+BSPPLANE Bsp::get_separation_plane(vec3 minsA, vec3 maxsA, vec3 minsB, vec3 maxsB) {
+	BSPPLANE separationPlane;
+	memset(&separationPlane, 0, sizeof(BSPPLANE));
+
+	// separating plane points toward the other map (b)
+	if (minsB.x >= maxsA.x) {
+		separationPlane.nType = PLANE_X;
+		separationPlane.vNormal = { 1, 0, 0 };
+		separationPlane.fDist = maxsA.x + (minsB.x - maxsA.x) * 0.5f;
+	}
+	else if (maxsB.x <= minsA.x) {
+		separationPlane.nType = PLANE_X;
+		separationPlane.vNormal = { -1, 0, 0 };
+		separationPlane.fDist = maxsB.x + (minsA.x - maxsB.x) * 0.5f;
+	}
+	else if (minsB.y >= maxsA.y) {
+		separationPlane.nType = PLANE_Y;
+		separationPlane.vNormal = { 0, 1, 0 };
+		separationPlane.fDist = minsB.y;
+	}
+	else if (maxsB.y <= minsA.y) {
+		separationPlane.nType = PLANE_Y;
+		separationPlane.vNormal = { 0, -1, 0 };
+		separationPlane.fDist = maxsB.y;
+	}
+	else if (minsB.z >= maxsA.z) {
+		separationPlane.nType = PLANE_Z;
+		separationPlane.vNormal = { 0, 0, 1 };
+		separationPlane.fDist = minsB.z;
+	}
+	else if (maxsB.z <= minsA.z) {
+		separationPlane.nType = PLANE_Z;
+		separationPlane.vNormal = { 0, 0, -1 };
+		separationPlane.fDist = maxsB.z;
+	}
+	else {
+		separationPlane.nType = -1; // no simple separating axis
+	}
+
+	return separationPlane;
 }
 
 BSPTEXTUREINFO* Bsp::get_unique_texinfo(int faceIdx) {

@@ -214,8 +214,6 @@ public:
 	// reduces size of textures that exceed game limits and adjusts face scales accordingly
 	void downscale_invalid_textures(vector<Wad*>& wads);
 
-	void downscale_textures(int maxDim);
-
 	// downscales a texture to the maximum specified width/height
 	// allowWad:true = texture coordinates will be scaled even if the the texture is from a WAD and must be scaled separately
 	// returns true if was downscaled
@@ -307,6 +305,12 @@ public:
 	int create_texinfo();
 
 	int duplicate_model(int modelIdx);
+
+	int merge_models(int modelIdxA, int modelIdxB);
+
+	// returns a plane which bisects the area between the 2 bounding boxes.
+	// returns a plane with nType -1 if the boxes overlap
+	static BSPPLANE get_separation_plane(vec3 minsA, vec3 maxsA, vec3 minsB, vec3 maxsB);
 
 	// if the face's texinfo is not unique, a new one is created and returned. Otherwise, it's current texinfo is returned
 	BSPTEXTUREINFO* get_unique_texinfo(int faceIdx);

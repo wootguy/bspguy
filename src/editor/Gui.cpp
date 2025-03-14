@@ -432,6 +432,52 @@ void Gui::draw3dContextMenus() {
 					app->pushUndoCommand(command);
 				}
 				tooltip(g, "Create a copy of this BSP model and assign to this entity.\n\nThis lets you edit the model for this entity without affecting others.");
+			
+				/*
+				if (ImGui::MenuItem("Merge BSP models", "", false, !app->isLoading)) {
+					int idxA = 940;
+					int idxB = 941;
+
+					int numIdxA = 0;
+					int numIdxB = 0;
+					for (Entity* ent : map->ents) {
+						int idx = ent->getBspModelIdx();
+						if (idx == idxA) {
+							numIdxA++;
+						}
+						else if (idx == idxB) {
+							numIdxB++;
+						}
+					}
+
+					if (numIdxA > 1 || numIdxB > 1) {
+						logf("Merge aborted. Model(s) are shared by multiple entities.");
+					}
+					else {
+						int newIndex = map->merge_models(idxA, idxB);
+						logf("Created merged model *%d\n", newIndex);
+
+						for (int i = 0; i < map->ents.size(); i++) {
+							Entity* ent = map->ents[i];
+							int idx = ent->getBspModelIdx();
+							if (idx == idxA) {
+								ent->setOrAddKeyvalue("model", "*" + to_string(newIndex));
+							}
+							else if (idx == idxB) {
+								delete ent;
+								map->ents.erase(map->ents.begin() + i);
+								i--;
+							}
+						}
+
+						map->remove_unused_model_structures();
+
+						g_app->deselectObject();
+						g_app->mapRenderers[0]->reload();
+						refresh();
+					}
+				}
+				*/
 			}
 
 			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
@@ -1318,7 +1364,7 @@ void Gui::drawMenuBar() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 512x512 pixels. "
+				tooltip(g, "Downscales textures on bad faces to a max resolution of 512x512 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
@@ -1329,7 +1375,7 @@ void Gui::drawMenuBar() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 256x256 pixels. "
+				tooltip(g, "Downscales textures on bad faces to a max resolution of 256x256 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
@@ -1340,7 +1386,7 @@ void Gui::drawMenuBar() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-				tooltip(g, "Downscales embedded textures on bad faces to a max resolution of 128x128 pixels. "
+				tooltip(g, "Downscales textures on bad faces to a max resolution of 128x128 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
@@ -1351,7 +1397,7 @@ void Gui::drawMenuBar() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-				tooltip(g, "Downscales embedded textures to a max resolution of 64x64 pixels. "
+				tooltip(g, "Downscales textures to a max resolution of 64x64 pixels. "
 					"This alone will likely not be enough to fix all faces with bad surface extents."
 					"You may also have to apply the Subdivide or Scale methods.");
 
