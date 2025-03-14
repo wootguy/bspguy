@@ -22,6 +22,7 @@
 #include <set>
 #include <fstream>
 #include <algorithm>
+#include <float.h>
 
 #include "icons/missing.h"
 
@@ -1809,8 +1810,11 @@ void BspRenderer::drawPointEntities(int highlightEnt) {
 		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * (skipIdx + 1), cubeVerts * numPointEnts);
 }
 
-bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx) {
 	bool foundBetterPick = false;
+	float bestDist = FLT_MAX;
+	entIdx = -1;
+	faceIdx = -1;
 
 	start -= mapOffset;
 
@@ -1819,11 +1823,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 		return false;
 	}
 
-	if (pickModelPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, pickInfo)) {
-		pickInfo.entIdx = 0;
-		pickInfo.modelIdx = 0;
-		pickInfo.map = map;
-		pickInfo.ent = map->ents[0];
+	if (pickModelPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, entIdx, faceIdx, bestDist)) {
+		entIdx = 0;
 		foundBetterPick = true;
 	}
 
@@ -1844,24 +1845,16 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 				continue;
 			}
 
-			if (pickModelPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, pickInfo)) {
-				pickInfo.entIdx = i;
-				pickInfo.modelIdx = renderEnts[i].modelIdx;
-				pickInfo.map = map;
-				pickInfo.ent = map->ents[i];
+			if (pickModelPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, entIdx, faceIdx, bestDist)) {
+				entIdx = i;
 				foundBetterPick = true;
 			}
 		}
 		else if (i > 0 && g_render_flags & RENDER_POINT_ENTS) {
 			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
 			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
-			if (pickAABB(start, dir, mins, maxs, pickInfo.bestDist)) {
-				pickInfo.entIdx = i;
-				pickInfo.modelIdx = -1;
-				pickInfo.faceIdx = -1;
-				pickInfo.map = map;
-				pickInfo.ent = map->ents[i];
-				pickInfo.valid = true;
+			if (pickAABB(start, dir, mins, maxs, bestDist)) {
+				entIdx = i;
 				foundBetterPick = true;
 			};
 		}
@@ -1870,7 +1863,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo) {
+bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx,
+	int& entIdx, int& faceIdx, float& bestDist) {
 	BSPMODEL& model = map->models[modelIdx];
 
 	start -= offset;
@@ -1889,12 +1883,11 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 			}
 		}
 
-		float t = pickInfo.bestDist;
+		float t = bestDist;
 		if (pickFaceMath(start, dir, faceMath, t)) {
 			foundBetterPick = true;
-			pickInfo.valid = true;
-			pickInfo.bestDist = t;
-			pickInfo.faceIdx = model.iFirstFace + k;
+			bestDist = t;
+			faceIdx = model.iFirstFace + k;
 		}
 	}
 
@@ -1910,12 +1903,10 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
 			FaceMath& faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
 
-			float t = pickInfo.bestDist;
+			float t = bestDist;
 			if (pickFaceMath(start, dir, faceMath, t)) {
 				foundBetterPick = true;
-				pickInfo.valid = true;
-				pickInfo.bestDist = t;
-				pickInfo.faceIdx = -1;
+				bestDist = t;
 
 				// Nav mesh WIP code
 				if (g_app->debugNavMesh && modelIdx == 0 && hullIdx == 3) {
@@ -1988,4 +1979,109 @@ int BspRenderer::getBestClipnodeHull(int modelIdx) {
 	}
 	
 	return -1;
+}
+
+
+void PickInfo::selectEnt(int entIdx) {
+	deselect();
+	Bsp* map = getMap();
+
+	ents.clear();
+	if (entIdx >= 0 && entIdx < map->ents.size())
+		ents.push_back(entIdx);
+	else
+		logf("Failed to select ent index out of range %d\n", entIdx);
+
+	//logf("select ent %d\n", entIdx);
+}
+
+void PickInfo::selectFace(int faceIdx) {
+	faces.push_back(faceIdx);
+	//logf("select face %d\n", faceIdx);
+}
+
+void PickInfo::deselect() {
+	ents.clear();
+	faces.clear();
+	//logf("Deselect\n");
+}
+
+void PickInfo::deselectFace(int faceIdx) {
+	for (int i = 0; i < faces.size(); i++) {
+		if (faces[i] == faceIdx) {
+			faces.erase(faces.begin() + i);
+			return;
+		}
+	}
+}
+
+Bsp* PickInfo::getMap() {
+	return g_app->mapRenderer->map;
+}
+
+Entity* PickInfo::getEnt() {
+	Bsp* map = getMap();
+	int idx = getEntIndex();
+	return idx != -1 ? map->ents[idx] : NULL;
+}
+
+int PickInfo::getEntIndex() {
+	Bsp* map = getMap();
+	if (ents.size() && map && ents[0] >= 0 && ents[0] < map->ents.size()) {
+		return ents[0];
+	}
+	return -1;
+}
+
+int PickInfo::getModelIndex() {
+	Bsp* map = getMap();
+	int idx = getEntIndex();
+	Entity* ent = idx != -1 ? map->ents[idx] : NULL;
+	int faceIdx = faces.size() == 1 ? faces[0] : -1;
+
+	if (idx == 0) {
+		return 0;
+	}
+	else if (ent) {
+		return ent->getBspModelIdx();
+	}
+	else if (faceIdx >= 0 && faceIdx < map->faceCount) {
+		return map->get_model_from_face(faceIdx);
+	}
+
+	return -1;
+}
+
+BSPMODEL* PickInfo::getModel() {
+	Bsp* map = getMap();
+	int idx = getModelIndex();
+
+	return idx > 0 && idx < map->modelCount ? &map->models[idx] : NULL;
+}
+
+BSPFACE* PickInfo::getFace() {
+	Bsp* map = getMap();
+	int idx = getFaceIndex();
+	return idx >= 0 ? &map->faces[idx] : NULL;
+}
+
+int PickInfo::getFaceIndex() {
+	Bsp* map = getMap();
+	int faceIdx = faces.size() == 1 ? faces[0] : -1;
+	return faceIdx >= 0 && faceIdx < map->faceCount ? faceIdx : -1;
+}
+
+vec3 PickInfo::getOrigin() {
+	Entity* ent = getEnt();
+	return ent ? ent->getOrigin() : vec3();
+}
+
+bool PickInfo::isFaceSelected(int faceIdx) {
+	for (int idx : faces) {
+		if (idx == faceIdx) {
+			return true;
+		}
+	}
+
+	return false;
 }

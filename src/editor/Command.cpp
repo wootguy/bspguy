@@ -29,7 +29,7 @@ BspRenderer* Command::getBspRenderer() {
 //
 EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
 		: Command(desc) {
-	this->entIdx = pickInfo.entIdx;
+	this->entIdx = pickInfo.getEntIndex();
 	this->oldEntData = new Entity();
 	this->newEntData = new Entity();
 	*this->oldEntData = *oldEntData;
@@ -89,9 +89,9 @@ int EditEntityCommand::memoryUsage() {
 //
 DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
 		: Command(desc) {
-	this->entIdx = pickInfo.entIdx;
+	this->entIdx = pickInfo.getEntIndex();
 	this->entData = new Entity();
-	*this->entData = *pickInfo.ent;
+	*this->entData = *pickInfo.getEnt();
 	this->allowedDuringLoad = true;
 }
 
@@ -103,11 +103,11 @@ DeleteEntityCommand::~DeleteEntityCommand() {
 void DeleteEntityCommand::execute() {
 	Bsp* map = getBsp();
 
-	if (g_app->pickInfo.entIdx == entIdx) {
+	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->deselectObject();
 	}
-	else if (g_app->pickInfo.entIdx > entIdx) {
-		g_app->pickInfo.entIdx -= 1;
+	else if (g_app->pickInfo.getEntIndex() > entIdx) {
+		g_app->pickInfo.selectEnt(g_app->pickInfo.getEntIndex()-1);
 	}
 
 	delete map->ents[entIdx];
@@ -118,8 +118,8 @@ void DeleteEntityCommand::execute() {
 void DeleteEntityCommand::undo() {
 	Bsp* map = getBsp();
 
-	if (g_app->pickInfo.entIdx >= entIdx) {
-		g_app->pickInfo.entIdx += 1;
+	if (g_app->pickInfo.getEntIndex() >= entIdx) {
+		g_app->pickInfo.selectEnt(g_app->pickInfo.getEntIndex() + 1);
 	}
 
 	Entity* newEnt = new Entity();
@@ -167,7 +167,7 @@ void CreateEntityCommand::execute() {
 void CreateEntityCommand::undo() {
 	Bsp* map = getBsp();
 
-	if (g_app->pickInfo.entIdx == map->ents.size() - 1) {
+	if (g_app->pickInfo.getEntIndex() == map->ents.size() - 1) {
 		g_app->deselectObject();
 	}
 	delete map->ents[map->ents.size() - 1];
@@ -296,9 +296,9 @@ int CreateEntityFromTextCommand::memoryUsage() {
 //
 DuplicateBspModelCommand::DuplicateBspModelCommand(string desc, PickInfo& pickInfo) 
 		: Command(desc) {
-	this->oldModelIdx = pickInfo.modelIdx;
+	this->oldModelIdx = pickInfo.getModelIndex();
 	this->newModelIdx = -1;
-	this->entIdx = pickInfo.entIdx;
+	this->entIdx = pickInfo.getEntIndex();
 	this->initialized = false;
 	this->allowedDuringLoad = false;
 	memset(&oldLumps, 0, sizeof(LumpState));
@@ -349,14 +349,17 @@ void DuplicateBspModelCommand::undo() {
 	Entity* ent = map->ents[entIdx];
 	map->replace_lumps(oldLumps);
 	ent->setOrAddKeyvalue("model", "*" + to_string(oldModelIdx));
-
-	if (g_app->pickInfo.modelIdx == newModelIdx) {
-		g_app->pickInfo.modelIdx = oldModelIdx;
+	
+	g_app->pickInfo.deselect();
+	/*
+	if (g_app->pickInfo.getModelIndex() == newModelIdx) {
+		//g_app->pickInfo.modelIdx = oldModelIdx;
 		
 	}
-	else if (g_app->pickInfo.modelIdx > newModelIdx) {
-		g_app->pickInfo.modelIdx -= 1;
+	else if (g_app->pickInfo.getModelIndex() > newModelIdx) {
+		//g_app->pickInfo.modelIdx -= 1;
 	}
+	*/
 
 	renderer->reload();
 	g_app->gui->refresh();
@@ -503,13 +506,13 @@ int CreateBspModelCommand::addDefaultTexture() {
 //
 EditBspModelCommand::EditBspModelCommand(string desc, PickInfo& pickInfo, LumpState oldLumps, LumpState newLumps, 
 		vec3 oldOrigin) : Command(desc) {
-	this->modelIdx = pickInfo.modelIdx;
-	this->entIdx = pickInfo.entIdx;
+	this->modelIdx = pickInfo.getModelIndex();
+	this->entIdx = pickInfo.getEntIndex();
 	this->oldLumps = oldLumps;
 	this->newLumps = newLumps;
 	this->allowedDuringLoad = false;
 	this->oldOrigin = oldOrigin;
-	this->newOrigin = pickInfo.ent->getOrigin();
+	this->newOrigin = pickInfo.getOrigin();
 }
 
 EditBspModelCommand::~EditBspModelCommand() {
@@ -555,7 +558,7 @@ void EditBspModelCommand::refresh() {
 	g_app->saveLumpState(map, 0xffffff, true);
 	g_app->updateEntityState(ent);
 
-	if (g_app->pickInfo.entIdx == entIdx) {
+	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->updateModelVerts();
 	}
 }

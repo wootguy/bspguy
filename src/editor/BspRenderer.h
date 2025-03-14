@@ -92,14 +92,29 @@ struct RenderClipnodes {
 	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
-struct PickInfo {
-	int entIdx;
-	int modelIdx;
-	int faceIdx;
-	float bestDist;
-	bool valid;
-	Bsp* map = NULL;
-	Entity* ent = NULL;
+struct BSPMODEL;
+struct BSPFACE;
+
+class PickInfo {
+public:
+	vector<int> ents; // selected entity indexes
+	vector<int> faces; // selected face indexes
+
+	PickInfo() {}
+
+	Bsp* getMap();
+	void selectEnt(int entIdx);
+	void selectFace(int faceIdx);
+	void deselect();
+	void deselectFace(int faceIdx);
+	Entity* getEnt();
+	int getEntIndex();
+	int getModelIndex();
+	BSPMODEL* getModel();
+	BSPFACE* getFace();
+	int getFaceIndex();
+	vec3 getOrigin(); // origin of the selected entity
+	bool isFaceSelected(int faceIdx);
 };
 
 class Wad;
@@ -121,8 +136,8 @@ public:
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities(int highlightEnt);
 
-	bool pickPoly(vec3 start, vec3 dir, int hullIdx, PickInfo& pickInfo);
-	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, PickInfo& pickInfo);
+	bool pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx);
+	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, int& faceIdx, int& entIdx, float& bestDist);
 	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);
