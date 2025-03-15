@@ -868,69 +868,6 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
 	}
 }
 
-
-void fixupPath(std::string& path, FIXUPPATH_SLASH startslash, FIXUPPATH_SLASH endslash)
-{
-	if (path.empty())
-		return;
-#ifdef WIN32
-	replaceAll(path, "/", "\\");
-	replaceAll(path, "\\\\", "\\");
-#else
-	replaceAll(path, "\\", "/");
-	replaceAll(path, "//", "/");
-#endif
-	if (startslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
-	{
-		if (path[0] != '\\' && path[0] != '/')
-		{
-#ifdef WIN32
-			path = "\\" + path;
-#else 
-			path = "/" + path;
-#endif
-		}
-	}
-	else if (startslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE)
-	{
-		if (path[0] == '\\' || path[0] == '/')
-		{
-			path.erase(path.begin());
-		}
-	}
-
-	if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE)
-	{
-		if (path.empty() || ( path[path.size() - 1] != '\\' && path[path.size() - 1] != '/') )
-		{
-#ifdef WIN32
-			path = path + "\\";
-#else 
-			path = path + "/";
-#endif
-		}
-	}
-	else if (endslash == FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE)
-	{
-		if (path.empty())
-			return;
-
-		if (path[path.size() - 1] == '\\' || path[path.size() - 1] == '/')
-		{
-			path.pop_back();
-		}
-	}
-
-#ifdef WIN32
-	replaceAll(path, "/", "\\");
-	replaceAll(path, "\\\\", "\\");
-#else
-	replaceAll(path, "\\", "/");
-	replaceAll(path, "//", "/");
-#endif
-}
-
-
 #ifdef WIN32
 void print_color(int colors)
 {
@@ -982,4 +919,29 @@ void sleepms(uint32_t ms)
 #else
 	usleep(ms * 1000);
 #endif
+}
+
+vector<string> getAssetPaths() {
+	vector<string> tryPaths = {
+		"./"
+	};
+
+	for (const string& resPath : g_settings.resPaths) {
+		string path = std::string(resPath.c_str()); // this is necessary for some reason
+		char end = g_settings.gamedir[g_settings.gamedir.size() - 1];
+		char start = path[0];
+		char end2 = path[path.size() - 1];
+
+		if (end2 != '\\' && end2 != '/') {
+			path += "/";
+		}
+		tryPaths.push_back(path);
+
+		if (end != '\\' && end != '/' && start != '\\' && start != '/') {
+			path = "/" + path;
+		}
+		tryPaths.push_back(g_settings.gamedir + path);
+	}
+
+	return tryPaths;
 }

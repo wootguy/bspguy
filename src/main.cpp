@@ -92,7 +92,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v4 WIP (April 2024)";
+const char* g_version_string = "bspguy v5 WIP (March 2025)";
 
 bool g_verbose = false;
 
@@ -697,7 +697,7 @@ void init_limits() {
 	g_engine_limits[ENGINE_HALF_LIFE].max_marksurfaces = 65535;
 	g_engine_limits[ENGINE_HALF_LIFE].max_surfedges = 512000;
 	g_engine_limits[ENGINE_HALF_LIFE].max_edges = 256000;
-	g_engine_limits[ENGINE_HALF_LIFE].max_textures = 512;
+	g_engine_limits[ENGINE_HALF_LIFE].max_textures = 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_lightdata = 48 * 1024 * 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_visdata = 8 * 1024 * 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_entdata = 2 * 1024 * 1024;

@@ -865,13 +865,24 @@ void Renderer::loadSettings() {
 void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
 
+	vector<string> tryPaths = getAssetPaths();
+
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		string path = g_settings.fgdPaths[i];
 
 		g_parsed_fgds.clear();
 		g_parsed_fgds.insert(path);
 
-		Fgd* tmp = new Fgd(g_settings.fgdPaths[i]);
+		string loadPath;
+		for (int k = 0; k < tryPaths.size(); k++) {
+			string testPath = tryPaths[k] + path;
+			if (fileExists(testPath)) {
+				loadPath = testPath;
+				break;
+			}
+		}
+
+		Fgd* tmp = new Fgd(loadPath);
 		if (!tmp->parse())
 		{
 			tmp->path = g_settings.gamedir + g_settings.fgdPaths[i];
@@ -1140,7 +1151,7 @@ void Renderer::vertexEditControls() {
 		}
 		else
 		{
-			gui->showEntityReport = true;
+			gui->showEntityReport = !gui->showEntityReport;
 		}
 	}
 
@@ -1526,10 +1537,6 @@ void Renderer::shortcutControls() {
 		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
 			gui->showTransformWidget = !gui->showTransformWidget;
 		}
-		if (anyCtrlPressed && pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
-			gui->showGOTOWidget = !gui->showGOTOWidget;
-			gui->showGOTOWidget_update = true;
-		}
 		if (anyAltPressed && anyEnterPressed) {
 			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
 		}
@@ -1668,7 +1675,7 @@ void Renderer::pickObject() {
 				pickInfo.selectFace(clickedFace);
 			}
 		}
-		logf("%d selected faces\n", pickInfo.faces.size());
+		//logf("%d selected faces\n", pickInfo.faces.size());
 		
 		gui->showLightmapEditorUpdate = true;
 	}
@@ -3228,20 +3235,31 @@ void Renderer::pasteEntsFromText(string text) {
 	createCommand->execute();
 	pushUndoCommand(createCommand);
 
-	if (createCommand->createdEnts == 1) {
-		Entity* createdEnt = map->ents[map->ents.size()-1];
-		vec3 oldOrigin = getEntOrigin(map, createdEnt);
-		vec3 modelOffset = getEntOffset(map, createdEnt);
+	vec3 centroid;
+	for (int i = 0; i < createCommand->createdEnts; i++) {
+		Entity* ent = map->ents[map->ents.size() - (1 + i)];
+		centroid += getEntOrigin(map, ent);
+	}
+	centroid /= (float)copiedEnts.size();
+
+	pickInfo.deselect();
+
+	for (int i = 0; i < createCommand->createdEnts; i++) {
+		Entity* ent = map->ents[map->ents.size() - (1 + i)];
+		vec3 oldOrigin = getEntOrigin(map, ent);
+		vec3 centroidOffset = oldOrigin - centroid;
+		vec3 modelOffset = getEntOffset(map, ent);
 		vec3 mapOffset = mapRenderer->mapOffset;
 
 		vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
-		vec3 newOri = (oldOrigin + moveDist) - (modelOffset + mapOffset);
+		vec3 newOri = (oldOrigin + moveDist + centroidOffset) - (modelOffset + mapOffset);
 		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
-		createdEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
-		createCommand->refresh();
+		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+		pickInfo.selectEnt(map->ents.size() - (1 + i));
 	}
 
-	pickInfo.selectEnt(map->ents.size() - 1);
+	if (createCommand->createdEnts)
+		createCommand->refresh();
 	postSelectEnt();
 }
 

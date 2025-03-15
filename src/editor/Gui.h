@@ -74,8 +74,6 @@ private:
 	bool showLightmapEditorWidget = false;
 	bool showLightmapEditorUpdate = true;
 	bool showEntityReport = false;
-	bool showGOTOWidget = false;
-	bool showGOTOWidget_update = true;
 	bool reloadSettings = true;
 	int settingsTab = 0;
 	bool openSavedTabs = false;
@@ -120,6 +118,7 @@ private:
 
 	void draw3dContextMenus();
 	void drawMenuBar();
+	void drawPopups();
 	void drawToolbar();
 	void drawFpsOverlay();
 	void drawStatusMessage();
@@ -128,7 +127,6 @@ private:
 	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
 	void drawKeyvalueEditor_FlagsTab(Entity* ent);
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
-	void drawGOTOWidget();
 	void drawTransformWidget();
 	void drawLog();
 	void drawSettings();

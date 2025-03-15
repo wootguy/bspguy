@@ -111,24 +111,14 @@ void BspRenderer::loadTextures() {
 	wads.clear();
 
 	vector<string> wadNames = map->get_wad_names();
-
-	vector<string> tryPaths = {
-		"./"
-	};
-
-	tryPaths.insert(tryPaths.end(), g_settings.resPaths.begin(), g_settings.resPaths.end());
+	vector<string> tryPaths = getAssetPaths();
 
 	for (int i = 0; i < wadNames.size(); i++) {
 		string path;
 		for (int k = 0; k < tryPaths.size(); k++) {
 			string tryPath = tryPaths[k] + wadNames[i];
-			string tryPath_full = g_settings.gamedir + tryPaths[k] + wadNames[i];
 			if (fileExists(tryPath)) {
 				path = tryPath;
-				break;
-			}
-			if (fileExists(tryPath_full)) {
-				path = tryPath_full;
 				break;
 			}
 		}

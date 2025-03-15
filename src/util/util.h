@@ -109,14 +109,6 @@ void sortPlanarVerts(vector<vec3>& verts);
 
 bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
 
-enum class FIXUPPATH_SLASH
-{
-	FIXUPPATH_SLASH_CREATE,
-	FIXUPPATH_SLASH_SKIP,
-	FIXUPPATH_SLASH_REMOVE
-};
-
-void fixupPath(std::string& path, FIXUPPATH_SLASH needstartslash, FIXUPPATH_SLASH needendslash);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
 void sleepms(uint32_t ms);
@@ -124,3 +116,5 @@ void sleepms(uint32_t ms);
 void push_unique_vec2(vector<vec2>& verts, vec2 vert);
 
 void push_unique_vec3(vector<vec3>& verts, vec3 vert);
+
+vector<string> getAssetPaths();

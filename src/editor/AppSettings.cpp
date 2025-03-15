@@ -18,7 +18,6 @@ void AppSettings::loadDefault()
 	maximized = 0;
 	fontSize = 22;
 	gamedir = std::string();
-	workingdir = "/bspguy_work/";
 	valid = false;
 	undoLevels = 64;
 	verboseLogs = false;
@@ -91,7 +90,6 @@ void AppSettings::load() {
 			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
-			else if (key == "workingdir") { g_settings.workingdir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
@@ -137,10 +135,10 @@ void AppSettings::load() {
 	}
 
 	if (resPaths.size() == 0) {
-		resPaths.push_back("/svencoop/");
-		resPaths.push_back("/svencoop_addon/");
-		resPaths.push_back("/svencoop_downloads/");
-		resPaths.push_back("/svencoop_hd/");
+		resPaths.push_back("svencoop");
+		resPaths.push_back("svencoop_downloads");
+		resPaths.push_back("valve");
+		resPaths.push_back("valve_downloads");
 	}
 }
 
@@ -169,7 +167,6 @@ void AppSettings::save() {
 	file << "settings_tab=" << g_settings.settings_tab << endl;
 
 	file << "gamedir=" << g_settings.gamedir << endl;
-	file << "workingdir=" << g_settings.workingdir << endl;
 	for (int i = 0; i < fgdPaths.size(); i++) {
 		file << "fgd=" << g_settings.fgdPaths[i] << endl;
 	}

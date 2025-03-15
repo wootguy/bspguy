@@ -11,7 +11,6 @@ struct AppSettings {
 	int fontSize;
 	int engine;
 	std::string gamedir;
-	std::string workingdir;
 	bool valid;
 	int undoLevels;
 	bool verboseLogs;

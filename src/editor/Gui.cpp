@@ -92,6 +92,7 @@ void Gui::draw() {
 #endif
 
 	drawMenuBar();
+	drawPopups();
 
 	drawFpsOverlay();
 	drawToolbar();
@@ -124,14 +125,13 @@ void Gui::draw() {
 	if (showTextureWidget) {
 		drawTextureTool();
 	}
+	/*
 	if (showLightmapEditorWidget) {
 		drawLightMapTool();
 	}
+	*/
 	if (showEntityReport) {
 		drawEntityReport();
-	}
-	if (showGOTOWidget) {
-		drawGOTOWidget();
 	}
 
 	if (app->pickMode == PICK_OBJECT) {
@@ -514,7 +514,7 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 	}
-	else if (app->pickMode == PICK_FACE && app->pickInfo.getFace()) {
+	else if (app->pickMode == PICK_FACE && app->pickInfo.faces.size()) {
 		Bsp* map = app->pickInfo.getMap();
 
 		if (ImGui::BeginPopup("face_context"))
@@ -599,7 +599,7 @@ void Gui::draw3dContextMenus() {
 					map->downscale_texture(info.iMiptex, nextBestDim, true);
 				}
 				
-				app->deselectFaces();
+				app->pickInfo.deselect();
 				app->mapRenderer->reload();
 				reloadLimits();
 			}
@@ -609,9 +609,9 @@ void Gui::draw3dContextMenus() {
 				Bsp* map = app->pickInfo.getMap();
 
 				for (int i = 0; i < app->pickInfo.faces.size(); i++) {
-					map->subdivide_face(app->pickInfo.getFaceIndex());
+					map->subdivide_face(app->pickInfo.faces[i]);
 				}
-				app->deselectFaces();
+				app->pickInfo.deselect();
 				app->mapRenderer->reload();
 			}
 			tooltip(g, "Split this face across the axis with the most texture pixels.");
@@ -623,7 +623,7 @@ void Gui::draw3dContextMenus() {
 					map->fix_bad_surface_extents_with_subdivide(app->pickInfo.faces[i]);
 				}
 				
-				app->deselectFaces();
+				app->pickInfo.deselect();
 				app->mapRenderer->reload();
 			} 
 			tooltip(g, "Subdivide this face until it has valid surface extents.");
@@ -642,75 +642,6 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 	}
-}
-
-void ExportWad(Bsp* map)
-{
-	if (map->textureCount > 0)
-	{
-		Wad* tmpWad = new Wad(map->path);
-		std::vector<WADTEX*> tmpWadTex;
-		for (int i = 0; i < map->textureCount; i++) {
-			int32_t oldOffset = ((int32_t*)map->textures)[i + 1];
-			BSPMIPTEX* bspTex = (BSPMIPTEX*)(map->textures + oldOffset);
-			if (bspTex->nOffsets[0] == -1 || bspTex->nOffsets[0] == 0)
-				continue;
-			WADTEX* oldTex = new WADTEX(bspTex);
-			tmpWadTex.push_back(oldTex);
-		}
-		if (tmpWadTex.size() > 0)
-		{
-			createDir(g_settings.gamedir + g_settings.workingdir);
-			tmpWad->write(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad", &tmpWadTex[0], tmpWadTex.size());
-		}
-		else
-			logf("Not found any textures in bsp file.");
-		for (int i = 0; i < tmpWadTex.size(); i++) {
-			if (tmpWadTex[i] != nullptr)
-				delete tmpWadTex[i];
-		}
-		tmpWadTex.clear();
-	}
-	else
-	{
-		logf("No textures for export.\n");
-	}
-}
-
-void ImportWad(Bsp* map, Renderer* app)
-{
-	Wad* tmpWad = new Wad(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad");
-	
-	if (!tmpWad->readInfo())
-	{
-		logf("Parsing wad file failed!\n");
-	}
-	else
-	{
-		for (int i = 0; i < tmpWad->numTex; i++)
-		{
-			WADTEX* wadTex = tmpWad->readTexture(i);
-			int lastMipSize = (wadTex->nWidth / 8) * (wadTex->nHeight / 8);
-
-			COLOR3* palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-			byte* src = wadTex->data;
-
-			COLOR3* imageData = new COLOR3[wadTex->nWidth * wadTex->nHeight];
-
-			int sz = wadTex->nWidth * wadTex->nHeight;
-
-			for (int k = 0; k < sz; k++) {
-				imageData[k] = palette[src[k]];
-			}
-
-			map->add_texture(wadTex->szName, (byte*)imageData, wadTex->nWidth, wadTex->nHeight);
-
-			delete[] imageData;
-			delete wadTex;
-		}
-		app->mapRenderer->reloadTextures();
-	}
-	delete tmpWad;
 }
 
 void Gui::drawMenuBar() {
@@ -749,129 +680,6 @@ void Gui::drawMenuBar() {
 				map->write(map->path);
 			}
 		}
-		/*
-		if (ImGui::BeginMenu("Export")) {
-			if (ImGui::MenuItem("Entity file", NULL)) {
-				Bsp* map = app->getMapContainingCamera()->map;
-				if (map)
-				{
-					logf("Export entities: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
-					createDir(g_settings.gamedir + g_settings.workingdir);
-					ofstream entFile(g_settings.gamedir + g_settings.workingdir + "entities.ent", ios::out | ios::trunc);
-					map->update_ent_lump();
-					if (map->header.lump[LUMP_ENTITIES].nLength > 0)
-					{
-						std::string entities = std::string(map->lumps[LUMP_ENTITIES], map->lumps[LUMP_ENTITIES] + map->header.lump[LUMP_ENTITIES].nLength - 1);
-						entFile.write(entities.c_str(), entities.size());
-					}
-				}
-			}
-			if (ImGui::MenuItem("Embedded textures (.wad)", NULL)) {
-				Bsp* map = app->getMapContainingCamera()->map;
-				if (map)
-				{
-					logf("Export wad: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-					ExportWad(map);
-					logf("Remove all embedded textures\n");
-					map->delete_embedded_textures();
-					if (map->ents.size())
-					{
-						std::string wadstr = map->ents[0]->keyvalues["wad"];
-						if (wadstr.find(map->name + ".wad" + ";") == std::string::npos)
-						{
-							map->ents[0]->keyvalues["wad"] += map->name + ".wad" + ";";
-						}
-					}
-				}
-			}
-			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Import")) {
-			if (ImGui::MenuItem("Entity file", NULL)) {
-				Bsp* map = app->getMapContainingCamera()->map;
-				if (map)
-				{
-					logf("Import entities from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "entities.ent");
-					if (fileExists(g_settings.gamedir + g_settings.workingdir + "entities.ent"))
-					{
-						std::ifstream t(g_settings.gamedir + g_settings.workingdir + "entities.ent");
-						std::string str((std::istreambuf_iterator<char>(t)),
-							std::istreambuf_iterator<char>());
-						byte* newlump = new byte[str.size() + 1]{ 0x20,0 };
-						memcpy(newlump, &str[0], str.size());
-						map->replace_lump(LUMP_ENTITIES, newlump, str.size());
-						map->load_ents();
-						for (int i = 0; i < app->mapRenderers.size(); i++) {
-							BspRenderer* render = app->mapRenderers[i];
-							render->reload();
-						}
-					}
-					else
-					{
-						logf("Error! No file!\n");
-					}
-				}
-			}
-
-			Bsp* map = app->getMapContainingCamera()->map;
-
-			if (ImGui::MenuItem("Merge with .wad", NULL)) {
-				if (map)
-				{
-					logf("Import textures from: %s%s%s\n", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-					if (fileExists(g_settings.gamedir.c_str() + (g_settings.workingdir.c_str() + map->name) + ".wad"))
-					{
-						ImportWad(map, app);
-					}
-					else
-					{
-						logf("Error! No file!\n");
-					}
-				}
-			}
-
-			if (map && ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-				ImGui::BeginTooltip();
-				char embtextooltip[256];
-				sprintf(embtextooltip, "Embeds textures from %s%s%s", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), (map->name + ".wad").c_str());
-				ImGui::TextUnformatted(embtextooltip);
-				ImGui::EndTooltip();
-			}
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::MenuItem("Test")) {
-			Bsp* map = app->getMapContainingCamera()->map;
-			if (!map || !dirExists(g_settings.gamedir + "/svencoop_addon/maps/"))
-			{
-				logf("Failed. No svencoop directory found.\n");
-			}
-			else
-			{
-				string mapPath = g_settings.gamedir + "/svencoop_addon/maps/" + map->name + ".bsp";
-				string entPath = g_settings.gamedir + "/svencoop_addon/scripts/maps/bspguy/maps/" + map->name + ".ent";
-
-				map->update_ent_lump(true); // strip nodes before writing (to skip slow node graph generation)
-				map->write(mapPath);
-				map->update_ent_lump(false); // add the nodes back in for conditional loading in the ent file
-
-				ofstream entFile(entPath, ios::out | ios::trunc);
-				if (entFile.is_open()) {
-					logf("Writing %s\n", entPath.c_str());
-					entFile.write((const char*)map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength - 1);
-				}
-				else {
-					logf("Failed to open ent file for writing:\n%s\n", entPath.c_str());
-					logf("Check that the directories in the path exist, and that you have permission to write in them.\n");
-				}
-			}
-		}
-		if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
-			ImGui::BeginTooltip();
-			ImGui::TextUnformatted("Saves the .bsp and .ent file to your svencoop_addon folder.\n\nAI nodes will be stripped to skip node graph generation.\n");
-			ImGui::EndTooltip();
-		}
-		*/
 
 		ImGui::Separator();
 
@@ -1110,7 +918,7 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Map"))
 	{
-		if (ImGui::MenuItem("Entity Report", NULL)) {
+		if (ImGui::MenuItem("Entity Report", "Ctrl+F")) {
 			showEntityReport = true;
 		}
 		tooltip(g, "Search for entities by name, class, and/or other properties.");
@@ -1298,33 +1106,6 @@ void Gui::drawMenuBar() {
 				"This lowers the model count and allows more game models to be precached.\n\n"
 				"This does not delete BSP data structures unless you run the Clean command afterward.");
 
-			if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading)) {
-				int moveCount = 0;
-				moveCount += map->zero_entity_origins("func_ladder");
-				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
-
-				BspRenderer* renderer = app->mapRenderer;
-
-				if (moveCount) {
-					if (renderer) {
-						renderer->reload();
-					}
-					refresh();
-				}
-				else {
-					logf("No entity origins need moving\n");
-				}
-
-				g_app->deselectObject();
-			}
-			tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
-
-			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading)) {
-				map->remove_unused_wads(wads);
-			}
-			tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
-
 			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading)) {
 				map->downscale_invalid_textures(wads);
 
@@ -1409,6 +1190,33 @@ void Gui::drawMenuBar() {
 
 				ImGui::EndMenu();
 			}
+
+			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading)) {
+				map->remove_unused_wads(wads);
+			}
+			tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
+
+			if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading)) {
+				int moveCount = 0;
+				moveCount += map->zero_entity_origins("func_ladder");
+				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+
+				BspRenderer* renderer = app->mapRenderer;
+
+				if (moveCount) {
+					if (renderer) {
+						renderer->reload();
+					}
+					refresh();
+				}
+				else {
+					logf("No entity origins need moving\n");
+				}
+
+				g_app->deselectObject();
+			}
+			tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
 
 			ImGui::EndMenu();
 		}
@@ -1525,18 +1333,16 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
 			showTransformWidget = !showTransformWidget;
 		}
-		if (ImGui::MenuItem("Go to", "Ctrl+G", showGOTOWidget)) {
-			showGOTOWidget = !showGOTOWidget;
-			showGOTOWidget_update = true;
-		}
 
 		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
 			showTextureWidget = !showTextureWidget;
 		}
+		/*
 		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
 			showLightmapEditorWidget = !showLightmapEditorWidget;
 			showLightmapEditorUpdate = true;
 		}
+		*/
 		if (ImGui::MenuItem("Log", "", showLogWidget)) {
 			showLogWidget = !showLogWidget;
 		}
@@ -1554,8 +1360,58 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	ImGui::EndMainMenuBar();
+	{
+		float inputWidth = 230.0f;
+		float selectWidth = 250.0f;
+		float labelWidth = 50.0f;
+		float spacing = 10.0f;
+		static char cam_origin[32];
+		static char cam_angles[32];
+		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
+		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
 
+		float startPos = ImGui::GetWindowWidth() - (inputWidth + selectWidth + labelWidth + spacing);
+
+		ImGui::SameLine(startPos);
+		ImGui::Text("Origin:");
+		ImGui::SameLine(startPos + labelWidth + spacing);
+		ImGui::SetNextItemWidth(inputWidth);
+		if (ImGui::InputText("##Origin", cam_origin, 32)) {
+			app->cameraOrigin = parseVector(cam_origin);			
+			logf("Zomg changed: %s\n", cam_origin);
+		}
+
+		ImGui::SameLine();
+		ImGui::Dummy(ImVec2(15, 0));
+		ImGui::SameLine();
+
+		string selectStr = "no selection";
+		int entCount = app->pickInfo.ents.size();
+		int faceCount = app->pickInfo.faces.size();
+		if (entCount > 1) {
+			selectStr = to_string(entCount) + " objects selected";
+		}
+		else if (entCount == 1) {
+			selectStr = app->pickInfo.getEnt()->keyvalues["classname"];
+		}
+		else if (faceCount == 1) {
+			selectStr = "face #" + to_string(app->pickInfo.getFaceIndex()) + " selected";
+		}
+		else if (faceCount > 0) {
+			selectStr = to_string(faceCount) + " faces selected";
+		}
+		ImGui::Text(selectStr.c_str());
+
+		if (last_cam_origin != app->cameraOrigin) {
+			last_cam_origin = app->cameraOrigin;
+			snprintf(cam_origin, 32, "%d %d %d", (int)last_cam_origin.x, (int)last_cam_origin.y, (int)last_cam_origin.z);
+		}
+	}
+
+	ImGui::EndMainMenuBar();
+}
+
+void Gui::drawPopups() {
 	if (!g_app->mergeResult.map && !g_app->mergeResult.overflow && g_app->mergeResult.fpath.size())
 		ImGui::OpenPopup("Merge Overlap");
 
@@ -1657,7 +1513,7 @@ void Gui::drawMenuBar() {
 		ImGui::Dummy(ImVec2(0.0f, 20.0f));
 
 		ImGui::Separator();
-		
+
 		drawLimitsSummary(g_app->mergeResult.map, true);
 
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -2069,13 +1925,13 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.ents.size() == 1 && app->fgd) {
+		if (app->pickInfo.ents.size() == 1) {
 			Bsp* map = app->pickInfo.getMap();
 			Entity* ent = app->pickInfo.getEnt();
 			BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
 			BSPFACE& face = *app->pickInfo.getFace();
 			string cname = ent->keyvalues["classname"];
-			FgdClass* fgdClass = app->fgd->getFgdClass(cname);
+			FgdClass* fgdClass = app->fgd ? app->fgd->getFgdClass(cname) : NULL;
 
 			ImGui::PushFont(largeFont);
 			ImGui::AlignTextToFramePadding();
@@ -2159,12 +2015,10 @@ void Gui::drawKeyvalueEditor() {
 
 		}
 		else {
-			if (app->pickInfo.ents.size() != 1)
+			if (app->pickInfo.ents.size() > 1)
 				ImGui::Text("Multiple entities selected");
 			else if (!app->pickInfo.getEnt())
 				ImGui::Text("No entity selected");
-			else 
-				ImGui::Text("No fgd loaded"); 
 		}
 
 	}
@@ -2172,6 +2026,12 @@ void Gui::drawKeyvalueEditor() {
 }
 
 void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
+	if (!app->fgd) {
+		ImGui::Text("No FGD loaded.");
+		ImGui::Text("Add an FGD in Settings or use the Raw Edit tab instead.");
+		return;
+	}
+
 	string cname = ent->keyvalues["classname"];
 	FgdClass* fgdClass = app->fgd->getFgdClass(cname);
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -2320,6 +2180,12 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 }
 
 void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent) {
+	if (!app->fgd) {
+		ImGui::Text("No FGD loaded.");
+		ImGui::Text("Add an FGD in Settings or use the Raw Edit tab instead.");
+		return;
+	}
+
 	ImGui::BeginChild("FlagsWindow");
 
 	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
@@ -2629,54 +2495,6 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	ImGui::EndChild();
 }
 
-void Gui::drawGOTOWidget() {
-	ImGui::SetNextWindowSize(ImVec2(410, 200), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(410, 200), ImVec2(410, 200));
-	static vec3 coordinates = vec3();
-	static vec3 angles = vec3();
-	float angles_y = 0.0f;
-	if (ImGui::Begin("Go to coordinates:", &showGOTOWidget, 0)) {
-		ImGuiStyle& style = ImGui::GetStyle();
-		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-		float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.33f;
-		if (showGOTOWidget_update)
-		{
-			coordinates = app->cameraOrigin;
-			angles = app->cameraAngles;
-			showGOTOWidget_update = false;
-		}
-		ImGui::Text("Coordinates");
-		ImGui::PushItemWidth(inputWidth);
-		ImGui::DragFloat("##xpos", &coordinates.x, 0.1f, 0, 0, "X: %.0f");
-		ImGui::SameLine();
-		ImGui::DragFloat("##ypos", &coordinates.y, 0.1f, 0, 0, "Y: %.0f");
-		ImGui::SameLine();
-		ImGui::DragFloat("##zpos", &coordinates.z, 0.1f, 0, 0, "Z: %.0f");
-		ImGui::PopItemWidth();
-		ImGui::Text("Angles");
-		ImGui::PushItemWidth(inputWidth);
-		ImGui::DragFloat("##xangles", &angles.x, 0.1f, 0, 0, "X: %.0f");
-		ImGui::SameLine();
-		ImGui::DragFloat("##yangles", &angles_y, 0.1f, 0, 0, "Y: %.0f");
-		ImGui::SameLine();
-		ImGui::DragFloat("##zangles", &angles.z, 0.1f, 0, 0, "Z: %.0f");
-		ImGui::PopItemWidth();
-
-		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-		if (ImGui::Button("Go to"))
-		{
-			app->cameraOrigin = coordinates;
-			app->cameraAngles = angles;
-			makeVectors(angles, app->cameraForward, app->cameraRight, app->cameraUp);
-		}
-		ImGui::PopStyleColor(3);
-
-	}
-
-	ImGui::End();
-}
 void Gui::drawTransformWidget() {
 	bool transformingEnt = app->pickInfo.getEntIndex() >= 0;
 
@@ -3117,13 +2935,11 @@ void Gui::drawSettings() {
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
 		ImGuiContext& g = *GImGui;
-		const int settings_tabs = 5;
+		const int settings_tabs = 3;
 		static const char* tab_titles[settings_tabs] = {
 			"General",
-			"FGDs",
 			"Asset Paths",
-			"Rendering",
-			"Controls"
+			"FGDs",
 		};
 
 		// left
@@ -3155,7 +2971,6 @@ void Gui::drawSettings() {
 
 		if (reloadSettings) {
 			strncpy(gamedir, g_settings.gamedir.c_str(), 256);
-			strncpy(workingdir, g_settings.workingdir.c_str(), 256);
 			tmpFgdPaths = g_settings.fgdPaths;
 			tmpResPaths = g_settings.resPaths;
 
@@ -3170,45 +2985,40 @@ void Gui::drawSettings() {
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
-			ImGui::InputText("Game Directory", gamedir, 256);
-
-			// TODO: use file dialogs instead
-			/*
-			ImGui::Text("Import/Export Directory:");
-			ImGui::InputText("(Relative to Game dir)", workingdir, 256);
-			*/
-
+			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
+			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
-			
+			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
+			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
+
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("For troubleshooting problems with the program or specific commands");
+			}
+
+			ImGui::SameLine();
+			ImGui::Dummy(ImVec2(20, 0));
+			ImGui::SameLine();
+			if (ImGui::Checkbox("VSync", &vsync)) {
+				glfwSwapInterval(vsync ? 1 : 0);
+			}
+			
 		}
 		else if (settingsTab == 1) {
-			for (int i = 0; i < numFgds; i++) {
-				ImGui::SetNextItemWidth(pathWidth);
-				tmpFgdPaths[i].resize(256);
-				ImGui::InputText(("##fgd" + to_string(i)).c_str(), &tmpFgdPaths[i][0], 256);
-				ImGui::SameLine();
+			ImGui::InputText("##GameDir", gamedir, 256);
 
-				ImGui::SetNextItemWidth(delWidth);
-				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
-				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
-				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
-				if (ImGui::Button((" X ##del_fgd" + to_string(i)).c_str())) {
-					tmpFgdPaths.erase(tmpFgdPaths.begin() + i);
-					numFgds--;
-				}
-				ImGui::PopStyleColor(3);
+			ImGui::SameLine();
+			ImGui::Text("Game Directory");
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Path to the folder holding your game executable (hl.exe, svencoop.exe)."
+					"\nAsset Paths are relative to this folder.\n\nExample path:\n"
+					"C:\\Steam\\steamapps\\common\\Half-Life");
 			}
+			ImGui::Dummy(ImVec2(0, 10));
 
-			if (ImGui::Button("Add fgd path")) {
-				numFgds++;
-				tmpFgdPaths.push_back(std::string());
-			}
-		}
-		else if (settingsTab == 2) {
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
 				tmpResPaths[i].resize(256);
@@ -3227,22 +3037,46 @@ void Gui::drawSettings() {
 
 			}
 
-			if (ImGui::Button("Add res path")) {
+			if (ImGui::Button("Add Asset Path")) {
 				numRes++;
 				tmpResPaths.push_back(std::string());
 			}
-		}
-		else if (settingsTab == 3) {
-			ImGui::Text("Viewport:");
-			if (ImGui::Checkbox("VSync", &vsync)) {
-				glfwSwapInterval(vsync ? 1 : 0);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Asset Paths are used to find game files such as WADs.\n"
+					"These will fix missing textures (pink and black checkerboards)\n\n"
+					"You can use paths relative to your Game Directory or absolute paths."
+					"\nFor example, you would add \"valve\" here for Half-Life.");
 			}
-			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
-			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 		}
-		else if (settingsTab == 4) {
-			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
-			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
+		else if (settingsTab == 2) {
+			for (int i = 0; i < numFgds; i++) {
+				ImGui::SetNextItemWidth(pathWidth);
+				tmpFgdPaths[i].resize(256);
+				ImGui::InputText(("##fgd" + to_string(i)).c_str(), &tmpFgdPaths[i][0], 256);
+				ImGui::SameLine();
+
+				ImGui::SetNextItemWidth(delWidth);
+				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
+				if (ImGui::Button((" X ##del_fgd" + to_string(i)).c_str())) {
+					tmpFgdPaths.erase(tmpFgdPaths.begin() + i);
+					numFgds--;
+				}
+				ImGui::PopStyleColor(3);
+			}
+
+			if (ImGui::Button("Add FGD Path")) {
+				numFgds++;
+				tmpFgdPaths.push_back(std::string());
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Add a path to an FGD file."
+					"\n\nFGD files define entity configurations. Without FGDs you will see pink\n"
+					"cubes and be unable to use the Attributes tab in the Keyvalue Editor.\n\n"
+					"You can use paths relative to your Asset Paths or absolute paths."
+					"\nFor example, you would add \"sven-coop.fgd\" here for Sven Co-op.");
+			}
 		}
 
 
@@ -3255,35 +3089,12 @@ void Gui::drawSettings() {
 
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
-				g_settings.workingdir = string(workingdir);
-				/* fixup gamedir */
-				fixupPath(g_settings.gamedir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
-				sprintf(gamedir, "%s", g_settings.gamedir.c_str());
+				g_settings.fgdPaths = tmpFgdPaths;
+				g_settings.resPaths = tmpResPaths;
 
-				/* fixup workingdir */
-				fixupPath(g_settings.workingdir, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
-				sprintf(workingdir, "%s", g_settings.workingdir.c_str());
-
-				g_settings.fgdPaths.clear();
-				for (auto & s : tmpFgdPaths)
-				{
-					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_REMOVE);
-					g_settings.fgdPaths.push_back(s2);
-					s = s2;
-				}
-				g_settings.resPaths.clear();
-				for (auto & s : tmpResPaths)
-				{
-					std::string s2 = s.c_str();
-					fixupPath(s2, FIXUPPATH_SLASH::FIXUPPATH_SLASH_SKIP, FIXUPPATH_SLASH::FIXUPPATH_SLASH_CREATE);
-					g_settings.resPaths.push_back(s2);
-					s = s2;
-				}
-				app->reloading = true;
 				app->loadFgds();
 				app->postLoadFgds();
-				app->reloading = false;
+				app->mapRenderer->reload();
 				g_settings.save();
 			}
 		}
@@ -3902,24 +3713,12 @@ void Gui::drawEntityReport() {
 					}
 
 					if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {
-						ImGui::OpenPopup("ent_report_context");
+						//ImGui::OpenPopup("ent_report_context");
+						openContextMenu(app->pickInfo.getEntIndex());
 					}
 				}
 			}
 			clipper.End();
-			if (ImGui::BeginPopup("ent_report_context"))
-			{
-				if (ImGui::MenuItem("Select All")) {
-					app->deselectObject();
-					for (int k = 0; k < selectedItems.size(); k++) {
-						selectedItems[k] = true;
-						app->pickInfo.selectEnt(visibleEnts[k]);
-					}
-					app->postSelectEnt();
-				}
-
-				ImGui::EndPopup();
-			}
 
 			ImGui::EndChild();
 
@@ -3998,6 +3797,10 @@ void Gui::drawEntityReport() {
 
 			ImGui::EndGroup();
 		}
+	}
+
+	if (ImGui::IsItemActive() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+		logf("Ctrl + A detected!\n");
 	}
 
 	ImGui::End();
@@ -4213,56 +4016,6 @@ bool ColorPicker4(float col[4]) {
 
 static Texture* currentlightMap[MAXLIGHTMAPS] = { nullptr };
 
-void ExportLightmaps(BSPFACE face, int size[2], Bsp * map)
-{
-	char fileNam[256];
-
-	for (int i = 0; i < MAXLIGHTMAPS; i++) {
-		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
-			continue;
-		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-		int offset = face.nLightmapOffset + i * lightmapSz;
-		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
-		logf("Exporting %s\n", fileNam);
-		createDir(g_settings.gamedir + g_settings.workingdir);
-		lodepng_encode24_file(fileNam, map->lightdata + offset, size[0], size[1]);
-	}
-}
-
-void ImportLightmaps(BSPFACE face, int size[2])
-{
-	char fileNam[256];
-
-	for (int i = 0; i < MAXLIGHTMAPS; i++) {
-		if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
-			continue;
-		int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
-		int offset = face.nLightmapOffset + i * lightmapSz;
-		sprintf(fileNam, "%s%s%s-%i.png", g_settings.gamedir.c_str(), g_settings.workingdir.c_str(), "lightmap", i);
-		unsigned int w = size[0], h = size[1];
-		logf("Importing %s\n", fileNam);
-		unsigned char* image_bytes = nullptr;
-		auto error = lodepng_decode24_file(&image_bytes, &w, &h, fileNam);
-		if (error == 0 && w > 0 && h > 0 && image_bytes != nullptr)
-		{
-			if (w == size[0] && h == size[1])
-			{
-				memcpy(currentlightMap[i]->data, image_bytes, lightmapSz);
-				currentlightMap[i]->upload(GL_RGB, true);
-			}
-			else
-			{
-				logf("Invalid lightmap image width/height!\n");
-			}
-			free(image_bytes);
-		}
-		else
-		{
-			logf("Invalid lightmap image format. Need 24bit png!\n");
-		}
-	}
-}
-
 void UpdateLightmaps(BSPFACE face, int size[2], Bsp * map, int& lightmaps)
 {
 	for (int i = 0; i < MAXLIGHTMAPS; i++)
@@ -4313,13 +4066,13 @@ void Gui::drawLightMapTool() {
 		{
 			ImGui::BeginTooltip();
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted("Almost always breaks lightmaps if changed.");
+			ImGui::TextUnformatted("Not easy to use and changes aren't displayed in real time.");
 			ImGui::PopTextWrapPos();
 			ImGui::EndTooltip();
 		}
 
 		Bsp* map = app->pickInfo.getMap();
-		if (map && app->pickInfo.faces.size())
+		if (map && app->pickInfo.faces.size() == 1)
 		{
 			int faceIdx = app->pickInfo.getFaceIndex();
 			BSPFACE& face = *app->pickInfo.getFace();
@@ -4424,7 +4177,7 @@ void Gui::drawLightMapTool() {
 			ImGui::Combo(" Disable light", &type, light_names, IM_ARRAYSIZE(light_names));
 			app->mapRenderer->showLightFlag = type - 1;
 			ImGui::Separator();
-			if (ImGui::Button("Save", ImVec2(120, 0)))
+			if (ImGui::Button("Apply", ImVec2(120, 0)))
 			{
 				for (int i = 0; i < MAXLIGHTMAPS; i++) {
 					if (face.nStyles[i] == 255 || currentlightMap[i] == nullptr)
@@ -4436,23 +4189,14 @@ void Gui::drawLightMapTool() {
 				app->mapRenderer->reloadLightmaps();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reload", ImVec2(120, 0)))
+			if (ImGui::Button("Revert", ImVec2(120, 0)))
 			{
 				showLightmapEditorUpdate = true;
 			}
-			
-			ImGui::Separator();
-			if (ImGui::Button("Export", ImVec2(120, 0)))
-			{
-				logf("Export lightmaps to png files...\n");
-				ExportLightmaps(face, size, map);
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Import", ImVec2(120, 0)))
-			{
-				logf("Import lightmaps from png files...\n");
-				ImportLightmaps(face, size);
-			}
+		}
+		else if (app->pickInfo.faces.size() > 1)
+		{
+			ImGui::Text("Multiple faces selected");
 		}
 		else
 		{
@@ -4669,7 +4413,7 @@ void Gui::drawTextureTool() {
 			ImGui::BeginTooltip();
 			ImGui::TextUnformatted("Embedded textures are stored in this BSP rather than a WAD."
 				"\n\nEmbedding allows the texture to be downscaled, but inflates the size of the BSP."
-				"\nUnembedding is not possible if no referenced WAD has a texture by this name.\n");
+				"\nUnembedding is disallowed if no loaded WAD has a texture by this name.\n");
 			ImGui::EndTooltip();
 		}
 		if (g_app->isLoading) {
