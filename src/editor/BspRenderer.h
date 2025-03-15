@@ -95,6 +95,11 @@ struct RenderClipnodes {
 struct BSPMODEL;
 struct BSPFACE;
 
+struct EntityState {
+	int index;
+	Entity* ent;
+};
+
 class PickInfo {
 public:
 	vector<int> ents; // selected entity indexes
@@ -106,6 +111,7 @@ public:
 	void selectEnt(int entIdx);
 	void selectFace(int faceIdx);
 	void deselect();
+	void deselectEnt(int entIdx);
 	void deselectFace(int faceIdx);
 	Entity* getEnt();
 	int getEntIndex();
@@ -115,6 +121,7 @@ public:
 	int getFaceIndex();
 	vec3 getOrigin(); // origin of the selected entity
 	bool isFaceSelected(int faceIdx);
+	bool isEntSelected(int entIdx);
 };
 
 class Wad;
@@ -130,11 +137,11 @@ public:
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
-	void render(int highlightEnt, bool highlightAlwaysOnTop, int clipnodeHull);
+	void render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull);
 
 	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
-	void drawPointEntities(int highlightEnt);
+	void drawPointEntities(const vector<int>& highlightedEnts);
 
 	bool pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx);
 	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, int& faceIdx, int& entIdx, float& bestDist);

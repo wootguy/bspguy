@@ -303,13 +303,13 @@ void Gui::draw3dContextMenus() {
 		if (ImGui::BeginPopup("ent_context"))
 		{
 			if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-				app->cutEnt();
+				app->cutEnts();
 			}
 			if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-				app->copyEnt();
+				app->copyEnts();
 			}
 			if (ImGui::MenuItem("Delete", "Del")) {
-				app->deleteEnt();
+				app->deleteEnts();
 			}
 			ImGui::Separator();
 			int modelIdx = app->pickInfo.getModelIndex();
@@ -485,9 +485,9 @@ void Gui::draw3dContextMenus() {
 
 			if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G")) {
 				if (!app->movingEnt)
-					app->grabEnt();
+					app->grabEnts();
 				else {
-					app->ungrabEnt();
+					app->ungrabEnts();
 				}
 			}
 			if (ImGui::MenuItem("Transform", "Ctrl+M")) {
@@ -504,11 +504,11 @@ void Gui::draw3dContextMenus() {
 
 		if (ImGui::BeginPopup("empty_context"))
 		{
-			if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnt != NULL)) {
-				app->pasteEnt(false);
+			if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnts.size())) {
+				app->pasteEnts(false);
 			}
-			if (ImGui::MenuItem("Paste at original origin", 0, false, app->copiedEnt != NULL)) {
-				app->pasteEnt(true);
+			if (ImGui::MenuItem("Paste at original origin", 0, false, app->copiedEnts.size())) {
+				app->pasteEnts(true);
 			}
 
 			ImGui::EndPopup();
@@ -938,16 +938,16 @@ void Gui::drawMenuBar() {
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Cut", "Ctrl+X", false, nonWorldspawnEntSelected)) {
-			app->cutEnt();
+			app->cutEnts();
 		}
 		if (ImGui::MenuItem("Copy", "Ctrl+C", false, nonWorldspawnEntSelected)) {
-			app->copyEnt();
+			app->copyEnts();
 		}
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnt != NULL)) {
-			app->pasteEnt(false);
+		if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnts.size())) {
+			app->pasteEnts(false);
 		}
-		if (ImGui::MenuItem("Paste at original origin", 0, false, entSelected && app->copiedEnt != NULL)) {
-			app->pasteEnt(true);
+		if (ImGui::MenuItem("Paste at original origin", 0, false, entSelected && app->copiedEnts.size())) {
+			app->pasteEnts(true);
 		}
 
 		const char* clipBoardText = ImGui::GetClipboardText();
@@ -959,7 +959,7 @@ void Gui::drawMenuBar() {
 			"in the viewer then paste to a text editor to see the format of the text data.");
 
 		if (ImGui::MenuItem("Delete", "Del", false, nonWorldspawnEntSelected)) {
-			app->deleteEnt();
+			app->deleteEnts();
 		}
 
 		ImGui::Separator();
@@ -971,9 +971,9 @@ void Gui::drawMenuBar() {
 		}
 		if (ImGui::MenuItem(app->movingEnt ? "Ungrab" : "Grab", "G", false, nonWorldspawnEntSelected)) {
 			if (!app->movingEnt)
-				app->grabEnt();
+				app->grabEnts();
 			else {
-				app->ungrabEnt();
+				app->ungrabEnts();
 			}
 		}
 		if (ImGui::MenuItem("Transform", "Ctrl+M", false, entSelected)) {
@@ -1465,8 +1465,9 @@ void Gui::drawMenuBar() {
 				origin = app->snapToGrid(origin);
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "info_player_deathmatch");
+			vector<Entity*> newEnts = { newEnt };
 
-			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", newEnt);
+			CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Create Entity", newEnts);
 			delete newEnt;
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
@@ -1501,8 +1502,9 @@ void Gui::drawMenuBar() {
 				origin = app->snapToGrid(origin);
 			newEnt->addKeyvalue("origin", origin.toKeyvalueString());
 			newEnt->addKeyvalue("classname", "cull");
+			vector<Entity*> newEnts = { newEnt };
 
-			CreateEntityCommand* createCommand = new CreateEntityCommand("Create Entity", newEnt);
+			CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Create Entity", newEnts);
 			delete newEnt;
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
@@ -2067,7 +2069,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.getEnt() && app->fgd) {
+		if (app->pickInfo.ents.size() == 1 && app->fgd) {
 			Bsp* map = app->pickInfo.getMap();
 			Entity* ent = app->pickInfo.getEnt();
 			BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
@@ -2157,7 +2159,9 @@ void Gui::drawKeyvalueEditor() {
 
 		}
 		else {
-			if (!app->pickInfo.getEnt())
+			if (app->pickInfo.ents.size() != 1)
+				ImGui::Text("Multiple entities selected");
+			else if (!app->pickInfo.getEnt())
 				ImGui::Text("No entity selected");
 			else 
 				ImGui::Text("No fgd loaded"); 
@@ -2676,13 +2680,8 @@ void Gui::drawGOTOWidget() {
 void Gui::drawTransformWidget() {
 	bool transformingEnt = app->pickInfo.getEntIndex() >= 0;
 
-	Entity* ent = NULL;
-	BspRenderer* bspRenderer = NULL;
-	if (transformingEnt) {
-		bspRenderer = app->mapRenderer;
-		Bsp* map = app->pickInfo.getMap();
-		ent = app->pickInfo.getEnt();
-	}
+	BspRenderer* bspRenderer = app->mapRenderer;
+	Bsp* map = app->pickInfo.getMap();
 
 	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
@@ -2697,17 +2696,21 @@ void Gui::drawTransformWidget() {
 	static int lastVertPickCount = -1;
 	static int oldSnappingEnabled = app->gridSnappingEnabled;
 	static int oldTransformTarget = -1;
-
+	static int oldMultiselect;
+	static vector<vec3> multiselectOrigins; // reference point for multiselect transforms
 
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
 		ImGuiStyle& style = ImGui::GetStyle();
+
+		int multiSelect = app->pickInfo.ents.size();
 
 		bool shouldUpdateUi = lastPickCount != app->pickCount ||
 			app->draggingAxis != -1 ||
 			app->movingEnt ||
 			oldSnappingEnabled != app->gridSnappingEnabled ||
 			lastVertPickCount != app->vertPickCount ||
-			oldTransformTarget != app->transformTarget;
+			oldTransformTarget != app->transformTarget ||
+			oldMultiselect != multiSelect;
 
 		TransformAxes& activeAxes = *(app->transformMode == TRANSFORM_SCALE ? &app->scaleAxes : &app->moveAxes);
 
@@ -2719,13 +2722,29 @@ void Gui::drawTransformWidget() {
 					z = fz = last_fz = activeAxes.origin.z;
 				}
 				else {
-					vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-					if (app->originSelected) {
-						ori = app->transformedOrigin;
+					if (multiSelect > 1) {
+						if (multiSelect != oldMultiselect || lastPickCount != app->pickCount) {
+							multiselectOrigins.clear();
+							for (int i = 0; i < app->pickInfo.ents.size(); i++) {
+								Entity* ent = map->ents[app->pickInfo.ents[i]];
+								vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+								multiselectOrigins.push_back(ori);
+							}
+							x = fx = 0;
+							y = fy = 0;
+							z = fz = 0;
+						}
 					}
-					x = fx = ori.x;
-					y = fy = ori.y;
-					z = fz = ori.z;
+					else {
+						Entity* ent = app->pickInfo.getEnt();
+						vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+						if (app->originSelected) {
+							ori = app->transformedOrigin;
+						}
+						x = fx = ori.x;
+						y = fy = ori.y;
+						z = fz = ori.z;
+					}
 				}
 
 			}
@@ -2737,6 +2756,7 @@ void Gui::drawTransformWidget() {
 			sx = sy = sz = 1;
 		}
 
+		oldMultiselect = multiSelect;
 		oldTransformTarget = app->transformTarget;
 		oldSnappingEnabled = app->gridSnappingEnabled;
 		lastVertPickCount = app->vertPickCount;
@@ -2827,9 +2847,7 @@ void Gui::drawTransformWidget() {
 			inputsAreDragging = true;
 
 		if (inputsWereDragged && !inputsAreDragging) {
-			if (app->undoEntityState && app->pickInfo.getEnt() && app->undoEntityState->getOrigin() != app->pickInfo.getOrigin()) {
-				app->pushEntityUndoState("Move Entity");
-			}
+			app->pushEntityUndoState("Move Entity");
 
 			if (transformingEnt) {
 				app->applyTransform(true);
@@ -2914,7 +2932,7 @@ void Gui::drawTransformWidget() {
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
 		ImGui::Separator();
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(false, "w ", "l ", "h")).c_str());
+		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(true, "w ", "l ", "h")).c_str());
 
 		if (transformingEnt) {
 			if (originChanged) {
@@ -2944,9 +2962,23 @@ void Gui::drawTransformWidget() {
 						z = fz;
 					}
 
-					ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
-					bspRenderer->refreshEnt(app->pickInfo.getEntIndex());
-					app->updateEntConnectionPositions();
+					if (multiSelect > 1) {
+						for (int i = 0; i < app->pickInfo.ents.size(); i++) {
+							int entidx = app->pickInfo.ents[i];
+							Entity* ent = map->ents[entidx];
+							vec3 ori = multiselectOrigins[i] + newOrigin;
+							ori = app->gridSnappingEnabled ? app->snapToGrid(ori) : ori;
+							ent->setOrAddKeyvalue("origin", ori.toKeyvalueString(!app->gridSnappingEnabled));
+							bspRenderer->refreshEnt(entidx);
+						}
+						app->updateEntConnectionPositions();
+					}
+					else {
+						Entity* ent = app->pickInfo.getEnt();
+						ent->setOrAddKeyvalue("origin", newOrigin.toKeyvalueString(!app->gridSnappingEnabled));
+						bspRenderer->refreshEnt(app->pickInfo.getEntIndex());
+						app->updateEntConnectionPositions();
+					}
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					vec3 newOrigin = app->gridSnappingEnabled ? vec3(x, y, z) : vec3(fx, fy, fz);
@@ -2955,14 +2987,14 @@ void Gui::drawTransformWidget() {
 					app->transformedOrigin = newOrigin;
 				}
 			}
-			if (scaled && ent->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
+			if (scaled && app->pickInfo.getEnt()->isBspModel() && app->isTransformableSolid && !app->modelUsesSharedStructures) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {
 					app->scaleSelectedVerts(sx, sy, sz);
 				}
 				else if (app->transformTarget == TRANSFORM_OBJECT) {
-					int modelIdx = ent->getBspModelIdx();
+					int modelIdx = app->pickInfo.getModelIndex();
 					app->scaleSelectedObject(sx, sy, sz);
-					app->mapRenderer->refreshModel(ent->getBspModelIdx());
+					app->mapRenderer->refreshModel(app->pickInfo.getModelIndex());
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					logf("Scaling has no effect on origins\n");
@@ -3540,7 +3572,9 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 			int entIdx = modelInfos[i].entIdx;
 			if (entIdx < map->ents.size()) {
 				Entity* ent = map->ents[entIdx];
-				app->selectEnt(map, entIdx);
+				app->pickInfo.deselect();
+				app->pickInfo.selectEnt(entIdx);
+				app->postSelectEnt();
 				// map should already be valid if limits are showing
 
 				if (ImGui::IsMouseDoubleClicked(0)) {
@@ -3859,10 +3893,15 @@ void Gui::drawEntityReport() {
 							app->goToEnt(map, entIdx);
 						}
 
-						g_app->selectEnt(map, entIdx);
+						app->deselectObject();
+						for (int k = 0; k < selectedItems.size(); k++) {
+							if (selectedItems[k])
+								app->pickInfo.selectEnt(visibleEnts[k]);
+						}
+						app->postSelectEnt();
 					}
 
-					if (selectedItems[i] && ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {
+					if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {
 						ImGui::OpenPopup("ent_report_context");
 					}
 				}
@@ -3870,28 +3909,13 @@ void Gui::drawEntityReport() {
 			clipper.End();
 			if (ImGui::BeginPopup("ent_report_context"))
 			{
-				if (ImGui::MenuItem("Delete")) {
-					vector<Entity*> newEnts;
-
-					set<int> selectedEnts;
-					for (int i = 0; i < selectedItems.size(); i++) {
-						if (selectedItems[i])
-							selectedEnts.insert(visibleEnts[i]);
-					}
-
-					for (int i = 0; i < map->ents.size(); i++) {
-						if (selectedEnts.find(i) != selectedEnts.end()) {
-							delete map->ents[i];
-						}
-						else {
-							newEnts.push_back(map->ents[i]);
-						}
-					}
-					map->ents = newEnts;
+				if (ImGui::MenuItem("Select All")) {
 					app->deselectObject();
-					app->mapRenderer->preRenderEnts();
-					reloadLimits();
-					entityReportFilterNeeded = true;
+					for (int k = 0; k < selectedItems.size(); k++) {
+						selectedItems[k] = true;
+						app->pickInfo.selectEnt(visibleEnts[k]);
+					}
+					app->postSelectEnt();
 				}
 
 				ImGui::EndPopup();

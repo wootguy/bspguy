@@ -44,13 +44,19 @@ struct TransformAxes {
 	int numAxes;
 };
 
+struct EntConnection {
+	Entity* self;
+	Entity* target;
+	COLOR4 color;
+};
+
 class Renderer;
 
 class Renderer {
 	friend class Gui;
-	friend class EditEntityCommand;
-	friend class DeleteEntityCommand;
-	friend class CreateEntityCommand;
+	friend class EditEntitiesCommand;
+	friend class DeleteEntitiesCommand;
+	friend class CreateEntitiesCommand;
 	friend class CreateEntityFromTextCommand;
 	friend class DuplicateBspModelCommand;
 	friend class CreateBspModelCommand;
@@ -149,7 +155,7 @@ private:
 
 	bool movingEnt = false; // grab an ent and move it with the camera
 	vec3 grabStartOrigin;
-	vec3 grabStartEntOrigin;
+	vector<vec3> grabStartEntOrigin;
 	float grabDist;
 
 	TransformAxes moveAxes = TransformAxes();
@@ -164,7 +170,7 @@ private:
 	bool showDragAxes = false;
 	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
 	vec3 axisDragStart;
-	vec3 axisDragEntOriginStart;
+	vector<vec3> axisDragEntOriginStart; // starting positions for entities being dragged by visual axes
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale
 	bool textureLock = false;
 	bool invalidSolid = false;
@@ -192,8 +198,9 @@ private:
 
 	VertexBuffer* entConnections = NULL;
 	VertexBuffer* entConnectionPoints = NULL;
+	vector<EntConnection> entConnectionLinks;
 
-	Entity* copiedEnt = NULL;
+	vector<Entity*> copiedEnts;
 
 	int oldLeftMouse;
 	int oldRightMouse;
@@ -214,7 +221,7 @@ private:
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history
 	vector<Command*> undoHistory;
 	vector<Command*> redoHistory;
-	Entity* undoEntityState = NULL;
+	vector<EntityState> undoEntityState;
 	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
 
@@ -229,7 +236,7 @@ private:
 	void cameraRotationControls(vec2 mousePos);
 	void cameraObjectHovering();
 	void cameraContextMenus(); // right clicking on ents and things
-	void moveGrabbedEnt(); // translates the grabbed ent
+	void moveGrabbedEnts(); // translates the grabbed ent
 	void shortcutControls(); // hotkeys for menus and things
 	void globalShortcutControls(); // these work even with the UI selected
 	void pickObject(); // select stuff with the mouse
@@ -272,12 +279,12 @@ private:
 
 	vec3 snapToGrid(vec3 pos);
 
-	void grabEnt();
-	void cutEnt();
-	void copyEnt();
-	void pasteEnt(bool noModifyOrigin);
+	void grabEnts();
+	void cutEnts();
+	void copyEnts();
+	void pasteEnts(bool noModifyOrigin);
 	void pasteEntsFromText(string text);
-	void deleteEnt();
+	void deleteEnts();
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);
@@ -285,12 +292,13 @@ private:
 	vec3 getCentroid(vector<TransformVert>& hullVerts);
 	void deselectObject(); // keep map selected but unselect all objects
 	void deselectFaces();
-	void selectEnt(Bsp* map, int entIdx);
+	void postSelectEnt(); // react to selecting new entities 
 	void goToEnt(Bsp* map, int entIdx);
 	void goToCoords(float x, float y, float z);
 	void goToFace(Bsp* map, int faceIdx);
-	void ungrabEnt();
+	void ungrabEnts();
 
+	bool canPushEntityUndoState();
 	void pushEntityUndoState(string actionDesc);
 	void pushModelUndoState(string actionDesc, int targetLumps);
 	void pushUndoCommand(Command* cmd);
@@ -300,7 +308,7 @@ private:
 	void clearRedoCommands();
 	void calcUndoMemoryUsage();
 
-	void updateEntityState(Entity* ent);
+	void updateEntityUndoState();
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);
 	void updateEntityLumpUndoState(Bsp* map);
 

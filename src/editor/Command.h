@@ -19,30 +19,30 @@ public:
 };
 
 
-class EditEntityCommand : public Command {
+class EditEntitiesCommand : public Command {
 public:
-	int entIdx;
-	Entity* oldEntData;
-	Entity* newEntData;
+	vector<int> entIndexes;
+	vector<Entity*> oldEntData;
+	vector<Entity*> newEntData;
 
-	EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData);
-	~EditEntityCommand();
+	EditEntitiesCommand(string desc, vector<EntityState>& oldEntData);
+	~EditEntitiesCommand();
 
 	void execute();
 	void undo();
-	Entity* getEnt();
+	Entity* getEntForIndex(int idx);
 	void refresh();
 	int memoryUsage();
 };
 
 
-class DeleteEntityCommand : public Command {
+class DeleteEntitiesCommand : public Command {
 public:
-	int entIdx;
-	Entity* entData;
+	vector<int> entIndexes;
+	vector<Entity*> entData;
 
-	DeleteEntityCommand(string desc, PickInfo& pickInfo);
-	~DeleteEntityCommand();
+	DeleteEntitiesCommand(string desc, vector<int> delEnts);
+	~DeleteEntitiesCommand();
 
 	void execute();
 	void undo();
@@ -51,12 +51,12 @@ public:
 };
 
 
-class CreateEntityCommand : public Command {
+class CreateEntitiesCommand : public Command {
 public:
-	Entity* entData;
+	vector<Entity*> entData;
 
-	CreateEntityCommand(string desc, Entity* entData);
-	~CreateEntityCommand();
+	CreateEntitiesCommand(string desc, vector<Entity*> entData);
+	~CreateEntitiesCommand();
 
 	void execute();
 	void undo();

@@ -7,6 +7,7 @@
 #include "util.h"
 #include "globals.h"
 #include <sstream>
+#include <algorithm>
 
 #include "icons/aaatrigger.h"
 
@@ -27,163 +28,233 @@ BspRenderer* Command::getBspRenderer() {
 //
 // Edit entity
 //
-EditEntityCommand::EditEntityCommand(string desc, PickInfo& pickInfo, Entity* oldEntData, Entity* newEntData) 
-		: Command(desc) {
-	this->entIdx = pickInfo.getEntIndex();
-	this->oldEntData = new Entity();
-	this->newEntData = new Entity();
-	*this->oldEntData = *oldEntData;
-	*this->newEntData = *newEntData;
+EditEntitiesCommand::EditEntitiesCommand(string desc, vector<EntityState>& oldEntData) : Command(desc) {
+	for (int i = 0; i < oldEntData.size(); i++) {
+		int idx = oldEntData[i].index;
+		Entity* ent = g_app->pickInfo.getMap()->ents[idx];
+
+		Entity* copy = new Entity();
+		*copy = *ent;
+		this->newEntData.push_back(copy);
+
+		copy = new Entity();
+		*copy = *oldEntData[i].ent;
+		this->oldEntData.push_back(copy);
+		
+		entIndexes.push_back(idx);
+	}
+
 	this->allowedDuringLoad = true;
 }
 
-EditEntityCommand::~EditEntityCommand() {
-	if (oldEntData)
-		delete oldEntData;
-	if (newEntData)
-		delete newEntData;
+EditEntitiesCommand::~EditEntitiesCommand() {
+	for (int i = 0; i < newEntData.size(); i++) {
+		delete oldEntData[i];
+		delete newEntData[i];
+	}
+	oldEntData.clear();
+	newEntData.clear();
 }
 
-void EditEntityCommand::execute() {
-	Entity* target = getEnt();
-	*target = *newEntData;
+void EditEntitiesCommand::execute() {
+	for (int i = 0; i < entIndexes.size(); i++) {
+		Entity* target = getEntForIndex(entIndexes[i]);
+		if (target) {
+			*target = *newEntData[i];
+		}
+	}
+	
 	refresh();
 }
 
-void EditEntityCommand::undo() {
-	Entity* target = getEnt();
-	*target = *oldEntData;
+void EditEntitiesCommand::undo() {
+	for (int i = 0; i < entIndexes.size(); i++) {
+		Entity* target = getEntForIndex(entIndexes[i]);
+		if (target) {
+			*target = *oldEntData[i];
+		}
+	}
 	refresh();
 }
 
-Entity* EditEntityCommand::getEnt() {
+Entity* EditEntitiesCommand::getEntForIndex(int idx) {
 	Bsp* map = getBsp();
 
-	if (!map || entIdx < 0 || entIdx >= map->ents.size()) {
+	if (!map || idx < 0 || idx >= map->ents.size()) {
 		return NULL;
 	}
 
-	return map->ents[entIdx];
+	return map->ents[idx];
 }
 
-void EditEntityCommand::refresh() {
+void EditEntitiesCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
-	Entity* ent = getEnt();
-	renderer->refreshEnt(entIdx);
-	if (!ent->isBspModel()) {
-		renderer->refreshPointEnt(entIdx);
+
+	for (int i = 0; i < entIndexes.size(); i++) {
+		Entity* ent = getEntForIndex(entIndexes[i]);
+		renderer->refreshEnt(entIndexes[i]);
+		if (ent && !ent->isBspModel()) {
+			renderer->refreshPointEnt(entIndexes[i]);
+		}
 	}
-	g_app->updateEntityState(ent);
+	
+	g_app->updateEntConnections();
+	g_app->updateEntityUndoState();
 	g_app->pickCount++; // force GUI update
 	g_app->updateModelVerts();
 	g_app->updateCullBox();
 }
 
-int EditEntityCommand::memoryUsage() {
-	return sizeof(EditEntityCommand) + oldEntData->getMemoryUsage() + newEntData->getMemoryUsage();
+int EditEntitiesCommand::memoryUsage() {
+	int sz = sizeof(EditEntitiesCommand) + entIndexes.size()*(sizeof(int) + sizeof(Entity*)*2);
+	for (int i = 0; i < entIndexes.size(); i++) {
+		sz += oldEntData[i]->getMemoryUsage();
+		sz += newEntData[i]->getMemoryUsage();
+	}
+	return sz;
 }
 
 
 //
 // Delete entity
 //
-DeleteEntityCommand::DeleteEntityCommand(string desc, PickInfo& pickInfo)
-		: Command(desc) {
-	this->entIdx = pickInfo.getEntIndex();
-	this->entData = new Entity();
-	*this->entData = *pickInfo.getEnt();
+DeleteEntitiesCommand::DeleteEntitiesCommand(string desc, vector<int> delEnts) : Command(desc) {
+	// sort highest index to lowest, so they can be deleted in order without recalculating indexes
+	std::sort(delEnts.begin(), delEnts.end(), [](const int& a, const int& b) {
+		return a > b;
+	});
+
+	for (int entidx : delEnts) {
+		entIndexes.push_back(entidx);
+		Entity* copy = new Entity();
+		*copy = *g_app->pickInfo.getMap()->ents[entidx];
+		entData.push_back(copy);
+	}
+	
 	this->allowedDuringLoad = true;
 }
 
-DeleteEntityCommand::~DeleteEntityCommand() {
-	if (entData)
-		delete entData;
+DeleteEntitiesCommand::~DeleteEntitiesCommand() {
+	for (Entity* ent : entData) {
+		delete ent;
+	}
+	entData.clear();
 }
 
-void DeleteEntityCommand::execute() {
+void DeleteEntitiesCommand::execute() {
 	Bsp* map = getBsp();
-
+	
+	/*
 	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->deselectObject();
 	}
 	else if (g_app->pickInfo.getEntIndex() > entIdx) {
 		g_app->pickInfo.selectEnt(g_app->pickInfo.getEntIndex()-1);
 	}
+	*/
+	g_app->deselectObject();
 
-	delete map->ents[entIdx];
-	map->ents.erase(map->ents.begin() + entIdx);
+	for (int entidx : entIndexes) {
+		delete map->ents[entidx];
+		map->ents.erase(map->ents.begin() + entidx);
+	}
+	
 	refresh();
 }
 
-void DeleteEntityCommand::undo() {
+void DeleteEntitiesCommand::undo() {
 	Bsp* map = getBsp();
-
+	
+	/*
 	if (g_app->pickInfo.getEntIndex() >= entIdx) {
 		g_app->pickInfo.selectEnt(g_app->pickInfo.getEntIndex() + 1);
 	}
+	*/
 
-	Entity* newEnt = new Entity();
-	*newEnt = *entData;
-	map->ents.insert(map->ents.begin() + entIdx, newEnt);
+	// create in reverse order (lowest index to highest)
+	for (int i = entIndexes.size()-1; i >= 0; i--) {
+		Entity* newEnt = new Entity();
+		*newEnt = *entData[i];
+		map->ents.insert(map->ents.begin() + entIndexes[i], newEnt);
+	}
+	
 	refresh();
 }
 
-void DeleteEntityCommand::refresh() {
+void DeleteEntitiesCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->refresh();
 	g_app->updateCullBox();
 }
 
-int DeleteEntityCommand::memoryUsage() {
-	return sizeof(DeleteEntityCommand) + entData->getMemoryUsage();
+int DeleteEntitiesCommand::memoryUsage() {
+	int sz = sizeof(DeleteEntitiesCommand);
+	for (Entity* ent : entData) {
+		sz += ent->getMemoryUsage();
+	}
+	return sz;
 }
 
 
 //
 // Create Entity
 //
-CreateEntityCommand::CreateEntityCommand(string desc, Entity* entData) : Command(desc) {
-	this->entData = new Entity();
-	*this->entData = *entData;
+CreateEntitiesCommand::CreateEntitiesCommand(string desc, vector<Entity*> pasteEnts) : Command(desc) {
+	for (Entity* paste : pasteEnts) {
+		Entity* copy = new Entity();
+		*copy = *paste;
+		entData.push_back(copy);
+	}
+	
 	this->allowedDuringLoad = true;
 }
 
-CreateEntityCommand::~CreateEntityCommand() {
-	if (entData) {
-		delete entData;
+CreateEntitiesCommand::~CreateEntitiesCommand() {
+	for (Entity* ent : entData) {
+		delete ent;
 	}
+	entData.clear();
 }
 
-void CreateEntityCommand::execute() {
+void CreateEntitiesCommand::execute() {
 	Bsp* map = getBsp();
 	
-	Entity* newEnt = new Entity();
-	*newEnt = *entData;
-	map->ents.push_back(newEnt);
+	for (Entity* paste : entData) {
+		Entity* newEnt = new Entity();
+		*newEnt = *paste;
+		map->ents.push_back(newEnt);
+	}
+	
 	refresh();
 }
 
-void CreateEntityCommand::undo() {
+void CreateEntitiesCommand::undo() {
 	Bsp* map = getBsp();
 
-	if (g_app->pickInfo.getEntIndex() == map->ents.size() - 1) {
-		g_app->deselectObject();
+	g_app->deselectObject();
+
+	for (int i = 0; i < entData.size(); i++) {
+		delete map->ents[map->ents.size() - 1];
+		map->ents.pop_back();
 	}
-	delete map->ents[map->ents.size() - 1];
-	map->ents.pop_back();
+	
 	refresh();
 }
 
-void CreateEntityCommand::refresh() {
+void CreateEntitiesCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
 	renderer->preRenderEnts();
 	g_app->gui->refresh();
 	g_app->updateCullBox();
 }
 
-int CreateEntityCommand::memoryUsage() {
-	return sizeof(CreateEntityCommand) + entData->getMemoryUsage();
+int CreateEntitiesCommand::memoryUsage() {
+	int sz = sizeof(CreateEntitiesCommand);
+	for (Entity* ent : entData) {
+		sz += ent->getMemoryUsage();
+	}
+	return sz;
 }
 
 //
@@ -556,7 +627,7 @@ void EditBspModelCommand::refresh() {
 	renderer->refreshEnt(entIdx);
 	g_app->gui->refresh();
 	g_app->saveLumpState(map, 0xffffff, true);
-	g_app->updateEntityState(ent);
+	g_app->updateEntityUndoState();
 
 	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->updateModelVerts();
