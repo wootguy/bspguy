@@ -163,7 +163,7 @@ Renderer::Renderer() {
 
 	g_progress.simpleMode = true;
 
-	pointEntRenderer = new PointEntRenderer(NULL, colorShader);
+	pointEntRenderer = new PointEntRenderer(NULL, vector<Fgd*>(), colorShader);
 
 	loadSettings();
 
@@ -736,10 +736,14 @@ void Renderer::renderLoop() {
 void Renderer::postLoadFgds()
 {
 	delete pointEntRenderer;
-	delete fgd;
+	delete mergedFgd;
+	for (int i = 0; i < fgds.size(); i++)
+		delete fgds[i];
+	fgds.clear();
 
 	pointEntRenderer = (PointEntRenderer*)swapPointEntRenderer;
-	fgd = pointEntRenderer->fgd;
+	mergedFgd = pointEntRenderer->mergedFgd;
+	fgds = pointEntRenderer->fgds;
 
 	mapRenderer->pointEntRenderer = pointEntRenderer;
 	mapRenderer->preRenderEnts();
@@ -866,6 +870,7 @@ void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
 
 	vector<string> tryPaths = getAssetPaths();
+	vector<Fgd*> fgds;
 
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
 		string path = g_settings.fgdPaths[i];
@@ -881,6 +886,10 @@ void Renderer::loadFgds() {
 				break;
 			}
 		}
+		if (loadPath.empty()) {
+			logf("Missing FGD: %s\n", path.c_str());
+			continue;
+		}
 
 		Fgd* tmp = new Fgd(loadPath);
 		if (!tmp->parse())
@@ -893,15 +902,16 @@ void Renderer::loadFgds() {
 		}
 
 		if (i == 0 || mergedFgd == NULL) {
-			mergedFgd = tmp;
+			mergedFgd = new Fgd("<All FGDs>");
+			mergedFgd->merge(tmp);
 		}
 		else {
 			mergedFgd->merge(tmp);
-			delete tmp;
 		}
+		fgds.push_back(tmp);
 	}
 
-	swapPointEntRenderer = new PointEntRenderer(mergedFgd, colorShader);
+	swapPointEntRenderer = new PointEntRenderer(mergedFgd, fgds, colorShader);
 }
 
 void Renderer::drawModelVerts() {

@@ -3951,16 +3951,12 @@ bool Bsp::load_lumps(string fpath)
 		return false;
 
 	fin.read((char*)&header.nVersion, sizeof(int));
-#ifndef NDEBUG
-	logf("Bsp version: %d\n", header.nVersion);
-#endif
+	debugf("Bsp version: %d\n", header.nVersion);
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
 		fin.read((char*)&header.lump[i], sizeof(BSPLUMP));
-#ifndef NDEBUG
-		logf("Read lump id: %d. Len: %d. Offset %d.\n", i,header.lump[i].nLength,header.lump[i].nOffset);
-#endif
+		debugf("Read lump id: %d. Len: %d. Offset %d.\n", i,header.lump[i].nLength,header.lump[i].nOffset);
 	}
 
 	lumps = new byte*[HEADER_LUMPS];
@@ -4184,6 +4180,22 @@ bool Bsp::validate_vis_data() {
 
 bool Bsp::validate() {
 	bool isValid = true;
+
+	if (planeCount > g_limits.max_planes) logf("Overflowed Planes !!!\n");
+	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+	if (leafCount > g_limits.max_leaves) logf("Overflowed leaves !!!\n");
+	if (modelCount > g_limits.max_models) logf("Overflowed models !!!\n");
+	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+	if (nodeCount > g_limits.max_nodes) logf("Overflowed nodes !!!\n");
+	if (vertCount > g_limits.max_vertexes) logf("Overflowed verts !!!\n");
+	if (faceCount > g_limits.max_faces) logf("Overflowed faces !!!\n");
+	if (clipnodeCount > g_limits.max_clipnodes) logf("Overflowed clipnodes !!!\n");
+	if (marksurfCount > g_limits.max_marksurfaces) logf("Overflowed marksurfs !!!\n");
+	if (surfedgeCount > g_limits.max_surfedges) logf("Overflowed surfedges !!!\n");
+	if (edgeCount > g_limits.max_edges) logf("Overflowed edges !!!\n");
+	if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
+	if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
+	if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
 
 	for (int i = 0; i < marksurfCount; i++) {
 		if (marksurfs[i] >= faceCount) {
@@ -6687,21 +6699,23 @@ void Bsp::update_lump_pointers() {
 	lightDataLength = header.lump[LUMP_LIGHTING].nLength;
 	visDataLength = header.lump[LUMP_VISIBILITY].nLength;
 
-	if (planeCount > g_limits.max_planes) logf("Overflowed Planes !!!\n");
-	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
-	if (leafCount > g_limits.max_leaves) logf("Overflowed leaves !!!\n");
-	if (modelCount > g_limits.max_models) logf("Overflowed models !!!\n");
-	if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
-	if (nodeCount > g_limits.max_nodes) logf("Overflowed nodes !!!\n");
-	if (vertCount > g_limits.max_vertexes) logf("Overflowed verts !!!\n");
-	if (faceCount > g_limits.max_faces) logf("Overflowed faces !!!\n");
-	if (clipnodeCount > g_limits.max_clipnodes) logf("Overflowed clipnodes !!!\n");
-	if (marksurfCount > g_limits.max_marksurfaces) logf("Overflowed marksurfs !!!\n");
-	if (surfedgeCount > g_limits.max_surfedges) logf("Overflowed surfedges !!!\n");
-	if (edgeCount > g_limits.max_edges) logf("Overflowed edges !!!\n");
-	if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
-	if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
-	if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
+	if (!g_app) {
+		if (planeCount > g_limits.max_planes) logf("Overflowed Planes !!!\n");
+		if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+		if (leafCount > g_limits.max_leaves) logf("Overflowed leaves !!!\n");
+		if (modelCount > g_limits.max_models) logf("Overflowed models !!!\n");
+		if (texinfoCount > g_limits.max_texinfos) logf("Overflowed texinfos !!!\n");
+		if (nodeCount > g_limits.max_nodes) logf("Overflowed nodes !!!\n");
+		if (vertCount > g_limits.max_vertexes) logf("Overflowed verts !!!\n");
+		if (faceCount > g_limits.max_faces) logf("Overflowed faces !!!\n");
+		if (clipnodeCount > g_limits.max_clipnodes) logf("Overflowed clipnodes !!!\n");
+		if (marksurfCount > g_limits.max_marksurfaces) logf("Overflowed marksurfs !!!\n");
+		if (surfedgeCount > g_limits.max_surfedges) logf("Overflowed surfedges !!!\n");
+		if (edgeCount > g_limits.max_edges) logf("Overflowed edges !!!\n");
+		if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
+		if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
+		if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
+	}
 
 	if (pvsFaceCount != faceCount) {
 		pvsFaceCount = faceCount;

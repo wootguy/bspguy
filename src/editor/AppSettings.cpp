@@ -131,7 +131,8 @@ void AppSettings::load() {
 	}
 
 	if (fgdPaths.size() == 0) {
-		fgdPaths.push_back("/svencoop/sven-coop.fgd");
+		fgdPaths.push_back("sven-coop.fgd");
+		fgdPaths.push_back("halflife.fgd");
 	}
 
 	if (resPaths.size() == 0) {

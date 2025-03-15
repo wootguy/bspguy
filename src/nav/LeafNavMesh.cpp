@@ -149,7 +149,7 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 		ori += (maxs + mins) * 0.5f;
 	}
 	else {
-		FgdClass* fclass = g_app->fgd->getFgdClass(ent->keyvalues["classname"]);
+		FgdClass* fclass = g_app->mergedFgd->getFgdClass(ent->keyvalues["classname"]);
 		if (fclass->sizeSet) {
 			mins = fclass->mins;
 			maxs = fclass->maxs;

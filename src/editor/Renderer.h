@@ -132,7 +132,8 @@ private:
 	bool reloadingGameDir = false;
 	bool isLoading = false;
 
-	Fgd* fgd = NULL;
+	Fgd* mergedFgd = NULL; // merged FGD
+	vector<Fgd*> fgds; // individually loaded FGDs
 
 	vec3 cameraOrigin;
 	vec3 cameraAngles;

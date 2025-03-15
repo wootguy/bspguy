@@ -937,7 +937,7 @@ vector<string> getAssetPaths() {
 		}
 		tryPaths.push_back(path);
 
-		if (end != '\\' && end != '/' && start != '\\' && start != '/') {
+		if (g_settings.gamedir.size() && end != '\\' && end != '/' && start != '\\' && start != '/') {
 			path = "/" + path;
 		}
 		tryPaths.push_back(g_settings.gamedir + path);

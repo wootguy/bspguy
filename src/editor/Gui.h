@@ -7,6 +7,7 @@
 #include "remap.h"
 #include "bsptypes.h"
 #include "qtools/rad.h"
+#include "Fgd.h"
 
 class Entity;
 class Texture;
@@ -124,8 +125,9 @@ private:
 	void drawStatusMessage();
 	void drawDebugWidget();
 	void drawKeyvalueEditor();
-	void drawKeyvalueEditor_SmartEditTab(Entity* ent);
-	void drawKeyvalueEditor_FlagsTab(Entity* ent);
+	void drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd);
+	void drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<KeyvalueDef>& keys, float inputWidth, bool isGrouped, int keyOffset);
+	void drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd);
 	void drawKeyvalueEditor_RawEditTab(Entity* ent);
 	void drawTransformWidget();
 	void drawLog();

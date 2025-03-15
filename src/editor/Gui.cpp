@@ -1774,8 +1774,6 @@ void Gui::drawDebugWidget() {
 		{
 			ImGui::Text("Origin: %d %d %d", (int)app->cameraOrigin.x, (int)app->cameraOrigin.y, (int)app->cameraOrigin.z);
 			ImGui::Text("Angles: %d %d %d", (int)app->cameraAngles.x, (int)app->cameraAngles.y, (int)app->cameraAngles.z);
-		
-
 		}
 
 		if (app->pickInfo.getMap()) {
@@ -1921,6 +1919,8 @@ void Gui::drawDebugWidget() {
 void Gui::drawKeyvalueEditor() {
 	//ImGui::SetNextWindowBgAlpha(0.75f);
 
+	static int selectedFgdIdx = -1;
+
 	ImGui::SetNextWindowSize(ImVec2(610, 610), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
@@ -1931,11 +1931,25 @@ void Gui::drawKeyvalueEditor() {
 			BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
 			BSPFACE& face = *app->pickInfo.getFace();
 			string cname = ent->keyvalues["classname"];
-			FgdClass* fgdClass = app->fgd ? app->fgd->getFgdClass(cname) : NULL;
+			
+			Fgd* fgd = selectedFgdIdx >= 0 && selectedFgdIdx < app->fgds.size() ? app->fgds[selectedFgdIdx] : NULL;
+			FgdClass* fgdClass = fgd ? fgd->getFgdClass(cname) : NULL;
 
+			if (!fgdClass) {
+				for (int i = 0; i < app->fgds.size(); i++) {
+					if (app->fgds[i]->getFgdClass(cname)) {
+						fgd = app->fgds[i];
+						fgdClass = app->mergedFgd->getFgdClass(cname);
+						break;
+					}
+				}
+			}
+
+			ImGui::Columns(2, "smartcolumns", false);
 			ImGui::PushFont(largeFont);
 			ImGui::AlignTextToFramePadding();
-			ImGui::Text("Class:"); ImGui::SameLine();
+			ImGui::Text("Class:");
+			ImGui::SameLine();
 			if (cname != "worldspawn") {
 				if (ImGui::Button((" " + cname + " ").c_str()))
 					ImGui::OpenPopup("classname_popup");
@@ -1958,15 +1972,33 @@ void Gui::drawKeyvalueEditor() {
 				}
 			}
 
+			if (fgd) {
+				ImGui::NextColumn();
+				ImGui::PushFont(largeFont);
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("FGD:");
+				if (ImGui::IsItemHovered()) {
+					ImGui::PopFont();
+					ImGui::SetTooltip("The Game Definition File determines which keyvalues/flags to display.\n\n"
+						"This will change automatically if an entity definition isn't found\n"
+						"for the FGD you previously selected.\n");
+					ImGui::PushFont(largeFont);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button((" " + fgd->name + " ").c_str()))
+					ImGui::OpenPopup("fgd_popup");
+				ImGui::PopFont();
+			}
+			ImGui::Columns(1);
 
 			if (ImGui::BeginPopup("classname_popup"))
 			{
 				ImGui::Text("Change Class");
 				ImGui::Separator();
 
-				vector<FgdGroup>* targetGroup = &app->fgd->pointEntGroups;
+				vector<FgdGroup>* targetGroup = &app->mergedFgd->pointEntGroups;
 				if (ent->getBspModelIdx() != -1) {
-					targetGroup = &app->fgd->solidEntGroups;
+					targetGroup = &app->mergedFgd->solidEntGroups;
 				}
 
 				for (int i = 0; i < targetGroup->size(); i++) {
@@ -1989,19 +2021,34 @@ void Gui::drawKeyvalueEditor() {
 				ImGui::EndPopup();
 			}
 
+			if (ImGui::BeginPopup("fgd_popup"))
+			{
+				ImGui::Text("Change FGD");
+				ImGui::Separator();
+				for (int k = 0; k < app->fgds.size(); k++) {
+					Fgd* menuFgd = app->fgds[k];
+					bool canSelect = menuFgd->getFgdClass(cname) != NULL;
+					if (ImGui::MenuItem(menuFgd->name.c_str(), "", k == selectedFgdIdx, canSelect)) {
+						selectedFgdIdx = k;
+					}
+				}
+
+				ImGui::EndPopup();
+			}
+
 			ImGui::Dummy(ImVec2(0, 10));
 
 			if (ImGui::BeginTabBar("##tabs"))
 			{
 				if (ImGui::BeginTabItem("Attributes")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_SmartEditTab(ent);
+					drawKeyvalueEditor_SmartEditTab(ent, fgd);
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Flags")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_FlagsTab(ent);
+					drawKeyvalueEditor_FlagsTab(ent, fgd);
 					ImGui::EndTabItem();
 				}
 
@@ -2025,43 +2072,56 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::End();
 }
 
-void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
-	if (!app->fgd) {
-		ImGui::Text("No FGD loaded.");
+void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd) {
+	if (!fgd) {
+		ImGui::Text("No entity definition found for %s.", ent->keyvalues["classname"].c_str());
+		return;
+	}
+	if (app->fgds.empty()) {
+		ImGui::Text("No FGD files loaded");
 		ImGui::Text("Add an FGD in Settings or use the Raw Edit tab instead.");
 		return;
 	}
 
 	string cname = ent->keyvalues["classname"];
-	FgdClass* fgdClass = app->fgd->getFgdClass(cname);
+	string lowerClass = toLowerCase(cname);
+	FgdClass* fgdClass = fgd->getFgdClass(cname);
 	ImGuiStyle& style = ImGui::GetStyle();
 
 	ImGui::BeginChild("SmartEditWindow");
 
-	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
-
-	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
-	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
-
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
 	float inputWidth = (ImGui::GetWindowWidth() - (paddingx * 2)) * 0.5f;
+
+	static int lastPickCount = 0;
 
 	// needed if autoresize is true
 	if (ImGui::GetScrollMaxY() > 0)
 		inputWidth -= style.ScrollbarSize * 0.5f;
 
-	struct InputData {
-		string key;
-		string defaultValue;
-		Entity* entRef;
-		int entIdx;
-		BspRenderer* bspRenderer;
-	};
-
 	if (fgdClass != NULL) {
+		struct KeyGroup {
+			string name;
+			vector<KeyvalueDef> keys;
+			COLOR3 color;
 
-		static InputData inputData[MAX_KEYS_PER_ENT];
-		static int lastPickCount = 0;
+			static uint32_t hash(const char* str) {
+				uint64 hash = 14695981039346656037ULL;
+				uint32_t c;
+
+				while ((c = *str++)) {
+					hash = (hash * 1099511628211) ^ c;
+				}
+
+				return hash;
+			}
+		};
+
+		static vector<KeyGroup> groups;
+
+		groups.clear();
+		string currentGroup;
+		KeyGroup tempGroup;
 
 		for (int i = 0; i < fgdClass->keyvalues.size() && i < MAX_KEYS_PER_ENT; i++) {
 			KeyvalueDef& keyvalue = fgdClass->keyvalues[i];
@@ -2069,106 +2129,63 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 			if (key == "spawnflags") {
 				continue;
 			}
-			string value = ent->keyvalues[key];
 			string niceName = keyvalue.description;
 
-			// TODO: ImGui doesn't have placeholder text like in HTML forms,
-			// but it would be nice to show an example/default value here somehow.
-			// Forcing the default value is bad because that can change entity behavior
-			// in unexpected ways. The default should always be an empty string or 0 when
-			// you don't care about the key. I think I remember there being strange problems
-			// when JACK would autofill default values for every possible key in an entity.
-			// 
-			//if (value.empty() && keyvalue.defaultValue.length()) {
-			//	value = keyvalue.defaultValue;
-			//}
-
-			strcpy(keyNames[i], niceName.c_str());
-			strcpy(keyValues[i], value.c_str());
-
-			inputData[i].key = key;
-			inputData[i].defaultValue = keyvalue.defaultValue;
-			inputData[i].entIdx = app->pickInfo.getEntIndex();
-			inputData[i].entRef = ent;
-			inputData[i].bspRenderer = app->mapRenderer;
-
-			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text(keyNames[i]); ImGui::NextColumn();
-
-			ImGui::SetNextItemWidth(inputWidth);
-
-			if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
-				string selectedValue = keyvalue.choices[0].name;
-				int ikey = atoi(value.c_str());
-
-				for (int k = 0; k < keyvalue.choices.size(); k++) {
-					KeyvalueChoice& choice = keyvalue.choices[k];
-
-					if ((choice.isInteger && ikey == choice.ivalue) ||
-						(!choice.isInteger && value == choice.svalue)) {
-						selectedValue = choice.name;
-					}
+			if (currentGroup != keyvalue.fgdSource) {
+				if (i != 0) {
+					tempGroup.name;
+					groups.push_back(tempGroup);
 				}
 
-				if (ImGui::BeginCombo(("##val" + to_string(i)).c_str(), selectedValue.c_str()))
-				{
-					for (int k = 0; k < keyvalue.choices.size(); k++) {
-						KeyvalueChoice& choice = keyvalue.choices[k];
-						bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
+				currentGroup = keyvalue.fgdSource;
+				tempGroup.name = currentGroup;
+				tempGroup.keys.clear();
+				tempGroup.color = keyvalue.color;
+			}
+			tempGroup.keys.push_back(keyvalue);
+		}
+		if (tempGroup.keys.size())
+			groups.push_back(tempGroup);
 
-						if (ImGui::Selectable(choice.name.c_str(), selected)) {
-							ent->setOrAddKeyvalue(key, choice.svalue);
-							app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
-							app->updateEntConnections();
-							app->pushEntityUndoState("Edit Keyvalue");
-						}
-					}
+		int keyOffset = 0;
+		for (int k = 0; k < groups.size(); k++) {
+			COLOR3 c2 = groups[k].color;
+			ImVec4 c = ImVec4(c2.r / 255.0f, c2.g / 255.0f, c2.b / 255.0f, 1.0f);
 
-					ImGui::EndCombo();
+			bool isSelf = toLowerCase(groups[k].name) == lowerClass;
+
+			if (groups[k].keys.size() > 3 && !isSelf) {
+				ImGui::Columns(1);
+
+				ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(c.x, c.y, c.z, 0.3f)); // Set background color (blue)
+				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(c.x, c.y, c.z, 0.4f)); // Set hovered color (lighter blue)
+				ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(c.x, c.y, c.z, 0.2f)); // Set active color (darker blue)
+
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(c.x, c.y, c.z, 0.05f));
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f));  // Set InputText background to fully opaque (white)
+				ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f)); // Hovered state
+				ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f));
+
+				static bool isExpanded = true;
+
+				ImGui::BeginChild(("ChildArea" + groups[k].name).c_str(), ImVec2(-FLT_MIN, 0.0f), ImGuiChildFlags_AutoResizeY);
+				string title = groups[k].name + " (" + to_string(groups[k].keys.size()) + ")";
+				if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+					ImGui::Dummy(ImVec2(0, 2));
+					drawKeyvalueEditor_SmartEditTab_GroupKeys(ent, groups[k].keys, inputWidth, true, keyOffset);
+					ImGui::Dummy(ImVec2(0, 2));
 				}
+
+				ImGui::EndChild();
+				//ImGui::PopStyleColor(3);
+				ImGui::PopStyleColor(7);
 			}
 			else {
-				struct InputChangeCallback {
-					static int keyValueChanged(ImGuiInputTextCallbackData* data) {
-						if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
-							if (data->EventChar < 256) {
-								if (strchr("-0123456789", (char)data->EventChar))
-									return 0;
-							}
-							return 1;
-						}
-
-						InputData* inputData = (InputData*)data->UserData;
-						Entity* ent = inputData->entRef;
-
-						string newVal = data->Buf;
-						if (newVal.empty()) {
-							ent->removeKeyvalue(inputData->key);
-						}
-						else {
-							ent->setOrAddKeyvalue(inputData->key, newVal);
-						}
-						inputData->bspRenderer->refreshEnt(inputData->entIdx);
-						g_app->updateEntConnections();
-						return 1;
-					}
-				};
-
-				if (keyvalue.iType == FGD_KEY_INTEGER) {
-					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyValues[i], 64,
-						ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
-						InputChangeCallback::keyValueChanged, &inputData[i]);
-				}
-				else {
-					ImGui::InputText(("##val" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyValues[i], MAX_VAL_LEN,
-						ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[i]);
-				}
-
-
+				drawKeyvalueEditor_SmartEditTab_GroupKeys(ent, groups[k].keys, inputWidth, false, keyOffset);
 			}
+			//ImGui::PopStyleColor(3);
 
-			ImGui::NextColumn();
+			keyOffset += groups[k].keys.size();
 		}
 
 		lastPickCount = app->pickCount;
@@ -2179,8 +2196,141 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent) {
 	ImGui::EndChild();
 }
 
-void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent) {
-	if (!app->fgd) {
+void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<KeyvalueDef>& keys, float inputWidth, bool isGrouped, int keyOffset) {
+	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
+	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
+
+	struct InputData {
+		string key;
+		string defaultValue;
+		Entity* entRef;
+		int entIdx;
+		BspRenderer* bspRenderer;
+	};
+	
+	static InputData inputData[MAX_KEYS_PER_ENT];
+
+	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
+	
+	for (int i = 0; i < keys.size(); i++) {
+		KeyvalueDef& keyvalue = keys[i];
+		string key = keyvalue.name;
+		if (key == "spawnflags") {
+			continue;
+		}
+		string value = ent->keyvalues[key];
+		string niceName = keyvalue.description;
+
+		// TODO: ImGui doesn't have placeholder text like in HTML forms,
+		// but it would be nice to show an example/default value here somehow.
+		// Forcing the default value is bad because that can change entity behavior
+		// in unexpected ways. The default should always be an empty string or 0 when
+		// you don't care about the key. I think I remember there being strange problems
+		// when JACK would autofill default values for every possible key in an entity.
+		// 
+		//if (value.empty() && keyvalue.defaultValue.length()) {
+		//	value = keyvalue.defaultValue;
+		//}
+
+		int bufferIdx = keyOffset + i;
+		strcpy(keyNames[bufferIdx], niceName.c_str());
+		strcpy(keyValues[bufferIdx], value.c_str());
+
+		inputData[bufferIdx].key = key;
+		inputData[bufferIdx].defaultValue = keyvalue.defaultValue;
+		inputData[bufferIdx].entIdx = app->pickInfo.getEntIndex();
+		inputData[bufferIdx].entRef = ent;
+		inputData[bufferIdx].bspRenderer = app->mapRenderer;
+
+		ImGui::SetNextItemWidth(inputWidth);
+		ImGui::AlignTextToFramePadding();
+		if (isGrouped) {
+			ImGui::Dummy(ImVec2(20, 0));
+			ImGui::SameLine();
+		}
+		ImGui::Text(keyNames[bufferIdx]);
+		if (ImGui::IsItemHovered()) {
+			//ImGui::SetTooltip((key + "(" + keyvalue.valueType + ") : " + niceName).c_str());
+			ImGui::SetTooltip((key + " : " + niceName).c_str());
+		}
+		ImGui::NextColumn();
+
+		ImGui::SetNextItemWidth(inputWidth);
+
+		if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
+			string selectedValue = keyvalue.choices[0].name;
+			int ikey = atoi(value.c_str());
+
+			for (int k = 0; k < keyvalue.choices.size(); k++) {
+				KeyvalueChoice& choice = keyvalue.choices[k];
+
+				if ((choice.isInteger && ikey == choice.ivalue) ||
+					(!choice.isInteger && value == choice.svalue)) {
+					selectedValue = choice.name;
+				}
+			}
+
+			if (ImGui::BeginCombo(("##val" + to_string(i)).c_str(), selectedValue.c_str()))
+			{
+				for (int k = 0; k < keyvalue.choices.size(); k++) {
+					KeyvalueChoice& choice = keyvalue.choices[k];
+					bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
+
+					if (ImGui::Selectable(choice.name.c_str(), selected)) {
+						ent->setOrAddKeyvalue(key, choice.svalue);
+						app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
+						app->updateEntConnections();
+						app->pushEntityUndoState("Edit Keyvalue");
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+		}
+		else {
+			struct InputChangeCallback {
+				static int keyValueChanged(ImGuiInputTextCallbackData* data) {
+					if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+						if (data->EventChar < 256) {
+							if (strchr("-0123456789", (char)data->EventChar))
+								return 0;
+						}
+						return 1;
+					}
+
+					InputData* inputData = (InputData*)data->UserData;
+					Entity* ent = inputData->entRef;
+
+					string newVal = data->Buf;
+					if (newVal.empty()) {
+						ent->removeKeyvalue(inputData->key);
+					}
+					else {
+						ent->setOrAddKeyvalue(inputData->key, newVal);
+					}
+					inputData->bspRenderer->refreshEnt(inputData->entIdx);
+					g_app->updateEntConnections();
+					return 1;
+				}
+			};
+
+			if (keyvalue.iType == FGD_KEY_INTEGER) {
+				ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], 64,
+					ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
+					InputChangeCallback::keyValueChanged, &inputData[bufferIdx]);
+			}
+			else {
+				ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], MAX_VAL_LEN,
+					ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[bufferIdx]);
+			}
+		}
+
+		ImGui::NextColumn();
+	}
+}
+
+void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd) {
+	if (!fgd) {
 		ImGui::Text("No FGD loaded.");
 		ImGui::Text("Add an FGD in Settings or use the Raw Edit tab instead.");
 		return;
@@ -2189,7 +2339,7 @@ void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent) {
 	ImGui::BeginChild("FlagsWindow");
 
 	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
-	FgdClass* fgdClass = app->fgd->getFgdClass(ent->keyvalues["classname"]);
+	FgdClass* fgdClass = fgd->getFgdClass(ent->keyvalues["classname"]);
 
 	ImGui::Columns(2, "keyvalcols", true);
 
@@ -3071,7 +3221,7 @@ void Gui::drawSettings() {
 				tmpFgdPaths.push_back(std::string());
 			}
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Add a path to an FGD file."
+				ImGui::SetTooltip("Add a path to a Game Definition File (.fgd)."
 					"\n\nFGD files define entity configurations. Without FGDs you will see pink\n"
 					"cubes and be unable to use the Attributes tab in the Keyvalue Editor.\n\n"
 					"You can use paths relative to your Asset Paths or absolute paths."
@@ -3087,6 +3237,7 @@ void Gui::drawSettings() {
 		if (settingsTab <= 2) {
 			ImGui::Separator();
 
+			ImGui::BeginDisabled(app->isLoading);
 			if (ImGui::Button("Apply Changes")) {
 				g_settings.gamedir = string(gamedir);
 				g_settings.fgdPaths = tmpFgdPaths;
@@ -3097,6 +3248,7 @@ void Gui::drawSettings() {
 				app->mapRenderer->reload();
 				g_settings.save();
 			}
+			ImGui::EndDisabled();
 		}
 
 		ImGui::EndGroup();

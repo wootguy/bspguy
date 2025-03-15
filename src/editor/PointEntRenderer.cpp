@@ -6,8 +6,9 @@
 #include "VertexBuffer.h"
 #include "util.h"
 
-PointEntRenderer::PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader) {
-	this->fgd = fgd;
+PointEntRenderer::PointEntRenderer(Fgd* mergedFgd, const vector<Fgd*>& fgds, ShaderProgram* colorShader) {
+	this->mergedFgd = mergedFgd;
+	this->fgds = fgds;
 	this->colorShader = colorShader;
 
 	genPointEntCubes();
@@ -39,12 +40,12 @@ void PointEntRenderer::genPointEntCubes() {
 	genCubeBuffers(defaultCube);
 	entCubes.push_back(defaultCube);
 
-	if (fgd == NULL) {
+	if (mergedFgd == NULL) {
 		return;
 	}
 
-	for (int i = 0; i < fgd->classes.size(); i++) {
-		FgdClass* fgdClass = fgd->classes[i];
+	for (int i = 0; i < mergedFgd->classes.size(); i++) {
+		FgdClass* fgdClass = mergedFgd->classes[i];
 		if (fgdClass->classType == FGD_CLASS_POINT) {
 			EntCube* cube = new EntCube();
 			cube->mins = fgdClass->mins;

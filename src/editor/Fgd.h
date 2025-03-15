@@ -41,6 +41,9 @@ struct KeyvalueDef {
 	int iType;
 	string description;
 	string defaultValue;
+	string fgdSource; // FGD file and class this originates from
+	string sourceDesc; // description of where this keyvalue came from (fgd -> class -> key)
+	COLOR3 color;
 	vector<KeyvalueChoice> choices;
 };
 
@@ -116,7 +119,7 @@ private:
 	string line; // current line being parsed
 
 	void parseClassHeader(FgdClass& outClass);
-	void parseKeyvalue(FgdClass& outClass);
+	void parseKeyvalue(FgdClass& outClass, string fgdName);
 	void parseChoicesOrFlags(KeyvalueDef& outKey);
 
 	void processClassInheritance();

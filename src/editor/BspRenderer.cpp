@@ -128,7 +128,8 @@ void BspRenderer::loadTextures() {
 			continue;
 		}
 
-		logf("Loading WAD %s\n", path.c_str());
+		if (g_verbose)
+			logf("Loading WAD %s\n", path.c_str());
 		Wad* wad = new Wad(path);
 		wad->readInfo();
 		wads.push_back(wad);

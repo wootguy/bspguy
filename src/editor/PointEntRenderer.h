@@ -21,9 +21,10 @@ struct EntCube {
 
 class PointEntRenderer {
 public:
-	Fgd* fgd;
+	Fgd* mergedFgd;
+	vector<Fgd*> fgds;
 
-	PointEntRenderer(Fgd* fgd, ShaderProgram* colorShader);
+	PointEntRenderer(Fgd* mergedFgd, const vector<Fgd*>& fgds, ShaderProgram* colorShader);
 	~PointEntRenderer();
 
 	EntCube* getEntCube(Entity* ent);
