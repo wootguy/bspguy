@@ -333,7 +333,8 @@ void CreateEntityFromTextCommand::execute() {
 		map->ents.push_back(ent);
 	}
 	createdEnts = ents.size();
-	logf("Pasted %d entities from clipboard\n", createdEnts);
+	if (createdEnts)
+		logf("Pasted %d entities from clipboard\n", createdEnts);
 	
 	refresh();
 }

@@ -284,7 +284,7 @@ private:
 	void cutEnts();
 	void copyEnts();
 	void pasteEnts(bool noModifyOrigin);
-	void pasteEntsFromText(string text);
+	void pasteEntsFromText(string text, bool noModifyOrigin);
 	void deleteEnts();
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);

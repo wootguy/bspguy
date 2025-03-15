@@ -3175,11 +3175,12 @@ void Renderer::copyEnts() {
 }
 
 void Renderer::pasteEnts(bool noModifyOrigin) {
-	if (copiedEnts.empty())
-		return;
-
-	if (pickInfo.getMap() == NULL) {
-		logf("Select a map before pasting an ent\n");
+	if (copiedEnts.empty()) {
+		const char* clipBoardText = ImGui::GetClipboardText();
+		if (clipBoardText)
+			pasteEntsFromText(clipBoardText, noModifyOrigin);
+		else
+			logf("No entity data in clipboard\n");
 		return;
 	}
 
@@ -3237,12 +3238,18 @@ void Renderer::pasteEnts(bool noModifyOrigin) {
 	pickCount++; // force transform window update
 }
 
-void Renderer::pasteEntsFromText(string text) {
+void Renderer::pasteEntsFromText(string text, bool noModifyOrigin) {
 	Bsp* map = pickInfo.getMap() ? pickInfo.getMap() : mapRenderer->map;
 
 	CreateEntityFromTextCommand* createCommand = 
 		new CreateEntityFromTextCommand("Paste entities from clipboard", text);
 	createCommand->execute();
+
+	if (createCommand->createdEnts == 0) {
+		logf("No entity data in clipboard\n");
+		return;
+	}
+
 	pushUndoCommand(createCommand);
 
 	vec3 centroid;
@@ -3250,21 +3257,23 @@ void Renderer::pasteEntsFromText(string text) {
 		Entity* ent = map->ents[map->ents.size() - (1 + i)];
 		centroid += getEntOrigin(map, ent);
 	}
-	centroid /= (float)copiedEnts.size();
+	centroid /= (float)createCommand->createdEnts;
 
 	pickInfo.deselect();
 
 	for (int i = 0; i < createCommand->createdEnts; i++) {
-		Entity* ent = map->ents[map->ents.size() - (1 + i)];
-		vec3 oldOrigin = getEntOrigin(map, ent);
-		vec3 centroidOffset = oldOrigin - centroid;
-		vec3 modelOffset = getEntOffset(map, ent);
-		vec3 mapOffset = mapRenderer->mapOffset;
+		if (!noModifyOrigin) {
+			Entity* ent = map->ents[map->ents.size() - (1 + i)];
+			vec3 oldOrigin = getEntOrigin(map, ent);
+			vec3 centroidOffset = oldOrigin - centroid;
+			vec3 modelOffset = getEntOffset(map, ent);
+			vec3 mapOffset = mapRenderer->mapOffset;
 
-		vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
-		vec3 newOri = (oldOrigin + moveDist + centroidOffset) - (modelOffset + mapOffset);
-		vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
-		ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+			vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
+			vec3 newOri = (oldOrigin + moveDist + centroidOffset) - (modelOffset + mapOffset);
+			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
+			ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+		}
 		pickInfo.selectEnt(map->ents.size() - (1 + i));
 	}
 

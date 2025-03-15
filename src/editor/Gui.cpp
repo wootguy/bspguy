@@ -504,10 +504,10 @@ void Gui::draw3dContextMenus() {
 
 		if (ImGui::BeginPopup("empty_context"))
 		{
-			if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnts.size())) {
+			if (ImGui::MenuItem("Paste", "Ctrl+V", false)) {
 				app->pasteEnts(false);
 			}
-			if (ImGui::MenuItem("Paste at original origin", 0, false, app->copiedEnts.size())) {
+			if (ImGui::MenuItem("Paste at original origin", 0, false)) {
 				app->pasteEnts(true);
 			}
 
@@ -751,20 +751,16 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Copy", "Ctrl+C", false, nonWorldspawnEntSelected)) {
 			app->copyEnts();
 		}
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false, app->copiedEnts.size())) {
+		if (ImGui::MenuItem("Paste", "Ctrl+V", false)) {
 			app->pasteEnts(false);
-		}
-		if (ImGui::MenuItem("Paste at original origin", 0, false, entSelected && app->copiedEnts.size())) {
-			app->pasteEnts(true);
-		}
-
-		const char* clipBoardText = ImGui::GetClipboardText();
-		if (ImGui::MenuItem("Paste entities from clipboard", 0, false, clipBoardText && clipBoardText[0] == '{')) {
-			app->pasteEntsFromText(clipBoardText);
 		}
 		tooltip(g, "Creates entities from text data. You can use this to transfer entities "
 			"from one bspguy window to another, or paste from .ent file text. Copy any entity "
 			"in the viewer then paste to a text editor to see the format of the text data.");
+		if (ImGui::MenuItem("Paste at original origin", 0, false)) {
+			app->pasteEnts(true);
+		}
+		tooltip(g, "Pastes entities at the locations they were copied from.");
 
 		if (ImGui::MenuItem("Delete", "Del", false, nonWorldspawnEntSelected)) {
 			app->deleteEnts();
@@ -3165,7 +3161,8 @@ void Gui::drawSettings() {
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("Path to the folder holding your game executable (hl.exe, svencoop.exe)."
 					"\nAsset Paths are relative to this folder.\n\nExample path:\n"
-					"C:\\Steam\\steamapps\\common\\Half-Life");
+					"C:\\Steam\\steamapps\\common\\Half-Life\n\n"
+					"This path isn't required. You can use absolute paths for Assets and FGDs if you want.");
 			}
 			ImGui::Dummy(ImVec2(0, 10));
 
