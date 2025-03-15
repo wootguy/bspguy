@@ -2408,6 +2408,8 @@ void Renderer::updateSelectionSize() {
 }
 
 void Renderer::updateEntConnections() {
+	updateCullBox();
+	
 	if (entConnections) {
 		delete entConnections;
 		delete entConnectionPoints;
@@ -2503,11 +2505,11 @@ void Renderer::updateEntConnections() {
 		entConnections->ownData = true;
 		entConnectionPoints->ownData = true;
 	}
-
-	updateCullBox();
 }
 
 void Renderer::updateEntConnectionPositions() {
+	updateCullBox();
+
 	if (!entConnections) {
 		return;
 	}
@@ -2534,8 +2536,6 @@ void Renderer::updateEntConnectionPositions() {
 		vec3 extent = vec3(s, s, s);
 		points[k] = cCube(dstPos - extent, dstPos + extent, link.color);
 	}
-
-	updateCullBox();
 }
 
 void Renderer::updateCullBox() {

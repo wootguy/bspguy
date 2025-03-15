@@ -1086,7 +1086,8 @@ void Gui::drawMenuBar() {
 			}
 			tooltip(g, "Deletes BSP data and entities inside of a box defined by 2 \"cull\" entities "
 				"(for the min and max extent of the box). This is useful for getting maps to run in an "
-				"engine with stricter map limits.\n\n"
+				"engine with stricter map limits. Works best with enclosed areas. Trying to partially "
+				"delete features in a room will likely result in broken collision detection.\n\n"
 				"Create 2 cull entities from the \"Create\" menu to define the culling box. "
 				"A transparent red box will form between them.");
 
