@@ -1,8 +1,7 @@
 #pragma once
+#include "Shader.h"
 #include <vector>
-
-struct mat4x4;
-class Shader;
+#include "mat4x4.h"
 
 enum mat_types
 {
@@ -14,22 +13,23 @@ enum mat_types
 class ShaderProgram
 {
 public:
-	uint32_t ID; // OpenGL program ID
+	uint ID; // OpenGL program ID
 
-	Shader * vShader; // vertex shader
-	Shader * fShader; // fragment shader
+	Shader* vShader; // vertex shader
+	Shader* fShader; // fragment shader
 
 	// commonly used vertex attributes
-	uint32_t vposID;
-	uint32_t vcolorID;
-	uint32_t vtexID;
+	uint vposID = -1;
+	uint vcolorID = -1;
+	uint vtexID = -1;
+	uint vnormID = -1;
 
 	mat4x4* projMat;
 	mat4x4* viewMat;
 	mat4x4* modelMat;
 
 	// Creates a shader program to replace the fixed-function pipeline
-	ShaderProgram(const char * vshaderFile, const char * fshaderFile);
+	ShaderProgram(const char* vshaderFile, const char* fshaderFile);
 	~ShaderProgram(void);
 
 	// use this shader program instead of the fixed function pipeline.
@@ -43,10 +43,10 @@ public:
 
 	// Find the the modelView and modelViewProjection matrices
 	// used in the shader code, so that we can update them.
-	void setMatrixNames(const char * modelViewMat, const char * modelViewProjMat);
+	void setMatrixNames(const char* modelViewMat, const char* modelViewProjMat);
 
 	// Find the IDs for the common vertex attributes (position, color, texture coords, normals)
-	void setVertexAttributeNames(const char * posAtt, const char * colorAtt, const char * texAtt);
+	void setVertexAttributeNames(const char* posAtt, const char* colorAtt, const char* texAtt, const char* normAtt);
 
 	// upload the model, view, and projection matrices to the shader (or fixed-funcion pipe)
 	void updateMatrixes();
@@ -57,8 +57,8 @@ public:
 
 private:
 	// uniforms
-	uint32_t modelViewID;
-	uint32_t modelViewProjID;
+	uint modelViewID = -1;
+	uint modelViewProjID = -1;
 
 	// computed from model, view, and projection matrices
 	mat4x4* modelViewProjMat; // for transforming vertices onto the screen
@@ -69,4 +69,3 @@ private:
 
 	void link();
 };
-

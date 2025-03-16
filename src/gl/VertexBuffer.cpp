@@ -6,27 +6,27 @@
 
 VertexAttr commonAttr[VBUF_FLAGBITS] =
 {
-	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, ""), // TEX_2B
-	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, ""), // TEX_2S
-	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, ""), // TEX_2F
-	VertexAttr(3, GL_UNSIGNED_BYTE, -1, GL_TRUE, ""),  // COLOR_3B
-	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, ""),  // COLOR_3F
-	VertexAttr(4, GL_UNSIGNED_BYTE, -1, GL_TRUE, ""),  // COLOR_4B
-	VertexAttr(4, GL_FLOAT,         -1, GL_TRUE, ""),  // COLOR_4F
-	VertexAttr(3, GL_BYTE,          -1, GL_TRUE, ""),  // NORM_3B
-	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, ""),  // NORM_3F
-	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, ""), // POS_2B
-	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, ""), // POS_2S
-	VertexAttr(2, GL_INT,           -1, GL_FALSE, ""), // POS_2I
-	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, ""), // POS_2F
-	VertexAttr(3, GL_SHORT,         -1, GL_FALSE, ""), // POS_3S
-	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, ""), // POS_3F
+	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, "TEX_2B"), // TEX_2B
+	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, "TEX_2S"), // TEX_2S
+	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, "TEX_2F"), // TEX_2F
+	VertexAttr(3, GL_UNSIGNED_BYTE, -1, GL_TRUE, "COLOR_3B"),  // COLOR_3B
+	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, "COLOR_3F"),  // COLOR_3F
+	VertexAttr(4, GL_UNSIGNED_BYTE, -1, GL_TRUE, "COLOR_4B"),  // COLOR_4B
+	VertexAttr(4, GL_FLOAT,         -1, GL_TRUE, "COLOR_4F"),  // COLOR_4F
+	VertexAttr(3, GL_BYTE,          -1, GL_TRUE, "NORM_3B"),  // NORM_3B
+	VertexAttr(3, GL_FLOAT,         -1, GL_TRUE, "NORM_3F"),  // NORM_3F
+	VertexAttr(2, GL_BYTE,          -1, GL_FALSE, "POS_2B"), // POS_2B
+	VertexAttr(2, GL_SHORT,         -1, GL_FALSE, "POS_2S"), // POS_2S
+	VertexAttr(2, GL_INT,           -1, GL_FALSE, "POS_2I"), // POS_2I
+	VertexAttr(2, GL_FLOAT,         -1, GL_FALSE, "POS_2F"), // POS_2F
+	VertexAttr(3, GL_SHORT,         -1, GL_FALSE, "POS_3S"), // POS_3S
+	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, "POS_3F"), // POS_3F
 };
 
-VertexAttr::VertexAttr( int numValues, int valueType, int handle, int normalized, const char* varName)
+VertexAttr::VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName)
 	: numValues(numValues), valueType(valueType), handle(handle), normalized(normalized), varName(varName)
 {
-	switch(valueType)
+	switch (valueType)
 	{
 	case(GL_BYTE):
 	case(GL_UNSIGNED_BYTE):
@@ -50,7 +50,7 @@ VertexAttr::VertexAttr( int numValues, int valueType, int handle, int normalized
 
 
 
-VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const void * dat, int numVerts )
+VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const void* dat, int numVerts)
 {
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
@@ -58,7 +58,7 @@ VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags, const v
 	vboId = -1;
 }
 
-VertexBuffer::VertexBuffer( ShaderProgram * shaderProgram, int attFlags )
+VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags)
 {
 	numVerts = 0;
 	data = NULL;
@@ -74,7 +74,7 @@ VertexBuffer::~VertexBuffer() {
 	}
 }
 
-void VertexBuffer::addAttributes( int attFlags )
+void VertexBuffer::addAttributes(int attFlags)
 {
 	elementSize = 0;
 	for (int i = 0; i < VBUF_FLAGBITS; i++)
@@ -83,6 +83,8 @@ void VertexBuffer::addAttributes( int attFlags )
 		{
 			if (i >= VBUF_POS_START)
 				commonAttr[i].handle = shaderProgram->vposID;
+			else if (i >= VBUF_NORM_START)
+				commonAttr[i].handle = shaderProgram->vnormID;
 			else if (i >= VBUF_COLOR_START)
 				commonAttr[i].handle = shaderProgram->vcolorID;
 			else if (i >= VBUF_TEX_START)
@@ -152,14 +154,14 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 
 		attribs[i].handle = glGetAttribLocation(shaderProgram->ID, attribs[i].varName);
 
-		if (!hideErrors && attribs[i].handle == -1)
+		if (attribs[i].handle == -1)
 			logf("Could not find vertex attribute: %s\n", attribs[i].varName);
 	}
 
 	attributesBound = true;
 }
 
-void VertexBuffer::setData( const void * data, int numVerts )
+void VertexBuffer::setData(const void* data, int numVerts)
 {
 	this->data = (byte*)data;
 	this->numVerts = numVerts;
@@ -196,7 +198,7 @@ void VertexBuffer::deleteBuffer() {
 	vboId = -1;
 }
 
-void VertexBuffer::drawRange( int primitive, int start, int end )
+void VertexBuffer::drawRange(int primitive, int start, int end)
 {
 	shaderProgram->bind();
 	bindAttributes();
@@ -227,7 +229,7 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	else if (end - start <= 0)
 		logf("Invalid draw range: %d -> %d\n", start, end);
 	else
-		glDrawArrays(primitive, start, end-start);
+		glDrawArrays(primitive, start, end - start);
 
 	if (vboId != -1) {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -242,7 +244,7 @@ void VertexBuffer::drawRange( int primitive, int start, int end )
 	}
 }
 
-void VertexBuffer::draw( int primitive )
+void VertexBuffer::draw(int primitive)
 {
 	drawRange(primitive, 0, numVerts);
 }

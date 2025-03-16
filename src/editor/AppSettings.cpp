@@ -43,6 +43,7 @@ void AppSettings::loadDefault()
 	moveSpeed = 4.0f;
 	fov = 75.0f;
 	zfar = 262144.0f;
+	zFarMdl = 2048.0f;
 	rotSpeed = 5.0f;
 
 	fgdPaths.clear();
@@ -84,6 +85,7 @@ void AppSettings::load() {
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
+			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
 			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
@@ -181,6 +183,7 @@ void AppSettings::save() {
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
+	file << "zfarmdl=" << g_settings.zFarMdl << endl;
 	file << "move_speed=" << g_settings.moveSpeed << endl;
 	file << "rot_speed=" << g_settings.rotSpeed << endl;
 	file << "render_flags=" << g_settings.render_flags << endl;

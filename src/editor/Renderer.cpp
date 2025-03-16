@@ -18,6 +18,8 @@
 #include "LeafNavMeshGenerator.h"
 #include <algorithm>
 #include "BspMerger.h"
+#include "MdlRenderer.h"
+#include <unordered_set>
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
@@ -150,11 +152,16 @@ Renderer::Renderer() {
 	colorShader = new ShaderProgram(g_shader_cVert_vertex, g_shader_cVert_fragment);
 	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	colorShader->setMatrixNames(NULL, "modelViewProjection");
-	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL);
+	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL, NULL);
+
+	mdlShader = new ShaderProgram(g_shader_mdl_vertex, g_shader_mdl_fragment);
+	mdlShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	mdlShader->setMatrixNames(NULL, "modelViewProjection");
+	mdlShader->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
 
 	colorShader->bind();
-	uint colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
-	glUniform4f(colorMultId, 1, 1, 1, 1);
+	u_colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
+	glUniform4f(u_colorMultId, 1, 1, 1, 1);
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -172,8 +179,8 @@ Renderer::Renderer() {
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
 
-	//cameraOrigin = vec3(51, 427, 234);
-	//cameraAngles = vec3(41, 0, -170);
+	//cameraOrigin = vec3(0, 0, 0);
+	//cameraAngles = vec3(0, 0, 0);
 }
 
 Renderer::~Renderer() {
@@ -262,10 +269,20 @@ void Renderer::renderLoop() {
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
+		colorShader->bind();
 		drawEntConnections();
 
 		isLoading = reloading;
-		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull);
+		
+		// draw opaque world/entity faces
+		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false);
+		
+		// studio models have transparent boxes that need to draw over the world but behind transparent
+		// brushes like a trigger_once which is rendered using the clipnode model
+		drawStudioModels();
+		
+		// draw transparent entity faces
+		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true);
 
 		if (!mapRenderer->isFinishedLoading()) {
 			isLoading = true;
@@ -751,6 +768,13 @@ void Renderer::postLoadFgds()
 		mapRenderer->reloadTextures();
 	}
 
+	for (int i = 0; i < mapRenderer->map->ents.size(); i++) {
+		Entity* ent = mapRenderer->map->ents[i];
+		if (ent->hasCachedMdl && ent->cachedMdl == NULL) {
+			ent->hasCachedMdl = false; // try loading a model from the FGDs
+		}
+	}
+
 	swapPointEntRenderer = NULL;
 }
 
@@ -779,6 +803,13 @@ void Renderer::reloadMaps() {
 		}
 		copiedEnts.clear();
 	}
+
+	for (auto item : studioModels) {
+		if (item.second)
+			delete item.second;
+	}
+	studioModels.clear();
+	studioModelPaths.clear();
 
 	updateCullBox();
 
@@ -854,6 +885,7 @@ void Renderer::loadSettings() {
 	showDragAxes = g_settings.show_transform_axes;
 	g_verbose = g_settings.verboseLogs;
 	zFar = g_settings.zfar;
+	zFarMdl = g_settings.zFarMdl;
 	fov = g_settings.fov;
 	g_render_flags = g_settings.render_flags;
 	gui->fontSize = g_settings.fontSize;
@@ -1049,6 +1081,10 @@ void Renderer::drawTransformAxes() {
 		colorShader->updateMatrixes();
 		moveAxes.buffer->draw(GL_TRIANGLES);
 	}
+}
+
+int glGetErrorDebug() {
+	return glGetError();
 }
 
 void Renderer::drawEntConnections() {
@@ -1969,6 +2005,10 @@ void Renderer::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
 }
 
 void Renderer::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
+	colorShader->bind();
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+
 	static cVert verts[64];
 
 	for (int i = 0; i < poly.verts.size() && i < 64; i++) {
@@ -2016,19 +2056,17 @@ void Renderer::drawBox2D(vec2 center, float width, COLOR4 color) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color) {
+void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
 
 	vec3 ori = plane.vNormal * plane.fDist;
 	vec3 crossDir = fabs(plane.vNormal.z) > 0.9f ? vec3(1, 0, 0) : vec3(0, 0, 1);
 	vec3 right = crossProduct(plane.vNormal, crossDir);
 	vec3 up = crossProduct(right, plane.vNormal);
 
-	float s = 32768.0f;
-
-	vec3 topLeft = vec3(ori + right * -s + up * s).flip();
-	vec3 topRight = vec3(ori + right * s + up * s).flip();
-	vec3 bottomLeft = vec3(ori + right * -s + up * -s).flip();
-	vec3 bottomRight = vec3(ori + right * s + up * -s).flip();
+	vec3 topLeft = vec3(ori + right * -sz + up * sz).flip();
+	vec3 topRight = vec3(ori + right * sz + up * sz).flip();
+	vec3 bottomLeft = vec3(ori + right * -sz + up * -sz).flip();
+	vec3 bottomRight = vec3(ori + right * sz + up * -sz).flip();
 
 	cVert topLeftVert(topLeft, color);
 	cVert topRightVert(topRight, color);
@@ -2070,6 +2108,260 @@ void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane
 			drawNodes(map, node.iChildren[i], currentPlane, activePlane);
 		}
 	}
+}
+
+MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
+	if (ent->hasCachedMdl) {
+		return ent->cachedMdl;
+	}
+
+	struct ModelKey {
+		string name;
+		bool isClassname;
+	};
+
+	static vector<ModelKey> tryModelKeys = {
+		{"model", false},
+		{"classname", true},
+		{"monstertype", true},
+	};
+
+	string model;
+	string lowerModel;
+	bool foundModelKey = false;
+	for (int i = 0; i < tryModelKeys.size(); i++) {
+		ModelKey key = tryModelKeys[i];
+		model = ent->keyvalues[key.name];
+
+		if (tryModelKeys[i].isClassname) {
+			if (g_app->mergedFgd) {
+				FgdClass* fgd = g_app->mergedFgd->getFgdClass(ent->keyvalues[key.name]);
+				model = fgd ? fgd->model : "";
+				lowerModel = toLowerCase(model);
+			}
+			else {
+				continue;
+			}
+		}
+		else {
+			lowerModel = toLowerCase(model);
+		}
+
+		if (lowerModel.size() > 4 && lowerModel.find(".mdl") == lowerModel.size() - 4) {
+			foundModelKey = true;
+			ent->cachedMdlCname = key.isClassname ? ent->keyvalues[key.name] : ent->keyvalues["classname"];
+			break;
+		}
+	}
+
+	if (!foundModelKey) {
+		//logf("No model key found for '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		ent->hasCachedMdl = true;
+		return NULL; // no MDL found
+	}
+
+	auto cache = studioModelPaths.find(lowerModel);
+	if (cache == studioModelPaths.end()) {
+		string findPath = findAsset(model);
+		studioModelPaths[lowerModel] = findPath;
+		if (!findPath.size()) {
+			debugf("Failed to find model for entity '%s' (%s): %s\n",
+				ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(),
+				model.c_str());
+			ent->hasCachedMdl = true;
+			return NULL;
+		}
+	}
+
+	string modelPath = studioModelPaths[lowerModel];
+	if (!modelPath.size()) {
+		//logf("Empty string for model path in entity '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		ent->hasCachedMdl = true;
+		return NULL;
+	}
+
+	auto mdl = studioModels.find(modelPath);
+	if (mdl == studioModels.end()) {
+		MdlRenderer* newMdl = new MdlRenderer(g_app->mdlShader, modelPath);
+		studioModels[modelPath] = newMdl;
+		ent->cachedMdl = newMdl;
+		ent->hasCachedMdl = true;
+		//logf("Begin load model for entity '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		return newMdl;
+	}
+
+	ent->cachedMdl = mdl->second;
+	ent->hasCachedMdl = true;
+	return mdl->second;
+}
+
+void Renderer::drawStudioModels() {
+	colorShader->bind();
+	glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (!(g_render_flags & RENDER_STUDIO_MDL))
+		return
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+
+	int drawCount = 0;
+
+	unordered_set<int> selectedEnts;
+	for (int idx : pickInfo.ents) {
+		selectedEnts.insert(idx);
+	}
+
+	vec3 renderOffset = mapRenderer->mapOffset.flip();
+
+	vec3 camForward, camRight, camUp;
+	makeVectors(cameraAngles, camForward, camRight, camUp);
+
+	struct DepthSortedEnt {
+		Entity* ent;
+		int idx;
+		vec3 origin;
+		vec3 angles;
+		MdlRenderer* mdl;
+		float dist; // distance from camera
+	};
+
+	
+	float aspect = (float)windowWidth / (float)windowHeight;
+	Frustum frustum = getViewFrustum(cameraOrigin, cameraAngles, aspect, zNear, zFar, fov);
+
+	vector<DepthSortedEnt> depthSortedMdlEnts;
+	for (int i = 0; i < mapRenderer->map->ents.size(); i++) {
+		Entity* ent = mapRenderer->map->ents[i];
+		DepthSortedEnt sent;
+		sent.ent = ent;
+		sent.mdl = loadStudioModel(sent.ent);
+		sent.ent->didStudioDraw = false;
+
+		if (sent.mdl && sent.mdl->loadState != MDL_LOAD_INITIAL) {
+			if (!sent.mdl->valid) {
+				logf("Failed to load model: %s\n", sent.mdl->fpath.c_str());
+				studioModels[ent->cachedMdl->fpath] = NULL;
+				delete sent.mdl;
+				ent->cachedMdl = sent.mdl = NULL;
+			}
+			else if (sent.mdl->loadState == MDL_LOAD_UPLOAD) {
+				sent.mdl->upload();
+				logf("Loaded MDL: %s\n", sent.mdl->fpath.c_str());
+			}
+		}
+
+		if (sent.mdl && sent.mdl->loadState == MDL_LOAD_DONE && sent.mdl->valid) {
+			if (!ent->drawCached) {
+				int seq = atoi(ent->keyvalues["sequence"].c_str());
+				ent->drawOrigin = ent->getOrigin();
+				ent->drawAngles = parseVector(ent->keyvalues["angles"]);
+				ent->drawSequence = clamp(seq, 0, sent.mdl->header->numseq - 1);
+
+				vec3 mins, maxs;
+				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+				ent->drawMin = mins + sent.origin;
+				ent->drawMax = maxs + sent.origin;
+			}
+
+			sent.idx = i;
+			sent.origin = ent->drawOrigin;
+			sent.dist = dotProduct(sent.origin - cameraOrigin, camForward);
+
+			if (sent.mdl->lastDrawCall == 0) {
+				// need to draw at least once to know mins/maxs
+				depthSortedMdlEnts.push_back(sent);
+				continue;
+			}
+
+			if (!sent.ent->drawCached) {
+				vec3 mins, maxs;
+				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+				ent->drawMin = mins + sent.origin;
+				ent->drawMax = maxs + sent.origin;
+				ent->drawCached = true;
+			}
+
+			if (isBoxInView(ent->drawMin, ent->drawMax, frustum, zFarMdl))
+				depthSortedMdlEnts.push_back(sent);
+		}
+	}
+	sort(depthSortedMdlEnts.begin(), depthSortedMdlEnts.end(), [](const DepthSortedEnt& a, const DepthSortedEnt& b) {
+		return a.dist > b.dist;
+	});
+
+	for (int i = 0; i < depthSortedMdlEnts.size(); i++) {
+		Entity* ent = depthSortedMdlEnts[i].ent;
+		MdlRenderer* mdl = depthSortedMdlEnts[i].mdl;
+		int entidx = depthSortedMdlEnts[i].idx;
+
+		bool isSelected = selectedEnts.count(entidx);
+
+		ent->drawFrame = mdl->drawFrame;
+
+		{ // draw the colored transparent cube
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			//EntCube* entcube = mapRenderer->pointEntRenderer->getEntCube(ent);
+			EntCube* entcube = mapRenderer->renderEnts[depthSortedMdlEnts[i].idx].pointEntCube;
+			colorShader->bind();
+			colorShader->pushMatrix(MAT_MODEL);
+			*colorShader->modelMat = mapRenderer->renderEnts[entidx].modelMat;
+			colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+			colorShader->updateMatrixes();
+
+			if (isSelected) {
+				//glDepthFunc(GL_ALWAYS); // ignore depth testing for the world but not for the model
+				glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
+				entcube->wireframeBuffer->draw(GL_LINES);
+				//glDepthFunc(GL_LESS);
+
+				glDepthMask(GL_FALSE); // let model dray over this
+				glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 0.5f);
+				entcube->selectBuffer->draw(GL_TRIANGLES);
+				glDepthMask(GL_TRUE);
+			}
+			else {
+				glDepthMask(GL_FALSE);
+				glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 0.5f);
+				entcube->buffer->draw(GL_TRIANGLES);
+				glDepthMask(GL_TRUE);
+				
+				glUniform4f(u_colorMultId, 0.0f, 0.0f, 0.0f, 1.0f);
+				entcube->wireframeBuffer->draw(GL_LINES);
+			}
+
+			colorShader->popMatrix(MAT_MODEL);
+		}
+
+		// draw the model
+		ent->didStudioDraw = true;
+		mdl->draw(ent->drawOrigin, ent->drawAngles, ent->drawSequence,
+			g_app->cameraOrigin, g_app->cameraRight, isSelected ? vec3(1,0,0) : vec3(1,1,1));
+		drawCount++;
+
+		// debug the model verts bounding box
+		if (false) {
+			vec3 mins, maxs;
+			mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+			mins += ent->drawOrigin;
+			maxs += ent->drawOrigin;
+
+			colorShader->bind();
+			glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
+			drawBox(mins, maxs, COLOR4(255, 255, 0, 255));
+		}
+	}
+
+	//logf("Draw %d models\n", drawCount);
+
+	glCullFace(GL_BACK);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	colorShader->bind();
+	glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {

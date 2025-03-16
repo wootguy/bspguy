@@ -26,6 +26,7 @@ struct AppSettings {
 
 	float fov;
 	float zfar;
+	float zFarMdl; // z distance for model rendering
 	float moveSpeed;
 	float rotSpeed;
 	int render_flags;

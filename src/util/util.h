@@ -7,6 +7,7 @@
 #include "ProgressMeter.h"
 #include "bsptypes.h"
 #include <string.h>
+#include "mat4x4.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -22,6 +23,11 @@
 #ifdef WIN32
 #define strcasecmp _stricmp
 #endif
+
+struct Frustum {
+	vec3 origin;
+	vec3 planes[4]; // right, left, top, bottom
+};
 
 void logf(const char* format, ...);
 
@@ -118,3 +124,18 @@ void push_unique_vec2(vector<vec2>& verts, vec2 vert);
 void push_unique_vec3(vector<vec3>& verts, vec3 vert);
 
 vector<string> getAssetPaths();
+
+// search all asset paths for a file
+// returns empty string if not found
+string findAsset(string asset);
+
+// returns distance from starting point or -1 on no intersect
+float rayTriangleIntersect(const vec3& rayOrigin, const vec3& rayDir, const vec3& v0, const vec3& v1, const vec3& v2);
+
+Frustum getViewFrustum(vec3 camOrigin, vec3 camAngles, float aspect, float zNear, float zFar, float fov);
+
+// true if box is in the view frustum. vp is view-projection matrix
+bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax);
+
+// modulos a float value between start and end
+float normalizeRangef(const float value, const float start, const float end);

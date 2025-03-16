@@ -815,7 +815,7 @@ void Gui::drawMenuBar() {
 			g_render_flags ^= RENDER_SPECIAL;
 		}
 		tooltip(g, "Render special faces that are normally invisible and/or have special rendering properties (e.g. the SKY texture).");
-		
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Point Entities", 0, g_render_flags & RENDER_POINT_ENTS)) {
@@ -844,6 +844,17 @@ void Gui::drawMenuBar() {
 			"to find connections depending on the game the map was compiled for."
 		);
 
+		if (ImGui::MenuItem("Entity Models", 0, g_render_flags & RENDER_STUDIO_MDL)) {
+			g_render_flags ^= RENDER_STUDIO_MDL;
+
+			if (!(g_render_flags & RENDER_STUDIO_MDL)) {
+				for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
+					app->mapRenderer->map->ents[i]->didStudioDraw = false;
+				}
+			}
+		}
+		tooltip(g, "Display game models instead of colored cubes, if available.");
+		
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Clipnodes (World)", 0, g_render_flags & RENDER_WORLD_CLIPNODES)) {
@@ -3392,14 +3403,15 @@ void Gui::drawSettings() {
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
-			ImGui::DragFloat("Movement speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
-			ImGui::DragFloat("Rotation speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
+			ImGui::DragFloat("Movement Speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
+			ImGui::DragFloat("Rotation Speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 			if (ImGui::DragInt("Font Size", &fontSize, 0.1f, 8, 48, "%d pixels")) {
 				shouldReloadFonts = true;
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
-			ImGui::DragFloat("Back Clipping plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
+			ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
+			ImGui::DragFloat("Model Render Distance", &app->zFarMdl, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 			if (ImGui::IsItemHovered()) {

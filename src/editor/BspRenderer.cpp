@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <float.h>
+#include "MdlRenderer.h"
 
 
 #include "icons/missing.h"
@@ -1282,6 +1283,8 @@ void BspRenderer::refreshEnt(int entIdx) {
 	renderEnts[entIdx].modelMat.loadIdentity();
 	renderEnts[entIdx].offset = vec3(0, 0, 0);
 	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
+	ent->hasCachedMdl = false;
+	ent->drawCached = false;
 
 	if (ent->hasKey("origin")) {
 		vec3 origin = parseVector(ent->keyvalues["origin"]);
@@ -1538,7 +1541,7 @@ void BspRenderer::loadTexture(WADTEX* tex) {
 	glTextures = newTextures;
 }
 
-void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull) {
+void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull, bool transparencyPass) {
 	BSPMODEL& world = map->models[0];
 	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
 	vec3 renderOffset = mapOffset.flip();
@@ -1559,7 +1562,7 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 	}
 
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
-	if (highlightedEnts.size() && !highlightAlwaysOnTop) {
+	if (highlightedEnts.size() && !highlightAlwaysOnTop && !transparencyPass) {
 		for (int highlightEnt : highlightedEnts) {
 			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 				activeShader->pushMatrix(MAT_MODEL);
@@ -1577,6 +1580,9 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 
 	for (int pass = 0; pass < 2; pass++) {
 		bool drawTransparentFaces = pass == 1;
+		if (drawTransparentFaces != transparencyPass) {
+			continue;
+		}
 
 		drawModel(0, drawTransparentFaces, false, false);
 
@@ -1599,7 +1605,7 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 		}
 	}
 
-	if (clipnodesLoaded) {
+	if (clipnodesLoaded && transparencyPass) {
 		colorShader->bind();
 
 		if (g_render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1) {
@@ -1633,6 +1639,10 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 				}
 			}
 		}		
+	}
+
+	if (!transparencyPass) {
+		return;
 	}
 
 	if (highlightedEnts.size() && highlightAlwaysOnTop) {
@@ -1775,7 +1785,7 @@ void BspRenderer::drawPointEntities(const vector<int>& highlightedEnts) {
 
 	colorShader->bind();
 
-	if (highlightedEnts.empty()) {
+	if (highlightedEnts.empty() && !(g_render_flags & RENDER_STUDIO_MDL)) {
 		if (pointEnts->numVerts > 0)
 			pointEnts->draw(GL_TRIANGLES);
 		return;
@@ -1796,21 +1806,24 @@ void BspRenderer::drawPointEntities(const vector<int>& highlightedEnts) {
 		if (renderEnts[i].modelIdx >= 0)
 			continue;
 
-		if (highlighted.count(i)) {
+		if (highlighted.count(i) || map->ents[i]->didStudioDraw) {
 			if (pointEntIdx - nextRangeDrawIdx > 0) {
 				pointEnts->drawRange(GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
 			}
 			nextRangeDrawIdx = pointEntIdx+1;
 
-			colorShader->pushMatrix(MAT_MODEL);
-			*colorShader->modelMat = renderEnts[i].modelMat;
-			colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-			colorShader->updateMatrixes();
+			if (!map->ents[i]->didStudioDraw) {
+				colorShader->pushMatrix(MAT_MODEL);
+				*colorShader->modelMat = renderEnts[i].modelMat;
+				colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+				colorShader->updateMatrixes();
 
-			renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
-			renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
+				renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
+				renderEnts[i].pointEntCube->buffer->draw(GL_TRIANGLES);
+				renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
 
-			colorShader->popMatrix(MAT_MODEL);
+				colorShader->popMatrix(MAT_MODEL);
+			}
 		}
 
 		pointEntIdx++;
@@ -1840,6 +1853,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 	}
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+		Entity* ent = map->ents[i];
+
 		if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 
 			bool isSpecial = false;
@@ -1864,10 +1879,15 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 		else if (i > 0 && g_render_flags & RENDER_POINT_ENTS) {
 			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
 			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
+
 			if (pickAABB(start, dir, mins, maxs, bestDist)) {
 				entIdx = i;
 				foundBetterPick = true;
-			};
+			}
+			else if (ent->cachedMdl && ent->cachedMdl->pick(start, dir, ent, bestDist)) {
+				entIdx = i;
+				foundBetterPick = true;
+			}
 		}
 	}
 

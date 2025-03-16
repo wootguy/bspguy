@@ -32,7 +32,8 @@ enum RenderFlags {
 	RENDER_WORLD_CLIPNODES = 256,
 	RENDER_ENT_CLIPNODES = 512,
 	RENDER_ENT_CONNECTIONS = 1024,
-	RENDER_MAP_BOUNDARY = 2048
+	RENDER_MAP_BOUNDARY = 2048,
+	RENDER_STUDIO_MDL = 4096
 };
 
 struct LightmapInfo {
@@ -128,6 +129,7 @@ public:
 class Wad;
 
 class BspRenderer {
+	friend class Renderer;
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
@@ -138,7 +140,7 @@ public:
 	BspRenderer(Bsp* map, ShaderProgram* bspShader, ShaderProgram* fullBrightBspShader, ShaderProgram* colorShader, PointEntRenderer* fgd);
 	~BspRenderer();
 
-	void render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull);
+	void render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull, bool transparencyPass);
 
 	void drawModel(int modelIdx, bool transparent, bool highlight, bool edgesOnly);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);

@@ -32,7 +32,7 @@ void mat4x4::perspective( float fov, float aspect, float near, float far )
 {
 	memset(m, 0, sizeof(m));
 	float ymax, xmax;
-	ymax = near * tanf(fov * PI / 360.0f);
+	ymax = near * tanf(fov * (PI / 180.0f) * 0.5f);
 	xmax = ymax * aspect;
 	glhFrustumf2(m, -xmax, xmax, -ymax, ymax, near, far);
 }

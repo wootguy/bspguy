@@ -4,6 +4,7 @@
 #include "BspRenderer.h"
 #include "bsptypes.h"
 #include "BspMerger.h"
+#include <unordered_map>
 
 class Gui;
 class Fgd;
@@ -15,6 +16,7 @@ class PointEntRenderer;
 class Entity;
 class Bsp;
 class LeafNavMesh;
+class MdlRenderer;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -69,6 +71,8 @@ class Renderer {
 	friend class DeduplicateModelsCommand;
 	friend class MoveMapCommand;
 	friend class LeafNavMesh;
+	friend class BspRenderer;
+	friend class MdlRenderer;
 
 public:
 	BspRenderer* mapRenderer;
@@ -123,6 +127,11 @@ private:
 	ShaderProgram* bspShader;
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
+	ShaderProgram* mdlShader;
+	
+	// opengl uniforms
+	uint u_colorMultId;
+
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
 	Gui* gui;
@@ -135,6 +144,9 @@ private:
 	Fgd* mergedFgd = NULL; // merged FGD
 	vector<Fgd*> fgds; // individually loaded FGDs
 
+	unordered_map<string, MdlRenderer*> studioModels;
+	unordered_map<string, string> studioModelPaths; // maps a entity path to an existing path, or blank if not found
+
 	vec3 cameraOrigin;
 	vec3 cameraAngles;
 	vec3 cameraForward;
@@ -146,6 +158,7 @@ private:
 	float fov = 75.0f;
 	float zNear = 1.0f;
 	float zFar = 262144.0f;
+	float zFarMdl = 2048.0f;
 	float rotationSpeed = 5.0f;
 	int windowWidth;
 	int windowHeight;
@@ -258,9 +271,11 @@ private:
 	void drawPolygon3D(Polygon3D& poly, COLOR4 color);
 	float drawPolygon2D(Polygon3D poly, vec2 pos, vec2 maxSz, COLOR4 color); // returns render scale
 	void drawBox2D(vec2 center, float width, COLOR4 color);
-	void drawPlane(BSPPLANE& plane, COLOR4 color);
+	void drawPlane(BSPPLANE& plane, COLOR4 color, float sz=32768);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
+	void drawStudioModels();
+	MdlRenderer* loadStudioModel(Entity* ent);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);

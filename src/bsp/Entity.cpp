@@ -43,8 +43,7 @@ void Entity::addKeyvalue( Keyvalue& k )
 		}
 	}
 
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 }
 
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
@@ -52,13 +51,11 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 	keyvalues[key] = value;
 
 	keyOrder.push_back(key);
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 }
 
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 
 	if (hasKey(key)) {
 		keyvalues[key] = value;
@@ -72,8 +69,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 		return;
 	keyOrder.erase(find(keyOrder.begin(), keyOrder.end(), key));
 	keyvalues.erase(key);
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 }
 
 bool Entity::renameKey(string oldName, string newName) {
@@ -93,8 +89,7 @@ bool Entity::renameKey(string oldName, string newName) {
 	keyOrder[hasKey] = newName;
 	keyvalues[newName] = keyvalues[oldName];
 	keyvalues.erase(oldName);
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 	return true;
 }
 
@@ -112,8 +107,7 @@ void Entity::clearEmptyKeyvalues() {
 		}
 	}
 	keyOrder = newKeyOrder;
-	cachedModelIdx = -2;
-	targetsCached = false;
+	clearCache();
 }
 
 bool Entity::hasKey(const std::string& key)
@@ -528,4 +522,13 @@ string Entity::serialize() {
 	ent_data << "}\n";
 
 	return ent_data.str();
+}
+
+void Entity::clearCache() {
+	cachedModelIdx = -2;
+	targetsCached = false;
+	drawCached = false;
+	hasCachedMdl = false;
+	cachedMdl = NULL;
+	cachedTargets.clear();
 }

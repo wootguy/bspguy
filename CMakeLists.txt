@@ -32,6 +32,7 @@ set(SOURCE_FILES
 	src/util/mat4x4.h		src/util/mat4x4.cpp
 	src/util/Polygon3D.h	src/util/Polygon3D.cpp
 	src/util/Line2D.h		src/util/Line2D.cpp
+	src/util/mstream.h		src/util/mstream.cpp
 	src/globals.h			src/globals.cpp
 	
 	# Navigation meshes
@@ -60,6 +61,8 @@ set(SOURCE_FILES
 	src/editor/Clipper.h			src/editor/Clipper.cpp
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
+	src/editor/MdlRenderer.h		src/editor/MdlRenderer.cpp
+	src/editor/studio.h
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -102,6 +105,10 @@ add_definitions(-DGLEW_STATIC)
 if(MSVC)
 	# no warnings for release builds
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /W0")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /W1")
+
+	# parallel compile
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
 	# compile using the static runtime	
 	set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

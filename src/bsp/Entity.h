@@ -5,6 +5,7 @@
 #include <vector>
 
 class Bsp;
+class MdlRenderer;
 
 class Entity
 {
@@ -15,6 +16,18 @@ public:
 	int cachedModelIdx = -2; // -2 = not cached
 	vector<string> cachedTargets;
 	bool targetsCached = false;
+	
+	// model rendering state updated whenever drawCached is false
+	bool drawCached; // origin, angles, sequence, and model are cached?
+	MdlRenderer* cachedMdl = NULL;
+	string cachedMdlCname; // classname that was used to load the model
+	bool hasCachedMdl = false;
+	bool didStudioDraw = false;
+	vec3 drawAngles;
+	vec3 drawOrigin;
+	vec3 drawMin, drawMax; // model bounding box
+	int drawSequence;
+	float drawFrame;
 
 	Entity(void);
 	Entity(const std::string& classname);
@@ -51,5 +64,7 @@ public:
 	bool isEverVisible();
 
 	string serialize();
+
+	void clearCache();
 };
 

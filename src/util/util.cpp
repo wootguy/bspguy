@@ -945,3 +945,113 @@ vector<string> getAssetPaths() {
 
 	return tryPaths;
 }
+
+string findAsset(string asset) {
+	vector<string> tryPaths = getAssetPaths();
+
+	for (string path : tryPaths) {
+		string testPath = path + asset;
+		if (fileExists(testPath)) {
+			return testPath;
+		}
+	}
+
+	return "";
+}
+
+float rayTriangleIntersect(const vec3& rayOrigin, const vec3& rayDir, const vec3& v0, const vec3& v1, const vec3& v2) {
+	// Möller–Trumbore algorithm
+
+	vec3 edge1 = v1 - v0;
+	vec3 edge2 = v2 - v0;
+
+	vec3 h = crossProduct(rayDir, edge2);
+	float a = dotProduct(edge1, h);
+
+	if (a > -EPSILON && a < EPSILON) {
+		return -1.0f; // parallel to the triangle
+	}
+
+	float f = 1.0f / a;
+	vec3 s = rayOrigin - v0;
+	float u = f * dotProduct(s, h);
+
+	if (u < 0.0f || u > 1.0f) {
+		return -1.0f;
+	}
+
+	vec3 q = crossProduct(s, edge1);
+	float v = f * dotProduct(rayDir, q);
+
+	if (v < 0.0f || u + v > 1.0f) {
+		return -1.0f;
+	}
+
+	float t = f * dotProduct(edge2, q);
+
+	return (t > EPSILON) ? t : -1.0f; // Return distance or -1.0f if no intersection
+}
+
+Frustum getViewFrustum(vec3 camOrigin, vec3 camAngles, float aspect, float zNear, float zFar, float fov) {
+	// https://learnopengl.com/Guest-Articles/2021/Scene/Frustum-Culling
+	Frustum frustum;
+
+	vec3 camForward, camRight, camUp;
+	makeVectors(camAngles, camForward, camRight, camUp);
+
+	const float halfVSide = zFar * tanf(fov * (PI / 180.0f) * 0.5f);
+	const float halfHSide = halfVSide * aspect;
+	const vec3 frontMultFar = camForward * zFar;
+
+	frustum.planes[0] = crossProduct(frontMultFar - camRight * halfHSide, camUp).normalize();
+	frustum.planes[1] = crossProduct(camUp, frontMultFar + camRight * halfHSide).normalize();
+	frustum.planes[2] = crossProduct(camRight, frontMultFar - camUp * halfVSide).normalize();
+	frustum.planes[3] = crossProduct(frontMultFar + camUp * halfVSide, camRight).normalize();
+
+	frustum.origin = camOrigin;
+
+	return frustum;
+}
+
+bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax) {
+	vec3 corners[8] = {
+		{min.x, min.y, min.z}, {max.x, min.y, min.z},
+		{min.x, max.y, min.z}, {max.x, max.y, min.z},
+		{min.x, min.y, max.z}, {max.x, min.y, max.z},
+		{min.x, max.y, max.z}, {max.x, max.y, max.z},
+	};
+
+	bool allTooFar = true;
+	for (const vec3& corner : corners) {
+		vec3 delta = corner - frustum.origin;
+		if (delta.length() < zMax) {
+			allTooFar = false;
+		}
+	}
+	if (allTooFar)
+		return false;
+
+	for (int i = 0; i < 4; i++) {
+		bool allOutside = true;
+		for (const vec3& corner : corners) {
+			vec3 delta = corner - frustum.origin;
+			if (dotProduct(delta, frustum.planes[i]) > 0) {
+				allOutside = false;
+			}
+		}
+		if (allOutside)
+			return false;
+	}
+
+	return true;
+}
+
+// https://stackoverflow.com/questions/1628386/normalise-orientation-between-0-and-360
+float normalizeRangef(const float value, const float start, const float end)
+{
+	const float width = end - start;
+	const float offsetValue = value - start;   // value relative to 0
+
+	return (offsetValue - (floorf(offsetValue / width) * width)) + start;
+	// + start to reset back to start of original range
+}

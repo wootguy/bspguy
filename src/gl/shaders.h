@@ -10,3 +10,6 @@ extern const char* g_shader_multitexture_fragment;
 
 extern const char* g_shader_fullbright_vertex;
 extern const char* g_shader_fullbright_fragment;
+
+extern const char* g_shader_mdl_fragment;
+extern const char* g_shader_mdl_vertex;

@@ -23,8 +23,10 @@ PointEntRenderer::~PointEntRenderer() {
 }
 
 EntCube* PointEntRenderer::getEntCube(Entity* ent) {
-	string cname = ent->keyvalues["classname"];
+	return getEntCube(ent->keyvalues["classname"]);
+}
 
+EntCube* PointEntRenderer::getEntCube(string cname) {
 	if (cubeMap.find(cname) != cubeMap.end()) {
 		return cubeMap[cname];
 	}

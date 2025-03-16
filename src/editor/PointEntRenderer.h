@@ -28,6 +28,7 @@ public:
 	~PointEntRenderer();
 
 	EntCube* getEntCube(Entity* ent);
+	EntCube* getEntCube(string cname);
 
 private:
 	ShaderProgram* colorShader;

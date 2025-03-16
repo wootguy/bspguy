@@ -29,10 +29,11 @@ Fgd::~Fgd() {
 }
 
 FgdClass* Fgd::getFgdClass(string cname) {
-	if (classMap.find(cname) == classMap.end()) {
+	auto item = classMap.find(cname);
+	if (item == classMap.end()) {
 		return NULL;
 	}
-	return classMap[cname];
+	return item->second;
 }
 
 void Fgd::merge(Fgd* other) {
@@ -371,6 +372,7 @@ bool Fgd::stringGroupEnds(string s) {
 string Fgd::getValueInParens(string s) {
 	s = s.substr(s.find("(") + 1);
 	s = s.substr(0, s.rfind(")"));
+	replaceAll(s, "\"", "");
 	return trimSpaces(s);
 }
 
