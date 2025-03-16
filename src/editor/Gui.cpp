@@ -23,6 +23,7 @@
 #include "fonts/robotomedium.h"
 #include "icons/object.h"
 #include "icons/face.h"
+#include <unordered_set>
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
@@ -1082,7 +1083,6 @@ void Gui::drawMenuBar() {
 					command->execute();
 					app->pushUndoCommand(command);
 				}
-
 			}
 			tooltip(g, "Deletes BSP data and entities inside of a box defined by 2 \"cull\" entities "
 				"(for the min and max extent of the box). This is useful for getting maps to run in an "
@@ -1374,8 +1374,7 @@ void Gui::drawMenuBar() {
 		ImGui::SameLine(startPos + labelWidth + spacing);
 		ImGui::SetNextItemWidth(inputWidth);
 		if (ImGui::InputText("##Origin", cam_origin, 32)) {
-			app->cameraOrigin = parseVector(cam_origin);			
-			logf("Zomg changed: %s\n", cam_origin);
+			app->cameraOrigin = parseVector(cam_origin);
 		}
 
 		ImGui::SameLine();
@@ -1922,7 +1921,7 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
-		if (app->pickInfo.ents.size() == 1) {
+		if (app->pickInfo.ents.size() > 0) {
 			Bsp* map = app->pickInfo.getMap();
 			Entity* ent = app->pickInfo.getEnt();
 			BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
@@ -1942,17 +1941,25 @@ void Gui::drawKeyvalueEditor() {
 				}
 			}
 
+			bool sameClassesSelected = true;
+			vector<Entity*> pickEnts = app->pickInfo.getEnts();
+			for (Entity* ent : pickEnts) {
+				if (ent->keyvalues["classname"] != cname) {
+					sameClassesSelected = false;
+					break;
+				}
+			}
+
 			ImGui::Columns(2, "smartcolumns", false);
 			ImGui::PushFont(largeFont);
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text("Class:");
 			ImGui::SameLine();
-			if (cname != "worldspawn") {
-				if (ImGui::Button((" " + cname + " ").c_str()))
-					ImGui::OpenPopup("classname_popup");
-			}
-			else {
+			if (cname == "worldspawn") {
 				ImGui::Text(cname.c_str());
+			}
+			else if (ImGui::Button(sameClassesSelected ? (" " + cname + " ").c_str() : "<multiple>")) {
+				ImGui::OpenPopup("classname_popup");
 			}
 			ImGui::PopFont();
 
@@ -1978,7 +1985,7 @@ void Gui::drawKeyvalueEditor() {
 					ImGui::PopFont();
 					ImGui::SetTooltip("The Game Definition File determines which keyvalues/flags to display.\n\n"
 						"This will change automatically if an entity definition isn't found\n"
-						"for the FGD you previously selected.\n");
+						"in the FGD you previously selected.\n");
 					ImGui::PushFont(largeFont);
 				}
 				ImGui::SameLine();
@@ -2004,8 +2011,10 @@ void Gui::drawKeyvalueEditor() {
 					if (ImGui::BeginMenu(group.groupName.c_str())) {
 						for (int k = 0; k < group.classes.size(); k++) {
 							if (ImGui::MenuItem(group.classes[k]->name.c_str())) {
-								ent->setOrAddKeyvalue("classname", group.classes[k]->name);
-								app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
+								for (Entity* ent : pickEnts) {
+									ent->setOrAddKeyvalue("classname", group.classes[k]->name);
+									app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
+								}
 								app->pushEntityUndoState("Change Class");
 								entityReportFilterNeeded = true;
 							}
@@ -2039,19 +2048,31 @@ void Gui::drawKeyvalueEditor() {
 			{
 				if (ImGui::BeginTabItem("Attributes")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_SmartEditTab(ent, fgd);
+					if (!sameClassesSelected) {
+						ImGui::Text("Multiple entity classes selected.");
+						ImGui::Text("Use the Raw Edit tab instead.");
+					}
+					else {
+						drawKeyvalueEditor_SmartEditTab(fgd);
+					}
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Flags")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_FlagsTab(ent, fgd);
+					if (!sameClassesSelected) {
+						ImGui::Text("Multiple entity classes selected.");
+						ImGui::Text("Use the Raw Edit tab instead.");
+					}
+					else {
+						drawKeyvalueEditor_FlagsTab(fgd);
+					}
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Raw Edit")) {
 					ImGui::Dummy(ImVec2(0, 10));
-					drawKeyvalueEditor_RawEditTab(ent);
+					drawKeyvalueEditor_RawEditTab();
 					ImGui::EndTabItem();
 				}
 			}
@@ -2069,7 +2090,8 @@ void Gui::drawKeyvalueEditor() {
 	ImGui::End();
 }
 
-void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd) {
+void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
+	Entity* ent = g_app->pickInfo.getEnt();
 	if (!fgd) {
 		ImGui::Text("No entity definition found for %s.", ent->keyvalues["classname"].c_str());
 		return;
@@ -2169,7 +2191,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd) {
 				string title = groups[k].name + " (" + to_string(groups[k].keys.size()) + ")";
 				if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 					ImGui::Dummy(ImVec2(0, 2));
-					drawKeyvalueEditor_SmartEditTab_GroupKeys(ent, groups[k].keys, inputWidth, true, keyOffset);
+					drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, inputWidth, true, keyOffset);
 					ImGui::Dummy(ImVec2(0, 2));
 				}
 
@@ -2178,7 +2200,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd) {
 				ImGui::PopStyleColor(7);
 			}
 			else {
-				drawKeyvalueEditor_SmartEditTab_GroupKeys(ent, groups[k].keys, inputWidth, false, keyOffset);
+				drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, inputWidth, false, keyOffset);
 			}
 			//ImGui::PopStyleColor(3);
 
@@ -2193,15 +2215,15 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Entity* ent, Fgd* fgd) {
 	ImGui::EndChild();
 }
 
-void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<KeyvalueDef>& keys, float inputWidth, bool isGrouped, int keyOffset) {
+void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, float inputWidth, bool isGrouped, int keyOffset) {
 	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
 	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
 
 	struct InputData {
+		int idx;
 		string key;
 		string defaultValue;
-		Entity* entRef;
-		int entIdx;
+		bool matchingValues;
 		BspRenderer* bspRenderer;
 	};
 	
@@ -2209,13 +2231,27 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 
 	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
 	
+	vector<Entity*> pickEnts = app->pickInfo.getEnts();
+
 	for (int i = 0; i < keys.size(); i++) {
 		KeyvalueDef& keyvalue = keys[i];
 		string key = keyvalue.name;
 		if (key == "spawnflags") {
 			continue;
 		}
-		string value = ent->keyvalues[key];
+
+		bool matchingValues = true;
+		string matchValue = pickEnts[0]->keyvalues[key];
+		for (Entity* ent : pickEnts) {
+			if (ent->keyvalues.find(key) != ent->keyvalues.end()) {
+				if (matchValue != ent->keyvalues[key]) {
+					matchingValues = false;
+					break;
+				}
+			}
+		}
+
+		string value = matchingValues ? matchValue : "(no change)";
 		string niceName = keyvalue.description;
 
 		// TODO: ImGui doesn't have placeholder text like in HTML forms,
@@ -2235,9 +2271,9 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 
 		inputData[bufferIdx].key = key;
 		inputData[bufferIdx].defaultValue = keyvalue.defaultValue;
-		inputData[bufferIdx].entIdx = app->pickInfo.getEntIndex();
-		inputData[bufferIdx].entRef = ent;
 		inputData[bufferIdx].bspRenderer = app->mapRenderer;
+		inputData[bufferIdx].matchingValues = matchingValues;
+		inputData[bufferIdx].idx = bufferIdx;
 
 		ImGui::SetNextItemWidth(inputWidth);
 		ImGui::AlignTextToFramePadding();
@@ -2253,6 +2289,15 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 		ImGui::NextColumn();
 
 		ImGui::SetNextItemWidth(inputWidth);
+
+		bool colorChanged = true;
+		if (!matchingValues) {
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
+			ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.5f, 0.0f, 0.7f));
+		}
+		else {
+			colorChanged = false;
+		}
 
 		if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
 			string selectedValue = keyvalue.choices[0].name;
@@ -2274,8 +2319,13 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 					bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
 
 					if (ImGui::Selectable(choice.name.c_str(), selected)) {
-						ent->setOrAddKeyvalue(key, choice.svalue);
-						app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
+						for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+							int idx = g_app->pickInfo.ents[i];
+							Entity* ent = g_app->pickInfo.getMap()->ents[idx];
+							ent->setOrAddKeyvalue(key, choice.svalue);
+							app->mapRenderer->refreshEnt(idx);
+						}
+						
 						app->updateEntConnections();
 						app->pushEntityUndoState("Edit Keyvalue");
 					}
@@ -2295,17 +2345,29 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 						return 1;
 					}
 
-					InputData* inputData = (InputData*)data->UserData;
-					Entity* ent = inputData->entRef;
+					InputData* dat = (InputData*)data->UserData;
 
-					string newVal = data->Buf;
-					if (newVal.empty()) {
-						ent->removeKeyvalue(inputData->key);
+					if (!dat->matchingValues) {
+						keyValues[dat->idx][0] = 0; // clear the "(no change)" text
+						data->Buf[0] = 0;
+						data->BufTextLen = 0;
+						data->BufDirty = true;
 					}
-					else {
-						ent->setOrAddKeyvalue(inputData->key, newVal);
+					
+					for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+						int idx = g_app->pickInfo.ents[i];
+						Entity* ent = g_app->pickInfo.getMap()->ents[idx];
+
+						string newVal = data->Buf;
+						if (newVal.empty()) {
+							ent->removeKeyvalue(dat->key);
+						}
+						else {
+							ent->setOrAddKeyvalue(dat->key, newVal);
+						}
+						dat->bspRenderer->refreshEnt(idx);
 					}
-					inputData->bspRenderer->refreshEnt(inputData->entIdx);
+					
 					g_app->updateEntConnections();
 					return 1;
 				}
@@ -2322,11 +2384,21 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(Entity* ent, vector<Keyvalue
 			}
 		}
 
+		if (ImGui::IsItemHovered()) {
+			if (!matchingValues) {
+				ImGui::SetTooltip("This value differs between the selected entities");
+			}
+		}
+
+		if (colorChanged) {
+			ImGui::PopStyleColor(2);
+		}
+
 		ImGui::NextColumn();
 	}
 }
 
-void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd) {
+void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 	if (!fgd) {
 		ImGui::Text("No FGD loaded.");
 		ImGui::Text("Add an FGD in Settings or use the Raw Edit tab instead.");
@@ -2334,9 +2406,14 @@ void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd) {
 	}
 
 	ImGui::BeginChild("FlagsWindow");
+	vector<Entity*> pickEnts = app->pickInfo.getEnts();
 
-	uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
-	FgdClass* fgdClass = fgd->getFgdClass(ent->keyvalues["classname"]);
+	uint combinedSpawnFlags = 0;
+	for (Entity* ent : pickEnts) {
+		combinedSpawnFlags |= strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+	}
+
+	FgdClass* fgdClass = fgd->getFgdClass(pickEnts[0]->keyvalues["classname"]);
 
 	ImGui::Columns(2, "keyvalcols", true);
 
@@ -2351,21 +2428,58 @@ void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd) {
 			name = fgdClass->spawnFlagNames[i];
 		}
 
-		checkboxEnabled[i] = spawnflags & (1 << i);
+		bool matchingFlags = true;
+
+		checkboxEnabled[i] = combinedSpawnFlags & (1 << i);
+
+		bool flagsDiffer = false;
+		for (Entity* ent : pickEnts) {
+			uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+			if ((spawnflags & (1 << i)) != (combinedSpawnFlags & (1 << i))) {
+				flagsDiffer = true;
+				break;
+			}
+		}
+
+		bool colorChanged = true;
+		if (flagsDiffer) {
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
+			ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.5f, 0.0f, 0.7f));
+			ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(1.0f, 0.5f, 0.0f, 0.6f));
+			ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+		}
+		else {
+			colorChanged = false;
+		}
 
 		if (ImGui::Checkbox((name + "##flag" + to_string(i)).c_str(), &checkboxEnabled[i])) {
-			if (!checkboxEnabled[i]) {
-				spawnflags &= ~(1U << i);
+			for (Entity* ent : pickEnts) {
+				uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+
+				if (!checkboxEnabled[i]) {
+					spawnflags &= ~(1U << i);
+				}
+				else {
+					spawnflags |= (1U << i);
+				}
+
+				if (spawnflags != 0)
+					ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags));
+				else
+					ent->removeKeyvalue("spawnflags");
 			}
-			else {
-				spawnflags |= (1U << i);
-			}
-			if (spawnflags != 0)
-				ent->setOrAddKeyvalue("spawnflags", to_string(spawnflags));
-			else
-				ent->removeKeyvalue("spawnflags");
 
 			app->pushEntityUndoState(checkboxEnabled[i] ? "Enable Flag" : "Disable Flag");
+		}
+		if (ImGui::IsItemHovered() && flagsDiffer) {
+			ImGui::PopStyleColor(1);
+			ImGui::SetTooltip("This flag is not enabled on all selected entities");
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+		}
+
+		if (colorChanged) {
+			ImGui::PopStyleColor(5);
 		}
 	}
 
@@ -2374,7 +2488,7 @@ void Gui::drawKeyvalueEditor_FlagsTab(Entity* ent, Fgd* fgd) {
 	ImGui::EndChild();
 }
 
-void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
+void Gui::drawKeyvalueEditor_RawEditTab() {
 	ImGuiStyle& style = ImGui::GetStyle();
 
 	ImGui::Columns(4, "keyvalcols", false);
@@ -2410,10 +2524,44 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
 	float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
 
+	unordered_set<string> addedKeys;
+	static vector<string> combinedKeys;
+	vector<string> oldCombinedKeys = combinedKeys;
+	vector<Entity*> pickEnts = app->pickInfo.getEnts();
+	combinedKeys.clear();
+	bool multiedit = pickEnts.size() > 1;
+	Bsp* map = app->pickInfo.getMap();
+	bool fullRefreshNeeded = false;
+
+	if (multiedit) {
+		for (int i = 0; i < app->pickInfo.ents.size(); i++) {
+			Entity* ent = map->ents[app->pickInfo.ents[i]];
+
+			for (int k = 0; k < ent->keyOrder.size(); k++) {
+				string key = ent->keyOrder[k];
+				if (!addedKeys.count(key)) {
+					addedKeys.insert(key);
+					combinedKeys.push_back(key);
+				}
+			}
+		}
+
+		bool keysMoved = combinedKeys.size() != oldCombinedKeys.size();
+		for (int i = 0; i < combinedKeys.size() && !keysMoved; i++) {
+			if (combinedKeys[i] != oldCombinedKeys[i]) {
+				keysMoved = true;
+			}
+		}
+		fullRefreshNeeded = keysMoved;
+	}
+	else {
+		combinedKeys = app->pickInfo.getEnt()->keyOrder;
+	}
+
 	struct InputData {
 		int idx;
-		Entity* entRef;
-		int entIdx;
+		bool matchingValues;
+		string commonValue;
 		BspRenderer* bspRenderer;
 		Gui* gui;
 	};
@@ -2421,18 +2569,37 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	struct TextChangeCallback {
 		static int keyNameChanged(ImGuiInputTextCallbackData* data) {
 			InputData* inputData = (InputData*)data->UserData;
-			Entity* ent = inputData->entRef;
+			string oldKey = combinedKeys[inputData->idx];
+			combinedKeys[inputData->idx] = data->Buf;
 
-			string key = ent->keyOrder[inputData->idx];
-			if (key != data->Buf) {
-				ent->renameKey(inputData->idx, data->Buf);
-				inputData->bspRenderer->refreshEnt(inputData->entIdx);
-				if (key == "model" || string(data->Buf) == "model") {
-					inputData->bspRenderer->preRenderEnts();
-					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
+			bool anyUpdate = false;
+			bool modelUpdate = false;
+			for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+				int entidx = g_app->pickInfo.ents[i];
+				Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
+
+				if (ent->keyvalues.find(oldKey) == ent->keyvalues.end()) {
+					ent->setOrAddKeyvalue(data->Buf, inputData->matchingValues ? inputData->commonValue : "");
 				}
-				g_app->updateEntConnections();
+				else {
+					if (!ent->renameKey(oldKey, data->Buf)) {
+						continue;
+					}
+				}
+				inputData->bspRenderer->refreshEnt(entidx);
+				if (oldKey == "model" || string(data->Buf) == "model") {
+					modelUpdate = true;
+				}
+				anyUpdate = true;
 				inputData->gui->entityReportFilterNeeded = true;
+			}
+
+			if (modelUpdate) {
+				inputData->bspRenderer->preRenderEnts();
+				g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
+			}
+			if (anyUpdate) {
+				g_app->updateEntConnections();
 			}
 
 			return 1;
@@ -2440,18 +2607,43 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 
 		static int keyValueChanged(ImGuiInputTextCallbackData* data) {
 			InputData* inputData = (InputData*)data->UserData;
-			Entity* ent = inputData->entRef;
-			string key = ent->keyOrder[inputData->idx];
+			string key = combinedKeys[inputData->idx];
 
-			if (ent->keyvalues[key] != data->Buf) {
-				ent->setOrAddKeyvalue(key, data->Buf);
-				inputData->bspRenderer->refreshEnt(inputData->entIdx);
-				if (key == "model") {
-					inputData->bspRenderer->preRenderEnts();
-					g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
+			if (key == data->Buf) {
+				return 1;
+			}
+
+			if (!inputData->matchingValues) {
+				keyValues[inputData->idx][0] = 0; // clear the "(no change)" text
+				data->Buf[0] = 0;
+				data->BufTextLen = 0;
+				data->BufDirty = true;
+			}
+
+			bool anyUpdate = false;
+			bool modelUpdate = false;
+			for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+				int entidx = g_app->pickInfo.ents[i];
+				Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
+
+				if (ent->keyvalues.find(key) == ent->keyvalues.end() || ent->keyvalues[key] != data->Buf) {
+					ent->setOrAddKeyvalue(key, data->Buf);
+					inputData->bspRenderer->refreshEnt(entidx);
+					
+					if (key == "model") {
+						modelUpdate = true;
+					}
+					anyUpdate = true;
+					inputData->gui->entityReportFilterNeeded = true;
 				}
+			}
+
+			if (modelUpdate) {
+				inputData->bspRenderer->preRenderEnts();
+				g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
+			}
+			if (anyUpdate) {
 				g_app->updateEntConnections();
-				inputData->gui->entityReportFilterNeeded = true;
 			}
 
 			return 1;
@@ -2490,11 +2682,17 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	static bool wasKeyDragging = false;
 	bool keyDragging = false;
 
+	if (fullRefreshNeeded) {
+		ImGui::ClearActiveID();
+	}
+
 	float startY = 0;
-	for (int i = 0; i < ent->keyOrder.size() && i < MAX_KEYS_PER_ENT; i++) {
+	for (int i = 0; i < combinedKeys.size() && i < MAX_KEYS_PER_ENT; i++) {
 		const char* item = dragIds[i];
 
+		// drag buttons
 		{
+			ImGui::BeginDisabled(multiedit);
 			style.SelectableTextAlign.x = 0.5f;
 			ImGui::AlignTextToFramePadding();
 			ImGui::PushStyleColor(ImGuiCol_Header, hoveredDrag[i] ? dragColor : dragButColor);
@@ -2508,14 +2706,13 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			if (hoveredDrag[i]) {
 				keyDragging = true;
 			}
-
-
 			if (i == 0) {
 				startY = ImGui::GetItemRectMin().y;
 			}
 
 			if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
 			{
+				Entity* ent = app->pickInfo.getEnt();
 				int n_next = (ImGui::GetMousePos().y - startY) / (ImGui::GetItemRectSize().y + style.FramePadding.y * 2);
 				if (n_next >= 0 && n_next < ent->keyOrder.size() && n_next < MAX_KEYS_PER_ENT)
 				{
@@ -2532,57 +2729,112 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 					ImGui::ResetMouseDragDelta();
 				}
 			}
-
+			ImGui::EndDisabled();
 			ImGui::NextColumn();
 		}
+		
 
-		string key = ent->keyOrder[i];
-		string value = ent->keyvalues[key];
+		string key = combinedKeys[i];
 
+		bool sharedKey = true;
+		for (int k = 0; k < app->pickInfo.ents.size(); k++) {
+			Entity* ent = map->ents[app->pickInfo.ents[k]];
+			if (ent->keyvalues.find(key) == ent->keyvalues.end()) {
+				sharedKey = false;
+				break;
+			}
+		}
+		
+		bool matchingValues = true;
+		string matchValue = pickEnts[0]->keyvalues[key];
+		for (Entity* ent : pickEnts) {
+			if (ent->keyvalues.find(key) != ent->keyvalues.end()) {
+				if (matchValue != ent->keyvalues[key]) {
+					matchingValues = false;
+					break;
+				}
+			}
+		}
+
+		string value = matchingValues ? matchValue : "(no change)";
+		
+		// key column
 		{
 			bool invalidKey = ignoreErrors == 0 && lastPickCount == app->pickCount && key != keyNames[i];
 
 			strcpy(keyNames[i], key.c_str());
 
 			keyIds[i].idx = i;
-			keyIds[i].entIdx = app->pickInfo.getEntIndex();
-			keyIds[i].entRef = ent;
 			keyIds[i].bspRenderer = app->mapRenderer;
 			keyIds[i].gui = this;
+			keyIds[i].matchingValues = matchingValues;
+			keyIds[i].commonValue = matchValue;
 
+			bool coloredKey = true;
 			if (invalidKey) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 			}
+			else if (!sharedKey) {
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
+			}
 			else if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
+			}
+			else {
+				coloredKey = false;
 			}
 
 			ImGui::SetNextItemWidth(inputWidth);
 			ImGui::InputText(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(), keyNames[i], MAX_KEY_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
+			
+			if (ImGui::IsItemHovered()) {
+				if (invalidKey) {
+					ImGui::SetTooltip("Key already exists");
+				}
+				else if (!sharedKey) {
+					ImGui::SetTooltip("This key does not exist in all selected entities");
+				}
+			}
 
-			if (invalidKey || hoveredDrag[i]) {
+			if (coloredKey) {
 				ImGui::PopStyleColor();
 			}
 
 			ImGui::NextColumn();
 		}
+
+		// value column
 		{
 			strcpy(keyValues[i], value.c_str());
 
 			valueIds[i].idx = i;
-			valueIds[i].entIdx = app->pickInfo.getEntIndex();
-			valueIds[i].entRef = ent;
 			valueIds[i].bspRenderer = app->mapRenderer;
 			valueIds[i].gui = this;
+			valueIds[i].matchingValues = matchingValues;
+			valueIds[i].commonValue = matchValue;
 
-			if (hoveredDrag[i]) {
+			bool colorChanged = true;
+			if (!matchingValues) {
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
+			}
+			else if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
 			}
+			else {
+				colorChanged = false;
+			}
+
 			ImGui::SetNextItemWidth(inputWidth);
 			ImGui::InputText(("##val" + to_string(i) + to_string(app->pickCount)).c_str(), keyValues[i], MAX_VAL_LEN, ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
-			if (hoveredDrag[i]) {
+			if (ImGui::IsItemHovered()) {
+				if (!matchingValues) {
+					ImGui::SetTooltip("This value differs between the selected entities");
+				}
+			}
+
+			if (colorChanged) {
 				ImGui::PopStyleColor();
 			}
 
@@ -2594,8 +2846,13 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0, 0.8f, 0.8f));
 			if (ImGui::Button((" X ##del" + to_string(i)).c_str())) {
-				ent->removeKeyvalue(key);
-				app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
+				for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+					int entidx = g_app->pickInfo.ents[i];
+					Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
+					ent->removeKeyvalue(key);
+					app->mapRenderer->refreshEnt(entidx);
+				}
+				
 				if (key == "model")
 					app->mapRenderer->preRenderEnts();
 				ignoreErrors = 2;
@@ -2610,9 +2867,7 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	if (!keyDragging && wasKeyDragging) {
 		app->pushEntityUndoState("Move Keyvalue");
 	}
-
 	wasKeyDragging = keyDragging;
-
 	lastPickCount = app->pickCount;
 
 	ImGui::Columns(1);
@@ -2620,15 +2875,20 @@ void Gui::drawKeyvalueEditor_RawEditTab(Entity* ent) {
 	ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 	ImGui::Dummy(ImVec2(butColWidth, 0)); ImGui::SameLine();
 	if (ImGui::Button(" Add ")) {
-		string baseKeyName = "NewKey";
-		string keyName = "NewKey";
-		for (int i = 0; i < 128; i++) {
-			if (!ent->hasKey(keyName)) {
-				break;
+		for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+			int entidx = g_app->pickInfo.ents[i];
+			Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
+			string baseKeyName = "NewKey";
+			string keyName = "NewKey";
+			for (int i = 0; i < 128; i++) {
+				if (!ent->hasKey(keyName)) {
+					break;
+				}
+				keyName = baseKeyName + "#" + to_string(i + 2);
 			}
-			keyName = baseKeyName + "#" + to_string(i + 2);
+			ent->addKeyvalue(keyName, "");
 		}
-		ent->addKeyvalue(keyName, "");
+		
 		app->mapRenderer->refreshEnt(app->pickInfo.getEntIndex());
 		app->updateEntConnections();
 		ignoreErrors = 2;

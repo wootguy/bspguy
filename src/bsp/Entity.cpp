@@ -76,19 +76,23 @@ void Entity::removeKeyvalue(const std::string& key) {
 	targetsCached = false;
 }
 
-bool Entity::renameKey(int idx, string newName) {
-	if (idx < 0 || idx >= keyOrder.size() || newName.empty()) {
-		return false;
-	}
+bool Entity::renameKey(string oldName, string newName) {
+	int hasKey = -1;
 	for (int i = 0; i < keyOrder.size(); i++) {
+		if (keyOrder[i] == oldName) {
+			hasKey = i;
+		}
 		if (keyOrder[i] == newName) {
 			return false;
 		}
 	}
-
-	keyvalues[newName] = keyvalues[keyOrder[idx]];
-	keyvalues.erase(keyOrder[idx]);
-	keyOrder[idx] = newName;
+	if (hasKey == -1 || newName.empty() || newName == oldName) {
+		return false;
+	}
+	
+	keyOrder[hasKey] = newName;
+	keyvalues[newName] = keyvalues[oldName];
+	keyvalues.erase(oldName);
 	cachedModelIdx = -2;
 	targetsCached = false;
 	return true;

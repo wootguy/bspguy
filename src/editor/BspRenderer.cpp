@@ -2113,3 +2113,17 @@ bool PickInfo::isEntSelected(int entIdx) {
 
 	return false;
 }
+
+vector<Entity*> PickInfo::getEnts() {
+	vector<Entity*> outEnts;
+	Bsp* map = getMap();
+
+	for (int i = 0; i < ents.size(); i++) {
+		int idx = ents[i];
+		if (map && idx >= 0 && idx < map->ents.size()) {
+			outEnts.push_back(map->ents[idx]);
+		}
+	}
+
+	return outEnts;
+}

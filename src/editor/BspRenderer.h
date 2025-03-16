@@ -122,6 +122,7 @@ public:
 	vec3 getOrigin(); // origin of the selected entity
 	bool isFaceSelected(int faceIdx);
 	bool isEntSelected(int entIdx);
+	vector<Entity*> getEnts();
 };
 
 class Wad;

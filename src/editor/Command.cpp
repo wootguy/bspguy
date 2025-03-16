@@ -89,20 +89,11 @@ Entity* EditEntitiesCommand::getEntForIndex(int idx) {
 
 void EditEntitiesCommand::refresh() {
 	BspRenderer* renderer = getBspRenderer();
-
-	for (int i = 0; i < entIndexes.size(); i++) {
-		Entity* ent = getEntForIndex(entIndexes[i]);
-		renderer->refreshEnt(entIndexes[i]);
-		if (ent && !ent->isBspModel()) {
-			renderer->refreshPointEnt(entIndexes[i]);
-		}
-	}
 	
 	g_app->updateEntConnections();
 	g_app->updateEntityUndoState();
 	g_app->pickCount++; // force GUI update
-	g_app->updateModelVerts();
-	g_app->updateCullBox();
+	g_app->mapRenderer->preRenderEnts(); // in case a point entity lost/gained a model
 }
 
 int EditEntitiesCommand::memoryUsage() {
