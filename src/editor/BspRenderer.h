@@ -50,14 +50,18 @@ struct LightmapInfo {
 
 struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
-	vec3 normal;
+	vec3 plane_x;
+	vec3 plane_y;
+	vec3 plane_z;
 	float fdist;
+	vector<vec3> verts;
 	vector<vec2> localVerts;
 };
 
 struct RenderEnt {
 	mat4x4 modelMat; // model matrix for rendering
 	vec3 offset; // vertex transformations for picking
+	vec3 angles; // vertex transformations for picking
 	int modelIdx; // -1 = point entity
 	EntCube* pointEntCube;
 };
@@ -147,7 +151,7 @@ public:
 	void drawPointEntities(const vector<int>& highlightedEnts);
 
 	bool pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx);
-	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx, int& faceIdx, int& entIdx, float& bestDist);
+	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx, int& faceIdx, float& bestDist);
 	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
 
 	void refreshEnt(int entIdx);

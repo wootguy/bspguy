@@ -108,6 +108,8 @@ public:
 	bool isHovered = false;
 	bool isIconified = false;
 
+	bool forceAngleRotation = false; // force solid entities to respect their angles key, for previewing
+
 	Renderer();
 	~Renderer();
 
@@ -323,6 +325,7 @@ private:
 	void clearUndoCommands();
 	void clearRedoCommands();
 	void calcUndoMemoryUsage();
+	void clearMapData();
 
 	void updateEntityUndoState();
 	void saveLumpState(Bsp* map, int targetLumps, bool deleteOldState);

@@ -840,9 +840,12 @@ void BspRenderer::generateNavMeshBuffer() {
 		// calculations for face picking
 		{
 			FaceMath faceMath;
-			faceMath.normal = normal;
+			faceMath.plane_x = poly.plane_x;
+			faceMath.plane_y = poly.plane_y;
+			faceMath.plane_z = poly.plane_z;
 			faceMath.fdist = poly.fdist;
 			faceMath.worldToLocal = poly.worldToLocal;
+			faceMath.verts = poly.verts;
 			faceMath.localVerts = poly.localVerts;
 			faceMaths.push_back(faceMath);
 		}
@@ -1099,7 +1102,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 				// calculations for face picking
 				{
 					FaceMath faceMath;
-					faceMath.normal = mesh.faces[i].normal;
+					faceMath.plane_z = mesh.faces[i].normal;
 					faceMath.fdist = getDistAlongAxis(mesh.faces[i].normal, faceVerts[0]);
 
 					vec3 v0 = faceVerts[0];
@@ -1117,12 +1120,14 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 					}
 
 					vec3 plane_z = mesh.faces[i].normal;
-					vec3 plane_x = (v1 - v0).normalize();
-					vec3 plane_y = crossProduct(plane_z, plane_x).normalize();
+					vec3 plane_x = faceMath.plane_x = (v1 - v0).normalize();
+					vec3 plane_y = faceMath.plane_y = crossProduct(plane_z, plane_x).normalize();
 					faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 
+					faceMath.verts = vector<vec3>(faceVerts.size());
 					faceMath.localVerts = vector<vec2>(faceVerts.size());
 					for (int k = 0; k < faceVerts.size(); k++) {
+						faceMath.verts[k] = faceVerts[k];
 						faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(faceVerts[k], 1)).xy();
 					}
 
@@ -1282,6 +1287,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 	renderEnts[entIdx].modelIdx = ent->getBspModelIdx();
 	renderEnts[entIdx].modelMat.loadIdentity();
 	renderEnts[entIdx].offset = vec3(0, 0, 0);
+	renderEnts[entIdx].angles = vec3(0, 0, 0);
 	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
 	ent->hasCachedMdl = false;
 	ent->drawCached = false;
@@ -1290,6 +1296,9 @@ void BspRenderer::refreshEnt(int entIdx) {
 		vec3 origin = parseVector(ent->keyvalues["origin"]);
 		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
 		renderEnts[entIdx].offset = origin;
+	}
+	if (ent->hasKey("angles")) {
+		renderEnts[entIdx].angles = parseVector(ent->keyvalues["angles"]).flip() * (PI / 180.0f);
 	}
 }
 
@@ -1319,7 +1328,7 @@ void BspRenderer::refreshFace(int faceIdx) {
 	vec3 planeNormal = face.nPlaneSide ? plane.vNormal * -1 : plane.vNormal;
 	float fDist = face.nPlaneSide ? -plane.fDist : plane.fDist;
 
-	faceMath.normal = planeNormal;
+	faceMath.plane_z = planeNormal;
 	faceMath.fdist = fDist;
 	
 	vector<vec3> allVerts(face.nEdges);
@@ -1336,14 +1345,16 @@ void BspRenderer::refreshFace(int faceIdx) {
 		}
 	}
 
-	vec3 plane_x = (v1 - allVerts[0]).normalize(1.0f);
-	vec3 plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
+	vec3 plane_x = faceMath.plane_x = (v1 - allVerts[0]).normalize(1.0f);
+	vec3 plane_y = faceMath.plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
 	vec3 plane_z = planeNormal;
 
 	faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 
+	faceMath.verts = vector<vec3>(allVerts.size());
 	faceMath.localVerts = vector<vec2>(allVerts.size());
 	for (int i = 0; i < allVerts.size(); i++) {
+		faceMath.verts[i] = allVerts[i];
 		faceMath.localVerts[i] = (faceMath.worldToLocal * vec4(allVerts[i], 1)).xy();
 	}
 }
@@ -1561,12 +1572,16 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 		highlighted.insert(highlightEnt);
 	}
 
+	static float lol = 0;
+	lol += 0.001f;
+
 	// draw highlighted ent first so other ent edges don't overlap the highlighted edges
 	if (highlightedEnts.size() && !highlightAlwaysOnTop && !transparencyPass) {
 		for (int highlightEnt : highlightedEnts) {
-			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
+			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {				
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
+				*activeShader->modelMat = *activeShader->modelMat * map->ents[highlightEnt]->getRotationMatrix(false);
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				activeShader->updateMatrixes();
 
@@ -1588,12 +1603,14 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+				bool isHighlighted = highlighted.count(i);
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[i].modelMat;
+				*activeShader->modelMat = *activeShader->modelMat * map->ents[i]->getRotationMatrix(false);
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				activeShader->updateMatrixes();
 
-				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, highlighted.count(i), false);
+				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, isHighlighted, false);
 
 				activeShader->popMatrix(MAT_MODEL);
 			}
@@ -1618,20 +1635,20 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 					if (clipnodeHull == -1 && renderModels[renderEnts[i].modelIdx].groupCount > 0) {
 						continue; // skip rendering for models that have faces, if in auto mode
 					}
+					bool isHighlighted = highlighted.count(i);
 					colorShader->pushMatrix(MAT_MODEL);
 					*colorShader->modelMat = renderEnts[i].modelMat;
+					*colorShader->modelMat = *colorShader->modelMat * map->ents[i]->getRotationMatrix(false);
 					colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 					colorShader->updateMatrixes();
 
-					bool hightlighted = highlighted.count(i);
-
-					if (hightlighted) {
+					if (isHighlighted) {
 						glUniform4f(colorShaderMultId, 1, 0.25f, 0.25f, 1);
 					}
 
 					drawModelClipnodes(renderEnts[i].modelIdx, false, clipnodeHull);
 
-					if (hightlighted) {
+					if (isHighlighted) {
 						glUniform4f(colorShaderMultId, 1, 1, 1, 1);
 					}
 
@@ -1847,7 +1864,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 		return false;
 	}
 
-	if (pickModelPoly(start, dir, vec3(0, 0, 0), 0, hullIdx, entIdx, faceIdx, bestDist)) {
+	if (pickModelPoly(start, dir, vec3(), vec3(), 0, hullIdx, 0, faceIdx, bestDist)) {
 		entIdx = 0;
 		foundBetterPick = true;
 	}
@@ -1871,7 +1888,9 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 				continue;
 			}
 
-			if (pickModelPoly(start, dir, renderEnts[i].offset, renderEnts[i].modelIdx, hullIdx, entIdx, faceIdx, bestDist)) {
+			vec3 angles = map->ents[i]->canRotate() ? renderEnts[i].angles : vec3();
+			if (pickModelPoly(start, dir, renderEnts[i].offset, angles,
+				renderEnts[i].modelIdx, hullIdx, i, faceIdx, bestDist)) {
 				entIdx = i;
 				foundBetterPick = true;
 			}
@@ -1894,8 +1913,24 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 	return foundBetterPick;
 }
 
-bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx, int hullIdx,
-	int& entIdx, int& faceIdx, float& bestDist) {
+void rotateFaceMath(FaceMath& faceMath, mat4x4& rotation) {
+	vec3 pointOnPlane = (faceMath.plane_z * faceMath.fdist);
+	pointOnPlane = (rotation * vec4(pointOnPlane, 1)).xyz();
+	faceMath.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
+	faceMath.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
+	faceMath.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
+	faceMath.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
+	faceMath.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
+
+	faceMath.localVerts = vector<vec2>(faceMath.verts.size());
+	for (int k = 0; k < faceMath.verts.size(); k++) {
+		vec3 rotVert = (rotation * vec4(faceMath.verts[k], 1)).xyz();
+		faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
+	}
+}
+
+bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx,
+	int testEntidx, int& faceIdx, float& bestDist) {
 	BSPMODEL& model = map->models[modelIdx];
 
 	start -= offset;
@@ -1903,8 +1938,16 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 	bool foundBetterPick = false;
 	bool skipSpecial = !(g_render_flags & RENDER_SPECIAL);
 
+	bool hasAngles = rot != vec3();
+	mat4x4 angleTransform = map->ents[testEntidx]->getRotationMatrix(true);
+
 	for (int k = 0; k < model.nFaces; k++) {
-		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
+		FaceMath faceMath = faceMaths[model.iFirstFace + k];
+
+		if (hasAngles) {
+			rotateFaceMath(faceMath, angleTransform);
+		}
+
 		BSPFACE& face = map->faces[model.iFirstFace + k];
 		
 		if (skipSpecial && modelIdx == 0) {
@@ -1932,7 +1975,11 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath& faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+			FaceMath faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+
+			if (hasAngles) {
+				rotateFaceMath(faceMath, angleTransform);
+			}
 
 			float t = bestDist;
 			if (pickFaceMath(start, dir, faceMath, t)) {
@@ -1963,12 +2010,12 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, int modelIdx,
 }
 
 bool BspRenderer::pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist) {
-	float dot = dotProduct(dir, faceMath.normal);
+	float dot = dotProduct(dir, faceMath.plane_z);
 	if (dot >= 0) {
 		return false; // don't select backfaces or parallel faces
 	}
 
-	float t = dotProduct((faceMath.normal * faceMath.fdist) - start, faceMath.normal) / dot;
+	float t = dotProduct((faceMath.plane_z * faceMath.fdist) - start, faceMath.plane_z) / dot;
 	if (t < 0 || t >= bestDist) {
 		return false; // intersection behind camera, or not a better pick
 	}

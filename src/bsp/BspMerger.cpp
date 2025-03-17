@@ -275,8 +275,8 @@ vector<vector<vector<MAPBLOCK>>> BspMerger::separate(vector<Bsp*>& maps, vec3 ga
 	return orderedBlocks;
 }
 
-typedef map< string, set<string> > mapStringToSet;
-typedef map< string, MAPBLOCK > mapStringToMapBlock;
+typedef unordered_map< string, set<string> > mapStringToSet;
+typedef unordered_map< string, MAPBLOCK > mapStringToMapBlock;
 
 void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>& sourceMaps, 
 		vector<Bsp*>& mapOrder, string output_name, string firstMapName, bool noscript) {
@@ -479,7 +479,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;
-				map<string,string> oldKeys = ent->keyvalues;
+				unordered_map<string,string> oldKeys = ent->keyvalues;
 
 				string spawn_name = "bspguy_npcs_" + source_map;
 

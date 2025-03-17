@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <sstream>
 #include "Bsp.h"
+#include "globals.h"
+#include "Renderer.h"
+#include <unordered_set>
 
 using namespace std;
 
@@ -148,6 +151,69 @@ vec3 Entity::getOrigin() {
 	return hasKey("origin") ? parseVector(keyvalues["origin"]) : vec3(0, 0, 0);
 }
 
+vec3 Entity::getAngles() {
+	return hasKey("angles") ? parseVector(keyvalues["angles"]) : vec3(0, 0, 0);
+}
+
+mat4x4 Entity::getRotationMatrix(bool flipped) {
+	mat4x4 angleTransform;
+	angleTransform.loadIdentity();
+
+	if (canRotate()) {
+		vec3 angles = getAngles() * (PI / 180.0f);
+		
+		if (angles != vec3()) {
+			if (flipped) {
+				// well this makes no sense but it's required for object picking
+				// but not for rendering. I guess it's a combination of flips or undoing them, idk
+				angleTransform.rotateY(angles.x);
+				angleTransform.rotateZ(-angles.y);
+				angleTransform.rotateX(-angles.z);
+			}
+			else {
+				angleTransform.rotateX(angles.z);
+				angleTransform.rotateY(angles.y);
+				angleTransform.rotateZ(angles.x);
+			}
+		}
+	}
+
+	return angleTransform;
+}
+
+bool Entity::canRotate() {
+	if (g_app->forceAngleRotation) {
+		return true;
+	}
+
+	static unordered_set<string> rotatable_classnames = {
+		"func_rotating",
+		"func_rot_button",
+		"func_door_rotating",
+		"func_pendulum",
+		"func_tank",
+		"func_tanklaser",
+		"func_tankmortar",
+		"func_tankrocket",
+		"func_train",
+		"func_tracktrain",
+		"momentary_rot_button",
+	};
+
+	string cname = keyvalues["classname"];
+
+	if (rotatable_classnames.count(cname)) {
+		return true;
+	}
+
+	if (cname == "func_wall" || cname == "func_illusionary") {
+		int spawnflags = atoi(keyvalues["spawnflags"].c_str());
+		return spawnflags & 2; // "Use angles" key
+	}
+
+	return false;
+}
+
 vec3 Entity::getHullOrigin(Bsp* map) {
 	vec3 ori = getOrigin();
 	int modelIdx = getBspModelIdx();
@@ -157,7 +223,9 @@ vec3 Entity::getHullOrigin(Bsp* map) {
 
 		vec3 mins, maxs;
 		map->get_model_vertex_bounds(modelIdx, mins, maxs);
-		ori += (maxs + mins) * 0.5f;
+		vec3 modelCenter = (maxs + mins) * 0.5f;
+
+		ori += modelCenter;
 	}
 
 	return ori;

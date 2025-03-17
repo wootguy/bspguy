@@ -1,16 +1,23 @@
 #pragma once
 #include "Keyvalue.h"
 #include "types.h"
-#include <map>
+#include <unordered_map>
 #include <vector>
+#include "mat4x4.h"
 
 class Bsp;
 class MdlRenderer;
 
+enum anglesKeyBehavior {
+	ANGLES_ROTATE,
+	ANGLES_DIRECTIONAL,
+	ANGLES_AMBIGUOUS
+};
+
 class Entity
 {
 public:
-	map<string, string> keyvalues;
+	unordered_map<string, string> keyvalues;
 	vector<string> keyOrder;
 
 	int cachedModelIdx = -2; // -2 = not cached
@@ -48,6 +55,13 @@ public:
 	bool isBspModel();
 
 	vec3 getOrigin();
+
+	vec3 getAngles();
+
+	mat4x4 getRotationMatrix(bool flipped);
+
+	// true if this type of entity can be rotated by its angles keyvalue
+	bool canRotate();
 
 	vec3 getHullOrigin(Bsp* map);
 

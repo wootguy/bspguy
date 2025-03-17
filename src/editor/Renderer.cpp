@@ -787,19 +787,14 @@ void Renderer::postLoadFgdsAndTextures() {
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 }
 
-void Renderer::reloadMaps() {
-	string reloadPath = mapRenderer->map->path;
-	delete mapRenderer;
-	mapRenderer = NULL;
-	pickInfo = PickInfo();
-	addMap(new Bsp(reloadPath));
-	
+void Renderer::clearMapData() {
 	clearUndoCommands();
 	clearRedoCommands();
-	
+
 	if (copiedEnts.size()) {
 		for (Entity* ent : copiedEnts) {
-			delete ent;
+			if (ent)
+				delete ent;
 		}
 		copiedEnts.clear();
 	}
@@ -810,6 +805,41 @@ void Renderer::reloadMaps() {
 	}
 	studioModels.clear();
 	studioModelPaths.clear();
+
+	for (EntityState& state : undoEntityState) {
+		if (state.ent)
+			delete state.ent;
+	}
+	undoEntityState.clear();
+
+	if (mapRenderer) {
+		delete mapRenderer;
+		mapRenderer = NULL;
+	}
+
+	pickInfo = PickInfo();
+
+	if (entConnections) {
+		delete entConnections;
+		delete entConnectionPoints;
+		entConnections = NULL;
+		entConnectionPoints = NULL;
+		entConnectionLinks.clear();
+	}
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (undoLumpState.lumps[i])
+			delete[] undoLumpState.lumps[i];
+	}
+
+	memset(&undoLumpState, 0, sizeof(LumpState));
+}
+
+void Renderer::reloadMaps() {
+	string reloadPath = mapRenderer->map->path;
+
+	clearMapData();
+	addMap(new Bsp(reloadPath));
 
 	updateCullBox();
 
@@ -825,24 +855,11 @@ void Renderer::openMap(const char* fpath) {
 		return;
 	}
 
-	if (mapRenderer) {
-		delete mapRenderer;
-		mapRenderer = NULL;
-	}
-	pickInfo = PickInfo();
+	clearMapData();
+
 	addMap(new Bsp(fpath));
 
-	if (copiedEnts.size()) {
-		for (Entity* ent : copiedEnts) {
-			delete ent;
-		}
-		copiedEnts.clear();
-	}
-
-	clearUndoCommands();
-	clearRedoCommands();
 	gui->refresh();
-
 	updateCullBox();
 
 	logf("Loaded map: %s\n", fpath);
@@ -1183,17 +1200,12 @@ void Renderer::vertexEditControls() {
 	{
 		if (!anyCtrlPressed)
 		{
-			if (pickMode == PICK_OBJECT) {
-				if (debugLeafNavMesh && !isLoading) {
-					Bsp* map = mapRenderer->map;
-					debugLeafNavMesh->refreshNodes(map);
-					debugInt++;
-				}
+			splitFace();
+			if (debugLeafNavMesh && pickMode == PICK_OBJECT && !isLoading) {
+				Bsp* map = mapRenderer->map;
+				debugLeafNavMesh->refreshNodes(map);
+				debugInt++;
 			}
-			else {
-				splitFace();
-			}
-			
 		}
 		else
 		{
@@ -2373,7 +2385,13 @@ vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
 	int modelIdx = ent->getBspModelIdx();
 	if (modelIdx > 0 && modelIdx < map->modelCount) {
 		BSPMODEL& model = map->models[modelIdx];
-		return model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+		vec3 modelCenter = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+
+		if (ent->canRotate()) {
+			modelCenter = (ent->getRotationMatrix(true) * vec4(modelCenter, 1)).xyz();
+		}
+
+		return modelCenter;
 	}
 	return vec3(0, 0, 0);
 }
@@ -3133,7 +3151,6 @@ void Renderer::moveSelectedVerts(vec3 delta) {
 }
 
 void Renderer::splitFace() {
-	BspRenderer* mapRenderer = mapRenderer;
 	Bsp* map = pickInfo.getMap();
 
 	// find the pseudo-edge to split with

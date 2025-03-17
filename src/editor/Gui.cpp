@@ -1671,7 +1671,7 @@ void Gui::drawStatusMessage() {
 
 		if (ImGui::Begin("status", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 		{
-			if (app->modelUsesSharedStructures) {
+			if (app->modelUsesSharedStructures && app->pickInfo.getEnt()) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "SHARED DATA");
 				if (ImGui::IsItemHovered())
 				{
@@ -1682,7 +1682,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (!app->isTransformableSolid) {
+			if (!app->isTransformableSolid && app->pickInfo.ents.size()) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "CONCAVE SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -1693,7 +1693,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (app->invalidSolid) {
+			if (app->invalidSolid && app->pickInfo.ents.size()) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INVALID SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -2394,6 +2394,9 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 					ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[bufferIdx]);
 			}
 		}
+		if (ImGui::IsItemHovered() && ImGui::GetItemRectSize().x < ImGui::CalcTextSize(keyValues[bufferIdx]).x) {
+			ImGui::SetTooltip(keyValues[bufferIdx]);
+		}
 
 		if (ImGui::IsItemHovered()) {
 			if (!matchingValues) {
@@ -2806,6 +2809,9 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				else if (!sharedKey) {
 					ImGui::SetTooltip("This key does not exist in all selected entities");
 				}
+				else if (ImGui::GetItemRectSize().x - 50 < ImGui::CalcTextSize(keyNames[i]).x) {
+					ImGui::SetTooltip(keyNames[i]);
+				}
 			}
 
 			if (coloredKey) {
@@ -2842,6 +2848,9 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			if (ImGui::IsItemHovered()) {
 				if (!matchingValues) {
 					ImGui::SetTooltip("This value differs between the selected entities");
+				}
+				else if (ImGui::GetItemRectSize().x - 50 < ImGui::CalcTextSize(keyValues[i]).x) {
+					ImGui::SetTooltip(keyValues[i]);
 				}
 			}
 
@@ -2920,13 +2929,14 @@ void Gui::drawTransformWidget() {
 	Bsp* map = app->pickInfo.getMap();
 
 	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(340, 140), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 
-	static int x, y, z;
-	static float fx, fy, fz;
+	static int x, y, z; // grid snapped origin
+	static float fx, fy, fz; // raw origin
 	static float last_fx, last_fy, last_fz;
-	static float sx, sy, sz;
+	static float sx, sy, sz; // scaling
+	static int rx, ry, rz; // rotation
 
 	static int lastPickCount = -1;
 	static int lastVertPickCount = -1;
@@ -2934,6 +2944,7 @@ void Gui::drawTransformWidget() {
 	static int oldTransformTarget = -1;
 	static int oldMultiselect;
 	static vector<vec3> multiselectOrigins; // reference point for multiselect transforms
+	static vector<vec3> multiselectAngles; // reference point for multiselect transforms
 
 	if (ImGui::Begin("Transformation", &showTransformWidget, 0)) {
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -2961,25 +2972,33 @@ void Gui::drawTransformWidget() {
 					if (multiSelect > 1) {
 						if (multiSelect != oldMultiselect || lastPickCount != app->pickCount) {
 							multiselectOrigins.clear();
+							multiselectAngles.clear();
 							for (int i = 0; i < app->pickInfo.ents.size(); i++) {
 								Entity* ent = map->ents[app->pickInfo.ents[i]];
 								vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+								vec3 angles = ent->hasKey("angles") ? parseVector(ent->keyvalues["angles"]) : vec3();
 								multiselectOrigins.push_back(ori);
+								multiselectAngles.push_back(angles);
 							}
 							x = fx = 0;
 							y = fy = 0;
 							z = fz = 0;
+							rx = ry = rz = 0;
 						}
 					}
 					else {
 						Entity* ent = app->pickInfo.getEnt();
 						vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
+						vec3 angles = ent->hasKey("angles") ? parseVector(ent->keyvalues["angles"]) : vec3();
 						if (app->originSelected) {
 							ori = app->transformedOrigin;
 						}
 						x = fx = ori.x;
 						y = fy = ori.y;
 						z = fz = ori.z;
+						rx = angles.x;
+						ry = angles.y;
+						rz = angles.z;
 					}
 				}
 
@@ -2988,6 +3007,7 @@ void Gui::drawTransformWidget() {
 				x = fx = 0;
 				y = fy = 0;
 				z = fz = 0;
+				rx = ry = rz = 0;
 			}
 			sx = sy = sz = 1;
 		}
@@ -3000,6 +3020,7 @@ void Gui::drawTransformWidget() {
 
 		bool scaled = false;
 		bool originChanged = false;
+		bool anglesChanged = false;
 		guiHoverAxis = -1;
 
 		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
@@ -3008,79 +3029,132 @@ void Gui::drawTransformWidget() {
 
 		static bool inputsWereDragged = false;
 		bool inputsAreDragging = false;
+		bool canEditBspModel = app->pickInfo.getModel() && !app->modelUsesSharedStructures && app->isTransformableSolid;
 
-		ImGui::Text("Move");
-		ImGui::PushItemWidth(inputWidth);
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 2.0f));
+		if (ImGui::BeginTable("TransformTable", 5, ImGuiTableFlags_SizingFixedFit)) {
+			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 60);
+			ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, 5);
 
-		if (app->gridSnappingEnabled) {
-			if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::Text("Move");
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
+			}
+			else {
+				if (ImGui::DragFloat("##xpos2", &fx, 0.01f, 0, 0, "X: %.2f")) { originChanged = true; }
+			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-			ImGui::SameLine();
+			ImGui::TableNextColumn();
 
-			if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
+			}
+			else {
+				if (ImGui::DragFloat("##ypos2", &fy, 0.01f, 0, 0, "Y: %.2f")) { originChanged = true; }
+			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-			ImGui::SameLine();
+			ImGui::TableNextColumn();
 
-			if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
+			}
+			else {
+				if (ImGui::DragFloat("##zpos2", &fz, 0.01f, 0, 0, "Z: %.2f")) { originChanged = true; }
+			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-		}
-		else {
-			if (ImGui::DragFloat("##xpos", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
+			ImGui::TableNextColumn();
+
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::Text("Rotate");
+			ImGui::TableNextColumn();
+
+			ImGui::BeginDisabled(app->transformTarget != TRANSFORM_OBJECT);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragInt("##xrot", &rx, 0.1f, 0, 0, "X: %d")) {
+				rx = rx > 0 ? (rx % 360) : -(-rx % 360);
+				anglesChanged = true;
+			}
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragInt("##yrot", &ry, 0.1f, 0, 0, "Y: %d")) {
+				ry = ry > 0 ? (ry % 360) : -(-ry % 360);
+				anglesChanged = true;
+			}
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::TableNextColumn();
+			
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragInt("##zrot", &rz, 0.1f, 0, 0, "Z: %d")) {
+				rz = rz > 0 ? (rz % 360) : -(-rz % 360);
+				anglesChanged = true;
+			}
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::EndDisabled();
+
+			ImGui::TableNextColumn();
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT);
+			ImGui::Text("Scale");
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-			ImGui::SameLine();
+			ImGui::TableNextColumn();
 
-			if (ImGui::DragFloat("##ypos", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
-			ImGui::SameLine();
+			ImGui::TableNextColumn();
 
-			if (ImGui::DragFloat("##zpos", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
+			ImGui::EndDisabled();
+
+			ImGui::EndTable();
 		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
-
-		ImGui::Text("Scale");
-		ImGui::PushItemWidth(inputWidth);
-
-		if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 0;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::SameLine();
-
-		if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 1;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::SameLine();
-
-		if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			guiHoverAxis = 2;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
+		ImGui::PopStyleVar();
+		//ImGui::Columns(1);
+		//ImGui::PopStyleVar();
 
 		if (inputsWereDragged && !inputsAreDragging) {
 			app->pushEntityUndoState("Move Entity");
@@ -3101,39 +3175,9 @@ void Gui::drawTransformWidget() {
 			}
 		}
 
-		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 3));
-		ImGui::PopItemWidth();
-
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y));
 		ImGui::Separator();
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-
-
-		ImGui::Columns(4, 0, false);
-		ImGui::SetColumnWidth(0, inputWidth4);
-		ImGui::SetColumnWidth(1, inputWidth4);
-		ImGui::SetColumnWidth(2, inputWidth4);
-		ImGui::SetColumnWidth(3, inputWidth4);
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text("Target: "); ImGui::NextColumn();
-
-		ImGui::RadioButton("Object", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
-		ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
-		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
-
-		ImGui::Text("3D Axes: "); ImGui::NextColumn();
-		if (ImGui::RadioButton("Hide", &app->transformMode, TRANSFORM_NONE))
-			app->showDragAxes = false;
-
-		ImGui::NextColumn();
-		if (ImGui::RadioButton("Move", &app->transformMode, TRANSFORM_MOVE))
-			app->showDragAxes = true;
-
-		ImGui::NextColumn();
-		if (ImGui::RadioButton("Scale", &app->transformMode, TRANSFORM_SCALE))
-			app->showDragAxes = true;
-
-		ImGui::Columns(1);
 
 		const int grid_snap_modes = 11;
 		const char* element_names[grid_snap_modes] = { "0", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512" };
@@ -3151,24 +3195,81 @@ void Gui::drawTransformWidget() {
 		}
 		ImGui::Columns(1);
 
+		ImGui::Columns(4, 0, false);
+		ImGui::SetColumnWidth(0, inputWidth4);
+		ImGui::SetColumnWidth(1, inputWidth4);
+		ImGui::SetColumnWidth(2, inputWidth4);
+		ImGui::SetColumnWidth(3, inputWidth4);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Target: "); ImGui::NextColumn();
+
+		ImGui::RadioButton("Entity", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to an entity origin and angles keyvalues.");
+		}
+
+		ImGui::BeginDisabled(!canEditBspModel);
+		ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to BSP model vertices.");
+		}
+		
+		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to a BSP model's origin (not the origin keyvalue).\nOrigins are used as a point of reference for rotation.");
+		}
+
+		ImGui::Text("3D Axes: "); ImGui::NextColumn();
+		if (ImGui::RadioButton("Hide", &app->transformMode, TRANSFORM_NONE))
+			app->showDragAxes = false;
+
+		ImGui::NextColumn();
+		if (ImGui::RadioButton("Move", &app->transformMode, TRANSFORM_MOVE))
+			app->showDragAxes = true;
+
+		ImGui::NextColumn();
+		ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT);
+		if (ImGui::RadioButton("Scale", &app->transformMode, TRANSFORM_SCALE))
+			app->showDragAxes = true;
+		ImGui::EndDisabled();
+		ImGui::NextColumn();
+
+		ImGui::Columns(2, "checkboxes", false);
+
+		if (ImGui::Checkbox("Force Rotate Solids", &app->forceAngleRotation)) {
+			app->updateEntConnectionPositions();
+		}
+		ImGui::NextColumn();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Force solid entities to rotate by their angles keyvalue, even if they may not appear rotated in-game.\nBy default, the program checks the entity class to decide if an entity should appear rotated.");
+		}
+
 		ImGui::PushItemWidth(inputWidth);
+		ImGui::BeginDisabled(!canEditBspModel);
 		ImGui::Checkbox("Texture lock", &app->textureLock);
+		ImGui::EndDisabled();
 		ImGui::SameLine();
 		ImGui::TextDisabled("(WIP)");
 		if (ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted("Doesn't work for angled faces yet. Applies to scaling only.");
+			ImGui::TextUnformatted("Stretches/compresses textures to fit the object while scaling.\nDoes not work with angled faces.");
 			ImGui::PopTextWrapPos();
 			ImGui::EndTooltip();
 		}
 		ImGui::PopItemWidth();
 
+		ImGui::Columns(1);
+
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
 		ImGui::Separator();
 		ImGui::Dummy(ImVec2(0, style.FramePadding.y * 2));
-		ImGui::Text(("Size: " + app->selectionSize.toKeyvalueString(true, "w ", "l ", "h")).c_str());
+		string w = to_string((int)app->selectionSize.x) + "w ";
+		string h = to_string((int)app->selectionSize.y) + "h ";
+		string l = to_string((int)app->selectionSize.z) + "l";
+		ImGui::Text(("Size: " + w + h + l).c_str());
 
 		if (transformingEnt) {
 			if (originChanged) {
@@ -3234,6 +3335,29 @@ void Gui::drawTransformWidget() {
 				}
 				else if (app->transformTarget == TRANSFORM_ORIGIN) {
 					logf("Scaling has no effect on origins\n");
+				}
+			}
+			if (anglesChanged) {
+				if (app->transformTarget == TRANSFORM_OBJECT) {
+					vec3 newAngles = vec3(rx, ry, rz);
+
+					if (multiSelect > 1) {
+						for (int i = 0; i < app->pickInfo.ents.size(); i++) {
+							int entidx = app->pickInfo.ents[i];
+							Entity* ent = map->ents[entidx];
+							vec3 angles = multiselectAngles[i] + newAngles;
+							ent->setOrAddKeyvalue("angles", angles.toKeyvalueString(true));
+							bspRenderer->refreshEnt(entidx);
+						}
+						app->updateEntConnectionPositions();
+					}
+					else {
+						Entity* ent = app->pickInfo.getEnt();
+						ent->setOrAddKeyvalue("angles", newAngles.toKeyvalueString(true));
+						bspRenderer->refreshEnt(app->pickInfo.getEntIndex());
+						if (ent->getBspModelIdx() != -1)
+							app->updateEntConnectionPositions();
+					}
 				}
 			}
 		}
@@ -3350,6 +3474,8 @@ void Gui::drawLog() {
 void Gui::drawSettings() {
 
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(740, 200), ImVec2(FLT_MAX, app->windowHeight - 40));
+
 	if (ImGui::Begin("Settings", &showSettingsWidget))
 	{
 		ImGuiContext& g = *GImGui;
@@ -3462,8 +3588,8 @@ void Gui::drawSettings() {
 				tmpResPaths.push_back(std::string());
 			}
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Asset Paths are used to find game files such as WADs.\n"
-					"These will fix missing textures (pink and black checkerboards)\n\n"
+				ImGui::SetTooltip("Asset Paths are used to find textures and models.\n"
+					"Filling this out will fix missing textures (pink and black checkerboards)\n\n"
 					"You can use paths relative to your Game Directory or absolute paths."
 					"\nFor example, you would add \"valve\" here for Half-Life.");
 			}
@@ -3528,6 +3654,7 @@ void Gui::drawSettings() {
 
 void Gui::drawHelp() {
 	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+
 	if (ImGui::Begin("Help", &showHelpWidget)) {
 
 		if (ImGui::BeginTabBar("##tabs"))
@@ -3674,9 +3801,10 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 
 void Gui::drawLimits() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(450, 200), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	Bsp* map = app->mapRenderer->map;
-	string title = map ? "Limits - " + map->name : "Limits";
+	string title = "Map Limits";
 
 	if (ImGui::Begin((title + "###limits").c_str(), &showLimitsWidget)) {
 
@@ -3686,7 +3814,7 @@ void Gui::drawLimits() {
 		else {
 			if (ImGui::BeginTabBar("##tabs"))
 			{
-				if (ImGui::BeginTabItem("Summary")) {
+				if (ImGui::BeginTabItem("All Datatypes")) {
 					drawLimitsSummary(map, false);
 					ImGui::EndTabItem();
 				}
@@ -3697,6 +3825,7 @@ void Gui::drawLimits() {
 					ImGui::EndTabItem();
 				}
 
+				/*
 				if (ImGui::BeginTabItem("Nodes")) {
 					loadedStats = false;
 					drawLimitTab(map, SORT_NODES);
@@ -3708,6 +3837,7 @@ void Gui::drawLimits() {
 					drawLimitTab(map, SORT_FACES);
 					ImGui::EndTabItem();
 				}
+				*/
 
 				if (ImGui::BeginTabItem("Vertices")) {
 					loadedStats = false;
@@ -3992,7 +4122,7 @@ void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
 	Bsp* map = app->mapRenderer->map;
-	string title = map ? "Entity Report - " + map->name : "Entity Report";
+	string title = "Entity Report";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
 		if (map == NULL) {
