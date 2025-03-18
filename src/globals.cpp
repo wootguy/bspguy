@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "util.h"
+#include <thread>
 
 using namespace std;
 
@@ -7,6 +8,7 @@ ProgressMeter g_progress;
 int g_render_flags;
 vector<string> g_log_buffer;
 mutex g_log_mutex;
+std::thread::id g_main_thread_id = std::this_thread::get_id();
 
 AppSettings g_settings;
 string g_config_dir = getConfigDir();

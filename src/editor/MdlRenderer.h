@@ -43,14 +43,9 @@ enum MDL_LOAD_STATE {
 
 class MdlRenderer {
 public:
-	studiohdr_t* header = NULL;
-	studiohdr_t* texheader = NULL; // external texture data
-	mstream data; // TODO: parse structures into class members instead of seeking through the original data
-	mstream texdata;
+	string fpath;
 	volatile bool valid;
 	volatile int loadState = MDL_LOAD_INITIAL;
-	string fpath;
-	std::future<void> loadFuture;
 
 	uint8_t iController[4];
 	uint8_t iBlender[2];
@@ -68,10 +63,6 @@ public:
 	~MdlRenderer();
 
 	void draw(vec3 origin, vec3 angles, int sequence, vec3 viewerOrigin, vec3 viewerRight, vec3 color);
-	bool validate();
-	bool hasExternalTextures();
-	bool hasExternalSequences();
-	bool isEmpty();
 
 	void upload(); // called by main thread to upload data to gpu
 
@@ -79,19 +70,19 @@ public:
 	bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist);
 
 	// get a AABB containing all possible vertices in the given animation with given angles
-	void getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs, bool isMainThread=true);
-
-	// frame values = 0 - 1.0 (0-100%)
-	// angles = rotation for the entire model (y = pitch, z = yaw)
-	void SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence = -1, float gaitframe=0);
-	void transformVerts();
-	mstudioseqdesc_t* getSequence(int seq);
+	void getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs);
 
 private:
 	ShaderProgram* shaderProgram;
 	Texture** glTextures = NULL;
 	MdlMeshRender*** meshBuffers = NULL;
 	int numTextures;
+
+	studiohdr_t* header = NULL;
+	studiohdr_t* texheader = NULL; // external texture data
+	mstream data; // TODO: parse structures into class members instead of seeking through the original data
+	mstream texdata;
+	std::future<void> loadFuture;
 
 	// opengl uniforms
 	uint u_sTexId;
@@ -132,11 +123,22 @@ private:
 	bool loadSequenceData();
 	bool loadMeshes();
 	void calcAnimBounds(); // calculate bounding boxes for anll animations
+	bool isEmpty();
+	bool validate();
+	bool hasExternalTextures();
+	bool hasExternalSequences();
+	void transformVerts();
+
+	// frame values = 0 - 1.0 (0-100%)
+	// angles = rotation for the entire model (y = pitch, z = yaw)
+	void SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence = -1, float gaitframe = 0);
 	
 	float m_bonetransform[MAXSTUDIOBONES][4][4];	// bone transformation matrix (3x4)
 
-	// functions copied from Solokiller's model viewer
 	mstudioanim_t* GetAnim(mstudioseqdesc_t* pseqdesc);
+	mstudioseqdesc_t* getSequence(int seq);
+
+	// functions copied from Solokiller's model viewer
 	void CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f, bool isGait);
 	void CalcBoneQuaternion(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, vec4& q);
 	void CalcBonePosition(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, float* pos);

@@ -10,6 +10,7 @@ public:
 	bool allowedDuringLoad = false;
 
 	Command(string desc);
+	virtual ~Command() {};
 	virtual void execute() = 0;
 	virtual void undo() = 0;
 	virtual int memoryUsage() = 0;

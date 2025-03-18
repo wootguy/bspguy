@@ -107,16 +107,21 @@ Bsp::~Bsp()
 {	 
 	if (lumps) {
 		for (int i = 0; i < HEADER_LUMPS; i++)
-			if (lumps[i])
+			if (lumps[i]) {
 				delete[] lumps[i];
+			}
 		delete[] lumps;
+		lumps = NULL;
 	}
 
-	for (int i = 0; i < ents.size(); i++)
+	for (int i = 0; i < ents.size(); i++) {
 		delete ents[i];
+		ents[i] = NULL;
+	}
 
 	if (pvsFaces) {
 		delete[] pvsFaces;
+		pvsFaces = NULL;
 	}
 }
 
@@ -1018,7 +1023,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	memcpy(newClipnodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
 
 	BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[newTexinfoCount];
-	memcpy(newTexinfos, texinfos, newTexinfoCount * sizeof(BSPTEXTUREINFO));
+	memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
 
 	int addIdx = planeCount;
 	for (int i = 0; i < shouldNotMove.count.planes; i++) {

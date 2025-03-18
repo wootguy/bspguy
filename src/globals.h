@@ -4,6 +4,7 @@
 #include <string>
 #include <mutex>
 #include <set>
+#include <thread>
 #include "AppSettings.h"
 
 enum engine_types {
@@ -54,5 +55,7 @@ extern std::string g_settings_path;
 
 // prevents infinite include loops
 extern std::set<std::string> g_parsed_fgds;
+
+extern std::thread::id g_main_thread_id;
 
 extern int g_render_flags;

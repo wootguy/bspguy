@@ -139,3 +139,5 @@ bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax);
 
 // modulos a float value between start and end
 float normalizeRangef(const float value, const float start, const float end);
+
+std::string getAbsolutePath(const string& relpath);

@@ -838,10 +838,10 @@ void Renderer::clearMapData() {
 	}
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		if (undoLumpState.lumps[i])
+		if (undoLumpState.lumps[i]) {
 			delete[] undoLumpState.lumps[i];
+		}
 	}
-
 	memset(&undoLumpState, 0, sizeof(LumpState));
 }
 
@@ -858,7 +858,10 @@ void Renderer::reloadMaps() {
 
 void Renderer::openMap(const char* fpath) {
 	if (!fpath) {
-		return;
+		fpath = gui->openMap();
+
+		if (!fpath)
+			return;
 	}
 	if (!fileExists(fpath)) {
 		logf("File does not exist: %s\n", fpath);
@@ -887,7 +890,7 @@ void Renderer::openMap(const char* fpath) {
 	gui->refresh();
 	updateCullBox();
 
-	logf("Loaded map: %s\n", fpath);
+	logf("Loaded map: %s\n", map->path.c_str());
 }
 
 void Renderer::saveSettings() {
@@ -1620,6 +1623,12 @@ void Renderer::shortcutControls() {
 		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
 			gui->showTransformWidget = !gui->showTransformWidget;
 		}
+		if (anyCtrlPressed && pressed[GLFW_KEY_O] && !oldPressed[GLFW_KEY_O]) {
+			openMap(NULL);
+		}
+		if (anyCtrlPressed && anyAltPressed && pressed[GLFW_KEY_S] && !oldPressed[GLFW_KEY_S]) {
+			gui->saveAs();
+		}
 		if (anyAltPressed && anyEnterPressed) {
 			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
 		}
@@ -1955,6 +1964,9 @@ void Renderer::setupView() {
 }
 
 void Renderer::addMap(Bsp* map) {
+	g_settings.addRecentFile(map->path);
+	g_settings.save(); // in case the program crashes
+	
 	if (debugLeafNavMesh) {
 		delete debugLeafNavMesh;
 		debugLeafNavMesh = NULL;
@@ -2284,16 +2296,15 @@ void Renderer::drawStudioModels() {
 			}
 			else if (sent.mdl->loadState == MDL_LOAD_UPLOAD) {
 				sent.mdl->upload();
-				logf("Loaded MDL: %s\n", sent.mdl->fpath.c_str());
+				debugf("Loaded MDL: %s\n", sent.mdl->fpath.c_str());
 			}
 		}
 
 		if (sent.mdl && sent.mdl->loadState == MDL_LOAD_DONE && sent.mdl->valid) {
 			if (!ent->drawCached) {
-				int seq = atoi(ent->keyvalues["sequence"].c_str());
 				ent->drawOrigin = ent->getOrigin();
 				ent->drawAngles = parseVector(ent->keyvalues["angles"]);
-				ent->drawSequence = clamp(seq, 0, sent.mdl->header->numseq - 1);
+				ent->drawSequence = atoi(ent->keyvalues["sequence"].c_str());
 
 				vec3 mins, maxs;
 				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
@@ -3916,6 +3927,7 @@ void Renderer::redo() {
 void Renderer::clearUndoCommands() {
 	for (int i = 0; i < undoHistory.size(); i++) {
 		delete undoHistory[i];
+		undoHistory[i] = NULL;
 	}
 
 	undoHistory.clear();
@@ -3925,6 +3937,7 @@ void Renderer::clearUndoCommands() {
 void Renderer::clearRedoCommands() {
 	for (int i = 0; i < redoHistory.size(); i++) {
 		delete redoHistory[i];
+		redoHistory[i] = NULL;
 	}
 
 	redoHistory.clear();

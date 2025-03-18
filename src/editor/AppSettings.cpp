@@ -40,7 +40,7 @@ void AppSettings::loadDefault()
 	vsync = true;
 	backUpMap = false;
 
-	moveSpeed = 4.0f;
+	moveSpeed = 8.0f;
 	fov = 75.0f;
 	zfar = 262144.0f;
 	zFarMdl = 2048.0f;
@@ -94,6 +94,7 @@ void AppSettings::load() {
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
+			else if (key == "recent") { recentFiles.push_back(val); }
 			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
 			else if (key == "engine") { 
 				g_settings.engine = clamp(atoi(val.c_str()), 0, 1);
@@ -178,6 +179,10 @@ void AppSettings::save() {
 		file << "res=" << g_settings.resPaths[i] << endl;
 	}
 
+	for (int i = 0; i < recentFiles.size(); i++) {
+		file << "recent=" << g_settings.recentFiles[i] << endl;
+	}
+
 	file << "vsync=" << g_settings.vsync << endl;
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
@@ -191,4 +196,21 @@ void AppSettings::save() {
 	file << "undo_levels=" << g_settings.undoLevels << endl;
 	file << "savebackup=" << g_settings.backUpMap << endl;
 	file << "engine=" << g_settings.engine << endl;
+}
+
+void AppSettings::addRecentFile(string map) {
+	map = getAbsolutePath(map);
+
+	for (int i = 0; i < recentFiles.size(); i++) {
+		if (recentFiles[i] == map) {
+			recentFiles.erase(recentFiles.begin() + i);
+			i--;
+		}
+	}
+
+	recentFiles.push_back(map);
+
+	while (recentFiles.size() > 10) {
+		recentFiles.erase(recentFiles.begin());
+	}
 }

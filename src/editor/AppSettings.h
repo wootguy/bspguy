@@ -36,8 +36,10 @@ struct AppSettings {
 
 	std::vector<std::string> fgdPaths;
 	std::vector<std::string> resPaths;
+	std::vector<std::string> recentFiles;
 
 	void loadDefault();
 	void load();
 	void save();
+	void addRecentFile(std::string map);
 };

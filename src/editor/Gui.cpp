@@ -29,6 +29,8 @@ float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 string iniPath = getConfigDir() + "imgui.ini";
 
+char const* bspFilterPatterns[1] = { "*.bsp" };
+
 void tooltip(ImGuiContext& g, const char* text) {
 	if (ImGui::IsItemHovered() && g.HoveredIdTimer > g_tooltip_delay) {
 		ImGui::BeginTooltip();
@@ -652,13 +654,8 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("File"))
 	{
-		static char const* bspFilterPatterns[1] = { "*.bsp" };
-
-		if (ImGui::MenuItem("Open", NULL, false, !app->isLoading)) {
-			char* fname = tinyfd_openFileDialog("Open Map", "",
-				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
-			
-			g_app->openMap(fname);
+		if (ImGui::MenuItem("Open", "Ctrl+O", false, !app->isLoading)) {
+			g_app->openMap(NULL);
 		}
 
 		if (ImGui::MenuItem("Save", NULL)) {
@@ -668,17 +665,26 @@ void Gui::drawMenuBar() {
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
 		}
-		if (ImGui::MenuItem("Save As...", NULL)) {
+		if (ImGui::MenuItem("Save As...", "Ctrl+Alt+S")) {
+			saveAs();
+		}
+		if (ImGui::MenuItem("Save a Copy As...", NULL)) {
 			Bsp* map = app->getMapContainingCamera()->map;
 
-			char* fname = tinyfd_saveFileDialog("Save As", map->path.c_str(),
+			char* fname = tinyfd_saveFileDialog("Save a Copy As", map->path.c_str(),
 				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)");
 
 			if (fname) {
+				string oldFname = map->path;
+				string oldName = map->name;
+
 				map->update_ent_lump();
 				map->path = fname;
 				map->name = stripExt(basename(fname));
 				map->write(map->path);
+
+				map->path = fname;
+				map->name = oldName;
 			}
 		}
 
@@ -711,13 +717,22 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Checks BSP data structures for invalid values and references. Trivial problems are fixed automatically. Results are output to the Log widget.");
 
-		ImGui::Separator();
-		if (ImGui::MenuItem("Settings", NULL)) {
-			if (!showSettingsWidget) {
-				reloadSettings = true;
+		if (g_settings.recentFiles.size()) {
+			ImGui::Separator();
+			int idx = 1;
+			for (int i = g_settings.recentFiles.size() - 1; i >= 0; i--) {
+				if (ImGui::MenuItem((to_string(idx++) + ": " + g_settings.recentFiles[i]).c_str(), NULL)) {
+					g_app->openMap(g_settings.recentFiles[i].c_str());
+				}
 			}
-			showSettingsWidget = true;
+
+			ImGui::Separator();
+			if (ImGui::MenuItem("Clear Recent Files List", NULL)) {
+				g_settings.recentFiles.clear();
+				g_settings.save();
+			}
 		}
+
 		ImGui::Separator();
 		if (ImGui::MenuItem("Exit", NULL)) {
 			g_settings.save();
@@ -795,7 +810,7 @@ void Gui::drawMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("View")) {
-		ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
 		if (ImGui::MenuItem("Textures", 0, g_render_flags & RENDER_TEXTURES)) {
 			g_render_flags ^= RENDER_TEXTURES;
 		}
@@ -924,356 +939,114 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	if (ImGui::BeginMenu("Map"))
+	if (ImGui::BeginMenu("Settings"))
 	{
-		if (ImGui::MenuItem("Entity Report", "Ctrl+F")) {
-			showEntityReport = true;
-		}
-		tooltip(g, "Search for entities by name, class, and/or other properties.");
-
-		if (ImGui::MenuItem("Show Limits", NULL)) {
-			showLimitsWidget = true;
-		}
-		tooltip(g, "Shows how close the map is to exceeding engine limits.");
-
-		if (ImGui::BeginMenu("Select Engine"))
-		{
-			bool changed = false;
-
-			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE)) {
-				changed = g_settings.engine != ENGINE_HALF_LIFE;
-				g_settings.engine = ENGINE_HALF_LIFE;
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+		if (ImGui::MenuItem("Setup / Preferences", NULL, showSettingsWidget)) {
+			if (!showSettingsWidget) {
+				reloadSettings = true;
+				ImGui::SetWindowCollapsed("Settings", false);
 			}
-			tooltip(g, "The standard GoldSrc engine. Assumes a +/-4096 map boundary.\n");
+			showSettingsWidget = !showSettingsWidget;
+		}
 
-			if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP)) {
-				changed = g_settings.engine != ENGINE_SVEN_COOP;
-				g_settings.engine = ENGINE_SVEN_COOP;
-			}
-			tooltip(g, "Sven Co-op maps have much higher limits than in Half-Life.\n\nAttempting to run a "
+		ImGui::Separator();
+
+		bool changed = false;
+		ImGui::MenuItem("Engine", 0, false, false);
+
+		if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE)) {
+			changed = g_settings.engine != ENGINE_HALF_LIFE;
+			g_settings.engine = ENGINE_HALF_LIFE;
+		}
+		tooltip(g, "The standard GoldSrc engine. Assumes a +/-4096 map boundary.\n");
+
+		if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP)) {
+			changed = g_settings.engine != ENGINE_SVEN_COOP;
+			g_settings.engine = ENGINE_SVEN_COOP;
+		}
+		tooltip(g, "Sven Co-op maps have much higher limits than in Half-Life.\n\nAttempting to run a "
 			"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents errors, "
 			"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
 			"See the Porting Tools menu for solutions to these problems.\n\n"
 			"The map boundary for Sven Co-op is effectively +/-32768. Rendering glitches occur beyond that point.");
 
-			if (changed) {
-				g_limits = g_engine_limits[g_settings.engine];
-				app->mapRenderer->reload();
-				reloadLimits();
-			}
-
-			ImGui::EndMenu();
+		if (changed) {
+			g_limits = g_engine_limits[g_settings.engine];
+			app->mapRenderer->reload();
+			reloadLimits();
 		}
-
 		ImGui::Separator();
 
-		Bsp* map = app->pickInfo.getMap();
+		ImGui::MenuItem("Widgets", 0, false, false);
 
-		static vector<Wad*> emptyWads;
-		vector<Wad*>& wads = g_app->mapRenderer ? g_app->mapRenderer->wads : emptyWads;
-
-		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
-			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->undoLumpState);
-			g_app->saveLumpState(map, 0xffffffff, false);
-			command->execute();
-			app->pushUndoCommand(command);
+		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
+			showDebugWidget = !showDebugWidget;
+			if (showDebugWidget)
+				ImGui::SetWindowCollapsed("Debug", false);
 		}
-		tooltip(g, "Removes unreferenced structures in the BSP data.\n\nWhen you edit BSP models or delete"
-			" references to them, the data is not deleted until you run this command. "
-			"If you are close exceeding engine limits, you may need to run this regularly while creating "
-			"and editing models. Watch the Limits and Log widgets to see how many structures were removed.");
+		tooltip(g, "For developers and those curious about BSP internals.");
 
-		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading)) {
-			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->undoLumpState);
-			g_app->saveLumpState(map, 0xffffffff, false);
-			command->execute();
-			app->pushUndoCommand(command);
+		if (ImGui::MenuItem("Entity Report", "Ctrl+F")) {
+			showEntityReport = !showEntityReport;
+			if (showEntityReport)
+				ImGui::SetWindowCollapsed("Entity Report", false);
 		}
-		tooltip(g, "Removes unnecesary structures in the BSP data. Useful as a pre-processing step for "
-			"merging maps together without exceeding engine limits.\n\n"
+		tooltip(g, "Search for entities by name, class, and/or other properties.");
 
-			"An example of commonly deleted structures would be the visible hull 0 for entities like "
-			"trigger_once, which are invisible and so don't need textured faces. Entities "
-			"like func_illusionary also don't need any clipnodes because they're not meant to be collidable.\n\n"
+		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
+			showKeyvalueWidget = !showKeyvalueWidget;
+			if (showKeyvalueWidget)
+				ImGui::SetWindowCollapsed("Keyvalue Editor", false);
+		}
+		tooltip(g, "Edit entity properties.");
+
+		if (ImGui::MenuItem("Map Limits", NULL, showLimitsWidget)) {
+			showLimitsWidget = !showLimitsWidget;
+			if (showLimitsWidget)
+				ImGui::SetWindowCollapsed("Map Limits", false);
+		}
+		tooltip(g, "Shows how close the map is to exceeding engine limits.");
+
+		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
+			showTransformWidget = !showTransformWidget;
+			if (showTransformWidget)
+				ImGui::SetWindowCollapsed("Transformation", false);
+		}
+		tooltip(g, "Move, rotate, and scale entities.");
+
+		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
+			showTextureWidget = !showTextureWidget;
+			if (showTextureWidget)
+				ImGui::SetWindowCollapsed("Face Properties", false);
+		}
+		tooltip(g, "Edit faces and textures.");
+		/*
+		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
+			showLightmapEditorWidget = !showLightmapEditorWidget;
+			showLightmapEditorUpdate = true;
+		}
+		*/
+		if (ImGui::MenuItem("Messages", "", showLogWidget)) {
+			showLogWidget = !showLogWidget;
+			if (showLogWidget)
+				ImGui::SetWindowCollapsed("Messages", false);
+		}
+		tooltip(g, "Show program messages.");
 		
-			"The drawback to using this command is that it's possible for entities to change state in "
-			"such a way that the deleted hulls are needed later. In those cases it is possible that "
-			"the game crashes or has broken collision.\n\n"
-			
-			"Check the Log widget to see which entities had their hulls deleted. You may want to delete "
-			"them manually by yourself if you run into problems with the Optimize command.");
-
-		if (ImGui::BeginMenu("Porting Tools", !app->isLoading)) {
-			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading)) {
-				map->allocblock_reduction();
-
-				BspRenderer* renderer = app->mapRenderer;
-				if (renderer) {
-					renderer->preRenderFaces();
-					g_app->gui->refresh();
-				}
-			}
-			tooltip(g, "Scales up textures on invisible models, if any exist. Manually increase texture scales or downscale large textures to reduce AllocBlocks further.\n");
-
-			if (ImGui::MenuItem("Apply Worldspawn Transform", 0, false, !app->isLoading)) {
-				if (map->ents[0]->hasKey("origin")) {
-					MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
-						map->ents[0]->getOrigin(), app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				else {
-					logf("Transform the worldspawn origin first using the transform widget!\n");
-				}
-			}
-			tooltip(g, "Moves BSP data by the amount set in the worldspawn origin keyvalue. Useful for aligning maps before merging.");
-
-			if (ImGui::BeginMenu("Delete OOB Data", !app->isLoading)) {
-
-				static const char* optionNames[10] = {
-					"All Axes",
-					"X Axis",
-					"X Axis (positive only)",
-					"X Axis (negative only)",
-					"Y Axis",
-					"Y Axis (positive only)",
-					"Y Axis (negative only)",
-					"Z Axis",
-					"Z Axis (positive only)",
-					"Z Axis (negative only)",
-				};
-
-				static int clipFlags[10] = {
-					0xffffffff,
-					OOB_CLIP_X | OOB_CLIP_X_NEG,
-					OOB_CLIP_X,
-					OOB_CLIP_X_NEG,
-					OOB_CLIP_Y | OOB_CLIP_Y_NEG,
-					OOB_CLIP_Y,
-					OOB_CLIP_Y_NEG,
-					OOB_CLIP_Z | OOB_CLIP_Z_NEG,
-					OOB_CLIP_Z,
-					OOB_CLIP_Z_NEG,
-				};
-
-				for (int i = 0; i < 10; i++) {
-					if (ImGui::MenuItem(optionNames[i], 0, false, !app->isLoading)) {
-						if (map->ents[0]->hasKey("origin")) {
-							vec3 ori = map->ents[0]->getOrigin();
-							logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
-							map->move(ori);
-							map->ents[0]->removeKeyvalue("origin");
-
-						}
-
-						g_app->updateEntityLumpUndoState(map);
-						DeleteOobDataCommand* command = new DeleteOobDataCommand("Delete OOB Data",
-							clipFlags[i], app->undoLumpState);
-						g_app->saveLumpState(map, 0xffffffff, false);
-						command->execute();
-						app->pushUndoCommand(command);
-					}
-					tooltip(g, "Deletes BSP data and entities outside of the "
-							"max map boundary.\n\n"
-							"This is useful for splitting maps to run in an engine with stricter map limits.");
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::MenuItem("Delete Boxed Data", 0, false, !app->isLoading)) {
-				if (!g_app->hasCullbox) {
-					logf("Create at least 2 entities with \"cull\" as a classname first!\n");
-				}
-				else {
-					g_app->updateEntityLumpUndoState(map);
-					DeleteBoxedDataCommand* command = new DeleteBoxedDataCommand("Delete Boxed Data", 
-						g_app->cullMins, g_app->cullMaxs, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-			}
-			tooltip(g, "Deletes BSP data and entities inside of a box defined by 2 \"cull\" entities "
-				"(for the min and max extent of the box). This is useful for getting maps to run in an "
-				"engine with stricter map limits. Works best with enclosed areas. Trying to partially "
-				"delete features in a room will likely result in broken collision detection.\n\n"
-				"Create 2 cull entities from the \"Create\" menu to define the culling box. "
-				"A transparent red box will form between them.");
-
-			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
-				g_app->updateEntityLumpUndoState(map);
-				DeduplicateModelsCommand* command = new DeduplicateModelsCommand("Deduplicate models",
-					app->undoLumpState);
-				g_app->saveLumpState(map, 0xffffffff, false);
-				command->execute();
-				app->pushUndoCommand(command);
-			}
-			tooltip(g, "Scans for duplicated BSP models and updates entity model keys to reference only one model in set of duplicated models. "
-				"This lowers the model count and allows more game models to be precached.\n\n"
-				"This does not delete BSP data structures unless you run the Clean command afterward.");
-
-			if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading)) {
-				map->downscale_invalid_textures(wads);
-
-				BspRenderer* renderer = app->mapRenderer;
-				if (renderer) {
-					renderer->preRenderFaces();
-					g_app->gui->refresh();
-					reloadLimits();
-				}
-			}
-			tooltip(g, "Shrinks textures that exceed the max texture size and adjusts texture coordinates accordingly.\n\nIf a texture is stored in a WAD, it is first embedded into the BSP before being downscaled.\n");
-
-			if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading)) {
-				if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (512)",
-						false, true, 512, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Downscales textures on bad faces to a max resolution of 512x512 pixels. "
-					"This alone will likely not be enough to fix all faces with bad surface extents."
-					"You may also have to apply the Subdivide or Scale methods.");
-
-				if (ImGui::MenuItem("Shrink Textures (256)", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (256)",
-						false, true, 256, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Downscales textures on bad faces to a max resolution of 256x256 pixels. "
-					"This alone will likely not be enough to fix all faces with bad surface extents."
-					"You may also have to apply the Subdivide or Scale methods.");
-
-				if (ImGui::MenuItem("Shrink Textures (128)", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (128)",
-						false, true, 128, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Downscales textures on bad faces to a max resolution of 128x128 pixels. "
-					"This alone will likely not be enough to fix all faces with bad surface extents."
-					"You may also have to apply the Subdivide or Scale methods.");
-
-				if (ImGui::MenuItem("Shrink Textures (64)", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (64)",
-						false, true, 64, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Downscales textures to a max resolution of 64x64 pixels. "
-					"This alone will likely not be enough to fix all faces with bad surface extents."
-					"You may also have to apply the Subdivide or Scale methods.");
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Scale", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Scale faces",
-						true, false, 0, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Scales up face textures until they have valid extents. The drawback to this method is shifted texture coordinates and lower apparent texture quality.");
-
-				if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading)) {
-					FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Subdivide faces",
-						false, false, 0, app->undoLumpState);
-					g_app->saveLumpState(map, 0xffffffff, false);
-					command->execute();
-					app->pushUndoCommand(command);
-				}
-				tooltip(g, "Subdivides faces until they have valid extents. The drawback to this method is reduced in-game performace from higher poly counts.");
-
-				ImGui::MenuItem("##", "WIP");
-				tooltip(g, "Anything you choose here will break lightmaps. "
-					"Run the map through a RAD compiler to fix, and pray that the mapper didn't "
-					"customize compile settings much.");
-
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading)) {
-				map->remove_unused_wads(wads);
-			}
-			tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
-
-			if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading)) {
-				int moveCount = 0;
-				moveCount += map->zero_entity_origins("func_ladder");
-				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
-
-				BspRenderer* renderer = app->mapRenderer;
-
-				if (moveCount) {
-					if (renderer) {
-						renderer->reload();
-					}
-					refresh();
-				}
-				else {
-					logf("No entity origins need moving\n");
-				}
-
-				g_app->deselectObject();
-			}
-			tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
-
-			ImGui::EndMenu();
-		}
-
-		ImGui::Separator();
-
-		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
-
-		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision && !app->isLoading)) {
-			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
-					Bsp* map = app->mapRenderer->map;
-					map->delete_hull(i, -1);
-					app->mapRenderer->reloadClipnodes();
-					logf("Deleted hull %d in map %s\n", i, map->name.c_str());
-					checkValidHulls();
-				}
-			}
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Redirect Hull", hasAnyCollision && !app->isLoading)) {
-			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
-					for (int k = 1; k < MAX_MAP_HULLS; k++) {
-						if (i == k)
-							continue;
-						if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), "", false, anyHullValid[k])) {
-							Bsp* map = app->mapRenderer->map;
-							map->delete_hull(i, k);
-							app->mapRenderer->reloadClipnodes();
-							logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
-							checkValidHulls();
-						}
-					}
-					ImGui::EndMenu();
-				}
-			}
-			ImGui::EndMenu();
-		}
-
+		ImGui::PopItemFlag();
 		ImGui::EndMenu();
 	}
 
-	if (ImGui::BeginMenu("Create"))
+	if (ImGui::BeginMenu("Tools"))
 	{
 		Bsp* map = app->mapRenderer->map;
+
+		static vector<Wad*> emptyWads;
+		vector<Wad*>& wads = g_app->mapRenderer ? g_app->mapRenderer->wads : emptyWads;
 		BspRenderer* renderer = app->mapRenderer;
 
+		ImGui::MenuItem("Create", 0, false, false);
 		if (ImGui::MenuItem("Point Entity", 0, false, true)) {
 			Entity* newEnt = new Entity();
 			vec3 origin = (app->cameraOrigin + app->cameraForward * 100);
@@ -1327,33 +1100,303 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Create a point entity for use with the culling tool. 2 of these define the bounding box for structure culling operations.\n");
 
-		ImGui::EndMenu();
-	}
+		ImGui::Separator();
 
-	if (ImGui::BeginMenu("Widgets"))
-	{
-		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
-			showDebugWidget = !showDebugWidget;
+		ImGui::MenuItem("Delete", 0, false, false);
+		if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
+			CleanMapCommand* command = new CleanMapCommand("Clean " + map->name, app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
 		}
-		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
-			showKeyvalueWidget = !showKeyvalueWidget;
-		}
-		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
-			showTransformWidget = !showTransformWidget;
-		}
+		tooltip(g, "Removes unreferenced structures in the BSP data.\n\nWhen you edit BSP models or delete"
+			" references to them, the data is not deleted until you run this command. "
+			"If you are close exceeding engine limits, you may need to run this regularly while creating "
+			"and editing models. Watch the Limits and Messages widgets to see how many structures were removed.");
 
-		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
-			showTextureWidget = !showTextureWidget;
+		if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading)) {
+			OptimizeMapCommand* command = new OptimizeMapCommand("Optimize " + map->name, app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
 		}
+		tooltip(g, "Removes unnecesary structures in the BSP data. Useful as a pre-processing step for "
+			"merging maps together without exceeding engine limits.\n\n"
+
+			"An example of commonly deleted structures would be the visible hull 0 for entities like "
+			"trigger_once, which are invisible and so don't need textured faces. Entities "
+			"like func_illusionary also don't need any clipnodes because they're not meant to be collidable.\n\n"
+		
+			"The drawback to using this command is that it's possible for entities to change state in "
+			"such a way that the deleted hulls are needed later. In those cases it is possible that "
+			"the game crashes or has broken collision.\n\n"
+			
+			"Check the Log widget to see which entities had their hulls deleted. You may want to delete "
+			"them manually by yourself if you run into problems with the Optimize command.");
+
+		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
+
+		if (ImGui::BeginMenu("Redirect Hull", hasAnyCollision && !app->isLoading)) {
+			for (int i = 1; i < MAX_MAP_HULLS; i++) {
+				if (ImGui::BeginMenu(("Hull " + to_string(i)).c_str())) {
+					for (int k = 1; k < MAX_MAP_HULLS; k++) {
+						if (i == k)
+							continue;
+						if (ImGui::MenuItem(("Hull " + to_string(k)).c_str(), "", false, anyHullValid[k])) {
+							Bsp* map = app->mapRenderer->map;
+							map->delete_hull(i, k);
+							app->mapRenderer->reloadClipnodes();
+							logf("Redirected hull %d to hull %d in map %s\n", i, k, map->name.c_str());
+							checkValidHulls();
+						}
+					}
+					ImGui::EndMenu();
+				}
+			}
+			ImGui::EndMenu();
+		}
+		tooltip(g, "Redirects a BSP hull in all models including worldspawn. This frees up a large "
+			"amount of clipnodes but reduces collision accuracy for entities that use the removed hulls. "
+			"Run the Clean command after redirecting a hull to delete the unreferenced clipnodes.\n\n"
+			"Use this if the Optimize command refused to remove/redirect a hull, and you're ok with the side effects of forcing its removal. "
+			"Some entities may clip into walls, hover above the ground, be able/unable to enter certain areas.\n\n"
+			"A common use case for this is redirecting Hull 2 -> Hull 1 (Large monsters hull -> Normal monsters hull). "
+			"If the map doesn't have any large monsters or pushable objects then there are no side effects for removing the hull. "
+			"Removing Hull 1 or Hull 3 always causes noticeable problems because players and most monsters use these hulls."
+		);
+
 		/*
-		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
-			showLightmapEditorWidget = !showLightmapEditorWidget;
-			showLightmapEditorUpdate = true;
+		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision && !app->isLoading)) {
+			for (int i = 1; i < MAX_MAP_HULLS; i++) {
+				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
+					Bsp* map = app->mapRenderer->map;
+					map->delete_hull(i, -1);
+					app->mapRenderer->reloadClipnodes();
+					logf("Deleted hull %d in map %s\n", i, map->name.c_str());
+					checkValidHulls();
+				}
+			}
+			ImGui::EndMenu();
 		}
+		tooltip(g, "Deletes a BSP hull from all models including worldspawn. This saves a large "
+			"amount of clipnodes but breaks collision for entities that use the hulls.\n\n"
+			"Some entities may fall outside of the world when the map starts. In most cases it's "
+			"better to use the Redirect Hull option or let the Optimize command decide which"
+			"hulls to redirect.\n");
 		*/
-		if (ImGui::MenuItem("Log", "", showLogWidget)) {
-			showLogWidget = !showLogWidget;
+
+		if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
+			g_app->updateEntityLumpUndoState(map);
+			DeduplicateModelsCommand* command = new DeduplicateModelsCommand("Deduplicate models",
+				app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
 		}
+		tooltip(g, "Scans for duplicated BSP models and updates entity model keys to reference only one model in set of duplicated models. "
+			"This lowers the model count and allows more game models to be precached.\n\n"
+			"This does not delete BSP data structures unless you run the Clean command afterward.");
+
+		if (ImGui::BeginMenu("Delete OOB Data", !app->isLoading)) {
+
+			static const char* optionNames[10] = {
+				"All Axes",
+				"X Axis",
+				"X Axis (positive only)",
+				"X Axis (negative only)",
+				"Y Axis",
+				"Y Axis (positive only)",
+				"Y Axis (negative only)",
+				"Z Axis",
+				"Z Axis (positive only)",
+				"Z Axis (negative only)",
+			};
+
+			static int clipFlags[10] = {
+				0xffffffff,
+				OOB_CLIP_X | OOB_CLIP_X_NEG,
+				OOB_CLIP_X,
+				OOB_CLIP_X_NEG,
+				OOB_CLIP_Y | OOB_CLIP_Y_NEG,
+				OOB_CLIP_Y,
+				OOB_CLIP_Y_NEG,
+				OOB_CLIP_Z | OOB_CLIP_Z_NEG,
+				OOB_CLIP_Z,
+				OOB_CLIP_Z_NEG,
+			};
+
+			for (int i = 0; i < 10; i++) {
+				if (ImGui::MenuItem(optionNames[i], 0, false, !app->isLoading)) {
+					if (map->ents[0]->hasKey("origin")) {
+						vec3 ori = map->ents[0]->getOrigin();
+						logf("Moved worldspawn origin by %f %f %f\n", ori.x, ori.y, ori.z);
+						map->move(ori);
+						map->ents[0]->removeKeyvalue("origin");
+
+					}
+
+					g_app->updateEntityLumpUndoState(map);
+					DeleteOobDataCommand* command = new DeleteOobDataCommand("Delete OOB Data",
+						clipFlags[i], app->undoLumpState);
+					g_app->saveLumpState(map, 0xffffffff, false);
+					command->execute();
+					app->pushUndoCommand(command);
+				}
+				tooltip(g, "Deletes out-of-bounds BSP data and entities.\n\n"
+					"This is useful for splitting maps to run in an engine with stricter map limits.");
+			}
+
+			ImGui::EndMenu();
+		}
+		tooltip(g, "Deletes out-of-bounds BSP data and entities.\n\n"
+			"This is useful for splitting maps to run in an engine with stricter map limits.");
+
+		if (ImGui::MenuItem("Delete Boxed Data", 0, false, !app->isLoading)) {
+			if (!g_app->hasCullbox) {
+				logf("Create at least 2 entities with \"cull\" as a classname first!\n");
+			}
+			else {
+				g_app->updateEntityLumpUndoState(map);
+				DeleteBoxedDataCommand* command = new DeleteBoxedDataCommand("Delete Boxed Data",
+					g_app->cullMins, g_app->cullMaxs, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+		}
+		tooltip(g, "Deletes BSP data and entities inside of a box defined by 2 \"cull\" entities "
+			"(for the min and max extent of the box). This is useful for getting maps to run in an "
+			"engine with stricter map limits. Works best with enclosed areas. Trying to partially "
+			"delete features in a room will likely result in broken collision detection.\n\n"
+			"Create 2 cull entities from the \"Create\" menu to define the culling box. "
+			"A transparent red box will form between them.");
+
+		if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading)) {
+			map->remove_unused_wads(wads);
+		}
+		tooltip(g, "Removes unused WADs from the worldspawn 'wad' keyvalue.\n\nIn Half-Life, unused WADs cause crashes if they don't exist.\nIn Sven Co-op, missing WADs are ignored.\n");
+
+		ImGui::Separator();
+
+		ImGui::MenuItem("Porting", 0, false, false);
+		if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading)) {
+			map->allocblock_reduction();
+
+			BspRenderer* renderer = app->mapRenderer;
+			if (renderer) {
+				renderer->preRenderFaces();
+				g_app->gui->refresh();
+			}
+		}
+		tooltip(g, "Scales up textures on invisible models, if any exist. Manually increase texture scales or downscale large textures to reduce AllocBlocks further.\n");
+
+		if (ImGui::MenuItem("Downscale Invalid Textures", 0, false, !app->isLoading)) {
+			map->downscale_invalid_textures(wads);
+
+			BspRenderer* renderer = app->mapRenderer;
+			if (renderer) {
+				renderer->preRenderFaces();
+				g_app->gui->refresh();
+				reloadLimits();
+			}
+		}
+		tooltip(g, "Shrinks textures that exceed the max texture size and adjusts texture coordinates accordingly.\n\nIf a texture is stored in a WAD, it is first embedded into the BSP before being downscaled.\n");
+
+		if (ImGui::BeginMenu("Fix Bad Surface Extents", !app->isLoading)) {
+			if (ImGui::MenuItem("Shrink Textures (512)", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (512)",
+					false, true, 512, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Downscales textures on bad faces to a max resolution of 512x512 pixels. "
+				"This alone will likely not be enough to fix all faces with bad surface extents."
+				"You may also have to apply the Subdivide or Scale methods.");
+
+			if (ImGui::MenuItem("Shrink Textures (256)", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (256)",
+					false, true, 256, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Downscales textures on bad faces to a max resolution of 256x256 pixels. "
+				"This alone will likely not be enough to fix all faces with bad surface extents."
+				"You may also have to apply the Subdivide or Scale methods.");
+
+			if (ImGui::MenuItem("Shrink Textures (128)", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (128)",
+					false, true, 128, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Downscales textures on bad faces to a max resolution of 128x128 pixels. "
+				"This alone will likely not be enough to fix all faces with bad surface extents."
+				"You may also have to apply the Subdivide or Scale methods.");
+
+			if (ImGui::MenuItem("Shrink Textures (64)", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Shrink textures (64)",
+					false, true, 64, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Downscales textures to a max resolution of 64x64 pixels. "
+				"This alone will likely not be enough to fix all faces with bad surface extents."
+				"You may also have to apply the Subdivide or Scale methods.");
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Scale", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Scale faces",
+					true, false, 0, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Scales up face textures until they have valid extents. The drawback to this method is shifted texture coordinates and lower apparent texture quality.");
+
+			if (ImGui::MenuItem("Subdivide", 0, false, !app->isLoading)) {
+				FixSurfaceExtentsCommand* command = new FixSurfaceExtentsCommand("Subdivide faces",
+					false, false, 0, app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			tooltip(g, "Subdivides faces until they have valid extents. The drawback to this method is reduced in-game performace from higher poly counts.");
+
+			ImGui::MenuItem("##", "WIP");
+			tooltip(g, "Anything you choose here will break lightmaps. "
+				"Run the map through a RAD compiler to fix, and pray that the mapper didn't "
+				"customize compile settings much.");
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading)) {
+			int moveCount = 0;
+			moveCount += map->zero_entity_origins("func_ladder");
+			moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+			moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+
+			BspRenderer* renderer = app->mapRenderer;
+
+			if (moveCount) {
+				if (renderer) {
+					renderer->reload();
+				}
+				refresh();
+			}
+			else {
+				logf("No entity origins need moving\n");
+			}
+
+			g_app->deselectObject();
+		}
+		tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
+
 		ImGui::EndMenu();
 	}
 
@@ -1370,7 +1413,7 @@ void Gui::drawMenuBar() {
 
 	{
 		float inputWidth = 230.0f;
-		float selectWidth = 250.0f;
+		float selectWidth = 260.0f;
 		float labelWidth = 50.0f;
 		float spacing = 10.0f;
 		static char cam_origin[32];
@@ -1396,7 +1439,7 @@ void Gui::drawMenuBar() {
 		int entCount = app->pickInfo.ents.size();
 		int faceCount = app->pickInfo.faces.size();
 		if (entCount > 1) {
-			selectStr = to_string(entCount) + " objects selected";
+			selectStr = to_string(entCount) + " entities selected";
 		}
 		else if (entCount == 1) {
 			selectStr = app->pickInfo.getEnt()->keyvalues["classname"];
@@ -1570,7 +1613,7 @@ void Gui::drawToolbar() {
 		dimColor.w = 1;
 
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_OBJECT ? selectColor : dimColor);
-		if (ImGui::ImageButton((void*)objectIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
+		if (ImGui::ImageButton("objpickicon", (ImTextureID)objectIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1))) {
 			app->deselectFaces();
 			app->deselectObject();
 			app->pickMode = PICK_OBJECT;
@@ -1585,23 +1628,23 @@ void Gui::drawToolbar() {
 
 		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_FACE ? selectColor : dimColor);
 		ImGui::SameLine();
-		if (ImGui::ImageButton((void*)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1), 4)) {
-			if (app->pickInfo.getModelIndex() >= 0) {
-				Bsp* map = app->pickInfo.getMap();
-				BspRenderer* mapRenderer = app->mapRenderer;
+		if (ImGui::ImageButton("facepickicon", (ImTextureID)faceIconTexture->id, iconSize, ImVec2(0, 0), ImVec2(1, 1))) {
+			
+			int modelIdx = app->pickInfo.getModelIndex();
+			BSPMODEL* model = app->pickInfo.getModel();
+			Bsp* map = app->pickInfo.getMap();
+			BspRenderer* mapRenderer = app->mapRenderer;
+			app->deselectObject();
 
-				// don't select all worldspawn faces because it lags the program
-				if (app->pickInfo.getModelIndex() != 0) {
-					app->pickInfo.deselect();
-					BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
-					for (int i = 0; i < model.nFaces; i++) {
-						int faceIdx = model.iFirstFace + i;
-						mapRenderer->highlightFace(faceIdx, true);
-						app->pickInfo.selectFace(faceIdx);
-					}
+			// don't select all worldspawn faces because it lags the program
+			if (modelIdx > 0 && model) {
+				for (int i = 0; i < model->nFaces; i++) {
+					int faceIdx = model->iFirstFace + i;
+					mapRenderer->highlightFace(faceIdx, true);
+					app->pickInfo.selectFace(faceIdx);
 				}
 			}
-			app->deselectObject();
+			
 			app->pickMode = PICK_FACE;
 			app->pickCount++; // force texture tool refresh
 			showTextureWidget = true;
@@ -3087,10 +3130,10 @@ void Gui::drawTransformWidget() {
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 
+			ImGui::BeginDisabled(app->transformTarget != TRANSFORM_OBJECT || g_app->pickInfo.getEntIndex() == 0);
 			ImGui::Text("Rotate");
 			ImGui::TableNextColumn();
 
-			ImGui::BeginDisabled(app->transformTarget != TRANSFORM_OBJECT);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::DragInt("##xrot", &rx, 0.1f, 0, 0, "X: %d")) {
 				rx = rx > 0 ? (rx % 360) : -(-rx % 360);
@@ -3271,6 +3314,23 @@ void Gui::drawTransformWidget() {
 		string l = to_string((int)app->selectionSize.z) + "l";
 		ImGui::Text(("Size: " + w + h + l).c_str());
 
+		ImGui::SameLine();
+		const char* butLabel = "Apply BSP Move";
+		ImGui::SetCursorPosX(ImGui::GetWindowWidth() - (ImGui::CalcTextSize(butLabel).x + ImGui::GetStyle().ItemSpacing.x + 30));
+		ImGui::BeginDisabled(app->pickInfo.getEntIndex() != 0 || map->ents[0]->getOrigin() == vec3());
+		if (ImGui::Button(butLabel)) {
+			MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
+				map->ents[0]->getOrigin(), app->undoLumpState);
+			g_app->saveLumpState(map, 0xffffffff, false);
+			command->execute();
+			app->pushUndoCommand(command);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Moves all BSP data by the amount set in the worldspawn origin keyvalue.\n"
+				"Useful for aligning maps before merging, or fitting the map inside the +/-4096 HL grid.");
+		}
+		ImGui::EndDisabled();
+
 		if (transformingEnt) {
 			if (originChanged) {
 				if (app->transformTarget == TRANSFORM_VERTEX) {
@@ -3405,7 +3465,7 @@ void Gui::drawLog() {
 
 	ImGui::SetNextWindowSize(ImVec2(750, 300), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
-	if (!ImGui::Begin("Log", &showLogWidget))
+	if (!ImGui::Begin("Messages", &showLogWidget))
 	{
 		ImGui::End();
 		return;
@@ -3443,7 +3503,7 @@ void Gui::drawLog() {
 	const char* buf = Buf.begin();
 	const char* buf_end = Buf.end();
 
-	if (copy) ImGui::LogBegin(ImGuiLogType_Clipboard, 0);
+	if (copy) ImGui::LogBegin(ImGuiLogFlags_OutputClipboard, 0);
 
 	ImGuiListClipper clipper;
 	clipper.Begin(LineOffsets.Size);
@@ -4141,7 +4201,7 @@ void Gui::drawEntityReport() {
 			static vector<bool> selectedItems;
 
 			ImGuiIO& io = ImGui::GetIO();
-			const ImGuiModFlags expected_key_mod_flags = io.KeyMods;
+			const ImGuiKeyChord expected_key_mod_flags = io.KeyMods;
 
 			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
@@ -4229,11 +4289,11 @@ void Gui::drawEntityReport() {
 					string cname = ent->keyvalues["classname"];
 
 					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
-						if (expected_key_mod_flags & ImGuiModFlags_Ctrl) {
+						if (expected_key_mod_flags & ImGuiMod_Ctrl) {
 							selectedItems[i] = !selectedItems[i];
 							lastSelect = i;
 						}
-						else if (expected_key_mod_flags & ImGuiModFlags_Shift) {
+						else if (expected_key_mod_flags & ImGuiMod_Shift) {
 							if (lastSelect >= 0) {
 								int begin = i > lastSelect ? lastSelect : i;
 								int end = i > lastSelect ? i : lastSelect;
@@ -4679,7 +4739,7 @@ void Gui::drawLightMapTool() {
 					continue;
 				}
 
-				if (ImGui::ImageButton((void*)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1), 0)) {
+				if (ImGui::ImageButton(("lightmap" + to_string(currentlightMap[i]->id)).c_str(), (ImTextureID)currentlightMap[i]->id, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
 					ImVec2 picker_pos = ImGui::GetCursorScreenPos();
 					if (i == 1 || i == 3)
 					{
@@ -4825,7 +4885,7 @@ void Gui::drawTextureTool() {
 				shiftY = texinfo.shiftT;
 				isSpecial = texinfo.nFlags & TEX_SPECIAL;
 
-				textureId = (void*)mapRenderer->getFaceTextureId(faceIdx);
+				textureId = (ImTextureID)mapRenderer->getFaceTextureId(faceIdx);
 				validTexture = true;
 
 				// show default values if not all faces share the same values
@@ -5061,7 +5121,7 @@ void Gui::drawTextureTool() {
 				mapRenderer->updateFaceUVs(faceIdx);
 			}
 			if (textureChanged || toggledFlags) {
-				textureId = (void*)mapRenderer->getFaceTextureId(app->pickInfo.faces[0]);
+				textureId = (ImTextureID)mapRenderer->getFaceTextureId(app->pickInfo.faces[0]);
 				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
 					mapRenderer->refreshModel(*it);
 				}
@@ -5076,7 +5136,7 @@ void Gui::drawTextureTool() {
 		refreshSelectedFaces = false;
 
 		ImVec2 imgSize = ImVec2(inputWidth * 2 - 2, inputWidth * 2 - 2);
-		if (ImGui::ImageButton(textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1), 1)) {
+		if (ImGui::ImageButton("texicon", textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
 			logf("Open browser!\n");
 
 			ImGui::OpenPopup("Not Implemented");
@@ -5236,4 +5296,22 @@ void Gui::refresh() {
 	reloadLimits();
 	checkValidHulls();
 	entityReportFilterNeeded = true;
+}
+
+void Gui::saveAs() {
+	Bsp* map = app->getMapContainingCamera()->map;
+
+	char* fname = tinyfd_saveFileDialog("Save As", map->path.c_str(),
+		1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)");
+
+	if (fname) {
+		map->update_ent_lump();
+		map->path = fname;
+		map->name = stripExt(basename(fname));
+		map->write(map->path);
+	}
+}
+
+const char* Gui::openMap() {
+	return tinyfd_openFileDialog("Open Map", "", 1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
 }

@@ -31,7 +31,7 @@ MdlRenderer::MdlRenderer(ShaderProgram* shaderProgram, string modelPath) {
 
 	loadFuture = async(launch::async, &MdlRenderer::loadData, this);
 	//loadData();
-	//postLoad();
+	//upload();
 }
 
 MdlRenderer::~MdlRenderer() {
@@ -135,6 +135,43 @@ bool MdlRenderer::validate() {
 				data.seek(mesh->triindex + (mesh->numtris * sizeof(mstudiotrivert_t) + 2) - 1);
 				if (data.eom()) {
 					logf("ERROR: Failed to load triangles for mesh %d in model %d\n", k, i);
+					return false;
+				}
+
+				
+				data.seek(mesh->triindex);
+				short* ptricmds = (short*)data.getOffsetBuffer();
+				short* oldcmd = ptricmds;
+
+				int p;
+				int maxVertIdx = 0;
+				int maxNormIdx = 0;
+				while (p = *(ptricmds++))
+				{
+					if (p < 0) {
+						p = -p;
+					}
+					for (; p > 0; p--, ptricmds += 4) {
+						data.seek(mesh->triindex + (ptricmds - oldcmd));
+						if (data.eom()) {
+							logf("ERROR: Bad tri list in mesh %d in model %d\n", k, i);
+							return false;
+						}
+
+						maxVertIdx = max(maxVertIdx, (int)ptricmds[0]);
+						maxNormIdx = max(maxNormIdx, (int)ptricmds[1]);
+					}
+				}
+
+				data.seek(mesh->normindex + maxNormIdx*sizeof(vec3));
+				if (data.eom()) {
+					logf("ERROR: Bad tri norm idx in mesh %d in model %d\n", k, i);
+					return false;
+				}
+
+				data.seek(mod->vertindex + maxVertIdx * sizeof(vec3));
+				if (data.eom()) {
+					logf("ERROR: Bad tri vert idx in mesh %d in model %d\n", k, i);
 					return false;
 				}
 			}
@@ -311,21 +348,20 @@ void MdlRenderer::loadData() {
 	memset(seqheaders, 0, sizeof(seqheaders));
 	iMouth = 0;
 
-	float frame = 0;
-
 	if (!loadTextureData() || !loadSequenceData()) {
 		loadState = MDL_LOAD_DONE;
 		return;
 	}
 
-	SetUpBones(vec3(), 0, frame);
+	vec3 angles;
+	SetUpBones(angles, 0, 0);
 	loadMeshes();
 	//transformVerts();
 
 	// precalculate anim bounds
 	for (int i = 0; i < header->numseq; i++) {
 		vec3 mins, maxs;
-		getModelBoundingBox(vec3(), i, mins, maxs, false);
+		getModelBoundingBox(vec3(), i, mins, maxs);
 	}
 
 	valid = true;
@@ -333,6 +369,11 @@ void MdlRenderer::loadData() {
 }
 
 void MdlRenderer::upload() {
+	if (loadState != MDL_LOAD_UPLOAD) {
+		logf("MDL upload called before initial load\n");
+		return;
+	}
+
 	for (int i = 0; i < numTextures; i++) {
 		glTextures[i]->upload(glTextures[i]->format);
 	}
@@ -901,7 +942,11 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 			else
 			{
 				angle1[j] = panimvalue[panimvalue->num.valid].value;
-				if (panimvalue->num.total > k + 1)
+				// TODO: I don't understand this code yet and ASAN complained about heap overflow here.
+				// It crashed for an external sequence on the last frame and last bone
+				//if (panimvalue->num.total > k + 1)
+
+				if (panimvalue->num.total > k)
 				{
 					angle2[j] = angle1[j];
 				}
@@ -1076,6 +1121,9 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 
 void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence, float gaitframe)
 {
+	if (loadState != MDL_LOAD_DONE && g_main_thread_id != this_thread::get_id()) {
+		return; // don't let multiple threads access the same buffers
+	}
 	angles = angles.flipToStudioMdl();
 
 	sequence = clamp(sequence, 0, max(0, header->numseq-1));
@@ -1139,6 +1187,9 @@ void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitseq
 
 	float modelAngleMatrix[3][4];
 	vec4 angleQuat;
+	
+	// TODO: this is triggering ASAN in release mode somehow. Access on angles/angleQuat is a stack overflow.
+	// Fix by disabling this line. When multi-threaded it crashes somewhere else, but disabling this line still fixes it.
 	AngleQuaternion(angles * (PI / 180.0f), angleQuat);
 
 	for (int i = 0; i < header->numbones; i++)
@@ -1230,7 +1281,7 @@ void MdlRenderer::transformVerts() {
 }
 
 void MdlRenderer::draw(vec3 origin, vec3 angles, int sequence, vec3 viewerOrigin, vec3 viewerRight, vec3 color) {
-	if (!valid) {
+	if (!valid || loadState != MDL_LOAD_DONE) {
 		return;
 	}
 
@@ -1241,6 +1292,7 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, int sequence, vec3 viewerOrigin
 	float deltaTime = now - lastDrawCall;
 	lastDrawCall = now;
 
+	sequence = clamp(sequence, 0, header->numseq - 1);
 	mstudioseqdesc_t* seq = getSequence(sequence);
 	if (seq && seq->numframes > 1) {
 		drawFrame += seq->fps * deltaTime;
@@ -1369,22 +1421,24 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, int sequence, vec3 viewerOrigin
 }
 
 // get a AABB containing all model vertices at the given angles and animation frame
-void MdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs, bool isMainThread) {
-	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
-	maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
-	if (loadState != MDL_LOAD_DONE && isMainThread) {
+void MdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs) {
+	if (loadState != MDL_LOAD_DONE && g_main_thread_id != this_thread::get_id()) {
+		// don't let main thread transform verts before they're loaded
 		mins = vec3();
 		maxs = vec3();
 		return;
 	}
 
+	sequence = clamp(sequence, 0, header->numseq - 1);
 	mstudioseqdesc_t* seq = getSequence(sequence);
 	if (!seq) {
 		mins = vec3();
 		maxs = vec3();
 		return;
 	}
+
+	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	if (cachedBounds[sequence].isCached) {
 		mins = cachedBounds[sequence].mins;
@@ -1459,6 +1513,10 @@ void MdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec
 }
 
 bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
+	if (!valid || loadState != MDL_LOAD_DONE) {
+		return false;
+	}
+
 	vec3 mins, maxs;
 	getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
 	mins += ent->drawOrigin;

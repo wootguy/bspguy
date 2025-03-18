@@ -12,10 +12,14 @@
 #ifdef WIN32
 #include <Windows.h>
 #include <Shlobj.h>
+#include <direct.h>
+#define GetCurrentDir _getcwd
 #else 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
+#define GetCurrentDir getcwd
 #endif
 
 #ifdef WIN32
@@ -31,6 +35,7 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #define USE_FILESYSTEM
 #endif
+
 
 static char log_line[4096];
 
@@ -1054,4 +1059,36 @@ float normalizeRangef(const float value, const float start, const float end)
 
 	return (offsetValue - (floorf(offsetValue / width) * width)) + start;
 	// + start to reset back to start of original range
+}
+
+bool isAbsolutePath(const std::string& path) {
+	if (path.length() > 1 && path[1] == ':') {
+		return true;
+	}
+	if (path.length() > 1 && (path[0] == '\\' || path[0] == '/' || path[0] == '~')) {
+		return true;
+	}
+	return false;
+}
+
+std::string getAbsolutePath(const string& relpath) {
+	if (isAbsolutePath(relpath)) {
+		return relpath;
+	}
+
+	char buffer[256];
+	if (getcwd(buffer, sizeof(buffer)) != NULL) {
+		string abspath = string(buffer) + "/" + relpath;
+
+		#if defined(WIN32)	
+			replace(abspath.begin(), abspath.end(), '/', '\\'); // convert to windows slashes
+		#endif
+
+		return abspath;
+	}
+	else {
+		return "Error: Unable to get current working directory";
+	}
+
+	return relpath;
 }

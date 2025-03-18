@@ -59,6 +59,8 @@ public:
 	void copyLightmap();
 	void pasteLightmap();
 	void refresh();
+	void saveAs();
+	const char* openMap();
 
 private:
 	bool vsync = true;
