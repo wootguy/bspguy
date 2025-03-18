@@ -3327,7 +3327,7 @@ void Gui::drawTransformWidget() {
 		}
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Moves all BSP data by the amount set in the worldspawn origin keyvalue.\n"
-				"Useful for aligning maps before merging, or fitting the map inside the +/-4096 HL grid.");
+				"Useful for aligning maps before merging and moving areas inside the map boundaries.");
 		}
 		ImGui::EndDisabled();
 
@@ -3613,7 +3613,7 @@ void Gui::drawSettings() {
 			
 		}
 		else if (settingsTab == 1) {
-			ImGui::InputText("##GameDir", gamedir, 256);
+			ImGui::InputText("##GameDir", gamedir, 256, ImGuiInputTextFlags_ElideLeft);
 
 			ImGui::SameLine();
 			ImGui::Text("Game Directory");
@@ -3628,9 +3628,19 @@ void Gui::drawSettings() {
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
 				tmpResPaths[i].resize(256);
-				ImGui::InputText(("##res" + to_string(i)).c_str(), &tmpResPaths[i][0], 256);
+				ImGui::InputText(("##res" + to_string(i)).c_str(), &tmpResPaths[i][0], 256, ImGuiInputTextFlags_ElideLeft);
 				ImGui::SameLine();
+				if (ImGui::IsItemHovered()) {
+					string paths = tmpResPaths[i];
+					if (!isAbsolutePath(tmpResPaths[i])) {
+						paths = joinPaths(getAbsolutePath(""), tmpResPaths[i]);
+						if (!string(gamedir).empty())
+							paths += "\n" + joinPaths(gamedir, tmpResPaths[i]);
+					}
+					ImGui::SetTooltip(("This asset path adds the following search paths:\n" + paths).c_str());
+				}
 
+				ImGui::SameLine();
 				ImGui::SetNextItemWidth(delWidth);
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
@@ -3656,11 +3666,47 @@ void Gui::drawSettings() {
 		}
 		else if (settingsTab == 2) {
 			for (int i = 0; i < numFgds; i++) {
-				ImGui::SetNextItemWidth(pathWidth);
+				ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 100);
 				tmpFgdPaths[i].resize(256);
-				ImGui::InputText(("##fgd" + to_string(i)).c_str(), &tmpFgdPaths[i][0], 256);
-				ImGui::SameLine();
 
+				bool isFound = !tmpFgdPaths[i].empty() && !findAsset(tmpFgdPaths[i]).empty();
+				if (!isFound) {
+					ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.0f, 0.0f, 0.5f));
+					ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.0f, 0.0f, 0.7f));
+				}
+
+				ImGui::InputText(("##fgd" + to_string(i)).c_str(), &tmpFgdPaths[i][0], 256, ImGuiInputTextFlags_ElideLeft);
+
+				if (ImGui::IsItemHovered() && !isFound) {
+					if (isAbsolutePath(tmpFgdPaths[i])) {
+						ImGui::SetTooltip("File not found.");
+					}
+					else {
+						vector<string> paths = getAssetPaths();
+						sort(paths.begin(), paths.end());
+						string searched;
+						for (int k = 0; k < paths.size(); k++) {
+							string basePath = isAbsolutePath(paths[k]) ? paths[k] : getAbsolutePath(paths[k]);
+							searched += "\n" + joinPaths(basePath, tmpFgdPaths[i]);
+						}
+						ImGui::SetTooltip(("File not found. The following paths were checked according "
+							"to your configured Asset Paths:\n" + searched).c_str());
+					}
+				}
+				if (!isFound)
+					ImGui::PopStyleColor(2);	
+
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(delWidth);
+				if (ImGui::Button((" ... ##open_fgd" + to_string(i)).c_str())) {
+					char const* fgdFilterPatterns[2] = { "*.fgd" };
+					char* fgd = tinyfd_openFileDialog("Open Game Definition File", "", 1, fgdFilterPatterns, "Game Definition File (*.fgd)", 1);
+					if (fgd) {
+						tmpFgdPaths[i] = string(fgd);
+					}
+				}
+
+				ImGui::SameLine();
 				ImGui::SetNextItemWidth(delWidth);
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));

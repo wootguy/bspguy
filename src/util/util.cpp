@@ -933,19 +933,19 @@ vector<string> getAssetPaths() {
 
 	for (const string& resPath : g_settings.resPaths) {
 		string path = std::string(resPath.c_str()); // this is necessary for some reason
-		char end = g_settings.gamedir[g_settings.gamedir.size() - 1];
-		char start = path[0];
-		char end2 = path[path.size() - 1];
 
-		if (end2 != '\\' && end2 != '/') {
+		if (isAbsolutePath(path)) {
+			tryPaths.push_back(path);
+			continue;
+		}
+
+		char end = path[path.size() - 1];
+		if (end != '\\' && end != '/') {
 			path += "/";
 		}
-		tryPaths.push_back(path);
 
-		if (g_settings.gamedir.size() && end != '\\' && end != '/' && start != '\\' && start != '/') {
-			path = "/" + path;
-		}
-		tryPaths.push_back(g_settings.gamedir + path);
+		tryPaths.push_back(path);
+		tryPaths.push_back(joinPaths(g_settings.gamedir, path));
 	}
 
 	return tryPaths;
@@ -953,6 +953,10 @@ vector<string> getAssetPaths() {
 
 string findAsset(string asset) {
 	vector<string> tryPaths = getAssetPaths();
+
+	if (fileExists(asset)) {
+		return asset;
+	}
 
 	for (string path : tryPaths) {
 		string testPath = path + asset;
@@ -1071,7 +1075,7 @@ bool isAbsolutePath(const std::string& path) {
 	return false;
 }
 
-std::string getAbsolutePath(const string& relpath) {
+string getAbsolutePath(const string& relpath) {
 	if (isAbsolutePath(relpath)) {
 		return relpath;
 	}
@@ -1091,4 +1095,23 @@ std::string getAbsolutePath(const string& relpath) {
 	}
 
 	return relpath;
+}
+
+string joinPaths(string path1, string path2) {
+	if (path1.empty()) {
+		return path2;
+	}
+	char end = path1[path1.size() - 1];
+	char start = path2[0];
+
+	if (path1.size() && end != '\\' && end != '/' && start != '\\' && start != '/') {
+		path2 = "/" + path2;
+	}
+	string combined = path1 + path2;
+
+#if defined(WIN32)	
+	replace(combined.begin(), combined.end(), '/', '\\'); // convert to windows slashes
+#endif
+
+	return std::string(combined.c_str());
 }

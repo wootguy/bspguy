@@ -946,7 +946,6 @@ void Renderer::loadSettings() {
 void Renderer::loadFgds() {
 	Fgd* mergedFgd = NULL;
 
-	vector<string> tryPaths = getAssetPaths();
 	vector<Fgd*> fgds;
 
 	for (int i = 0; i < g_settings.fgdPaths.size(); i++) {
@@ -955,14 +954,7 @@ void Renderer::loadFgds() {
 		g_parsed_fgds.clear();
 		g_parsed_fgds.insert(path);
 
-		string loadPath;
-		for (int k = 0; k < tryPaths.size(); k++) {
-			string testPath = tryPaths[k] + path;
-			if (fileExists(testPath)) {
-				loadPath = testPath;
-				break;
-			}
-		}
+		string loadPath = findAsset(path);
 		if (loadPath.empty()) {
 			logf("Missing FGD: %s\n", path.c_str());
 			continue;
