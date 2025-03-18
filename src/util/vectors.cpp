@@ -231,8 +231,12 @@ vec3 vec3::flip() {
 	return vec3(x, z, -y);
 }
 
-vec3 vec3::flipStudioMdl() {
+vec3 vec3::flipToStudioMdl() {
 	return vec3(z, -x, y);
+}
+
+vec3 vec3::flipFromStudioMdl() {
+	return vec3(x, -z, y);
 }
 
 

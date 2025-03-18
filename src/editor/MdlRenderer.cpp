@@ -8,6 +8,8 @@
 #include "Entity.h"
 #include "Polygon3D.h"
 #include <float.h>
+#include "globals.h"
+#include "Renderer.h"
 
 MdlRenderer::MdlRenderer(ShaderProgram* shaderProgram, string modelPath) {
 	this->fpath = modelPath;
@@ -1074,7 +1076,7 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 
 void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence, float gaitframe)
 {
-	angles = angles.flipStudioMdl();
+	angles = angles.flipToStudioMdl();
 
 	sequence = clamp(sequence, 0, max(0, header->numseq-1));
 
@@ -1210,8 +1212,8 @@ void MdlRenderer::transformVerts() {
 					short oldVertIdx = buffer.origVerts[v];
 					short oldNormIdx = buffer.origNorms[v];
 
-					buffer.transformVerts[v] = transformedVerts[oldVertIdx].flipStudioMdl();
-					//buffer.transformVerts[v].normal = transformedNormals[oldNormIdx].flipStudioMdl();
+					buffer.transformVerts[v] = transformedVerts[oldVertIdx].flipFromStudioMdl();
+					//buffer.transformVerts[v].normal = transformedNormals[oldNormIdx].flipFromStudioMdl();
 
 					//VectorTransform(pstudioverts[oldVertIdx], m_bonetransform[bone], *pos);
 					//VectorRotate(pstudionorms[oldNormIdx], m_bonetransform[bone], *norm);
@@ -1491,6 +1493,7 @@ bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 					const vec3& v2 = render.transformVerts[v+2];
 					
 					float t = rayTriangleIntersect(start, rayDir, v0, v1, v2);
+					//g_app->drawPolygon3D(Polygon3D({ v0, v1, v2 }), COLOR4(0, 255, 0, 255));
 
 					if (t > 0 && t < bestDist) {
 						bestDist = t;
