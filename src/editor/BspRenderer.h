@@ -231,6 +231,7 @@ private:
 	future<void> lightmapFuture;
 
 	bool texturesLoaded = false;
+	bool textureFacesLoaded = false;
 	future<void> texturesFuture;
 
 	bool clipnodesLoaded = false;

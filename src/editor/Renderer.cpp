@@ -86,6 +86,9 @@ void window_iconify_callback(GLFWwindow* window, int iconified)
 	g_app->isIconified = iconified;
 }
 
+void file_drop_callback(GLFWwindow* window, int count, const char** paths) {
+	g_app->openMap(paths[0]);
+}
 
 Renderer::Renderer() {
 	g_settings.loadDefault();
@@ -131,6 +134,7 @@ Renderer::Renderer() {
 	glfwSetWindowFocusCallback(window, window_focus_callback);
 	glfwSetCursorEnterCallback(window, cursor_enter_callback);
 	glfwSetWindowIconifyCallback(window, window_iconify_callback);
+	glfwSetDropCallback(window, file_drop_callback);
 
 	glewInit();
 
@@ -728,6 +732,10 @@ void Renderer::renderLoop() {
 		if (!g_app->hideGui)
 			gui->draw();
 
+		if (!isLoading && openMapAfterLoad.size()) {
+			openMap(openMapAfterLoad.c_str());
+		}
+
 		controls();
 
 		glfwSwapBuffers(window);
@@ -799,12 +807,14 @@ void Renderer::clearMapData() {
 		copiedEnts.clear();
 	}
 
+	/*
 	for (auto item : studioModels) {
 		if (item.second)
 			delete item.second;
 	}
 	studioModels.clear();
 	studioModelPaths.clear();
+	*/
 
 	for (EntityState& state : undoEntityState) {
 		if (state.ent)
@@ -855,9 +865,24 @@ void Renderer::openMap(const char* fpath) {
 		return;
 	}
 
-	clearMapData();
+	if (isLoading) {
+		logf("Delayed loading of dropped map until current map load finishes.\n");
+		logf("%s\n", fpath);
+		openMapAfterLoad = fpath;
+		return;
+	}
 
-	addMap(new Bsp(fpath));
+	Bsp* map = new Bsp(fpath);
+	openMapAfterLoad = "";
+
+	if (!map->valid) {
+		delete map;
+		logf("Failed to load map (not a valid BSP file): %s\n", fpath);
+		return;
+	}
+
+	clearMapData();
+	addMap(map);
 
 	gui->refresh();
 	updateCullBox();

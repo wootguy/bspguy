@@ -1420,6 +1420,8 @@ void BspRenderer::delayLoadData() {
 		texturesLoaded = true;
 
 		preRenderFaces();
+
+		textureFacesLoaded = true;
 	}
 
 	if (!clipnodesLoaded && clipnodesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
@@ -1440,7 +1442,7 @@ void BspRenderer::delayLoadData() {
 }
 
 bool BspRenderer::isFinishedLoading() {
-	return lightmapsUploaded && texturesLoaded && clipnodesLoaded;
+	return lightmapsUploaded && texturesLoaded && textureFacesLoaded && clipnodesLoaded;
 }
 
 void BspRenderer::highlightFace(int faceIdx, bool highlight) {
