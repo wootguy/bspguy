@@ -305,6 +305,7 @@ void Gui::draw3dContextMenus() {
 	}
 
 	if (app->pickMode == PICK_OBJECT) {
+
 		if (ImGui::BeginPopup("ent_context"))
 		{
 			if (ImGui::MenuItem("Cut", "Ctrl+X")) {
@@ -1462,7 +1463,7 @@ void Gui::drawMenuBar() {
 			selectStr = to_string(entCount) + " entities selected";
 		}
 		else if (entCount == 1) {
-			selectStr = app->pickInfo.getEnt()->keyvalues["classname"];
+			selectStr = app->pickInfo.getEnt()->getClassname();
 		}
 		else if (faceCount == 1) {
 			selectStr = "face #" + to_string(app->pickInfo.getFaceIndex()) + " selected";
@@ -2000,7 +2001,7 @@ void Gui::drawKeyvalueEditor() {
 			Entity* ent = app->pickInfo.getEnt();
 			BSPMODEL& model = map->models[app->pickInfo.getModelIndex()];
 			BSPFACE& face = *app->pickInfo.getFace();
-			string cname = ent->keyvalues["classname"];
+			string cname = ent->getClassname();
 			
 			Fgd* fgd = selectedFgdIdx >= 0 && selectedFgdIdx < app->fgds.size() ? app->fgds[selectedFgdIdx] : NULL;
 			FgdClass* fgdClass = fgd ? fgd->getFgdClass(cname) : NULL;
@@ -2018,7 +2019,7 @@ void Gui::drawKeyvalueEditor() {
 			bool sameClassesSelected = true;
 			vector<Entity*> pickEnts = app->pickInfo.getEnts();
 			for (Entity* ent : pickEnts) {
-				if (ent->keyvalues["classname"] != cname) {
+				if (ent->getClassname() != cname) {
 					sameClassesSelected = false;
 					break;
 				}
@@ -2160,7 +2161,7 @@ void Gui::drawKeyvalueEditor() {
 void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 	Entity* ent = g_app->pickInfo.getEnt();
 	if (!fgd) {
-		ImGui::Text("No entity definition found for %s.", ent->keyvalues["classname"].c_str());
+		ImGui::Text("No entity definition found for %s.", ent->getClassname().c_str());
 		return;
 	}
 	if (app->fgds.empty()) {
@@ -2169,7 +2170,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 		return;
 	}
 
-	string cname = ent->keyvalues["classname"];
+	string cname = ent->getClassname();
 	string lowerClass = toLowerCase(cname);
 	FgdClass* fgdClass = fgd->getFgdClass(cname);
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -2308,10 +2309,10 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 		}
 
 		bool matchingValues = true;
-		string matchValue = pickEnts[0]->keyvalues[key];
+		string matchValue = pickEnts[0]->getKeyvalue(key);
 		for (Entity* ent : pickEnts) {
-			if (ent->keyvalues.find(key) != ent->keyvalues.end()) {
-				if (matchValue != ent->keyvalues[key]) {
+			if (ent->hasKey(key)) {
+				if (matchValue != ent->getKeyvalue(key)) {
 					matchingValues = false;
 					break;
 				}
@@ -2436,7 +2437,8 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 						dat->bspRenderer->refreshEnt(idx);
 					}
 					
-					g_app->updateEntConnections();
+					if (g_app->pickInfo.ents.size() < 100)
+						g_app->updateEntConnections();
 					return 1;
 				}
 			};
@@ -2445,10 +2447,16 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 				ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], 64,
 					ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
 					InputChangeCallback::keyValueChanged, &inputData[bufferIdx]);
+				if (ImGui::IsItemDeactivatedAfterEdit()) {
+					app->updateEntConnections();
+				}
 			}
 			else {
 				ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], MAX_VAL_LEN,
 					ImGuiInputTextFlags_CallbackAlways, InputChangeCallback::keyValueChanged, &inputData[bufferIdx]);
+				if (ImGui::IsItemDeactivatedAfterEdit()) {
+					app->updateEntConnections();
+				}
 			}
 		}
 		if (ImGui::IsItemHovered() && ImGui::GetItemRectSize().x < ImGui::CalcTextSize(keyValues[bufferIdx]).x) {
@@ -2481,10 +2489,10 @@ void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 
 	uint combinedSpawnFlags = 0;
 	for (Entity* ent : pickEnts) {
-		combinedSpawnFlags |= strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+		combinedSpawnFlags |= strtoul(ent->getKeyvalue("spawnflags").c_str(), NULL, 10);
 	}
 
-	FgdClass* fgdClass = fgd->getFgdClass(pickEnts[0]->keyvalues["classname"]);
+	FgdClass* fgdClass = fgd->getFgdClass(pickEnts[0]->getClassname());
 
 	ImGui::Columns(2, "keyvalcols", true);
 
@@ -2505,7 +2513,7 @@ void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 
 		bool flagsDiffer = false;
 		for (Entity* ent : pickEnts) {
-			uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+			uint spawnflags = strtoul(ent->getKeyvalue("spawnflags").c_str(), NULL, 10);
 			if ((spawnflags & (1 << i)) != (combinedSpawnFlags & (1 << i))) {
 				flagsDiffer = true;
 				break;
@@ -2526,7 +2534,7 @@ void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 
 		if (ImGui::Checkbox((name + "##flag" + to_string(i)).c_str(), &checkboxEnabled[i])) {
 			for (Entity* ent : pickEnts) {
-				uint spawnflags = strtoul(ent->keyvalues["spawnflags"].c_str(), NULL, 10);
+				uint spawnflags = strtoul(ent->getKeyvalue("spawnflags").c_str(), NULL, 10);
 
 				if (!checkboxEnabled[i]) {
 					spawnflags &= ~(1U << i);
@@ -2649,7 +2657,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				int entidx = g_app->pickInfo.ents[i];
 				Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
 
-				if (ent->keyvalues.find(oldKey) == ent->keyvalues.end()) {
+				if (!ent->hasKey(oldKey)) {
 					ent->setOrAddKeyvalue(data->Buf, inputData->matchingValues ? inputData->commonValue : "");
 				}
 				else {
@@ -2669,7 +2677,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				inputData->bspRenderer->preRenderEnts();
 				g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 			}
-			if (anyUpdate) {
+			if (anyUpdate && g_app->pickInfo.ents.size() < 100) {
 				g_app->updateEntConnections();
 			}
 
@@ -2697,7 +2705,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				int entidx = g_app->pickInfo.ents[i];
 				Entity* ent = g_app->pickInfo.getMap()->ents[entidx];
 
-				if (ent->keyvalues.find(key) == ent->keyvalues.end() || ent->keyvalues[key] != data->Buf) {
+				if (!ent->hasKey(key) || ent->getKeyvalue(key) != data->Buf) {
 					ent->setOrAddKeyvalue(key, data->Buf);
 					inputData->bspRenderer->refreshEnt(entidx);
 					
@@ -2713,7 +2721,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				inputData->bspRenderer->preRenderEnts();
 				g_app->saveLumpState(inputData->bspRenderer->map, 0xffffffff, false);
 			}
-			if (anyUpdate) {
+			if (anyUpdate && g_app->pickInfo.ents.size() < 100) {
 				g_app->updateEntConnections();
 			}
 
@@ -2810,17 +2818,17 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 		bool sharedKey = true;
 		for (int k = 0; k < app->pickInfo.ents.size(); k++) {
 			Entity* ent = map->ents[app->pickInfo.ents[k]];
-			if (ent->keyvalues.find(key) == ent->keyvalues.end()) {
+			if (!ent->hasKey(key)) {
 				sharedKey = false;
 				break;
 			}
 		}
 		
 		bool matchingValues = true;
-		string matchValue = pickEnts[0]->keyvalues[key];
+		string matchValue = pickEnts[0]->getKeyvalue(key);
 		for (Entity* ent : pickEnts) {
-			if (ent->keyvalues.find(key) != ent->keyvalues.end()) {
-				if (matchValue != ent->keyvalues[key]) {
+			if (ent->hasKey(key)) {
+				if (matchValue != ent->getKeyvalue(key)) {
 					matchingValues = false;
 					break;
 				}
@@ -2871,6 +2879,10 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				}
 			}
 
+			if (ImGui::IsItemDeactivatedAfterEdit()) {
+				app->updateEntConnections();
+			}
+
 			if (coloredKey) {
 				ImGui::PopStyleColor();
 			}
@@ -2909,6 +2921,9 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				else if (ImGui::GetItemRectSize().x - 50 < ImGui::CalcTextSize(keyValues[i]).x) {
 					ImGui::SetTooltip(keyValues[i]);
 				}
+			}
+			if (ImGui::IsItemDeactivatedAfterEdit()) {
+				app->updateEntConnections();
 			}
 
 			if (colorChanged) {
@@ -3032,8 +3047,8 @@ void Gui::drawTransformWidget() {
 							multiselectAngles.clear();
 							for (int i = 0; i < app->pickInfo.ents.size(); i++) {
 								Entity* ent = map->ents[app->pickInfo.ents[i]];
-								vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-								vec3 angles = ent->hasKey("angles") ? parseVector(ent->keyvalues["angles"]) : vec3();
+								vec3 ori = ent->getOrigin();
+								vec3 angles = ent->getAngles();
 								multiselectOrigins.push_back(ori);
 								multiselectAngles.push_back(angles);
 							}
@@ -3045,8 +3060,8 @@ void Gui::drawTransformWidget() {
 					}
 					else {
 						Entity* ent = app->pickInfo.getEnt();
-						vec3 ori = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3();
-						vec3 angles = ent->hasKey("angles") ? parseVector(ent->keyvalues["angles"]) : vec3();
+						vec3 ori = ent->hasKey("origin") ? parseVector(ent->getKeyvalue("origin")) : vec3();
+						vec3 angles = ent->hasKey("angles") ? parseVector(ent->getKeyvalue("angles")) : vec3();
 						if (app->originSelected) {
 							ori = app->transformedOrigin;
 						}
@@ -4353,7 +4368,7 @@ void Gui::drawEntityReport() {
 				visibleEnts.clear();
 				for (int i = 1; i < map->ents.size(); i++) {
 					Entity* ent = map->ents[i];
-					string cname = ent->keyvalues["classname"];
+					string cname = ent->getClassname();
 
 					bool visible = true;
 
@@ -4384,8 +4399,8 @@ void Gui::drawEntityReport() {
 
 							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
 							if (!searchValue.empty()) {
-								if ((partialMatches && ent->keyvalues[actualKey].find(searchValue) == string::npos) ||
-									(!partialMatches && ent->keyvalues[actualKey] != searchValue)) {
+								if ((partialMatches && ent->getKeyvalue(actualKey).find(searchValue) == string::npos) ||
+									(!partialMatches && ent->getKeyvalue(actualKey) != searchValue)) {
 									visible = false;
 									break;
 								}
@@ -4395,7 +4410,7 @@ void Gui::drawEntityReport() {
 							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
 							bool foundMatch = false;
 							for (int c = 0; c < ent->keyOrder.size(); c++) {
-								string val = toLowerCase(ent->keyvalues[ent->keyOrder[c]]);
+								string val = toLowerCase(ent->getKeyvalue(ent->keyOrder[c]));
 								if (val == searchValue || (partialMatches && val.find(searchValue) != string::npos)) {
 									foundMatch = true;
 									break;
@@ -4429,7 +4444,7 @@ void Gui::drawEntityReport() {
 					int i = line;
 					int entIdx = visibleEnts[i];
 					Entity* ent = map->ents[entIdx];
-					string cname = ent->keyvalues["classname"];
+					string cname = ent->getClassname();
 
 					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
 						if (expected_key_mod_flags & ImGuiMod_Ctrl) {
@@ -4499,7 +4514,7 @@ void Gui::drawEntityReport() {
 
 					for (int i = 1; i < map->ents.size(); i++) {
 						Entity* ent = map->ents[i];
-						string cname = ent->keyvalues["classname"];
+						string cname = ent->getClassname();
 
 						if (uniqueClasses.find(cname) == uniqueClasses.end()) {
 							usedClasses.push_back(cname);
@@ -5360,8 +5375,8 @@ ModelInfo Gui::calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint ma
 	string targetname = modelInfo->modelIdx == 0 ? "" : "???";
 	for (int k = 0; k < map->ents.size(); k++) {
 		if (map->ents[k]->getBspModelIdx() == modelInfo->modelIdx) {
-			targetname = map->ents[k]->keyvalues["targetname"];
-			classname = map->ents[k]->keyvalues["classname"];
+			targetname = map->ents[k]->getTargetname();
+			classname = map->ents[k]->getClassname();
 			stat.entIdx = k;
 		}
 	}

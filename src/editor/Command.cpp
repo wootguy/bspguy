@@ -297,7 +297,7 @@ vector<Entity*> CreateEntityFromTextCommand::parse() {
 			if (ent == NULL)
 				continue;
 
-			if (ent->keyvalues.count("classname"))
+			if (ent->hasKey("classname"))
 				ents.push_back(ent);
 			else
 				logf("Found unknown classname entity. Skip it.\n");

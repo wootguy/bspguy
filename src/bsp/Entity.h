@@ -2,6 +2,7 @@
 #include "Keyvalue.h"
 #include "types.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include "mat4x4.h"
 
@@ -17,12 +18,7 @@ enum anglesKeyBehavior {
 class Entity
 {
 public:
-	unordered_map<string, string> keyvalues;
 	vector<string> keyOrder;
-
-	int cachedModelIdx = -2; // -2 = not cached
-	vector<string> cachedTargets;
-	bool targetsCached = false;
 	
 	// model rendering state updated whenever drawCached is false
 	bool drawCached; // origin, angles, sequence, and model are cached?
@@ -40,6 +36,8 @@ public:
 	Entity(const std::string& classname);
 	~Entity(void);
 
+	string getKeyvalue(string key);
+	unordered_map<string, string> getAllKeyvalues();
 	void addKeyvalue(Keyvalue& k);
 	void addKeyvalue(const std::string& key, const std::string& value);
 	void removeKeyvalue(const std::string& key);
@@ -54,6 +52,9 @@ public:
 
 	bool isBspModel();
 
+	string getTargetname();
+	string getClassname();
+
 	vec3 getOrigin();
 
 	vec3 getAngles();
@@ -67,7 +68,7 @@ public:
 
 	bool hasKey(const std::string& key);
 
-	vector<string> getTargets();
+	unordered_set<string> getTargets();
 
 	bool hasTarget(string tname);
 
@@ -80,5 +81,20 @@ public:
 	string serialize();
 
 	void clearCache();
+
+private:
+	unordered_map<string, string> keyvalues;
+
+	int cachedModelIdx = -2; // -2 = not cached
+	unordered_set<string> cachedTargets;
+	bool targetsCached = false;
+	bool hasCachedTargetname = false;
+	bool hasCachedClassname = false;
+	bool hasCachedOrigin = false;
+	bool hasCachedAngles = false;
+	string cachedTargetname;
+	string cachedClassname;
+	vec3 cachedOrigin;
+	vec3 cachedAngles;
 };
 

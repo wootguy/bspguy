@@ -1293,12 +1293,12 @@ void BspRenderer::refreshEnt(int entIdx) {
 	ent->drawCached = false;
 
 	if (ent->hasKey("origin")) {
-		vec3 origin = parseVector(ent->keyvalues["origin"]);
+		vec3 origin = ent->getOrigin();
 		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
 		renderEnts[entIdx].offset = origin;
 	}
 	if (ent->hasKey("angles")) {
-		renderEnts[entIdx].angles = parseVector(ent->keyvalues["angles"]).flip() * (PI / 180.0f);
+		renderEnts[entIdx].angles = ent->getAngles().flip() * (PI / 180.0f);
 	}
 }
 

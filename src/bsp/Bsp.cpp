@@ -662,14 +662,14 @@ bool Bsp::move(vec3 offset, int modelIdx) {
 
 			vec3 ori;
 			if (ents[i]->hasKey("origin")) {
-				ori = parseVector(ents[i]->keyvalues["origin"]);
+				ori = parseVector(ents[i]->getKeyvalue("origin"));
 			}
 			ori += offset;
 
 			ents[i]->setOrAddKeyvalue("origin", ori.toKeyvalueString());
 
 			if (ents[i]->hasKey("spawnorigin")) {
-				vec3 spawnori = parseVector(ents[i]->keyvalues["spawnorigin"]);
+				vec3 spawnori = parseVector(ents[i]->getKeyvalue("spawnorigin"));
 
 				// entity not moved if destination is 0,0,0
 				if (spawnori.x != 0 || spawnori.y != 0 || spawnori.z != 0) {
@@ -1537,17 +1537,17 @@ bool Bsp::has_hull2_ents() {
 	};
 
 	for (int i = 0; i < ents.size(); i++) {
-		string cname = ents[i]->keyvalues["classname"];
-		string tname = ents[i]->keyvalues["targetname"];
+		string cname = ents[i]->getClassname();
+		string tname = ents[i]->getTargetname();
 
 		if (cname.find("monster_") == 0) {
 			vec3 minhull;
 			vec3 maxhull;
 
-			if (!ents[i]->keyvalues["minhullsize"].empty())
-				minhull = Keyvalue("", ents[i]->keyvalues["minhullsize"]).getVector();
-			if (!ents[i]->keyvalues["maxhullsize"].empty())
-				maxhull = Keyvalue("", ents[i]->keyvalues["maxhullsize"]).getVector();
+			if (!ents[i]->getKeyvalue("minhullsize").empty())
+				minhull = Keyvalue("", ents[i]->getKeyvalue("minhullsize")).getVector();
+			if (!ents[i]->getKeyvalue("maxhullsize").empty())
+				maxhull = Keyvalue("", ents[i]->getKeyvalue("maxhullsize")).getVector();
 
 			if (minhull == vec3(0, 0, 0) && maxhull == vec3(0, 0, 0)) {
 				// monster is using its default hull size
@@ -1649,9 +1649,9 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 		bool needsMonsterHulls = false; // All HULLs
 		bool needsVisibleHull = false; // HULL 0
 		for (int k = 0; k < usageEnts.size(); k++) {
-			string cname = usageEnts[k]->keyvalues["classname"];
-			string tname = usageEnts[k]->keyvalues["targetname"];
-			int spawnflags = atoi(usageEnts[k]->keyvalues["spawnflags"].c_str());
+			string cname = usageEnts[k]->getClassname();
+			string tname = usageEnts[k]->getTargetname();
+			int spawnflags = atoi(usageEnts[k]->getKeyvalue("spawnflags").c_str());
 
 			if (k != 0) {
 				uses += ", ";
@@ -2333,7 +2333,7 @@ void Bsp::delete_box_data(vec3 clipMins, vec3 clipMaxs) {
 			}
 		}
 		else {
-			bool isCullEnt = ents[i]->hasKey("classname") && ents[i]->keyvalues["classname"] == "cull";
+			bool isCullEnt = ents[i]->hasKey("classname") && ents[i]->getClassname() == "cull";
 			if (!pointInBox(v, clipMins, clipMaxs) || isCullEnt) {
 				newEnts.push_back(ents[i]);
 			}
@@ -2511,7 +2511,7 @@ void Bsp::deduplicate_models() {
 		string modelKeyA = "*" + to_string(i);
 
 		for (Entity* ent : ents) {
-			if (ent->hasKey("model") && ent->keyvalues["model"] == modelKeyA) {
+			if (ent->hasKey("model") && ent->getKeyvalue("model") == modelKeyA) {
 				if (ent->isEverVisible()) {
 					shouldCompareTextures = true;
 					break;
@@ -2543,7 +2543,7 @@ void Bsp::deduplicate_models() {
 				string modelKeyB = "*" + to_string(k);
 
 				for (Entity* ent : ents) {
-					if (ent->hasKey("model") && ent->keyvalues["model"] == modelKeyB) {
+					if (ent->hasKey("model") && ent->getKeyvalue("model") == modelKeyB) {
 						if (ent->isEverVisible()) {
 							shouldCompareTextures = true;
 							break;
@@ -2672,11 +2672,11 @@ void Bsp::deduplicate_models() {
 	logf("Remapped %d BSP model references\n", modelRemap.size());
 
 	for (Entity* ent : ents) {
-		if (!ent->keyvalues.count("model")) {
+		if (!ent->hasKey("model")) {
 			continue;
 		}
 
-		string model = ent->keyvalues["model"];
+		string model = ent->getKeyvalue("model");
 
 		if (model[0] != '*')
 			continue;
@@ -2720,7 +2720,7 @@ void Bsp::allocblock_reduction() {
 		string modelKey = "*" + to_string(i);
 
 		for (Entity* ent : ents) {
-			if (ent->hasKey("model") && ent->keyvalues["model"] == modelKey) {
+			if (ent->hasKey("model") && ent->getKeyvalue("model") == modelKey) {
 				if (ent->isEverVisible()) {
 					isVisibleModel = true;
 					break;
@@ -3297,8 +3297,8 @@ void Bsp::remove_unused_wads(vector<Wad*>& wads) {
 
 	int worldspawn_count = 0;
 	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i]->keyvalues["classname"] == "worldspawn") {
-			ents[i]->keyvalues["wad"] = newWadList;
+		if (ents[i]->getClassname() == "worldspawn") {
+			ents[i]->getKeyvalue("wad") = newWadList;
 			break;
 		}
 	}
@@ -3308,7 +3308,7 @@ int Bsp::zero_entity_origins(string classname) {
 	int moveCount = 0;
 
 	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i]->keyvalues["classname"] == classname) {
+		if (ents[i]->getClassname() == classname) {
 			vec3 ori = ents[i]->getOrigin();
 			if (ori.x || ori.y || ori.z) {
 				int modelIdx = ents[i]->getBspModelIdx();
@@ -3339,8 +3339,8 @@ vector<string> Bsp::get_wad_names() {
 	vector<string> wadNames;
 
 	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i]->keyvalues["classname"] == "worldspawn") {
-			wadNames = splitString(ents[i]->keyvalues["wad"], ";");
+		if (ents[i]->getClassname() == "worldspawn") {
+			wadNames = splitString(ents[i]->getKeyvalue("wad"), ";");
 
 			for (int k = 0; k < wadNames.size(); k++) {
 				wadNames[k] = basename(wadNames[k]);
@@ -3714,10 +3714,10 @@ bool Bsp::is_invisible_solid(Entity* ent) {
 	if (!ent->isBspModel())
 		return false;
 
-	string tname = ent->keyvalues["targetname"];
-	int rendermode = atoi(ent->keyvalues["rendermode"].c_str());
-	int renderamt = atoi(ent->keyvalues["renderamt"].c_str());
-	int renderfx = atoi(ent->keyvalues["renderfx"].c_str());
+	string tname = ent->getTargetname();
+	int rendermode = atoi(ent->getKeyvalue("rendermode").c_str());
+	int renderamt = atoi(ent->getKeyvalue("renderamt").c_str());
+	int renderfx = atoi(ent->getKeyvalue("renderfx").c_str());
 
 	if (rendermode == 0 || renderamt != 0) {
 		return false;
@@ -3737,37 +3737,37 @@ bool Bsp::is_invisible_solid(Entity* ent) {
 	};
 
 	for (int i = 0; i < ents.size(); i++) {
-		string cname = ents[i]->keyvalues["classname"];
+		string cname = ents[i]->getClassname();
 
 		if (cname == "env_render") {
 			return false; // assume it will affect the brush since it can be moved anywhere
 		}
 		else if (cname == "env_render_individual") {
-			if (ents[i]->keyvalues["target"] == tname) {
+			if (ents[i]->getKeyvalue("target") == tname) {
 				return false; // assume it's making the ent visible
 			}
 		}
 		else if (cname == "trigger_changevalue") {
-			if (ents[i]->keyvalues["target"] == tname) {
-				if (renderKeys.find(ents[i]->keyvalues["m_iszValueName"]) != renderKeys.end()) {
+			if (ents[i]->getKeyvalue("target") == tname) {
+				if (renderKeys.find(ents[i]->getKeyvalue("m_iszValueName")) != renderKeys.end()) {
 					return false; // assume it's making the ent visible
 				}
 			}
 		}
 		else if (cname == "trigger_copyvalue") {
-			if (ents[i]->keyvalues["target"] == tname) {
-				if (renderKeys.find(ents[i]->keyvalues["m_iszDstValueName"]) != renderKeys.end()) {
+			if (ents[i]->getKeyvalue("target") == tname) {
+				if (renderKeys.find(ents[i]->getKeyvalue("m_iszDstValueName")) != renderKeys.end()) {
 					return false; // assume it's making the ent visible
 				}
 			}
 		}
 		else if (cname == "trigger_createentity") {
-			if (ents[i]->keyvalues["+model"] == tname || ents[i]->keyvalues["-model"] == ent->keyvalues["model"]) {
+			if (ents[i]->getKeyvalue("+model") == tname || ents[i]->getKeyvalue("-model") == ent->getKeyvalue("model")) {
 				return false; // assume this new ent will be visible at some point
 			}
 		}
 		else if (cname == "trigger_changemodel") {
-			if (ents[i]->keyvalues["model"] == ent->keyvalues["model"]) {
+			if (ents[i]->getKeyvalue("model") == ent->getKeyvalue("model")) {
 				return false; // assume the target is visible
 			}
 		}
@@ -3846,7 +3846,7 @@ void Bsp::update_ent_lump(bool stripNodes) {
 
 	for (int i = 0; i < ents.size(); i++) {
 		if (stripNodes) {
-			string cname = ents[i]->keyvalues["classname"];
+			string cname = ents[i]->getClassname();
 			if (cname == "info_node" || cname == "info_node_air") {
 				continue;
 			}
@@ -3856,7 +3856,7 @@ void Bsp::update_ent_lump(bool stripNodes) {
 
 		for (int k = 0; k < ents[i]->keyOrder.size(); k++) {
 			string key = ents[i]->keyOrder[k];
-			ent_data << "\"" << key << "\" \"" << ents[i]->keyvalues[key] << "\"\n";
+			ent_data << "\"" << key << "\" \"" << ents[i]->getKeyvalue(key) << "\"\n";
 		}
 
 		ent_data << "}";
@@ -4034,7 +4034,7 @@ void Bsp::load_ents()
 			if (ent == NULL)
 				continue;
 
-			if (ent->keyvalues.count("classname"))
+			if (ent->hasKey("classname"))
 				ents.push_back(ent);
 			else
 				logf("Found unknown classname entity. Skip it.\n");
@@ -4057,12 +4057,12 @@ void Bsp::load_ents()
 
 	if (ents.size() > 1)
 	{
-		if (ents[0]->keyvalues["classname"] != "worldspawn")
+		if (ents[0]->getClassname() != "worldspawn")
 		{
 			logf("First entity has classname different from 'woldspawn', we do fixup it\n");
 			for (int i = 1; i < ents.size(); i++)
 			{
-				if (ents[i]->keyvalues["classname"] == "worldspawn")
+				if (ents[i]->getClassname() == "worldspawn")
 				{
 					std::swap(ents[0], ents[i]);
 					break;
@@ -4116,8 +4116,8 @@ void Bsp::print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMe
 	string targetname = modelInfo->modelIdx == 0 ? "" : "???";
 	for (int k = 0; k < ents.size(); k++) {
 		if (ents[k]->getBspModelIdx() == modelInfo->modelIdx) {
-			targetname = ents[k]->keyvalues["targetname"];
-			classname = ents[k]->keyvalues["classname"];
+			targetname = ents[k]->getTargetname();
+			classname = ents[k]->getClassname();
 		}
 	}
 
@@ -4389,7 +4389,7 @@ bool Bsp::validate() {
 
 	int worldspawn_count = 0;
 	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i]->keyvalues["classname"] == "worldspawn") {
+		if (ents[i]->getClassname() == "worldspawn") {
 			worldspawn_count++;
 		}
 	}
@@ -4410,7 +4410,7 @@ bool Bsp::validate() {
 		float oob = 8192;
 
 		if (ori.x || ori.y || ori.z) {
-			string cname = ent->keyvalues["classname"];
+			string cname = ent->getClassname();
 			if (cname == "func_ladder" || cname == "func_water" || cname == "func_mortar_field") {
 				badOriginCount++;
 			}
@@ -4419,8 +4419,8 @@ bool Bsp::validate() {
 		if (fabs(ori.x) > oob || fabs(ori.y) > oob || fabs(ori.z) > oob) {
 			/*
 			logf("Entity '%s' (%s) outside map boundary at (%d %d %d)\n",
-				ent->hasKey("targetname") ? ent->keyvalues["targetname"].c_str() : "",
-				ent->hasKey("classname") ? ent->keyvalues["classname"].c_str() : "",
+				ent->hasKey("targetname") ? ent->getKeyvalue("targetname"].c_str() : "",
+				ent->hasKey("classname") ? ent->getKeyvalue("classname"].c_str() : "",
 				(int)ori.x, (int)ori.y, (int)ori.z);
 				*/
 			oobCount++;
@@ -4603,7 +4603,7 @@ void Bsp::print_model_hull(int modelIdx, int hull_number) {
 string Bsp::get_model_usage(int modelIdx) {
 	for (int i = 0; i < ents.size(); i++) {
 		if (ents[i]->getBspModelIdx() == modelIdx) {
-			return "\"" + ents[i]->keyvalues["targetname"] + "\" (" + ents[i]->keyvalues["classname"] + ")";
+			return "\"" + ents[i]->getTargetname() + "\" (" + ents[i]->getClassname() + ")";
 		}
 	}
 	return "(unused)";

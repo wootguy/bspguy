@@ -2178,11 +2178,11 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 	bool foundModelKey = false;
 	for (int i = 0; i < tryModelKeys.size(); i++) {
 		ModelKey key = tryModelKeys[i];
-		model = ent->keyvalues[key.name];
+		model = ent->getKeyvalue(key.name);
 
 		if (tryModelKeys[i].isClassname) {
 			if (g_app->mergedFgd) {
-				FgdClass* fgd = g_app->mergedFgd->getFgdClass(ent->keyvalues[key.name]);
+				FgdClass* fgd = g_app->mergedFgd->getFgdClass(ent->getKeyvalue(key.name));
 				model = fgd ? fgd->model : "";
 				lowerModel = toLowerCase(model);
 			}
@@ -2196,13 +2196,13 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 
 		if (lowerModel.size() > 4 && lowerModel.find(".mdl") == lowerModel.size() - 4) {
 			foundModelKey = true;
-			ent->cachedMdlCname = key.isClassname ? ent->keyvalues[key.name] : ent->keyvalues["classname"];
+			ent->cachedMdlCname = key.isClassname ? ent->getKeyvalue(key.name) : ent->getClassname();
 			break;
 		}
 	}
 
 	if (!foundModelKey) {
-		//logf("No model key found for '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		//logf("No model key found for '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
 		ent->hasCachedMdl = true;
 		return NULL; // no MDL found
 	}
@@ -2213,7 +2213,7 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 		studioModelPaths[lowerModel] = findPath;
 		if (!findPath.size()) {
 			debugf("Failed to find model for entity '%s' (%s): %s\n",
-				ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(),
+				ent->getTargetname().c_str(), ent->getClassname().c_str(),
 				model.c_str());
 			ent->hasCachedMdl = true;
 			return NULL;
@@ -2222,7 +2222,7 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 
 	string modelPath = studioModelPaths[lowerModel];
 	if (!modelPath.size()) {
-		//logf("Empty string for model path in entity '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		//logf("Empty string for model path in entity '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
 		ent->hasCachedMdl = true;
 		return NULL;
 	}
@@ -2233,7 +2233,7 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 		studioModels[modelPath] = newMdl;
 		ent->cachedMdl = newMdl;
 		ent->hasCachedMdl = true;
-		//logf("Begin load model for entity '%s' (%s): %s\n", ent->keyvalues["targetname"].c_str(), ent->keyvalues["classname"].c_str(), model.c_str());
+		//logf("Begin load model for entity '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
 		return newMdl;
 	}
 
@@ -2301,8 +2301,8 @@ void Renderer::drawStudioModels() {
 		if (sent.mdl && sent.mdl->loadState == MDL_LOAD_DONE && sent.mdl->valid) {
 			if (!ent->drawCached) {
 				ent->drawOrigin = ent->getOrigin();
-				ent->drawAngles = parseVector(ent->keyvalues["angles"]);
-				ent->drawSequence = atoi(ent->keyvalues["sequence"].c_str());
+				ent->drawAngles = parseVector(ent->getKeyvalue("angles"));
+				ent->drawSequence = atoi(ent->getKeyvalue("sequence").c_str());
 
 				vec3 mins, maxs;
 				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
@@ -2411,7 +2411,7 @@ void Renderer::drawStudioModels() {
 }
 
 vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
-	vec3 origin = ent->hasKey("origin") ? parseVector(ent->keyvalues["origin"]) : vec3(0, 0, 0);
+	vec3 origin = ent->hasKey("origin") ? parseVector(ent->getKeyvalue("origin")) : vec3(0, 0, 0);
 	return origin + getEntOffset(map, ent);
 }
 
@@ -2459,7 +2459,7 @@ void Renderer::updateDragAxes() {
 
 			scaleAxes.origin = modelOrigin;
 			if (ent->hasKey("origin")) {
-				scaleAxes.origin += parseVector(ent->keyvalues["origin"]);
+				scaleAxes.origin += parseVector(ent->getKeyvalue("origin"));
 			}
 		}
 	}
@@ -2776,11 +2776,7 @@ void Renderer::updateEntConnections() {
 		for (int i = 0; i < pickInfo.ents.size(); i++) {
 			int entindx = pickInfo.ents[i];
 			Entity* self = map->ents[entindx];
-			vector<string> targetNames = self->getTargets();
-			string thisName;
-			if (self->hasKey("targetname")) {
-				thisName = self->keyvalues["targetname"];
-			}
+			string selfName = self->getTargetname();
 
 			for (int k = 0; k < map->ents.size(); k++) {
 				Entity* ent = map->ents[k];
@@ -2788,18 +2784,10 @@ void Renderer::updateEntConnections() {
 				if (k == entindx)
 					continue;
 
-				bool isTarget = false;
-				if (ent->hasKey("targetname")) {
-					string tname = ent->keyvalues["targetname"];
-					for (int i = 0; i < targetNames.size(); i++) {
-						if (tname == targetNames[i]) {
-							isTarget = true;
-							break;
-						}
-					}
-				}
-
-				bool isCaller = thisName.length() && ent->hasTarget(thisName);
+				
+				string tname = ent->getTargetname();
+				bool isTarget = tname.size() && self->hasTarget(tname);
+				bool isCaller = selfName.length() && ent->hasTarget(selfName);
 
 				EntConnection link;
 				memset(&link, 0, sizeof(EntConnection));
@@ -2895,7 +2883,7 @@ void Renderer::updateCullBox() {
 
 	int findCount = 0;
 	for (Entity* ent : map->ents) {
-		if (ent->hasKey("classname") && ent->keyvalues["classname"] == "cull") {
+		if (ent->getClassname() == "cull") {
 			expandBoundingBox(ent->getOrigin(), cullMins, cullMaxs);
 			findCount++;
 		}
@@ -3818,8 +3806,8 @@ bool Renderer::canPushEntityUndoState() {
 				if (oldKey != newKey) {
 					return true;
 				}
-				string oldVal = undoEnt->keyvalues[oldKey];
-				string newVal = currentEnt->keyvalues[oldKey];
+				string oldVal = undoEnt->getKeyvalue(oldKey);
+				string newVal = currentEnt->getKeyvalue(oldKey);
 				if (oldVal != newVal) {
 					return true;
 				}

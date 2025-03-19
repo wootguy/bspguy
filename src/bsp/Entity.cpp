@@ -49,6 +49,18 @@ void Entity::addKeyvalue( Keyvalue& k )
 	clearCache();
 }
 
+string Entity::getKeyvalue(string key) {
+	auto found = keyvalues.find(key);
+	if (found == keyvalues.end()) {
+		return "";
+	}
+	return found->second;
+}
+
+unordered_map<string, string> Entity::getAllKeyvalues() {
+	return keyvalues;
+}
+
 void Entity::addKeyvalue(const std::string& key, const std::string& value)
 {
 	keyvalues[key] = value;
@@ -60,8 +72,9 @@ void Entity::addKeyvalue(const std::string& key, const std::string& value)
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
 	clearCache();
 
-	if (hasKey(key)) {
-		keyvalues[key] = value;
+	auto existing = keyvalues.find(key);
+	if (existing != keyvalues.end()) {
+		existing->second = value;
 		return;
 	}
 	addKeyvalue(key, value);
@@ -104,18 +117,21 @@ void Entity::clearAllKeyvalues() {
 
 void Entity::clearEmptyKeyvalues() {
 	vector<string> newKeyOrder;
+	unordered_map<string, string> newKeyvalues;
 	for (int i = 0; i < keyOrder.size(); i++) {
 		if (!keyvalues[keyOrder[i]].empty()) {
 			newKeyOrder.push_back(keyOrder[i]);
+			newKeyvalues[keyOrder[i]] = keyvalues[keyOrder[i]];
 		}
 	}
 	keyOrder = newKeyOrder;
+	keyvalues = newKeyvalues;
 	clearCache();
 }
 
 bool Entity::hasKey(const std::string& key)
 {
-	return keyvalues.find(key) != keyvalues.end() && find(keyOrder.begin(), keyOrder.end(), key) != keyOrder.end();
+	return keyvalues.find(key) != keyvalues.end();
 }
 
 int Entity::getBspModelIdx() {
@@ -147,12 +163,70 @@ bool Entity::isBspModel() {
 	return getBspModelIdx() >= 0;
 }
 
+string Entity::getTargetname() {
+	if (hasCachedTargetname) {
+		return cachedTargetname;
+	}
+
+	auto kv = keyvalues.find("targetname");
+	if (kv == keyvalues.end()) {
+		return "";
+	}
+
+	cachedTargetname = kv->second;
+	hasCachedTargetname = true;
+
+	return cachedTargetname;
+}
+
+string Entity::getClassname() {
+	if (hasCachedClassname) {
+		return cachedClassname;
+	}
+
+	auto kv = keyvalues.find("classname");
+	if (kv == keyvalues.end()) {
+		return "";
+	}
+
+	cachedClassname = kv->second;
+	hasCachedClassname = true;
+
+	return cachedClassname;
+}
+
 vec3 Entity::getOrigin() {
-	return hasKey("origin") ? parseVector(keyvalues["origin"]) : vec3(0, 0, 0);
+	if (hasCachedOrigin) {
+		return cachedOrigin;
+	}
+
+	auto kv = keyvalues.find("origin");
+	if (kv == keyvalues.end()) {
+		cachedOrigin = vec3();
+	}
+	else {
+		cachedOrigin = parseVector(kv->second);
+	}
+
+	hasCachedOrigin = true;
+	return cachedOrigin;
 }
 
 vec3 Entity::getAngles() {
-	return hasKey("angles") ? parseVector(keyvalues["angles"]) : vec3(0, 0, 0);
+	if (hasCachedAngles) {
+		return cachedAngles;
+	}
+
+	auto kv = keyvalues.find("angles");
+	if (kv == keyvalues.end()) {
+		cachedAngles = vec3();
+	}
+	else {
+		cachedAngles = parseVector(kv->second);
+	}
+
+	hasCachedAngles = true;
+	return cachedAngles;
 }
 
 mat4x4 Entity::getRotationMatrix(bool flipped) {
@@ -200,7 +274,10 @@ bool Entity::canRotate() {
 		"momentary_rot_button",
 	};
 
-	string cname = keyvalues["classname"];
+	string cname = getClassname();
+
+	if (cname.empty())
+		return false;
 
 	if (rotatable_classnames.count(cname)) {
 		return true;
@@ -434,17 +511,17 @@ const char* potential_tergetname_keys[TOTAL_TARGETNAME_KEYS] = {
 
 // This needs to be kept in sync with the FGD
 
-vector<string> Entity::getTargets() {
+unordered_set<string> Entity::getTargets() {
 	if (targetsCached) {
 		return cachedTargets;
 	}
 
-	vector<string> targets;
+	unordered_set<string> targets;
 
 	for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
 		const char* key = potential_tergetname_keys[i];
 		if (hasKey(key)) {
-			targets.push_back(keyvalues[key]);
+			targets.insert(keyvalues[key]);
 		}
 	}
 
@@ -459,14 +536,14 @@ vector<string> Entity::getTargets() {
 			if (hashPos != string::npos) {
 				tname = tname.substr(0, hashPos);
 			}
-			targets.push_back(tname);
+			targets.insert(tname);
 		}
 	}
 
 	cachedTargets.clear();
 	cachedTargets.reserve(targets.size());
-	for (int i = 0; i < targets.size(); i++) {
-		cachedTargets.push_back(targets[i]);
+	for (string tar : targets) {
+		cachedTargets.insert(tar);
 	}
 	targetsCached = true;
 
@@ -474,20 +551,18 @@ vector<string> Entity::getTargets() {
 }
 
 bool Entity::hasTarget(string checkTarget) {
-	vector<string> targets = getTargets();
-	for (int i = 0; i < targets.size(); i++) {
-		if (targets[i] == checkTarget) {
-			return true;
-		}
+	if (!targetsCached) {
+		getTargets();
 	}
 
-	return false;
+	return cachedTargets.find(checkTarget) != cachedTargets.end();
 }
 
 void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) {
 	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {
 		const char* key = potential_tergetname_keys[i];
-		if (keyvalues.find(key) != keyvalues.end() && keyvalues[key] == oldTargetname) {
+		auto entkey = keyvalues.find(key);
+		if (entkey != keyvalues.end() && entkey->second == oldTargetname) {
 			keyvalues[key] = newTargetname;
 		}
 	}
@@ -508,6 +583,7 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 			if (tname == oldTargetname) {
 				string newKey = newTargetname + suffix;
 				keyvalues[newKey] = keyvalues[keyOrder[i]];
+				keyvalues.erase(keyOrder[i]);
 				keyOrder[i] = newKey;
 			}
 		}
@@ -517,8 +593,8 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 int Entity::getMemoryUsage() {
 	int size = sizeof(Entity);
 
-	for (int i = 0; i < cachedTargets.size(); i++) {
-		size += cachedTargets[i].size();
+	for (string tar: cachedTargets) {
+		size += tar.size();
 	}
 	for (int i = 0; i < keyOrder.size(); i++) {
 		size += keyOrder[i].size();
@@ -597,6 +673,10 @@ void Entity::clearCache() {
 	targetsCached = false;
 	drawCached = false;
 	hasCachedMdl = false;
+	hasCachedTargetname = false;
+	hasCachedClassname = false;
+	hasCachedOrigin = false;
+	hasCachedAngles = false;
 	cachedMdl = NULL;
 	cachedTargets.clear();
 }

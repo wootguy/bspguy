@@ -211,7 +211,7 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
 		int bspModelIdx = ent->getBspModelIdx();
-		std::string cname = ent->keyvalues["classname"];
+		std::string cname = ent->getClassname();
 		vec3 origin = ent->getOrigin();
 
 		if (bspModelIdx == -1) {
@@ -225,7 +225,7 @@ void LeafNavMeshGenerator::splitEntityLeaves(Bsp* map, LeafNavMesh* mesh) {
 
 			EntState state;
 			state.origin = origin;
-			state.angles = parseVector(ent->keyvalues["angles"]);
+			state.angles = ent->getAngles();
 			state.model = bspModelIdx;
 
 			vec3 oldMins = entNode->mins;
@@ -591,7 +591,7 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int off
 		Entity* ent = map->ents[i];
 		int bspModelIdx = ent->getBspModelIdx();
 
-		if (ent->keyvalues["classname"] == "func_ladder") {
+		if (ent->getClassname() == "func_ladder") {
 			LeafNode* entNode = mesh->findEntNode(i);
 			if (!entNode) {
 				LeafNode newNode;
@@ -607,7 +607,7 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int off
 
 			linkEntityLeaves(map, mesh, *entNode, regionLeaves);
 		}
-		else if (ent->keyvalues["classname"] == "trigger_teleport") {
+		else if (ent->getClassname() == "trigger_teleport") {
 			LeafNode* teleNode = mesh->findEntNode(i);
 			if (!teleNode) {
 				LeafNode newNode;
@@ -627,8 +627,8 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int off
 			vector<int> targets;
 
 			const int SF_TELE_RANDOM_DESTINATION = 64;
-			string target = ent->keyvalues["target"];
-			bool randomDestinations = atoi(ent->keyvalues["spawnflags"].c_str()) & SF_TELE_RANDOM_DESTINATION;
+			string target = ent->getKeyvalue("target");
+			bool randomDestinations = atoi(ent->getKeyvalue("spawnflags").c_str()) & SF_TELE_RANDOM_DESTINATION;
 
 			if (!target.length()) {
 				continue;
@@ -636,8 +636,8 @@ void LeafNavMeshGenerator::linkEntityLeaves(Bsp* map, LeafNavMesh* mesh, int off
 
 			for (int k = 0; k < map->ents.size(); k++) {
 				Entity* tar = map->ents[k];
-				if (tar->keyvalues["targetname"] == target) {
-					if (tar->keyvalues["classname"] == "info_teleport_destination") {
+				if (tar->getTargetname() == target) {
+					if (tar->getClassname() == "info_teleport_destination") {
 						targets.push_back(k);
 					}
 					else if (pentTarget == -1) {

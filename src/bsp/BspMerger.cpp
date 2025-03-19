@@ -336,14 +336,14 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 	string startingSkyColor = "0 0 0 0";
 	for (int k = 0; k < mergedMap->ents.size(); k++) {
 		Entity* ent = mergedMap->ents[k];
-		if (ent->keyvalues["classname"] == "worldspawn") {
+		if (ent->getClassname() == "worldspawn") {
 			if (ent->hasKey("skyname")) {
-				startingSky = toLowerCase(ent->keyvalues["skyname"]);
+				startingSky = toLowerCase(ent->getKeyvalue("skyname"));
 			}
 		}
-		if (ent->keyvalues["classname"] == "light_environment") {
+		if (ent->getClassname() == "light_environment") {
 			if (ent->hasKey("_light")) {
-				startingSkyColor = ent->keyvalues["_light"];
+				startingSkyColor = ent->getKeyvalue("_light");
 			}
 		}
 	}
@@ -355,14 +355,14 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		string skyColor = "0 0 0 0";
 		for (int k = 0; k < sourceMaps[i].map->ents.size(); k++) {
 			Entity* ent = sourceMaps[i].map->ents[k];
-			if (ent->keyvalues["classname"] == "worldspawn") {
+			if (ent->getClassname() == "worldspawn") {
 				if (ent->hasKey("skyname")) {
-					skyname = toLowerCase(ent->keyvalues["skyname"]);
+					skyname = toLowerCase(ent->getKeyvalue("skyname"));
 				}
 			}
-			if (ent->keyvalues["classname"] == "light_environment") {
+			if (ent->getClassname() == "light_environment") {
 				if (ent->hasKey("_light")) {
-					skyColor = ent->keyvalues["_light"];
+					skyColor = ent->getKeyvalue("_light");
 				}
 			}
 		}
@@ -428,10 +428,10 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 
 	for (int i = 0; i < originalEntCount; i++) {
 		Entity* ent = mergedMap->ents[i];
-		string cname = ent->keyvalues["classname"];
-		string tname = ent->keyvalues["targetname"];
-		string source_map = ent->keyvalues["$s_bspguy_map_source"];
-		int spawnflags = atoi(ent->keyvalues["spawnflags"].c_str());
+		string cname = ent->getClassname();
+		string tname = ent->getTargetname();
+		string source_map = ent->getKeyvalue("$s_bspguy_map_source");
+		int spawnflags = atoi(ent->getKeyvalue("spawnflags").c_str());
 		bool isInFirstMap = toLowerCase(source_map) == toLowerCase(firstMapName);
 		vec3 origin;
 
@@ -441,7 +441,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		}
 
 		if (ent->hasKey("origin")) {
-			origin = Keyvalue("origin", ent->keyvalues["origin"]).getVector();
+			origin = Keyvalue("origin", ent->getKeyvalue("origin")).getVector();
 		}
 		if (ent->isBspModel()) {
 			origin = mergedMap->get_model_center(ent->getBspModelIdx());
@@ -450,7 +450,8 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		if (noscript && (cname == "info_player_start" || cname == "info_player_coop" || cname == "info_player_dm2")) {
 			// info_player_start ents are ignored if there is any active info_player_deathmatch,
 			// so this may break spawns if there are a mix of spawn types
-			cname = ent->keyvalues["classname"] = "info_player_deathmatch";
+			cname = "info_player_deathmatch";
+			ent->setOrAddKeyvalue("classname", cname);
 		}
 
 		if (noscript && !isInFirstMap) {
@@ -473,13 +474,13 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 			}
 			if (cname == "trigger_auto") {
 				ent->addKeyvalue("targetname", "bspguy_autos_" + source_map);
-				ent->keyvalues["classname"] = "trigger_relay";
+				ent->getClassname() = "trigger_relay";
 			}
 			if (cname.find("monster_") == 0 && cname.rfind("_dead") != cname.size()-5) {
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;
-				unordered_map<string,string> oldKeys = ent->keyvalues;
+				unordered_map<string,string> oldKeys = ent->getAllKeyvalues();
 
 				string spawn_name = "bspguy_npcs_" + source_map;
 
@@ -550,7 +551,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 		if (cname == "trigger_changelevel") {
 			replaced_changelevels++;
 
-			string map = toLowerCase(ent->keyvalues["map"]);
+			string map = toLowerCase(ent->getKeyvalue("map"));
 			bool isMergedMap = false;
 			for (int i = 0; i < sourceMaps.size(); i++) {
 				if (map == toLowerCase(sourceMaps[i].map->name)) {
@@ -569,9 +570,9 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				logf("\nWarning: use-only trigger_changelevel has no targetname\n");
 
 			if (!(spawnflags & 2)) {
-				string model = ent->keyvalues["model"];
+				string model = ent->getKeyvalue("model");
 
-				string oldOrigin = ent->keyvalues["origin"];
+				string oldOrigin = ent->getKeyvalue("origin");
 				ent->clearAllKeyvalues();
 				ent->addKeyvalue("origin", oldOrigin);
 				ent->addKeyvalue("model", model);
@@ -823,8 +824,8 @@ int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 
 	for (int i = 0; i < mergedMap->ents.size(); i++) {
 		Entity* ent = mergedMap->ents[i];
-		string tname = ent->keyvalues["targetname"];
-		string source_map = ent->keyvalues["$s_bspguy_map_source"];
+		string tname = ent->getTargetname();
+		string source_map = ent->getKeyvalue("$s_bspguy_map_source");
 
 		if (tname.empty())
 			continue;
@@ -858,7 +859,7 @@ int BspMerger::force_unique_ent_names_per_map(Bsp* mergedMap) {
 
 			for (int i = 0; i < mergedMap->ents.size(); i++) {
 				Entity* ent = mergedMap->ents[i];
-				if (ent->keyvalues["$s_bspguy_map_source"] != it->first)
+				if (ent->getKeyvalue("$s_bspguy_map_source") != it->first)
 					continue;
 
 				ent->renameTargetnameValues(oldName, newName);
@@ -1002,26 +1003,26 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 	// update model indexes since this map's models will be appended after the other map's models
 	int otherModelCount = (mapB.header.lump[LUMP_MODELS].nLength / sizeof(BSPMODEL)) - 1;
 	for (int i = 0; i < mapA.ents.size(); i++) {
-		if (!mapA.ents[i]->hasKey("model") || mapA.ents[i]->keyvalues["model"][0] != '*') {
+		if (!mapA.ents[i]->hasKey("model") || mapA.ents[i]->getKeyvalue("model")[0] != '*') {
 			continue;
 		}
-		string modelIdxStr = mapA.ents[i]->keyvalues["model"].substr(1);
+		string modelIdxStr = mapA.ents[i]->getKeyvalue("model").substr(1);
 
 		if (!isNumeric(modelIdxStr)) {
 			continue;
 		}
 
 		int newModelIdx = atoi(modelIdxStr.c_str()) + otherModelCount;
-		mapA.ents[i]->keyvalues["model"] = "*" + to_string(newModelIdx);
+		mapA.ents[i]->getKeyvalue("model") = "*" + to_string(newModelIdx);
 
 		g_progress.tick();
 	}
 
 	for (int i = 0; i < mapB.ents.size(); i++) {
-		if (mapB.ents[i]->keyvalues["classname"] == "worldspawn") {
+		if (mapB.ents[i]->getClassname() == "worldspawn") {
 			Entity* otherWorldspawn = mapB.ents[i];
 
-			vector<string> otherWads = splitString(otherWorldspawn->keyvalues["wad"], ";");
+			vector<string> otherWads = splitString(otherWorldspawn->getKeyvalue("wad"), ";");
 
 			// strip paths from wad names
 			for (int j = 0; j < otherWads.size(); j++) {
@@ -1030,14 +1031,14 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 
 			Entity* worldspawn = NULL;
 			for (int k = 0; k < mapA.ents.size(); k++) {
-				if (mapA.ents[k]->keyvalues["classname"] == "worldspawn") {
+				if (mapA.ents[k]->getClassname() == "worldspawn") {
 					worldspawn = mapA.ents[k];
 					break;
 				}
 			}
 
 			// merge wad list
-			vector<string> thisWads = splitString(worldspawn->keyvalues["wad"], ";");
+			vector<string> thisWads = splitString(worldspawn->getKeyvalue("wad"), ";");
 
 			// strip paths from wad names
 			for (int j = 0; j < thisWads.size(); j++) {
@@ -1051,13 +1052,14 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 				}
 			}
 
-			worldspawn->keyvalues["wad"] = "";
+			worldspawn->getKeyvalue("wad") = "";
 			for (int j = 0; j < thisWads.size(); j++) {
-				worldspawn->keyvalues["wad"] += thisWads[j] + ";";
+				worldspawn->getKeyvalue("wad") += thisWads[j] + ";";
 			}
 
 			// include prefixed version of the other maps keyvalues
-			for (auto it = otherWorldspawn->keyvalues.begin(); it != otherWorldspawn->keyvalues.end(); it++) {
+			unordered_map<string, string> otherWorldKeys = otherWorldspawn->getAllKeyvalues();
+			for (auto it = otherWorldKeys.begin(); it != otherWorldKeys.end(); it++) {
 				if (it->first == "classname" || it->first == "wad") {
 					continue;
 				}
@@ -1067,8 +1069,7 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 		}
 		else {
 			Entity* copy = new Entity();
-			copy->keyvalues = mapB.ents[i]->keyvalues;
-			copy->keyOrder = mapB.ents[i]->keyOrder;
+			*copy = *mapB.ents[i];
 			mapA.ents.push_back(copy);
 		}
 
