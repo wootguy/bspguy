@@ -91,6 +91,7 @@ void file_drop_callback(GLFWwindow* window, int count, const char** paths) {
 }
 
 Renderer::Renderer() {
+	programStartTime = glfwGetTime();
 	g_settings.loadDefault();
 	g_settings.load();
 
@@ -752,6 +753,11 @@ void Renderer::renderLoop() {
 
 		if (!isFocused && !isHovered) {
 			sleepms(50);
+		}
+
+		if (programStartTime >= 0) {
+			debugf("Startup finished in %.2fs\n", glfwGetTime() - programStartTime);
+			programStartTime = -1;
 		}
 	}
 

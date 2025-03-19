@@ -120,13 +120,22 @@ void hideConsoleWindow() {
 #endif
 }
 
-void start_viewer(string map) {
-	if (!fileExists(map)) {
-		logf("ERROR: File not found: %s", map.c_str());
-		return;
-	}
+void start_viewer(const char* map) {
 	Renderer renderer = Renderer();
-	renderer.addMap(new Bsp(map));
+
+	if (!map) {
+		Bsp* emptyBsp = new Bsp();
+		renderer.addMap(emptyBsp);
+	}
+	else {
+		Bsp* bsp = new Bsp(map);
+		if (!bsp->valid) {
+			delete bsp;
+			bsp = new Bsp();
+		}
+		renderer.addMap(bsp);
+	}
+	
 	hideConsoleWindow();
 	renderer.renderLoop();
 }
@@ -755,6 +764,9 @@ int main(int argc, char* argv[])
 
 	if (argc == 2) {
 		start_viewer(argv[1]);
+	}
+	else if (argc == 1) {
+		start_viewer(NULL);
 	}
 	else
 	{

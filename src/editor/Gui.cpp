@@ -17,10 +17,12 @@
 #include "BspMerger.h"
 #include "LeafNavMesh.h"
 #include <unordered_map>
+#include <lzma_util.h>
 
 // embedded binary data
-#include "fonts/robotomono.h"
-#include "fonts/robotomedium.h"
+#include "fonts/notosans.h"
+#include "fonts/notosans_mono.h"
+#include "fonts/notosans_unicode.h"
 #include "icons/object.h"
 #include "icons/face.h"
 #include <unordered_set>
@@ -2018,15 +2020,8 @@ void Gui::drawKeyvalueEditor() {
 			ImGui::PopFont();
 
 			if (fgdClass != NULL) {
-				ImGui::SameLine();
-				ImGui::TextDisabled("(?)");
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::BeginTooltip();
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-					ImGui::TextUnformatted((fgdClass->description).c_str());
-					ImGui::PopTextWrapPos();
-					ImGui::EndTooltip();
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip((fgdClass->description).c_str());
 				}
 			}
 
@@ -2366,7 +2361,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 				}
 			}
 
-			if (ImGui::BeginCombo(("##val" + to_string(i)).c_str(), selectedValue.c_str()))
+			if (ImGui::BeginCombo(("##val" + to_string(bufferIdx)).c_str(), selectedValue.c_str()))
 			{
 				for (int k = 0; k < keyvalue.choices.size(); k++) {
 					KeyvalueChoice& choice = keyvalue.choices[k];
@@ -3444,21 +3439,104 @@ void Gui::addLog(const char* s)
 }
 
 void Gui::loadFonts() {
-	// data copied to new array so that ImGui doesn't delete static data
-	byte* smallFontData = new byte[sizeof(robotomedium)];
-	byte* largeFontData = new byte[sizeof(robotomedium)];
-	byte* consoleFontData = new byte[sizeof(robotomono)];
-	byte* consoleFontLargeData = new byte[sizeof(robotomono)];
-	memcpy(smallFontData, robotomedium, sizeof(robotomedium));
-	memcpy(largeFontData, robotomedium, sizeof(robotomedium));
-	memcpy(consoleFontData, robotomono, sizeof(robotomono));
-	memcpy(consoleFontLargeData, robotomono, sizeof(robotomono));
-
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, sizeof(robotomedium), fontSize);
-	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, sizeof(robotomedium), fontSize * 1.1f);
-	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, sizeof(robotomono), fontSize);
-	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, sizeof(robotomono), fontSize * 1.1f);
+
+	static ImVector<ImWchar> ranges;
+	static ImFontGlyphRangesBuilder builder;
+	static const ImWchar allLatinRange[] = // covers all Latin languages
+	{
+		0x0001, 0x007F,    // Basic Latin
+		0x0080, 0x00FF,    // Latin-1 Supplement
+		0x0100, 0x017F,    // Latin Extended-A
+		0x0180, 0x024F,    // Latin Extended-B
+		0x0250, 0x02AF,    // IPA Extensions
+		0x2C60, 0x2C7F,    // Latin Extended-C
+		0xA720, 0xA7FF,    // Latin Extended-D
+		0xAB30, 0xAB6F,    // Latin Extended-E
+		0x1E00, 0x1EFF,    // Latin Additional
+		0,
+	};
+	builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
+	builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+	builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+	builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
+	builder.AddRanges(&allLatinRange[0]);
+	builder.BuildRanges(&ranges);
+	
+
+	static bool loggedAlready = true;
+	if (!loggedAlready) {
+		bool activeChars[IM_UNICODE_CODEPOINT_MAX + 1];
+		memset(activeChars, 0, sizeof(activeChars));
+		for (int i = 0; i < ranges.size() - 1; i += 2) {
+			if (ranges[i + 1] == 0)
+				break;
+			for (int k = ranges[i]; k <= ranges[i + 1]; k++)
+				activeChars[k] = true;
+		}
+
+		int totalUsed = 0;
+		logf("selection = fontforge.activeFont().selection\n\n");
+		logf("selection.select(");
+		for (int i = 0; i <= IM_UNICODE_CODEPOINT_MAX; i++) {
+			if (activeChars[i]) {
+				logf("%d, ", i);
+				totalUsed++;
+			}
+		}
+		logf(")\n\n");
+		logf("selection.invert()\n");
+
+		logf("Using %d / %d glyphs\n", totalUsed, IM_UNICODE_CODEPOINT_MAX+1);
+		loggedAlready = true;
+
+		// To generate a unicode font that isn't 20 MB:
+		// - download NotoSans, NotoSansJP, NotoSaKR, NotoSansSC (all medium weights)
+		// - merge them all in FontForge with Element -> Merge (choose No for kerning dialog)
+		// - File -> Generate fonts (in case you mess up the next part)
+		// - copy this script output to FontFoge -> File -> Execute Script, then execute
+		// - Encoding -> Detach and Remove glyphs.
+		// - File -> generate fonts
+	}
+
+	double start = glfwGetTime();
+
+	vector<uint8_t> decompressed;
+	// data copied to new array so that ImGui doesn't delete static data
+	byte* smallFontData = NULL;
+	int notosans_unicode_sz = 0;
+	if (lzmaDecompress((uint8_t*)notosans_unicode, sizeof(notosans_unicode), decompressed)) {
+		notosans_unicode_sz = decompressed.size();
+		smallFontData = new byte[notosans_unicode_sz];
+		memcpy(smallFontData, &decompressed[0], notosans_unicode_sz);
+	}
+
+	byte* largeFontData = NULL;
+	int notosans_sz = 0;
+	if (lzmaDecompress((uint8_t*)notosans, sizeof(notosans), decompressed)) {
+		notosans_sz = decompressed.size();
+		largeFontData = new byte[notosans_sz];
+		memcpy(largeFontData, &decompressed[0], notosans_sz);
+	}
+
+	decompressed.clear();
+	byte* consoleFontData = NULL;
+	byte* consoleFontLargeData = NULL;
+	int notosans_mono_sz = 0;
+	if (lzmaDecompress((uint8_t*)notosans_mono, sizeof(notosans_mono), decompressed)) {
+		notosans_mono_sz = decompressed.size();
+		consoleFontData = new byte[notosans_mono_sz];
+		consoleFontLargeData = new byte[notosans_mono_sz];
+		memcpy(consoleFontData, &decompressed[0], notosans_mono_sz);
+		memcpy(consoleFontLargeData, &decompressed[0], notosans_mono_sz);
+	}
+
+	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, fontSize*1.1f, NULL, ranges.Data);
+	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, notosans_sz, fontSize*1.25f, NULL, ranges.Data);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, fontSize, NULL, ranges.Data);
+	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, notosans_mono_sz, fontSize*1.1f, NULL, ranges.Data);
+
+	logf("loaded fonts in %.2f\n", (glfwGetTime() - start));
 }
 
 void Gui::drawLog() {

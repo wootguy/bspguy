@@ -1442,7 +1442,8 @@ void BspRenderer::delayLoadData() {
 }
 
 bool BspRenderer::isFinishedLoading() {
-	return lightmapsUploaded && texturesLoaded && textureFacesLoaded && clipnodesLoaded;
+	return lightmapsUploaded && texturesLoaded && textureFacesLoaded && clipnodesLoaded ||
+		map->ents.empty();
 }
 
 void BspRenderer::highlightFace(int faceIdx, bool highlight) {
@@ -1555,6 +1556,9 @@ void BspRenderer::loadTexture(WADTEX* tex) {
 }
 
 void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlwaysOnTop, int clipnodeHull, bool transparencyPass) {
+	if (map->ents.empty())
+		return;
+	
 	BSPMODEL& world = map->models[0];
 	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
 	vec3 renderOffset = mapOffset.flip();

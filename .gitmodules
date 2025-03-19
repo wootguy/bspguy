@@ -4,3 +4,6 @@
 [submodule "glfw"]
 	path = glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "xz"]
+	path = xz
+	url = https://github.com/tukaani-project/xz.git

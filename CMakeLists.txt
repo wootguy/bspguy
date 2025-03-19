@@ -7,6 +7,22 @@ set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
 
 project(bspguy)
 
+set(BUILD_TESTING OFF)
+set(XZ_TOOL_XZ OFF)
+set(XZ_TOOL_XZDEC OFF)
+set(XZ_TOOL_LZMADEC OFF)
+set(XZ_TOOL_LZMAINFO OFF)
+if (UNIX)
+	set(XZ_SMALL ON) # fixes build error for 32bit
+endif()
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/xz)
+
+if (UNIX)
+	#set_target_properties(liblzma PROPERTIES COMPILE_OPTIONS "-m32" LINK_FLAGS "-m32")
+endif()
+
+include_directories(${CMAKE_CURRENT_LIST_DIR}/xz/src/liblzma/api)
+
 set(SOURCE_FILES 
 	src/main.cpp
 	src/types.h
@@ -81,6 +97,7 @@ set(SOURCE_FILES
 	src/util/lodepng.cpp
 	src/util/tinyfiledialogs.c
 	src/util/tinyfiledialogs.h
+	src/util/lzma_util.h src/util/lzma_util.cpp
 )
 
 include_directories(src)
@@ -98,7 +115,7 @@ include_directories(imgui/backends)
 include_directories(glew/include)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} glfw)
+target_link_libraries(${PROJECT_NAME} glfw liblzma)
 
 add_definitions(-DGLEW_STATIC)
 

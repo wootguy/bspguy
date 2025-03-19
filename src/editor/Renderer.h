@@ -143,6 +143,7 @@ private:
 	bool reloadingGameDir = false;
 	bool isLoading = false;
 	string openMapAfterLoad; // map to open after current map finishes loading
+	double programStartTime = -1;
 
 	Fgd* mergedFgd = NULL; // merged FGD
 	vector<Fgd*> fgds; // individually loaded FGDs
