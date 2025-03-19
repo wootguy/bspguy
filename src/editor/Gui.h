@@ -61,6 +61,7 @@ public:
 	void refresh();
 	void saveAs();
 	const char* openMap();
+	void windowResized(int width, int height);
 
 private:
 	bool vsync = true;
@@ -152,4 +153,5 @@ private:
 	void addLog(const char* s);
 	void loadFonts();
 	void checkFaceErrors();
+	string getUserLayoutPath(); // path to user's saved widget layout
 };

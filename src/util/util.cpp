@@ -1115,3 +1115,11 @@ string joinPaths(string path1, string path2) {
 
 	return std::string(combined.c_str());
 }
+
+string getFolderPath(string path) {
+	int lastSlash = path.find_last_of("\\/");
+	if (lastSlash != -1) {
+		return path.substr(0, lastSlash+1);
+	}
+	return "";
+}

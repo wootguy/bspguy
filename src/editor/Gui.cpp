@@ -673,7 +673,7 @@ void Gui::drawMenuBar() {
 		}
 
 		if (ImGui::MenuItem("Save", NULL)) {
-			Bsp* map = app->getMapContainingCamera()->map;
+			Bsp* map = app->mapRenderer->map;
 			map->update_ent_lump();
 			//map->write("yabma_move.bsp");
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
@@ -683,7 +683,7 @@ void Gui::drawMenuBar() {
 			saveAs();
 		}
 		if (ImGui::MenuItem("Save a Copy As...", NULL)) {
-			Bsp* map = app->getMapContainingCamera()->map;
+			Bsp* map = app->mapRenderer->map;
 
 			char* fname = tinyfd_saveFileDialog("Save a Copy As", map->path.c_str(),
 				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)");
@@ -736,7 +736,15 @@ void Gui::drawMenuBar() {
 			int idx = 1;
 			for (int i = g_settings.recentFiles.size() - 1; i >= 0; i--) {
 				if (ImGui::MenuItem((to_string(idx++) + ": " + g_settings.recentFiles[i]).c_str(), NULL)) {
-					g_app->openMap(g_settings.recentFiles[i].c_str());
+					string path = g_settings.recentFiles[i];
+					if (fileExists(path)) {
+						g_app->openMap(path.c_str());
+					}
+					else {
+						logf("BSP file does not exist: %s\n", path.c_str());
+						g_settings.recentFiles.erase(g_settings.recentFiles.begin() + i);
+						i--;
+					}
 				}
 			}
 
@@ -976,18 +984,18 @@ void Gui::drawMenuBar() {
 		bool changed = false;
 		ImGui::MenuItem("Engine", 0, false, false);
 
-		if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE)) {
+		if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
 			changed = g_settings.engine != ENGINE_HALF_LIFE;
 			g_settings.engine = ENGINE_HALF_LIFE;
 		}
 		tooltip(g, "The standard GoldSrc engine. Assumes a +/-4096 map boundary.\n");
 
-		if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP)) {
+		if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
 			changed = g_settings.engine != ENGINE_SVEN_COOP;
 			g_settings.engine = ENGINE_SVEN_COOP;
 		}
-		tooltip(g, "Sven Co-op maps have much higher limits than in Half-Life.\n\nAttempting to run a "
-			"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents errors, "
+		tooltip(g, "Sven Co-op has higher map limits than Half-Life.\n\nAttempting to run a "
+			"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents, "
 			"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
 			"See the Porting Tools menu for solutions to these problems.\n\n"
 			"The map boundary for Sven Co-op is effectively +/-32768. Rendering glitches occur beyond that point.");
@@ -1055,7 +1063,44 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Show program messages.");
 		
+		ImGui::Separator();
+
 		ImGui::PopItemFlag();
+
+		static string userLayout = getUserLayoutPath();
+
+		if (ImGui::MenuItem("Save Widget Layout", NULL)) {
+			ImGui::SaveIniSettingsToDisk(userLayout.c_str());
+			app->getWindowSize(g_settings.autoload_layout_width, g_settings.autoload_layout_height);
+			g_settings.save();
+			logf("Layout saved to %s\n", userLayout.c_str());
+		}
+		tooltip(g, "Save the position and size of your widgets as they are now. For easing frustration when "
+			"you accidentally resize the window while moving it and your right-aligned widgets move to the center of the screen.\n");
+		
+		if (ImGui::MenuItem("Load Widget Layout", NULL, false)) {
+			if (!fileExists(userLayout)) {
+				logf("No layout has been saved yet. Nothing to load.\n");
+			}
+			else {
+				ImGui::LoadIniSettingsFromDisk(userLayout.c_str());
+				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+				logf("Layout loaded from %s\n", userLayout.c_str());
+			}
+		}
+		tooltip(g, "Restore your previously saved layout. Widgets may move mostly off-screen if you saved "
+			"at a larger window resolution than you're using now.\n");
+
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+
+		if (ImGui::MenuItem("Auto-Load Layout", NULL, g_settings.autoload_layout)) {
+			g_settings.autoload_layout = !g_settings.autoload_layout;
+		}
+		tooltip(g, "Automatically loads your saved widget layout whenever the window is resized to the same "
+			" resolution you saved at.\n");
+
+		ImGui::PopItemFlag();
+		
 		ImGui::EndMenu();
 	}
 
@@ -1735,7 +1780,7 @@ void Gui::drawStatusMessage() {
 
 		if (ImGui::Begin("status", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 		{
-			if (app->modelUsesSharedStructures && app->pickInfo.getEnt()) {
+			if (app->modelUsesSharedStructures && app->pickInfo.ents.size() == 1) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "SHARED DATA");
 				if (ImGui::IsItemHovered())
 				{
@@ -1746,7 +1791,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (!app->isTransformableSolid && app->pickInfo.ents.size()) {
+			if (!app->isTransformableSolid && app->pickInfo.ents.size() == 1) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "CONCAVE SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -1757,7 +1802,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (app->invalidSolid && app->pickInfo.ents.size()) {
+			if (app->invalidSolid && app->pickInfo.ents.size() == 1) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INVALID SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -1788,6 +1833,18 @@ void Gui::drawStatusMessage() {
 					const char* info =
 						"One or more of the selected faces contain too many texture pixels.\n\n"
 						"This will crash the game. Increase texture scale to fix.";
+					ImGui::BeginTooltip();
+					ImGui::TextUnformatted(info);
+					ImGui::EndTooltip();
+				}
+			}
+			if (app->forceAngleRotation) {
+				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "FORCE ROTATE");
+				if (ImGui::IsItemHovered())
+				{
+					const char* info =
+						"The \"Force Rotate Solids\" option is enabled in the Transformation widget.\n"
+						"Many entities may be floating in space while this is enabled.d";
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted(info);
 					ImGui::EndTooltip();
@@ -3343,22 +3400,22 @@ void Gui::drawTransformWidget() {
 		string l = to_string((int)app->selectionSize.z) + "l";
 		ImGui::Text(("Size: " + w + h + l).c_str());
 
-		ImGui::SameLine();
-		const char* butLabel = "Apply BSP Move";
-		ImGui::SetCursorPosX(ImGui::GetWindowWidth() - (ImGui::CalcTextSize(butLabel).x + ImGui::GetStyle().ItemSpacing.x + 30));
-		ImGui::BeginDisabled(app->pickInfo.getEntIndex() != 0 || map->ents[0]->getOrigin() == vec3());
-		if (ImGui::Button(butLabel)) {
-			MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
-				map->ents[0]->getOrigin(), app->undoLumpState);
-			g_app->saveLumpState(map, 0xffffffff, false);
-			command->execute();
-			app->pushUndoCommand(command);
+		if (app->pickInfo.getEntIndex() == 0 && map->ents[0]->getOrigin() != vec3()) {
+			ImGui::SameLine();
+			const char* butLabel = "Apply BSP Move";
+			ImGui::SetCursorPosX(ImGui::GetWindowWidth() - (ImGui::CalcTextSize(butLabel).x + ImGui::GetStyle().ItemSpacing.x + 30));
+			if (ImGui::Button(butLabel)) {
+				MoveMapCommand* command = new MoveMapCommand("Apply Worldspawn Transform",
+					map->ents[0]->getOrigin(), app->undoLumpState);
+				g_app->saveLumpState(map, 0xffffffff, false);
+				command->execute();
+				app->pushUndoCommand(command);
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Moves all BSP data by the amount set in the worldspawn origin keyvalue.\n"
+					"Useful for aligning maps before merging and moving areas inside the map boundaries.");
+			}
 		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Moves all BSP data by the amount set in the worldspawn origin keyvalue.\n"
-				"Useful for aligning maps before merging and moving areas inside the map boundaries.");
-		}
-		ImGui::EndDisabled();
 
 		if (transformingEnt) {
 			if (originChanged) {
@@ -5457,7 +5514,7 @@ void Gui::refresh() {
 }
 
 void Gui::saveAs() {
-	Bsp* map = app->getMapContainingCamera()->map;
+	Bsp* map = app->mapRenderer->map;
 
 	char* fname = tinyfd_saveFileDialog("Save As", map->path.c_str(),
 		1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)");
@@ -5472,4 +5529,22 @@ void Gui::saveAs() {
 
 const char* Gui::openMap() {
 	return tinyfd_openFileDialog("Open Map", "", 1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
+}
+
+void Gui::windowResized(int width, int height) {
+	if (!g_settings.autoload_layout)
+		return;
+
+	if (width == g_settings.autoload_layout_width && height == g_settings.autoload_layout_height) {
+		logf("Loading saved widget layout for resolution %dx%d\n", width, height);
+		string userLayout = getUserLayoutPath();
+		ImGui::LoadIniSettingsFromDisk(userLayout.c_str());
+		ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+		logf("Layout loaded from %s\n", userLayout.c_str());
+	}
+}
+
+
+string Gui::getUserLayoutPath() {
+	return getFolderPath(ImGui::GetIO().IniFilename) + "imgui_user.ini";
 }

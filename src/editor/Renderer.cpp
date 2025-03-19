@@ -43,8 +43,7 @@ void window_size_callback(GLFWwindow* window, int width, int height)
 	if (g_settings.maximized || width == 0 || height == 0) {
 		return; // ignore size change when maximized, or else iconifying doesn't change size at all
 	}
-	g_settings.windowWidth = width;
-	g_settings.windowHeight = height;
+	g_app->handleResize(width, height);
 }
 
 void window_pos_callback(GLFWwindow* window, int x, int y)
@@ -56,6 +55,10 @@ void window_pos_callback(GLFWwindow* window, int x, int y)
 void window_maximize_callback(GLFWwindow* window, int maximized)
 {
 	g_settings.maximized = maximized == GLFW_TRUE;
+
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+	g_app->handleResize(width, height);
 }
 
 void window_close_callback(GLFWwindow* window)
@@ -90,6 +93,33 @@ void file_drop_callback(GLFWwindow* window, int count, const char** paths) {
 	g_app->openMap(paths[0]);
 }
 
+GLFWmonitor* GetMonitorForWindow(GLFWwindow* window) {
+	int winX, winY, winWidth, winHeight;
+	glfwGetWindowPos(window, &winX, &winY);
+	glfwGetWindowSize(window, &winWidth, &winHeight);
+
+	int monitorCount;
+	GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+	GLFWmonitor* bestMonitor = nullptr;
+	int bestOverlap = 0;
+
+	for (int i = 0; i < monitorCount; i++) {
+		int monX, monY, monWidth, monHeight;
+		glfwGetMonitorWorkarea(monitors[i], &monX, &monY, &monWidth, &monHeight);
+
+		int overlapWidth = max(0, min(winX + winWidth, monX + monWidth) - max(winX, monX));
+		int overlapHeight = max(0, min(winY + winHeight, monY + monHeight) - max(winY, monY));
+		int overlapArea = overlapWidth * overlapHeight;
+
+		if (overlapArea > bestOverlap) {
+			bestMonitor = monitors[i];
+			bestOverlap = overlapArea;
+		}
+	}
+
+	return bestMonitor;
+}
+
 Renderer::Renderer() {
 	programStartTime = glfwGetTime();
 	g_settings.loadDefault();
@@ -108,6 +138,8 @@ Renderer::Renderer() {
 
 	window = glfwCreateWindow(g_settings.windowWidth, g_settings.windowHeight, "bspguy", NULL, NULL);
 	
+	glfwSetWindowSizeLimits(window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
 	if (g_settings.valid) {
 		glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
 		
@@ -116,6 +148,27 @@ Renderer::Renderer() {
 		glfwSetWindowSize(window, g_settings.windowWidth, g_settings.windowHeight);
 		if (g_settings.maximized) {
 			glfwMaximizeWindow(window);
+		}
+
+		// don't let the window load off-screen
+		int left, top, right, bottom;
+		int monX, monY, monWidth, monHeight;
+		GLFWmonitor* monitor = GetMonitorForWindow(window);
+		glfwGetWindowFrameSize(window, &left, &top, &right, &bottom);
+
+		if (!monitor) {
+			g_settings.windowX = left;
+			g_settings.windowY = top;
+			glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
+		}
+		else {
+			glfwGetMonitorWorkarea(monitor, &monX, &monY, &monWidth, &monHeight);
+			if (g_settings.windowX + left < monX || g_settings.windowY + top < monY) {
+
+				g_settings.windowX = max(g_settings.windowX, monX + left);
+				g_settings.windowY = max(g_settings.windowY, monY + top);
+				glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
+			}
 		}
 	}
 
@@ -250,7 +303,9 @@ void Renderer::renderLoop() {
 		if (glfwGetTime( ) - lastTitleTime > 0.1)
 		{
 			lastTitleTime = glfwGetTime( );
-			glfwSetWindowTitle(window, (getMapContainingCamera()->map->path + std::string(std::string(" - bspguy"))).c_str());
+			string map = mapRenderer->map->path;
+			string title = map.empty() ? "bspguy" : map + " - bspguy";
+			glfwSetWindowTitle(window, title.c_str());
 		}
 		glfwPollEvents();
 
@@ -849,6 +904,8 @@ void Renderer::clearMapData() {
 		}
 	}
 	memset(&undoLumpState, 0, sizeof(LumpState));
+
+	forceAngleRotation = false; // can cause confusion opening a new map
 }
 
 void Renderer::reloadMaps() {
@@ -1942,10 +1999,6 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 
 	// compute direction of picking ray by subtracting intersection point with camera position
 	pickDir = (start - cameraOrigin).normalize(1.0f);
-}
-
-BspRenderer* Renderer::getMapContainingCamera() {
-	return mapRenderer;
 }
 
 void Renderer::setupView() {
@@ -4005,4 +4058,14 @@ void Renderer::merge(string fpath) {
 	updateCullBox();
 
 	logf("Merged maps!\n");
+}
+
+void Renderer::getWindowSize(int& width, int& height) {
+	glfwGetWindowSize(window, &width, &height);
+}
+
+void Renderer::handleResize(int width, int height) {
+	g_settings.windowWidth = width;
+	g_settings.windowHeight = height;
+	gui->windowResized(width, height);
 }

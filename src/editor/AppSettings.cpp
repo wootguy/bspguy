@@ -31,14 +31,13 @@ void AppSettings::loadDefault()
 	entreport_open = false;
 	show_transform_axes = false;
 	settings_tab = 0;
-	engine = ENGINE_HALF_LIFE;
+	engine = ENGINE_SVEN_COOP;
 
 	render_flags = g_render_flags = RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_SPECIAL
 		| RENDER_ENTS | RENDER_SPECIAL_ENTS | RENDER_POINT_ENTS | RENDER_WIREFRAME | RENDER_ENT_CONNECTIONS
 		| RENDER_ENT_CLIPNODES;
 
 	vsync = true;
-	backUpMap = false;
 
 	moveSpeed = 8.0f;
 	fov = 75.0f;
@@ -95,7 +94,9 @@ void AppSettings::load() {
 			else if (key == "fgd") { fgdPaths.push_back(val); }
 			else if (key == "res") { resPaths.push_back(val); }
 			else if (key == "recent") { recentFiles.push_back(val); }
-			else if (key == "savebackup") { g_settings.backUpMap = atoi(val.c_str()) != 0; }
+			else if (key == "autoload_layout") { g_settings.autoload_layout = atoi(val.c_str()) != 0; }
+			else if (key == "autoload_layout_width") { g_settings.autoload_layout_width = atoi(val.c_str()); }
+			else if (key == "autoload_layout_height") { g_settings.autoload_layout_height = atoi(val.c_str()); }
 			else if (key == "engine") { 
 				g_settings.engine = clamp(atoi(val.c_str()), 0, 1);
 				g_limits = g_engine_limits[g_settings.engine];
@@ -194,11 +195,16 @@ void AppSettings::save() {
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << g_settings.fontSize << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
-	file << "savebackup=" << g_settings.backUpMap << endl;
+	file << "autoload_layout=" << g_settings.autoload_layout << endl;
+	file << "autoload_layout_width=" << g_settings.autoload_layout_width << endl;
+	file << "autoload_layout_height=" << g_settings.autoload_layout_height << endl;
 	file << "engine=" << g_settings.engine << endl;
 }
 
 void AppSettings::addRecentFile(string map) {
+	if (map.empty())
+		return;
+
 	map = getAbsolutePath(map);
 
 	for (int i = 0; i < recentFiles.size(); i++) {

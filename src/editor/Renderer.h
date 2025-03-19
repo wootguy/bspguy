@@ -123,6 +123,7 @@ public:
 	void saveSettings();
 	void loadSettings();
 	void merge(string fpath);
+	void handleResize(int width, int height);
 
 private:
 	GLFWwindow* window;
@@ -262,7 +263,6 @@ private:
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
-	BspRenderer* getMapContainingCamera();
 
 	void drawModelVerts();
 	void drawModelOrigin();
@@ -335,4 +335,5 @@ private:
 	void updateEntityLumpUndoState(Bsp* map);
 
 	void loadFgds();
+	void getWindowSize(int& width, int& height);
 };

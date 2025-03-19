@@ -134,7 +134,13 @@ if(MSVC)
 	
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bspguy)
 	
-	target_link_libraries(${PROJECT_NAME} opengl32 ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
+	if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+		set(GLEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/Win32/glew32s.lib)
+	else()
+		set(GLEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
+	endif()
+	
+	target_link_libraries(${PROJECT_NAME} opengl32 ${GLEW_PATH})
 	
 	source_group("Header Files\\bsp" FILES	src/bsp/BspMerger.h
 											src/bsp/Bsp.h

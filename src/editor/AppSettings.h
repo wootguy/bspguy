@@ -14,6 +14,9 @@ struct AppSettings {
 	bool valid;
 	int undoLevels;
 	bool verboseLogs;
+	bool autoload_layout;
+	int autoload_layout_width;
+	int autoload_layout_height;
 
 	bool debug_open;
 	bool keyvalue_open;
@@ -32,7 +35,6 @@ struct AppSettings {
 	int render_flags;
 	bool vsync;
 	bool show_transform_axes;
-	bool backUpMap;
 
 	std::vector<std::string> fgdPaths;
 	std::vector<std::string> resPaths;

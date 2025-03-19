@@ -143,3 +143,4 @@ float normalizeRangef(const float value, const float start, const float end);
 string getAbsolutePath(const string& relpath);
 bool isAbsolutePath(const std::string& path);
 string joinPaths(string path1, string path2);
+string getFolderPath(string path);
