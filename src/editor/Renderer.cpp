@@ -43,6 +43,10 @@ void window_size_callback(GLFWwindow* window, int width, int height)
 	if (g_settings.maximized || width == 0 || height == 0) {
 		return; // ignore size change when maximized, or else iconifying doesn't change size at all
 	}
+
+	g_settings.windowWidth = width;
+	g_settings.windowHeight = height;
+
 	g_app->handleResize(width, height);
 }
 
@@ -1003,6 +1007,10 @@ void Renderer::loadSettings() {
 
 	gui->shouldReloadFonts = true;
 
+	if (!showDragAxes) {
+		transformMode = TRANSFORM_NONE;
+	}
+
 	glfwSwapInterval(gui->vsync ? 1 : 0);
 }
 
@@ -1937,7 +1945,9 @@ vec3 Renderer::getMoveDir()
 	rotMat.rotateZ(PI * cameraAngles.z / 180.0f);
 
 	vec3 forward, right, up;
-	makeVectors(cameraAngles, forward, right, up);
+	vec3 moveAngles = cameraAngles;
+	moveAngles.y = 0;
+	makeVectors(moveAngles, forward, right, up);
 
 
 	vec3 wishdir(0, 0, 0);
@@ -2009,6 +2019,7 @@ void Renderer::setupView() {
 	projection.perspective(fov, (float)windowWidth / (float)windowHeight, zNear, zFar);
 
 	view.loadIdentity();
+	view.rotateZ(PI * cameraAngles.y / 180.0f);
 	view.rotateX(PI * cameraAngles.x / 180.0f);
 	view.rotateY(PI * cameraAngles.z / 180.0f);
 	view.translate(-cameraOrigin.x, -cameraOrigin.z, cameraOrigin.y);
@@ -4065,7 +4076,5 @@ void Renderer::getWindowSize(int& width, int& height) {
 }
 
 void Renderer::handleResize(int width, int height) {
-	g_settings.windowWidth = width;
-	g_settings.windowHeight = height;
 	gui->windowResized(width, height);
 }

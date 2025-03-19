@@ -120,11 +120,13 @@ private:
 
 	bool entityReportFilterNeeded = true;
 
+	float mainMenuBarHeight;
+
 	void draw3dContextMenus();
 	void drawMenuBar();
+	void drawStatusBar();
 	void drawPopups();
 	void drawToolbar();
-	void drawFpsOverlay();
 	void drawStatusMessage();
 	void drawDebugWidget();
 	void drawKeyvalueEditor();

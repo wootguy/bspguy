@@ -27,6 +27,8 @@
 #include "icons/face.h"
 #include <unordered_set>
 
+float g_smallFontSizeMult = 1.1f; // hack to keep consistent size with previous version
+
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
 string iniPath = getConfigDir() + "imgui.ini";
@@ -99,7 +101,6 @@ void Gui::draw() {
 	drawMenuBar();
 	drawPopups();
 
-	drawFpsOverlay();
 	drawToolbar();
 	drawStatusMessage();
 
@@ -159,6 +160,8 @@ void Gui::draw() {
 
 
 	draw3dContextMenus();
+
+	drawStatusBar();
 
 	// Rendering
 	ImGui::Render();
@@ -1477,30 +1480,39 @@ void Gui::drawMenuBar() {
 		ImGui::EndMenu();
 	}
 
-	{
-		float inputWidth = 230.0f;
-		float selectWidth = 260.0f;
-		float labelWidth = 50.0f;
-		float spacing = 10.0f;
-		static char cam_origin[32];
-		static char cam_angles[32];
-		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
-		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
 
-		float startPos = ImGui::GetWindowWidth() - (inputWidth + selectWidth + labelWidth + spacing);
+	string fpsText = to_string((int)ImGui::GetIO().Framerate) + " FPS";
+	float fpsWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, fpsText.c_str()).x;
+	float rightAlignStart = ImGui::GetWindowWidth() - (fpsWidth + 20);
 
-		ImGui::SameLine(startPos);
-		ImGui::Text("Origin:");
-		ImGui::SameLine(startPos + labelWidth + spacing);
-		ImGui::SetNextItemWidth(inputWidth);
-		if (ImGui::InputText("##Origin", cam_origin, 32)) {
-			app->cameraOrigin = parseVector(cam_origin);
+	ImGui::SameLine(rightAlignStart);
+	ImGui::Text(fpsText.c_str());
+
+	if (ImGui::BeginPopupContextWindow()) {
+		if (ImGui::MenuItem("VSync", NULL, vsync)) {
+			vsync = !vsync;
+			glfwSwapInterval(vsync ? 1 : 0);
 		}
+		ImGui::EndPopup();
+	}
 
-		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(15, 0));
-		ImGui::SameLine();
+	mainMenuBarHeight = ImGui::GetWindowHeight();
 
+	ImGui::EndMainMenuBar();
+}
+
+void Gui::drawStatusBar() {
+	ImGuiContext& g = *ImGui::GetCurrentContext();
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+	float height = mainMenuBarHeight; // Status bar height
+	bool open = true; // Required for BeginViewportSideBar
+	int flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
+
+	float padding = 10.0f;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, 0));
+
+	if (ImGui::BeginViewportSideBar("##statusbar", viewport, ImGuiDir_Down, height, flags)) {
 		string selectStr = "no selection";
 		int entCount = app->pickInfo.ents.size();
 		int faceCount = app->pickInfo.faces.size();
@@ -1508,7 +1520,10 @@ void Gui::drawMenuBar() {
 			selectStr = to_string(entCount) + " entities selected";
 		}
 		else if (entCount == 1) {
-			selectStr = app->pickInfo.getEnt()->getClassname();
+
+			string tname = app->pickInfo.getEnt()->getTargetname();
+			string cname = app->pickInfo.getEnt()->getClassname();
+			selectStr = tname.size() ? tname + " - " + cname : cname;
 		}
 		else if (faceCount == 1) {
 			selectStr = "face #" + to_string(app->pickInfo.getFaceIndex()) + " selected";
@@ -1516,15 +1531,61 @@ void Gui::drawMenuBar() {
 		else if (faceCount > 0) {
 			selectStr = to_string(faceCount) + " faces selected";
 		}
+		
+		static char cam_origin[32];
+		static char cam_angles[32];
+		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
+		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
+		float originWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, cam_origin).x;
+		float typicalOriginWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, "-4096 -4096 -4096").x;
+		originWidth = max(originWidth, typicalOriginWidth) + 10;
+		float anglesWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, cam_angles).x;
+		float typicalAnglesWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, "-90 -180 0").x;
+		anglesWidth = max(anglesWidth, typicalAnglesWidth) + 10;
+		
+		float selectWidth = smallFont->CalcTextSizeA(fontSize*g_smallFontSizeMult, FLT_MAX, FLT_MAX, selectStr.c_str()).x;
+		
+		float rightAlignStart = ImGui::GetWindowWidth() - (selectWidth + padding);
+
+		ImGui::Text("Origin:");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(originWidth);
+		if (ImGui::InputText("##Origin", cam_origin, 32)) {
+			app->cameraOrigin = parseVector(cam_origin);
+		}
+
+		ImGui::SameLine();
+		ImGui::Dummy(ImVec2(5, 0));
+		ImGui::SameLine();
+		ImGui::Text("Angles:");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(anglesWidth);
+		if (ImGui::InputText("##Angles", cam_angles, 32)) {
+			vec3 editorCamAngles = parseVector(cam_angles);
+			editorCamAngles = vec3(-editorCamAngles.x, editorCamAngles.z, 90 - editorCamAngles.y);
+			app->cameraAngles = editorCamAngles;
+		}
+
+		ImGui::SameLine(rightAlignStart);
 		ImGui::Text(selectStr.c_str());
 
 		if (last_cam_origin != app->cameraOrigin) {
 			last_cam_origin = app->cameraOrigin;
 			snprintf(cam_origin, 32, "%d %d %d", (int)last_cam_origin.x, (int)last_cam_origin.y, (int)last_cam_origin.z);
 		}
+
+		vec3 gameCamAngles = app->cameraAngles;
+		gameCamAngles = vec3(-gameCamAngles.x, -(gameCamAngles.z-90), gameCamAngles.y);
+		gameCamAngles.y = normalizeRangef(gameCamAngles.y, -180, 180);
+
+		if (last_cam_angles != gameCamAngles) {
+			last_cam_angles = gameCamAngles;
+			snprintf(cam_angles, 32, "%d %d %d", (int)last_cam_angles.x, (int)last_cam_angles.y, (int)last_cam_angles.z);
+		}
+		ImGui::End();
 	}
 
-	ImGui::EndMainMenuBar();
+	ImGui::PopStyleVar();
 }
 
 void Gui::drawPopups() {
@@ -1725,62 +1786,28 @@ void Gui::drawToolbar() {
 	ImGui::End();
 }
 
-void Gui::drawFpsOverlay() {
-	ImGuiContext& g = *GImGui;
-	ImGuiIO& io = ImGui::GetIO();
-	ImVec2 window_pos = ImVec2(io.DisplaySize.x - 10.0f, 35.0f);
-	ImVec2 window_pos_pivot = ImVec2(1.0f, 0.0f);
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
-
-	if (ImGui::Begin("Overlay", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
-	{
-		int faceCount = 0;
-
-		if (polycount && g_app->mapRenderer) {
-			Bsp* map = g_app->mapRenderer->map;
-			faceCount = map->count_visible_polys(g_app->cameraOrigin, g_app->cameraAngles);
-
-			ImGui::Text("%d Polys    %.0f FPS", faceCount, ImGui::GetIO().Framerate);
-		}
-		else {
-			ImGui::Text("%.0f FPS", ImGui::GetIO().Framerate);
-		}
-		
-		if (ImGui::BeginPopupContextWindow())
-		{
-			/*
-			if (ImGui::MenuItem("Poly Counter", NULL, polycount)) {
-				polycount = !polycount;
-			}
-			tooltip(g, "Count rendered polygons in the PVS.");
-			*/
-
-			if (ImGui::MenuItem("VSync", NULL, vsync)) {
-				vsync = !vsync;
-				glfwSwapInterval(vsync ? 1 : 0);
-			}
-			ImGui::EndPopup();
-		}
-	}
-	ImGui::End();
-}
-
 void Gui::drawStatusMessage() {
 	static int windowWidth = 32;
 	static int loadingWindowWidth = 32;
 	static int loadingWindowHeight = 32;
 
-	bool showStatus = app->invalidSolid || !app->isTransformableSolid || badSurfaceExtents || lightmapTooLarge || app->modelUsesSharedStructures;
+	bool sharedStructs = app->modelUsesSharedStructures && app->pickInfo.ents.size() == 1;
+	bool concave = !app->isTransformableSolid && app->pickInfo.ents.size() == 1;
+	bool invalidsolid = app->invalidSolid && app->pickInfo.ents.size() == 1;
+	bool dutchAngle = app->cameraAngles.y != 0;
+	bool showStatus = sharedStructs || concave || invalidsolid || badSurfaceExtents
+		|| lightmapTooLarge || app->modelUsesSharedStructures || app->forceAngleRotation
+		|| dutchAngle;
+	
 	if (showStatus) {
-		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - 10.0f);
+		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - (10.0f+mainMenuBarHeight));
 		ImVec2 window_pos_pivot = ImVec2(0.0f, 1.0f);
 		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 		ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
 
 		if (ImGui::Begin("status", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 		{
-			if (app->modelUsesSharedStructures && app->pickInfo.ents.size() == 1) {
+			if (sharedStructs) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "SHARED DATA");
 				if (ImGui::IsItemHovered())
 				{
@@ -1791,7 +1818,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (!app->isTransformableSolid && app->pickInfo.ents.size() == 1) {
+			if (concave) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "CONCAVE SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -1802,7 +1829,7 @@ void Gui::drawStatusMessage() {
 					ImGui::EndTooltip();
 				}
 			}
-			if (app->invalidSolid && app->pickInfo.ents.size() == 1) {
+			if (invalidsolid) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "INVALID SOLID");
 				if (ImGui::IsItemHovered())
 				{
@@ -1848,6 +1875,13 @@ void Gui::drawStatusMessage() {
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted(info);
 					ImGui::EndTooltip();
+				}
+			}
+			if (dutchAngle) {
+				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "DUTCH ANGLE");
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Your camera is tilted by the Z angle set in the bottom status bar.");
 				}
 			}
 			windowWidth = ImGui::GetWindowWidth();
@@ -3624,7 +3658,7 @@ void Gui::loadFonts() {
 	// largeFont, which I'm using now for quality reasons (font scaling breaks anti-aliasing
 	// and makes the font look worse if scaled up). It will also improve startup time as
 	// glyphs are loaded on-demand instead of 16k all at once!!! Should be ready early 2025.
-	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, fontSize*1.1f, NULL, ranges.Data);
+	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, fontSize*g_smallFontSizeMult, NULL, ranges.Data);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, notosans_sz, fontSize*1.25f, NULL, ranges.Data);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, fontSize, NULL, ranges.Data);
 	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, notosans_mono_sz, fontSize*1.1f, NULL, ranges.Data);
@@ -4601,7 +4635,7 @@ void Gui::drawEntityReport() {
 			ImGuiStyle& style = ImGui::GetStyle();
 			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
-			inputWidth -= smallFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " = ").x;
+			inputWidth -= smallFont->CalcTextSizeA(fontSize*g_smallFontSizeMult, FLT_MAX, FLT_MAX, " = ").x;
 
 			for (int i = 0; i < MAX_FILTERS; i++) {
 				ImGui::SetNextItemWidth(inputWidth);
