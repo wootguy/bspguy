@@ -259,9 +259,7 @@ CreateEntityFromTextCommand::CreateEntityFromTextCommand(string desc, string tex
 CreateEntityFromTextCommand::~CreateEntityFromTextCommand() {
 }
 
-void CreateEntityFromTextCommand::execute() {
-	Bsp* map = getBsp();
-
+vector<Entity*> CreateEntityFromTextCommand::parse() {
 	std::istringstream in(textData);
 
 	int lineNum = 0;
@@ -319,6 +317,13 @@ void CreateEntityFromTextCommand::execute() {
 				ent->addKeyvalue(k);
 		}
 	}
+
+	return ents;
+}
+
+void CreateEntityFromTextCommand::execute() {
+	Bsp* map = getBsp();
+	vector<Entity*> ents = parse();
 
 	for (Entity* ent : ents) {
 		map->ents.push_back(ent);

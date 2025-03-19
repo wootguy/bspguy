@@ -943,10 +943,9 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 			{
 				angle1[j] = panimvalue[panimvalue->num.valid].value;
 				// TODO: I don't understand this code yet and ASAN complained about heap overflow here.
-				// It crashed for an external sequence on the last frame and last bone
-				//if (panimvalue->num.total > k + 1)
-
-				if (panimvalue->num.total > k)
+				// It crashed for an external sequence on the last frame and last bone. Removing +1 fixes
+				// the crash but breaks animations (big momma, grunt)
+				if (panimvalue->num.total > k + 1)
 				{
 					angle2[j] = angle1[j];
 				}

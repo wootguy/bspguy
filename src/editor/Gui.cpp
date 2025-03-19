@@ -507,16 +507,25 @@ void Gui::draw3dContextMenus() {
 			ImGui::EndPopup();
 		}
 
+		static bool emptyWasOpen = false; // prevent glfw error spam
 		if (ImGui::BeginPopup("empty_context"))
 		{
-			if (ImGui::MenuItem("Paste", "Ctrl+V", false)) {
+			static bool canPaste = false;
+			if (!emptyWasOpen)
+				canPaste = app->canPasteEnts();
+			emptyWasOpen = true;
+
+			if (ImGui::MenuItem("Paste", "Ctrl+V", false, canPaste)) {
 				app->pasteEnts(false);
 			}
-			if (ImGui::MenuItem("Paste at original origin", 0, false)) {
+			if (ImGui::MenuItem("Paste at original origin", 0, false, canPaste)) {
 				app->pasteEnts(true);
 			}
 
 			ImGui::EndPopup();
+		}
+		else {
+			emptyWasOpen = false;
 		}
 	}
 	else if (app->pickMode == PICK_FACE && app->pickInfo.faces.size()) {
@@ -654,6 +663,8 @@ void Gui::drawMenuBar() {
 
 	ImGui::BeginMainMenuBar();
 
+	static bool editWasOpen = false;
+
 	if (ImGui::BeginMenu("File"))
 	{
 		if (ImGui::MenuItem("Open", "Ctrl+O", false, !app->isLoading)) {
@@ -763,19 +774,24 @@ void Gui::drawMenuBar() {
 
 		ImGui::Separator();
 
+		static bool canPaste = false;
+		if (!editWasOpen)
+			canPaste = app->canPasteEnts();
+		editWasOpen = true;
+
 		if (ImGui::MenuItem("Cut", "Ctrl+X", false, nonWorldspawnEntSelected)) {
 			app->cutEnts();
 		}
 		if (ImGui::MenuItem("Copy", "Ctrl+C", false, nonWorldspawnEntSelected)) {
 			app->copyEnts();
 		}
-		if (ImGui::MenuItem("Paste", "Ctrl+V", false)) {
+		if (ImGui::MenuItem("Paste", "Ctrl+V", false, canPaste)) {
 			app->pasteEnts(false);
 		}
 		tooltip(g, "Creates entities from text data. You can use this to transfer entities "
 			"from one bspguy window to another, or paste from .ent file text. Copy any entity "
 			"in the viewer then paste to a text editor to see the format of the text data.");
-		if (ImGui::MenuItem("Paste at original origin", 0, false)) {
+		if (ImGui::MenuItem("Paste at original origin", 0, false, canPaste)) {
 			app->pasteEnts(true);
 		}
 		tooltip(g, "Pastes entities at the locations they were copied from.");
@@ -810,6 +826,8 @@ void Gui::drawMenuBar() {
 
 		ImGui::EndMenu();
 	}
+	else
+		editWasOpen = false;
 
 	if (ImGui::BeginMenu("View")) {
 		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
@@ -2401,6 +2419,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 						data->Buf[0] = 0;
 						data->BufTextLen = 0;
 						data->BufDirty = true;
+						data->CursorPos = 0;
 					}
 					
 					for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
@@ -3499,8 +3518,6 @@ void Gui::loadFonts() {
 		// - File -> generate fonts
 	}
 
-	double start = glfwGetTime();
-
 	vector<uint8_t> decompressed;
 	// data copied to new array so that ImGui doesn't delete static data
 	byte* smallFontData = NULL;
@@ -3531,12 +3548,14 @@ void Gui::loadFonts() {
 		memcpy(consoleFontLargeData, &decompressed[0], notosans_mono_sz);
 	}
 
+	// TODO: ImGui is getting updates to font scaling, so there won't be a need for a separate
+	// largeFont, which I'm using now for quality reasons (font scaling breaks anti-aliasing
+	// and makes the font look worse if scaled up). It will also improve startup time as
+	// glyphs are loaded on-demand instead of 16k all at once!!! Should be ready early 2025.
 	smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, fontSize*1.1f, NULL, ranges.Data);
 	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, notosans_sz, fontSize*1.25f, NULL, ranges.Data);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, fontSize, NULL, ranges.Data);
 	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, notosans_mono_sz, fontSize*1.1f, NULL, ranges.Data);
-
-	logf("loaded fonts in %.2f\n", (glfwGetTime() - start));
 }
 
 void Gui::drawLog() {

@@ -3517,6 +3517,19 @@ void Renderer::copyEnts() {
 	ImGui::SetClipboardText(serialized.c_str());
 }
 
+bool Renderer::canPasteEnts() {
+	if (!copiedEnts.empty())
+		return true;
+
+	const char* clipBoardText = ImGui::GetClipboardText();
+	if (!clipBoardText) {
+		return false;
+	}
+
+	CreateEntityFromTextCommand createCommand("", clipBoardText);
+	return !createCommand.parse().empty();
+}
+
 void Renderer::pasteEnts(bool noModifyOrigin) {
 	if (copiedEnts.empty()) {
 		const char* clipBoardText = ImGui::GetClipboardText();

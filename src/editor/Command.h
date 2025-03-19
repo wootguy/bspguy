@@ -74,6 +74,7 @@ public:
 	CreateEntityFromTextCommand(string desc, string textData);
 	~CreateEntityFromTextCommand();
 
+	vector<Entity*> parse();
 	void execute();
 	void undo();
 	void refresh();

@@ -302,6 +302,7 @@ private:
 	void grabEnts();
 	void cutEnts();
 	void copyEnts();
+	bool canPasteEnts();
 	void pasteEnts(bool noModifyOrigin);
 	void pasteEntsFromText(string text, bool noModifyOrigin);
 	void deleteEnts();
