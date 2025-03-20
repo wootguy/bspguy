@@ -882,6 +882,14 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Render entities that reference BSP models.");
 
+		if (ImGui::MenuItem("Entity Direction Vectors", 0, g_render_flags & RENDER_ENT_DIRECTIONS)) {
+			g_render_flags ^= RENDER_ENT_DIRECTIONS;
+			app->updateEntDirectionVectors();
+		}
+		tooltip(g, "Display direction vectors for selected entities.\n"
+			"For point entities, vectors usually represent orientation.\n"
+			"For solid entities, vectors usually represent movement direction.");
+
 		if (ImGui::MenuItem("Entity Links", 0, g_render_flags & RENDER_ENT_CONNECTIONS)) {
 			g_render_flags ^= RENDER_ENT_CONNECTIONS;
 		}
@@ -903,14 +911,6 @@ void Gui::drawMenuBar() {
 			}
 		}
 		tooltip(g, "Display game models instead of colored cubes, if available.");
-		
-		if (ImGui::MenuItem("Entity Direction Vectors", 0, g_render_flags & RENDER_ENT_DIRECTIONS)) {
-			g_render_flags ^= RENDER_ENT_DIRECTIONS;
-			app->updateEntDirectionVectors();
-		}
-		tooltip(g, "Display direction vectors for selected entities.\n"
-			"For point entities, vectors usually represent orientation.\n"
-			"For solid entities, vectors usually represent movement direction.");
 
 		ImGui::Separator();
 
@@ -983,16 +983,17 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Settings"))
 	{
-		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-		if (ImGui::MenuItem("Setup / Preferences", NULL, showSettingsWidget)) {
+		if (ImGui::MenuItem("Editor Setup", NULL)) {
 			if (!showSettingsWidget) {
 				reloadSettings = true;
-				ImGui::SetWindowCollapsed("Settings", false);
 			}
-			showSettingsWidget = !showSettingsWidget;
+			ImGui::SetWindowCollapsed("Editor Setup", false);
+			showSettingsWidget = true;
 		}
 
 		ImGui::Separator();
+
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
 
 		bool changed = false;
 		ImGui::MenuItem("Engine", 0, false, false);
@@ -1018,102 +1019,8 @@ void Gui::drawMenuBar() {
 			app->mapRenderer->reload();
 			reloadLimits();
 		}
-		ImGui::Separator();
-
-		ImGui::MenuItem("Widgets", 0, false, false);
-
-		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
-			showDebugWidget = !showDebugWidget;
-			if (showDebugWidget)
-				ImGui::SetWindowCollapsed("Debug", false);
-		}
-		tooltip(g, "For developers and those curious about BSP internals.");
-
-		if (ImGui::MenuItem("Entity Report", "Ctrl+F")) {
-			showEntityReport = !showEntityReport;
-			if (showEntityReport)
-				ImGui::SetWindowCollapsed("Entity Report", false);
-		}
-		tooltip(g, "Search for entities by name, class, and/or other properties.");
-
-		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
-			showKeyvalueWidget = !showKeyvalueWidget;
-			if (showKeyvalueWidget)
-				ImGui::SetWindowCollapsed("Keyvalue Editor", false);
-		}
-		tooltip(g, "Edit entity properties.");
-
-		if (ImGui::MenuItem("Map Limits", NULL, showLimitsWidget)) {
-			showLimitsWidget = !showLimitsWidget;
-			if (showLimitsWidget)
-				ImGui::SetWindowCollapsed("Map Limits", false);
-		}
-		tooltip(g, "Shows how close the map is to exceeding engine limits.");
-
-		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
-			showTransformWidget = !showTransformWidget;
-			if (showTransformWidget)
-				ImGui::SetWindowCollapsed("Transformation", false);
-		}
-		tooltip(g, "Move, rotate, and scale entities.");
-
-		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
-			showTextureWidget = !showTextureWidget;
-			if (showTextureWidget)
-				ImGui::SetWindowCollapsed("Face Properties", false);
-		}
-		tooltip(g, "Edit faces and textures.");
-		/*
-		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
-			showLightmapEditorWidget = !showLightmapEditorWidget;
-			showLightmapEditorUpdate = true;
-		}
-		*/
-		if (ImGui::MenuItem("Messages", "", showLogWidget)) {
-			showLogWidget = !showLogWidget;
-			if (showLogWidget)
-				ImGui::SetWindowCollapsed("Messages", false);
-		}
-		tooltip(g, "Show program messages.");
 		
-		ImGui::Separator();
-
 		ImGui::PopItemFlag();
-
-		static string userLayout = getUserLayoutPath();
-
-		if (ImGui::MenuItem("Save Widget Layout", NULL)) {
-			ImGui::SaveIniSettingsToDisk(userLayout.c_str());
-			app->getWindowSize(g_settings.autoload_layout_width, g_settings.autoload_layout_height);
-			g_settings.save();
-			logf("Layout saved to %s\n", userLayout.c_str());
-		}
-		tooltip(g, "Save the position and size of your widgets as they are now. For easing frustration when "
-			"you accidentally resize the window while moving it and your right-aligned widgets move to the center of the screen.\n");
-		
-		if (ImGui::MenuItem("Load Widget Layout", NULL, false)) {
-			if (!fileExists(userLayout)) {
-				logf("No layout has been saved yet. Nothing to load.\n");
-			}
-			else {
-				ImGui::LoadIniSettingsFromDisk(userLayout.c_str());
-				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
-				logf("Layout loaded from %s\n", userLayout.c_str());
-			}
-		}
-		tooltip(g, "Restore your previously saved layout. Widgets may move mostly off-screen if you saved "
-			"at a larger window resolution than you're using now.\n");
-
-		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-
-		if (ImGui::MenuItem("Auto-Load Layout", NULL, g_settings.autoload_layout)) {
-			g_settings.autoload_layout = !g_settings.autoload_layout;
-		}
-		tooltip(g, "Automatically loads your saved widget layout whenever the window resizes to the same "
-			" resolution you saved at.\n");
-
-		ImGui::PopItemFlag();
-		
 		ImGui::EndMenu();
 	}
 
@@ -1347,7 +1254,7 @@ void Gui::drawMenuBar() {
 			"(for the min and max extent of the box). This is useful for getting maps to run in an "
 			"engine with stricter map limits. Works best with enclosed areas. Trying to partially "
 			"delete features in a room will likely result in broken collision detection.\n\n"
-			"Create 2 cull entities from the \"Create\" menu to define the culling box. "
+			"Create 2 cull entities to define the culling box. "
 			"A transparent red box will form between them.");
 
 		if (ImGui::MenuItem("Remove unused WADs", 0, false, !app->isLoading)) {
@@ -1475,6 +1382,105 @@ void Gui::drawMenuBar() {
 			g_app->deselectObject();
 		}
 		tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
+
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Widgets"))
+	{
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+
+		if (ImGui::MenuItem("Debug", NULL, showDebugWidget)) {
+			showDebugWidget = !showDebugWidget;
+			if (showDebugWidget)
+				ImGui::SetWindowCollapsed("Debug", false);
+		}
+		tooltip(g, "For developers and those curious about BSP internals.");
+
+		if (ImGui::MenuItem("Entity Report", "Ctrl+F")) {
+			showEntityReport = !showEntityReport;
+			if (showEntityReport)
+				ImGui::SetWindowCollapsed("Entity Report", false);
+		}
+		tooltip(g, "Search for entities by name, class, and/or other properties.");
+
+		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", showKeyvalueWidget)) {
+			showKeyvalueWidget = !showKeyvalueWidget;
+			if (showKeyvalueWidget)
+				ImGui::SetWindowCollapsed("Keyvalue Editor", false);
+		}
+		tooltip(g, "Edit entity properties.");
+
+		if (ImGui::MenuItem("Map Limits", NULL, showLimitsWidget)) {
+			showLimitsWidget = !showLimitsWidget;
+			if (showLimitsWidget)
+				ImGui::SetWindowCollapsed("Map Limits", false);
+		}
+		tooltip(g, "Shows how close the map is to exceeding engine limits.");
+
+		if (ImGui::MenuItem("Transform", "Ctrl+M", showTransformWidget)) {
+			showTransformWidget = !showTransformWidget;
+			if (showTransformWidget)
+				ImGui::SetWindowCollapsed("Transformation", false);
+		}
+		tooltip(g, "Move, rotate, and scale entities.");
+
+		if (ImGui::MenuItem("Face Properties", "", showTextureWidget)) {
+			showTextureWidget = !showTextureWidget;
+			if (showTextureWidget)
+				ImGui::SetWindowCollapsed("Face Properties", false);
+		}
+		tooltip(g, "Edit faces and textures.");
+		/*
+		if (ImGui::MenuItem("LightMap Editor (WIP)", "", showLightmapEditorWidget)) {
+			showLightmapEditorWidget = !showLightmapEditorWidget;
+			showLightmapEditorUpdate = true;
+		}
+		*/
+		if (ImGui::MenuItem("Messages", "", showLogWidget)) {
+			showLogWidget = !showLogWidget;
+			if (showLogWidget)
+				ImGui::SetWindowCollapsed("Messages", false);
+		}
+		tooltip(g, "Show program messages.");
+
+		ImGui::Separator();
+
+		ImGui::PopItemFlag();
+
+		static string userLayout = getUserLayoutPath();
+
+		if (ImGui::MenuItem("Save Widget Layout", NULL)) {
+			ImGui::SaveIniSettingsToDisk(userLayout.c_str());
+			app->getWindowSize(g_settings.autoload_layout_width, g_settings.autoload_layout_height);
+			g_settings.save();
+			logf("Layout saved to %s\n", userLayout.c_str());
+		}
+		tooltip(g, "Save the position and size of your widgets as they are now. For easing frustration when "
+			"you accidentally resize the window while moving it and your right-aligned widgets move to the center of the screen.\n");
+
+		if (ImGui::MenuItem("Load Widget Layout", NULL, false)) {
+			if (!fileExists(userLayout)) {
+				logf("No layout has been saved yet. Nothing to load.\n");
+			}
+			else {
+				ImGui::LoadIniSettingsFromDisk(userLayout.c_str());
+				ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+				logf("Layout loaded from %s\n", userLayout.c_str());
+			}
+		}
+		tooltip(g, "Restore your previously saved layout. Widgets may move mostly off-screen if you saved "
+			"at a larger window resolution than you're using now.\n");
+
+		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+
+		if (ImGui::MenuItem("Auto-Load Layout", NULL, g_settings.autoload_layout)) {
+			g_settings.autoload_layout = !g_settings.autoload_layout;
+		}
+		tooltip(g, "Automatically loads your saved widget layout whenever the window resizes to the same "
+			" resolution you saved at.\n");
+
+		ImGui::PopItemFlag();
 
 		ImGui::EndMenu();
 	}
@@ -3759,7 +3765,7 @@ void Gui::drawSettings() {
 	ImGui::SetNextWindowSize(ImVec2(790, 350), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSizeConstraints(ImVec2(740, 200), ImVec2(FLT_MAX, app->windowHeight - 40));
 
-	if (ImGui::Begin("Settings", &showSettingsWidget))
+	if (ImGui::Begin("Editor Setup", &showSettingsWidget))
 	{
 		ImGuiContext& g = *GImGui;
 		const int settings_tabs = 3;
