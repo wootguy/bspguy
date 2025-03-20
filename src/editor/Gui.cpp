@@ -27,7 +27,9 @@
 #include "icons/face.h"
 #include <unordered_set>
 
-float g_smallFontSizeMult = 1.1f; // hack to keep consistent size with previous version
+// TODO: hack to keep size consistent with bspguy v4. Is there something wrong with the font?
+// "22" should have the same height regardless of font. Maybe FontForge was misused.
+float g_smallFontSizeMult = 1.1f;
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
@@ -902,6 +904,14 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Display game models instead of colored cubes, if available.");
 		
+		if (ImGui::MenuItem("Entity Direction Vectors", 0, g_render_flags & RENDER_ENT_DIRECTIONS)) {
+			g_render_flags ^= RENDER_ENT_DIRECTIONS;
+			app->updateEntDirectionVectors();
+		}
+		tooltip(g, "Display direction vectors for selected entities.\n"
+			"For point entities, vectors usually represent orientation.\n"
+			"For solid entities, vectors usually represent movement direction.");
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Clipnodes (World)", 0, g_render_flags & RENDER_WORLD_CLIPNODES)) {
@@ -1099,7 +1109,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("Auto-Load Layout", NULL, g_settings.autoload_layout)) {
 			g_settings.autoload_layout = !g_settings.autoload_layout;
 		}
-		tooltip(g, "Automatically loads your saved widget layout whenever the window is resized to the same "
+		tooltip(g, "Automatically loads your saved widget layout whenever the window resizes to the same "
 			" resolution you saved at.\n");
 
 		ImGui::PopItemFlag();
@@ -1867,20 +1877,14 @@ void Gui::drawStatusMessage() {
 			}
 			if (app->forceAngleRotation) {
 				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "FORCE ROTATE");
-				if (ImGui::IsItemHovered())
-				{
-					const char* info =
-						"The \"Force Rotate Solids\" option is enabled in the Transformation widget.\n"
-						"Many entities may be floating in space while this is enabled.d";
-					ImGui::BeginTooltip();
-					ImGui::TextUnformatted(info);
-					ImGui::EndTooltip();
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("The \"Force Rotate Solids\" option is enabled in the Transformation widget.\n"
+						"Many entities may be floating in space while this is enabled.");
 				}
 			}
 			if (dutchAngle) {
 				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "DUTCH ANGLE");
-				if (ImGui::IsItemHovered())
-				{
+				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip("Your camera is tilted by the Z angle set in the bottom status bar.");
 				}
 			}
@@ -1931,20 +1935,8 @@ void Gui::drawDebugWidget() {
 
 	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 100), ImVec2(FLT_MAX, app->windowHeight));
 	if (ImGui::Begin("Debug info", &showDebugWidget, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			ImGui::Text("Origin: %d %d %d", (int)app->cameraOrigin.x, (int)app->cameraOrigin.y, (int)app->cameraOrigin.z);
-			ImGui::Text("Angles: %d %d %d", (int)app->cameraAngles.x, (int)app->cameraAngles.y, (int)app->cameraAngles.z);
-		}
-
 		if (app->pickInfo.getMap()) {
 			Bsp* map = app->pickInfo.getMap();
-
-			if (ImGui::CollapsingHeader("Map", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::Text("Name: %s", map->name.c_str());
-			}
 			int modelIndex = app->pickInfo.getModelIndex();
 			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -2639,6 +2631,7 @@ void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 				else
 					ent->removeKeyvalue("spawnflags");
 			}
+			app->updateEntConnections();
 
 			app->pushEntityUndoState(checkboxEnabled[i] ? "Enable Flag" : "Disable Flag");
 		}
@@ -2788,6 +2781,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 				data->Buf[0] = 0;
 				data->BufTextLen = 0;
 				data->BufDirty = true;
+				data->CursorPos = 0;
 			}
 
 			bool anyUpdate = false;
@@ -3099,7 +3093,8 @@ void Gui::drawTransformWidget() {
 	static float fx, fy, fz; // raw origin
 	static float last_fx, last_fy, last_fz;
 	static float sx, sy, sz; // scaling
-	static int rx, ry, rz; // rotation
+	static float frx, fry, frz; // raw rotation
+	static int rx, ry, rz; // grid snapped rotation
 
 	static int lastPickCount = -1;
 	static int lastVertPickCount = -1;
@@ -3143,10 +3138,9 @@ void Gui::drawTransformWidget() {
 								multiselectOrigins.push_back(ori);
 								multiselectAngles.push_back(angles);
 							}
-							x = fx = 0;
-							y = fy = 0;
-							z = fz = 0;
-							rx = ry = rz = 0;
+							frx = rx = x = fx = 0;
+							fry = ry = y = fy = 0;
+							frz = rz = z = fz = 0;
 						}
 					}
 					else {
@@ -3159,18 +3153,17 @@ void Gui::drawTransformWidget() {
 						x = fx = ori.x;
 						y = fy = ori.y;
 						z = fz = ori.z;
-						rx = angles.x;
-						ry = angles.y;
-						rz = angles.z;
+						frx = rx = angles.x;
+						fry = ry = angles.y;
+						frz = rz = angles.z;
 					}
 				}
 
 			}
 			else {
-				x = fx = 0;
-				y = fy = 0;
-				z = fz = 0;
-				rx = ry = rz = 0;
+				frx = rx = x = fx = 0;
+				fry = ry = y = fy = 0;
+				frz = rz = z = fz = 0;
 			}
 			sx = sy = sz = 1;
 		}
@@ -3255,27 +3248,51 @@ void Gui::drawTransformWidget() {
 			ImGui::TableNextColumn();
 
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (ImGui::DragInt("##xrot", &rx, 0.1f, 0, 0, "X: %d")) {
-				rx = rx > 0 ? (rx % 360) : -(-rx % 360);
-				anglesChanged = true;
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##xrot", &rx, 0.1f, 0, 0, "X: %d")) {
+					rx = rx > 0 ? (rx % 360) : -(-rx % 360);
+					anglesChanged = true;
+				}
+			}
+			else {
+				if (ImGui::DragFloat("##xrot2", &frx, 0.01f, 0, 0, "X: %.2f")) {
+					frx = normalizeRangef(frx, -360, 360);
+					anglesChanged = true;
+				}
 			}
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
 			ImGui::TableNextColumn();
 
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (ImGui::DragInt("##yrot", &ry, 0.1f, 0, 0, "Y: %d")) {
-				ry = ry > 0 ? (ry % 360) : -(-ry % 360);
-				anglesChanged = true;
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##yrot", &ry, 0.1f, 0, 0, "Y: %d")) {
+					ry = ry > 0 ? (ry % 360) : -(-ry % 360);
+					anglesChanged = true;
+				}
+			}
+			else {
+				if (ImGui::DragFloat("##yrot2", &fry, 0.01f, 0, 0, "Y: %.2f")) {
+					fry = normalizeRangef(fry, -360, 360);
+					anglesChanged = true;
+				}
 			}
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
 			ImGui::TableNextColumn();
 			
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (ImGui::DragInt("##zrot", &rz, 0.1f, 0, 0, "Z: %d")) {
-				rz = rz > 0 ? (rz % 360) : -(-rz % 360);
-				anglesChanged = true;
+			if (app->gridSnappingEnabled) {
+				if (ImGui::DragInt("##zrot", &rz, 0.1f, 0, 0, "Z: %d")) {
+					rz = rz > 0 ? (rz % 360) : -(-rz % 360);
+					anglesChanged = true;
+				}
+			}
+			else {
+				if (ImGui::DragFloat("##zrot2", &frz, 0.01f, 0, 0, "Z: %.2f")) {
+					frz = normalizeRangef(frz, -360, 360);
+					anglesChanged = true;
+				}
 			}
 			if (ImGui::IsItemActive())
 				inputsAreDragging = true;
@@ -3519,7 +3536,7 @@ void Gui::drawTransformWidget() {
 			}
 			if (anglesChanged) {
 				if (app->transformTarget == TRANSFORM_OBJECT) {
-					vec3 newAngles = vec3(rx, ry, rz);
+					vec3 newAngles = app->gridSnappingEnabled ? vec3(rx, ry, rz) : vec3(frx, fry, frz);
 
 					if (multiSelect > 1) {
 						for (int i = 0; i < app->pickInfo.ents.size(); i++) {
@@ -3530,6 +3547,7 @@ void Gui::drawTransformWidget() {
 							bspRenderer->refreshEnt(entidx);
 						}
 						app->updateEntConnectionPositions();
+						app->updateEntDirectionVectors();
 					}
 					else {
 						Entity* ent = app->pickInfo.getEnt();
@@ -3537,6 +3555,8 @@ void Gui::drawTransformWidget() {
 						bspRenderer->refreshEnt(app->pickInfo.getEntIndex());
 						if (ent->getBspModelIdx() != -1)
 							app->updateEntConnectionPositions();
+						else 
+							app->updateEntDirectionVectors();
 					}
 				}
 			}

@@ -256,13 +256,13 @@ void Renderer::renderLoop() {
 
 	{
 		moveAxes.dimColor[0] = { 110, 0, 160, 255 };
-		moveAxes.dimColor[1] = { 0, 0, 220, 255 };
-		moveAxes.dimColor[2] = { 0, 160, 0, 255 };
+		moveAxes.dimColor[1] = { 0, 160, 0, 255 };
+		moveAxes.dimColor[2] = { 0, 0, 220, 255 };
 		moveAxes.dimColor[3] = { 160, 160, 160, 255 };
 
 		moveAxes.hoverColor[0] = { 128, 64, 255, 255 };
-		moveAxes.hoverColor[1] = { 64, 64, 255, 255 };
-		moveAxes.hoverColor[2] = { 64, 255, 64, 255 };
+		moveAxes.hoverColor[1] = { 64, 255, 64, 255 };
+		moveAxes.hoverColor[2] = { 64, 64, 255, 255 };
 		moveAxes.hoverColor[3] = { 255, 255, 255, 255 };
 
 		// flipped for HL coords
@@ -333,14 +333,10 @@ void Renderer::renderLoop() {
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 
-		colorShader->bind();
-		drawEntConnections();
-
 		isLoading = reloading;
 		
 		// draw opaque world/entity faces
 		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false);
-		
 		// studio models have transparent boxes that need to draw over the world but behind transparent
 		// brushes like a trigger_once which is rendered using the clipnode model
 		drawStudioModels();
@@ -354,6 +350,10 @@ void Renderer::renderLoop() {
 
 		model.loadIdentity();
 		colorShader->bind();
+
+		colorShader->bind();
+		drawEntDirectionVectors(); // draws over world faces
+		drawEntConnections();
 
 		int modelIdx = pickInfo.getModelIndex();
 
@@ -1185,7 +1185,8 @@ void Renderer::drawTransformAxes() {
 	}
 	if (transformMode == TRANSFORM_MOVE) {
 		vec3 ori = moveAxes.origin;
-		model.translate(ori.x, ori.z, -ori.y);
+		float offset = (g_render_flags & RENDER_ENT_DIRECTIONS) ? 64 : 0;
+		model.translate(ori.x, ori.z + offset, -ori.y);
 		colorShader->updateMatrixes();
 		moveAxes.buffer->draw(GL_TRIANGLES);
 	}
@@ -1201,6 +1202,98 @@ void Renderer::drawEntConnections() {
 		colorShader->updateMatrixes();
 		entConnections->draw(GL_LINES);
 	}
+}
+
+void Renderer::updateEntDirectionVectors() {
+	if (entDirectionVectors) {
+		delete entDirectionVectors;
+		entDirectionVectors = NULL;
+	}
+	
+	if (!(g_render_flags & RENDER_ENT_DIRECTIONS)) {
+		return;
+	}
+
+	vector<Entity*> pickEnts = pickInfo.getEnts();
+
+	if (pickEnts.empty()) {
+		return;
+	}
+
+	vector<Entity*> directEnts;
+
+	for (Entity* ent : pickEnts) {
+		if (!ent->isBspModel() || !ent->canRotate()) {
+			FgdClass* clazz = mergedFgd->getFgdClass(ent->getClassname());
+			bool classUsesAngle = clazz ? (clazz->hasKey("angles") || clazz->hasKey("angle")) : false;
+			if (classUsesAngle || (!clazz && (ent->hasKey("angles") || ent->hasKey("angle"))))
+				directEnts.push_back(ent);
+		}
+	}
+
+	if (directEnts.empty())
+		return;
+
+	struct cArrow {
+		cCube up;
+		cCube right;
+		cCube shaft; // minor todo: one face can be omitted. make a new struct
+		cPyramid tip;
+	};
+	int arrowVerts = 6*6*3 + (6 + 3*4);
+
+	int numPointers = directEnts.size();
+	cArrow* arrows = new cArrow[numPointers];
+
+	for (int i = 0; i < numPointers; i++) {
+		Entity* ent = directEnts[i];
+		vec3 ori = getEntOrigin(mapRenderer->map, ent).flip();
+		vec3 angles = ent->getAngles() * (PI / 180.0f);
+
+		// i swear every use of entity angles needs a matrix with its own unique order/inversions
+		// this is the combo used so far
+		mat4x4 rotMat;
+		rotMat.loadIdentity();
+		rotMat.rotateX(-angles.z);
+		rotMat.rotateZ(-angles.x);
+		rotMat.rotateY(-angles.y);
+
+		arrows[i].shaft = cCube(vec3(-1, -1, -1), vec3(40, 1, 1), COLOR4(0, 255, 0, 255));
+		arrows[i].right = cCube(vec3(-0.5f, -0.5f, -0.5f), vec3(0.5f, 0.5f, 24), COLOR4(128, 0, 255, 255));
+		arrows[i].up = cCube(vec3(-0.5f, -0.5f, -0.5f), vec3(0.5f, 24, 0.5f), COLOR4(0, 128, 255, 255));
+		arrows[i].tip = cPyramid(vec3(40, 0, 0), 4, 16, COLOR4(0, 255, 0, 255));
+
+		cVert* rawVerts = (cVert*)&arrows[i];
+		for (int k = 0; k < arrowVerts; k++) {
+			vec3* pos = (vec3*)&rawVerts[k].x;
+			*pos = (rotMat * vec4(*pos, 1)).xyz() + ori;
+		}
+		for (int k = 0; k < arrowVerts; k += 3) {
+
+		}
+	}
+
+	entDirectionVectors = new VertexBuffer(colorShader, COLOR_4B | POS_3F, arrows, numPointers * arrowVerts);
+	entDirectionVectors->ownData = true;
+}
+
+void Renderer::drawEntDirectionVectors() {
+	if (!entDirectionVectors) {
+		return;
+	}
+
+	glCullFace(GL_FRONT);
+	glDisable(GL_DEPTH_TEST);
+	glDepthFunc(GL_ALWAYS);
+
+	colorShader->bind();
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+	entDirectionVectors->draw(GL_TRIANGLES);
+
+	glDepthFunc(GL_LESS);
+	glEnable(GL_DEPTH_TEST);
+	glCullFace(GL_BACK);
 }
 
 void Renderer::controls() {
@@ -1586,6 +1679,9 @@ void Renderer::cameraObjectHovering() {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
 		float bestDist = FLT_MAX;
+
+		vec3 offset = (g_render_flags & RENDER_ENT_DIRECTIONS) ? vec3(0, 0, 64) : vec3();
+		pickStart -= offset;
 
 		Bsp* map = mapRenderer->map;
 		vec3 origin = activeAxes.origin;
@@ -2307,6 +2403,12 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 }
 
 void Renderer::drawStudioModels() {
+	if (mapRenderer->map->ents.empty()) {
+		return;
+	}
+
+	vec3 worldOffset = mapRenderer->map->ents[0]->getOrigin();
+	
 	colorShader->bind();
 	glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -2447,7 +2549,7 @@ void Renderer::drawStudioModels() {
 
 		// draw the model
 		ent->didStudioDraw = true;
-		mdl->draw(ent->drawOrigin, ent->drawAngles, ent->drawSequence,
+		mdl->draw(ent->drawOrigin + worldOffset, ent->drawAngles, ent->drawSequence,
 			g_app->cameraOrigin, g_app->cameraRight, isSelected ? vec3(1,0,0) : vec3(1,1,1));
 		drawCount++;
 
@@ -2475,8 +2577,7 @@ void Renderer::drawStudioModels() {
 }
 
 vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
-	vec3 origin = ent->hasKey("origin") ? parseVector(ent->getKeyvalue("origin")) : vec3(0, 0, 0);
-	return origin + getEntOffset(map, ent);
+	return ent->getOrigin() + getEntOffset(map, ent);
 }
 
 vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
@@ -2816,7 +2917,9 @@ void Renderer::updateSelectionSize() {
 }
 
 void Renderer::updateEntConnections() {
+	// todo: these shouldn't be here
 	updateCullBox();
+	updateEntDirectionVectors();
 	
 	if (entConnections) {
 		delete entConnections;
@@ -2904,7 +3007,9 @@ void Renderer::updateEntConnections() {
 }
 
 void Renderer::updateEntConnectionPositions() {
+	// todo: these shouldn't be here
 	updateCullBox();
+	updateEntDirectionVectors();
 
 	if (!entConnections) {
 		return;

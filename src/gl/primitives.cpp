@@ -178,3 +178,23 @@ void cCube::setColor(COLOR4 lf, COLOR4 rt, COLOR4 tp, COLOR4 bt, COLOR4 ft, COLO
 	back.setColor(bk);
 }
 
+cPyramid::cPyramid(vec3 ori, float width, float height, COLOR4 c) {
+	cVert v1, v2, v3, v4;
+
+	vec3 mins = ori - vec3(0, width, width);
+	vec3 maxs = ori + vec3(0, width, width);
+	vec3 tip = ori + vec3(height, 0, 0);
+	cVert vTip = cVert(tip.x, tip.y, tip.z, c);
+
+	v4 = cVert(maxs.x, maxs.y, mins.z, c);
+	v3 = cVert(maxs.x, maxs.y, maxs.z, c);
+	v2 = cVert(maxs.x, mins.y, maxs.z, c);
+	v1 = cVert(maxs.x, mins.y, mins.z, c);
+	bottom = cQuad(v1, v2, v3, v4);
+
+	left = cTri(v1, v4, vTip); // Left face
+	front = cTri(v2, v1, vTip); // Front face
+	right = cTri(v3, v2, vTip); // Right face
+	back = cTri(v4, v3, vTip); // Back face
+	
+}

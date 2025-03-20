@@ -108,4 +108,15 @@ struct cCube
 	void setColor(COLOR4 left, COLOR4 right, COLOR4 top, COLOR4 bottom, COLOR4 front, COLOR4 back);
 };
 
+// colored pyramid
+struct cPyramid
+{
+	cTri left, right;
+	cTri front, back;
+	cQuad bottom;
+
+	cPyramid() {}
+	cPyramid(vec3 ori, float width, float height, COLOR4 c);
+};
+
 #pragma pack(pop)

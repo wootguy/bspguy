@@ -1587,8 +1587,8 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {				
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
-				*activeShader->modelMat = *activeShader->modelMat * map->ents[highlightEnt]->getRotationMatrix(false);
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+				*activeShader->modelMat = *activeShader->modelMat * map->ents[highlightEnt]->getRotationMatrix(false);
 				activeShader->updateMatrixes();
 
 				drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
@@ -1612,8 +1612,8 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 				bool isHighlighted = highlighted.count(i);
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[i].modelMat;
-				*activeShader->modelMat = *activeShader->modelMat * map->ents[i]->getRotationMatrix(false);
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+				*activeShader->modelMat = *activeShader->modelMat * map->ents[i]->getRotationMatrix(false);
 				activeShader->updateMatrixes();
 
 				drawModel(renderEnts[i].modelIdx, drawTransparentFaces, isHighlighted, false);
@@ -1644,8 +1644,8 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 					bool isHighlighted = highlighted.count(i);
 					colorShader->pushMatrix(MAT_MODEL);
 					*colorShader->modelMat = renderEnts[i].modelMat;
-					*colorShader->modelMat = *colorShader->modelMat * map->ents[i]->getRotationMatrix(false);
 					colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+					*colorShader->modelMat = *colorShader->modelMat * map->ents[i]->getRotationMatrix(false);
 					colorShader->updateMatrixes();
 
 					if (isHighlighted) {
@@ -1675,8 +1675,8 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 			glDisable(GL_DEPTH_TEST);
 			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
 				activeShader->pushMatrix(MAT_MODEL);
-				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
 				activeShader->updateMatrixes();
 				
 				drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);

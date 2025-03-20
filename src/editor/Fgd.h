@@ -89,6 +89,8 @@ struct FgdClass {
 	// get parent classes from youngest to oldest, in right-to-left order
 	// reversing the vector changes order to oldest to youngest, left-to-right order
 	void getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList);
+
+	bool hasKey(string key);
 };
 
 struct FgdGroup {

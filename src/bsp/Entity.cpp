@@ -83,7 +83,12 @@ void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) 
 void Entity::removeKeyvalue(const std::string& key) {
 	if (!hasKey(key))
 		return;
-	keyOrder.erase(find(keyOrder.begin(), keyOrder.end(), key));
+	auto it = find(keyOrder.begin(), keyOrder.end(), key);
+	if (it != keyOrder.end())
+		keyOrder.erase(it);
+	else {
+		logf("Desync between keyorder and keyvalues!\n");
+	}
 	keyvalues.erase(key);
 	clearCache();
 }
@@ -260,6 +265,10 @@ bool Entity::canRotate() {
 		return true;
 	}
 
+	if (getBspModelIdx() == -1) {
+		return true;
+	}
+
 	static unordered_set<string> rotatable_classnames = {
 		"func_rotating",
 		"func_rot_button",
@@ -284,7 +293,7 @@ bool Entity::canRotate() {
 	}
 
 	if (cname == "func_wall" || cname == "func_illusionary") {
-		int spawnflags = atoi(keyvalues["spawnflags"].c_str());
+		int spawnflags = atoi(getKeyvalue("spawnflags").c_str());
 		return spawnflags & 2; // "Use angles" key
 	}
 

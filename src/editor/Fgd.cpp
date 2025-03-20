@@ -477,6 +477,15 @@ void FgdClass::getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList) {
 	}
 }
 
+bool FgdClass::hasKey(string key) {
+	for (KeyvalueDef& def : keyvalues) {
+		if (def.name == key) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Fgd::createEntGroups() {
 	set<string> addedPointGroups;
 	set<string> addedSolidGroups;
