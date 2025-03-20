@@ -82,6 +82,7 @@ void AppSettings::load() {
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
+			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -187,6 +188,7 @@ void AppSettings::save() {
 	file << "vsync=" << g_settings.vsync << endl;
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
+	file << "texture_filtering=" << g_settings.texture_filtering << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "zfarmdl=" << g_settings.zFarMdl << endl;

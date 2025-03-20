@@ -40,6 +40,8 @@ Studio models are position independent, so the cache manager can move them.
 #define MAXSTUDIOPIVOTS		256
 #define MAXSTUDIOCONTROLLERS 8
 
+#pragma pack(push, 1)
+
 typedef struct 
 {
 	int					id;
@@ -312,6 +314,8 @@ typedef struct
 	short				s,t;			// s,t position on skin
 } mstudiotrivert_t;
 #endif
+
+#pragma pack(pop) 
 
 // lighting options
 #define STUDIO_NF_FLATSHADE 0x0001

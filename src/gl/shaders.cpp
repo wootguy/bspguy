@@ -4,6 +4,33 @@
 // if you have an Nvidia GPU, compile shader code in GPU ShaderAnalyzer to be sure it works for AMD too.
 // AMD has a stricter GLSL compiler than Nvidia does.
 
+const char* g_shader_vec3_vertex =
+// object variables
+"uniform mat4 modelViewProjection;\n"
+"uniform vec4 color;\n"
+
+// vertex variables
+"attribute vec3 vPosition;\n"
+
+// fragment variables
+"varying vec4 fColor;\n"
+
+"void main()\n"
+"{\n"
+"	gl_Position = modelViewProjection * vec4(vPosition, 1);\n"
+"	fColor = color;\n"
+"}\n";
+
+
+const char* g_shader_vec3_fragment =
+"varying vec4 fColor;\n"
+
+"void main()\n"
+"{\n"
+"	gl_FragColor = fColor;\n"
+"	gl_FragDepth = gl_FragCoord.z - 0.00001;\n" // smol hack to fix z fighting with polys and outlines (sprites)
+"}\n";
+
 const char* g_shader_cVert_vertex =
 // object variables
 "uniform mat4 modelViewProjection;\n"
@@ -59,6 +86,39 @@ const char* g_shader_tVert_fragment =
 "void main()\n"
 "{\n"
 "	gl_FragColor = texture2D(sTex, fTex);\n"
+"}\n";
+
+
+const char* g_shader_spr_vertex =
+// object variables
+"uniform mat4 modelViewProjection;\n"
+"uniform vec4 color;\n"
+
+// vertex variables
+"attribute vec3 vPosition;\n"
+"attribute vec2 vTex;\n"
+
+// fragment variables
+"varying vec2 fTex;\n"
+"varying vec4 fColor;\n"
+
+"void main()\n"
+"{\n"
+"	gl_Position = modelViewProjection * vec4(vPosition, 1);\n"
+"	fTex = vTex;\n"
+"	fColor = color;\n"
+"}\n";
+
+
+const char* g_shader_spr_fragment =
+"varying vec2 fTex;\n"
+"varying vec4 fColor;\n"
+
+"uniform sampler2D sTex;\n"
+
+"void main()\n"
+"{\n"
+"	gl_FragColor = texture2D(sTex, fTex) * fColor;\n"
 "}\n";
 
 

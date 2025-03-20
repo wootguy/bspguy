@@ -2,6 +2,7 @@
 #include "types.h"
 #include <string>
 
+#pragma pack(push, 1)
 struct vec2
 {
 	float x, y;
@@ -91,6 +92,8 @@ struct vec4
 	vec3 xyz();
 	vec2 xy();
 };
+
+#pragma pack(pop)
 
 vec4 operator-(vec4 v1, vec4 v2);
 vec4 operator+(vec4 v1, vec4 v2);

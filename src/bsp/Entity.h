@@ -5,14 +5,24 @@
 #include <unordered_set>
 #include <vector>
 #include "mat4x4.h"
+#include "colors.h"
 
 class Bsp;
-class MdlRenderer;
+class BaseRenderer;
 
 enum anglesKeyBehavior {
 	ANGLES_ROTATE,
 	ANGLES_DIRECTIONAL,
 	ANGLES_AMBIGUOUS
+};
+
+struct EntRenderOpts {
+	uint8_t rendermode;
+	uint8_t renderamt;
+	COLOR3 rendercolor;
+	float framerate;
+	float scale;
+	int vp_type;
 };
 
 class Entity
@@ -22,7 +32,7 @@ public:
 	
 	// model rendering state updated whenever drawCached is false
 	bool drawCached; // origin, angles, sequence, and model are cached?
-	MdlRenderer* cachedMdl = NULL;
+	BaseRenderer* cachedMdl = NULL;
 	string cachedMdlCname; // classname that was used to load the model
 	bool hasCachedMdl = false;
 	bool didStudioDraw = false;
@@ -59,6 +69,8 @@ public:
 
 	vec3 getAngles();
 
+	EntRenderOpts getRenderOpts();
+
 	mat4x4 getRotationMatrix(bool flipped);
 
 	// true if this type of entity can be rotated by its angles keyvalue
@@ -92,9 +104,11 @@ private:
 	bool hasCachedClassname = false;
 	bool hasCachedOrigin = false;
 	bool hasCachedAngles = false;
+	bool hasCachedRenderOpts = false;
 	string cachedTargetname;
 	string cachedClassname;
 	vec3 cachedOrigin;
 	vec3 cachedAngles;
+	EntRenderOpts cachedRenderOpts;
 };
 

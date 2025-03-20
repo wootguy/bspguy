@@ -16,7 +16,7 @@ class PointEntRenderer;
 class Entity;
 class Bsp;
 class LeafNavMesh;
-class MdlRenderer;
+class BaseRenderer;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -73,6 +73,7 @@ class Renderer {
 	friend class LeafNavMesh;
 	friend class BspRenderer;
 	friend class MdlRenderer;
+	friend class SprRenderer;
 
 public:
 	BspRenderer* mapRenderer;
@@ -131,6 +132,8 @@ private:
 	ShaderProgram* fullBrightBspShader;
 	ShaderProgram* colorShader;
 	ShaderProgram* mdlShader;
+	ShaderProgram* sprShader;
+	ShaderProgram* vec3Shader;
 	
 	// opengl uniforms
 	uint u_colorMultId;
@@ -149,7 +152,7 @@ private:
 	Fgd* mergedFgd = NULL; // merged FGD
 	vector<Fgd*> fgds; // individually loaded FGDs
 
-	unordered_map<string, MdlRenderer*> studioModels;
+	unordered_map<string, BaseRenderer*> studioModels; // maps a path to a model/sprite renderer
 	unordered_map<string, string> studioModelPaths; // maps a entity path to an existing path, or blank if not found
 
 	vec3 cameraOrigin;
@@ -282,8 +285,8 @@ private:
 	void drawPlane(BSPPLANE& plane, COLOR4 color, float sz=32768);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
-	void drawStudioModels();
-	MdlRenderer* loadStudioModel(Entity* ent);
+	void drawModelsAndSprites();
+	BaseRenderer* loadModel(Entity* ent);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);

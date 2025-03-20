@@ -403,7 +403,7 @@ void Fgd::processClassInheritance() {
 			set<string> addedKeys;
 			set<string> addedSpawnflags;
 
-			debugf("%s INHERITS FROM:\n", classes[i]->name.c_str());
+			//debugf("%s INHERITS FROM:\n", classes[i]->name.c_str());
 
 			// add in fields from the child class
 			for (int c = 0; c < classes[i]->keyvalues.size(); c++) {
@@ -444,7 +444,7 @@ void Fgd::processClassInheritance() {
 						}
 					}
 				}
-				debugf("  %s\n", allBaseClasses[k]->name.c_str());
+				//debugf("  %s\n", allBaseClasses[k]->name.c_str());
 			}
 
 			// base keyvalues are usually important things like "targetname" and should come first

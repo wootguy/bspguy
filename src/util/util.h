@@ -8,6 +8,7 @@
 #include "bsptypes.h"
 #include <string.h>
 #include "mat4x4.h"
+#include "colors.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -70,6 +71,8 @@ int getBspTextureSize(BSPMIPTEX* bspTexture);
 float clamp(float val, float min, float max);
 
 vec3 parseVector(string s);
+
+COLOR3 parseColor(string s);
 
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist);
 
@@ -144,3 +147,4 @@ string getAbsolutePath(const string& relpath);
 bool isAbsolutePath(const std::string& path);
 string joinPaths(string path1, string path2);
 string getFolderPath(string path);
+vec3 VecToAngles(const vec3& forward);

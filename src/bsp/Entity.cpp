@@ -234,6 +234,33 @@ vec3 Entity::getAngles() {
 	return cachedAngles;
 }
 
+EntRenderOpts Entity::getRenderOpts() {
+	if (hasCachedRenderOpts) {
+		return cachedRenderOpts;
+	}
+
+	auto kv = keyvalues.find("rendermode");
+	cachedRenderOpts.rendermode = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
+
+	kv = keyvalues.find("renderamt");
+	cachedRenderOpts.renderamt = kv == keyvalues.end() ? 0.0f : atoi(kv->second.c_str());
+
+	kv = keyvalues.find("rendercolor");
+	cachedRenderOpts.rendercolor = kv == keyvalues.end() ? COLOR3(0,0,0) : parseColor(kv->second);
+
+	kv = keyvalues.find("framerate");
+	cachedRenderOpts.framerate = kv == keyvalues.end() ? 0.0f : atof(kv->second.c_str());
+
+	kv = keyvalues.find("scale");
+	cachedRenderOpts.scale = kv == keyvalues.end() ? 1.0f : atof(kv->second.c_str());
+
+	kv = keyvalues.find("vp_type");
+	cachedRenderOpts.vp_type = kv == keyvalues.end() ? 0.0f : atoi(kv->second.c_str());
+
+	hasCachedRenderOpts = true;
+	return cachedRenderOpts;
+}
+
 mat4x4 Entity::getRotationMatrix(bool flipped) {
 	mat4x4 angleTransform;
 	angleTransform.loadIdentity();
@@ -686,6 +713,7 @@ void Entity::clearCache() {
 	hasCachedClassname = false;
 	hasCachedOrigin = false;
 	hasCachedAngles = false;
+	hasCachedRenderOpts = false;
 	cachedMdl = NULL;
 	cachedTargets.clear();
 }

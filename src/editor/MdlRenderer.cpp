@@ -667,7 +667,7 @@ bool MdlRenderer::loadMeshes() {
 					}
 				}
 
-				debugf("%d %d %d - %d polys, %d verts, %d render verts\n", b, m, k, totalElements / 3, mod->numverts, totalElements);
+				//debugf("%d %d %d - %d polys, %d verts, %d render verts\n", b, m, k, totalElements / 3, mod->numverts, totalElements);
 
 				MdlMeshRender& render = meshBuffers[b][m][k];
 
@@ -1516,16 +1516,20 @@ bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 		return false;
 	}
 
+	if (!ent->didStudioDraw) {
+		return false;
+	}
+
 	vec3 mins, maxs;
 	getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
 	mins += ent->drawOrigin;
 	maxs += ent->drawOrigin;
 
 	float oldBestDist = bestDist;
-	if (!pickAABB(start, rayDir, mins, maxs, bestDist)) {
+	if (!pickAABB(start, rayDir, mins, maxs, bestDist) && !pointInBox(start, mins, maxs)) {
 		return false;
 	}
-	bestDist = oldBestDist;
+	bestDist = oldBestDist;	
 
 	SetUpBones(ent->drawAngles, ent->drawSequence, ent->drawFrame);
 	transformVerts();

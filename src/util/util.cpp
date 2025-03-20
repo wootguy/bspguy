@@ -245,6 +245,17 @@ vec3 parseVector(string s) {
 	return v;
 }
 
+COLOR3 parseColor(string s) {
+	COLOR3 c;
+	vector<string> parts = splitString(s, " ");
+
+	c.r = parts.size() > 0 ? atoi(parts[0].c_str()) : 0;
+	c.g = parts.size() > 1 ? atoi(parts[1].c_str()) : 0;
+	c.b = parts.size() > 2 ? atoi(parts[2].c_str()) : 0;
+
+	return c;
+}
+
 bool pickAABB(vec3 start, vec3 rayDir, vec3 mins, vec3 maxs, float& bestDist) {
 	bool foundBetterPick = false;
 
@@ -934,18 +945,15 @@ vector<string> getAssetPaths() {
 	for (const string& resPath : g_settings.resPaths) {
 		string path = std::string(resPath.c_str()); // this is necessary for some reason
 
-		if (isAbsolutePath(path)) {
-			tryPaths.push_back(path);
-			continue;
-		}
-
 		char end = path[path.size() - 1];
 		if (end != '\\' && end != '/') {
 			path += "/";
 		}
 
 		tryPaths.push_back(path);
-		tryPaths.push_back(joinPaths(g_settings.gamedir, path));
+
+		if (!isAbsolutePath(path))
+			tryPaths.push_back(joinPaths(g_settings.gamedir, path));
 	}
 
 	return tryPaths;
@@ -1122,4 +1130,32 @@ string getFolderPath(string path) {
 		return path.substr(0, lastSlash+1);
 	}
 	return "";
+}
+
+// from Rehlds
+vec3 VecToAngles(const vec3& forward) {
+	float length, yaw, pitch;
+
+	if (forward.y == 0 && forward.x == 0)
+	{
+		yaw = 0;
+		if (forward.z > 0)
+			pitch = 90;
+		else
+			pitch = 270;
+	}
+	else
+	{
+		yaw = (atan2((double)forward.y, (double)forward.x) * 180.0 / PI);
+		if (yaw < 0)
+			yaw += 360;
+
+		length = sqrt((double)(forward.x * forward.x + forward.y * forward.y));
+
+		pitch = atan2((double)forward.z, (double)length) * 180.0 / PI;
+		if (pitch < 0)
+			pitch += 360;
+	}
+
+	return vec3(pitch, yaw, 0);
 }

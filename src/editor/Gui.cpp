@@ -865,6 +865,60 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Render special faces that are normally invisible and/or have special rendering properties (e.g. the SKY texture).");
 
+		if (ImGui::BeginMenu("Clipnodes")) {
+			if (ImGui::MenuItem("Clipnodes (World)", 0, g_render_flags & RENDER_WORLD_CLIPNODES)) {
+				g_render_flags ^= RENDER_WORLD_CLIPNODES;
+			}
+			tooltip(g, "Render clipnode hulls for worldspawn");
+
+			if (ImGui::MenuItem("Clipnodes (Entities)", 0, g_render_flags & RENDER_ENT_CLIPNODES)) {
+				g_render_flags ^= RENDER_ENT_CLIPNODES;
+			}
+			tooltip(g, "Render clipnode hulls for solid entities");
+
+			if (ImGui::MenuItem("Clipnode Transparency", 0, transparentClipnodes)) {
+				transparentClipnodes = !transparentClipnodes;
+				g_app->mapRenderer->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
+			}
+			tooltip(g, "Render clipnode meshes with transparency.");
+			g_settings.render_flags = g_render_flags;
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Auto Hulls", 0, app->clipnodeRenderHull == -1)) {
+				app->clipnodeRenderHull = -1;
+			}
+			tooltip(g, "Render collision hulls for things which would otherwise be invisible."
+				"\n\nAn example of this is a trigger_once which had the NULL texture applied to it by the mapper. "
+				"That entity would have no visible faces and so would be invisible if its collision hull were not rendered instead.");
+
+			if (ImGui::MenuItem("Hull 0 (Point)", 0, app->clipnodeRenderHull == 0)) {
+				app->clipnodeRenderHull = 0;
+			}
+			tooltip(g, "Renders hull 0 regardless of object visibility.\n\n"
+				"This hull is used for point-sized object collision and mesh rendering.");
+
+			if (ImGui::MenuItem("Hull 1 (Human)", 0, app->clipnodeRenderHull == 1)) {
+				app->clipnodeRenderHull = 1;
+			}
+			tooltip(g, "Renders hull 1 regardless of object visibility."
+				"\n\nThis is a collision hull used by standing players and human-sized monsters.");
+
+			if (ImGui::MenuItem("Hull 2 (Large)", 0, app->clipnodeRenderHull == 2)) {
+				app->clipnodeRenderHull = 2;
+			}
+			tooltip(g, "Renders hull 2 regardless of object visibility.\n\n"
+				"This is a collision hull used by large monsters and pushable objects.");
+
+			if (ImGui::MenuItem("Hull 3 (Head)", 0, app->clipnodeRenderHull == 3)) {
+				app->clipnodeRenderHull = 3;
+			}
+			tooltip(g, "Renders hull 3 regardless of object visibility.\n\n"
+				"This is a collision hull used by crouching players and small monsters.");
+
+			ImGui::EndMenu();
+		}
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Point Entities", 0, g_render_flags & RENDER_POINT_ENTS)) {
@@ -901,7 +955,7 @@ void Gui::drawMenuBar() {
 			"to find connections depending on the game the map was compiled for."
 		);
 
-		if (ImGui::MenuItem("Entity Models", 0, g_render_flags & RENDER_STUDIO_MDL)) {
+		if (ImGui::MenuItem("Models", 0, g_render_flags & RENDER_STUDIO_MDL)) {
 			g_render_flags ^= RENDER_STUDIO_MDL;
 
 			if (!(g_render_flags & RENDER_STUDIO_MDL)) {
@@ -910,59 +964,18 @@ void Gui::drawMenuBar() {
 				}
 			}
 		}
-		tooltip(g, "Display game models instead of colored cubes, if available.");
+		tooltip(g, "Display game models instead of colored cubes where available.");
 
-		ImGui::Separator();
+		if (ImGui::MenuItem("Sprites", 0, g_render_flags & RENDER_SPRITES)) {
+			g_render_flags ^= RENDER_SPRITES;
 
-		if (ImGui::MenuItem("Clipnodes (World)", 0, g_render_flags & RENDER_WORLD_CLIPNODES)) {
-			g_render_flags ^= RENDER_WORLD_CLIPNODES;
+			if (!(g_render_flags & RENDER_SPRITES)) {
+				for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
+					app->mapRenderer->map->ents[i]->didStudioDraw = false;
+				}
+			}
 		}
-		tooltip(g, "Render clipnode hulls for worldspawn");
-
-		if (ImGui::MenuItem("Clipnodes (Entities)", 0, g_render_flags & RENDER_ENT_CLIPNODES)) {
-			g_render_flags ^= RENDER_ENT_CLIPNODES;
-		}
-		tooltip(g, "Render clipnode hulls for solid entities");
-
-		if (ImGui::MenuItem("Clipnode Transparency", 0, transparentClipnodes)) {
-			transparentClipnodes = !transparentClipnodes;
-			g_app->mapRenderer->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
-		}
-		tooltip(g, "Render clipnode meshes with transparency.");
-		g_settings.render_flags = g_render_flags;
-
-		ImGui::Separator();
-
-		if (ImGui::MenuItem("Auto Hulls", 0, app->clipnodeRenderHull == -1)) {
-			app->clipnodeRenderHull = -1;
-		}
-		tooltip(g, "Render collision hulls for things which would otherwise be invisible."
-			"\n\nAn example of this is a trigger_once which had the NULL texture applied to it by the mapper. "
-			"That entity would have no visible faces and so would be invisible if its collision hull were not rendered instead.");
-
-		if (ImGui::MenuItem("Hull 0 (Point)", 0, app->clipnodeRenderHull == 0)) {
-			app->clipnodeRenderHull = 0;
-		}
-		tooltip(g, "Renders hull 0 regardless of object visibility.\n\n"
-			"This hull is used for point-sized object collision and mesh rendering.");
-
-		if (ImGui::MenuItem("Hull 1 (Human)", 0, app->clipnodeRenderHull == 1)) {
-			app->clipnodeRenderHull = 1;
-		}
-		tooltip(g, "Renders hull 1 regardless of object visibility."
-			"\n\nThis is a collision hull used by standing players and human-sized monsters.");
-
-		if (ImGui::MenuItem("Hull 2 (Large)", 0, app->clipnodeRenderHull == 2)) {
-			app->clipnodeRenderHull = 2;
-		}
-		tooltip(g, "Renders hull 2 regardless of object visibility.\n\n"
-			"This is a collision hull used by large monsters and pushable objects.");
-
-		if (ImGui::MenuItem("Hull 3 (Head)", 0, app->clipnodeRenderHull == 3)) {
-			app->clipnodeRenderHull = 3;
-		}
-		tooltip(g, "Renders hull 3 regardless of object visibility.\n\n"
-			"This is a collision hull used by crouching players and small monsters.");
+		tooltip(g, "Display sprites instead of colored cubes where available.");
 
 		ImGui::Separator();
 
@@ -3832,6 +3845,9 @@ void Gui::drawSettings() {
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("For troubleshooting problems with the program or specific commands");
 			}
+
+			ImGui::Checkbox("Texture Filtering", &g_settings.texture_filtering);
+			tooltip(g, "Rubs vaseline on your textures\n");
 
 			ImGui::SameLine();
 			ImGui::Dummy(ImVec2(20, 0));

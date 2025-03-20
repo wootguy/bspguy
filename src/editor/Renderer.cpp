@@ -19,6 +19,7 @@
 #include <algorithm>
 #include "BspMerger.h"
 #include "MdlRenderer.h"
+#include "SprRenderer.h"
 #include <unordered_set>
 
 // everything except VIS, ENTITIES, MARKSURFS
@@ -221,6 +222,16 @@ Renderer::Renderer() {
 	mdlShader->setMatrixNames(NULL, "modelViewProjection");
 	mdlShader->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
 
+	sprShader = new ShaderProgram(g_shader_spr_vertex, g_shader_spr_fragment);
+	sprShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	sprShader->setMatrixNames(NULL, "modelViewProjection");
+	sprShader->setVertexAttributeNames("vPosition", NULL, "vTex", NULL);
+
+	vec3Shader = new ShaderProgram(g_shader_vec3_vertex, g_shader_vec3_fragment);
+	vec3Shader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	vec3Shader->setMatrixNames(NULL, "modelViewProjection");
+	vec3Shader->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
+
 	colorShader->bind();
 	u_colorMultId = glGetUniformLocation(colorShader->ID, "colorMult");
 	glUniform4f(u_colorMultId, 1, 1, 1, 1);
@@ -339,7 +350,7 @@ void Renderer::renderLoop() {
 		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false);
 		// studio models have transparent boxes that need to draw over the world but behind transparent
 		// brushes like a trigger_once which is rendered using the clipnode model
-		drawStudioModels();
+		drawModelsAndSprites();
 		
 		// draw transparent entity faces
 		mapRenderer->render(pickInfo.ents, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true);
@@ -430,6 +441,9 @@ void Renderer::renderLoop() {
 				drawModelOrigin();
 			}
 		}
+
+		if (g_app->debugPoly.isValid)
+			drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 255, 150));
 
 		const bool navmeshwipcode = false;
 		if (navmeshwipcode) {
@@ -2215,6 +2229,7 @@ void Renderer::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
 	colorShader->bind();
 	model.loadIdentity();
 	colorShader->updateMatrixes();
+	glDisable(GL_CULL_FACE);
 
 	static cVert verts[64];
 
@@ -2317,7 +2332,7 @@ void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane
 	}
 }
 
-MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
+BaseRenderer* Renderer::loadModel(Entity* ent) {
 	if (ent->hasCachedMdl) {
 		return ent->cachedMdl;
 	}
@@ -2336,6 +2351,7 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 	string model;
 	string lowerModel;
 	bool foundModelKey = false;
+	bool isMdlNotSpr = true;
 	for (int i = 0; i < tryModelKeys.size(); i++) {
 		ModelKey key = tryModelKeys[i];
 		model = ent->getKeyvalue(key.name);
@@ -2354,9 +2370,12 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 			lowerModel = toLowerCase(model);
 		}
 
-		if (lowerModel.size() > 4 && lowerModel.find(".mdl") == lowerModel.size() - 4) {
+		bool hasMdlExt = lowerModel.size() > 4 && lowerModel.find(".mdl") == lowerModel.size() - 4;
+		bool hasSprExt = lowerModel.size() > 4 && lowerModel.find(".spr") == lowerModel.size() - 4;
+		if (hasSprExt || hasMdlExt) {
 			foundModelKey = true;
 			ent->cachedMdlCname = key.isClassname ? ent->getKeyvalue(key.name) : ent->getClassname();
+			isMdlNotSpr = hasMdlExt;
 			break;
 		}
 	}
@@ -2389,12 +2408,19 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 
 	auto mdl = studioModels.find(modelPath);
 	if (mdl == studioModels.end()) {
-		MdlRenderer* newMdl = new MdlRenderer(g_app->mdlShader, modelPath);
-		studioModels[modelPath] = newMdl;
-		ent->cachedMdl = newMdl;
+		BaseRenderer* newModel = NULL;
+		if (isMdlNotSpr) {
+			newModel = new MdlRenderer(g_app->mdlShader, modelPath);
+		}
+		else {
+			newModel = new SprRenderer(g_app->sprShader, g_app->vec3Shader, modelPath);
+		}
+		
+		studioModels[modelPath] = newModel;
+		ent->cachedMdl = newModel;
 		ent->hasCachedMdl = true;
 		//logf("Begin load model for entity '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
-		return newMdl;
+		return newModel;
 	}
 
 	ent->cachedMdl = mdl->second;
@@ -2402,7 +2428,7 @@ MdlRenderer* Renderer::loadStudioModel(Entity* ent) {
 	return mdl->second;
 }
 
-void Renderer::drawStudioModels() {
+void Renderer::drawModelsAndSprites() {
 	if (mapRenderer->map->ents.empty()) {
 		return;
 	}
@@ -2412,7 +2438,7 @@ void Renderer::drawStudioModels() {
 	colorShader->bind();
 	glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 1.0f);
 
-	if (!(g_render_flags & RENDER_STUDIO_MDL))
+	if (!(g_render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES)))
 		return
 
 	glEnable(GL_CULL_FACE);
@@ -2435,7 +2461,7 @@ void Renderer::drawStudioModels() {
 		int idx;
 		vec3 origin;
 		vec3 angles;
-		MdlRenderer* mdl;
+		BaseRenderer* mdl;
 		float dist; // distance from camera
 	};
 
@@ -2448,7 +2474,7 @@ void Renderer::drawStudioModels() {
 		Entity* ent = mapRenderer->map->ents[i];
 		DepthSortedEnt sent;
 		sent.ent = ent;
-		sent.mdl = loadStudioModel(sent.ent);
+		sent.mdl = loadModel(sent.ent);
 		sent.ent->didStudioDraw = false;
 
 		if (sent.mdl && sent.mdl->loadState != MDL_LOAD_INITIAL) {
@@ -2460,7 +2486,8 @@ void Renderer::drawStudioModels() {
 			}
 			else if (sent.mdl->loadState == MDL_LOAD_UPLOAD) {
 				sent.mdl->upload();
-				debugf("Loaded MDL: %s\n", sent.mdl->fpath.c_str());
+				const char* typ = sent.mdl->isSprite() ? "SPR" : "MDL";
+				debugf("Loaded %s: %s\n", typ, sent.mdl->fpath.c_str());
 			}
 		}
 
@@ -2469,11 +2496,20 @@ void Renderer::drawStudioModels() {
 				ent->drawOrigin = ent->getOrigin();
 				ent->drawAngles = parseVector(ent->getKeyvalue("angles"));
 				ent->drawSequence = atoi(ent->getKeyvalue("sequence").c_str());
+				EntRenderOpts opts = ent->getRenderOpts();
 
-				vec3 mins, maxs;
-				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
-				ent->drawMin = mins + sent.origin;
-				ent->drawMax = maxs + sent.origin;
+				if (sent.mdl->isStudioModel()) {
+					vec3 mins, maxs;
+					((MdlRenderer*)sent.mdl)->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+					ent->drawMin = mins + sent.origin;
+					ent->drawMax = maxs + sent.origin;
+				}
+				else {
+					vec3 mins, maxs;
+					((SprRenderer*)sent.mdl)->getBoundingBox(mins, maxs, opts.scale);
+					ent->drawMin = mins + sent.origin;
+					ent->drawMax = maxs + sent.origin;
+				}
 			}
 
 			sent.idx = i;
@@ -2487,10 +2523,19 @@ void Renderer::drawStudioModels() {
 			}
 
 			if (!sent.ent->drawCached) {
-				vec3 mins, maxs;
-				sent.mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
-				ent->drawMin = mins + sent.origin;
-				ent->drawMax = maxs + sent.origin;
+				if (sent.mdl->isStudioModel()) {
+					vec3 mins, maxs;
+					((MdlRenderer*)sent.mdl)->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+					ent->drawMin = mins + sent.origin;
+					ent->drawMax = maxs + sent.origin;
+				}
+				else {
+					EntRenderOpts opts = ent->getRenderOpts();
+					vec3 mins, maxs;
+					((SprRenderer*)sent.mdl)->getBoundingBox(mins, maxs, opts.scale);
+					ent->drawMin = mins + sent.origin;
+					ent->drawMax = maxs + sent.origin;
+				}
 				ent->drawCached = true;
 			}
 
@@ -2504,10 +2549,16 @@ void Renderer::drawStudioModels() {
 
 	for (int i = 0; i < depthSortedMdlEnts.size(); i++) {
 		Entity* ent = depthSortedMdlEnts[i].ent;
-		MdlRenderer* mdl = depthSortedMdlEnts[i].mdl;
+		BaseRenderer* mdl = depthSortedMdlEnts[i].mdl;
 		int entidx = depthSortedMdlEnts[i].idx;
 
 		bool isSelected = selectedEnts.count(entidx);
+
+		bool skipRender = mdl->isStudioModel() && !(g_render_flags & RENDER_STUDIO_MDL)
+			|| mdl->isSprite() && !(g_render_flags & RENDER_SPRITES);
+
+		if (skipRender)
+			continue;
 
 		ent->drawFrame = mdl->drawFrame;
 
@@ -2529,7 +2580,7 @@ void Renderer::drawStudioModels() {
 				entcube->wireframeBuffer->draw(GL_LINES);
 				//glDepthFunc(GL_LESS);
 
-				glDepthMask(GL_FALSE); // let model dray over this
+				glDepthMask(GL_FALSE); // let model draw over this
 				glUniform4f(u_colorMultId, 1.0f, 1.0f, 1.0f, 0.5f);
 				entcube->selectBuffer->draw(GL_TRIANGLES);
 				glDepthMask(GL_TRUE);
@@ -2549,14 +2600,21 @@ void Renderer::drawStudioModels() {
 
 		// draw the model
 		ent->didStudioDraw = true;
-		mdl->draw(ent->drawOrigin + worldOffset, ent->drawAngles, ent->drawSequence,
-			g_app->cameraOrigin, g_app->cameraRight, isSelected ? vec3(1,0,0) : vec3(1,1,1));
+		if (mdl->isStudioModel()) {
+			((MdlRenderer*)mdl)->draw(ent->drawOrigin + worldOffset, ent->drawAngles, ent->drawSequence,
+				g_app->cameraOrigin, g_app->cameraRight, isSelected ? vec3(1, 0, 0) : vec3(1, 1, 1));
+		}
+		else if (mdl->isSprite()) {
+			EntRenderOpts renderOpts = ent->getRenderOpts();
+			((SprRenderer*)mdl)->draw(ent->drawOrigin + worldOffset, ent->drawAngles, renderOpts, isSelected);
+		}
+		
 		drawCount++;
 
 		// debug the model verts bounding box
-		if (false) {
+		if (false && mdl->isStudioModel()) {
 			vec3 mins, maxs;
-			mdl->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
+			((MdlRenderer*)mdl)->getModelBoundingBox(ent->drawAngles, ent->drawSequence, mins, maxs);
 			mins += ent->drawOrigin;
 			maxs += ent->drawOrigin;
 

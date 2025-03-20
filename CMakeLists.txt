@@ -78,6 +78,8 @@ set(SOURCE_FILES
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
 	src/editor/MdlRenderer.h		src/editor/MdlRenderer.cpp
+	src/editor/SprRenderer.h		src/editor/SprRenderer.cpp
+	src/editor/BaseRenderer.h		src/editor/BaseRenderer.cpp
 	src/editor/studio.h
 	
 	# map compiler code
@@ -189,6 +191,9 @@ if(MSVC)
 												src/editor/PointEntRenderer.h
 												src/editor/Command.h
 												src/editor/AppSettings.h
+												src/editor/MdlRenderer.h
+												src/editor/SprRenderer.h
+												src/editor/BaseRenderer.h
 												src/editor/Clipper.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/BspRenderer.cpp
@@ -199,6 +204,9 @@ if(MSVC)
 												src/editor/PointEntRenderer.cpp
 												src/editor/Command.cpp
 												src/editor/AppSettings.cpp
+												src/editor/MdlRenderer.cpp
+												src/editor/SprRenderer.cpp
+												src/editor/BaseRenderer.cpp
 												src/editor/Clipper.cpp)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h
@@ -213,12 +221,16 @@ if(MSVC)
 												src/util/vectors.h
 												src/util/Polygon3D.h
 												src/util/Line2D.h
+												src/util/mstream.h
+												src/util/lzma_util.h
 												src/util/mat4x4.h)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
 												src/util/vectors.cpp
 												src/util/Polygon3D.cpp
 												src/util/Line2D.cpp
+												src/util/mstream.cpp
+												src/util/lzma_util.cpp
 												src/util/mat4x4.cpp)
 												
 	source_group("Header Files\\nav" FILES		src/nav/NavMesh.h

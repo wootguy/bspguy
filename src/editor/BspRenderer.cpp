@@ -1397,7 +1397,7 @@ BspRenderer::~BspRenderer() {
 void BspRenderer::delayLoadData() {
 	if (!lightmapsUploaded && lightmapFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 		for (int i = 0; i < numLightmapAtlases; i++) {
-			glLightmapTextures[i]->upload(GL_RGB);
+			glLightmapTextures[i]->upload(GL_RGB, true);
 		}
 
 		lightmapsGenerated = true;

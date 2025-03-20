@@ -4,6 +4,7 @@
 #include "VertexBuffer.h"
 #include "primitives.h"
 #include <future>
+#include "BaseRenderer.h"
 
 #define	EQUAL_EPSILON	0.001f
 
@@ -41,20 +42,14 @@ enum MDL_LOAD_STATE {
 	MDL_LOAD_DONE
 };
 
-class MdlRenderer {
+class MdlRenderer : public BaseRenderer {
 public:
-	string fpath;
-	volatile bool valid;
-	volatile int loadState = MDL_LOAD_INITIAL;
-
 	uint8_t iController[4];
 	uint8_t iBlender[2];
 	uint8_t iMouth;
 	float m_Adj[MAXSTUDIOCONTROLLERS];
 
 	// convenience state for rendering
-	float drawFrame = 0;
-	float lastDrawCall = 0;
 	int lastSequence = 0;
 	vec3 drawOrigin;
 	int drawBody;
@@ -64,13 +59,15 @@ public:
 
 	void draw(vec3 origin, vec3 angles, int sequence, vec3 viewerOrigin, vec3 viewerRight, vec3 color);
 
-	void upload(); // called by main thread to upload data to gpu
+	void upload() override; // called by main thread to upload data to gpu
 
 	// get intersection of pick ray and model polygon
-	bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist);
+	bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) override;
 
 	// get a AABB containing all possible vertices in the given animation with given angles
 	void getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs);
+
+	bool isStudioModel() override { return true; };
 
 private:
 	ShaderProgram* shaderProgram;

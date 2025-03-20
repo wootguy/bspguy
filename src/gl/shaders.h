@@ -1,4 +1,7 @@
 
+extern const char* g_shader_vec3_vertex;
+extern const char* g_shader_vec3_fragment;
+
 extern const char* g_shader_cVert_vertex;
 extern const char* g_shader_cVert_fragment;
 
@@ -13,3 +16,6 @@ extern const char* g_shader_fullbright_fragment;
 
 extern const char* g_shader_mdl_fragment;
 extern const char* g_shader_mdl_vertex;
+
+extern const char* g_shader_spr_vertex;
+extern const char* g_shader_spr_fragment;
