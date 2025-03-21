@@ -119,6 +119,7 @@ private:
 	bool AutoScroll = true;  // Keep scrolling if already at the bottom
 
 	bool entityReportFilterNeeded = true;
+	bool entityReportReselectNeeded = false;
 
 	float mainMenuBarHeight;
 

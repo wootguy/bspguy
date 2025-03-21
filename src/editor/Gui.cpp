@@ -4486,8 +4486,18 @@ void Gui::drawAllocBlockLimitTab(Bsp* map) {
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
 
+	struct ReportEnt {
+		int idx;
+		bool selected;
+		bool hasFgd;
+		bool isHidden;
+		string cname;
+	};
+
+	static vector<ReportEnt> filteredEnts;
+
 	Bsp* map = app->mapRenderer->map;
-	string title = "Entity Report";
+	string title = "Entity Report  (" + to_string(filteredEnts.size()) + " results)";
 
 	if (ImGui::Begin((title + "###entreport").c_str(), &showEntityReport)) {
 		if (map == NULL) {
@@ -4502,8 +4512,6 @@ void Gui::drawEntityReport() {
 			static int lastSelect = -1;
 			static string classFilter = "(none)";
 			static bool partialMatches = true;
-			static vector<int> visibleEnts;
-			static vector<bool> selectedItems;
 
 			ImGuiIO& io = ImGui::GetIO();
 			const ImGuiKeyChord expected_key_mod_flags = io.KeyMods;
@@ -4512,7 +4520,7 @@ void Gui::drawEntityReport() {
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
 
 			if (entityReportFilterNeeded) {
-				visibleEnts.clear();
+				filteredEnts.clear();
 				for (int i = 1; i < map->ents.size(); i++) {
 					Entity* ent = map->ents[i];
 					string cname = ent->getClassname();
@@ -4570,50 +4578,71 @@ void Gui::drawEntityReport() {
 						}
 					}
 					if (visible) {
-						visibleEnts.push_back(i);
+						ReportEnt rpent;
+						rpent.idx = i;
+						rpent.selected = false;
+						rpent.hasFgd = app->entityHasFgd(cname);
+						rpent.isHidden = false;
+						rpent.cname = cname;
+						filteredEnts.push_back(rpent);
 					}
 				}
-
-				selectedItems.clear();
-				selectedItems.resize(visibleEnts.size());
-				for (int k = 0; k < selectedItems.size(); k++)
-					selectedItems[k] = false;
 			}
 			entityReportFilterNeeded = false;
 
+			if (entityReportReselectNeeded) {
+				unordered_set<int> selection;
+				for (int i = 0; i < app->pickInfo.ents.size(); i++) {
+					selection.insert(app->pickInfo.ents[i]);
+				}
+
+				for (int i = 0; i < filteredEnts.size(); i++) {
+					filteredEnts[i].selected = selection.count(filteredEnts[i].idx);
+				}
+			}
+			entityReportReselectNeeded = false;
+
 			ImGuiListClipper clipper;
-			clipper.Begin(visibleEnts.size());
+			clipper.Begin(filteredEnts.size());
 
 			while (clipper.Step())
 			{
-				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < visibleEnts.size() && visibleEnts[line] < map->ents.size(); line++)
+				for (int line = clipper.DisplayStart; line < clipper.DisplayEnd && line < filteredEnts.size() && filteredEnts[line].idx < map->ents.size(); line++)
 				{
 					int i = line;
-					int entIdx = visibleEnts[i];
+					int entIdx = filteredEnts[i].idx;
 					Entity* ent = map->ents[entIdx];
-					string cname = ent->getClassname();
+					string cname = filteredEnts[i].cname;
 
-					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), selectedItems[i], ImGuiSelectableFlags_AllowDoubleClick)) {
+					bool pushedColor = true;
+					if (!filteredEnts[i].hasFgd) {
+						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+					}
+					else {
+						pushedColor = false;
+					}
+
+					if (ImGui::Selectable((cname + "##ent" + to_string(i)).c_str(), filteredEnts[i].selected, ImGuiSelectableFlags_AllowDoubleClick)) {
 						if (expected_key_mod_flags & ImGuiMod_Ctrl) {
-							selectedItems[i] = !selectedItems[i];
+							filteredEnts[i].selected = !filteredEnts[i].selected;
 							lastSelect = i;
 						}
 						else if (expected_key_mod_flags & ImGuiMod_Shift) {
 							if (lastSelect >= 0) {
 								int begin = i > lastSelect ? lastSelect : i;
 								int end = i > lastSelect ? i : lastSelect;
-								for (int k = 0; k < selectedItems.size(); k++)
-									selectedItems[k] = false;
+								for (int k = 0; k < filteredEnts.size(); k++)
+									filteredEnts[k].selected = false;
 								for (int k = begin; k < end; k++)
-									selectedItems[k] = true;
-								selectedItems[lastSelect] = true;
-								selectedItems[i] = true;
+									filteredEnts[k].selected = true;
+								filteredEnts[lastSelect].selected = true;
+								filteredEnts[i].selected = true;
 							}
 						}
 						else {
-							for (int k = 0; k < selectedItems.size(); k++)
-								selectedItems[k] = false;
-							selectedItems[i] = true;
+							for (int k = 0; k < filteredEnts.size(); k++)
+								filteredEnts[k].selected = false;
+							filteredEnts[i].selected = true;
 							lastSelect = i;
 						}
 
@@ -4622,11 +4651,19 @@ void Gui::drawEntityReport() {
 						}
 
 						app->deselectObject();
-						for (int k = 0; k < selectedItems.size(); k++) {
-							if (selectedItems[k])
-								app->pickInfo.selectEnt(visibleEnts[k]);
+						for (int k = 0; k < filteredEnts.size(); k++) {
+							if (filteredEnts[k].selected)
+								app->pickInfo.selectEnt(filteredEnts[k].idx);
 						}
 						app->postSelectEnt();
+					}
+
+					if (pushedColor) {
+						ImGui::PopStyleColor();
+					}
+
+					if (!filteredEnts[i].hasFgd && ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("%s is not defined in any of your FGDs.\n", cname.c_str());
 					}
 
 					if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {
@@ -4673,9 +4710,22 @@ void Gui::drawEntityReport() {
 				}
 				for (int k = 0; k < usedClasses.size(); k++) {
 					bool selected = usedClasses[k] == classFilter;
+
+					bool hasFgd = k == 0 || app->entityHasFgd(usedClasses[k]);
+					if (!hasFgd) {
+						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+					}
+
 					if (ImGui::Selectable(usedClasses[k].c_str(), selected)) {
 						classFilter = usedClasses[k];
 						entityReportFilterNeeded = true;
+					}
+
+					if (!hasFgd) {
+						ImGui::PopStyleColor();
+						if (ImGui::IsItemHovered()) {
+							ImGui::SetTooltip("%s is not defined in any of your FGDs.\n", usedClasses[k].c_str());
+						}
 					}
 				}
 

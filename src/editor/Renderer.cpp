@@ -861,6 +861,8 @@ void Renderer::postLoadFgds()
 	}
 
 	swapPointEntRenderer = NULL;
+
+	gui->entityReportFilterNeeded = true;
 }
 
 void Renderer::postLoadFgdsAndTextures() {
@@ -3061,6 +3063,7 @@ void Renderer::updateEntConnections() {
 	updateCullBox();
 	updateEntDirectionVectors();
 	updateTextureAxes();
+	gui->entityReportReselectNeeded = true;
 	
 	if (entConnections) {
 		delete entConnections;
@@ -4324,4 +4327,8 @@ void Renderer::getWindowSize(int& width, int& height) {
 
 void Renderer::handleResize(int width, int height) {
 	gui->windowResized(width, height);
+}
+
+bool Renderer::entityHasFgd(string cname) {
+	return mergedFgd ? mergedFgd->getFgdClass(cname) != NULL : false;
 }

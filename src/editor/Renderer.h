@@ -351,4 +351,5 @@ private:
 	void loadFgds();
 	void getWindowSize(int& width, int& height);
 	void updateWindowTitle();
+	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
 };
