@@ -884,14 +884,6 @@ void Renderer::clearMapData() {
 	clearUndoCommands();
 	clearRedoCommands();
 
-	if (copiedEnts.size()) {
-		for (Entity* ent : copiedEnts) {
-			if (ent)
-				delete ent;
-		}
-		copiedEnts.clear();
-	}
-
 	/*
 	for (auto item : studioModels) {
 		if (item.second)
@@ -3846,13 +3838,6 @@ void Renderer::cutEnts() {
 	if (pickInfo.getEntIndex() <= 0)
 		return;
 
-	if (copiedEnts.size()) {
-		for (Entity* ent : copiedEnts) {
-			delete ent;
-		}
-		copiedEnts.clear();
-	}
-
 	Bsp* map = mapRenderer->map;
 
 	string serialized = "";
@@ -3862,7 +3847,6 @@ void Renderer::cutEnts() {
 	for (int i = 0; i < pickInfo.ents.size(); i++) {
 		Entity* copy = new Entity();
 		*copy = *map->ents[pickInfo.ents[i]];
-		copiedEnts.push_back(copy);
 		serialized += copy->serialize();
 		indexes.push_back(pickInfo.ents[i]);
 	}
@@ -3878,13 +3862,6 @@ void Renderer::copyEnts() {
 	if (pickInfo.getEntIndex() <= 0)
 		return;
 
-	if (copiedEnts.size()) {
-		for (Entity* ent : copiedEnts) {
-			delete ent;
-		}
-		copiedEnts.clear();
-	}
-
 	Bsp* map = mapRenderer->map;
 
 	string serialized = "";
@@ -3892,7 +3869,6 @@ void Renderer::copyEnts() {
 	for (int i = 0; i < pickInfo.ents.size(); i++) {
 		Entity* copy = new Entity();
 		*copy = *map->ents[pickInfo.ents[i]];
-		copiedEnts.push_back(copy);
 		serialized += copy->serialize();
 	}
 
@@ -3900,9 +3876,6 @@ void Renderer::copyEnts() {
 }
 
 bool Renderer::canPasteEnts() {
-	if (!copiedEnts.empty())
-		return true;
-
 	const char* clipBoardText = ImGui::GetClipboardText();
 	if (!clipBoardText) {
 		return false;
@@ -3913,67 +3886,55 @@ bool Renderer::canPasteEnts() {
 }
 
 void Renderer::pasteEnts(bool noModifyOrigin) {
-	if (copiedEnts.empty()) {
-		const char* clipBoardText = ImGui::GetClipboardText();
-		if (clipBoardText)
-			pasteEntsFromText(clipBoardText, noModifyOrigin);
-		else
-			logf("No entity data in clipboard\n");
+	const char* clipBoardText = ImGui::GetClipboardText();
+	if (!clipBoardText) {
+		logf("No entity data in clipboard\n");
 		return;
 	}
 
-	Bsp* map = pickInfo.getMap();
+	Bsp* map = pickInfo.getMap() ? pickInfo.getMap() : mapRenderer->map;
 
-	vector<Entity*> pasteEnts;
+	CreateEntityFromTextCommand* createCommand = 
+		new CreateEntityFromTextCommand("Paste entities", clipBoardText);
+	createCommand->execute();
 
-	// get the centroid so groups of entities are pasted at the same relative offsets to each other
-	vec3 centroid;
-	for (Entity* copy : copiedEnts) {
-		centroid += getEntOrigin(map, copy);
+	if (createCommand->createdEnts == 0) {
+		logf("No entity data in clipboard\n");
+		return;
 	}
-	centroid /= (float)copiedEnts.size();
 
-	for (Entity* copy : copiedEnts) {
-		Entity* insertEnt = new Entity();
-		*insertEnt = *copy;
+	logf("Pasted %d entities from clipboard\n", createCommand->createdEnts);
 
+	pushUndoCommand(createCommand);
+
+	vec3 centroid;
+	for (int i = 0; i < createCommand->createdEnts; i++) {
+		Entity* ent = map->ents[map->ents.size() - (1 + i)];
+		centroid += getEntOrigin(map, ent);
+	}
+	centroid /= (float)createCommand->createdEnts;
+
+	pickInfo.deselect();
+
+	for (int i = 0; i < createCommand->createdEnts; i++) {
 		if (!noModifyOrigin) {
-			// can't just set camera origin directly because solid ents can have (0,0,0) origins
-			vec3 oldOrigin = getEntOrigin(map, insertEnt);
+			Entity* ent = map->ents[map->ents.size() - (1 + i)];
+			vec3 oldOrigin = getEntOrigin(map, ent);
 			vec3 centroidOffset = oldOrigin - centroid;
-			vec3 modelOffset = getEntOffset(map, insertEnt);
+			vec3 modelOffset = getEntOffset(map, ent);
 			vec3 mapOffset = mapRenderer->mapOffset;
 
 			vec3 moveDist = (cameraOrigin + cameraForward * 100) - oldOrigin;
 			vec3 newOri = (oldOrigin + moveDist + centroidOffset) - (modelOffset + mapOffset);
 			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
-			insertEnt->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+			ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
 		}
-
-		pasteEnts.push_back(insertEnt);
-	}
-
-	CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Paste Entity", pasteEnts);
-	for (int i = 0; i < pasteEnts.size(); i++) {
-		delete pasteEnts[i];
-	}
-	pasteEnts.clear();
-
-	createCommand->execute();
-	pushUndoCommand(createCommand);
-
-	if (pickInfo.getEnt() && pickInfo.getEnt()->isBspModel())
-		saveLumpState(pickInfo.getMap(), 0xffffffff, true);
-
-	pickInfo.deselect();
-	for (int i = 0; i < copiedEnts.size(); i++) {
 		pickInfo.selectEnt(map->ents.size() - (1 + i));
 	}
 
-	updateSelectionSize();
-	updateEntConnections();
-	updateEntityUndoState();
-	pickCount++; // force transform window update
+	if (createCommand->createdEnts)
+		createCommand->refresh();
+	postSelectEnt();
 }
 
 void Renderer::pasteEntsFromText(string text, bool noModifyOrigin) {
@@ -4385,13 +4346,6 @@ void Renderer::merge(string fpath) {
 	delete mapRenderer;
 	mapRenderer = NULL;
 	addMap(mergeResult.map);
-
-	if (copiedEnts.size()) {
-		for (Entity* ent : copiedEnts) {
-			delete ent;
-		}
-		copiedEnts.clear();
-	}
 
 	clearUndoCommands();
 	clearRedoCommands();

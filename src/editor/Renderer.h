@@ -230,8 +230,6 @@ private:
 	VertexBuffer* entDirectionVectors = NULL;
 	VertexBuffer* allTextureAxes = NULL;
 
-	vector<Entity*> copiedEnts;
-
 	int oldLeftMouse;
 	int oldRightMouse;
 	int oldScroll;
