@@ -240,6 +240,7 @@ private:
 	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
+	bool forceRefreshTransformWindow;
 
 	int undoLevels = 64;
 	int undoMemoryUsage = 0; // approximate space used by undo+redo history
@@ -343,4 +344,5 @@ private:
 
 	void loadFgds();
 	void getWindowSize(int& width, int& height);
+	void updateWindowTitle();
 };

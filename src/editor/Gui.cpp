@@ -1897,7 +1897,7 @@ void Gui::drawStatusMessage() {
 			if (app->forceAngleRotation) {
 				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "FORCE ROTATE");
 				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("The \"Force Rotate Solids\" option is enabled in the Transformation widget.\n"
+					ImGui::SetTooltip("The \"Force Rotate\" option is enabled in the Transformation widget.\n"
 						"Many entities may be floating in space while this is enabled.");
 				}
 			}
@@ -2541,6 +2541,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef>& keys, f
 					
 					if (g_app->pickInfo.ents.size() < 100)
 						g_app->updateEntConnections();
+					g_app->forceRefreshTransformWindow = true;
 					return 1;
 				}
 			};
@@ -2783,7 +2784,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			if (anyUpdate && g_app->pickInfo.ents.size() < 100) {
 				g_app->updateEntConnections();
 			}
-
+			g_app->forceRefreshTransformWindow = true;
 			return 1;
 		}
 
@@ -2828,7 +2829,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			if (anyUpdate && g_app->pickInfo.ents.size() < 100) {
 				g_app->updateEntConnections();
 			}
-
+			g_app->forceRefreshTransformWindow = true;
 			return 1;
 		}
 	};
@@ -3134,7 +3135,8 @@ void Gui::drawTransformWidget() {
 			oldSnappingEnabled != app->gridSnappingEnabled ||
 			lastVertPickCount != app->vertPickCount ||
 			oldTransformTarget != app->transformTarget ||
-			oldMultiselect != multiSelect;
+			oldMultiselect != multiSelect ||
+			g_app->forceRefreshTransformWindow;
 
 		TransformAxes& activeAxes = *(app->transformMode == TRANSFORM_SCALE ? &app->scaleAxes : &app->moveAxes);
 
@@ -3147,7 +3149,7 @@ void Gui::drawTransformWidget() {
 				}
 				else {
 					if (multiSelect > 1) {
-						if (multiSelect != oldMultiselect || lastPickCount != app->pickCount) {
+						if (multiSelect != oldMultiselect || lastPickCount != app->pickCount || g_app->forceRefreshTransformWindow) {
 							multiselectOrigins.clear();
 							multiselectAngles.clear();
 							for (int i = 0; i < app->pickInfo.ents.size(); i++) {
@@ -3185,6 +3187,8 @@ void Gui::drawTransformWidget() {
 				frz = rz = z = fz = 0;
 			}
 			sx = sy = sz = 1;
+
+			g_app->forceRefreshTransformWindow = false;
 		}
 
 		oldMultiselect = multiSelect;
@@ -3436,12 +3440,12 @@ void Gui::drawTransformWidget() {
 
 		ImGui::Columns(2, "checkboxes", false);
 
-		if (ImGui::Checkbox("Force Rotate Solids", &app->forceAngleRotation)) {
+		if (ImGui::Checkbox("Force Rotate", &app->forceAngleRotation)) {
 			app->updateEntConnectionPositions();
 		}
 		ImGui::NextColumn();
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Force solid entities to rotate by their angles keyvalue, even if they may not appear rotated in-game.\nBy default, the program checks the entity class to decide if an entity should appear rotated.");
+			ImGui::SetTooltip("Force solid entities to rotate by their angles keyvalue, even if they may not appear rotated in-game.\nPoint entities that don't use angles will show directional vectors.\n\nBy default, the program checks the entity class and FGDs to decide if an entity should appear rotated or display vectors.");
 		}
 
 		ImGui::PushItemWidth(inputWidth);
@@ -5600,6 +5604,7 @@ void Gui::saveAs() {
 		map->path = fname;
 		map->name = stripExt(basename(fname));
 		map->write(map->path);
+		g_app->updateWindowTitle();
 	}
 }
 

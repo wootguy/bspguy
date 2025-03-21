@@ -149,7 +149,7 @@ int Entity::getBspModelIdx() {
 		return -1;
 	}
 
-	string model = keyvalues["model"];
+	string model = getKeyvalue("model");
 	if (model.size() <= 1 || model[0] != '*') {
 		cachedModelIdx = -1;
 		return -1;
@@ -166,6 +166,11 @@ int Entity::getBspModelIdx() {
 
 bool Entity::isBspModel() {
 	return getBspModelIdx() >= 0;
+}
+
+bool Entity::isSprite() {
+	string model = getKeyvalue("model");
+	return model.find(".spr") == model.size() - 4;
 }
 
 string Entity::getTargetname() {
@@ -292,10 +297,6 @@ bool Entity::canRotate() {
 		return true;
 	}
 
-	if (getBspModelIdx() == -1) {
-		return true;
-	}
-
 	static unordered_set<string> rotatable_classnames = {
 		"func_rotating",
 		"func_rot_button",
@@ -309,6 +310,10 @@ bool Entity::canRotate() {
 		"func_tracktrain",
 		"momentary_rot_button",
 	};
+
+	if (getBspModelIdx() == -1) {
+		return true;
+	}
 
 	string cname = getClassname();
 
@@ -561,7 +566,7 @@ unordered_set<string> Entity::getTargets() {
 		}
 	}
 
-	if (keyvalues["classname"] == "multi_manager") {
+	if (getKeyvalue("classname") == "multi_manager") {
 		// multi_manager is a special case where the targets are in the key names
 		for (int i = 0; i < keyOrder.size(); i++) {
 			string tname = keyOrder[i];
@@ -603,7 +608,7 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 		}
 	}
 
-	if (keyvalues["classname"] == "multi_manager") {
+	if (getKeyvalue("classname") == "multi_manager") {
 		// multi_manager is a special case where the targets are in the key names
 		for (int i = 0; i < keyOrder.size(); i++) {
 			string tname = keyOrder[i];
@@ -643,8 +648,8 @@ int Entity::getMemoryUsage() {
 }
 
 bool Entity::isEverVisible() {
-	string cname = keyvalues["classname"];
-	string tname = hasKey("targetname") ? keyvalues["targetname"] : "";
+	string cname = getKeyvalue("classname");
+	string tname = getKeyvalue("targetname");
 
 	static set<string> invisibleEnts = {
 		"env_bubbles",
@@ -679,8 +684,8 @@ bool Entity::isEverVisible() {
 		return false;
 	}
 
-	if (!tname.length() && hasKey("rendermode") && atoi(keyvalues["rendermode"].c_str()) != 0) {
-		if (!hasKey("renderamt") || atoi(keyvalues["renderamt"].c_str()) == 0) {
+	if (!tname.length() && atoi(getKeyvalue("rendermode").c_str()) != 0) {
+		if (atoi(getKeyvalue("renderamt").c_str()) == 0) {
 			// starts invisible and likely nothing will change that because it has no targetname
 			return false;
 		}

@@ -312,16 +312,8 @@ void Renderer::renderLoop() {
 	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
 
 	float lastFrameTime = glfwGetTime();
-	float lastTitleTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
-		if (glfwGetTime( ) - lastTitleTime > 0.1)
-		{
-			lastTitleTime = glfwGetTime( );
-			string map = mapRenderer->map->path;
-			string title = map.empty() ? "bspguy" : map + " - bspguy";
-			glfwSetWindowTitle(window, title.c_str());
-		}
 		glfwPollEvents();
 
 		float frameDelta = glfwGetTime() - lastFrameTime;
@@ -937,6 +929,12 @@ void Renderer::reloadMaps() {
 	logf("Reloaded maps\n");
 }
 
+void Renderer::updateWindowTitle() {
+	string map = mapRenderer->map->path;
+	string title = map.empty() ? "bspguy" : getAbsolutePath(map) + " - bspguy";
+	glfwSetWindowTitle(window, title.c_str());
+}
+
 void Renderer::openMap(const char* fpath) {
 	if (!fpath) {
 		fpath = gui->openMap();
@@ -1237,10 +1235,11 @@ void Renderer::updateEntDirectionVectors() {
 	vector<Entity*> directEnts;
 
 	for (Entity* ent : pickEnts) {
-		if (!ent->isBspModel() || !ent->canRotate()) {
-			FgdClass* clazz = mergedFgd->getFgdClass(ent->getClassname());
+		if ((!ent->isBspModel() || !ent->canRotate()) && (!ent->isSprite() || g_app->forceAngleRotation)) {
+			string cname = ent->getClassname();
+			FgdClass* clazz = mergedFgd->getFgdClass(cname);
 			bool classUsesAngle = clazz ? (clazz->hasKey("angles") || clazz->hasKey("angle")) : false;
-			if (classUsesAngle || (!clazz && (ent->hasKey("angles") || ent->hasKey("angle"))))
+			if (classUsesAngle || (!clazz && (ent->hasKey("angles") || ent->hasKey("angle"))) || g_app->forceAngleRotation)
 				directEnts.push_back(ent);
 		}
 	}
@@ -1594,7 +1593,26 @@ void Renderer::applyTransform(bool forceUpdate) {
 }
 
 void Renderer::cameraRotationControls(vec2 mousePos) {
-	// camera rotation
+	static double lastTime = 0;
+	double now = glfwGetTime();
+	double deltaTime = now - lastTime;
+	lastTime = now;
+
+	if (pressed[GLFW_KEY_DOWN]) {
+		cameraAngles.x += rotationSpeed * deltaTime * 50;
+		cameraAngles.x = clamp(cameraAngles.x, -90.0f, 90.0f);
+	}
+	if (pressed[GLFW_KEY_UP]) {
+		cameraAngles.x -= rotationSpeed * deltaTime * 50;
+		cameraAngles.x = clamp(cameraAngles.x, -90.0f, 90.0f);
+	}
+	if (pressed[GLFW_KEY_LEFT]) {
+		cameraAngles.z -= rotationSpeed * deltaTime * 50;
+	}
+	if (pressed[GLFW_KEY_RIGHT]) {
+		cameraAngles.z += rotationSpeed * deltaTime * 50;
+	}
+
 	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
 		if (!cameraIsRotating) {
 			lastMousePos = mousePos;
@@ -2169,6 +2187,8 @@ void Renderer::addMap(Bsp* map) {
 
 	updateCullBox();
 	saveLumpState(map, 0xffffffff, false); // set up initial undo state
+
+	updateWindowTitle();
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {

@@ -62,6 +62,8 @@ public:
 
 	bool isBspModel();
 
+	bool isSprite();
+
 	string getTargetname();
 	string getClassname();
 
