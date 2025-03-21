@@ -126,6 +126,7 @@ void start_viewer(const char* map) {
 	if (!map) {
 		Bsp* emptyBsp = new Bsp();
 		renderer.addMap(emptyBsp);
+		renderer.emptyMapLoaded = true;
 	}
 	else {
 		Bsp* bsp = new Bsp(map);

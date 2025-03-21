@@ -21,6 +21,7 @@
 #include "MdlRenderer.h"
 #include "SprRenderer.h"
 #include <unordered_set>
+#include "tinyfiledialogs.h"
 
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
@@ -68,6 +69,10 @@ void window_maximize_callback(GLFWwindow* window, int maximized)
 
 void window_close_callback(GLFWwindow* window)
 {
+	if (!g_app->confirmMapExit()) {
+		return;
+	}
+
 	g_settings.save();
 	logf("adios\n");
 }
@@ -251,6 +256,7 @@ Renderer::Renderer() {
 	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
+	memset(&initialLumpState, 0, sizeof(LumpState));
 
 	//cameraOrigin = vec3(0, 0, 0);
 	//cameraAngles = vec3(0, 0, 0);
@@ -397,7 +403,7 @@ void Renderer::renderLoop() {
 					drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
 				}
 				
-				if (g_render_flags & RENDER_MAP_BOUNDARY) {
+				if ((g_render_flags & RENDER_MAP_BOUNDARY) && !emptyMapLoaded) {
 					drawBox(mapRenderer->map->ents[0]->getOrigin() * -1, g_limits.max_mapboundary * 2, COLOR4(0, 255, 0, 64));
 				}
 
@@ -919,20 +925,26 @@ void Renderer::clearMapData() {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		if (undoLumpState.lumps[i]) {
 			delete[] undoLumpState.lumps[i];
+			delete[] initialLumpState.lumps[i];
 		}
 	}
 	memset(&undoLumpState, 0, sizeof(LumpState));
+	memset(&initialLumpState, 0, sizeof(LumpState));
 
 	forceAngleRotation = false; // can cause confusion opening a new map
 }
 
 void Renderer::reloadMaps() {
+	if (!g_app->confirmMapExit()) {
+		return;
+	}
+
 	string reloadPath = mapRenderer->map->path;
 
 	clearMapData();
 	addMap(new Bsp(reloadPath));
 
-	updateCullBox();
+	updateEntConnections();
 
 	logf("Reloaded maps\n");
 }
@@ -944,6 +956,10 @@ void Renderer::updateWindowTitle() {
 }
 
 void Renderer::openMap(const char* fpath) {
+	if (!g_app->confirmMapExit()) {
+		return;
+	}
+
 	if (!fpath) {
 		fpath = gui->openMap();
 
@@ -2260,9 +2276,11 @@ void Renderer::addMap(Bsp* map) {
 	}
 
 	updateCullBox();
-	saveLumpState(map, 0xffffffff, false); // set up initial undo state
+	setInitialLumpState();
 
 	updateWindowTitle();
+
+	emptyMapLoaded = false;
 }
 
 void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
@@ -4393,4 +4411,73 @@ void Renderer::handleResize(int width, int height) {
 
 bool Renderer::entityHasFgd(string cname) {
 	return mergedFgd ? mergedFgd->getFgdClass(cname) != NULL : false;
+}
+
+bool Renderer::confirmMapExit() {
+	if (emptyMapLoaded)
+		return true;
+
+	if (g_settings.confirm_exit) {
+		Bsp* map = mapRenderer->map;
+		LumpState currentLumps = map->duplicate_lumps(0xffffffff);
+
+		bool lumpsChanged = false;
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			if (currentLumps.lumpLen[i] != initialLumpState.lumpLen[i]) {
+				lumpsChanged = true;
+				break;
+			}
+			if (memcmp(initialLumpState.lumps[i], currentLumps.lumps[i], currentLumps.lumpLen[i])) {
+				lumpsChanged = true;
+				break;
+			}
+		}
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			delete[] currentLumps.lumps[i];
+		}
+
+		if (lumpsChanged) {
+			string msg = "Save changes to " + g_app->mapRenderer->map->name + "?";
+			int ret = tinyfd_messageBox(
+				"Save", /* NULL or "" */
+				msg.c_str(), /* NULL or "" may contain \n \t */
+				"yesnocancel", /* "ok" "okcancel" "yesno" "yesnocancel" */
+				"warning", /* "info" "warning" "error" "question" */
+				0);
+
+			if (ret == 0) { // cancel
+				glfwSetWindowShouldClose(window, GLFW_FALSE);
+				return false;
+			}
+			else if (ret == 1) { // yes
+				Bsp* map = g_app->mapRenderer->map;
+				map->update_ent_lump();
+				map->write(map->path);
+				return true;
+			}
+			else { // no
+				return true;
+			}
+		}
+		else {
+			logf("lumps not changed\n");
+		}
+	}
+
+	return true;
+}
+
+void Renderer::setInitialLumpState() {
+	Bsp* map = mapRenderer->map;
+
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		if (undoLumpState.lumps[i]) {
+			delete[] initialLumpState.lumps[i];
+		}
+	}
+	memset(&initialLumpState, 0, sizeof(LumpState));
+
+	saveLumpState(map, 0xffffffff, true);
+	initialLumpState = undoLumpState;
+	saveLumpState(map, 0xffffffff, false);
 }

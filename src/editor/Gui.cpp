@@ -690,12 +690,14 @@ void Gui::drawMenuBar() {
 			g_app->openMap(NULL);
 		}
 
+		ImGui::BeginDisabled(app->emptyMapLoaded);
 		if (ImGui::MenuItem("Save", NULL)) {
 			Bsp* map = app->mapRenderer->map;
 			map->update_ent_lump();
 			//map->write("yabma_move.bsp");
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
+			app->setInitialLumpState();
 		}
 		if (ImGui::MenuItem("Save As...", "Ctrl+Alt+S")) {
 			saveAs();
@@ -715,7 +717,7 @@ void Gui::drawMenuBar() {
 				map->name = stripExt(basename(fname));
 				map->write(map->path);
 
-				map->path = fname;
+				map->path = oldFname;
 				map->name = oldName;
 			}
 		}
@@ -748,6 +750,7 @@ void Gui::drawMenuBar() {
 			map->validate();
 		}
 		tooltip(g, "Checks BSP data structures for invalid values and references. Trivial problems are fixed automatically. Results are output to the Log widget.");
+		ImGui::EndDisabled();
 
 		if (g_settings.recentFiles.size()) {
 			ImGui::Separator();
@@ -783,6 +786,7 @@ void Gui::drawMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("Edit")) {
+		ImGui::BeginDisabled(app->emptyMapLoaded);
 		Command* undoCmd = !app->undoHistory.empty() ? app->undoHistory[app->undoHistory.size() - 1] : NULL;
 		Command* redoCmd = !app->redoHistory.empty() ? app->redoHistory[app->redoHistory.size() - 1] : NULL;
 		string undoTitle = undoCmd ? "Undo " + undoCmd->desc : "Can't undo";
@@ -865,6 +869,7 @@ void Gui::drawMenuBar() {
 			showKeyvalueWidget = !showKeyvalueWidget;
 		}
 
+		ImGui::EndDisabled();
 		ImGui::EndMenu();
 	}
 	else
@@ -1066,6 +1071,7 @@ void Gui::drawMenuBar() {
 
 	if (ImGui::BeginMenu("Tools"))
 	{
+		ImGui::BeginDisabled(app->emptyMapLoaded);
 		Bsp* map = app->mapRenderer->map;
 
 		static vector<Wad*> emptyWads;
@@ -1423,6 +1429,7 @@ void Gui::drawMenuBar() {
 		}
 		tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
 
+		ImGui::EndDisabled();
 		ImGui::EndMenu();
 	}
 
@@ -3882,21 +3889,26 @@ void Gui::drawSettings() {
 			ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 			ImGui::DragFloat("Model Render Distance", &app->zFarMdl, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 
+			ImGui::Columns(2);
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("For troubleshooting problems with the program or specific commands");
 			}
+			ImGui::NextColumn();
+
+			ImGui::Checkbox("Confirm Close", &g_settings.confirm_exit);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Show a warning dialog if closing the map without saving changes.\n");
+			}
+			ImGui::NextColumn();
 
 			ImGui::Checkbox("Texture Filtering", &g_settings.texture_filtering);
 			tooltip(g, "Rubs vaseline on your textures\n");
+			ImGui::NextColumn();
 
-			ImGui::SameLine();
-			ImGui::Dummy(ImVec2(20, 0));
-			ImGui::SameLine();
 			if (ImGui::Checkbox("VSync", &vsync)) {
 				glfwSwapInterval(vsync ? 1 : 0);
 			}
-			
 		}
 		else if (settingsTab == 1) {
 			ImGui::InputText("##GameDir", gamedir, 256, ImGuiInputTextFlags_ElideLeft);
@@ -5743,7 +5755,8 @@ void Gui::saveAs() {
 		map->path = fname;
 		map->name = stripExt(basename(fname));
 		map->write(map->path);
-		g_app->updateWindowTitle();
+		app->updateWindowTitle();
+		app->setInitialLumpState();
 	}
 }
 

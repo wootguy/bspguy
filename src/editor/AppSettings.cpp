@@ -30,6 +30,11 @@ void AppSettings::loadDefault()
 	limits_open = false;
 	entreport_open = false;
 	show_transform_axes = false;
+	autoload_layout = false;
+	autoload_layout_width = 0;
+	autoload_layout_height = 0;
+	texture_filtering = false;
+	confirm_exit = true;
 	settings_tab = 0;
 	engine = ENGINE_SVEN_COOP;
 
@@ -83,6 +88,7 @@ void AppSettings::load() {
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
+			else if (key == "confirm_exit") { g_settings.confirm_exit = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -189,6 +195,7 @@ void AppSettings::save() {
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "texture_filtering=" << g_settings.texture_filtering << endl;
+	file << "confirm_exit=" << g_settings.confirm_exit << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "zfarmdl=" << g_settings.zFarMdl << endl;

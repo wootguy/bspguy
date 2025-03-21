@@ -18,6 +18,7 @@ struct AppSettings {
 	int autoload_layout_width;
 	int autoload_layout_height;
 	bool texture_filtering;
+	bool confirm_exit;
 
 	bool debug_open;
 	bool keyvalue_open;

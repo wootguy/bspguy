@@ -91,6 +91,7 @@ public:
 	bool debugClipnodes = false;
 	bool debugNodes = false;
 	int clipnodeRenderHull = -1;
+	bool emptyMapLoaded = false;
 
 	vec3 debugLine0;
 	vec3 debugLine1;
@@ -129,6 +130,7 @@ public:
 	void loadSettings();
 	void merge(string fpath);
 	void handleResize(int width, int height);
+	bool confirmMapExit();
 
 private:
 	GLFWwindow* window;
@@ -252,13 +254,14 @@ private:
 	vector<Command*> redoHistory;
 	vector<EntityState> undoEntityState;
 	LumpState undoLumpState = LumpState();
+	LumpState initialLumpState = LumpState(); // state when map first loaded
 	vec3 undoEntOrigin;
 
 	bool hasCullbox;
 	vec3 cullMins;
 	vec3 cullMaxs;
 
-	bool anyHiddenEnts;
+	bool anyHiddenEnts = false;
 
 	vec3 getMoveDir();
 	void controls();
@@ -357,4 +360,5 @@ private:
 	void getWindowSize(int& width, int& height);
 	void updateWindowTitle();
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
+	void setInitialLumpState();
 };
