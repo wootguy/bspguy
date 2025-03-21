@@ -2576,7 +2576,7 @@ void Renderer::drawModelsAndSprites() {
 		if (sent.mdl && sent.mdl->loadState == MDL_LOAD_DONE && sent.mdl->valid) {
 			if (!ent->drawCached) {
 				ent->drawOrigin = ent->getOrigin();
-				ent->drawAngles = parseVector(ent->getKeyvalue("angles"));
+				ent->drawAngles = ent->getAngles();
 				ent->drawSequence = atoi(ent->getKeyvalue("sequence").c_str());
 				EntRenderOpts opts = ent->getRenderOpts();
 

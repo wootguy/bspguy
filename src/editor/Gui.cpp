@@ -1820,13 +1820,15 @@ void Gui::drawStatusMessage() {
 	static int loadingWindowWidth = 32;
 	static int loadingWindowHeight = 32;
 
+	Entity* ent = app->pickInfo.getEnt();
+	bool angleKey = ent && ent->hasKey("angle");
 	bool sharedStructs = app->modelUsesSharedStructures && app->pickInfo.ents.size() == 1;
 	bool concave = !app->isTransformableSolid && app->pickInfo.ents.size() == 1;
 	bool invalidsolid = app->invalidSolid && app->pickInfo.ents.size() == 1;
 	bool dutchAngle = app->cameraAngles.y != 0;
 	bool showStatus = sharedStructs || concave || invalidsolid || badSurfaceExtents
 		|| lightmapTooLarge || app->modelUsesSharedStructures || app->forceAngleRotation
-		|| dutchAngle;
+		|| dutchAngle || angleKey;
 	
 	if (showStatus) {
 		ImVec2 window_pos = ImVec2((app->windowWidth - windowWidth) / 2, app->windowHeight - (10.0f+mainMenuBarHeight));
@@ -1905,6 +1907,12 @@ void Gui::drawStatusMessage() {
 				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "DUTCH ANGLE");
 				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip("Your camera is tilted by the Z angle set in the bottom status bar.");
+				}
+			}
+			if (angleKey) {
+				ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "ANGLE KEY");
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("The selected entity has an \"angle\" keyvalue set.\nThis key has special logic which overrides the \"angles\" keyvalue.");
 				}
 			}
 			windowWidth = ImGui::GetWindowWidth();
@@ -3166,8 +3174,8 @@ void Gui::drawTransformWidget() {
 					}
 					else {
 						Entity* ent = app->pickInfo.getEnt();
-						vec3 ori = ent->hasKey("origin") ? parseVector(ent->getKeyvalue("origin")) : vec3();
-						vec3 angles = ent->hasKey("angles") ? parseVector(ent->getKeyvalue("angles")) : vec3();
+						vec3 ori = ent->getOrigin();
+						vec3 angles = ent->getAngles();
 						if (app->originSelected) {
 							ori = app->transformedOrigin;
 						}

@@ -228,11 +228,21 @@ vec3 Entity::getAngles() {
 	}
 
 	auto kv = keyvalues.find("angles");
-	if (kv == keyvalues.end()) {
-		cachedAngles = vec3();
-	}
-	else {
-		cachedAngles = parseVector(kv->second);
+	cachedAngles = kv != keyvalues.end() ? parseVector(kv->second) : vec3();
+
+	kv = keyvalues.find("angle");
+	if (kv != keyvalues.end()) {
+		float angle = atof(kv->second.c_str());
+
+		if (angle >= 0) {
+			cachedAngles.y = angle;
+		}
+		else if ((int)angle == -1) {
+			cachedAngles = vec3(-90, 0, 0);
+		}
+		else {
+			cachedAngles = vec3(90, 0, 0);
+		}
 	}
 
 	hasCachedAngles = true;

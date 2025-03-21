@@ -1297,9 +1297,8 @@ void BspRenderer::refreshEnt(int entIdx) {
 		renderEnts[entIdx].modelMat.translate(origin.x, origin.z, -origin.y);
 		renderEnts[entIdx].offset = origin;
 	}
-	if (ent->hasKey("angles")) {
-		renderEnts[entIdx].angles = ent->getAngles().flip() * (PI / 180.0f);
-	}
+	
+	renderEnts[entIdx].angles = ent->getAngles().flip() * (PI / 180.0f);
 }
 
 void BspRenderer::calcFaceMaths() {
