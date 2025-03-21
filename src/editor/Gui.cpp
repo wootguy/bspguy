@@ -1876,7 +1876,7 @@ void Gui::drawStatusMessage() {
 				{
 					const char* info =
 						"One or more of the selected faces contain too many texture pixels on some axis.\n\n"
-						"This will crash the game. Increase texture scale to fix.";
+						"This will crash the game. Increase texture scale or subdivide faces to fix.";
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted(info);
 					ImGui::EndTooltip();
@@ -1888,7 +1888,7 @@ void Gui::drawStatusMessage() {
 				{
 					const char* info =
 						"One or more of the selected faces contain too many texture pixels.\n\n"
-						"This will crash the game. Increase texture scale to fix.";
+						"This will crash the game. Increase texture scale or subdivide faces to fix.";
 					ImGui::BeginTooltip();
 					ImGui::TextUnformatted(info);
 					ImGui::EndTooltip();
@@ -3221,6 +3221,7 @@ void Gui::drawTransformWidget() {
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 
+			ImGui::BeginDisabled(app->pickInfo.ents.empty());
 			ImGui::Text("Move");
 			ImGui::TableNextColumn();
 
@@ -3229,7 +3230,7 @@ void Gui::drawTransformWidget() {
 				if (ImGui::DragInt("##xpos", &x, 0.1f, 0, 0, "X: %d")) { originChanged = true; }
 			}
 			else {
-				if (ImGui::DragFloat("##xpos2", &fx, 0.01f, 0, 0, "X: %.2f")) { originChanged = true; }
+				if (ImGui::DragFloat("##xpos2", &fx, 0.1f, 0, 0, "X: %.2f")) { originChanged = true; }
 			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 0;
@@ -3242,7 +3243,7 @@ void Gui::drawTransformWidget() {
 				if (ImGui::DragInt("##ypos", &y, 0.1f, 0, 0, "Y: %d")) { originChanged = true; }
 			}
 			else {
-				if (ImGui::DragFloat("##ypos2", &fy, 0.01f, 0, 0, "Y: %.2f")) { originChanged = true; }
+				if (ImGui::DragFloat("##ypos2", &fy, 0.1f, 0, 0, "Y: %.2f")) { originChanged = true; }
 			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 1;
@@ -3255,7 +3256,7 @@ void Gui::drawTransformWidget() {
 				if (ImGui::DragInt("##zpos", &z, 0.1f, 0, 0, "Z: %d")) { originChanged = true; }
 			}
 			else {
-				if (ImGui::DragFloat("##zpos2", &fz, 0.01f, 0, 0, "Z: %.2f")) { originChanged = true; }
+				if (ImGui::DragFloat("##zpos2", &fz, 0.1f, 0, 0, "Z: %.2f")) { originChanged = true; }
 			}
 			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
 				guiHoverAxis = 2;
@@ -3265,8 +3266,9 @@ void Gui::drawTransformWidget() {
 
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
+			ImGui::EndDisabled();
 
-			ImGui::BeginDisabled(app->transformTarget != TRANSFORM_OBJECT || g_app->pickInfo.getEntIndex() == 0);
+			ImGui::BeginDisabled(app->transformTarget != TRANSFORM_OBJECT || g_app->pickInfo.getEntIndex() == 0 || app->pickInfo.ents.empty());
 			ImGui::Text("Rotate");
 			ImGui::TableNextColumn();
 
@@ -3278,7 +3280,7 @@ void Gui::drawTransformWidget() {
 				}
 			}
 			else {
-				if (ImGui::DragFloat("##xrot2", &frx, 0.01f, 0, 0, "X: %.2f")) {
+				if (ImGui::DragFloat("##xrot2", &frx, 0.1f, 0, 0, "X: %.2f")) {
 					frx = normalizeRangef(frx, -360, 360);
 					anglesChanged = true;
 				}
@@ -3295,7 +3297,7 @@ void Gui::drawTransformWidget() {
 				}
 			}
 			else {
-				if (ImGui::DragFloat("##yrot2", &fry, 0.01f, 0, 0, "Y: %.2f")) {
+				if (ImGui::DragFloat("##yrot2", &fry, 0.1f, 0, 0, "Y: %.2f")) {
 					fry = normalizeRangef(fry, -360, 360);
 					anglesChanged = true;
 				}
@@ -3312,7 +3314,7 @@ void Gui::drawTransformWidget() {
 				}
 			}
 			else {
-				if (ImGui::DragFloat("##zrot2", &frz, 0.01f, 0, 0, "Z: %.2f")) {
+				if (ImGui::DragFloat("##zrot2", &frz, 0.1f, 0, 0, "Z: %.2f")) {
 					frz = normalizeRangef(frz, -360, 360);
 					anglesChanged = true;
 				}
@@ -3325,7 +3327,7 @@ void Gui::drawTransformWidget() {
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 
-			ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT);
+			ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT || app->pickInfo.ents.empty());
 			ImGui::Text("Scale");
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
@@ -5115,9 +5117,11 @@ void Gui::drawLightMapTool() {
 }
 void Gui::drawTextureTool() {
 	ImGui::SetNextWindowSize(ImVec2(300, 570), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 420), ImVec2(FLT_MAX, app->windowHeight));
+
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
 	if (ImGui::Begin("Face Editor", &showTextureWidget)) {
-		static float scaleX, scaleY, shiftX, shiftY;
+		static float scaleX, scaleY, shiftX, shiftY, rotate;
 		static bool isSpecial;
 		static int width, height;
 		static ImTextureID textureId = NULL; // OpenGL ID
@@ -5138,10 +5142,13 @@ void Gui::drawTextureTool() {
 			ImGui::End();
 			return;
 		}
+
 		if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
 			if (app->pickInfo.faces.size() && mapRenderer != NULL) {
 				int faceIdx = app->pickInfo.faces[0];
-				BSPFACE& face = app->pickInfo.getMap()->faces[faceIdx];
+				Bsp* map = app->pickInfo.getMap();
+				BSPFACE& face = map->faces[faceIdx];
+				BSPPLANE& plane = map->planes[face.iPlane];
 				BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 				int32_t texOffset = ((int32_t*)map->textures)[texinfo.iMiptex + 1];
 
@@ -5179,6 +5186,12 @@ void Gui::drawTextureTool() {
 				shiftX = texinfo.shiftS;
 				shiftY = texinfo.shiftT;
 				isSpecial = texinfo.nFlags & TEX_SPECIAL;
+
+				{
+					vec3 ref = map->get_face_ut_reference(faceIdx);
+					vec3 utNorm = crossProduct(texinfo.vS, texinfo.vT).normalize();
+					rotate = signedAngle(texinfo.vS, ref, utNorm);
+				}
 
 				textureId = (ImTextureID)mapRenderer->getFaceTextureId(faceIdx);
 				validTexture = true;
@@ -5221,56 +5234,70 @@ void Gui::drawTextureTool() {
 		bool scaledY = false;
 		bool shiftedX = false;
 		bool shiftedY = false;
+		bool rotated = false;
 		bool textureChanged = false;
 		bool toggledFlags = false;
 
-		ImGui::PushItemWidth(inputWidth);
-		ImGui::Text("Scale");
+		
 
-		ImGui::SameLine();
-		ImGui::TextDisabled("(WIP)");
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::BeginTooltip();
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted("Almost always breaks lightmaps if changed.");
-			ImGui::PopTextWrapPos();
-			ImGui::EndTooltip();
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 2.0f));
+		if (ImGui::BeginTable("TransformTexTable", 4, ImGuiTableFlags_SizingFixedFit)) {
+			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 60);
+			ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, 5);
+
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::Text("Shift");
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##shiftx", &shiftX, 0.1f, 0, 0, "X: %.2f")) { shiftedX = true; }
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##shifty", &shiftY, 0.1f, 0, 0, "Y: %.2f")) { shiftedY = true; }
+			ImGui::TableNextColumn();
+
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::Text("Rotate");
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##rot", &rotate, 0.1f, 0, 0, "%.2f")) {
+				rotated = true;
+				if (rotate > 0) {
+					rotate = normalizeRangef(rotate, 0, 360);
+				}
+				else if (rotate < 0) {
+					rotate = normalizeRangef(rotate, -360, 0);
+				}
+				
+			}
+			ImGui::TableNextColumn();
+			ImGui::TableNextColumn();
+
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+
+			ImGui::Text("Scale");
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##scalex", &scaleX, 0.001f, 0, 0, "X: %.3f") && scaleX != 0) { scaledX = true; }
+			ImGui::TableNextColumn();
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##scaley", &scaleY, 0.001f, 0, 0, "Y: %.3f") && scaleY != 0) { scaledY = true; }
+			ImGui::TableNextColumn();
+
+			ImGui::EndTable();
 		}
+		ImGui::PopStyleVar();
 
-		if (ImGui::DragFloat("##scalex", &scaleX, 0.001f, 0, 0, "X: %.3f") && scaleX != 0) {
-			scaledX = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::DragFloat("##scaley", &scaleY, 0.001f, 0, 0, "Y: %.3f") && scaleY != 0) {
-			scaledY = true;
-		}
-
-		ImGui::Dummy(ImVec2(0, 8));
-
-		ImGui::Text("Shift");
-
-		ImGui::SameLine();
-		ImGui::TextDisabled("(WIP)");
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::BeginTooltip();
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted("Sometimes breaks lightmaps if changed.");
-			ImGui::PopTextWrapPos();
-			ImGui::EndTooltip();
-		}
-
-		if (ImGui::DragFloat("##shiftx", &shiftX, 0.1f, 0, 0, "X: %.3f")) {
-			shiftedX = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::DragFloat("##shifty", &shiftY, 0.1f, 0, 0, "Y: %.3f")) {
-			shiftedY = true;
-		}
-		ImGui::PopItemWidth();
-
-		ImGui::Text("Flags");
 		if (ImGui::Checkbox("Special", &isSpecial)) {
 			toggledFlags = true;
 		}
@@ -5288,7 +5315,7 @@ void Gui::drawTextureTool() {
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
 		}
-		if (ImGui::Checkbox("Embed", &isEmbedded)) {
+		if (ImGui::Checkbox("Embedded", &isEmbedded)) {
 			Bsp* map = app->pickInfo.getMap();
 			bool isActuallyEmbedded = false;
 
@@ -5331,7 +5358,7 @@ void Gui::drawTextureTool() {
 		ImGui::Dummy(ImVec2(0, 8));
 
 		ImGui::Text("Texture");
-		ImGui::SetNextItemWidth(inputWidth);
+		ImGui::SetNextItemWidth(inputWidth + 40);
 		if (!validTexture) {
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 		}
@@ -5351,7 +5378,7 @@ void Gui::drawTextureTool() {
 		ImGui::SameLine();
 		ImGui::Text("%dx%d", width, height);
 
-		if ((scaledX || scaledY || shiftedX || shiftedY || textureChanged || refreshSelectedFaces || toggledFlags)) {
+		if ((scaledX || scaledY || shiftedX || shiftedY || rotated || textureChanged || refreshSelectedFaces || toggledFlags)) {
 			uint32_t newMiptex = 0;
 			if (textureChanged) {
 				validTexture = false;
@@ -5391,34 +5418,53 @@ void Gui::drawTextureTool() {
 			set<int> modelRefreshes;
 			for (int i = 0; i < app->pickInfo.faces.size(); i++) {
 				int faceIdx = app->pickInfo.faces[i];
-				BSPTEXTUREINFO* texinfo = map->get_unique_texinfo(faceIdx);
+				BSPFACE& face = map->faces[faceIdx];
+				BSPPLANE& plane = map->planes[face.iPlane];
+				BSPTEXTUREINFO& texinfo = *map->get_unique_texinfo(faceIdx);
 
 				if (scaledX) {
-					texinfo->vS = texinfo->vS.normalize(1.0f / scaleX);
+					texinfo.vS = texinfo.vS.normalize(1.0f / scaleX);
 				}
 				if (scaledY) {
-					texinfo->vT = texinfo->vT.normalize(1.0f / scaleY);
+					texinfo.vT = texinfo.vT.normalize(1.0f / scaleY);
 				}
 				if (shiftedX) {
-					texinfo->shiftS = shiftX;
+					texinfo.shiftS = shiftX;
 				}
 				if (shiftedY) {
-					texinfo->shiftT = shiftY;
+					texinfo.shiftT = shiftY;
 				}
 				if (toggledFlags) {
-					texinfo->nFlags = isSpecial ? TEX_SPECIAL : 0;
+					texinfo.nFlags = isSpecial ? TEX_SPECIAL : 0;
 				}
 				if ((textureChanged || toggledFlags) && validTexture) {
 					if (textureChanged)
-						texinfo->iMiptex = newMiptex;
+						texinfo.iMiptex = newMiptex;
 					modelRefreshes.insert(map->get_model_from_face(faceIdx));
+				}
+				if (rotated) {
+					vec3 ref = map->get_face_ut_reference(faceIdx);
+					vec3 norm = crossProduct(texinfo.vT, texinfo.vS).normalize();
+
+					// align texture axes to plane (world -> face mode)
+					float dot = fabs(dotProduct(plane.vNormal, norm));
+					if (dot < 0.99999f) {
+						if (dot < 0.999f)
+							logf("Texture realigned to face %d\n", faceIdx);
+						norm = (plane.vNormal * (face.nPlaneSide ? -1 : 1)).normalize();
+					}
+
+					float sLen = texinfo.vS.length();
+					float tLen = texinfo.vT.length();
+					texinfo.vS = rotateAroundAxis(ref, norm, rotate * (PI / 180.0f)).normalize(sLen);
+					texinfo.vT = crossProduct(texinfo.vS, norm).normalize(tLen);
 				}
 				mapRenderer->updateFaceUVs(faceIdx);
 			}
 			if (textureChanged || toggledFlags) {
 				textureId = (ImTextureID)mapRenderer->getFaceTextureId(app->pickInfo.faces[0]);
 				for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
-					mapRenderer->refreshModel(*it);
+					mapRenderer->refreshModel(*it, false);
 				}
 				for (int i = 0; i < app->pickInfo.faces.size(); i++) {
 					mapRenderer->highlightFace(app->pickInfo.faces[i], true);
@@ -5426,11 +5472,13 @@ void Gui::drawTextureTool() {
 			}
 
 			checkFaceErrors();
+			g_app->updateTextureAxes();
 		}
 
 		refreshSelectedFaces = false;
 
-		ImVec2 imgSize = ImVec2(inputWidth * 2 - 2, inputWidth * 2 - 2);
+		float imgWidth = min(256.0f, inputWidth * 2 - 2);
+		ImVec2 imgSize = ImVec2(imgWidth, imgWidth);
 		if (ImGui::ImageButton("texicon", textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
 			logf("Open browser!\n");
 

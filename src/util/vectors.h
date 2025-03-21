@@ -43,7 +43,7 @@ struct vec3
 	float x, y, z;
 	vec3() : x(), y(), z() {}
 	vec3( float x, float y, float z ) : x( x ), y( y ), z( z ) {}
-	vec3 normalize(float length=1.0f);
+	vec3 normalize(float length=1.0f) const;
 	float length();
 	float lengthSquared(); // faster than length
 	vec3 invert();

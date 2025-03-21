@@ -94,6 +94,10 @@ public:
 
 	vec3 debugLine0;
 	vec3 debugLine1;
+	vec3 debugLine2;
+	vec3 debugLine3;
+	vec3 debugLine4;
+	vec3 debugLine5;
 	Line2D debugCut;
 	Polygon3D debugPoly;
 	Polygon3D debugPoly2;
@@ -221,8 +225,8 @@ private:
 	VertexBuffer* entConnections = NULL;
 	VertexBuffer* entConnectionPoints = NULL;
 	vector<EntConnection> entConnectionLinks;
-
 	VertexBuffer* entDirectionVectors = NULL;
+	VertexBuffer* allTextureAxes = NULL;
 
 	vector<Entity*> copiedEnts;
 
@@ -276,6 +280,8 @@ private:
 	void drawEntConnections();
 	void updateEntDirectionVectors();
 	void drawEntDirectionVectors(); // show which way the entity will move according to its angles key
+	void updateTextureAxes();
+	void drawTextureAxes();
 	void drawLine(vec3 start, vec3 end, COLOR4 color);
 	void drawLine2D(vec2 start, vec2 end, COLOR4 color);
 	void drawBox(vec3 center, float width, COLOR4 color);

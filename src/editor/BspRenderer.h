@@ -130,6 +130,7 @@ public:
 	bool isFaceSelected(int faceIdx);
 	bool isEntSelected(int entIdx);
 	vector<Entity*> getEnts();
+	vector<BSPFACE*> getFaces();
 };
 
 class Wad;

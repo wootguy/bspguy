@@ -185,7 +185,7 @@ void makeVectors(vec3 angles, vec3& forward, vec3& right, vec3& up) {
 	up = vec3(u.x, u.y, u.z);
 }
 
-vec3 vec3::normalize( float length )
+vec3 vec3::normalize( float length ) const
 {
 	if (x == 0 && y == 0 && z == 0)
 		return vec3(0, 0, 0);

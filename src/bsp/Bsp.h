@@ -244,7 +244,11 @@ public:
 	// moves entity models to (0,0,0), duplicating the BSP model if necessary
 	int zero_entity_origins(string classname);
 
+	// reference vector for computing ut angle
 	vec3 get_face_center(int faceIdx);
+
+	// get reference vectors for texture rotations
+	vec3 get_face_ut_reference(int faceIdx);
 
 	// scales up texture sizes on models that aren't used by visible entities
 	void allocblock_reduction();

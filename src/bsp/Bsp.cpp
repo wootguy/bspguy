@@ -3093,6 +3093,26 @@ vec3 Bsp::get_face_center(int faceIdx) {
 	return centroid / (float)face.nEdges;
 }
 
+vec3 Bsp::get_face_ut_reference(int faceIdx) {
+	BSPFACE& face = faces[faceIdx];
+	
+	vec3 a, b;
+	for (int k = 0; k < face.nEdges && k < 2; k++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + k];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		
+		if (k == 0) {
+			a = verts[vertIdx];
+		}
+		else {
+			b = verts[vertIdx];
+		}
+	}
+
+	return (a - b).normalize();
+}
+
 bool Bsp::downscale_texture(int textureId, int newWidth, int newHeight) {
 	if ((newWidth % 16 != 0) || (newHeight % 16 != 0) || newWidth <= 0 || newHeight <= 0) {
 		logf("Invalid downscale dimensions: %dx%d\n", newWidth, newHeight);

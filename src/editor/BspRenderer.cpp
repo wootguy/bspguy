@@ -2200,3 +2200,17 @@ vector<Entity*> PickInfo::getEnts() {
 
 	return outEnts;
 }
+
+vector<BSPFACE*> PickInfo::getFaces() {
+	vector<BSPFACE*> outFaces;
+	Bsp* map = getMap();
+
+	for (int i = 0; i < faces.size(); i++) {
+		int idx = faces[i];
+		if (map && idx >= 0 && idx < map->faceCount) {
+			outFaces.push_back(&map->faces[idx]);
+		}
+	}
+
+	return outFaces;
+}

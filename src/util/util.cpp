@@ -1159,3 +1159,32 @@ vec3 VecToAngles(const vec3& forward) {
 
 	return vec3(pitch, yaw, 0);
 }
+
+vec3 rotateAroundAxis(const vec3& v, const vec3& axis, float angle) {
+	vec3 Z = axis.normalize();
+
+	float cosTheta = std::cos(angle);
+	float sinTheta = std::sin(angle);
+	float oneMinusCosTheta = 1.0f - cosTheta;
+
+	float x = v.x, y = v.y, z = v.z;
+	float ux = Z.x, uy = Z.y, uz = Z.z;
+
+	// magic ai code
+	return {
+		(cosTheta + ux * ux * oneMinusCosTheta) * x + (ux * uy * oneMinusCosTheta - uz * sinTheta) * y + (ux * uz * oneMinusCosTheta + uy * sinTheta) * z,
+		(uy * ux * oneMinusCosTheta + uz * sinTheta) * x + (cosTheta + uy * uy * oneMinusCosTheta) * y + (uy * uz * oneMinusCosTheta - ux * sinTheta) * z,
+		(uz * ux * oneMinusCosTheta - uy * sinTheta) * x + (uz * uy * oneMinusCosTheta + ux * sinTheta) * y + (cosTheta + uz * uz * oneMinusCosTheta) * z
+	};
+}
+
+float signedAngle(const vec3& u, const vec3& v, const vec3& n) {
+	vec3 uNorm = u.normalize();
+	vec3 vNorm = v.normalize();
+
+	vec3 cross = crossProduct(uNorm, vNorm);
+	float angle = std::atan2(cross.length(), dotProduct(uNorm, vNorm));
+	float sign = dotProduct(n, cross) < 0 ? -1.0f : 1.0f;
+
+	return (angle * sign) * (180.0f / PI);
+}

@@ -357,6 +357,7 @@ void Renderer::renderLoop() {
 		colorShader->bind();
 		drawEntDirectionVectors(); // draws over world faces
 		drawEntConnections();
+		drawTextureAxes();
 
 		int modelIdx = pickInfo.getModelIndex();
 
@@ -436,6 +437,11 @@ void Renderer::renderLoop() {
 
 		if (g_app->debugPoly.isValid)
 			drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 255, 150));
+		if (g_app->debugLine0 != g_app->debugLine1) {
+			drawLine(debugLine0, debugLine1, { 128, 0, 255, 255 });
+			drawLine(debugLine2, debugLine3, { 0, 255, 0, 255 });
+			drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
+		}
 
 		const bool navmeshwipcode = false;
 		if (navmeshwipcode) {
@@ -1235,9 +1241,13 @@ void Renderer::updateEntDirectionVectors() {
 	vector<Entity*> directEnts;
 
 	for (Entity* ent : pickEnts) {
+		// don't show vectors for point entities or solids that can rotate normally
+		// don't show for sprites either unless force rotation is on (the vector makes no sense)
 		if ((!ent->isBspModel() || !ent->canRotate()) && (!ent->isSprite() || g_app->forceAngleRotation)) {
 			string cname = ent->getClassname();
 			FgdClass* clazz = mergedFgd->getFgdClass(cname);
+			// show if the FGD says the ent uses angles, or if the fgd is missing and the ent has angles,
+			// or if force angles are on
 			bool classUsesAngle = clazz ? (clazz->hasKey("angles") || clazz->hasKey("angle")) : false;
 			if (classUsesAngle || (!clazz && (ent->hasKey("angles") || ent->hasKey("angle"))) || g_app->forceAngleRotation)
 				directEnts.push_back(ent);
@@ -1307,6 +1317,58 @@ void Renderer::drawEntDirectionVectors() {
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
 	glCullFace(GL_BACK);
+}
+
+void Renderer::updateTextureAxes() {
+	if (allTextureAxes) {
+		delete allTextureAxes;
+		allTextureAxes = NULL;
+	}
+
+	if (pickInfo.faces.empty()) {
+		return;
+	}
+
+	int numVerts = pickInfo.faces.size() * 6;
+	cVert* verts = new cVert[numVerts];
+	Bsp* map = mapRenderer->map;
+	const float len = 16;
+
+	int vidx = 0;
+	for (int i = 0; i < pickInfo.faces.size(); i++) {
+		int faceidx = pickInfo.faces[i];
+		BSPFACE& face = map->faces[faceidx];
+		BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+		vec3 center = map->get_face_center(faceidx).flip();
+		vec3 norm = crossProduct(info.vT, info.vS).normalize();
+		
+		verts[vidx++] = cVert(center, COLOR4(255, 255, 0, 255));
+		verts[vidx++] = cVert(center + info.vS.flip().normalize(len), COLOR4(255, 255, 0, 255));
+		verts[vidx++] = cVert(center, COLOR4(0, 255, 0, 255));
+		verts[vidx++] = cVert(center + info.vT.flip().normalize(len), COLOR4(0, 255, 0, 255));
+		verts[vidx++] = cVert(center, COLOR4(0, 64, 255, 255));
+		verts[vidx++] = cVert(center + norm.flip().normalize(len), COLOR4(0, 64, 255, 255));
+	}
+
+	allTextureAxes = new VertexBuffer(colorShader, COLOR_4B | POS_3F, verts, numVerts);
+	allTextureAxes->ownData = true;
+}
+
+void Renderer::drawTextureAxes() {
+	if (!allTextureAxes) {
+		return;
+	}
+
+	glDisable(GL_DEPTH_TEST);
+	glDepthFunc(GL_ALWAYS);
+
+	colorShader->bind();
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+	allTextureAxes->draw(GL_LINES);
+
+	glDepthFunc(GL_LESS);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::controls() {
@@ -2998,6 +3060,7 @@ void Renderer::updateEntConnections() {
 	// todo: these shouldn't be here
 	updateCullBox();
 	updateEntDirectionVectors();
+	updateTextureAxes();
 	
 	if (entConnections) {
 		delete entConnections;
@@ -3088,6 +3151,7 @@ void Renderer::updateEntConnectionPositions() {
 	// todo: these shouldn't be here
 	updateCullBox();
 	updateEntDirectionVectors();
+	updateTextureAxes();
 
 	if (!entConnections) {
 		return;

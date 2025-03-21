@@ -148,3 +148,5 @@ bool isAbsolutePath(const std::string& path);
 string joinPaths(string path1, string path2);
 string getFolderPath(string path);
 vec3 VecToAngles(const vec3& forward);
+vec3 rotateAroundAxis(const vec3& v, const vec3& axis, float angle);
+float signedAngle(const vec3& u, const vec3& v, const vec3& n);
