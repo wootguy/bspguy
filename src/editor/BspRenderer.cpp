@@ -1217,16 +1217,18 @@ void BspRenderer::preRenderEnts() {
 
 	numPointEnts = 0;
 	for (int i = 1; i < map->ents.size(); i++) {
-		numPointEnts += !map->ents[i]->isBspModel();
+		Entity* ent = map->ents[i];
+		numPointEnts += !ent->isBspModel() && !ent->hidden;
 	}
 
 	cCube* entCubes = new cCube[numPointEnts];
 	int pointEntIdx = 0;
 
 	for (int i = 0; i < map->ents.size(); i++) {
+		Entity* ent = map->ents[i];
 		refreshEnt(i);
 
-		if (i != 0 && !map->ents[i]->isBspModel()) {
+		if (i != 0 && !ent->isBspModel() && !ent->hidden) {
 			memcpy(entCubes + pointEntIdx, renderEnts[i].pointEntCube->buffer->data, sizeof(cCube));
 			cVert* verts = (cVert*)(entCubes + pointEntIdx);
 			vec3 offset = renderEnts[i].offset.flip();
@@ -1248,6 +1250,10 @@ void BspRenderer::refreshPointEnt(int entIdx) {
 	int skipIdx = 0;
 
 	if (entIdx == 0)
+		return;
+
+	Entity* ent = map->ents[entIdx];
+	if (ent->hidden)
 		return;
 
 	// skip worldspawn
@@ -1584,10 +1590,13 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 	if (highlightedEnts.size() && !highlightAlwaysOnTop && !transparencyPass) {
 		for (int highlightEnt : highlightedEnts) {
 			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {				
+				Entity* ent = map->ents[highlightEnt];
+				if (ent->hidden)
+					continue;
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-				*activeShader->modelMat = *activeShader->modelMat * map->ents[highlightEnt]->getRotationMatrix(false);
+				*activeShader->modelMat = *activeShader->modelMat * ent->getRotationMatrix(false);
 				activeShader->updateMatrixes();
 
 				drawModel(renderEnts[highlightEnt].modelIdx, false, true, true);
@@ -1608,6 +1617,9 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 
 		for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 			if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+				Entity* ent = map->ents[i];
+				if (ent->hidden)
+					continue;
 				bool isHighlighted = highlighted.count(i);
 				activeShader->pushMatrix(MAT_MODEL);
 				*activeShader->modelMat = renderEnts[i].modelMat;
@@ -1637,6 +1649,10 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 		if ((g_render_flags & RENDER_ENTS) && (g_render_flags & RENDER_ENT_CLIPNODES)) {
 			for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 				if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
+					Entity* ent = map->ents[i];
+					if (ent->hidden)
+						continue;
+
 					if (clipnodeHull == -1 && renderModels[renderEnts[i].modelIdx].groupCount > 0) {
 						continue; // skip rendering for models that have faces, if in auto mode
 					}
@@ -1673,6 +1689,10 @@ void BspRenderer::render(const vector<int>& highlightedEnts, bool highlightAlway
 		for (int highlightEnt : highlightedEnts) {
 			glDisable(GL_DEPTH_TEST);
 			if (renderEnts[highlightEnt].modelIdx >= 0 && renderEnts[highlightEnt].modelIdx < map->modelCount) {
+				Entity* ent = map->ents[highlightEnt];
+				if (ent->hidden)
+					continue;
+
 				activeShader->pushMatrix(MAT_MODEL);
 				activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 				*activeShader->modelMat = renderEnts[highlightEnt].modelMat;
@@ -1825,7 +1845,8 @@ void BspRenderer::drawPointEntities(const vector<int>& highlightedEnts) {
 
 	// skip worldspawn
 	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
-		if (renderEnts[i].modelIdx >= 0)
+		Entity* ent = map->ents[i];
+		if (renderEnts[i].modelIdx >= 0 || ent->hidden)
 			continue;
 
 		if (highlighted.count(i) || map->ents[i]->didStudioDraw) {
@@ -1876,6 +1897,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 		Entity* ent = map->ents[i];
+		if (ent->hidden)
+			continue;
 
 		if (renderEnts[i].modelIdx >= 0 && renderEnts[i].modelIdx < map->modelCount) {
 
@@ -2212,4 +2235,16 @@ vector<BSPFACE*> PickInfo::getFaces() {
 	}
 
 	return outFaces;
+}
+
+bool PickInfo::shouldHideSelection() {
+	bool shouldHide = false;
+	vector<Entity*> pickEnts = getEnts();
+	for (Entity* ent : pickEnts) {
+		if (!ent->hidden) {
+			return true;
+		}
+	}
+
+	return false;
 }

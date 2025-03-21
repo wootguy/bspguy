@@ -29,7 +29,8 @@ class Entity
 {
 public:
 	vector<string> keyOrder;
-	
+	bool hidden = false; // hidden in the 3d view
+
 	// model rendering state updated whenever drawCached is false
 	bool drawCached; // origin, angles, sequence, and model are cached?
 	BaseRenderer* cachedMdl = NULL;

@@ -1866,6 +1866,16 @@ void Renderer::shortcutControls() {
 				ungrabEnts();
 			}
 		}
+		if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
+			bool shouldHide = pickInfo.shouldHideSelection();
+
+			if (shouldHide) {
+				hideSelectedEnts();
+			}
+			else {
+				unhideSelectedEnts();
+			}
+		}
 		if (anyCtrlPressed && pressed[GLFW_KEY_C] && !oldPressed[GLFW_KEY_C]) {
 			copyEnts();
 		}
@@ -2560,6 +2570,9 @@ void Renderer::drawModelsAndSprites() {
 		sent.ent = ent;
 		sent.mdl = loadModel(sent.ent);
 		sent.ent->didStudioDraw = false;
+
+		if (ent->hidden)
+			continue;
 
 		if (sent.mdl && sent.mdl->loadState != MDL_LOAD_INITIAL) {
 			if (!sent.mdl->valid) {
@@ -3760,6 +3773,55 @@ void Renderer::grabEnts() {
 	centroid /= (float)pickInfo.ents.size();
 
 	grabStartOrigin = centroid;
+}
+
+void Renderer::unhideSelectedEnts() {
+	vector<Entity*> ents = pickInfo.getEnts();
+
+	if (ents.empty())
+		return;
+
+	for (Entity* ent : ents) {
+		ent->hidden = false;
+	}
+
+	anyHiddenEnts = false;
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->hidden) {
+			anyHiddenEnts = true;
+			break;
+		}
+	}
+
+	deselectObject();
+	mapRenderer->preRenderEnts();
+}
+
+void Renderer::hideSelectedEnts() {
+	vector<Entity*> ents = pickInfo.getEnts();
+	
+	if (ents.empty())
+		return;
+
+	for (Entity* ent : ents) {
+		ent->hidden = true;
+	}
+
+	deselectObject();
+	anyHiddenEnts = true;
+	mapRenderer->preRenderEnts();
+}
+
+void Renderer::unhideEnts() {
+	vector<Entity*> ents = pickInfo.getEnts();
+	Bsp* map = mapRenderer->map;
+
+	for (int i = 0; i < map->ents.size(); i++) {
+		map->ents[i]->hidden = false;
+	}
+
+	anyHiddenEnts = false;
+	mapRenderer->preRenderEnts();
 }
 
 void Renderer::cutEnts() {

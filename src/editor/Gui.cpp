@@ -501,6 +501,16 @@ void Gui::draw3dContextMenus() {
 					app->ungrabEnts();
 				}
 			}
+			bool shouldHide = app->pickInfo.shouldHideSelection();
+
+			if (ImGui::MenuItem(shouldHide ? "Hide" : "Unhide", "H", false, app->pickInfo.ents.size() != 0)) {
+				if (shouldHide) {
+					app->hideSelectedEnts();
+				}
+				else {
+					app->unhideSelectedEnts();
+				}
+			}
 			if (ImGui::MenuItem("Transform", "Ctrl+M")) {
 				showTransformWidget = !showTransformWidget;
 			}
@@ -526,6 +536,9 @@ void Gui::draw3dContextMenus() {
 			}
 			if (ImGui::MenuItem("Paste at original origin", 0, false, canPaste)) {
 				app->pasteEnts(true);
+			}
+			if (ImGui::MenuItem("Unhide All", 0, false, app->anyHiddenEnts)) {
+				app->unhideEnts();
 			}
 
 			ImGui::EndPopup();
@@ -827,6 +840,20 @@ void Gui::drawMenuBar() {
 			else {
 				app->ungrabEnts();
 			}
+		}
+
+		bool shouldHide = app->pickInfo.shouldHideSelection();
+
+		if (ImGui::MenuItem(shouldHide ? "Hide" : "Unhide", "H", false, app->pickInfo.ents.size() != 0)) {
+			if (shouldHide) {
+				app->hideSelectedEnts();
+			}
+			else {
+				app->unhideSelectedEnts();
+			}
+		}
+		if (ImGui::MenuItem("Unhide All", "", false, app->anyHiddenEnts)) {
+			app->unhideEnts();
 		}
 		if (ImGui::MenuItem("Transform", "Ctrl+M", false, entSelected)) {
 			showTransformWidget = !showTransformWidget;
@@ -4490,7 +4517,6 @@ void Gui::drawEntityReport() {
 		int idx;
 		bool selected;
 		bool hasFgd;
-		bool isHidden;
 		string cname;
 	};
 
@@ -4582,7 +4608,6 @@ void Gui::drawEntityReport() {
 						rpent.idx = i;
 						rpent.selected = false;
 						rpent.hasFgd = app->entityHasFgd(cname);
-						rpent.isHidden = false;
 						rpent.cname = cname;
 						filteredEnts.push_back(rpent);
 					}
@@ -4617,6 +4642,9 @@ void Gui::drawEntityReport() {
 					bool pushedColor = true;
 					if (!filteredEnts[i].hasFgd) {
 						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+					}
+					else if (ent->hidden) {
+						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
 					}
 					else {
 						pushedColor = false;
@@ -4662,8 +4690,13 @@ void Gui::drawEntityReport() {
 						ImGui::PopStyleColor();
 					}
 
-					if (!filteredEnts[i].hasFgd && ImGui::IsItemHovered()) {
-						ImGui::SetTooltip("%s is not defined in any of your FGDs.\n", cname.c_str());
+					if (ImGui::IsItemHovered()) {
+						if (!filteredEnts[i].hasFgd) {
+							ImGui::SetTooltip("%s is not defined in any of your FGDs.\n", cname.c_str());
+						}
+						else if (ent->hidden) {
+							ImGui::SetTooltip("This entity is hidden.\n", cname.c_str());
+						}
 					}
 
 					if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(1)) {

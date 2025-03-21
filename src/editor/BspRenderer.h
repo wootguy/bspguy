@@ -131,6 +131,7 @@ public:
 	bool isEntSelected(int entIdx);
 	vector<Entity*> getEnts();
 	vector<BSPFACE*> getFaces();
+	bool shouldHideSelection();
 };
 
 class Wad;

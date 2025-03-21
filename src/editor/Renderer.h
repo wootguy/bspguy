@@ -258,6 +258,8 @@ private:
 	vec3 cullMins;
 	vec3 cullMaxs;
 
+	bool anyHiddenEnts;
+
 	vec3 getMoveDir();
 	void controls();
 	void cameraPickingControls();
@@ -332,6 +334,9 @@ private:
 	void goToCoords(float x, float y, float z);
 	void goToFace(Bsp* map, int faceIdx);
 	void ungrabEnts();
+	void hideSelectedEnts();
+	void unhideSelectedEnts();
+	void unhideEnts();
 
 	bool canPushEntityUndoState();
 	void pushEntityUndoState(string actionDesc);
