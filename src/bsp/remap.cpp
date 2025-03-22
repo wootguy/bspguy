@@ -97,6 +97,7 @@ void STRUCTCOUNT::print_delete_stats(int indent) {
 	print_stat(indent, surfEdges, "surfedge");
 	print_stat(indent, edges, "edge");
 	print_stat(indent, textures, "texture");
+	print_stat(indent, lightstyles, "light style");
 	print_stat_mem(indent, lightdata, "lightmap data");
 	print_stat_mem(indent, visdata, "VIS data");
 }

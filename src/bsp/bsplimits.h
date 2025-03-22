@@ -10,3 +10,5 @@
 #define MAX_VAL_LEN 4096 // not sure if this includes the null char
 
 #define MAXLIGHTMAPS    4
+
+#define TOGGLED_LIGHT_STYLE_OFFSET 32 // all toggled lights start at this style

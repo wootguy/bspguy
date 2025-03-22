@@ -923,6 +923,8 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 		}
 	}
 
+	mapB.shift_lightstyles(mapA.lightstyle_count());
+
 	// base structures (they don't reference any other structures)
 	if (shouldMerge[LUMP_ENTITIES])
 		merge_ents(mapA, mapB);

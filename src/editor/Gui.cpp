@@ -579,8 +579,8 @@ void Gui::draw3dContextMenus() {
 			if (ImGui::MenuItem("Select connected planar faces of this texture", "", false, app->pickInfo.faces.size() == 1)) {
 				Bsp* map = app->pickInfo.getMap();
 
-				app->pickInfo.deselect();
 				set<int> newSelect = map->selectConnectedTexture(app->pickInfo.getModelIndex(), app->pickInfo.getFaceIndex());
+				app->pickInfo.deselect();
 
 				for (int i : newSelect) {
 					app->pickInfo.selectFace(i);
@@ -2030,6 +2030,7 @@ void Gui::drawDebugWidget() {
 						ImGui::Text("Texture: %s (%dx%d)", tex.szName, tex.nWidth, tex.nHeight);
 					}
 					ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
+					ImGui::Text("Light Styles: [%d, %d, %d, %d]", face.nStyles[0], face.nStyles[1], face.nStyles[2], face.nStyles[3]);
 
 					static int lastFaceIdx = -1;
 					static string leafList;
@@ -4151,9 +4152,10 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 		stats.push_back(calcStat("edges", map->edgeCount, g_limits.max_edges, false));
 		stats.push_back(calcStat("surfedges", map->surfedgeCount, g_limits.max_surfedges, false));
 		stats.push_back(calcStat("marksurfaces", map->marksurfCount, g_limits.max_marksurfaces, false));
+		stats.push_back(calcStat("lightstyles", map->lightstyle_count(), g_limits.max_lightstyles, false));
+		stats.push_back(calcStat("lightdata", map->lightDataLength, g_limits.max_lightdata, true));
 		stats.push_back(calcStat("entdata", map->header.lump[LUMP_ENTITIES].nLength, g_limits.max_entdata, true));
 		stats.push_back(calcStat("visdata", map->visDataLength, g_limits.max_visdata, true));
-		stats.push_back(calcStat("lightdata", map->lightDataLength, g_limits.max_lightdata, true));
 		loadedStats = true;
 	}
 
@@ -4163,41 +4165,48 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 	ImGui::PushFont(consoleFontLarge);
 
 	int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
-	int otherWidth = (ImGui::GetWindowWidth() - midWidth) / 2;
-	ImGui::Columns(3);
-	ImGui::SetColumnWidth(0, otherWidth);
-	ImGui::SetColumnWidth(1, midWidth);
-	ImGui::SetColumnWidth(2, otherWidth);
+	int nameWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "marksurfaces").x;
 
-	ImGui::Text("Data Type"); ImGui::NextColumn();
-	ImGui::Text(" Current / Max"); ImGui::NextColumn();
-	ImGui::Text("Fullness"); ImGui::NextColumn();
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 1.0f));
+	if (ImGui::BeginTable("StatsTable", 3, ImGuiTableFlags_BordersInnerV)) {
+		ImGui::TableSetupColumn("Data Type", ImGuiTableColumnFlags_WidthFixed, nameWidth);
+		ImGui::TableSetupColumn(" Current / Max", ImGuiTableColumnFlags_WidthFixed, midWidth);
+		ImGui::TableSetupColumn("Fullness", ImGuiTableColumnFlags_WidthStretch);
+		
+		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0, 0, 0, 0));
+		ImGui::TableHeadersRow();
+		ImGui::PopStyleColor(3);
 
-	ImGui::Columns(1);
-	ImGui::Separator();
-	if (!modalMode)
-		ImGui::BeginChild("##chart");
-	ImGui::Columns(3);
-	ImGui::SetColumnWidth(0, otherWidth);
-	ImGui::SetColumnWidth(1, midWidth);
-	ImGui::SetColumnWidth(2, otherWidth);
+		// manually create the bottom border
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 0.0f));
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImGuiCol_Border));
+		ImGui::PopStyleVar();
 
-	for (int i = 0; i < stats.size(); i++) {
-		ImGui::TextColored(stats[i].color, stats[i].name.c_str()); ImGui::NextColumn();
+		for (int i = 0; i < stats.size(); i++) {
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextColored(stats[i].color, stats[i].name.c_str());
 
-		string val = stats[i].val + " / " + stats[i].max;
-		ImGui::TextColored(stats[i].color, val.c_str());
-		ImGui::NextColumn();
+			ImGui::TableNextColumn();
+			string val = stats[i].val + " / " + stats[i].max;
+			ImGui::TextColored(stats[i].color, val.c_str());
 
-		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
-		ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
-		ImGui::PopStyleColor(1);
-		ImGui::NextColumn();
+			ImGui::TableNextColumn();
+			ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+			ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
+			ImGui::PopStyleVar();
+			ImGui::PopStyleColor(1);
+			ImGui::TableNextColumn();
+		}
+
+		ImGui::EndTable();
 	}
+	ImGui::PopStyleVar();
 
-	ImGui::Columns(1);
-	if (!modalMode)
-		ImGui::EndChild();
 	ImGui::PopFont();
 	if (!modalMode)
 		ImGui::EndChild();
@@ -5060,7 +5069,7 @@ void Gui::drawLightMapTool() {
 	const char* light_names[] =
 	{
 		"OFF",
-		"Main light",
+		"Light 0",
 		"Light 1",
 		"Light 2",
 		"Light 3"

@@ -121,6 +121,16 @@ void hideConsoleWindow() {
 }
 
 void start_viewer(const char* map) {
+	Bsp* bsp = NULL;
+
+	if (map) {
+		bsp = new Bsp(map);
+		if (!bsp->valid) {
+			delete bsp;
+			return;
+		}
+	}
+
 	Renderer renderer = Renderer();
 
 	if (!map) {
@@ -129,11 +139,6 @@ void start_viewer(const char* map) {
 		renderer.emptyMapLoaded = true;
 	}
 	else {
-		Bsp* bsp = new Bsp(map);
-		if (!bsp->valid) {
-			delete bsp;
-			bsp = new Bsp();
-		}
 		renderer.addMap(bsp);
 	}
 	
@@ -709,6 +714,7 @@ void init_limits() {
 	g_engine_limits[ENGINE_HALF_LIFE].max_edges = 256000;
 	g_engine_limits[ENGINE_HALF_LIFE].max_textures = 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_lightdata = 48 * 1024 * 1024;
+	g_engine_limits[ENGINE_HALF_LIFE].max_lightstyles = 32;
 	g_engine_limits[ENGINE_HALF_LIFE].max_visdata = 8 * 1024 * 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_entdata = 2 * 1024 * 1024;
 	g_engine_limits[ENGINE_HALF_LIFE].max_entities = 8192;
@@ -730,6 +736,7 @@ void init_limits() {
 	g_engine_limits[ENGINE_SVEN_COOP].max_edges = 256000;
 	g_engine_limits[ENGINE_SVEN_COOP].max_textures = 4096;
 	g_engine_limits[ENGINE_SVEN_COOP].max_lightdata = 64 * 1024 * 1024;
+	g_engine_limits[ENGINE_SVEN_COOP].max_lightstyles = 224;
 	g_engine_limits[ENGINE_SVEN_COOP].max_visdata = 64 * 1024 * 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_entdata = 2 * 1024 * 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_entities = 8192;
@@ -752,6 +759,10 @@ int main(int argc, char* argv[])
 	init_limits();
 
 	CommandLine cli(argc, argv);
+
+	if (cli.hasOption("-hl")) {
+		g_limits = g_engine_limits[ENGINE_HALF_LIFE];
+	}
 
 	if (cli.askingForHelp) {
 		print_help(cli.command);

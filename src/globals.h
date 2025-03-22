@@ -29,6 +29,7 @@ struct MapLimits {
 	int max_edges;
 	int max_textures;
 	int max_lightdata;
+	int max_lightstyles;
 	int max_visdata;
 	int max_entities;
 	int max_entdata;

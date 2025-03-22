@@ -4327,6 +4327,12 @@ void Renderer::merge(string fpath) {
 	maps.push_back(thisCopy);
 	maps.push_back(map2);
 
+	logf("Cleaning %s\n", thisCopy->name.c_str());
+	thisCopy->remove_unused_model_structures().print_delete_stats(2);
+
+	logf("Cleaning %s\n", map2->name.c_str());
+	map2->remove_unused_model_structures().print_delete_stats(2);
+
 	BspMerger merger;
 	mergeResult = merger.merge(maps, vec3(), thismap->name, true, true, true, g_engine_limits->max_mapboundary);
 

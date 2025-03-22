@@ -15,6 +15,7 @@ struct STRUCTCOUNT {
 	int surfEdges;
 	int edges;
 	int models;
+	int lightstyles;
 	int lightdata;
 	int visdata;
 

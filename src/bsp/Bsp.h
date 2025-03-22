@@ -165,6 +165,19 @@ public:
 	// returns the number of lightmaps applied to the face, or 0 if it has no lighting
 	int lightmap_count(int faceIdx);
 
+	// gets highest value light style in the map
+	int lightstyle_count();
+
+	// combines style lightmap to the base lightmap for all faces
+	void bake_lightmap(int style);
+
+	// returns the number of lightmaps that were baked into the base lightmap, if no light referenced them
+	// also forces toggled light styles to be contiguous and start at the lowest offset (for merging)
+	int remove_unused_lightstyles();
+
+	// move lightstyle indexes by the given amount (for merging)
+	bool shift_lightstyles(uint32_t shift);
+
 	bool isValid(); // check if any lumps are overflowed
 
 	// delete structures not used by the map (needed after deleting models/hulls)

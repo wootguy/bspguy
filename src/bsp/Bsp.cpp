@@ -1425,8 +1425,10 @@ STRUCTCOUNT Bsp::remove_unused_model_structures() {
 	byte* oldLeaves = new byte[header.lump[LUMP_LEAVES].nLength];
 	memcpy(oldLeaves, lumps[LUMP_LEAVES], header.lump[LUMP_LEAVES].nLength);
 
-	if (lightDataLength)
+	if (lightDataLength) {
+		removeCount.lightstyles = remove_unused_lightstyles();
 		removeCount.lightdata = remove_unused_lightmaps(usedStructures.faces);
+	}
 
 	removeCount.planes = remove_unused_structs(LUMP_PLANES, usedStructures.planes, remap.planes);
 	removeCount.clipnodes = remove_unused_structs(LUMP_CLIPNODES, usedStructures.clipnodes, remap.clipnodes);
@@ -3919,6 +3921,194 @@ int Bsp::lightmap_count(int faceIdx) {
 	return lightmapCount;
 }
 
+int Bsp::lightstyle_count() {
+	int maxStyle = TOGGLED_LIGHT_STYLE_OFFSET-1;
+
+	for (int i = 0; i < ents.size(); i++) {
+		string cname = ents[i]->getClassname();
+
+		if (cname.find("light") == 0) {
+			int style = atoi(ents[i]->getKeyvalue("style").c_str());
+			maxStyle = max(maxStyle, style);
+		}
+	}
+	
+	return maxStyle - (TOGGLED_LIGHT_STYLE_OFFSET-1);
+}
+
+void Bsp::bake_lightmap(int style) {
+	for (int f = 0; f < faceCount; f++) {
+		BSPFACE& face = faces[f];
+
+		int baseLightStyle = face.nStyles[0];
+
+		int styleIdx = -1;
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			if (face.nStyles[s] == style) {
+				if (styleIdx != -1) {
+					logf("WARNING: Face %d has 2+ lightmaps linked to the same style\n");
+				}
+				styleIdx = s;
+			}
+		}
+
+		if (styleIdx == -1)
+			continue;
+
+		if (styleIdx == 0) {
+			// base lightmap had the style link. Just remove the link and the light stays on
+			face.nStyles[0] = 0;
+			continue;
+		}
+
+		int size[2];
+		int dummy[2];
+		int imins[2];
+		int imaxs[2];
+		GetFaceLightmapSize(this, f, size);
+		GetFaceExtents(this, f, imins, imaxs);
+
+		int width = size[0];
+		int height = size[1];
+		int lightmapSz = width * height * sizeof(COLOR3);
+
+		if (face.nStyles[0] > 0 && face.nStyles[0] < 255) {
+			// move the toggled base light into this previously toggled style
+			// then disable the style link in the base light to keep it on
+
+			int offsetSrc = face.nLightmapOffset + styleIdx * lightmapSz;
+			int offsetDst = face.nLightmapOffset;
+			COLOR3* lightSrc = (COLOR3*)(lightdata + offsetSrc);
+			COLOR3* lightDst = (COLOR3*)(lightdata + offsetDst);
+			for (int idx = 0; idx < width * height; idx++) {
+				if (offsetSrc + idx * sizeof(COLOR3) < lightDataLength) {
+					COLOR3& src = lightSrc[idx];
+					COLOR3& dst = lightDst[idx];
+					COLOR3 temp = src;
+					src = dst;
+					dst = temp;
+				}
+			}
+
+			face.nStyles[styleIdx] = baseLightStyle;
+			face.nStyles[0] = 0;
+			continue;
+		}
+
+		// the base lightmap isn't toggled. The toggled style needs to be added to the base light
+		// to disable toggling.
+		
+		int offset = face.nLightmapOffset + styleIdx * lightmapSz;
+		COLOR3* lightSrc = (COLOR3*)(lightdata + offset);
+		COLOR3* lightDst = (COLOR3*)(lightdata + face.nLightmapOffset);
+		for (int idx = 0; idx < width * height; idx++) {
+			if (offset + idx * sizeof(COLOR3) < lightDataLength) {
+				COLOR3& src = lightSrc[idx];
+				COLOR3& dst = lightDst[idx];
+				dst.r = min(255, src.r + dst.r);
+				dst.g = min(255, src.g + dst.g);
+				dst.b = min(255, src.b + dst.b);
+			}
+		}
+
+		// keep style refs contiguous
+		for (int i = styleIdx; i < MAXLIGHTMAPS - 1; i++) {
+			face.nStyles[i] = face.nStyles[i + 1];
+		}
+		face.nStyles[MAXLIGHTMAPS - 1] = 255;
+	}
+}
+
+int Bsp::remove_unused_lightstyles() {
+	bool usedStyles[256];
+	memset(usedStyles, 0, sizeof(bool) * 256);
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->getClassname().find("light") == 0) {
+			int style = atoi(ents[i]->getKeyvalue("style").c_str());
+			if (style > 0 && style < 255)
+				usedStyles[style] = true;
+		}
+	}
+
+	bool deletedStyles[256];
+	uint8_t styleRemaps[256];
+	for (int i = 0; i < 256; i++) {
+		styleRemaps[i] = i;
+		deletedStyles[i] = false;
+	}
+
+	int lightBakes = 0;
+	int lastUsedIdx = 31;
+	for (int i = TOGGLED_LIGHT_STYLE_OFFSET; i < 255; i++) {
+		if (usedStyles[i]) {
+			int gap = (i - lastUsedIdx) - 1;
+			if (gap > 0) {
+				for (int k = lastUsedIdx + 1; k < i; k++) {
+					deletedStyles[k] = true;
+					bake_lightmap(k);
+					lightBakes++;
+				}
+				for (int k = i; k < 256; k++) {
+					styleRemaps[k] -= gap;
+				}
+			}
+			lastUsedIdx = i;
+		}
+	}
+
+	for (int k = 0; k < faceCount; k++) {
+		BSPFACE& face = faces[k];
+
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			uint8_t& style = face.nStyles[s];
+			if (style >= TOGGLED_LIGHT_STYLE_OFFSET && style < 255) {
+				if (!deletedStyles[style] && style != styleRemaps[style]) {
+					style = styleRemaps[style];
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < ents.size(); i++) {
+		string cname = ents[i]->getClassname();
+
+		if (cname.find("light") == 0) {
+			int style = atoi(ents[i]->getKeyvalue("style").c_str());
+			if (style >= TOGGLED_LIGHT_STYLE_OFFSET && style < 255 && style != styleRemaps[style]) {
+				ents[i]->setOrAddKeyvalue("style", to_string(styleRemaps[style]));
+			}
+		}
+	}
+
+	return lightBakes;
+}
+
+bool Bsp::shift_lightstyles(uint32_t shift) {
+	if (lightstyle_count() + shift >= 255) {
+		logf("Unable to shift lightstyles by %u without losing some of them\n", shift);
+		return false;
+	}
+
+	for (int i = 0; i < ents.size(); i++) {
+		if (ents[i]->getClassname().find("light") == 0) {
+			int style = atoi(ents[i]->getKeyvalue("style").c_str());
+			ents[i]->setOrAddKeyvalue("style", to_string(style + shift));
+		}
+	}
+
+	for (int k = 0; k < faceCount; k++) {
+		BSPFACE& face = faces[k];
+
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			uint8_t& style = face.nStyles[s];
+			if (style >= TOGGLED_LIGHT_STYLE_OFFSET && style < 255) {
+				style += shift;
+			}
+		}
+	}
+}
+
 void Bsp::write(string path) {
 	if (path.rfind(".bsp") != path.size() - 4) {
 		path = path + ".bsp";
@@ -4169,6 +4359,7 @@ bool Bsp::isValid() {
 		&& textureCount < g_limits.max_textures
 		&& lightDataLength < g_limits.max_lightdata
 		&& visDataLength < g_limits.max_visdata
+		&& lightstyle_count() < g_limits.max_lightstyles
 		&& ceilf(calc_allocblock_usage()) <= g_limits.max_allocblocks;
 }
 
@@ -4205,6 +4396,8 @@ bool Bsp::validate() {
 	if (textureCount > g_limits.max_textures) logf("Overflowed textures !!!\n");
 	if (lightDataLength > g_limits.max_lightdata) logf("Overflowed lightdata !!!\n");
 	if (visDataLength > g_limits.max_visdata) logf("Overflowed visdata !!!\n");
+	if (lightstyle_count() > g_limits.max_lightstyles) logf("Overflowed lightstyles !!!\n");
+	if (ceilf(calc_allocblock_usage()) > g_limits.max_allocblocks) logf("Overflowed allocblocks !!!\n");
 
 	for (int i = 0; i < marksurfCount; i++) {
 		if (marksurfs[i] >= faceCount) {
@@ -4538,6 +4731,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 	else {
 		logf(" Data Type     Current / Max       Fullness\n");
 		logf("------------  -------------------  --------\n");
+		print_stat("AllocBlock", calc_allocblock_usage(), g_limits.max_allocblocks, false);
 		print_stat("models", modelCount, g_limits.max_models, false);
 		print_stat("planes", planeCount, g_limits.max_planes, false);
 		print_stat("vertexes", vertCount, g_limits.max_vertexes, false);
@@ -4550,6 +4744,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		print_stat("surfedges", surfedgeCount, g_limits.max_surfedges, false);
 		print_stat("edges", edgeCount, g_limits.max_edges, false);
 		print_stat("textures", textureCount, g_limits.max_textures, false);
+		print_stat("lightstyles", lightstyle_count(), g_limits.max_lightstyles, false);
 		print_stat("lightdata", lightDataLength, g_limits.max_lightdata, true);
 		print_stat("visdata", visDataLength, g_limits.max_visdata, true);
 		print_stat("entities", entCount, g_limits.max_entities, false);
