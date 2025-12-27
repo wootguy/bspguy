@@ -40,6 +40,7 @@ enum RenderFlags {
 	RENDER_SPRITES = 8192,
 	RENDER_ENT_DIRECTIONS = 16384,
 	RENDER_RENDER_MODES = 32768,
+	RENDER_LEAF_GRAPH = 65536,
 };
 
 struct LightmapInfo {
@@ -208,7 +209,7 @@ public:
 	void reloadTextures(bool reloadNow=false);
 	void reloadLightmaps();
 	void reloadClipnodes();
-	void reloadLeaves();
+	void reloadLeaves(bool reloadNow=false);
 	void delayLoadLeaves(); // load leaf data if not already loaded
 	void addClipnodeModel(int modelIdx);
 	void updateModelShaders();

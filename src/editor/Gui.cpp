@@ -41,6 +41,7 @@ string iniPath = getConfigDir() + "imgui.ini";
 char const* bspFilterPatterns[1] = { "*.bsp" };
 char const* entFilterPatterns[1] = { "*.ent" };
 char const* wadFilterPatterns[1] = { "*.wad" };
+char const* prtFilterPatterns[1] = { "*.prt" };
 char const* radFilterPatterns[1] = { "*.rad" };
 char const* imgFilterPatterns[2] = { "*.bmp", "*.png" };
 char const* pngFilterPatterns[1] = { "*.png" };
@@ -485,7 +486,7 @@ void Gui::draw3dContextMenus() {
 						Bsp* map = app->pickInfo.getMap();
 
 						int oldSelectSz = app->pickInfo.faces.size();
-						unordered_set<int> newSelect = map->selectConnected(app->pickInfo.faces, app->hiddenFaces, false, false);
+						unordered_set<int> newSelect = map->select_connected_faces(app->pickInfo.faces, app->hiddenFaces, false, false);
 
 						g_app->mapRenderer->highlightPickedFaces(false);
 
@@ -505,7 +506,7 @@ void Gui::draw3dContextMenus() {
 						Bsp* map = app->pickInfo.getMap();
 
 						int oldSelectSz = app->pickInfo.faces.size();
-						unordered_set<int> newSelect = map->selectConnected(app->pickInfo.faces, app->hiddenFaces, false, true);
+						unordered_set<int> newSelect = map->select_connected_faces(app->pickInfo.faces, app->hiddenFaces, false, true);
 
 						g_app->mapRenderer->highlightPickedFaces(false);
 
@@ -525,7 +526,7 @@ void Gui::draw3dContextMenus() {
 						Bsp* map = app->pickInfo.getMap();
 
 						int oldSelectSz = app->pickInfo.faces.size();
-						unordered_set<int> newSelect = map->selectConnected(app->pickInfo.faces, app->hiddenFaces, true, true);
+						unordered_set<int> newSelect = map->select_connected_faces(app->pickInfo.faces, app->hiddenFaces, true, true);
 
 						g_app->mapRenderer->highlightPickedFaces(false);
 
@@ -800,7 +801,7 @@ void Gui::draw3dContextMenus() {
 					app->mapRenderer->highlightPickedLeaves(true);
 					app->updateTextureAxes();
 				}
-				tooltip(g, "Select all leaves in the potentially visible set (PVS) of the selected leaf(s).");
+				tooltip(g, "Recursively select all leaves that are touching the selected leaf(s). Hidden leaves are not connected through.");
 
 				if (ImGui::MenuItem("Select PVS", "", false, app->pickInfo.leaves.size() >= 1)) {
 					vector<int> pickLeaves = app->pickInfo.leaves;
@@ -818,6 +819,8 @@ void Gui::draw3dContextMenus() {
 					app->updateTextureAxes();
 				}
 				tooltip(g, "Select all leaves in the potentially visible set (PVS) of the selected leaf(s).");
+
+				ImGui::Separator();
 
 				if (ImGui::MenuItem("Convert to Model", "", false, app->pickInfo.leaves.size() > 1)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Convert to Model");
@@ -841,6 +844,8 @@ void Gui::draw3dContextMenus() {
 					"be visible everywhere in the map, reducing performance."
 					"\n\nBest used in unreachable areas, or nooks and crannies where players are "
 					"unlikely to shoot.");
+
+				ImGui::Separator();
 
 				if (ImGui::MenuItem("Hide", "H", false, app->pickInfo.leaves.size() > 0)) {
 					app->hideSelectedLeaves();
@@ -1411,6 +1416,21 @@ void Gui::drawStandardMenuBar() {
 			}
 			tooltip(g, "Saves embedded textures to a WAD file. This does not unembed any textures.");
 
+			if (ImGui::MenuItem("Leaf Portals (.prt)", "")) {
+				char* fname = tinyfd_saveFileDialog("Export Leaf Portals", defaultPath.c_str(),
+					1, prtFilterPatterns, "Leaf Portals (*.prt)");
+
+				if (fname) {
+					if (!app->mapRenderer->leafNavMesh) {
+						app->mapRenderer->reloadLeaves(true);
+					}
+					
+					map->write_portal_file(app->mapRenderer->leafNavMesh, fname);
+				}
+			}
+			tooltip(g, "Generate a leaf portal file for use with a VIS compiler.\n\n"
+				"Leaf portals are the polygonal areas where leaves are touching. They indicate where you can move from one leaf to another.");
+
 			ImGui::EndMenu();
 		}
 
@@ -1697,6 +1717,18 @@ void Gui::drawStandardMenuBar() {
 			}
 		}
 		tooltip(g, "Display sprites instead of colored cubes where available.");
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Leaf Links", 0, g_settings.render_flags & RENDER_LEAF_GRAPH)) {
+			g_settings.render_flags ^= RENDER_LEAF_GRAPH;
+		}
+		tooltip(g, "Display leaf connectivity graph when in leaf selection mode.\n\n"
+			"Green box = Leaf origin\n"
+			"Yellow box = Portal origin\n"
+			"Yellow outline = Portal\n"
+			"Orange line = Link between leaves"
+		);
 
 		ImGui::Separator();
 
@@ -3659,6 +3691,15 @@ void Gui::drawDebugWidget() {
 				ImGui::Text("Entity ID: %d", app->pickInfo.getEntIndex());
 
 				if (modelIndex > 0) {
+					BSPMODEL& model = map->models[modelIndex];
+					ImGui::Text("Model ID: %d", modelIndex);
+					ImGui::Text("Model polys: %d", model.nFaces);
+					ImGui::Text("Model leaves: %d", model.nVisLeafs);
+					ImGui::Text("Model face offset: %d", model.iFirstFace);
+					ImGui::Text("Model mins: %.2f %.2f %.2f", model.nMins.x, model.nMins.y, model.nMins.z);
+					ImGui::Text("Model maxs: %.2f %.2f %.2f", model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
+					ImGui::Text("Model origin: %.2f %.2f %.2f", model.vOrigin.x, model.vOrigin.y, model.vOrigin.z);
+
 					ImGui::Checkbox("Debug clipnodes", &app->debugClipnodes);
 					ImGui::SliderInt("Clipnode", &app->debugInt, 0, app->debugIntMax);
 
@@ -6932,7 +6973,7 @@ void Gui::drawEntityReport() {
 }
 
 void Gui::drawDebugText() {
-	ImDrawList* imdl = ImGui::GetForegroundDrawList();
+	ImDrawList* imdl = ImGui::GetBackgroundDrawList();
 
 	for (Text2D& text : texts) {
 		ImU32 color = IM_COL32(text.color.r, text.color.g, text.color.b, text.color.a);
@@ -6949,6 +6990,7 @@ void Gui::drawDebugText() {
 			}
 		}
 
+		imdl->AddText(ImVec2(pos.x + 1, pos.y + 1), IM_COL32(0, 0, 0, 255), text.text.c_str()); // shadow
 		imdl->AddText(pos, color, text.text.c_str());
 	}
 

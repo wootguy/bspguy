@@ -720,6 +720,10 @@ void Renderer::renderLoop() {
 
 		renderNavMesh();
 
+		if (pickMode == PICK_LEAF && (g_settings.render_flags & RENDER_LEAF_GRAPH)) {
+			renderLeafGraph(mapRenderer->leafNavMesh);
+		}
+
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
@@ -1116,6 +1120,67 @@ void Renderer::renderNavMesh() {
 	glLineWidth(1);
 
 	glCheckError("Rendering nav mesh");
+}
+
+void Renderer::renderLeafGraph(LeafNavMesh* mesh) {
+	if (isLoading || !mesh)
+		return;
+
+	int leafNavIdx = mesh->getNodeIdx(mapRenderer->map, cameraOrigin);
+
+	if (leafNavIdx == NAV_INVALID_IDX)
+		return;
+
+	LeafNode& node = mesh->nodes[leafNavIdx];
+
+	colorShader->bind();
+	model.loadIdentity();
+	colorShader->updateMatrixes();
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+
+	drawBox(node.origin, 2, COLOR4(0, 255, 0, 255));
+
+	{
+		vec3 screenOri = worldToScreen(node.origin - vec3(0, 0, 1));
+		if (screenOri.z > 0) {
+			const char* label = cstrf("Leaf %d", (int)node.leafIdx);
+			gui->addText(Text2D(screenOri.x, screenOri.y, label, TEXT2D_ALIGN_CENTER));
+		}
+	}
+
+	for (int i = 0; i < node.links.size(); i++) {
+		LeafLink& link = node.links[i];
+		if (link.node == -1) {
+			break;
+		}
+		LeafNode& linkLeaf = mesh->nodes[link.node];
+		if (linkLeaf.childIdx != NAV_INVALID_IDX) {
+			continue;
+		}
+
+		Polygon3D& linkArea = link.linkArea;
+
+		drawLine(node.origin, link.pos, COLOR4(255, 128, 0, 255));
+		drawLine(link.pos, linkLeaf.origin, COLOR4(255, 128, 0, 255));
+
+		for (int i = 0; i < linkArea.verts.size(); i++) {
+			vec3& v1 = linkArea.verts[i];
+			vec3& v2 = linkArea.verts[(i + 1) % linkArea.verts.size()];
+
+			drawLine(v1, v2, COLOR4(255, 255, 0, 255));
+		}
+
+		drawBox(link.pos, 1, COLOR4(255, 255, 0, 255));
+		drawLine(link.pos, link.pos + linkArea.plane_z * 16, COLOR4(255, 255, 0, 255));
+		drawBox(linkLeaf.origin, 2, COLOR4(0, 255, 0, 255));
+
+		vec3 screenOri = worldToScreen(linkLeaf.origin - vec3(0,0,1));
+		if (screenOri.z > 0) {
+			const char* label = cstrf("Leaf %d", (int)linkLeaf.leafIdx);
+			gui->addText(Text2D(screenOri.x, screenOri.y, label, TEXT2D_ALIGN_CENTER));
+		}
+	}
 }
 
 void Renderer::renderArrangeMaps() {
@@ -5160,4 +5225,36 @@ void Renderer::setInitialLumpState() {
 	saveLumpState(map, 0xffffffff, true);
 	initialLumpState = undoLumpState;
 	saveLumpState(map, 0xffffffff, false);
+}
+
+vec3 Renderer::worldToScreen(const vec3& P) {
+	vec3 forward, right, up;
+	vec3 angles = vec3(cameraAngles.x, -(cameraAngles.z - 90), cameraAngles.y);
+
+	AngleVectors(angles, (float*)&forward, (float*)&right, (float*)&up);
+
+	vec3 rel = P - cameraOrigin;
+
+	float x = dotProduct(rel, right);
+	float y = dotProduct(rel, up);
+	float z = dotProduct(rel, forward);
+
+	float aspect = (float)windowWidth / (float)windowHeight;
+
+	// convert to actual horizontal FOV for this aspect
+	float baseAspect = 4.0f / 3.0f;
+	float fovXRad43 = fov * (PI / 180.0f);
+	float fovXRad = 2.0f * atan(tan(fovXRad43 * 0.5f) * (aspect / baseAspect));
+	float fovYRad = 2.0f * atan(tan(fovXRad * 0.5f) / aspect);
+	float f = 1.0f / tan(fovYRad * 0.5f);
+
+	f = fov * (PI / 180.0f);
+
+	float ndcX = (x * f / aspect) / z;
+	float ndcY = (y * f) / z;
+
+	float screenX = (ndcX + 1.0f) * 0.5f * windowWidth;
+	float screenY = (1.0f - ndcY) * 0.5f * windowHeight;
+
+	return { screenX, screenY, z };
 }

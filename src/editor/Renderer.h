@@ -134,6 +134,7 @@ public:
 
 	void renderLoop();
 	void renderNavMesh();
+	void renderLeafGraph(LeafNavMesh* mesh);
 	void renderArrangeMaps();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
@@ -380,4 +381,5 @@ private:
 	void updateWindowTitle();
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
 	void setInitialLumpState();
+	vec3 worldToScreen(const vec3& P);
 };

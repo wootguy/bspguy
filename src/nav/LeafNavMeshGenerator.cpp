@@ -793,8 +793,20 @@ int LeafNavMeshGenerator::tryFaceLinkLeaves(Bsp* map, LeafNavMesh* mesh, int src
 			Polygon3D intersectFace = srcFace.coplanerIntersectArea(dstFace);
 
 			if (intersectFace.isValid) {
-				mesh->addLink(srcLeafIdx, dstLeafIdx, intersectFace);
-				mesh->addLink(dstLeafIdx, srcLeafIdx, intersectFace);
+				vector<vec3> rev = intersectFace.verts;
+				reverse(rev.begin(), rev.end());
+				vec3 linkDir = (intersectFace.center - srcLeaf.center).normalize();
+
+				// intersection face normal should point in the direction of the link
+				if (dotProduct(intersectFace.plane_z, linkDir) > 0) {
+					mesh->addLink(srcLeafIdx, dstLeafIdx, intersectFace);
+					mesh->addLink(dstLeafIdx, srcLeafIdx, Polygon3D(rev));
+				}
+				else {
+					mesh->addLink(srcLeafIdx, dstLeafIdx, Polygon3D(rev));
+					mesh->addLink(dstLeafIdx, srcLeafIdx, intersectFace);
+				}
+
 				return 2;
 			}
 		}

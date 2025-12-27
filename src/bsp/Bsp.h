@@ -178,6 +178,9 @@ public:
 
 	void write_csg_outputs(string path);
 
+	// write the portal file needed for the VIS compiler
+	void write_portal_file(LeafNavMesh* mesh, const char* fname);
+
 	// get the bounding box for the world
 	void get_bounding_box(vec3& mins, vec3& maxs);
 
@@ -372,7 +375,7 @@ public:
 	// select faces connected to the given one
 	// ignoreFaces will not be connected thru
 	// planarTextureOnly = only select on the same plane with the same texture
-	unordered_set<int> selectConnected(vector<int>& srcFaces, unordered_set<int>& ignoreFaces, bool planarOnly, bool textureOnly);
+	unordered_set<int> select_connected_faces(vector<int>& srcFaces, unordered_set<int>& ignoreFaces, bool planarOnly, bool textureOnly);
 
 	// returns true if the map has eny entities that make use of hull 2
 	bool has_hull2_ents();
@@ -544,6 +547,15 @@ private:
 	vector<Entity*> get_model_ents(int modelIdx);
 
 	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
+
+	void write_portal_file_leaf_count(int iNode, FILE* fout);
+
+	// create a mapping from bsp leaf index to portal file leaf number
+	void get_portal_file_leaf_numbers(int iNode, unordered_map<uint16_t, uint16_t>& leafMap, int &leafCount);
+	
+	// returns number of portals written, or that would be written if fout is NULL
+	int write_portal_file_portals(int iNode, LeafNavMesh* mesh, unordered_set<uint32_t>& visited, 
+		unordered_map<uint16_t, uint16_t>& leafMap, FILE* fout);
 
 	// marks all structures that this model uses
 	// TODO: don't mark faces in submodel leaves (unused)

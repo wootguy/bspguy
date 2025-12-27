@@ -165,3 +165,5 @@ vector<uint8_t> base64decode(const string& input);
 
 // return a c string created with printf formatting (not thread safe + uses static buffer)
 char* cstrf(const char* format, ...);
+
+void AngleVectors(const vec3& angles, float* forward, float* right, float* up);

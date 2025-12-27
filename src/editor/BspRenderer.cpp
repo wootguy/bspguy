@@ -313,13 +313,19 @@ void BspRenderer::reloadClipnodes() {
 	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
 }
 
-void BspRenderer::reloadLeaves() {
+void BspRenderer::reloadLeaves(bool reloadNow) {
 	leavesLoaded = false;
 	leavesThreadFinished = false;
 
 	deleteRenderLeaves();
 
 	leavesFuture = async(launch::async, &BspRenderer::loadLeaves, this);
+
+	if (reloadNow) {
+		while (!leavesThreadFinished && leavesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}
 }
 
 void BspRenderer::delayLoadLeaves() {
@@ -1113,6 +1119,7 @@ void BspRenderer::generateNavMeshBuffer() {
 
 	renderClip->faceMaths[hull] = faceMaths;
 
+	/*
 	ofstream file(map->name + "_hull" + to_string(hull) + ".obj", ios::out | ios::trunc);
 	for (int i = 0; i < allVerts.size(); i++) {
 		vec3 v = vec3(allVerts[i].x, allVerts[i].y, allVerts[i].z);
@@ -1123,6 +1130,7 @@ void BspRenderer::generateNavMeshBuffer() {
 	}
 	logf("Wrote %d verts\n", allVerts.size());
 	file.close();
+	*/
 }
 
 void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {

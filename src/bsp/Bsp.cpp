@@ -4293,7 +4293,7 @@ bool Bsp::rename_texture(const char* oldName, const char* newName) {
 	return false;
 }
 
-unordered_set<int> Bsp::selectConnected(vector<int>& srcFaces, unordered_set<int>& ignoreFaces, bool planarOnly, bool textureOnly) {
+unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_set<int>& ignoreFaces, bool planarOnly, bool textureOnly) {
 	unordered_set<int> selected;
 	vector<Polygon3D*> selectedFaces;
 	queue<Polygon3D*> testPolys;
@@ -9772,6 +9772,137 @@ void Bsp::write_csg_polys(int16_t nodeIdx, FILE* polyfile, int flipPlaneSkip, bo
 		if (debug)
 			logf("\n");
 	}
+}
+
+void Bsp::write_portal_file_leaf_count(int iNode, FILE* fout) {
+	if (iNode >= 0) {
+		BSPNODE& node = nodes[iNode];
+		write_portal_file_leaf_count(node.iChildren[0], fout);
+		write_portal_file_leaf_count(node.iChildren[1], fout);
+	}
+	else {
+		BSPLEAF& leaf = leaves[~iNode];
+
+		if (leaf.nContents != CONTENTS_SOLID) {
+			// TODO: hlbsp has logic for func_detail that is missing here, but that data is likely lost
+			int count = 1;
+			fprintf(fout, "%i\n", count);
+		}
+	}
+}
+
+void Bsp::get_portal_file_leaf_numbers(int iNode, unordered_map<uint16_t, uint16_t>& leafMap, int& leafCount) {
+	if (iNode >= 0) {
+		BSPNODE& node = nodes[iNode];
+		get_portal_file_leaf_numbers(node.iChildren[0], leafMap, leafCount);
+		get_portal_file_leaf_numbers(node.iChildren[1], leafMap, leafCount);
+		return;
+	}
+
+	uint16_t leafIdx = ~iNode;
+	BSPLEAF& leaf = leaves[leafIdx];
+
+	if (leaf.nContents != CONTENTS_SOLID)
+		leafMap[leafIdx] = leafCount++;
+}
+
+int Bsp::write_portal_file_portals(int iNode, LeafNavMesh* mesh, unordered_set<uint32_t>& visited, 
+	unordered_map<uint16_t, uint16_t>& leafMap, FILE* fout)
+{
+	if (iNode >= 0) {
+		BSPNODE& node = nodes[iNode];
+		int count = 0;
+		count += write_portal_file_portals(node.iChildren[0], mesh, visited, leafMap, fout);
+		count += write_portal_file_portals(node.iChildren[1], mesh, visited, leafMap, fout);
+		return count;
+	}
+
+	BSPLEAF& leaf = leaves[~iNode];
+
+	if (leaf.nContents == CONTENTS_SOLID) {
+		return 0;
+	}
+
+	uint16_t leafIdx = ~iNode;
+	int nodeIdx = mesh->leafMap[leafIdx];
+
+	if (nodeIdx == NAV_INVALID_IDX) {
+		if (fout)
+			logf("Leaf %d has no mesh\n", (int)leafIdx);
+		return 0;
+	}
+
+	LeafNode& node = mesh->nodes[nodeIdx];
+	uint16_t src = leafIdx;
+	int count = 0;
+
+	for (LeafLink& link : node.links) {
+		if (link.node == NAV_INVALID_IDX)
+			continue;
+
+		uint16_t dst = mesh->nodes[link.node].leafIdx;
+
+		if (leaves[dst].nContents != leaf.nContents)
+			continue;
+		
+		uint32_t ilink = ((uint32_t)src << 16) | ((uint32_t)dst);
+		uint32_t ibackLink = ((uint32_t)dst << 16) | ((uint32_t)src);
+
+		if (visited.count(ilink))
+			continue;
+
+		visited.insert(ilink);
+		visited.insert(ibackLink);
+
+		vector<vec3>& verts = link.linkArea.verts;
+
+		if (fout) {
+			// convert from leaf lump index to portal file leaf index
+			int srcIdx = leafMap[src];
+			int dstIdx = leafMap[dst];
+
+			fprintf(fout, "%u %i %i ", (int)verts.size(), srcIdx, dstIdx);
+
+			for (const vec3& v : verts) {
+				fprintf(fout, "(%f %f %f) ", v.x, v.y, v.z);
+			}
+
+			fprintf(fout, "\n");
+		}
+
+		count++;
+	}
+
+	return count;
+}
+
+void Bsp::write_portal_file(LeafNavMesh* mesh, const char* fname) {
+	FILE* pf = fopen(fname, "w");
+
+	struct LeafPortal {
+		vector<vec3> verts;
+		int srcLeaf;
+		int dstLeaf;
+	};
+
+	int leafIndexCount = 0;
+	int headNode = models[0].iHeadnodes[0];
+	unordered_map<uint16_t, uint16_t> leafIndexMap;
+	unordered_set<uint32_t> visitedLinks;
+
+	int portalCount = write_portal_file_portals(headNode, mesh, visitedLinks, leafIndexMap, NULL);
+	
+	visitedLinks.clear();
+
+	get_portal_file_leaf_numbers(headNode, leafIndexMap, leafIndexCount);
+
+	fprintf(pf, "%d\n", leafIndexCount);
+	fprintf(pf, "%d\n", portalCount);
+	write_portal_file_leaf_count(headNode, pf);
+	write_portal_file_portals(headNode, mesh, visitedLinks, leafIndexMap, pf);
+	fclose(pf);
+
+	logf("Wrote %s\n", fname);
 }
 
 void Bsp::print_leaf(int leafidx) {
