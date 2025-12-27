@@ -1024,6 +1024,16 @@ void normalizePath(string& path) {
 #endif
 }
 
+float planeDistance(vec3 planeNormal, float planeDist, vec3 point) {
+	return dotProduct(planeNormal, point) - planeDist;
+}
+
+vec3 planeLineIntersect(vec3 planeNormal, float planeDist, vec3 a, vec3 b) {
+	float da = dotProduct(planeNormal, a) - planeDist;
+	float db = dotProduct(planeNormal, b) - planeDist;
+	float t = da / (da - db);
+	return a + (b - a) * t;
+}
 
 float rayTriangleIntersect(const vec3& rayOrigin, const vec3& rayDir, const vec3& v0, const vec3& v1, const vec3& v2) {
 	// Möller–Trumbore algorithm
@@ -1087,15 +1097,17 @@ bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax) {
 		{min.x, max.y, max.z}, {max.x, max.y, max.z},
 	};
 
-	bool allTooFar = true;
-	for (const vec3& corner : corners) {
-		vec3 delta = corner - frustum.origin;
-		if (delta.length() < zMax) {
-			allTooFar = false;
+	if (zMax > 0) {
+		bool allTooFar = true;
+		for (const vec3& corner : corners) {
+			vec3 delta = corner - frustum.origin;
+			if (delta.length() < zMax) {
+				allTooFar = false;
+			}
 		}
+		if (allTooFar)
+			return false;
 	}
-	if (allTooFar)
-		return false;
 
 	for (int i = 0; i < 4; i++) {
 		bool allOutside = true;
@@ -1106,6 +1118,34 @@ bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax) {
 			}
 		}
 		if (allOutside)
+			return false;
+	}
+
+	return true;
+}
+
+bool isPointInView(vec3 p, const Frustum& frustum, float zMax) {
+	vec3 delta = p - frustum.origin;
+
+	if (delta.length() > zMax) {
+		return false;
+	}
+
+	for (int i = 0; i < 4; i++) {
+		if (dotProduct(delta, frustum.planes[i]) < 0) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool isPolyInView(Polygon3D poly, const Frustum& frustum) {
+	for (int i = 0; i < 4; i++) {
+		float fdist = dotProduct(frustum.planes[i], frustum.origin);
+		poly = Polygon3D(poly.clip(frustum.planes[i], fdist), true);
+
+		if (!poly.isValid)
 			return false;
 	}
 

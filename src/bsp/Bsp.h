@@ -354,6 +354,8 @@ public:
 	// get reference vectors for texture rotations
 	vec3 get_face_ut_reference(int faceIdx);
 
+	vector<vec3> get_face_verts(int faceIdx);
+
 	int get_default_texture_idx();
 
 	// scales up texture sizes on models that aren't used by visible entities
@@ -432,6 +434,9 @@ public:
 
 	// create a new model using existing faces. Collision will be completely solid.
 	int create_model_from_faces(vector<int>& faceIndexes);
+
+	// get all faces marked by the given leaves
+	vector<int> get_leaf_faces(vector<int>& ileaves);
 
 	// converts world leaves to a BSP model. This does not affect collision or PVS, but world faces
 	// will be invisible. The BSP model is used for rendering instead.

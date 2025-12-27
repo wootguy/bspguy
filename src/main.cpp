@@ -12,10 +12,10 @@
 // - guide update: crash from leaves or smth (io_v1, crystal_mission_3b), new tools, rad, different subdivides
 // - hiding entity breaks point ents (crystal_mission_hl_4 squadmaker wave2_monster then check changevalues)
 // - black models for transparent textures (frightmanor)
-// - can't see model poly count in ent selection mode
 // - new tinyfd has folder picker?
 // - scale until valid scales ALL faces not just selected
 // - broken merged models if only one has HULL 0
+// - unicode font update from imgui
 
 // todo:
 // ripent saftey warning

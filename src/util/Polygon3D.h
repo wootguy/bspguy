@@ -76,6 +76,9 @@ public:
 	// returns 2 new convex polygons otherwise
 	vector<vector<vec3>> cut(Line2D cutLine);
 
+	// return a polygon clipped against the given plane
+	vector<vec3> clip(vec3 planeNormal, float fdist);
+
 	// returns merged polygon vertices if polys are coplaner and share an edge
 	// otherwise returns an empty polygon
 	Polygon3D merge(const Polygon3D& mergePoly);

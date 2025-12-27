@@ -3542,6 +3542,25 @@ vec3 Bsp::get_face_ut_reference(int faceIdx) {
 	return (a - b).normalize();
 }
 
+vector<vec3> Bsp::get_face_verts(int faceIdx) {
+	vector<vec3> faceVerts;
+
+	if (faceIdx < 0 || faceIdx >= faceCount) {
+		return faceVerts;
+	}
+
+	BSPFACE& face = faces[faceIdx];
+
+	for (int e = 0; e < face.nEdges; e++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		faceVerts.push_back(verts[vertIdx]);
+	}
+
+	return faceVerts;
+}
+
 int Bsp::get_default_texture_idx() {
 	int32_t totalTextures = ((int32_t*)textures)[0];
 	for (uint i = 0; i < totalTextures; i++) {
@@ -7780,22 +7799,28 @@ int Bsp::create_model_from_faces(vector<int>& faceIndexes) {
 	return modelIdx;
 }
 
-int Bsp::convert_leaves_to_model(vector<int>& leafIndexes) {
-	// create a new model from leaf faces
+vector<int> Bsp::get_leaf_faces(vector<int>& ileaves) {
 	unordered_set<int> markedFaces;
 	vector<int> allLeafFaces;
-	for (int i = 0; i < leafIndexes.size(); i++) {
-		vector<int> leafFaces = get_leaf_faces(leafIndexes[i]);
 
-		for (int k = 0; k < leafFaces.size(); k++) {
-			if (markedFaces.count(leafFaces[k]))
+	for (int i = 0; i < ileaves.size(); i++) {
+		BSPLEAF& leaf = leaves[ileaves[i]];
+
+		for (int i = 0; i < leaf.nMarkSurfaces; i++) {
+			int faceIdx = marksurfs[leaf.iFirstMarkSurface + i];
+			if (markedFaces.count(faceIdx))
 				continue;
 
-			allLeafFaces.push_back(leafFaces[k]);
-			markedFaces.insert(leafFaces[k]);
+			allLeafFaces.push_back(faceIdx);
+			markedFaces.insert(faceIdx);
 		}
 	}
 
+	return allLeafFaces;
+}
+
+int Bsp::convert_leaves_to_model(vector<int>& leafIndexes) {
+	vector<int> allLeafFaces = get_leaf_faces(leafIndexes);
 	int modelIdx = create_model_from_faces(allLeafFaces);
 
 	merge_leaves(leafIndexes);

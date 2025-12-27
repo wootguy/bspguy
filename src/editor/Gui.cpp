@@ -884,11 +884,15 @@ void Gui::draw3dContextMenus() {
 					command->pushUndoState();
 					app->mapRenderer->reloadLeaves();
 				}
-				tooltip(g, "Converts selected world leaves to a BSP model to reduce world leaf count. "
-					"Collision and visibility is preserved, but decals won't work. Faces will also "
-					"be visible from a wider area due to increased leaf size. Too big and it will "
-					"be visible everywhere in the map, reducing performance."
-					"\n\nBest used in unreachable areas, or nooks and crannies where players are "
+				tooltip(g, "Merges the selected leaves and converts leaf faces to a fully solid BSP model. "
+					"The new model is then attached to a func_illusionary entity which overlaps "
+					"the original faces."
+					"\n\nThis reduces world leaf count, but has these drawbacks:\n"
+					"- Decals won't work on the new model faces (the entity must be non-solid).\n"
+					"- Performance is reduced due to merged faces being visible from more areas.\n"
+					"- Performance is reduced inside the merged leaf area due to its combined PVS.\n"
+					"- Performance is reduced globally if the new model is so big that it is never culled.\n\n"
+					"Best used in unreachable areas, or nooks and crannies where players are "
 					"unlikely to shoot.");
 
 				ImGui::Separator();
@@ -1776,6 +1780,13 @@ void Gui::drawStandardMenuBar() {
 			"Orange line = Link between leaves"
 		);
 
+		if (ImGui::MenuItem("PVS Wireframe", 0, g_settings.render_flags & RENDER_PVS)) {
+			g_settings.render_flags ^= RENDER_PVS;
+			if (g_app->mapRenderer->pvsDat && (g_settings.render_flags & RENDER_PVS))
+				g_app->mapRenderer->pvsDat->leaf = -1; // force update
+		}
+		tooltip(g, "Render wireframe for polygons in the potentially visible set.\n");
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Map Boundaries", 0, g_settings.render_flags & RENDER_MAP_BOUNDARY)) {
@@ -2453,6 +2464,11 @@ void Gui::drawMenuBar() {
 	}
 
 	string fpsText = to_string((int)ImGui::GetIO().Framerate) + " FPS";
+
+	if (g_app->mapRenderer->pvsDat && g_settings.show_wpoly) {
+		fpsText = fpsText + ",  " + to_string(g_app->mapRenderer->pvsDat->wpoly) + " wpoly";
+	}
+
 	float fpsWidth = smallFont->CalcTextSizeA(g_settings.fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, fpsText.c_str()).x;
 	float rightAlignStart = ImGui::GetWindowWidth() - (fpsWidth + 20);
 
@@ -2464,6 +2480,11 @@ void Gui::drawMenuBar() {
 			vsync = !vsync;
 			glfwSwapInterval(vsync ? 1 : 0);
 		}
+		if (ImGui::MenuItem("wpoly", NULL, g_settings.show_wpoly)) {
+			g_settings.show_wpoly = !g_settings.show_wpoly;
+		}
+		tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this may reduce your FPS.");
+
 		ImGui::EndPopup();
 	}
 
@@ -5819,6 +5840,8 @@ void Gui::drawSettings() {
 			if (ImGui::Checkbox("VSync", &vsync)) {
 				glfwSwapInterval(vsync ? 1 : 0);
 			}
+			ImGui::Checkbox("wpoly", &g_settings.show_wpoly);
+			tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this may reduce your FPS.");
 
 			ImGui::NextColumn();
 

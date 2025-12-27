@@ -92,6 +92,7 @@ void AppSettings::load() {
 			else if (key == "entreport_open") { g_settings.entreport_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
+			else if (key == "show_wpoly") { g_settings.show_wpoly = atoi(val.c_str()) != 0; }
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "confirm_exit") { g_settings.confirm_exit = atoi(val.c_str()) != 0; }
@@ -202,6 +203,7 @@ void AppSettings::save() {
 	}
 
 	file << "vsync=" << g_settings.vsync << endl;
+	file << "show_wpoly=" << g_settings.show_wpoly << endl;
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "confirm_exit=" << g_settings.confirm_exit << endl;

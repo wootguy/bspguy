@@ -49,6 +49,7 @@ struct AppSettings {
 	float rotSpeed;
 	int render_flags;
 	bool vsync;
+	bool show_wpoly;
 	bool show_transform_axes;
 
 	std::vector<std::string> fgdPaths;

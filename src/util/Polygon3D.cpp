@@ -54,6 +54,10 @@ int Polygon3D::sizeBytes() {
 }
 
 void Polygon3D::init(bool skipAxes) {
+	isValid = false;
+
+	if (verts.size() < 3)
+		return;
 
 	if (!skipAxes) {
 		vector<vec3> triangularVerts = getTriangularVerts(this->verts);
@@ -72,7 +76,6 @@ void Polygon3D::init(bool skipAxes) {
 	localVerts.clear();
 	topdownVerts.clear();
 
-	isValid = false;
 	center = vec3();
 	area = 0;
 
@@ -283,6 +286,28 @@ vector<vector<vec3>> Polygon3D::cut(Line2D cutLine) {
 	}
 
 	return splitPolys;
+}
+
+vector<vec3> Polygon3D::clip(vec3 planeNormal, float fdist) {
+	vector<vec3> out;
+
+	vec3 prev = verts[verts.size()-1];
+	bool prevInside = planeDistance(planeNormal, fdist, prev) >= 0;
+
+	for (const vec3& curr : verts) {
+		bool currInside = planeDistance(planeNormal, fdist, curr) >= 0;
+
+		if (currInside != prevInside)
+			out.push_back(planeLineIntersect(planeNormal, fdist, prev, curr));
+
+		if (currInside)
+			out.push_back(curr);
+
+		prev = curr;
+		prevInside = currInside;
+	}
+
+	return out;
 }
 
 vector<vector<vec3>> Polygon3D::split(const Polygon3D& cutPoly) {

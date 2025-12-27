@@ -22,25 +22,27 @@ class Bsp;
 class Entity;
 struct LeafNode;
 struct WADTEX;
+struct Frustum;
 
 enum RenderFlags {
-	RENDER_TEXTURES = 1,
-	RENDER_LIGHTMAPS = 2,
-	RENDER_WIREFRAME = 4,
-	RENDER_ENTS = 8,
-	RENDER_SPECIAL = 16,
-	RENDER_SPECIAL_ENTS = 32,
-	RENDER_POINT_ENTS = 64,
-	RENDER_ORIGIN = 128,
-	RENDER_WORLD_CLIPNODES = 256,
-	RENDER_ENT_CLIPNODES = 512,
-	RENDER_ENT_CONNECTIONS = 1024,
-	RENDER_MAP_BOUNDARY = 2048,
-	RENDER_STUDIO_MDL = 4096,
-	RENDER_SPRITES = 8192,
-	RENDER_ENT_DIRECTIONS = 16384,
-	RENDER_RENDER_MODES = 32768,
-	RENDER_LEAF_GRAPH = 65536,
+	RENDER_TEXTURES = (1 << 0),
+	RENDER_LIGHTMAPS = (1 << 1),
+	RENDER_WIREFRAME = (1 << 2),
+	RENDER_ENTS = (1 << 3),
+	RENDER_SPECIAL = (1 << 4),
+	RENDER_SPECIAL_ENTS = (1 << 5),
+	RENDER_POINT_ENTS = (1 << 6),
+	RENDER_ORIGIN = (1 << 7),
+	RENDER_WORLD_CLIPNODES = (1 << 8),
+	RENDER_ENT_CLIPNODES = (1 << 9),
+	RENDER_ENT_CONNECTIONS = (1 << 10),
+	RENDER_MAP_BOUNDARY = (1 << 11),
+	RENDER_STUDIO_MDL = (1 << 12),
+	RENDER_SPRITES = (1 << 13),
+	RENDER_ENT_DIRECTIONS = (1 << 14),
+	RENDER_RENDER_MODES = (1 << 15),
+	RENDER_LEAF_GRAPH = (1 << 16),
+	RENDER_PVS = (1 << 17),
 };
 
 struct LightmapInfo {
@@ -116,6 +118,14 @@ struct RenderLeaves {
 	vector<int> leafWireRanges[65536]; // maps a leaf index to wireframe vertex indexes in the leafBuffer
 };
 
+struct RenderPvs {
+	VertexBuffer* wireframePvsBuffer;
+	vector<int> pvsLeaves;
+	vector<int> pvsFaces;
+	int leaf;
+	int wpoly; // rendered bsp polys
+};
+
 struct OrderedEnt {
 	Entity* ent;
 	int modelIdx;
@@ -175,6 +185,7 @@ public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
 	LeafNavMesh* leafNavMesh = NULL; // for leaf selection mode
+	RenderPvs* pvsDat = NULL;
 	vec3 mapOffset, renderOffset;
 	int showLightFlag = -1;
 	vector<Wad*> wads;
@@ -192,6 +203,9 @@ public:
 	void drawModelWireframe(int modelIdx, bool highlight);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities();
+	void drawPvs();
+	void updatePvs(vec3 viewOrigin);
+	void addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frustum* frustum, bool makeBuffer, vector<vec3>& allVerts);
 
 	bool pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx, int& leafIdx, float& bestDist);
 	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx, int& faceIdx, float& bestDist);
@@ -248,6 +262,7 @@ private:
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
+	vector<Polygon3D> facePolys; // for wpoly calculations
 
 	// textures loaded in a separate thread
 	Texture** glTexturesSwap;

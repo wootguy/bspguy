@@ -540,6 +540,13 @@ void Renderer::renderLoop() {
 			mapRenderer->renderLeaves();
 		}
 
+		if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
+			mapRenderer->updatePvs(cameraOrigin);
+			
+			if ((g_settings.render_flags & RENDER_PVS))
+				mapRenderer->drawPvs();
+		}
+
 		glCheckError("Rendering leaf selection");
 
 		if (!mapRenderer->isFinishedLoading()) {
@@ -3189,8 +3196,7 @@ bool Renderer::drawModelsAndSprites() {
 	};
 
 	
-	float aspect = (float)windowWidth / (float)windowHeight;
-	Frustum frustum = getViewFrustum(cameraOrigin - mapRenderer->mapOffset, cameraAngles, aspect, zNear, zFar, fov);
+	Frustum frustum = getCameraFrustum();
 
 	bool modelsLoading = false;
 
@@ -5246,15 +5252,7 @@ vec3 Renderer::worldToScreen(const vec3& P) {
 	float z = dotProduct(rel, forward);
 
 	float aspect = (float)windowWidth / (float)windowHeight;
-
-	// convert to actual horizontal FOV for this aspect
-	float baseAspect = 4.0f / 3.0f;
-	float fovXRad43 = fov * (PI / 180.0f);
-	float fovXRad = 2.0f * atan(tan(fovXRad43 * 0.5f) * (aspect / baseAspect));
-	float fovYRad = 2.0f * atan(tan(fovXRad * 0.5f) / aspect);
-	float f = 1.0f / tan(fovYRad * 0.5f);
-
-	f = fov * (PI / 180.0f);
+	float f = fov * (PI / 180.0f);
 
 	float ndcX = (x * f / aspect) / z;
 	float ndcY = (y * f) / z;
@@ -5263,4 +5261,9 @@ vec3 Renderer::worldToScreen(const vec3& P) {
 	float screenY = (1.0f - ndcY) * 0.5f * windowHeight;
 
 	return { screenX, screenY, z };
+}
+
+Frustum Renderer::getCameraFrustum() {
+	float aspect = (float)windowWidth / (float)windowHeight;
+	return getViewFrustum(cameraOrigin - mapRenderer->mapOffset, cameraAngles, aspect, zNear, zFar, fov);
 }

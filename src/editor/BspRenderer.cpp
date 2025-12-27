@@ -510,6 +510,11 @@ void BspRenderer::updateLightmapInfos() {
 void BspRenderer::preRenderFaces() {
 	deleteRenderFaces();
 
+	for (int i = 0; i < map->faceCount; i++) {
+		Polygon3D poly = Polygon3D(map->get_face_verts(i), true);
+		facePolys.push_back(poly);
+	}
+
 	renderModels = new RenderModel[map->modelCount];
 	memset(renderModels, 0, sizeof(RenderModel) * map->modelCount);
 	numRenderModels = map->modelCount;
@@ -619,6 +624,8 @@ void BspRenderer::deleteRenderFaces() {
 		}
 		delete[] renderModels;
 	}
+
+	facePolys.clear();
 
 	renderModels = NULL;
 }
@@ -1659,6 +1666,10 @@ BspRenderer::~BspRenderer() {
 	if (pointEnts != NULL) {
 		delete pointEnts;
 	}
+	if (pvsDat) {
+		delete pvsDat->wireframePvsBuffer;
+		delete pvsDat;
+	}
 
 	deleteTextures();
 	deleteLightmapTextures();
@@ -2428,6 +2439,169 @@ void BspRenderer::drawPointEntities() {
 
 	if (pointEntIdx - nextRangeDrawIdx > 0) {
 		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
+	}
+}
+
+void BspRenderer::drawPvs() {
+	if (!pvsDat || !pvsDat->wireframePvsBuffer)
+		return;
+
+	glDisable(GL_DEPTH_TEST);
+
+	g_app->vec3Shader->bind();
+	g_app->vec3Shader->modelMat->loadIdentity();
+	g_app->vec3Shader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	g_app->vec3Shader->updateMatrixes();
+	g_app->vec3Shader->setUniform("color", vec4(1, 1, 1, 1));
+
+	pvsDat->wireframePvsBuffer->draw(GL_LINES);
+
+	glEnable(GL_DEPTH_TEST);
+}
+
+void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frustum* frustum, bool makeBuffer, vector<vec3>& allVerts) {
+	Polygon3D& poly = facePolys[faceIdx];
+
+	BSPFACE& face = map->faces[faceIdx];
+	if (map->texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)
+		return; // special faces not rendered
+
+	if (poly.distance(viewOrigin - faceOffset) > 0) {
+		return; // back face culled
+	}
+
+	if (!isBoxInView(faceOffset + poly.worldMins, faceOffset + poly.worldMaxs, *frustum, 0))
+		return; // frustum culled
+
+	pvsDat->wpoly++;
+
+	if (!makeBuffer)
+		return;
+
+	vector<vec3>& verts = poly.verts;
+
+	for (int k = 0; k < verts.size(); k++) {
+		allVerts.push_back((faceOffset + verts[k]).flip());
+		allVerts.push_back((faceOffset + verts[(k + 1) % verts.size()]).flip());
+	}
+}
+
+void BspRenderer::updatePvs(vec3 viewOrigin) {
+	int ileaf = map->get_leaf(viewOrigin, 0);
+
+	if (pvsDat) {
+		delete pvsDat->wireframePvsBuffer;
+		delete pvsDat;
+		pvsDat = NULL;
+	}
+
+	bool makeBuffer = g_settings.render_flags & RENDER_PVS;
+
+	pvsDat = new RenderPvs();
+	pvsDat->leaf = ileaf;
+	pvsDat->wireframePvsBuffer = NULL;
+
+	if (ileaf == 0 || map->ents.empty()) {
+		return;
+	}
+
+	pvsDat->pvsLeaves = map->get_pvs(pvsDat->leaf);
+	pvsDat->pvsFaces = map->get_leaf_faces(pvsDat->pvsLeaves);
+
+	vector<vec3> allVerts;
+
+	Frustum frustum = g_app->getCameraFrustum();
+
+	pvsDat->wpoly = 0;
+
+	if (!map->ents[0]->hidden) {
+		for (int faceIdx : pvsDat->pvsFaces) {
+			addPvsPoly(faceIdx, vec3(), viewOrigin, &frustum, makeBuffer, allVerts);
+		}
+	}
+
+	if (g_settings.render_flags & RENDER_ENTS) {
+		for (Entity* ent : map->ents) {
+			if (ent->hidden)
+				continue;
+
+			int modelIdx = ent->getBspModelIdx();
+			if (modelIdx < 0 || modelIdx >= map->modelCount)
+				continue;
+
+			vec3 ori = ent->getOrigin();
+			BSPMODEL& model = map->models[modelIdx];
+			vec3 entMin = model.nMins + ori;
+			vec3 entMax = model.nMaxs + ori;
+
+			if (!isBoxInView(entMin, entMax, frustum, 0))
+				continue; // frustum culled model
+
+			// TODO: configure this in the FGD or something
+			static unordered_set<string> visibleClassnames = {
+				"func_breakable",
+				"func_button",
+				"func_conveyor",
+				"func_detail",
+				"func_door",
+				"func_door_rotating",
+				"func_guntarget",
+				"func_healthcharger",
+				"func_illusionary",
+				"func_pendulum",
+				"func_plat",
+				"func_platrot",
+				"func_pushable",
+				"func_recharge",
+				"func_rot_button",
+				"func_rotating",
+				"func_tank",
+				"func_tanklaser",
+				"func_tankmortar",
+				"func_tankrocket",
+				"func_trackautochange",
+				"func_trackchange",
+				"func_tracktrain",
+				"func_train",
+				"func_wall",
+				"func_wall_toggle",
+				//"func_water",
+				"momentary_door",
+				"momentary_rot_button",
+				"button_target",
+			};
+
+			if (!visibleClassnames.count(ent->getClassname()))
+				continue;
+
+			bool inPvs = false;
+			for (int leafIdx : pvsDat->pvsLeaves) {
+				BSPLEAF& leaf = map->leaves[leafIdx];
+				vec3 leafMins(leaf.nMins[0], leaf.nMins[1], leaf.nMins[2]);
+				vec3 leafMaxs(leaf.nMaxs[0], leaf.nMaxs[1], leaf.nMaxs[2]);
+			
+				if (boxesIntersect(leafMins, leafMaxs, entMin, entMax)) {
+					inPvs = true;
+					break;
+				}
+			}
+
+			if (!inPvs)
+				continue;
+
+			for (int i = model.iFirstFace; i < model.iFirstFace + model.nFaces; i++) {
+				addPvsPoly(i, ori, viewOrigin, &frustum, makeBuffer, allVerts);
+			}
+		}
+	}
+
+	if (makeBuffer && allVerts.size()) {
+		vec3* vertDat = new vec3[allVerts.size()];
+		memcpy(vertDat, &allVerts[0], allVerts.size() * sizeof(vec3));
+
+		pvsDat->wireframePvsBuffer = new VertexBuffer(g_app->vec3Shader, POS_3F, vertDat, allVerts.size());
+		pvsDat->wireframePvsBuffer->ownData = true;
+		pvsDat->wireframePvsBuffer->upload();
 	}
 }
 

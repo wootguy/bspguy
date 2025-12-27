@@ -10,6 +10,7 @@
 #include "mat4x4.h"
 #include "colors.h"
 #include <stdint.h>
+#include "Polygon3D.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2
@@ -140,6 +141,12 @@ string findAsset(string asset);
 // converts windows/linux slashes
 void normalizePath(string& path);
 
+// distance between a point and a plane
+float planeDistance(vec3 planeNormal, float planeDist, vec3 point);
+
+// intersection point of a line and a plane (unbound)
+vec3 planeLineIntersect(vec3 planeNormal, float planeDist, vec3 a, vec3 b);
+
 // returns distance from starting point or -1 on no intersect
 float rayTriangleIntersect(const vec3& rayOrigin, const vec3& rayDir, const vec3& v0, const vec3& v1, const vec3& v2);
 
@@ -147,6 +154,10 @@ Frustum getViewFrustum(vec3 camOrigin, vec3 camAngles, float aspect, float zNear
 
 // true if box is in the view frustum. vp is view-projection matrix
 bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax);
+
+bool isPointInView(vec3 p, const Frustum& frustum, float zMax);
+
+bool isPolyInView(Polygon3D poly, const Frustum& frustum);
 
 // modulos a float value between start and end
 float normalizeRangef(const float value, const float start, const float end);

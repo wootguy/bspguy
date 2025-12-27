@@ -383,4 +383,5 @@ private:
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
 	void setInitialLumpState();
 	vec3 worldToScreen(const vec3& P);
+	Frustum getCameraFrustum();
 };
