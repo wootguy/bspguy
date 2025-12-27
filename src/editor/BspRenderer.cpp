@@ -314,10 +314,17 @@ void BspRenderer::reloadClipnodes() {
 }
 
 void BspRenderer::reloadLeaves(bool reloadNow) {
-	leavesLoaded = false;
-	leavesThreadFinished = false;
+	if (!leavesThreadFinished) {
+		if (reloadNow) {
+			logf("ERROR: can't reload leaves yet\n");
+		}
+		return;
+	}
 
 	deleteRenderLeaves();
+
+	leavesLoaded = false;
+	leavesThreadFinished = false;
 
 	leavesFuture = async(launch::async, &BspRenderer::loadLeaves, this);
 
@@ -566,6 +573,11 @@ void BspRenderer::deleteRenderClipnodes() {
 }
 
 void BspRenderer::deleteRenderLeaves() {
+	if (!leavesThreadFinished) {
+		logf("ERROR: Attempted leaves data delete during construction\n");
+		return;
+	}
+
 	if (renderLeafDat) {
 		if (renderLeafDat->leafBuffer) {
 			delete renderLeafDat->leafBuffer;

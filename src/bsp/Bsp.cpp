@@ -6167,7 +6167,9 @@ void Bsp::merge_leaves_broken(int ileafa, int ileafb) {
 		nodes[parentb].nMaxs[i] = 16384;
 	}
 
-	replace_leaf(models[0].iHeadnodes[0], ileafb, ileafa);
+	unordered_set<int> replace;
+	replace.insert(ileafb);
+	replace_leaves(models[0].iHeadnodes[0], replace, ileafa);
 
 	unordered_set<int> existingFaces;
 	vector<int> allFaces;
@@ -6329,24 +6331,14 @@ void Bsp::merge_leaves_broken(int ileafa, int ileafb) {
 	delete[] compressedVis;
 }
 
-void Bsp::merge_leaves(int ileafa, int ileafb) {
-	BSPLEAF& leafa = leaves[ileafa];
-	BSPLEAF& leafb = leaves[ileafb];
+void Bsp::merge_leaves(vector<int>& ileaves) {
+	if (ileaves.empty())
+		return;
 
-	for (int i = 0; i < 3; i++) {
-		leafa.nMins[i] = min(leafa.nMins[i], leafb.nMins[i]);
-		leafa.nMaxs[i] = max(leafa.nMaxs[i], leafb.nMaxs[i]);
-	}
+	uint16_t rootIdx = ileaves[0];
+	BSPLEAF& root = leaves[rootIdx];
+	unordered_set<int> ileafSet;
 
-	replace_leaf(models[0].iHeadnodes[0], ileafb, ileafa);
-
-	// remove faces from visibility
-	leafb.nMarkSurfaces = 0;
-	leafb.iFirstMarkSurface = 0;
-	leafa.nMarkSurfaces = 0;
-	leafa.iFirstMarkSurface = 0;
-
-	// merge PVS
 	int visLeafCount = leafCount - 1;
 	uint visRowSize = ((visLeafCount + 63) & ~63) >> 3;
 
@@ -6355,29 +6347,53 @@ void Bsp::merge_leaves(int ileafa, int ileafb) {
 	memset(decompressedVis, 0, decompressedVisSize);
 	decompress_vis_lump(leaves, lumps[LUMP_VISIBILITY], visDataLength, decompressedVis, visLeafCount);
 
-	byte* visRowa = decompressedVis + (ileafa - 1) * visRowSize;
-	byte* visRowb = decompressedVis + (ileafb - 1) * visRowSize;
+	byte* visRowRoot = decompressedVis + (rootIdx - 1) * visRowSize;
 
-	// all leaves visible from B should now also be visible from A
-	for (int k = 1; k < visRowSize; k++) {
-		visRowa[k] |= visRowb[k];
-	}
+	int rootLeafIdx = rootIdx - 1;
+	int rootByteOffset = rootLeafIdx / 8;
+	int rootBitOffset = 1 << (rootLeafIdx % 8);
 
-	// all leaves that could see B should now also see A
-	int oldLeafIdx = ileafb - 1;
-	int oldByteOffset = oldLeafIdx / 8;
-	int oldBitOffset = 1 << (oldLeafIdx % 8);
-	int newLeafIdx = ileafa - 1;
-	int newByteOffset = newLeafIdx / 8;
-	int newBitOffset = 1 << (newLeafIdx % 8);
+	for (int idx : ileaves) {
+		if (idx == rootIdx)
+			continue;
 
-	for (int i = 1; i < visLeafCount; i++) {
-		byte* visRow = decompressedVis + (i - 1) * visRowSize;
+		BSPLEAF& leaf = leaves[idx];
 
-		if (visRow[oldByteOffset] & oldBitOffset) {
-			visRow[newByteOffset] |= newBitOffset;
+		ileafSet.insert(idx);
+
+		// expand bounding box
+		for (int i = 0; i < 3; i++) {
+			root.nMins[i] = min(root.nMins[i], leaf.nMins[i]);
+			root.nMaxs[i] = max(root.nMaxs[i], leaf.nMaxs[i]);
+		}
+
+		// remove faces from visibility
+		leaf.nMarkSurfaces = 0;
+		leaf.iFirstMarkSurface = 0;
+
+		// merge PVS
+		byte* visRow = decompressedVis + (idx - 1) * visRowSize;
+
+		// all leaves visible from this leaf should now also be visible in the root leaf
+		for (int k = 1; k < visRowSize; k++) {
+			visRowRoot[k] |= visRow[k];
+		}
+
+		// all leaves that could see this leaf should now also see the root
+		int mergedLeafIdx = idx - 1;
+		int mergedByteOffset = mergedLeafIdx / 8;
+		int mergedBitOffset = 1 << (mergedLeafIdx % 8);
+
+		for (int i = 1; i < visLeafCount; i++) {
+			byte* visRow = decompressedVis + (i - 1) * visRowSize;
+
+			if (visRow[mergedByteOffset] & mergedBitOffset) {
+				visRow[rootByteOffset] |= rootBitOffset;
+			}
 		}
 	}
+
+	replace_leaves(models[0].iHeadnodes[0], ileafSet, rootIdx);
 
 	byte* compressedVis = new byte[decompressedVisSize]; // assuming compressed will reduce size
 	memset(compressedVis, 0, decompressedVisSize);
@@ -6405,14 +6421,14 @@ vector<int> Bsp::get_leaf_faces(int ileaf) {
 	return faces;
 }
 
-void Bsp::replace_leaf(int iNode, int srcLeaf, int dstLeaf) {
+void Bsp::replace_leaves(int iNode, unordered_set<int>& replace, int dstLeaf) {
 	BSPNODE& node = nodes[iNode];
 
 	for (int i = 0; i < 2; i++) {
 		if (node.iChildren[i] >= 0) {
-			replace_leaf(node.iChildren[i], srcLeaf, dstLeaf);
+			replace_leaves(node.iChildren[i], replace, dstLeaf);
 		}
-		else if (~node.iChildren[i] == srcLeaf) {
+		else if (replace.count(~node.iChildren[i])) {
 			node.iChildren[i] = ~dstLeaf;
 		}
 	}
@@ -7782,11 +7798,7 @@ int Bsp::convert_leaves_to_model(vector<int>& leafIndexes) {
 
 	int modelIdx = create_model_from_faces(allLeafFaces);
 
-	int rootLeaf = leafIndexes[0];
-
-	for (int i = 1; i < leafIndexes.size(); i++) {
-		merge_leaves(rootLeaf, leafIndexes[i]);
-	}
+	merge_leaves(leafIndexes);
 
 	return modelIdx;
 }

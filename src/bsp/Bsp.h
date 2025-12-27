@@ -150,13 +150,13 @@ public:
 	void merge_leaves_broken(int leafa, int leafb);
 
 	// Merges leaves into one, preserving the PVS but losing all contained face
-	void merge_leaves(int leafa, int leafb);
+	void merge_leaves(vector<int>& ileaves);
 
 	// returns all faces marked by the given leaf
 	vector<int> get_leaf_faces(int ileaf);
 
-	// replaces all instances of srcLeaf with dstLeaf in the bsp tree
-	void replace_leaf(int iNode, int srcLeaf, int dstLeaf);
+	// replaces all instances of replace leaves with the replaceWith leaf in the bsp tree
+	void replace_leaves(int iNode, unordered_set<int>& replace, int replaceWith);
 
 	bool is_face_visible(int faceIdx, vec3 pos, vec3 angles);
 

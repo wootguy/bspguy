@@ -1462,7 +1462,7 @@ void Gui::drawStandardMenuBar() {
 			}
 			tooltip(g, "Saves embedded textures to a WAD file. This does not unembed any textures.");
 
-			if (ImGui::MenuItem("Leaf Portals (.prt)", "")) {
+			if (ImGui::MenuItem("Leaf Portals (.prt)", "", false, !app->isLoading)) {
 				char* fname = tinyfd_saveFileDialog("Export Leaf Portals", defaultPath.c_str(),
 					1, prtFilterPatterns, "Leaf Portals (*.prt)");
 
