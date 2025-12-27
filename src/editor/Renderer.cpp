@@ -1306,6 +1306,9 @@ void Renderer::clearMapData() {
 	clearUndoCommands();
 	clearRedoCommands();
 	mapArrangeMode = false;
+	pvsCopyLeaves.clear();
+	hiddenFaces.clear();
+	hiddenLeaves.clear();
 
 	/*
 	for (auto item : studioModels) {
@@ -2402,6 +2405,9 @@ void Renderer::shortcutControls() {
 	else if (pickMode == PICK_LEAF) {
 		if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
 			hideSelectedLeaves();
+		}
+		if (pressed[GLFW_KEY_P] && !oldPressed[GLFW_KEY_P]) {
+			gui->selectLeafPvs();
 		}
 	}
 }

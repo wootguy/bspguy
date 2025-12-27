@@ -136,6 +136,9 @@ public:
 	// return PVS of the given leaf (leaf indexes which are potentially visible)
 	vector<int> get_pvs(int ileaf);
 
+	// applyMode = -1: remove leaves, 0: replace leaves, 1: add leaves
+	void apply_pvs(vector<int>& targetLeaves, vector<int>& pvsLeaves, int applyMode);
+
 	// select all leaves connected to the given leaves
 	// ignoreLeaves will not be connected thru
 	vector<int> get_connected_leaves(LeafNavMesh* mesh, const vector<int>& ileaves, const unordered_set<int>& ignoreLeaves);

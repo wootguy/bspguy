@@ -205,4 +205,5 @@ private:
 	void createSeriesWad();
 	void addText(Text2D text);
 	void switchToLeafSelectMode(bool selectFaceLeaves, bool strictFaceLeafSelection);
+	void selectLeafPvs();
 };

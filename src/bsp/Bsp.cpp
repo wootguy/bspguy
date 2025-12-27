@@ -6005,6 +6005,68 @@ vector<int> Bsp::get_pvs(int ileaf) {
 	return pvsLeaves;
 }
 
+void Bsp::apply_pvs(vector<int>& targetLeaves, vector<int>& pvsLeaves, int applyMode) {
+	// merge PVS
+	int visLeafCount = leafCount - 1;
+	uint visRowSize = ((visLeafCount + 63) & ~63) >> 3;
+
+	int decompressedVisSize = visLeafCount * visRowSize;
+	byte* decompressedVis = new byte[decompressedVisSize];
+	memset(decompressedVis, 0, decompressedVisSize);
+	decompress_vis_lump(leaves, lumps[LUMP_VISIBILITY], visDataLength, decompressedVis, visLeafCount);
+
+	// create new PVS row
+	byte* newPvs = new byte[visRowSize];
+	memset(newPvs, 0, visRowSize);
+
+	for (int leafIdx : pvsLeaves) {
+		if (leafIdx-1 >= leafCount) {
+			logf("Invalid leaf index %d for pvs application\n", leafIdx);
+			continue;
+		}
+		int pvsLeafIdx = leafIdx - 1;
+		int leafByte = pvsLeafIdx / 8;
+		int leafBit = 1 << (pvsLeafIdx % 8);
+		newPvs[leafByte] |= leafBit;
+	}
+
+	// apply new PVS row to all target leaves
+	for (int leafIdx : targetLeaves) {
+		if (leafIdx-1 >= visLeafCount) {
+			logf("Invalid leaf index %d in copy memory\n", leafIdx);
+			continue;
+		}
+		byte* visRow = decompressedVis + (leafIdx - 1) * visRowSize;
+
+		if (applyMode == 0) { // replace
+			memcpy(visRow, newPvs, visRowSize);
+		}
+		else if (applyMode == 1) { // add
+			for (int k = 1; k < visRowSize; k++) {
+				visRow[k] |= newPvs[k];
+			}
+		}
+		else if (applyMode == -1) { // subtract
+			for (int k = 1; k < visRowSize; k++) {
+				visRow[k] &= ~newPvs[k];
+			}
+		}
+	}
+
+	byte* compressedVis = new byte[decompressedVisSize]; // assuming compressed will reduce size
+	memset(compressedVis, 0, decompressedVisSize);
+	int newVisLen = CompressAll(leaves, decompressedVis, compressedVis, visLeafCount, decompressedVisSize);
+
+	byte* compressedVisResized = new byte[newVisLen];
+	memcpy(compressedVisResized, compressedVis, newVisLen);
+
+	replace_lump(LUMP_VISIBILITY, compressedVisResized, newVisLen);
+
+	delete[] decompressedVis;
+	delete[] compressedVis;
+	delete[] newPvs;
+}
+
 vector<int> Bsp::get_connected_leaves(LeafNavMesh* mesh, const vector<int>& ileaves, const unordered_set<int>& ignoreLeaves) {
 	unordered_set<int> visited;
 	queue<int> searchNodes;

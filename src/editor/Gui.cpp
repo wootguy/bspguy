@@ -782,6 +782,38 @@ void Gui::draw3dContextMenus() {
 				tooltip(g, "Merge leaves that are unreachable by the player and contain no faces.");
 				*/
 
+				if (ImGui::MenuItem("Select all", 0, false, !app->isLoading)) {
+					for (int i = 1; i < map->models[0].nVisLeafs; i++) {
+						app->pickInfo.selectLeaf(i);
+					}
+
+					logf("Selected %d leaves\n", (int)app->pickInfo.leaves.size());
+
+					app->pickInfo.selectLeafFaces();
+					app->mapRenderer->highlightPickedFaces(true);
+					app->mapRenderer->highlightPickedLeaves(true);
+					app->updateTextureAxes();
+				}
+				tooltip(g, "Select all world leaves in the map (excluding the shared solid leaf 0).");
+
+				if (ImGui::MenuItem("Select visible", 0, false, !app->isLoading)) {
+					for (int i = 1; i < map->models[0].nVisLeafs; i++) {
+						if (app->hiddenLeaves.count(i))
+							continue;
+						app->pickInfo.selectLeaf(i);
+					}
+
+					logf("Selected %d leaves\n", (int)app->pickInfo.leaves.size());
+
+					app->pickInfo.selectLeafFaces();
+					app->mapRenderer->highlightPickedFaces(true);
+					app->mapRenderer->highlightPickedLeaves(true);
+					app->updateTextureAxes();
+				}
+				tooltip(g, "Select all world leaves that haven't been marked as hidden.");
+
+				ImGui::Separator();
+
 				if (ImGui::MenuItem("Unhide All", 0, false, app->hiddenLeaves.size())) {
 					app->unhideLeaves();
 				}
@@ -803,22 +835,36 @@ void Gui::draw3dContextMenus() {
 				}
 				tooltip(g, "Recursively select all leaves that are touching the selected leaf(s). Hidden leaves are not connected through.");
 
-				if (ImGui::MenuItem("Select PVS", "", false, app->pickInfo.leaves.size() >= 1)) {
-					vector<int> pickLeaves = app->pickInfo.leaves;
-
-					for (int i = 0; i < pickLeaves.size(); i++) {
-						vector<int> pvs = map->get_pvs(pickLeaves[i]);
-						for (int k = 0; k < pvs.size(); k++) {
-							app->pickInfo.selectLeaf(pvs[k]);
-						}
-					}
-
-					app->pickInfo.selectLeafFaces();
-					app->mapRenderer->highlightPickedFaces(true);
-					app->mapRenderer->highlightPickedLeaves(true);
-					app->updateTextureAxes();
+				if (ImGui::MenuItem("Select PVS", "P", false, app->pickInfo.leaves.size() >= 1)) {
+					selectLeafPvs();
 				}
 				tooltip(g, "Select all leaves in the potentially visible set (PVS) of the selected leaf(s).");
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Copy as PVS", "", false, app->pickInfo.leaves.size() >= 1)) {
+					app->pvsCopyLeaves = app->pickInfo.leaves;
+				}
+				tooltip(g, "Copy the selected leaves as a potentially visible set (PVS).");
+
+				if (ImGui::BeginMenu("Apply PVS", app->pickInfo.leaves.size() >= 1 && app->pvsCopyLeaves.size())) {
+					if (ImGui::MenuItem("Add", "", false)) {
+						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, 1);
+					}
+					tooltip(g, "Add copied leaves to the target leaf PVS.");
+
+					if (ImGui::MenuItem("Replace", "", false)) {
+						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, 0);
+					}
+					tooltip(g, "Replace target leaf PVS with the copied leaves.");
+					
+					if (ImGui::MenuItem("Subtract", "", false)) {
+						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, -1);
+					}
+					tooltip(g, "Remove copied leaves from the target leaf PVS.");
+
+					ImGui::EndMenu();
+				}
 
 				ImGui::Separator();
 
@@ -8573,4 +8619,26 @@ void Gui::switchToLeafSelectMode(bool selectFaceLeaves, bool strictFaceLeafSelec
 	app->pickMode = PICK_LEAF;
 	showTextureWidget = false;
 	app->mapRenderer->delayLoadLeaves();
+}
+
+void Gui::selectLeafPvs() {
+	if (app->pickInfo.leaves.empty())
+		return;
+
+	vector<int> pickLeaves = app->pickInfo.leaves;
+	app->mapRenderer->highlightPickedFaces(false);
+	app->mapRenderer->highlightPickedLeaves(false);
+	app->pickInfo.deselect();
+
+	for (int i = 0; i < pickLeaves.size(); i++) {
+		vector<int> pvs = g_app->mapRenderer->map->get_pvs(pickLeaves[i]);
+		for (int k = 0; k < pvs.size(); k++) {
+			app->pickInfo.selectLeaf(pvs[k]);
+		}
+	}
+
+	app->pickInfo.selectLeafFaces();
+	app->mapRenderer->highlightPickedFaces(true);
+	app->mapRenderer->highlightPickedLeaves(true);
+	app->updateTextureAxes();
 }

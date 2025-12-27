@@ -273,6 +273,7 @@ private:
 	bool anyHiddenEnts = false;
 	unordered_set<int> hiddenLeaves;
 	unordered_set<int> hiddenFaces;
+	vector<int> pvsCopyLeaves; // temporary storage for pvs operations
 
 	bool createWindow();
 	void compileShaders();
