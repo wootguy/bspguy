@@ -233,11 +233,16 @@ void Texture::upload(int format, bool lightmap)
 			COLOR4* texdata = (COLOR4*)data;
 
 			for (MipTexture& mip : mipmaps) {
-				glTexImage2D(GL_TEXTURE_2D, mip.level , format, mip.width, mip.height, 0, format, GL_UNSIGNED_BYTE, mip.data);
+				glTexImage2D(GL_TEXTURE_2D, mip.level, format, mip.width, mip.height, 0, format, GL_UNSIGNED_BYTE, mip.data);
 			}
 
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.5f);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels);
+			if (mipmaps.size()) {
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.5f);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels);
+			}
+			else {
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+			}
 		}
 		else {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);

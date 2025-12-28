@@ -8,8 +8,6 @@
 // fix v6:
 // - rad textures darker than they should be due to lightmaps
 // - guide update: world leaf merging, new tools, rad, different subdivides
-// - black models for transparent textures (frightmanor)
-// - model renderer update
 // - new tinyfd has folder picker?
 // - unicode font update from imgui
 

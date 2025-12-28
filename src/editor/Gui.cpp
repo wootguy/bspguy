@@ -2453,17 +2453,38 @@ void Gui::drawMenuBar() {
 		drawStandardMenuBar();
 	}
 
+	
 	string fpsText = to_string((int)ImGui::GetIO().Framerate) + " FPS";
+	string statsText = fpsText;
+	string wpolyText;
+	ImVec4 wpolyColor = ImVec4(1,1,1,1);
 
 	if (g_app->mapRenderer->pvsDat && g_settings.show_wpoly) {
-		fpsText = fpsText + ",  " + to_string(g_app->mapRenderer->pvsDat->wpoly) + " wpoly";
+		int wpoly = g_app->mapRenderer->pvsDat->wpoly;
+		wpolyText = to_string(wpoly);
+		fpsText = fpsText + ",  ";
+		statsText = fpsText + wpolyText + " wpoly";
+
+		if (wpoly >= 2000) {
+			wpolyColor = ImVec4(1, 0, 0, 1);
+		}
+		else if (wpoly >= 1000) {
+			wpolyColor = ImVec4(1, 0.6f, 0, 1);
+		}
 	}
 
-	float fpsWidth = smallFont->CalcTextSizeA(g_settings.fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, fpsText.c_str()).x;
+	float fpsWidth = smallFont->CalcTextSizeA(g_settings.fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, statsText.c_str()).x;
 	float rightAlignStart = ImGui::GetWindowWidth() - (fpsWidth + 20);
 
 	ImGui::SameLine(rightAlignStart);
 	ImGui::Text(fpsText.c_str());
+
+	if (g_settings.show_wpoly) {
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::TextColored(wpolyColor, wpolyText.c_str());
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::Text(" wpoly");
+	}
 
 	if (ImGui::BeginPopupContextWindow()) {
 		if (ImGui::MenuItem("VSync", NULL, vsync)) {
@@ -2473,7 +2494,7 @@ void Gui::drawMenuBar() {
 		if (ImGui::MenuItem("wpoly", NULL, g_settings.show_wpoly)) {
 			g_settings.show_wpoly = !g_settings.show_wpoly;
 		}
-		tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this may reduce your FPS.");
+		tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this reduces FPS when wpoly counts are high.");
 
 		ImGui::EndPopup();
 	}
@@ -5843,7 +5864,7 @@ void Gui::drawSettings() {
 				glfwSwapInterval(vsync ? 1 : 0);
 			}
 			ImGui::Checkbox("wpoly", &g_settings.show_wpoly);
-			tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this may reduce your FPS.");
+			tooltip(g, "Display the number of polygons that would be rendered in-game. Enabling this reduces FPS when wpoly counts are high.");
 
 			ImGui::NextColumn();
 
