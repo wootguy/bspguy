@@ -34,7 +34,6 @@ void AppSettings::loadDefault()
 	autoload_layout_width = 0;
 	autoload_layout_height = 0;
 	confirm_exit = true;
-	unicode_font = false;
 	first_load = true;
 	mapsize_min = -32768;
 	mapsize_max = 32768;
@@ -97,7 +96,6 @@ void AppSettings::load() {
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "confirm_exit") { g_settings.confirm_exit = atoi(val.c_str()) != 0; }
-			else if (key == "unicode_font") { g_settings.unicode_font = atoi(val.c_str()) != 0; }
 			else if (key == "first_load") { g_settings.first_load = atoi(val.c_str()) != 0; }
 			else if (key == "mapsize_auto") { g_settings.mapsize_auto = atoi(val.c_str()) != 0; }
 			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
@@ -208,7 +206,6 @@ void AppSettings::save() {
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "confirm_exit=" << g_settings.confirm_exit << endl;
-	file << "unicode_font=" << g_settings.unicode_font << endl;
 	file << "first_load=" << g_settings.first_load << endl;
 	file << "texture_filtering=" << g_settings.texture_filtering << endl;
 	file << "fov=" << g_settings.fov << endl;

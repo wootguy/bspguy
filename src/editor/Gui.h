@@ -117,11 +117,8 @@ private:
 	bool refreshTexlightList = false;
 	unordered_map<string, string> texlights;
 
-	ImFont* smallFont;
-	ImFont* largeFont;
+	ImFont* defaultFont;
 	ImFont* consoleFont;
-	ImFont* consoleFontLarge;
-	bool shouldReloadFonts = false;
 	bool shouldReloadTextureInfo = false;
 
 	Texture* objectIconTexture;
@@ -200,6 +197,7 @@ private:
 	void clearLog();
 	void addLog(const char* s);
 	void loadFonts();
+	void updateFontScale();
 	void checkFaceErrors();
 	string getUserLayoutPath(); // path to user's saved widget layout
 	void createSeriesWad();

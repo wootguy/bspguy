@@ -9,9 +9,10 @@
 // - rad textures darker than they should be due to lightmaps
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - new tinyfd has folder picker?
-// - unicode font update from imgui
 
 // todo:
+// text wrapping or multiline for keyvalues
+// box selection
 // ripent saftey warning
 // hold click to select behind
 // skybox rendering

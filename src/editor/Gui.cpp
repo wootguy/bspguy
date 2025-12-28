@@ -23,16 +23,11 @@
 #include "bmp.h"
 
 // embedded binary data
-#include "fonts/notosans.h"
 #include "fonts/notosans_mono.h"
 #include "fonts/notosans_unicode.h"
 #include "icons/object.h"
 #include "icons/face.h"
 #include "icons/leaf.h"
-
-// TODO: hack to keep size consistent with bspguy v4. Is there something wrong with the font?
-// "22" should have the same height regardless of font. Maybe FontForge was misused.
-float g_smallFontSizeMult = 1.1f;
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
@@ -228,19 +223,6 @@ void Gui::draw() {
 	ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
 	glDisable(GL_SCISSOR_TEST);
-
-	if (shouldReloadFonts) {
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		shouldReloadFonts = false;
-
-		ImGui_ImplOpenGL2_DestroyFontsTexture();
-		io.Fonts->Clear();
-
-		loadFonts();
-
-		io.Fonts->Build();
-		ImGui_ImplOpenGL2_CreateFontsTexture();
-	}
 }
 
 void Gui::openContextMenu(int entIdx) {
@@ -2473,7 +2455,7 @@ void Gui::drawMenuBar() {
 		}
 	}
 
-	float fpsWidth = smallFont->CalcTextSizeA(g_settings.fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, statsText.c_str()).x;
+	float fpsWidth = defaultFont->CalcTextSizeA(g_settings.fontSize, FLT_MAX, FLT_MAX, statsText.c_str()).x;
 	float rightAlignStart = ImGui::GetWindowWidth() - (fpsWidth + 20);
 
 	ImGui::SameLine(rightAlignStart);
@@ -2548,14 +2530,14 @@ void Gui::drawStatusBar() {
 		int fontSize = g_settings.fontSize;
 		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
 		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
-		float originWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, cam_origin).x;
-		float typicalOriginWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, "-4096 -4096 -4096").x;
+		float originWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, cam_origin).x;
+		float typicalOriginWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "-4096 -4096 -4096").x;
 		originWidth = max(originWidth, typicalOriginWidth) + 10;
-		float anglesWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, cam_angles).x;
-		float typicalAnglesWidth = smallFont->CalcTextSizeA(fontSize * g_smallFontSizeMult, FLT_MAX, FLT_MAX, "-90 -180 0").x;
+		float anglesWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, cam_angles).x;
+		float typicalAnglesWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "-90 -180 0").x;
 		anglesWidth = max(anglesWidth, typicalAnglesWidth) + 10;
 		
-		float selectWidth = smallFont->CalcTextSizeA(fontSize*g_smallFontSizeMult, FLT_MAX, FLT_MAX, selectStr.c_str()).x;
+		float selectWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, selectStr.c_str()).x;
 		
 		float rightAlignStart = ImGui::GetWindowWidth() - (selectWidth + padding);
 
@@ -3734,7 +3716,7 @@ void Gui::drawStatusMessage() {
 				lastTick = clock();
 			}
 
-			ImGui::PushFont(consoleFontLarge);
+			ImGui::PushFont(consoleFont, g_settings.fontSize);
 			switch (loadTick) {
 			default:
 			case 0: ImGui::Text("Loading |"); break;
@@ -4000,7 +3982,7 @@ void Gui::drawKeyvalueEditor() {
 			}
 
 			ImGui::Columns(2, "smartcolumns", false);
-			ImGui::PushFont(largeFont);
+			ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text("Class:");
 			ImGui::SameLine();
@@ -4020,7 +4002,7 @@ void Gui::drawKeyvalueEditor() {
 
 			if (fgd) {
 				ImGui::NextColumn();
-				ImGui::PushFont(largeFont);
+				ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("FGD:");
 				if (ImGui::IsItemHovered()) {
@@ -4028,7 +4010,7 @@ void Gui::drawKeyvalueEditor() {
 					ImGui::SetTooltip("The Game Definition File determines which keyvalues/flags to display.\n\n"
 						"This will change automatically if an entity definition isn't found\n"
 						"in the FGD you previously selected.\n");
-					ImGui::PushFont(largeFont);
+					ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
 				}
 				ImGui::SameLine();
 				if (ImGui::Button((" " + fgd->name + " ").c_str()))
@@ -4579,7 +4561,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 
 	ImGui::Columns(4, "keyvalcols", false);
 
-	float butColWidth = smallFont->CalcTextSizeA(GImGui->FontSize, 100, 100, " X ").x + style.FramePadding.x * 4;
+	float butColWidth = defaultFont->CalcTextSizeA(GImGui->FontSize, 100, 100, " X ").x + style.FramePadding.x * 4;
 	float textColWidth = (ImGui::GetWindowWidth() - (butColWidth + style.FramePadding.x * 2) * 2) * 0.5f;
 
 	ImGui::SetColumnWidth(0, butColWidth);
@@ -5529,31 +5511,31 @@ void Gui::addLog(const char* s)
 
 void Gui::loadFonts() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-	static ImVector<ImWchar> ranges;
-	static ImFontGlyphRangesBuilder builder;
-	static const ImWchar allLatinRange[] = // covers all Latin languages
-	{
-		0x0001, 0x007F,    // Basic Latin
-		0x0080, 0x00FF,    // Latin-1 Supplement
-		0x0100, 0x017F,    // Latin Extended-A
-		0x0180, 0x024F,    // Latin Extended-B
-		0x0250, 0x02AF,    // IPA Extensions
-		0x2C60, 0x2C7F,    // Latin Extended-C
-		0xA720, 0xA7FF,    // Latin Extended-D
-		0xAB30, 0xAB6F,    // Latin Extended-E
-		0x1E00, 0x1EFF,    // Latin Additional
-		0,
-	};
-	builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
-	builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
-	builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
-	builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
-	builder.AddRanges(&allLatinRange[0]);
-	builder.BuildRanges(&ranges);
 	
 	static bool loggedAlready = true;
 	if (!loggedAlready) {
+		static ImVector<ImWchar> ranges;
+		static ImFontGlyphRangesBuilder builder;
+		static const ImWchar allLatinRange[] = // covers all Latin languages
+		{
+			0x0001, 0x007F,    // Basic Latin
+			0x0080, 0x00FF,    // Latin-1 Supplement
+			0x0100, 0x017F,    // Latin Extended-A
+			0x0180, 0x024F,    // Latin Extended-B
+			0x0250, 0x02AF,    // IPA Extensions
+			0x2C60, 0x2C7F,    // Latin Extended-C
+			0xA720, 0xA7FF,    // Latin Extended-D
+			0xAB30, 0xAB6F,    // Latin Extended-E
+			0x1E00, 0x1EFF,    // Latin Additional
+			0,
+		};
+		builder.AddRanges(io.Fonts->GetGlyphRangesKorean());
+		builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+		builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+		builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
+		builder.AddRanges(&allLatinRange[0]);
+		builder.BuildRanges(&ranges);
+
 		bool activeChars[IM_UNICODE_CODEPOINT_MAX + 1];
 		memset(activeChars, 0, sizeof(activeChars));
 		for (int i = 0; i < ranges.size() - 1; i += 2) {
@@ -5590,69 +5572,42 @@ void Gui::loadFonts() {
 	vector<uint8_t> decompressed;
 
 	// data copied to new array so that ImGui doesn't delete static data
-	byte* largeFontData = NULL;
-	int notosans_sz = 0;
-	if (lzmaDecompress((uint8_t*)notosans, sizeof(notosans), decompressed)) {
-		notosans_sz = decompressed.size();
-		largeFontData = new byte[notosans_sz];
-		memcpy(largeFontData, &decompressed[0], notosans_sz);
-	}
-	else {
-		logf("Failed to decompress font! Crash imminent.\n");
-	}
-
-	decompressed.clear();
 	byte* consoleFontData = NULL;
-	byte* consoleFontLargeData = NULL;
 	int notosans_mono_sz = 0;
 	if (lzmaDecompress((uint8_t*)notosans_mono, sizeof(notosans_mono), decompressed)) {
 		notosans_mono_sz = decompressed.size();
 		consoleFontData = new byte[notosans_mono_sz];
-		consoleFontLargeData = new byte[notosans_mono_sz];
 		memcpy(consoleFontData, &decompressed[0], notosans_mono_sz);
-		memcpy(consoleFontLargeData, &decompressed[0], notosans_mono_sz);
 	}
 	else {
 		logf("Failed to decompress font! Crash imminent.\n");
 	}
 
-	// TODO: ImGui is getting updates to font scaling, so there won't be a need for a separate
-	// largeFont, which I'm using now for quality reasons (font scaling breaks anti-aliasing
-	// and makes the font look worse if scaled up). It will also improve startup time as
-	// glyphs are loaded on-demand instead of 16k all at once!!! Should be ready early 2025.
-
 	decompressed.clear();
 	byte* smallFontData = NULL;
 
-	if (g_settings.unicode_font) {
-		int notosans_unicode_sz = 0;
-		if (lzmaDecompress((uint8_t*)notosans_unicode, sizeof(notosans_unicode), decompressed)) {
-			notosans_unicode_sz = decompressed.size();
-			smallFontData = new byte[notosans_unicode_sz];
-			memcpy(smallFontData, &decompressed[0], notosans_unicode_sz);
-		}
-		else {
-			logf("Failed to decompress font! Crash imminent.\n");
-		}
-
-		smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_settings.fontSize * g_smallFontSizeMult, NULL, ranges.Data);
+	int notosans_unicode_sz = 0;
+	if (lzmaDecompress((uint8_t*)notosans_unicode, sizeof(notosans_unicode), decompressed)) {
+		notosans_unicode_sz = decompressed.size();
+		smallFontData = new byte[notosans_unicode_sz];
+		memcpy(smallFontData, &decompressed[0], notosans_unicode_sz);
 	}
 	else {
-		if (lzmaDecompress((uint8_t*)notosans, sizeof(notosans), decompressed)) {
-			notosans_sz = decompressed.size();
-			smallFontData = new byte[notosans_sz];
-			memcpy(smallFontData, &decompressed[0], notosans_sz);
-		}
-		else {
-			logf("Failed to decompress font! Crash imminent.\n");
-		}
-
-		smallFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_sz, g_settings.fontSize * g_smallFontSizeMult, NULL, ranges.Data);
+		logf("Failed to decompress font! Crash imminent.\n");
 	}
+
+	//defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_settings.fontSize, NULL, ranges.Data);
+	//consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_settings.fontSize, NULL, ranges.Data);
 	
-	largeFont = io.Fonts->AddFontFromMemoryTTF((void*)largeFontData, notosans_sz, g_settings.fontSize *1.25f, NULL, ranges.Data);
-	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_settings.fontSize, NULL, ranges.Data);
-	consoleFontLarge = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontLargeData, notosans_mono_sz, g_settings.fontSize *1.1f, NULL, ranges.Data);
+	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_settings.fontSize);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_settings.fontSize);
+
+	updateFontScale();
+}
+
+void Gui::updateFontScale() {
+	// 1.1 to keep consistent with previous version size
+	ImGui::GetStyle().FontScaleMain = (g_settings.fontSize / 22.0f) * 1.1f;
 }
 
 void Gui::drawLog() {
@@ -5698,7 +5653,7 @@ void Gui::drawLog() {
 		ImGui::EndPopup();
 	}
 
-	ImGui::PushFont(consoleFont);
+	ImGui::PushFont(consoleFont, g_settings.fontSize * 0.9f);
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	const char* buf = Buf.begin();
 	const char* buf_end = Buf.end();
@@ -5794,7 +5749,7 @@ void Gui::drawSettings() {
 			ImGui::DragFloat("Movement Speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
 			ImGui::DragFloat("Rotation Speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
 			if (ImGui::DragInt("Font Size", &g_settings.fontSize, 0.1f, 8, 48, "%d pixels")) {
-				shouldReloadFonts = true;
+				updateFontScale();
 			}
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
 
@@ -5811,9 +5766,6 @@ void Gui::drawSettings() {
 			}
 			ImGui::NextColumn();
 
-			if (ImGui::Checkbox("Unicode Font", &g_settings.unicode_font)) {
-				shouldReloadFonts = true;
-			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("The unicode font may take a long time to load depending on your specs.\nA new version of ImGui is coming soon to improve that.\n");
 			}
@@ -6201,11 +6153,11 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 	if (!modalMode)
 		ImGui::BeginChild("##content");
 	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFontLarge);
+	ImGui::PushFont(consoleFont, g_settings.fontSize);
 
 	int fontSize = g_settings.fontSize;
-	int midWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
-	int nameWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "marksurfaces").x;
+	int midWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
+	int nameWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "marksurfaces").x;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 1.0f));
 	if (ImGui::BeginTable("StatsTable", 3, ImGuiTableFlags_BordersInnerV)) {
@@ -6353,12 +6305,12 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 
 	ImGui::BeginChild("content");
 	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFontLarge);
+	ImGui::PushFont(consoleFont, g_settings.fontSize);
 
 	int fontSize = g_settings.fontSize;
-	int valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
-	int usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
-	int modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
+	int valWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Clipnodes ").x;
+	int usageWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "  Usage   ").x;
+	int modelWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Model ").x;
 	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
 	ImGui::Columns(4);
 	ImGui::SetColumnWidth(0, bigWidth);
@@ -6496,12 +6448,12 @@ void Gui::drawAllocBlockLimitTab(Bsp* map) {
 
 	ImGui::BeginChild("content");
 	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFontLarge);
+	ImGui::PushFont(consoleFont, g_settings.fontSize);
 
 	int fontSize = g_settings.fontSize;
-	int valWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Clipnodes ").x;
-	int usageWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, "  Usage   ").x;
-	int modelWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Model ").x;
+	int valWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Clipnodes ").x;
+	int usageWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "  Usage   ").x;
+	int modelWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Model ").x;
 	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
 	ImGui::Columns(4);
 	ImGui::SetColumnWidth(0, bigWidth);
@@ -6635,11 +6587,11 @@ void Gui::drawFaceExtentsLimitTab() {
 
 	ImGui::BeginChild("content");
 	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFontLarge);
+	ImGui::PushFont(consoleFont, g_settings.fontSize);
 
 	int fontSize = g_settings.fontSize;
-	int facesWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Faces ").x;
-	int subsWidth = consoleFontLarge->CalcTextSizeA(fontSize * 1.1f, FLT_MAX, FLT_MAX, " Subs Needed ").x;
+	int facesWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Faces ").x;
+	int subsWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Subs Needed ").x;
 	int bigWidth = ImGui::GetWindowWidth() - (facesWidth + subsWidth);
 	ImGui::Columns(3);
 	ImGui::SetColumnWidth(0, bigWidth);
@@ -7015,7 +6967,7 @@ void Gui::drawEntityReport() {
 			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
 			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
 			int fontSize = g_settings.fontSize;
-			inputWidth -= smallFont->CalcTextSizeA(fontSize*g_smallFontSizeMult, FLT_MAX, FLT_MAX, " = ").x;
+			inputWidth -= defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " = ").x;
 
 			for (int i = 0; i < MAX_FILTERS; i++) {
 				ImGui::SetNextItemWidth(inputWidth);

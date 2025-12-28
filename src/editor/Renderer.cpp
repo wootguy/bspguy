@@ -175,10 +175,10 @@ Renderer::Renderer() {
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
 
 	logf("OpenGL Version: %s\n", (char*)glGetString(GL_VERSION));
-	logf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
-	logf("    Texture Units: %d / 5\n", texImageUnits);
-	logf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
-	logf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
+	debugf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
+	debugf("    Texture Units: %d / 5\n", texImageUnits);
+	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
+	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
 	debugf("OpenGL Extensions:\n%s\n", openglExts);
 
 	glCheckError("checking extensions");
@@ -1478,8 +1478,6 @@ void Renderer::loadSettings() {
 	undoLevels = g_settings.undoLevels;
 	rotationSpeed = g_settings.rotSpeed;
 	moveSpeed = g_settings.moveSpeed;
-
-	gui->shouldReloadFonts = true;
 
 	if (!showDragAxes) {
 		transformMode = TRANSFORM_NONE;
