@@ -11,7 +11,6 @@
 // - new tinyfd has folder picker?
 
 // todo:
-// text wrapping or multiline for keyvalues
 // box selection
 // ripent saftey warning
 // hold click to select behind
