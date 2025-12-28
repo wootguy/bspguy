@@ -172,7 +172,7 @@ void BspRenderer::loadTextures() {
 			Texture* missingCopy = generateMissingTexture(16, 16);
 			glTexturesSwap[i] = missingCopy;
 			glTextureArray->add(missingCopy);
-			glTexturesSwap[i]->generateMipMaps(3);
+			glTexturesSwap[i]->generateMipMaps(3, COLOR3());
 			continue;
 		}
 
@@ -210,7 +210,7 @@ void BspRenderer::loadTextures() {
 				Texture* missingCopy = generateMissingTexture(tex->nWidth, tex->nHeight);
 				glTexturesSwap[i] = missingCopy;
 				glTextureArray->add(missingCopy);
-				glTexturesSwap[i]->generateMipMaps(3);
+				glTexturesSwap[i]->generateMipMaps(3, COLOR3());
 				continue;
 			}
 		}
@@ -241,7 +241,7 @@ void BspRenderer::loadTextures() {
 
 		glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
 		glTextureArray->add(glTexturesSwap[i]);
-		glTexturesSwap[i]->generateMipMaps(3);
+		glTexturesSwap[i]->generateMipMaps(3, palette[255]);
 	}
 
 	if (wadTexCount)
@@ -1545,7 +1545,7 @@ void BspRenderer::refreshPointEnt(int entIdx) {
 
 	// skip worldspawn
 	for (int i = 1, sz = map->ents.size(); i < sz; i++) {
-		if (renderEnts[i].modelIdx >= 0)
+		if (renderEnts[i].modelIdx >= 0 || map->ents[i]->hidden)
 			continue;
 
 		if (i == entIdx) {
@@ -1584,6 +1584,7 @@ void BspRenderer::refreshEnt(int entIdx) {
 	renderEnts[entIdx].pointEntCube = pointEntRenderer->getEntCube(ent);
 	ent->hasCachedMdl = false;
 	ent->drawCached = false;
+	ent->clearCache();
 
 	if (ent->hasKey("origin")) {
 		vec3 origin = ent->getOrigin();

@@ -247,7 +247,8 @@ public:
 	int lightstyle_count();
 
 	// combines style lightmap to the base lightmap for all faces
-	int bake_lightmap_style(int style, bool deleteNotBake);
+	// faceIdx = bake only this face, else all faces
+	int bake_lightmap_style(int style, bool deleteNotBake, bool reduceStyles, int faceIdx=-1);
 
 	TextureAtlas* create_lightmap_style_atlas(int style, vector<AtlasLightmap>& lightmaps);
 

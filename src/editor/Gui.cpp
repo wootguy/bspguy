@@ -5331,6 +5331,12 @@ void Gui::drawTransformWidget() {
 
 		if (ImGui::Checkbox("Force Rotate", &app->forceAngleRotation)) {
 			app->updateEntConnectionPositions();
+
+			for (int i = 0; i < map->ents.size(); i++) {
+				Entity* ent = map->ents[i];
+				if (ent->getBspModelIdx() != -1)
+					bspRenderer->refreshEnt(i);
+			}
 		}
 		ImGui::NextColumn();
 		if (ImGui::IsItemHovered()) {
@@ -7168,23 +7174,19 @@ void Gui::drawLightmapsEditor() {
 				tooltip(g, "Paste lightmap layer. If the target lightmap dimensions don't match "
 					"what you copied, the lightmap will be scaled to fit using bilinear filtering.");
 
+				if (ImGui::MenuItem("Bake")) {
+					LightmapsEditCommand* command = new LightmapsEditCommand("Bake Lightmap");
+
+					map->bake_lightmap_style(face.nStyles[i], false, false, faceIdx);
+
+					command->pushUndoState();
+				}
+				tooltip(g, "Merge this lightmap with the base lightmap layer");
+
 				if (ImGui::MenuItem("Delete")) {
 					LightmapsEditCommand* command = new LightmapsEditCommand("Delete Lightmap");
 
-					BSPFACE& face = map->faces[faceIdx];
-					face.nStyles[i] = 255;
-
-					bool shiftedStyles = false;
-					for (int k = i+1; k < MAXLIGHTMAPS; k++) {
-						if (face.nStyles[k] != 255) {
-							face.nStyles[k - 1] = face.nStyles[k];
-							face.nStyles[k] = 255;
-							shiftedStyles = true;
-						}
-					}
-
-					if (shiftedStyles)
-						face.nLightmapOffset += lightmapSz;
+					map->bake_lightmap_style(face.nStyles[i], true, false, faceIdx);
 
 					command->pushUndoState();
 				}
@@ -7244,7 +7246,7 @@ void Gui::drawLightmapsEditor() {
 					if (ImGui::MenuItem("Bake", "", false, face.nStyles[i] != 0)) {
 						LightmapsEditCommand* command = new LightmapsEditCommand(cstrf("Bake Light Style %d", face.nStyles[i]));
 
-						int numBakes = map->bake_lightmap_style(face.nStyles[i], false);
+						int numBakes = map->bake_lightmap_style(face.nStyles[i], false, true);
 						logf("Baked %d lightmaps\n", numBakes);
 
 						command->pushUndoState();
@@ -7256,7 +7258,7 @@ void Gui::drawLightmapsEditor() {
 					if (ImGui::MenuItem("Delete", "", false, face.nStyles[i] != 0)) {
 						LightmapsEditCommand* command = new LightmapsEditCommand(cstrf("Delete Light Style %d", face.nStyles[i]));
 
-						int numBakes = map->bake_lightmap_style(face.nStyles[i], true);
+						int numBakes = map->bake_lightmap_style(face.nStyles[i], true, true);
 						logf("Baked %d lightmaps\n", numBakes);
 
 						command->pushUndoState();

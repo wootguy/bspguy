@@ -59,7 +59,7 @@ public:
 	static vector<COLOR3> resample(COLOR3* srcData, int srcW, int srcH, COLOR3* dstData,
 		int dstW, int dstH, int mode, int outputMode=RESAMP_RGB, COLOR3 maskColor=COLOR3(0,0,255));
 
-	void generateMipMaps(int mipLevels);
+	void generateMipMaps(int mipLevels, COLOR3 maskColor);
 
 	// upload the texture with the specified settings
 	void upload(int format, bool lighmap=false);

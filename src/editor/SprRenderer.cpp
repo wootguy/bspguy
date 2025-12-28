@@ -168,7 +168,7 @@ void SprRenderer::loadData() {
 
 		glTextures[i] = new Texture(frame->width, frame->height, imageData);
 		glTextures[i]->format = GL_RGBA;
-		glTextures[i]->generateMipMaps(3);
+		glTextures[i]->generateMipMaps(3, lastColor);
 
 		float w = frame->width;
 		float h = frame->height;

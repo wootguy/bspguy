@@ -112,7 +112,7 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 	return palette;
 }
 
-void Texture::generateMipMaps(int mipLevels) {
+void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 	for (MipTexture& mip : mipmaps) {
 		delete[] mip.data;
 	}
@@ -130,7 +130,7 @@ void Texture::generateMipMaps(int mipLevels) {
 			dst.g = src.g;
 			dst.b = src.b;
 			if (src.a == 0) {
-				dst = COLOR3();
+				dst = maskColor;
 			}
 		}
 	}

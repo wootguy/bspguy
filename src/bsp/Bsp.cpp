@@ -4665,14 +4665,18 @@ int Bsp::lightstyle_count() {
 	return maxStyle - (TOGGLED_LIGHT_STYLE_OFFSET-1);
 }
 
-int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
+int Bsp::bake_lightmap_style(int style, bool deleteNotBake, bool reduceStyles, int faceIdx) {
 	int numBakes = 0;
 
 	for (int f = 0; f < faceCount; f++) {
 		BSPFACE& face = faces[f];
 
+		if (faceIdx > 0 && faceIdx != f)
+			continue;
+
 		int baseLightStyle = face.nStyles[0];
 
+		int numStyles = 0;
 		int styleIdx = -1;
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			if (face.nStyles[s] == style) {
@@ -4681,6 +4685,8 @@ int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
 				}
 				styleIdx = s;
 			}
+			if (face.nStyles[s] != 255)
+				numStyles++;
 		}
 
 		if (styleIdx == -1)
@@ -4694,21 +4700,9 @@ int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
 			else {
 				// Just remove the link and the light stays on
 				face.nStyles[0] = 0;
-			}			
-			continue;
-		}
-
-		if (deleteNotBake) {
-			// keep style refs contiguous
-			for (int i = styleIdx; i < MAXLIGHTMAPS - 1; i++) {
-				face.nStyles[i] = face.nStyles[i + 1];
 			}
-			face.nStyles[MAXLIGHTMAPS - 1] = 255;
-
 			continue;
 		}
-
-		numBakes++;
 
 		int size[2];
 		int dummy[2];
@@ -4721,42 +4715,46 @@ int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
 		int height = size[1];
 		int lightmapSz = width * height * sizeof(COLOR3);
 
-		if (face.nStyles[0] > 0 && face.nStyles[0] < 255) {
-			// move the toggled base light into this previously toggled style
-			// then disable the style link in the base light to keep it on
+		if (!deleteNotBake) {
+			numBakes++;
 
-			int offsetSrc = face.nLightmapOffset + styleIdx * lightmapSz;
-			int offsetDst = face.nLightmapOffset;
-			COLOR3* lightSrc = (COLOR3*)(lightdata + offsetSrc);
-			COLOR3* lightDst = (COLOR3*)(lightdata + offsetDst);
-			for (int idx = 0; idx < width * height; idx++) {
-				if (offsetSrc + idx * sizeof(COLOR3) < lightDataLength) {
-					COLOR3& src = lightSrc[idx];
-					COLOR3& dst = lightDst[idx];
-					COLOR3 temp = src;
-					src = dst;
-					dst = temp;
+			if (face.nStyles[0] > 0 && face.nStyles[0] < 255) {
+				// move the toggled base light into this previously toggled style
+				// then disable the style link in the base light to keep it on
+
+				int offsetSrc = face.nLightmapOffset + styleIdx * lightmapSz;
+				int offsetDst = face.nLightmapOffset;
+				COLOR3* lightSrc = (COLOR3*)(lightdata + offsetSrc);
+				COLOR3* lightDst = (COLOR3*)(lightdata + offsetDst);
+				for (int idx = 0; idx < width * height; idx++) {
+					if (offsetSrc + idx * sizeof(COLOR3) < lightDataLength) {
+						COLOR3& src = lightSrc[idx];
+						COLOR3& dst = lightDst[idx];
+						COLOR3 temp = src;
+						src = dst;
+						dst = temp;
+					}
 				}
+
+				face.nStyles[styleIdx] = baseLightStyle;
+				face.nStyles[0] = 0;
+				continue;
 			}
 
-			face.nStyles[styleIdx] = baseLightStyle;
-			face.nStyles[0] = 0;
-			continue;
-		}
+			// the base lightmap isn't toggled. The toggled style needs to be added to the base light
+			// to disable toggling.
 
-		// the base lightmap isn't toggled. The toggled style needs to be added to the base light
-		// to disable toggling.
-		
-		int offset = face.nLightmapOffset + styleIdx * lightmapSz;
-		COLOR3* lightSrc = (COLOR3*)(lightdata + offset);
-		COLOR3* lightDst = (COLOR3*)(lightdata + face.nLightmapOffset);
-		for (int idx = 0; idx < width * height; idx++) {
-			if (offset + idx * sizeof(COLOR3) < lightDataLength) {
-				COLOR3& src = lightSrc[idx];
-				COLOR3& dst = lightDst[idx];
-				dst.r = min(255, src.r + dst.r);
-				dst.g = min(255, src.g + dst.g);
-				dst.b = min(255, src.b + dst.b);
+			int offset = face.nLightmapOffset + styleIdx * lightmapSz;
+			COLOR3* lightSrc = (COLOR3*)(lightdata + offset);
+			COLOR3* lightDst = (COLOR3*)(lightdata + face.nLightmapOffset);
+			for (int idx = 0; idx < width * height; idx++) {
+				if (offset + idx * sizeof(COLOR3) < lightDataLength) {
+					COLOR3& src = lightSrc[idx];
+					COLOR3& dst = lightDst[idx];
+					dst.r = min(255, src.r + dst.r);
+					dst.g = min(255, src.g + dst.g);
+					dst.b = min(255, src.b + dst.b);
+				}
 			}
 		}
 
@@ -4765,28 +4763,38 @@ int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
 			face.nStyles[i] = face.nStyles[i + 1];
 		}
 		face.nStyles[MAXLIGHTMAPS - 1] = 255;
+
+		int totalLightmapsSz = numStyles * lightmapSz;
+		int lightmapsToShift = (numStyles - (styleIdx + 1));
+		int shiftBytes = lightmapsToShift * lightmapSz;
+		COLOR3* lightTo = (COLOR3*)(lightdata + face.nLightmapOffset + styleIdx * lightmapSz);
+		COLOR3* lightFrom = (COLOR3*)(lightdata + face.nLightmapOffset + (styleIdx + 1) * lightmapSz);
+		if (shiftBytes > 0)
+			memmove(lightTo, lightFrom, shiftBytes);
 	}
 
-	// reduce lightstyles count
-	for (int f = 0; f < faceCount; f++) {
-		BSPFACE& face = faces[f];
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			if (face.nStyles[s] != 255 && face.nStyles[s] > style) {
-				face.nStyles[s] -= 1;
+	if (reduceStyles && faceIdx < 0) {
+		// reduce lightstyles count
+		for (int f = 0; f < faceCount; f++) {
+			BSPFACE& face = faces[f];
+			for (int s = 0; s < MAXLIGHTMAPS; s++) {
+				if (face.nStyles[s] != 255 && face.nStyles[s] > style) {
+					face.nStyles[s] -= 1;
+				}
 			}
 		}
-	}
-	for (int i = 0; i < ents.size(); i++) {
-		string cname = ents[i]->getClassname();
+		for (int i = 0; i < ents.size(); i++) {
+			string cname = ents[i]->getClassname();
 
-		if (cname.find("light") == 0) {
-			int entStyle = atoi(ents[i]->getKeyvalue("style").c_str());
-			
-			if (entStyle == style) {
-				ents[i]->removeKeyvalue("style");
-			}
-			else if (entStyle > style) {
-				ents[i]->setOrAddKeyvalue("style", cstrf("%d", entStyle - 1));
+			if (cname.find("light") == 0) {
+				int entStyle = atoi(ents[i]->getKeyvalue("style").c_str());
+
+				if (entStyle == style) {
+					ents[i]->removeKeyvalue("style");
+				}
+				else if (entStyle > style) {
+					ents[i]->setOrAddKeyvalue("style", cstrf("%d", entStyle - 1));
+				}
 			}
 		}
 	}
@@ -4994,7 +5002,7 @@ int Bsp::remove_unused_lightstyles() {
 			if (gap > 0) {
 				for (int k = lastUsedIdx + 1; k < i; k++) {
 					deletedStyles[k] = true;
-					bake_lightmap_style(k, false);
+					bake_lightmap_style(k, false, false);
 					lightBakes++;
 				}
 				for (int k = i; k < 256; k++) {
@@ -9022,6 +9030,16 @@ int Bsp::merge_models(Entity* enta, Entity* entb) {
 
 		nodes[hull0headnodeOffset] = headNode;
 		mergedModel.iHeadnodes[0] = hull0headnodeOffset;
+
+		// only one model has a visible hull?
+		if (modelA.iHeadnodes[0] != -1 && modelB.iHeadnodes[0] == -1) {
+			mergedModel.iHeadnodes[0] = modelA.iHeadnodes[0];
+			mergedModel.iFirstFace = modelA.iFirstFace;
+		}
+		else if (modelB.iHeadnodes[0] != -1 && modelA.iHeadnodes[0] == -1) {
+			mergedModel.iHeadnodes[0] = modelB.iHeadnodes[0];
+			mergedModel.iFirstFace = modelB.iFirstFace;
+		}
 	}
 
 	// write new head node (clipnode BSP)
