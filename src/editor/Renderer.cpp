@@ -732,6 +732,8 @@ void Renderer::renderLoop() {
 			renderLeafGraph(mapRenderer->leafNavMesh);
 		}
 
+		addNameTags();
+
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
@@ -1928,15 +1930,15 @@ void Renderer::controls() {
 
 		makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
 
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS
+			|| glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+			guiWasFocused = false;
+		}
+
 		if (!guiWasFocused) {
 			cameraObjectHovering();
 			vertexEditControls();
 			cameraPickingControls();
-		}
-
-		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS
-			|| glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-			guiWasFocused = false;
 		}
 	}
 
@@ -2473,7 +2475,7 @@ void Renderer::globalShortcutControls() {
 	if (anyCtrlPressed && pressed[GLFW_KEY_Y] && !oldPressed[GLFW_KEY_Y]) {
 		redo();
 	}
-	if (pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
+	if (!anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		cameraMouseCapture = !cameraMouseCapture;
 
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -3427,11 +3429,15 @@ bool Renderer::drawModelsAndSprites() {
 		else if (mdl->isSprite()) {
 			COLOR3 color = COLOR3(255, 255, 255);
 			COLOR3 outlineColor = COLOR3(0, 0, 0);
-			if (ent->isIconSprite) {
+			bool treatAsIcon = ent->isIconSprite || !(g_settings.render_flags & RENDER_RENDER_MODES);
+
+			if (treatAsIcon) {
 				vec3 sz = entcube->maxs - entcube->mins;
 				float minDim = min(min(sz.x, sz.y), sz.z);
 				renderOpts.scale = ((SprRenderer*)mdl)->getScaleToFitInsideCube(minDim);
-				color = ent->getFgdTint();
+			
+				if (ent->isIconSprite)
+					color = ent->getFgdTint();
 				
 				if (!ent->canRotate()) {
 					drawAngles = vec3();
@@ -3445,7 +3451,7 @@ bool Renderer::drawModelsAndSprites() {
 				outlineColor = COLOR3(255, 255, 0);
 			}
 
-			((SprRenderer*)mdl)->draw(drawOri, drawAngles, ent, renderOpts, color, outlineColor, ent->isIconSprite);
+			((SprRenderer*)mdl)->draw(drawOri, drawAngles, ent, renderOpts, color, outlineColor, treatAsIcon);
 			glCheckError("Rendering SPR");
 		}
 		
@@ -3477,6 +3483,81 @@ bool Renderer::drawModelsAndSprites() {
 	glCheckError("Model/sprite rendering cleanup");
 
 	return modelsLoading;
+}
+
+void Renderer::addNameTags() {
+	if (!(g_settings.render_flags & RENDER_NAME_TAGS))
+		return;
+
+	Bsp* map = mapRenderer->map;
+
+	unordered_set<int> selected;
+	for (int i : pickInfo.ents)
+		selected.insert(i);
+
+	for (int i = 0; i < map->ents.size(); i++) {
+		Entity* ent = map->ents[i];
+		string tname = ent->getTargetname();
+		if (tname.empty())
+			continue;
+
+		vec3 ori = ent->getOrigin();
+		int modelIdx = ent->getBspModelIdx();
+
+		if (modelIdx == -1) {
+			EntCube* cube = mapRenderer->pointEntRenderer->getEntCube(ent);
+			ori += vec3(0, 0, cube->mins.z);
+		}
+		else {
+			BSPMODEL& model = map->models[modelIdx];
+			float oldZ = ori.z;
+			ori += model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+			ori.z = oldZ + model.nMins.z;
+		}
+		
+		if ((ori - cameraOrigin).length() > g_settings.zFarMdl) {
+			continue;
+		}
+		vec3 tpos = worldToScreen(ori);
+		
+		if (tpos.z < 0)
+			continue;
+
+		bool isSelected = selected.count(i);
+		bool isLinked = false;
+		COLOR4 color = isSelected ? COLOR4(255, 64, 64, 255) : COLOR4(200, 200, 200, 255);
+
+		if (!isSelected) {
+			auto item = entLinks.find(i);
+
+			if (item != entLinks.end()) {
+				if (item->second == 3) {
+					color = COLOR4(64, 255, 64, 255);
+					isLinked = true;
+				}
+				else if (item->second == 1) {
+					color = COLOR4(255, 255, 32, 255);
+					isLinked = true;
+				}
+				else if (item->second == 2) {
+					color = COLOR4(64, 255, 255, 255);
+					isLinked = true;
+				}
+			}
+			
+		}
+		
+		if (!isSelected && !isLinked && map->pointContents(map->models[0].iHeadnodes[0], cameraOrigin, 0) != CONTENTS_SOLID) {
+			// TODO: trace lines are broken. Some faces don't clip the trace
+			TraceResult tr;
+			map->traceHull(cameraOrigin, ori, 0, &tr);
+			//drawLine(cameraOrigin - vec3(0, 0, 4), tr.vecEndPos, COLOR4(255, 0, 0, 255));
+			if ((tr.vecEndPos - ori).length() > 32)
+				continue;
+		}
+		
+		gui->addText(Text2D(tpos.x, tpos.y, tname, TEXT2D_ALIGN_CENTER, color));
+	}
 }
 
 vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
@@ -3840,6 +3921,8 @@ void Renderer::updateEntConnections() {
 		entConnectionLinks.clear();
 	}
 
+	entLinks.clear();
+
 	if (!(g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
 		return;
 	}
@@ -3874,14 +3957,17 @@ void Renderer::updateEntConnections() {
 
 				if (isTarget && isCaller) {
 					link.color = bothColor;
+					entLinks[k] = 3;
 					entConnectionLinks.push_back(link);
 				}
 				else if (isTarget) {
 					link.color = targetColor;
+					entLinks[k] = 1;
 					entConnectionLinks.push_back(link);
 				}
 				else if (isCaller) {
 					link.color = callerColor;
+					entLinks[k] = 2;
 					entConnectionLinks.push_back(link);
 				}
 			}

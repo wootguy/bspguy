@@ -2638,6 +2638,8 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 		foundBetterPick = true;
 	}
 
+	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES);
+
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 		Entity* ent = map->ents[i];
 		if (ent->hidden)
@@ -2676,7 +2678,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 				entIdx = i;
 				foundBetterPick = true;
 			}
-			else if (ent->cachedMdl && !ent->isIconSprite && ent->cachedMdl->pick(start, dir, ent, bestDist)) {
+			else if (ent->cachedMdl && !ent->isIconSprite && !renderSmallSprites && ent->cachedMdl->pick(start, dir, ent, bestDist)) {
 				entIdx = i;
 				foundBetterPick = true;
 			}

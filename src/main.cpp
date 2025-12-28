@@ -10,6 +10,7 @@
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - new tinyfd has folder picker?
 // - update version string
+// - toggling solid ents disables wireframe
 
 // todo:
 // box selection

@@ -43,6 +43,7 @@ enum RenderFlags {
 	RENDER_RENDER_MODES = (1 << 15),
 	RENDER_LEAF_GRAPH = (1 << 16),
 	RENDER_PVS = (1 << 17),
+	RENDER_NAME_TAGS = (1 << 18),
 };
 
 struct LightmapInfo {

@@ -277,6 +277,12 @@ private:
 	unordered_set<int> hiddenFaces;
 	vector<int> pvsCopyLeaves; // temporary storage for pvs operations
 
+	// current ent connections
+	// 1 = target
+	// 2 = caller
+	// 3 = bidirectional
+	unordered_map<int, int> entLinks;
+
 	bool lightStylesEnabled[MAXLIGHTMAPS];
 
 	bool createWindow();
@@ -319,6 +325,7 @@ private:
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	bool drawModelsAndSprites();
+	void addNameTags();
 	BaseRenderer* loadModel(Entity* ent);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);

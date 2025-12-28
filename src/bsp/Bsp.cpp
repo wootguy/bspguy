@@ -5973,13 +5973,18 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull) {
 bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace)
 {
 	if (num < 0) {
-		if (num != CONTENTS_SOLID) {
+		int contents = num;
+		if (hull == 0) {
+			contents = leaves[~num].nContents;
+		}
+
+		if (contents != CONTENTS_SOLID) {
 			trace->fAllSolid = false;
 
-			if (num == CONTENTS_EMPTY)
+			if (contents == CONTENTS_EMPTY)
 				trace->fInOpen = true;
 
-			else if (num != CONTENTS_TRANSLUCENT)
+			else if (contents != CONTENTS_TRANSLUCENT)
 				trace->fInWater = true;
 		}
 		else {
@@ -5990,17 +5995,37 @@ bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, v
 		return true;
 	}
 
-	if (num >= clipnodeCount) {
+	if (hull == 0 && num >= nodeCount || hull != 0 && num >= clipnodeCount) {
 		logf("%s: bad node number\n", __func__);
 		return false;
 	}
 
 	// find the point distances
-	BSPCLIPNODE* node = &clipnodes[num];
+	BSPCLIPNODE* node = hull == 0 ? (BSPCLIPNODE*)&nodes[num] : &clipnodes[num];
 	BSPPLANE* plane = &planes[node->iPlane];
 	
-	float t1 = dotProduct(plane->vNormal, p1) - plane->fDist;
-	float t2 = dotProduct(plane->vNormal, p2) - plane->fDist;
+	//float t1 = dotProduct(plane->vNormal, p1) - plane->fDist;
+	//float t2 = dotProduct(plane->vNormal, p2) - plane->fDist;
+	float t1, t2;
+
+	switch (plane->nType) {
+	case 0:
+		t1 = p1.x - plane->fDist;
+		t2 = p2.x - plane->fDist;
+		break;
+	case 1:
+		t1 = p1.y - plane->fDist;
+		t2 = p2.y - plane->fDist;
+		break;
+	case 2:
+		t1 = p1.z - plane->fDist;
+		t2 = p2.z - plane->fDist;
+		break;
+	default:
+		t1 = dotProduct(plane->vNormal, p1) - plane->fDist;
+		t2 = dotProduct(plane->vNormal, p2) - plane->fDist;
+		break;
+	}
 
 	// keep descending until we find a plane that bisects the trace line
 	if (t1 >= 0.0f && t2 >= 0.0f)
@@ -6060,7 +6085,7 @@ bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, v
 		{
 			trace->flFraction = midf;
 			trace->vecEndPos = mid;
-			logf("backup past 0\n");
+			debugf("backup past 0\n");
 			return false;
 		}
 

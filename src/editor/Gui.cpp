@@ -1573,58 +1573,6 @@ void Gui::drawStandardMenuBar() {
 
 	if (ImGui::BeginMenu("View")) {
 		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-		if (ImGui::MenuItem("Textures", 0, g_settings.render_flags & RENDER_TEXTURES)) {
-			g_settings.render_flags ^= RENDER_TEXTURES;
-		}
-		tooltip(g, "Render textures for all faces.");
-
-		if (ImGui::BeginMenu("Lightmaps")) {
-			bool lightEnabled = g_settings.render_flags & RENDER_LIGHTMAPS;
-			int* scnt = app->mapRenderer->lightStyleCount;
-
-			if (ImGui::MenuItem("Enabled", 0, lightEnabled)) {
-				g_settings.render_flags ^= RENDER_LIGHTMAPS;
-			}
-			tooltip(g, "Render lighting textures for all faces. Disable for full brightness.");
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Layer 0", 0, app->lightStylesEnabled[0], lightEnabled)) {
-				app->lightStylesEnabled[0] = !app->lightStylesEnabled[0];
-			}
-			tooltip(g, cstrf("Render layer 0 lightmaps. Most faces have this unless they're pitch black.\n\n"
-				"%d faces in this map have layer 0 lightmaps.", scnt[0]));
-
-			if (ImGui::MenuItem("Layer 1", 0, scnt[1] > 0 && app->lightStylesEnabled[1], lightEnabled && scnt[1] > 0)) {
-				app->lightStylesEnabled[1] = !app->lightStylesEnabled[1];
-			}
-			tooltip(g, cstrf("Render layer 1 lightmaps. Used with toggled/animated lights.\n\n"
-				"%d faces in this map have layer 1 lightmaps.", scnt[1]));
-
-			if (ImGui::MenuItem("Layer 2", 0, scnt[2] > 0 && app->lightStylesEnabled[2], lightEnabled && scnt[2] > 0)) {
-				app->lightStylesEnabled[2] = !app->lightStylesEnabled[2];
-			}
-			tooltip(g, cstrf("Render layer 2 lightmaps. Used with toggled/animated lights.\n\n"
-				"%d faces in this map have layer 2 lightmaps.", scnt[2]));
-
-			if (ImGui::MenuItem("Layer 3", 0, scnt[3] > 0 && app->lightStylesEnabled[3], lightEnabled && scnt[3] > 0)) {
-				app->lightStylesEnabled[3] = !app->lightStylesEnabled[3];
-			}
-			tooltip(g, cstrf("Render layer 3 lightmaps. Used with toggled/animated lights.\n\n"
-				"%d faces in this map have layer 3 lightmaps.", scnt[3]));
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::MenuItem("Wireframe", 0, g_settings.render_flags & RENDER_WIREFRAME)) {
-			g_settings.render_flags ^= RENDER_WIREFRAME;
-		}
-		tooltip(g, "Outline all faces.");
-
-		if (ImGui::MenuItem("Special World Faces", 0, g_settings.render_flags & RENDER_SPECIAL)) {
-			g_settings.render_flags ^= RENDER_SPECIAL;
-		}
-		tooltip(g, "Render special faces that are normally invisible and/or have special rendering properties (e.g. the SKY texture).");
 
 		if (ImGui::BeginMenu("Clipnodes")) {
 			if (ImGui::MenuItem("World", 0, g_settings.render_flags & RENDER_WORLD_CLIPNODES)) {
@@ -1680,71 +1628,138 @@ void Gui::drawStandardMenuBar() {
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("Entities")) {
+			if (ImGui::MenuItem("Point Entities", 0, g_settings.render_flags & RENDER_POINT_ENTS)) {
+				g_settings.render_flags ^= RENDER_POINT_ENTS;
+			}
+			tooltip(g, "Render point-sized entities which either have no model or reference MDL/SPR files.");
+
+			if (ImGui::MenuItem("Solid Entities", 0, g_settings.render_flags & RENDER_ENTS)) {
+				if (g_settings.render_flags & RENDER_ENTS) {
+					g_settings.render_flags &= ~(RENDER_ENTS | RENDER_SPECIAL_ENTS);
+				}
+				else {
+					g_settings.render_flags |= RENDER_ENTS | RENDER_SPECIAL_ENTS;
+				}
+			}
+			tooltip(g, "Render entities that reference BSP models.");
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Direction Vectors", 0, g_settings.render_flags & RENDER_ENT_DIRECTIONS)) {
+				g_settings.render_flags ^= RENDER_ENT_DIRECTIONS;
+				app->updateEntDirectionVectors();
+			}
+			tooltip(g, "Display direction vectors for selected entities.\n"
+				"For point entities, vectors usually represent orientation.\n"
+				"For solid entities, vectors usually represent movement direction.");
+
+			if (ImGui::MenuItem("Links", 0, g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
+				g_settings.render_flags ^= RENDER_ENT_CONNECTIONS;
+				g_app->updateEntConnections();
+			}
+			tooltip(g, "Show how entities connect to each other.\n\n"
+				"Yellow line = Selected entity targets the connected entity.\n"
+				"Blue line = Selected entity is targetted by the connected entity.\n"
+				"Green line = Selected entity and connected entity target each other.\n\n"
+				"Not all connections are displayed. You may still need to use the Entity Report "
+				"to find connections depending on the game the map was compiled for."
+			);
+
+			if (ImGui::MenuItem("Name Tags", 0, g_settings.render_flags & RENDER_NAME_TAGS)) {
+				g_settings.render_flags ^= RENDER_NAME_TAGS;
+			}
+			tooltip(g, "Display entity target names");
+
+			if (ImGui::MenuItem("Render Modes", 0, g_settings.render_flags & RENDER_RENDER_MODES)) {
+				g_settings.render_flags ^= RENDER_RENDER_MODES;
+			}
+			tooltip(g, "Models, sprites, and brushes render as they would in-game. "
+				"Entity rendermode, renderamt, and rendercolor keys are respected.\n\n"
+				"In some cases this makes entities completely invisible and difficult to select."
+			);
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Models", 0, g_settings.render_flags & RENDER_STUDIO_MDL)) {
+				g_settings.render_flags ^= RENDER_STUDIO_MDL;
+
+				if (!(g_settings.render_flags & RENDER_STUDIO_MDL)) {
+					for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
+						app->mapRenderer->map->ents[i]->didStudioDraw = false;
+					}
+				}
+			}
+			tooltip(g, "Display game models instead of colored cubes where available.");
+
+			if (ImGui::MenuItem("Sprites", 0, g_settings.render_flags & RENDER_SPRITES)) {
+				g_settings.render_flags ^= RENDER_SPRITES;
+
+				if (!(g_settings.render_flags & RENDER_SPRITES)) {
+					for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
+						app->mapRenderer->map->ents[i]->didStudioDraw = false;
+					}
+				}
+			}
+			tooltip(g, "Display sprites instead of colored cubes where available.");
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Lightmaps")) {
+			bool lightEnabled = g_settings.render_flags & RENDER_LIGHTMAPS;
+			int* scnt = app->mapRenderer->lightStyleCount;
+
+			if (ImGui::MenuItem("Enabled", 0, lightEnabled)) {
+				g_settings.render_flags ^= RENDER_LIGHTMAPS;
+			}
+			tooltip(g, "Render lighting textures for all faces. Disable for full brightness.");
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Layer 0", 0, app->lightStylesEnabled[0], lightEnabled)) {
+				app->lightStylesEnabled[0] = !app->lightStylesEnabled[0];
+			}
+			tooltip(g, cstrf("Render layer 0 lightmaps. Most faces have this unless they're pitch black.\n\n"
+				"%d faces in this map have layer 0 lightmaps.", scnt[0]));
+
+			if (ImGui::MenuItem("Layer 1", 0, scnt[1] > 0 && app->lightStylesEnabled[1], lightEnabled && scnt[1] > 0)) {
+				app->lightStylesEnabled[1] = !app->lightStylesEnabled[1];
+			}
+			tooltip(g, cstrf("Render layer 1 lightmaps. Used with toggled/animated lights.\n\n"
+				"%d faces in this map have layer 1 lightmaps.", scnt[1]));
+
+			if (ImGui::MenuItem("Layer 2", 0, scnt[2] > 0 && app->lightStylesEnabled[2], lightEnabled && scnt[2] > 0)) {
+				app->lightStylesEnabled[2] = !app->lightStylesEnabled[2];
+			}
+			tooltip(g, cstrf("Render layer 2 lightmaps. Used with toggled/animated lights.\n\n"
+				"%d faces in this map have layer 2 lightmaps.", scnt[2]));
+
+			if (ImGui::MenuItem("Layer 3", 0, scnt[3] > 0 && app->lightStylesEnabled[3], lightEnabled && scnt[3] > 0)) {
+				app->lightStylesEnabled[3] = !app->lightStylesEnabled[3];
+			}
+			tooltip(g, cstrf("Render layer 3 lightmaps. Used with toggled/animated lights.\n\n"
+				"%d faces in this map have layer 3 lightmaps.", scnt[3]));
+
+			ImGui::EndMenu();
+		}
+
 		ImGui::Separator();
 
-		if (ImGui::MenuItem("Point Entities", 0, g_settings.render_flags & RENDER_POINT_ENTS)) {
-			g_settings.render_flags ^= RENDER_POINT_ENTS;
+		if (ImGui::MenuItem("Special World Faces", 0, g_settings.render_flags & RENDER_SPECIAL)) {
+			g_settings.render_flags ^= RENDER_SPECIAL;
 		}
-		tooltip(g, "Render point-sized entities which either have no model or reference MDL/SPR files.");
+		tooltip(g, "Render special faces that are normally invisible and/or have special rendering properties (e.g. the SKY texture).");
 
-		if (ImGui::MenuItem("Solid Entities", 0, g_settings.render_flags & RENDER_ENTS)) {
-			if (g_settings.render_flags & RENDER_ENTS) {
-				g_settings.render_flags &= ~(RENDER_ENTS | RENDER_SPECIAL_ENTS);
-			}
-			else {
-				g_settings.render_flags |= RENDER_ENTS | RENDER_SPECIAL_ENTS;
-			}
+		if (ImGui::MenuItem("Textures", 0, g_settings.render_flags & RENDER_TEXTURES)) {
+			g_settings.render_flags ^= RENDER_TEXTURES;
 		}
-		tooltip(g, "Render entities that reference BSP models.");
+		tooltip(g, "Render textures for all faces.");
 
-		if (ImGui::MenuItem("Entity Direction Vectors", 0, g_settings.render_flags & RENDER_ENT_DIRECTIONS)) {
-			g_settings.render_flags ^= RENDER_ENT_DIRECTIONS;
-			app->updateEntDirectionVectors();
+		if (ImGui::MenuItem("Wireframe", 0, g_settings.render_flags & RENDER_WIREFRAME)) {
+			g_settings.render_flags ^= RENDER_WIREFRAME;
 		}
-		tooltip(g, "Display direction vectors for selected entities.\n"
-			"For point entities, vectors usually represent orientation.\n"
-			"For solid entities, vectors usually represent movement direction.");
-
-		if (ImGui::MenuItem("Entity Links", 0, g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
-			g_settings.render_flags ^= RENDER_ENT_CONNECTIONS;
-		}
-		tooltip(g, "Show how entities connect to each other.\n\n"
-			"Yellow line = Selected entity targets the connected entity.\n"
-			"Blue line = Selected entity is targetted by the connected entity.\n"
-			"Green line = Selected entity and connected entity target each other.\n\n"
-			"Not all connections are displayed. You may still need to use the Entity Report "
-			"to find connections depending on the game the map was compiled for."
-		);
-
-		if (ImGui::MenuItem("Entity Render Modes", 0, g_settings.render_flags & RENDER_RENDER_MODES)) {
-			g_settings.render_flags ^= RENDER_RENDER_MODES;
-		}
-		tooltip(g, "Respect entity rendermode, renderamt, and rendercolor keys.\n\n"
-			"This enables transparent textures and models. In some cases it makes "
-			"entities completely invisible which can make selection difficult."
-		);
-
-		if (ImGui::MenuItem("Models", 0, g_settings.render_flags & RENDER_STUDIO_MDL)) {
-			g_settings.render_flags ^= RENDER_STUDIO_MDL;
-
-			if (!(g_settings.render_flags & RENDER_STUDIO_MDL)) {
-				for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
-					app->mapRenderer->map->ents[i]->didStudioDraw = false;
-				}
-			}
-		}
-		tooltip(g, "Display game models instead of colored cubes where available.");
-
-		if (ImGui::MenuItem("Sprites", 0, g_settings.render_flags & RENDER_SPRITES)) {
-			g_settings.render_flags ^= RENDER_SPRITES;
-
-			if (!(g_settings.render_flags & RENDER_SPRITES)) {
-				for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
-					app->mapRenderer->map->ents[i]->didStudioDraw = false;
-				}
-			}
-		}
-		tooltip(g, "Display sprites instead of colored cubes where available.");
+		tooltip(g, "Outline all faces.");
 
 		ImGui::Separator();
 
