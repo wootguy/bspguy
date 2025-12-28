@@ -32,22 +32,25 @@ varying vec2 fTex;
 varying vec4 fColor;
 
 vec4 lighting(vec3 tNormal);
+vec2 chrome(vec3 tNormal);
 
 void main()
 {
 	gl_Position = modelViewProjection * vec4(vPosition, 1);
 
-	if (chromeEnable != 0) {
-		fTex.x = vBone; // just keeping the var active to stop error spam
+	if (chromeEnable == 2) {
+		fTex.x = vBone; // keeping the vertex attribute active because it's needed in the modern shader
+	} else if (chromeEnable != 0) {
+		fTex = chrome(vNormal);
 	} else {
 		fTex = vTex;
 	}
 
 	// TODO: compile multiple shaders and control this if #ifdef
 	if (additiveEnable != 0) {
-		fColor = vec4(1, 1, 1, 0.5);
+		fColor = vec4(1, 1, 1, 1);
 	} else if (flatshadeEnable == 1) {
-		fColor = vec4(ambient, 1);
+		fColor = vec4(ambient*0.725, 1); // trying to match HLMV
 	} else if (flatshadeEnable == 2) {
 		fColor = vec4(1, 1, 1, 1);
 	} else {
@@ -55,17 +58,45 @@ void main()
 	}
 }
 
+vec3 rotateVector(vec3 v, inout mat4 mat)
+{
+	vec3 vout; 
+	vout.x = dot(v, mat[0].xyz); 
+	vout.z = -(dot(v, mat[1].xyz)); 
+	vout.y = dot(v, mat[2].xyz); 
+	return vout; 
+}
+
+vec2 chrome(vec3 tNormal)
+{
+	//vec3 bonePos = vec3(0,0,0);
+	vec3 dir = normalize(viewerOrigin);
+
+	vec3 chromeup = normalize(cross(dir, viewerRight));
+	vec3 chromeright = normalize(cross(dir, chromeup));
+	
+	vec2 chrome;
+	chrome.x = (dot(tNormal, chromeright) + 1.0) * 0.5;
+	chrome.y = (dot(tNormal, chromeup) + 1.0) * 0.5;
+
+	return chrome;
+}
+
 vec4 lighting(vec3 tNormal)
 {
-	vec3 finalColor = ambient;
+	float ambientScale = (96.0 / 255.0); // trying to match HLMV
+	vec3 finalColor = ambient*ambientScale;
 	for (int i = 0; i < 4; ++i)
 	{
 		if (i == elights) // Webgl won't let us use variables in our loop condition. So we have this.
 			break;
 		vec3 lightDirection = normalize(lights[i][0].xyz);
 		vec3 diffuse = lights[i][1].xyz;
+		float lightcos = dot(tNormal, lightDirection);
+		float r = 1.5;
+		lightcos = ( lightcos + ( r - 1.0 ) ) / r;
 
-		finalColor += diffuse * max(0.0, dot(tNormal, lightDirection));
+		finalColor += diffuse * lightcos;
 	}
 	return vec4(clamp(finalColor, vec3(0, 0, 0), vec3(1, 1, 1)), 1);
 }

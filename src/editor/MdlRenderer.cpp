@@ -57,7 +57,7 @@ MdlRenderer::~MdlRenderer() {
 
 			delete[] meshBuffers[b];
 		}
-		for (int i = 0; i < MAXSTUDIOSEQUENCES; i++) {
+		for (int i = 0; i < MAXSTUDIOSEQUENCES && i < seqheaders.size(); i++) {
 			if (seqheaders[i].getBuffer())
 				seqheaders[i].freeBuf();
 		}
@@ -298,15 +298,19 @@ bool MdlRenderer::validate() {
 bool MdlRenderer::isEmpty() {
 	bool isEmptyModel = true;
 
-	data.seek(header->bodypartindex);
-	mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
-	for (int i = 0; i < bod->nummodels; i++) {
-		data.seek(bod->modelindex + i * sizeof(mstudiomodel_t));
-		mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
+	for (int b = 0; b < header->numbodyparts; b++) {
+		// Try loading required model info
+		data.seek(header->bodypartindex + b * sizeof(mstudiobodyparts_t));
+		mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
 
-		if (mod->nummesh != 0) {
-			isEmptyModel = false;
-			break;
+		for (int i = 0; i < bod->nummodels; i++) {
+			data.seek(bod->modelindex + i * sizeof(mstudiomodel_t));
+			mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
+
+			if (mod->nummesh != 0) {
+				isEmptyModel = false;
+				break;
+			}
 		}
 	}
 
@@ -341,7 +345,7 @@ void MdlRenderer::loadData() {
 	}
 
 	memset(iController, 127, 4);
-	memset(iBlender, 0, 2);
+	memset(iBlender, 127, 2);
 	memset(cachedBounds, 0, sizeof(cachedBounds));
 	iMouth = 0;
 
@@ -665,12 +669,7 @@ bool MdlRenderer::loadMeshes() {
 
 						MdlVert vert;
 
-						if (texture->flags & STUDIO_NF_ADDITIVE) {
-							vert.color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-						}
-						else {
-							vert.color = vec4(pstudionorms[ptricmds[1]], 0);
-						}
+						vert.color = vec4(pstudionorms[ptricmds[1]], 0);
 
 						if (texture->flags & STUDIO_NF_CHROME) {
 							// real UVs calculated in shader
@@ -960,7 +959,7 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 		}
 		else
 		{
-			mstudioanimvalue_t* panimvalue = (mstudioanimvalue_t*)((byte*)panim + panim->offset[j + 3]);
+			mstudioanimvalue_t* panimvalue = (mstudioanimvalue_t*)((uint8_t*)panim + panim->offset[j + 3]);
 			int k = frame;
 			while (panimvalue->num.total <= k)
 			{
@@ -1031,7 +1030,7 @@ void MdlRenderer::CalcBonePosition(const int frame, const float s, const mstudio
 		pos[j] = pbone->value[j]; // default;
 		if (panim->offset[j] != 0)
 		{
-			auto panimvalue = (mstudioanimvalue_t*)((byte*)panim + panim->offset[j]);
+			auto panimvalue = (mstudioanimvalue_t*)((uint8_t*)panim + panim->offset[j]);
 
 			auto k = frame;
 			// find span of values that includes the frame we want
@@ -1358,32 +1357,25 @@ void MdlRenderer::transformVerts(int body, bool forRender, vec3 viewerOrigin, ve
 
 					if ((buffer.flags & STUDIO_NF_CHROME) && buffer.skinref < header->numtextures) {
 						Texture* tex = glTextures[buffer.skinref];
-						const float s = 1.0 / (float)tex->width;
-						const float t = 1.0 / (float)tex->height;
 
 						for (int v = 0; v < buffer.numVerts; v++) {
-							vec3 tNormal = buffer.verts[v].normal;
+							vec3 tNormal = buffer.verts[v].normal.flip();
 							int boneIdx = (int)buffer.verts[v].bone;
 							float (&bone)[4][4] = m_bonetransform[boneIdx];
 
-							vec3 dir = (viewerOrigin + vec3(bone[0][3], bone[2][3], -bone[1][3])).normalize();
+							vec3 bonePos = vec3(bone[0][3], bone[1][3], bone[2][3]);
+							vec3 dir = (viewerOrigin - bonePos).normalize();
 
-							vec3 chromeupvec = crossProduct(dir, viewerRight).normalize();
-							vec3 chromerightvec = crossProduct(dir, chromeupvec).normalize();
-
-							vec3 chromeup, chromeright;
-							VectorIRotate(chromeupvec, bone, chromeup);
-							VectorIRotate(chromerightvec, bone, chromeright);
-
-							vec2 chrome;
+							vec3 chromeup = crossProduct(dir, viewerRight).normalize();
+							vec3 chromeright = crossProduct(dir, chromeup).normalize();
 
 							// calc s coord
-							float n = dotProduct(tNormal, chromeright);
-							buffer.verts[v].uv.x = ((n + 1.0) * 32.0) * s;
+							float n = dotProduct(tNormal, chromeright.flip());
+							buffer.verts[v].uv.x = (n + 1.0f) * 0.5f;
 
 							// calc t coord
-							n = dotProduct(tNormal, chromeup);
-							buffer.verts[v].uv.y = ((n + 1.0) * 32.0) * t;
+							n = dotProduct(tNormal, chromeup.flip());
+							buffer.verts[v].uv.y = (n + 1.0f) * 0.5f;
 						}
 					}
 
@@ -1441,51 +1433,51 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
 	shader->bind();
+	int defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 
 	if (g_settings.render_flags & RENDER_RENDER_MODES) {
+		
 		switch (opts.rendermode) {
 		default:
 		case RENDER_MODE_NORMAL:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 			shader->setUniform("colorMult", vec4(1, 1, 1, 1));
 			break;
 		case RENDER_MODE_SOLID:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 			shader->setUniform("colorMult", vec4(1, 1, 1, 1));
 			break;
 		case RENDER_MODE_COLOR:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 			shader->setUniform("colorMult", vec4(opts.rendercolor.toVec(), opts.renderamt / 255.0f));
 			break;
 		case RENDER_MODE_TEXTURE:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 			shader->setUniform("colorMult", vec4(1, 1, 1, opts.renderamt / 255.0f));
 			break;
 		case RENDER_MODE_GLOW:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			defaultBlendFunc = GL_ONE;
 			shader->setUniform("colorMult", vec4(1, 1, 1, opts.renderamt / 255.0f));
 			break;
 		case RENDER_MODE_ADDITIVE:
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			defaultBlendFunc = GL_ONE;
 			shader->setUniform("colorMult", vec4(1, 1, 1, opts.renderamt / 255.0f));
 			break;
 		}
-	}
-	else {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		glBlendFunc(GL_SRC_ALPHA, defaultBlendFunc);
+		glDepthFunc(GL_LEQUAL);
+	} else {
+		glBlendFunc(GL_SRC_ALPHA, defaultBlendFunc);
 		shader->setUniform("colorMult", vec4(1, 1, 1, 1));
 	}
 
+	
+
 	shader->setUniform("sTex", 0);
 	shader->setUniform("elights", 1); // number of active lights
-	shader->setUniform("ambient", opts.rendercolor.toVec() * 0.4f); // ambient lighting
-	
-	if (!legacyMode) {
-		shader->setUniform("viewerOrigin", viewerOrigin - origin); // world coordinates
-		shader->setUniform("viewerRight", viewerRight);
-	}
+	shader->setUniform("ambient", opts.rendercolor.toVec()); // ambient lighting
 
 	// light data
 	vec3 lights[4][3];
@@ -1493,16 +1485,19 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 	for (int i = 0; i < 4; i++) {
 		memset(lights[i], 0, 3*sizeof(vec3));
 	}
-	lights[0][0] = vec3(1024, 1024, 1024); // light position
-	lights[0][1] = opts.rendercolor.toVec(); // diffuse color
+	float shadelight = 192.0f / 255.0f; // value used in HLMV
+	lights[0][0] = vec3(0, 1024, 0); // light position
+	lights[0][1] = opts.rendercolor.toVec() * shadelight; // diffuse color
 	shader->setUniform("lights", (float*)lights, 4*3*3);
 	glCheckError("setting MDL scene uniforms");
 
 	shader->pushMatrix(MAT_MODEL);
 	shader->modelMat->loadIdentity();
 	shader->modelMat->translate(origin.x, origin.z, -origin.y);
-
 	
+	shader->setUniform("viewerOrigin", (viewerOrigin - origin).flip()); // world coordinates
+	shader->setUniform("viewerRight", viewerRight.flip());
+
 	if (!legacyMode) {
 		if (g_settings.animate_models) {
 			SetUpBones(angles, opts.sequence, ent->drawFrame);
@@ -1519,8 +1514,6 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 		shader->setUniform("boneMatrixTexture", 1);
 	}
 	else {
-		shader->setUniform("chromeEnable", 0);
-
 		if (g_settings.animate_models) {
 			// no way to upload bone data. Do transforms on the CPU (slow!!)
 			SetUpBones(angles, opts.sequence, ent->drawFrame);
@@ -1556,74 +1549,64 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 
 	int bodyValue = clamp(opts.body, 0, 255);
 
-	for (int b = 0; b < header->numbodyparts; b++) {
-		// Try loading required model info
-		data.seek(header->bodypartindex + b * sizeof(mstudiobodyparts_t));
-		mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
+	for (int pass = 0; pass < 2; pass++) {
+		// render additive meshes last
+		bool isAdditivePass = pass == 1;
+		glBlendFunc(GL_SRC_ALPHA, isAdditivePass ? GL_ONE : defaultBlendFunc);
+		shader->setUniform("additiveEnable", isAdditivePass);
 
-		int activeModel = (bodyValue / bod->base) % bod->nummodels;
-		bodyValue -= activeModel * bod->base;
+		for (int b = 0; b < header->numbodyparts; b++) {
+			// Try loading required model info
+			data.seek(header->bodypartindex + b * sizeof(mstudiobodyparts_t));
+			mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
 
-		data.seek(bod->modelindex + activeModel * sizeof(mstudiomodel_t));
-		mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
+			int activeModel = (bodyValue / bod->base) % bod->nummodels;
+			bodyValue -= activeModel * bod->base;
 
-		for (int k = 0; k < mod->nummesh; k++) {
-			MdlMeshRender& render = meshBuffers[b][activeModel][k];
-			
-			short remappedSkin = pskinref[skin*header->numskinref + render.skinref];
-			if (remappedSkin < 0 || remappedSkin >= header->numtextures) {
-				remappedSkin = render.skinref;
-			}
+			data.seek(bod->modelindex + activeModel * sizeof(mstudiomodel_t));
+			mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
 
-			Texture* tex = glTextures[remappedSkin];
-			tex->bind();
+			for (int k = 0; k < mod->nummesh; k++) {
+				MdlMeshRender& render = meshBuffers[b][activeModel][k];
 
-			glCheckError("binding MDL texture");
-
-			if (!render.buffer) {
-				continue;
-			}
-
-			if (render.flags & STUDIO_NF_ADDITIVE) {
-				shader->setUniform("additiveEnable", 1);
-			}
-			else {
-				shader->setUniform("additiveEnable", 0);
-			}
-
-			int flatShade = 0;
-			if (render.flags & STUDIO_NF_FULLBRIGHT) {
-				flatShade = 2;
-			} else if (render.flags & STUDIO_NF_FLATSHADE) {
-				flatShade = 1;
-			}
-
-			shader->setUniform("flatshadeEnable", flatShade);
-
-			if (!legacyMode) {
-				if (render.flags & STUDIO_NF_CHROME) {
-					const float s = 1.0 / (float)tex->width;
-					const float t = 1.0 / (float)tex->height;
-
-					shader->setUniform("chromeEnable", 1);
-					shader->setUniform("textureST", vec2(s, t));
+				if (!render.buffer) {
+					continue;
 				}
-				else {
-					shader->setUniform("chromeEnable", 0);
+
+				bool isAdditive = render.flags & STUDIO_NF_ADDITIVE;
+				if (isAdditive != isAdditivePass) {
+					continue;
 				}
+
+				short remappedSkin = pskinref[skin * header->numskinref + render.skinref];
+				if (remappedSkin < 0 || remappedSkin >= header->numtextures) {
+					remappedSkin = render.skinref;
+				}
+
+				Texture* tex = glTextures[remappedSkin];
+				tex->bind();
+
+				int flatShade = 0;
+				if (render.flags & STUDIO_NF_FULLBRIGHT) {
+					flatShade = 2;
+				}
+				else if (render.flags & STUDIO_NF_FLATSHADE) {
+					flatShade = 1;
+				}
+
+				shader->setUniform("flatshadeEnable", flatShade);
+				shader->setUniform("chromeEnable", (render.flags & STUDIO_NF_CHROME) ? 1 : 0);
+
+				render.buffer->draw(GL_TRIANGLES);
 			}
-
-			glCheckError("setting MDL body uniforms");
-
-			render.buffer->draw(GL_TRIANGLES);
-
-			glCheckError("rendering MDL body part");
 		}
 	}
 
-	//logf("Draw %d meshes\n", meshCount);
-
 	shader->popMatrix(MAT_MODEL);
+
+
+	//logf("Draw %d meshes\n", meshCount);
+	glCheckError("rendering model");
 }
 
 // get a AABB containing all model vertices at the given angles and animation frame

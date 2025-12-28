@@ -386,10 +386,9 @@ void Renderer::compileShaders() {
 	mdlShader->addUniform("chromeEnable", UNIFORM_INT);
 	mdlShader->addUniform("flatshadeEnable", UNIFORM_INT);
 	mdlShader->addUniform("colorMult", UNIFORM_VEC4);
+	mdlShader->addUniform("viewerOrigin", UNIFORM_VEC3);
+	mdlShader->addUniform("viewerRight", UNIFORM_VEC3);
 	if (g_settings.renderer != RENDERER_OPENGL_21_LEGACY) {
-		mdlShader->addUniform("viewerOrigin", UNIFORM_VEC3);
-		mdlShader->addUniform("viewerRight", UNIFORM_VEC3);
-		mdlShader->addUniform("textureST", UNIFORM_VEC2);
 		mdlShader->addUniform("boneMatrixTexture", UNIFORM_INT);
 	}
 
