@@ -9,6 +9,7 @@
 // - rad textures darker than they should be due to lightmaps
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - new tinyfd has folder picker?
+// - update version string
 
 // todo:
 // box selection

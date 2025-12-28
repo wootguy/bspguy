@@ -723,6 +723,7 @@ void Renderer::renderLoop() {
 			drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
 		}
 
+
 		glCheckError("Rendering debug polys");
 
 		renderNavMesh();
@@ -734,6 +735,31 @@ void Renderer::renderLoop() {
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
+
+		if (cameraMouseCapture) {
+			colorShader->bind();
+			colorShader->pushMatrix(MAT_PROJECTION);
+			colorShader->pushMatrix(MAT_VIEW);
+			projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
+			view.loadIdentity();
+			colorShader->updateMatrixes();
+			glDisable(GL_DEPTH_TEST);
+
+			int border = 1;
+			int thick = 2;
+			int len = 12;
+			vec2 center(windowWidth / 2, windowHeight / 2);
+
+			drawRect2D(center - vec2(len + border, thick/2 + border), vec2(len*2 + border*2, thick + border*2), COLOR4(0, 0, 0, 255));
+			drawRect2D(center - vec2(thick/2 + border, len + border), vec2(thick + border*2, len*2 + border*2), COLOR4(0, 0, 0, 255));
+
+			drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
+			drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
+
+			glEnable(GL_DEPTH_TEST);
+			colorShader->popMatrix(MAT_PROJECTION);
+			colorShader->popMatrix(MAT_VIEW);
+		}
 
 		if (!g_app->hideGui)
 			gui->draw();
@@ -1868,12 +1894,13 @@ void Renderer::controls() {
 	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
 
-	if (!io.WantCaptureKeyboard && !io.WantCaptureMouse)
+	static bool oldWantTextInput = false;
+	static bool guiWasFocused = false;
+
+	if (!io.WantCaptureKeyboard && !io.WantCaptureMouse && !guiWasFocused)
 		cameraOrigin += getMoveDir() * frameTimeScale;
 	
 	moveGrabbedEnts();
-
-	static bool oldWantTextInput = false;
 
 	if (!io.WantTextInput && oldWantTextInput) {
 		pushEntityUndoState("Edit Keyvalues");
@@ -1881,9 +1908,13 @@ void Renderer::controls() {
 
 	oldWantTextInput = io.WantTextInput;
 
-	if (!io.WantTextInput) {
+	if (!io.WantTextInput && !io.WantCaptureMouse && !guiWasFocused) {
 		globalShortcutControls();
 		shortcutControls();
+	}
+
+	if (io.WantTextInput) {
+		guiWasFocused = true;
 	}
 
 	if (!io.WantCaptureMouse) {
@@ -1897,11 +1928,16 @@ void Renderer::controls() {
 
 		makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
 
-		cameraObjectHovering();
+		if (!guiWasFocused) {
+			cameraObjectHovering();
+			vertexEditControls();
+			cameraPickingControls();
+		}
 
-		vertexEditControls();
-
-		cameraPickingControls();
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS
+			|| glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+			guiWasFocused = false;
+		}
 	}
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -2160,7 +2196,10 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 		cameraAngles.z += rotationSpeed * deltaTime * 50;
 	}
 
-	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+	bool rightMouseHeld = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+	bool shouldRotateCam = cameraMouseCapture || rightMouseHeld;
+
+	if (draggingAxis == -1 && shouldRotateCam) {
 		if (!cameraIsRotating) {
 			lastMousePos = mousePos;
 			cameraIsRotating = true;
@@ -2181,6 +2220,14 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 				cameraAngles.z += 360.0f;
 			}
 			lastMousePos = mousePos;
+
+			if (cameraMouseCapture) {
+				glfwSetCursorPos(window, windowWidth / 2.0, windowHeight / 2.0);
+				double xpos, ypos;
+				glfwGetCursorPos(window, &xpos, &ypos);
+				lastMousePos.x = xpos;
+				lastMousePos.y = ypos;
+			}
 		}
 
 		ImGui::SetWindowFocus(NULL);
@@ -2345,6 +2392,8 @@ void Renderer::moveGrabbedEnts() {
 }
 
 void Renderer::shortcutControls() {
+	ImGuiIO& io = ImGui::GetIO();
+
 	if (pickMode == PICK_OBJECT) {
 		bool anyEnterPressed = (pressed[GLFW_KEY_ENTER] && !oldPressed[GLFW_KEY_ENTER]) ||
 			(pressed[GLFW_KEY_KP_ENTER] && !oldPressed[GLFW_KEY_KP_ENTER]);
@@ -2423,6 +2472,19 @@ void Renderer::globalShortcutControls() {
 	}
 	if (anyCtrlPressed && pressed[GLFW_KEY_Y] && !oldPressed[GLFW_KEY_Y]) {
 		redo();
+	}
+	if (pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
+		cameraMouseCapture = !cameraMouseCapture;
+
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		if (cameraMouseCapture) {
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+			io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+		}
+		else {
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+		}
 	}
 }
 
@@ -2979,6 +3041,13 @@ void Renderer::drawBox2D(vec2 center, float width, COLOR4 color) {
 	vec2 pos = vec2(center.x, center.y) - vec2(width*0.5f, width *0.5f);
 	cQuad cube(pos.x, pos.y, width, width, color);
 
+	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
+	buffer.upload();
+	buffer.draw(GL_TRIANGLES);
+}
+
+void Renderer::drawRect2D(vec2 pos, vec2 size, COLOR4 color) {
+	cQuad cube(pos.x, pos.y, size.x, size.y, color);
 	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
 	buffer.upload();
 	buffer.draw(GL_TRIANGLES);

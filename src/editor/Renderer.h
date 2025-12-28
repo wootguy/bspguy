@@ -252,6 +252,7 @@ private:
 	bool anyCtrlPressed;
 	bool anyAltPressed;
 	bool anyShiftPressed;
+	bool cameraMouseCapture = false; // rotate the camera without holding a mouse button
 
 	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
@@ -313,6 +314,7 @@ private:
 	void drawPolygon3D(Polygon3D& poly, COLOR4 color);
 	void drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color); // returns render scale
 	void drawBox2D(vec2 center, float width, COLOR4 color);
+	void drawRect2D(vec2 pos, vec2 size, COLOR4 color);
 	void drawPlane(BSPPLANE& plane, COLOR4 color, float sz=32768);
 	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
 	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
