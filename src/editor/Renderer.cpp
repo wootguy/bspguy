@@ -3616,6 +3616,9 @@ void Renderer::addNameTags() {
 
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
+		if (ent->hidden)
+			continue;
+
 		string tname = ent->getTargetname();
 		if (tname.empty())
 			continue;
@@ -3624,10 +3627,16 @@ void Renderer::addNameTags() {
 		int modelIdx = ent->getBspModelIdx();
 
 		if (modelIdx == -1) {
+			if (!(g_settings.render_flags & RENDER_POINT_ENTS))
+				continue;
+
 			EntCube* cube = mapRenderer->pointEntRenderer->getEntCube(ent);
 			ori += vec3(0, 0, cube->mins.z);
 		}
 		else {
+			if (!(g_settings.render_flags & RENDER_ENTS))
+				continue;
+
 			BSPMODEL& model = map->models[modelIdx];
 			float oldZ = ori.z;
 			ori += model.nMins + (model.nMaxs - model.nMins) * 0.5f;
@@ -4158,6 +4167,7 @@ void Renderer::updateEntConnectionPositions() {
 	}
 
 	entConnections->upload();
+	entConnectionPoints->upload();
 }
 
 void Renderer::updateCullBox() {

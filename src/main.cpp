@@ -6,14 +6,13 @@
 #include "globals.h"
 
 // fix v6:
-// - rad textures darker than they should be due to lightmaps
 // - guide update: world leaf merging, new tools, rad, different subdivides
-// - new tinyfd has folder picker?
 // - update version string
-// - toggling solid ents disables wireframe
-// - ent link boxes dont move with selection
+// - cant use hotkeys in entity report
 
 // todo:
+// folder picker for settings paths (tinyfd uses the annoying picker)
+// rad textures darker than they should be due to lightmaps
 // ripent saftey warning
 // hold click to select behind
 // skybox rendering
@@ -73,8 +72,6 @@
 // render, bsp, GUI classes are way too big and doing too many things and too many state checks
 
 // Ideas for commands:
-// copymodel:
-//		- copies a model from the source map into the target map (for adding new perfectly shaped brush ents)
 // decompile:
 //      - to RMF. Try creating brushes from convex face connections?
 // export:

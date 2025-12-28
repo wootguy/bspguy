@@ -2475,10 +2475,16 @@ void Gui::drawMenuBar() {
 		}
 	}
 
-	float fpsWidth = defaultFont->CalcTextSizeA(g_settings.fontSize, FLT_MAX, FLT_MAX, statsText.c_str()).x;
-	float rightAlignStart = ImGui::GetWindowWidth() - (fpsWidth + 20);
+	float fpsW = ImGui::CalcTextSize(fpsText.c_str()).x;
+	float wpolyW = ImGui::CalcTextSize(wpolyText.c_str()).x;
+	float labelW = ImGui::CalcTextSize(" wpoly").x;
+	float totalW = fpsW;
+	if (g_settings.show_wpoly)
+		totalW += wpolyW + labelW;
 
-	ImGui::SameLine(rightAlignStart);
+	float avail = ImGui::GetContentRegionAvail().x;
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - totalW);
+
 	ImGui::Text(fpsText.c_str());
 
 	if (g_settings.show_wpoly) {
@@ -2580,7 +2586,10 @@ void Gui::drawStatusBar() {
 			app->cameraAngles = editorCamAngles;
 		}
 
-		ImGui::SameLine(rightAlignStart);
+		ImGui::SameLine();
+		float labelW = ImGui::CalcTextSize(selectStr.c_str()).x;
+		float avail = ImGui::GetContentRegionAvail().x;
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - labelW);
 		ImGui::Text(selectStr.c_str());
 
 		if (last_cam_origin != app->cameraOrigin) {

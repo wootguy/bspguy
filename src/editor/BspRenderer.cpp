@@ -2256,7 +2256,7 @@ void BspRenderer::renderLeaves() {
 }
 
 void BspRenderer::drawModelWireframe(int modelIdx, bool highlight) {
-	if (!(g_settings.render_flags & RENDER_ENTS))
+	if (modelIdx != 0 && !(g_settings.render_flags & RENDER_ENTS))
 		return;
 
 	if (renderModels[modelIdx].wireframeBuffer && modelIdx < numRenderModels) {
