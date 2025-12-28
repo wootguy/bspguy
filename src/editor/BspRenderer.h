@@ -187,8 +187,8 @@ public:
 	LeafNavMesh* leafNavMesh = NULL; // for leaf selection mode
 	RenderPvs* pvsDat = NULL;
 	vec3 mapOffset, renderOffset;
-	int showLightFlag = -1;
 	vector<Wad*> wads;
+	int lightStyleCount[MAXLIGHTMAPS]; // number of faces that use each light style
 
 	BspRenderer(Bsp* map, PointEntRenderer* fgd);
 	~BspRenderer();

@@ -28,6 +28,12 @@ enum resample_modes {
 	KernelTypeGaussian,
 };
 
+enum resample_output_modes {
+	RESAMP_PAL,
+	RESAMP_PAL_MASKED,
+	RESAMP_RGB
+};
+
 class Texture
 {
 public:	
@@ -51,7 +57,7 @@ public:
 	~Texture();
 
 	static vector<COLOR3> resample(COLOR3* srcData, int srcW, int srcH, COLOR3* dstData,
-		int dstW, int dstH, int mode, bool masked, COLOR3 maskColor);
+		int dstW, int dstH, int mode, int outputMode=RESAMP_RGB, COLOR3 maskColor=COLOR3(0,0,255));
 
 	void generateMipMaps(int mipLevels);
 

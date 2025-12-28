@@ -414,6 +414,7 @@ void EditBspModelCommand::refresh() {
 	g_app->gui->refresh();
 	g_app->saveLumpState(map, 0xffffff, true);
 	g_app->updateEntityUndoState();
+	g_app->gui->lightmapEditorNeedsUpdate = true;
 
 	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->updateModelVerts();
@@ -586,6 +587,7 @@ LightmapsEditCommand::LightmapsEditCommand(string desc) : LumpReplaceCommand(des
 
 void LightmapsEditCommand::refresh() {
 	g_app->mapRenderer->reloadLightmaps();
+	g_app->gui->refresh();
 }
 
 int LightmapsEditCommand::memoryUsage() {

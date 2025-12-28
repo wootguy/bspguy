@@ -510,9 +510,16 @@ void BspRenderer::updateLightmapInfos() {
 void BspRenderer::preRenderFaces() {
 	deleteRenderFaces();
 
+	memset(lightStyleCount, 0, sizeof(lightStyleCount));
+
 	for (int i = 0; i < map->faceCount; i++) {
 		Polygon3D poly = Polygon3D(map->get_face_verts(i), true);
 		facePolys.push_back(poly);
+
+		BSPFACE& face = map->faces[i];
+		for (int k = 0; k < MAXLIGHTMAPS; k++) {
+			lightStyleCount[k] += face.nStyles[k] != 255 ? 1 : 0;
+		}
 	}
 
 	renderModels = new RenderModel[map->modelCount];
@@ -1701,6 +1708,10 @@ void BspRenderer::delayLoadData() {
 
 		preRenderFaces();
 
+		if (g_app->pickMode == PICK_FACE) {
+			highlightPickedFaces(true); // re-highlight selection
+		}
+
 		lightmapsUploaded = true;
 	}
 	else if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
@@ -2355,12 +2366,11 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 				}
 			}
 			else if (lightmapsUploaded) {
-				if (showLightFlag != -1) { // lightmap editor disable
-					if (showLightFlag == s) {
-						blackTex->bind();
-						continue;
-					}
+				if (!g_app->lightStylesEnabled[s]) {
+					blackTex->bind();
+					continue;
 				}
+
 				rgroup.lightmapAtlas[s]->bind();
 			}
 			else {

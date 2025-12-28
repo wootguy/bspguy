@@ -20,6 +20,7 @@ class TextureAtlas
 public:
 	TextureNode** zones; // sub-atlases to prevent node trees getting too deep
 	int subdivisions; // zones per dimension
+	int mapW, mapH;
 
 	// idealZoneSize should be:
 	// - not so big that it's slow to insert into

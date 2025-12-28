@@ -17,6 +17,7 @@ class Entity;
 class Wad;
 struct WADTEX;
 class LeafNavMesh;
+class TextureAtlas;
 
 #define OOB_CLIP_X 1
 #define OOB_CLIP_X_NEG 2
@@ -57,6 +58,13 @@ struct BspModelData {
 
 	string serialize();
 	bool deserialize(string dat);
+};
+
+struct AtlasLightmap {
+	int idx;
+	int layer;
+	int lightmapSz;
+	int x, y, w, h; // position in atlas
 };
 
 class Bsp
@@ -239,7 +247,13 @@ public:
 	int lightstyle_count();
 
 	// combines style lightmap to the base lightmap for all faces
-	void bake_lightmap(int style);
+	int bake_lightmap_style(int style, bool deleteNotBake);
+
+	TextureAtlas* create_lightmap_style_atlas(int style, vector<AtlasLightmap>& lightmaps);
+
+	// export lightmap atlas to a PNG for bulk editing
+	void export_lightmap_style(int style, const char* fname);
+	void import_lightmap_style(int style, const char* fname);
 
 	// returns the number of lightmaps that were baked into the base lightmap, if no light referenced them
 	// also forces toggled light styles to be contiguous and start at the lowest offset (for merging)
@@ -364,6 +378,9 @@ public:
 	// gets estimated number of allocblocks filled
 	// actual amount will vary because there is some wasted space when the engine generates lightmap atlases
 	float calc_allocblock_usage();
+
+	// will stretch to fit face lightmap dimensions with filtering
+	void apply_lightmap(int faceIdx, int layer, COLOR3* data, int srcW, int srcH);
 
 	void get_scaled_texture_dimensions(int textureIdx, float scale, int& newWidth, int& newHeight);
 

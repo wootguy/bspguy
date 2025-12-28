@@ -66,6 +66,7 @@ class Renderer {
 	friend class LumpReplaceCommand;
 	friend class ModelEditCommand;
 	friend class FacesEditCommand;
+	friend class LightmapsEditCommand;
 	friend class LeafNavMesh;
 	friend class BspRenderer;
 	friend class MdlRenderer;
@@ -274,6 +275,8 @@ private:
 	unordered_set<int> hiddenLeaves;
 	unordered_set<int> hiddenFaces;
 	vector<int> pvsCopyLeaves; // temporary storage for pvs operations
+
+	bool lightStylesEnabled[MAXLIGHTMAPS];
 
 	bool createWindow();
 	void compileShaders();

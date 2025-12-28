@@ -57,11 +57,11 @@ Texture::~Texture()
 }
 
 vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* dstData,
-	int dstW, int dstH, int mode, bool masked, COLOR3 maskColor) {
+	int dstW, int dstH, int mode, int outputMode, COLOR3 maskColor) {
 	
 	vector<COLOR3> palette;
 
-	if (masked && mode != KernelTypeNearest) {
+	if (outputMode == RESAMP_PAL_MASKED && mode != KernelTypeNearest) {
 		COLOR3* maskedData = new COLOR3[srcW * srcH];
 		memcpy(maskedData, srcData, srcW * srcH * sizeof(COLOR3));
 
@@ -95,16 +95,18 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 	else {
 		base::ResampleImage24((byte*)srcData, srcW, srcH, (byte*)dstData, dstW, dstH, (base::KernelType)mode);
 		
-		if (mode != KernelTypeNearest) {
-			palette = median_cut_quantize(dstData, dstW * dstH, 256);
-		}
-		else {
-			unordered_set<COLOR3> uniqueColors;
-			for (int i = 0; i < dstW * dstH; i++) {
-				uniqueColors.insert(dstData[i]);				
+		if (outputMode == RESAMP_PAL) {
+			if (mode != KernelTypeNearest) {
+				palette = median_cut_quantize(dstData, dstW * dstH, 256);
 			}
-			palette = vector<COLOR3>(uniqueColors.begin(), uniqueColors.end());
-		}		
+			else {
+				unordered_set<COLOR3> uniqueColors;
+				for (int i = 0; i < dstW * dstH; i++) {
+					uniqueColors.insert(dstData[i]);
+				}
+				palette = vector<COLOR3>(uniqueColors.begin(), uniqueColors.end());
+			}
+		}
 	}
 
 	return palette;

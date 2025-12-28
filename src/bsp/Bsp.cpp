@@ -23,6 +23,7 @@
 #include "LeafNavMeshGenerator.h"
 #include "NavMeshGenerator.h"
 #include "PolyOctree.h"
+#include "TextureAtlas.h"
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -2841,6 +2842,27 @@ float Bsp::calc_allocblock_usage() {
 	return total / (float)allocBlockSize;
 }
 
+void Bsp::apply_lightmap(int faceIdx, int layer, COLOR3* data, int srcW, int srcH) {
+	if (!lightdata || faceIdx >= faceCount || faceIdx < 0)
+		return;
+
+	BSPFACE& face = faces[faceIdx];
+	
+	int size[2];
+	GetFaceLightmapSize(this, faceIdx, size);
+	int lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+	byte* lightmapPtr = lightdata + face.nLightmapOffset + layer * lightmapSz;
+
+	if (srcW != size[0] || srcH != size[1]) {
+		COLOR3* resizedDat = new COLOR3[size[0] * size[1]];
+		Texture::resample(data, srcW, srcH, resizedDat, size[0], size[1], KernelTypeBilinear);
+		memcpy(lightmapPtr, resizedDat, lightmapSz);
+	}
+	else {
+		memcpy(lightmapPtr, data, lightmapSz);
+	}
+}
+
 void Bsp::get_scaled_texture_dimensions(int textureIdx, float scale, int& newWidth, int& newHeight) {
 	BSPMIPTEX* tex = get_texture(textureIdx);
 	if (!tex) {
@@ -4111,7 +4133,7 @@ WADTEX Bsp::load_texture(int textureIdx) {
 
 	if (tex->nOffsets[0] != 0) {
 		// embedded texture
-		memcpy(out.data, ((byte*)&tex) + tex->nOffsets[0], sz);
+		memcpy(out.data, ((byte*)tex) + tex->nOffsets[0], sz);
 	}
 	else {
 		// try loading from WAD
@@ -4643,7 +4665,9 @@ int Bsp::lightstyle_count() {
 	return maxStyle - (TOGGLED_LIGHT_STYLE_OFFSET-1);
 }
 
-void Bsp::bake_lightmap(int style) {
+int Bsp::bake_lightmap_style(int style, bool deleteNotBake) {
+	int numBakes = 0;
+
 	for (int f = 0; f < faceCount; f++) {
 		BSPFACE& face = faces[f];
 
@@ -4663,10 +4687,28 @@ void Bsp::bake_lightmap(int style) {
 			continue;
 
 		if (styleIdx == 0) {
-			// base lightmap had the style link. Just remove the link and the light stays on
-			face.nStyles[0] = 0;
+			// base lightmap had the style link.
+			if (deleteNotBake) {
+				face.nStyles[0] = 255;
+			}
+			else {
+				// Just remove the link and the light stays on
+				face.nStyles[0] = 0;
+			}			
 			continue;
 		}
+
+		if (deleteNotBake) {
+			// keep style refs contiguous
+			for (int i = styleIdx; i < MAXLIGHTMAPS - 1; i++) {
+				face.nStyles[i] = face.nStyles[i + 1];
+			}
+			face.nStyles[MAXLIGHTMAPS - 1] = 255;
+
+			continue;
+		}
+
+		numBakes++;
 
 		int size[2];
 		int dummy[2];
@@ -4724,6 +4766,205 @@ void Bsp::bake_lightmap(int style) {
 		}
 		face.nStyles[MAXLIGHTMAPS - 1] = 255;
 	}
+
+	// reduce lightstyles count
+	for (int f = 0; f < faceCount; f++) {
+		BSPFACE& face = faces[f];
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			if (face.nStyles[s] != 255 && face.nStyles[s] > style) {
+				face.nStyles[s] -= 1;
+			}
+		}
+	}
+	for (int i = 0; i < ents.size(); i++) {
+		string cname = ents[i]->getClassname();
+
+		if (cname.find("light") == 0) {
+			int entStyle = atoi(ents[i]->getKeyvalue("style").c_str());
+			
+			if (entStyle == style) {
+				ents[i]->removeKeyvalue("style");
+			}
+			else if (entStyle > style) {
+				ents[i]->setOrAddKeyvalue("style", cstrf("%d", entStyle - 1));
+			}
+		}
+	}
+
+	return numBakes;
+}
+
+TextureAtlas* Bsp::create_lightmap_style_atlas(int style, vector<AtlasLightmap>& atlasLightmaps) {
+	int totalPixels = 0;
+
+	for (int f = 0; f < faceCount; f++) {
+		BSPFACE& face = faces[f];
+		BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+
+		if (face.nLightmapOffset < 0 || (texinfo.nFlags & TEX_SPECIAL) || face.nLightmapOffset >= header.lump[LUMP_LIGHTING].nLength)
+			continue;
+
+		int styleIdx = -1;
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			if (face.nStyles[s] == style) {
+				if (styleIdx != -1) {
+					logf("WARNING: Face %d has 2+ lightmaps linked to the same style\n");
+				}
+				styleIdx = s;
+			}
+		}
+
+		if (styleIdx == -1)
+			continue;
+
+		AtlasLightmap fmap;
+		int size[2];
+		GetFaceLightmapSize(this, f, size);
+		fmap.lightmapSz = size[0] * size[1] * sizeof(COLOR3);
+		fmap.w = size[0];
+		fmap.h = size[1];
+		fmap.idx = f;
+		fmap.layer = styleIdx;
+
+		totalPixels += fmap.w * fmap.h;
+
+		atlasLightmaps.push_back(fmap);
+	}
+
+	sort(atlasLightmaps.begin(), atlasLightmaps.end(), [](const AtlasLightmap& a, const AtlasLightmap& b) {
+		return a.lightmapSz > b.lightmapSz;
+	});
+
+	int atlasSz = 16;
+	while (atlasSz * atlasSz < totalPixels * 1.05) {
+		atlasSz += 16;
+	}
+
+	TextureAtlas* atlas = new TextureAtlas(atlasSz, atlasSz, atlasSz);
+
+	for (int i = 0; i < atlasLightmaps.size(); i++) {
+		AtlasLightmap& fmap = atlasLightmaps[i];
+		BSPFACE& face = faces[fmap.idx];
+		BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+
+		// TODO: Try fitting in earlier atlases before using the latest one
+		if (!atlas->insert(i, fmap.w, fmap.h, fmap.x, fmap.y)) {
+			logf("Lightmap atlas too small!\n");
+			break;
+		}
+	}
+
+	return atlas;
+}
+
+void Bsp::export_lightmap_style(int style, const char* fname) {
+	vector<AtlasLightmap> atlasLightmaps;
+	TextureAtlas* atlas = create_lightmap_style_atlas(style, atlasLightmaps);
+
+	COLOR3* atlasData = new COLOR3[atlas->mapW * atlas->mapH * sizeof(COLOR3)];
+	memset(atlasData, 0, atlas->mapW * atlas->mapH * sizeof(COLOR3));
+
+	std::string textName = stripExt(fname) + ".txt";
+	FILE* txt = fopen(textName.c_str(), "w");
+
+	if (!txt) {
+		logf("Failed to open: %s\n", textName.c_str());
+		return;
+	}
+
+	const char* header =
+		"// This file maps a face index to a region in the PNG file. Click on a face in the editor\n"
+		"// to see it's face number, then search for that #num in this file to find its lightmap.\n\n";
+	fwrite(header, strlen(header), 1, txt);
+
+	sort(atlasLightmaps.begin(), atlasLightmaps.end(), [](const AtlasLightmap& a, const AtlasLightmap& b) {
+		return a.idx < b.idx;
+	});
+
+	for (int i = 0; i < atlasLightmaps.size(); i++) {
+		AtlasLightmap& fmap = atlasLightmaps[i];
+		BSPFACE& face = faces[fmap.idx];
+		BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+
+		// copy lightmap data into atlas
+		int offset = face.nLightmapOffset + fmap.layer * fmap.lightmapSz;
+		if (offset + fmap.w * fmap.h * sizeof(COLOR3) > lightDataLength) {
+			logf("Face %d invalid lightmap %d\n", fmap.idx, fmap.layer);
+			continue;
+		}
+
+		const char* def = cstrf("Face #%-5d: x=%-4d y=%-4d size=%dx%d\n",
+			fmap.idx, fmap.x, fmap.y, fmap.w, fmap.h);
+		fwrite(def, strlen(def), 1, txt);
+
+		COLOR3* lightSrc = (COLOR3*)(lightdata + offset);
+		for (int y = 0; y < fmap.h; y++) {
+			for (int x = 0; x < fmap.w; x++) {
+				int src = y * fmap.w + x;
+				int dst = (fmap.y + y) * atlas->mapW + fmap.x + x;
+				if (offset + src * sizeof(COLOR3) < lightDataLength) {
+					atlasData[dst] = lightSrc[src];
+				}
+				else {
+					bool checkers = x % 2 == 0 != y % 2 == 0;
+					atlasData[dst] = { (byte)(checkers ? 255 : 0), 0, (byte)(checkers ? 255 : 0) };
+				}
+			}
+		}
+	}
+
+	fclose(txt);
+
+	lodepng_encode24_file(fname, (byte*)atlasData, atlas->mapW, atlas->mapH);
+	delete[] atlasData;
+	delete atlas;
+	logf("Wrote %d lightmaps to %s\n", atlasLightmaps.size(), fname);
+}
+
+void Bsp::import_lightmap_style(int style, const char* fname) {
+	vector<AtlasLightmap> atlasLightmaps;
+	TextureAtlas* atlas = create_lightmap_style_atlas(style, atlasLightmaps);
+
+	COLOR3* atlasData;
+	unsigned int pngWidth, pngHeight;
+	if (lodepng_decode24_file((unsigned char**)&atlasData, &pngWidth, &pngHeight, fname)) {
+		logf("Failed to load PNG file\n");
+		return;
+	}
+
+	if (pngWidth != atlas->mapW || pngHeight != atlas->mapH) {
+		logf("PNG dimensions don't match expected atlas size (%dx%d != %dx%d)\n",
+			pngWidth, pngHeight, atlas->mapW, atlas->mapH);
+		return;
+	}
+
+	for (int i = 0; i < atlasLightmaps.size(); i++) {
+		AtlasLightmap& fmap = atlasLightmaps[i];
+		BSPFACE& face = faces[fmap.idx];
+		BSPTEXTUREINFO& texinfo = texinfos[face.iTextureInfo];
+
+		// copy lightmap data into atlas
+		int offset = face.nLightmapOffset + fmap.layer * fmap.lightmapSz;
+		if (offset + fmap.w * fmap.h * sizeof(COLOR3) > lightDataLength) {
+			logf("Face %d invalid lightmap %d\n", fmap.idx, fmap.layer);
+			continue;
+		}
+
+		COLOR3* lightDst = (COLOR3*)(lightdata + offset);
+		for (int y = 0; y < fmap.h; y++) {
+			for (int x = 0; x < fmap.w; x++) {
+				int dst = y * fmap.w + x;
+				int src = (fmap.y + y) * atlas->mapW + fmap.x + x;
+				if (offset + dst * sizeof(COLOR3) < lightDataLength) {
+					lightDst[dst] = atlasData[src];
+				}
+			}
+		}
+	}
+
+	delete[] atlasData;
+	delete atlas;
+	logf("Loaded %d lightmaps\n", atlasLightmaps.size());
 }
 
 int Bsp::remove_unused_lightstyles() {
@@ -4753,7 +4994,7 @@ int Bsp::remove_unused_lightstyles() {
 			if (gap > 0) {
 				for (int k = lastUsedIdx + 1; k < i; k++) {
 					deletedStyles[k] = true;
-					bake_lightmap(k);
+					bake_lightmap_style(k, false);
 					lightBakes++;
 				}
 				for (int k = i; k < 256; k++) {

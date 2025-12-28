@@ -158,6 +158,7 @@ Renderer::Renderer() {
 	g_settings.loadDefault();
 	g_settings.load();
 	g_settings.renderer = clamp(g_settings.renderer, 0, RENDERER_COUNT - 1);
+	memset(lightStylesEnabled, true, sizeof(bool) * MAXLIGHTMAPS);
 
 	if (!createWindow()) {
 		logf("Window creation failed. Does your graphics driver support OpenGL 2.1?\n");
@@ -2559,7 +2560,7 @@ void Renderer::pickObject() {
 		}
 		//logf("%d selected faces\n", pickInfo.faces.size());
 		
-		gui->showLightmapEditorUpdate = true;
+		gui->lightmapEditorNeedsUpdate = true;
 	}
 	else if (pickMode == PICK_LEAF) {
 		mapRenderer->highlightPickedFaces(false);
@@ -2584,8 +2585,6 @@ void Renderer::pickObject() {
 		pickInfo.selectLeafFaces();
 		mapRenderer->highlightPickedFaces(true);
 		mapRenderer->highlightPickedLeaves(true);
-
-		gui->showLightmapEditorUpdate = true;
 	}
 
 	pickClickHeld = true;

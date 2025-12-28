@@ -75,6 +75,7 @@ class Gui {
 public:
 	Renderer* app;
 	int hoveredOOB;
+	bool lightmapEditorNeedsUpdate = true;
 
 	Gui(Renderer* app);
 
@@ -85,8 +86,8 @@ public:
 	void openContextMenu(int entIdx);
 	void copyTexture();
 	void pasteTexture();
-	void copyLightmap();
-	void pasteLightmap();
+	void copyLightmap(int faceIdx, int layer);
+	void pasteLightmap(int faceIdx, int layer);
 	void refresh();
 	void saveAs();
 	const char* openMap();
@@ -103,9 +104,7 @@ private:
 	bool showHelpWidget = false;
 	bool showAboutWidget = false;
 	bool showLimitsWidget = true;
-	bool showTextureWidget = false;
-	bool showLightmapEditorWidget = false;
-	bool showLightmapEditorUpdate = true;
+	bool showFaceEditorWidget = false;
 	bool showEntityReport = false;
 	bool reloadSettings = true;
 	int settingsTab = 0;
@@ -147,7 +146,7 @@ private:
 
 	int copiedMiptex = -1;
 	int copiedLightmapFace = -1; // index into faces
-	LIGHTMAP copiedLightmap = LIGHTMAP();
+	int copiedLightmapLayer = 0; // index into styles
 	bool refreshAfterFacePaste = false;
 
 	ImGuiTextBuffer Buf = ImGuiTextBuffer();
@@ -185,8 +184,9 @@ private:
 	void drawAbout();
 	void drawLimits();
 	void drawLimitsSummary(Bsp* map, bool modalMode);
-	void drawLightMapTool();
-	void drawTextureTool();
+	void drawFaceEditor();
+	void drawLightmapsEditor();
+	void drawTextureEditor();
 	void drawLimitTab(Bsp* map, int sortMode);
 	void drawAllocBlockLimitTab(Bsp* map);
 	void drawFaceExtentsLimitTab();

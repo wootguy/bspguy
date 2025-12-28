@@ -61,6 +61,8 @@ bool TextureNode::insert(int iw, int ih, int& outX, int& outY)
 
 TextureAtlas::TextureAtlas(int mapW, int mapH, int idealZoneSize)
 {
+	this->mapW = mapW;
+	this->mapH = mapH;
 	subdivisions = min(mapW, mapH) / idealZoneSize;
 
 	if (mapW % idealZoneSize != 0 || mapH % idealZoneSize != 0) {
