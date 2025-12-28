@@ -7229,7 +7229,7 @@ void Gui::drawLightmapsEditor() {
 				tooltip(g, "Paste lightmap layer. If the target lightmap dimensions don't match "
 					"what you copied, the lightmap will be scaled to fit using bilinear filtering.");
 
-				if (ImGui::MenuItem("Bake")) {
+				if (ImGui::MenuItem("Bake", "", false, face.nStyles[i] != 0)) {
 					LightmapsEditCommand* command = new LightmapsEditCommand("Bake Lightmap");
 
 					map->bake_lightmap_style(face.nStyles[i], false, false, faceIdx);

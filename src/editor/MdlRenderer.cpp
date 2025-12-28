@@ -1761,3 +1761,58 @@ bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 
 	return false;
 }
+
+bool MdlRenderer::pick(Frustum& frustum, Entity* ent) {
+	if (!valid || loadState != MODEL_LOAD_DONE) {
+		return false;
+	}
+
+	if (!ent->didStudioDraw) {
+		return false;
+	}
+
+	EntRenderOpts opts = ent->getRenderOpts();
+
+	vec3 mins, maxs;
+	getModelBoundingBox(ent->drawAngles, opts.sequence, mins, maxs);
+	mins += ent->drawOrigin;
+	maxs += ent->drawOrigin;
+
+	if (!isBoxInView(mins, maxs, frustum, 0)) {
+		return false;
+	}
+
+	SetUpBones(ent->drawAngles, opts.sequence, ent->drawFrame);
+	transformVerts(opts.body, false);
+
+	frustum.origin -= ent->drawOrigin;
+
+	int bodyValue = clamp(opts.body, 0, 255);
+	for (int b = 0; b < header->numbodyparts; b++) {
+		// Try loading required model info
+		data.seek(header->bodypartindex + b * sizeof(mstudiobodyparts_t));
+		mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
+
+		int activeModel = (bodyValue / bod->base) % bod->nummodels;
+		bodyValue -= activeModel * bod->base;
+
+		data.seek(bod->modelindex + activeModel * sizeof(mstudiomodel_t));
+		mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
+
+		for (int k = 0; k < mod->nummesh; k++) {
+			MdlMeshRender& render = meshBuffers[b][activeModel][k];
+
+			for (int v = 0; v < render.numVerts; v += 3) {
+				const vec3& v0 = render.transformVerts[v];
+				const vec3& v1 = render.transformVerts[v + 1];
+				const vec3& v2 = render.transformVerts[v + 2];
+
+				if (isPolyInView(Polygon3D({v0, v1, v2}, true), frustum)) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}

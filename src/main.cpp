@@ -11,9 +11,9 @@
 // - new tinyfd has folder picker?
 // - update version string
 // - toggling solid ents disables wireframe
+// - ent link boxes dont move with selection
 
 // todo:
-// box selection
 // ripent saftey warning
 // hold click to select behind
 // skybox rendering
@@ -24,7 +24,6 @@
 // ent links should be animated.people ask what each color means
 // expand input text for multiline
 // speed up clipnode gen ?
-// box selection for entities
 // scale axes and vertex editing in wrong place for rotated solids
 // - ! textures dont count toward allocblock?
 // alt instead of ctrl for slow movement, then can use hotkeys

@@ -64,6 +64,9 @@ public:
 	void draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, COLOR3 tint, COLOR3 outlineColor, bool noOutline);
 	void getBoundingBox(vec3& mins, vec3& maxs, float scale);
 	bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) override;
+	bool pick(Frustum& frustum, Entity* ent) override;
+	float getScale(vec3 origin, EntRenderOpts& renderOpts);
+	void getPickVerts(Entity* ent, float scale, EntRenderOpts& renderOpts, vec3 verts[4]);
 
 	bool isSprite() override { return true; };
 

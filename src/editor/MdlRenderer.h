@@ -58,6 +58,8 @@ public:
 	// get intersection of pick ray and model polygon
 	bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) override;
 
+	bool pick(Frustum& frustum, Entity* ent) override;
+
 	// get a AABB containing all possible vertices in the given animation with given angles
 	void getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs);
 

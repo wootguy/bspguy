@@ -6,6 +6,7 @@
 #include <future>
 #include "colors.h"
 #include "primitives.h"
+#include <unordered_set>
 
 class NavMesh;
 class LeafNavMesh;
@@ -212,6 +213,9 @@ public:
 	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx, int& faceIdx, float& bestDist);
 	bool pickLeaf(vec3 start, vec3 dir, int& leafIdx, float& bestDist);
 	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
+	void pickFrustum(Frustum& frustum, unordered_set<int>& pickEnts, unordered_set<int>& pickFaces, unordered_set<int>& pickLeaves, int hullIdx);
+	void pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFaces, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx);
+	void pickFrustumLeaves(Frustum frustum, unordered_set<int>& pickLeaves);
 
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);

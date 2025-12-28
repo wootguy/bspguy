@@ -2616,6 +2616,180 @@ void BspRenderer::updatePvs(vec3 viewOrigin) {
 	}
 }
 
+void rotateFaceMath(FaceMath& faceMath, mat4x4& rotation) {
+	vec3 pointOnPlane = (faceMath.plane_z * faceMath.fdist);
+	pointOnPlane = (rotation * vec4(pointOnPlane, 1)).xyz();
+	faceMath.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
+	faceMath.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
+	faceMath.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
+	faceMath.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
+	faceMath.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
+
+	faceMath.localVerts = vector<vec2>(faceMath.verts.size());
+	for (int k = 0; k < faceMath.verts.size(); k++) {
+		vec3 rotVert = (rotation * vec4(faceMath.verts[k], 1)).xyz();
+		faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
+		faceMath.verts[k] = rotVert;
+	}
+}
+
+void BspRenderer::pickFrustum(Frustum& frustum, unordered_set<int>& pickEnts,
+	unordered_set<int>& pickFaces, unordered_set<int>& pickLeaves, int hullIdx) {
+	vec3 pickOffset = vec3(mapOffset.x, mapOffset.y, mapOffset.z);
+	frustum.origin -= mapOffset;
+
+	if (!map || map->ents.size() == 0) {
+		return;
+	}
+
+	unordered_set<int> pickFacesWorld;
+	if (!map->ents[0]->hidden) {
+		pickFrustumFaces(frustum, pickFacesWorld, vec3(), vec3(), 0, hullIdx, 0);
+		for (int idx : pickFacesWorld)
+			pickFaces.insert(idx);
+	}
+	if (g_app->pickMode == PICK_LEAF) {
+		pickFrustumLeaves(frustum, pickLeaves);
+	}
+
+	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES);
+
+	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
+		Entity* ent = map->ents[i];
+		if (ent->hidden)
+			continue;
+
+		int modelIdx = renderEnts[i].modelIdx;
+
+		if (modelIdx >= 0 && modelIdx < map->modelCount && modelIdx < numRenderModels) {
+
+			bool isSpecial = false;
+			for (int k = 0; k < renderModels[modelIdx].groupCount; k++) {
+				if (renderModels[modelIdx].renderGroups[k].transparent) {
+					isSpecial = true;
+					break;
+				}
+			}
+
+			if (isSpecial && !(g_settings.render_flags & RENDER_SPECIAL_ENTS)) {
+				continue;
+			}
+			else if (!isSpecial && !(g_settings.render_flags & RENDER_ENTS)) {
+				continue;
+			}
+
+			vec3 angles = map->ents[i]->canRotate() ? renderEnts[i].angles : vec3();
+			unordered_set<int> pickFacesOne;
+			pickFrustumFaces(frustum, pickFacesOne, renderEnts[i].offset, angles, modelIdx, hullIdx, i);
+			if (pickFacesOne.size()) {
+				for (int idx : pickFacesOne) {
+					pickFaces.insert(idx);
+				}
+				pickEnts.insert(i);
+			}
+		}
+		else if (i > 0 && g_settings.render_flags & RENDER_POINT_ENTS) {
+			vec3 mins = renderEnts[i].offset + renderEnts[i].pointEntCube->mins;
+			vec3 maxs = renderEnts[i].offset + renderEnts[i].pointEntCube->maxs;
+
+			g_app->debugVec0 = mins;
+			g_app->debugVec1 = maxs;
+
+			if (isBoxInView(mins, maxs, frustum, 0)) {
+				pickEnts.insert(i);
+			}
+			else if (ent->cachedMdl && !ent->isIconSprite && !renderSmallSprites && ent->cachedMdl->pick(frustum, ent)) {
+				pickEnts.insert(i);
+			}
+		}
+	}
+}
+
+void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFaces, vec3 offset,
+	vec3 rot, int modelIdx, int hullIdx, int testEntidx) {
+	BSPMODEL& model = map->models[modelIdx];
+
+	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS))) {
+		return;
+	}
+	if (map->modelCount == 0)
+		return;
+
+	frustum.origin -= offset;
+
+	bool foundBetterPick = false;
+	bool skipSpecial = !(g_settings.render_flags & RENDER_SPECIAL);
+
+	bool hasAngles = rot != vec3();
+	mat4x4 angleTransform = map->ents[testEntidx]->getRotationMatrix(true);
+
+	for (int k = 0; k < model.nFaces && model.iFirstFace + k < map->faceCount; k++) {
+		if (g_app->hiddenFaces.count(model.iFirstFace + k))
+			continue;
+
+		FaceMath faceMath = faceMaths[model.iFirstFace + k];
+
+		if (hasAngles) {
+			rotateFaceMath(faceMath, angleTransform);
+		}
+
+		BSPFACE& face = map->faces[model.iFirstFace + k];
+
+		if (skipSpecial && modelIdx == 0) {
+			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+			if (info.nFlags & TEX_SPECIAL) {
+				continue;
+			}
+		}
+
+		if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+			pickFaces.insert(model.iFirstFace + k);
+		}
+	}
+
+	bool selectWorldClips = modelIdx == 0 && (g_settings.render_flags & RENDER_WORLD_CLIPNODES) && hullIdx != -1;
+	bool selectEntClips = modelIdx > 0 && (g_settings.render_flags & RENDER_ENT_CLIPNODES);
+
+	if (hullIdx == -1 && renderModels[modelIdx].groupCount == 0) {
+		// clipnodes are visible for this model because it has no faces
+		hullIdx = getBestClipnodeHull(modelIdx);
+	}
+
+	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
+		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
+			FaceMath faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+
+			if (hasAngles) {
+				rotateFaceMath(faceMath, angleTransform);
+			}
+
+			if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+				pickFaces.insert(-1); // face index doesn't matter for ent selection
+			}
+		}
+	}
+}
+
+void BspRenderer::pickFrustumLeaves(Frustum frustum, unordered_set<int>& pickLeaves) {
+	BSPMODEL& model = map->models[0];
+
+	if (map->modelCount == 0)
+		return;
+
+	if (leavesLoaded) {
+		for (int i = 0; i < renderLeafDat->faceMaths.size(); i++) {
+			FaceMath faceMath = renderLeafDat->faceMaths[i];
+
+			if (g_app->hiddenLeaves.count(faceMath.index))
+				continue;
+
+			if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+				pickLeaves.insert(faceMath.index);
+			}
+		}
+	}
+}
+
 bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx, int& leafIdx, float& bestDist) {
 	bool foundBetterPick = false;
 	entIdx = -1;
@@ -2686,22 +2860,6 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 	}
 
 	return foundBetterPick;
-}
-
-void rotateFaceMath(FaceMath& faceMath, mat4x4& rotation) {
-	vec3 pointOnPlane = (faceMath.plane_z * faceMath.fdist);
-	pointOnPlane = (rotation * vec4(pointOnPlane, 1)).xyz();
-	faceMath.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
-	faceMath.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
-	faceMath.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
-	faceMath.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
-	faceMath.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
-
-	faceMath.localVerts = vector<vec2>(faceMath.verts.size());
-	for (int k = 0; k < faceMath.verts.size(); k++) {
-		vec3 rotVert = (rotation * vec4(faceMath.verts[k], 1)).xyz();
-		faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
-	}
 }
 
 bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx,

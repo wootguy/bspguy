@@ -283,6 +283,9 @@ private:
 	// 3 = bidirectional
 	unordered_map<int, int> entLinks;
 
+	bool isBoxSelecting;
+	vec2 boxSelectStart, boxSelectEnd;
+
 	bool lightStylesEnabled[MAXLIGHTMAPS];
 
 	bool createWindow();
@@ -297,11 +300,13 @@ private:
 	void moveGrabbedEnts(); // translates the grabbed ent
 	void shortcutControls(); // hotkeys for menus and things
 	void globalShortcutControls(); // these work even with the UI selected
-	void pickObject(); // select stuff with the mouse
+	void pickObject(bool boxSelect); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
 	void applyTransform(bool forceUpdate=false);
 	void setupView();
 	void getPickRay(vec3& start, vec3& pickDir);
+	void getPickRay(vec2 mousePos, vec3& start, vec3& pickDir);
+	Frustum getPickFrustum(); // for box selection
 
 	void drawModelVerts();
 	void drawModelOrigin();

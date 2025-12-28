@@ -3,6 +3,7 @@
 #include "ShaderProgram.h"
 #include "Entity.h"
 #include "ThreadSafeInt.h"
+#include "util.h"
 
 enum render_modes {
 	RENDER_MODE_NORMAL,
@@ -33,6 +34,8 @@ public:
 
 	// get intersection of pick ray and model polygon
 	virtual bool pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) = 0;
+
+	virtual bool pick(Frustum& frustum, Entity* ent) = 0;
 	
 	virtual bool isStudioModel() { return false;  }
 	virtual bool isSprite() { return false; }

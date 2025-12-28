@@ -723,7 +723,6 @@ void Renderer::renderLoop() {
 			drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
 		}
 
-
 		glCheckError("Rendering debug polys");
 
 		renderNavMesh();
@@ -738,7 +737,7 @@ void Renderer::renderLoop() {
 		makeVectors(cameraAngles, forward, right, up);
 		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
 
-		if (cameraMouseCapture) {
+		if (cameraMouseCapture || isBoxSelecting) {
 			colorShader->bind();
 			colorShader->pushMatrix(MAT_PROJECTION);
 			colorShader->pushMatrix(MAT_VIEW);
@@ -747,16 +746,24 @@ void Renderer::renderLoop() {
 			colorShader->updateMatrixes();
 			glDisable(GL_DEPTH_TEST);
 
-			int border = 1;
-			int thick = 2;
-			int len = 12;
-			vec2 center(windowWidth / 2, windowHeight / 2);
+			if (cameraMouseCapture) {
+				int border = 1;
+				int thick = 2;
+				int len = 12;
+				vec2 center(windowWidth / 2, windowHeight / 2);
 
-			drawRect2D(center - vec2(len + border, thick/2 + border), vec2(len*2 + border*2, thick + border*2), COLOR4(0, 0, 0, 255));
-			drawRect2D(center - vec2(thick/2 + border, len + border), vec2(thick + border*2, len*2 + border*2), COLOR4(0, 0, 0, 255));
+				drawRect2D(center - vec2(len + border, thick / 2 + border), vec2(len * 2 + border * 2, thick + border * 2), COLOR4(0, 0, 0, 255));
+				drawRect2D(center - vec2(thick / 2 + border, len + border), vec2(thick + border * 2, len * 2 + border * 2), COLOR4(0, 0, 0, 255));
 
-			drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
-			drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
+				drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
+				drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
+			}
+			if (isBoxSelecting && (boxSelectEnd - boxSelectStart).length() > 8) {
+				drawLine2D(vec2(boxSelectStart.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
+				drawLine2D(vec2(boxSelectEnd.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
+				drawLine2D(vec2(boxSelectEnd.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
+				drawLine2D(vec2(boxSelectStart.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
+			}
 
 			glEnable(GL_DEPTH_TEST);
 			colorShader->popMatrix(MAT_PROJECTION);
@@ -1938,8 +1945,9 @@ void Renderer::controls() {
 		if (!guiWasFocused) {
 			cameraObjectHovering();
 			vertexEditControls();
-			cameraPickingControls();
 		}
+
+		cameraPickingControls();
 	}
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -2013,8 +2021,24 @@ void Renderer::vertexEditControls() {
 }
 
 void Renderer::cameraPickingControls() {
+	static bool transforming;
+
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-		bool transforming = transformAxisControls();
+		transforming = transformAxisControls();
+
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
+
+		if (!isBoxSelecting) {
+			isBoxSelecting = true;
+			boxSelectStart.x = xpos;
+			boxSelectStart.y = ypos;
+			boxSelectEnd = boxSelectStart;
+		}
+		else {
+			boxSelectEnd.x = xpos;
+			boxSelectEnd.y = ypos;
+		}		
 
 		bool anyHover = hoverVert != -1 || hoverEdge != -1;
 		if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid && anyHover) {
@@ -2057,9 +2081,16 @@ void Renderer::cameraPickingControls() {
 
 			transforming = true;
 		}
+	}
+	else { // left mouse not pressed
+		pickClickHeld = false;
+		if (draggingAxis != -1) {
+			draggingAxis = -1;
+			applyTransform();
+			pushEntityUndoState("Move Entity");
+		}
 
-		// object picking
-		if (!transforming && oldLeftMouse != GLFW_PRESS) {
+		if (oldLeftMouse == GLFW_PRESS && !transforming) {
 			applyTransform();
 
 			if (invalidSolid) {
@@ -2080,18 +2111,14 @@ void Renderer::cameraPickingControls() {
 				if (modelIdx >= 0)
 					mapRenderer->refreshModel(modelIdx);
 			}
-			
-			pickObject();
+
+			// object picking
+			bool bigEnoughBox = (boxSelectEnd - boxSelectStart).length() > 8;
+			pickObject(isBoxSelecting && bigEnoughBox);
 			pickCount++;
 		}
-	}
-	else { // left mouse not pressed
-		pickClickHeld = false;
-		if (draggingAxis != -1) {
-			draggingAxis = -1;
-			applyTransform();
-			pushEntityUndoState("Move Entity");
-		}
+
+		isBoxSelecting = false;
 	}
 }
 
@@ -2490,20 +2517,9 @@ void Renderer::globalShortcutControls() {
 	}
 }
 
-void Renderer::pickObject() {
+void Renderer::pickObject(bool boxSelect) {
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
-
-	/*
-	TraceResult& tr = debugTrace;
-	mapRenderers[0]->map->traceHull(pickStart, pickStart + pickDir*512, 1, &tr);
-	logf("Fraction=%.1f, StartSolid=%d, AllSolid=%d, InOpen=%d, PlaneDist=%.1f\nStart=(%.1f,%.1f,%.1f) End=(%.1f,%.1f,%.1f) PlaneNormal=(%.1f,%.1f,%.1f)\n", 
-		tr.flFraction, tr.fStartSolid, tr.fAllSolid, tr.fInOpen, tr.flPlaneDist,
-		pickStart.x, pickStart.y, pickStart.z,
-		tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z,
-		tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z);
-	debugTraceStart = pickStart;
-	*/
 
 	bool multiselect = anyCtrlPressed;
 
@@ -2519,22 +2535,42 @@ void Renderer::pickObject() {
 			}
 		}
 	}
-	
+
+	unordered_set<int> boxSelectEnts, boxSelectFaces, boxSelectLeaves;
 	int oldEntIdx = pickInfo.getEntIndex();
-	int clickedEnt, clickedFace, clickedLeaf;
+	int clickedEnt = -1, clickedFace = -1, clickedLeaf = -1;
 	float bestDist = FLT_MAX;
-	mapRenderer->pickPoly(pickStart, pickDir, clipnodeRenderHull, clickedEnt, clickedFace, clickedLeaf, bestDist);
 
 	if (mapArrangeMode) {
-		int bestMapPick = -1;
-		for (int i = 0; i < arrangeBsps.size(); i++) {
-			if (arrangeBsps[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, clickedEnt, clickedFace, clickedLeaf, bestDist)) {
-				bestMapPick = i;
+		if (boxSelect) {
+			Frustum pickFrustum = getPickFrustum();
+			for (int i = 0; i < arrangeBsps.size(); i++) {
+				unordered_set<int> ents, faces, leaves;
+				arrangeBsps[i]->pickFrustum(pickFrustum, ents, faces, leaves, clipnodeRenderHull);
+				if (ents.size() || faces.size())
+					boxSelectEnts.insert(i + 1);
 			}
 		}
+		else {
+			int bestMapPick = -1;
+			for (int i = 0; i < arrangeBsps.size(); i++) {
+				if (arrangeBsps[i]->pickPoly(pickStart, pickDir, clipnodeRenderHull, clickedEnt, clickedFace, clickedLeaf, bestDist)) {
+					bestMapPick = i;
+				}
+			}
 
-		if (bestMapPick != -1) {
-			clickedEnt = bestMapPick + 1;
+			if (bestMapPick != -1) {
+				clickedEnt = bestMapPick + 1;
+			}
+		}
+	}
+	else {
+		if (boxSelect) {
+			mapRenderer->pickFrustum(getPickFrustum(), boxSelectEnts, boxSelectFaces, boxSelectLeaves, clipnodeRenderHull);
+			boxSelectFaces.erase(-1); // erase clipnode "faces"
+		}
+		else {
+			mapRenderer->pickPoly(pickStart, pickDir, clipnodeRenderHull, clickedEnt, clickedFace, clickedLeaf, bestDist);
 		}
 	}
 
@@ -2558,7 +2594,13 @@ void Renderer::pickObject() {
 			ungrabEnts();
 		}
 		if (multiselect) {
-			if (pickInfo.isEntSelected(clickedEnt)) {
+			if (boxSelect) {
+				for (int idx : boxSelectEnts) {
+					pickInfo.selectEnt(idx);
+				}
+				pickInfo.deselectEnt(0);
+			}
+			else if (pickInfo.isEntSelected(clickedEnt)) {
 				pickInfo.deselectEnt(clickedEnt);
 				Entity* ent = pickInfo.getMap()->ents[clickedEnt];
 				if (!ent->isBspModel()) {
@@ -2575,7 +2617,13 @@ void Renderer::pickObject() {
 				ungrabEnts();
 			pickInfo.deselect();
 
-			if (clickedEnt != -1) {
+			if (boxSelect) {
+				for (int idx : boxSelectEnts) {
+					pickInfo.selectEnt(idx);
+				}
+				pickInfo.deselectEnt(0);
+			}
+			else if (clickedEnt != -1) {
 				pickInfo.selectEnt(clickedEnt);
 			}
 		}
@@ -2602,7 +2650,12 @@ void Renderer::pickObject() {
 	else if (pickMode == PICK_FACE) {
 		if (multiselect) {
 			mapRenderer->highlightPickedFaces(false);
-			if (pickInfo.isFaceSelected(clickedFace)) {
+			if (boxSelect) {
+				for (int idx : boxSelectFaces) {
+					pickInfo.selectFace(idx);
+				}
+			}
+			else if (pickInfo.isFaceSelected(clickedFace)) {
 				pickInfo.deselectFace(clickedFace);
 			}
 			else if (clickedFace != -1) {
@@ -2614,7 +2667,12 @@ void Renderer::pickObject() {
 			mapRenderer->highlightPickedFaces(false);
 			pickInfo.deselect();
 
-			if (clickedFace != -1) {
+			if (boxSelect) {
+				for (int idx : boxSelectFaces) {
+					pickInfo.selectFace(idx);
+				}
+			}
+			else if (clickedFace != -1) {
 				pickInfo.selectFace(clickedFace);
 			}
 			mapRenderer->highlightPickedFaces(true);
@@ -2628,7 +2686,12 @@ void Renderer::pickObject() {
 		mapRenderer->highlightPickedLeaves(false);
 
 		if (multiselect) {
-			if (pickInfo.isLeafSelected(clickedLeaf)) {
+			if (boxSelect) {
+				for (int idx : boxSelectLeaves) {
+					pickInfo.selectLeaf(idx);
+				}
+			}
+			else if (pickInfo.isLeafSelected(clickedLeaf)) {
 				pickInfo.deselectLeaf(clickedLeaf);
 			}
 			else if (clickedLeaf != -1) {
@@ -2638,7 +2701,12 @@ void Renderer::pickObject() {
 		else {
 			pickInfo.deselect();
 
-			if (clickedLeaf != -1) {
+			if (boxSelect) {
+				for (int idx : boxSelectLeaves) {
+					pickInfo.selectLeaf(idx);
+				}
+			}
+			else if (clickedLeaf != -1) {
 				pickInfo.selectLeaf(clickedLeaf);
 			}
 		}
@@ -2793,13 +2861,16 @@ vec3 Renderer::getMoveDir()
 void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
+	return getPickRay(vec2(xpos, ypos), start, pickDir);
+}
 
+void Renderer::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
 	// invert ypos
-	ypos = windowHeight - ypos;
+	mousePos.y = windowHeight - mousePos.y;
 
 	// translate mouse coordinates so that the origin lies in the center and is a scaler from +/-1.0
-	float mouseX = ((xpos / (double)windowWidth) * 2.0f) - 1.0f;
-	float mouseY = ((ypos / (double)windowHeight) * 2.0f) - 1.0f;
+	float mouseX = ((mousePos.x / (double)windowWidth) * 2.0f) - 1.0f;
+	float mouseY = ((mousePos.y / (double)windowHeight) * 2.0f) - 1.0f;
 
 	// http://schabby.de/picking-opengl-ray-tracing/
 	vec3 forward, right, up;
@@ -2822,6 +2893,35 @@ void Renderer::getPickRay(vec3& start, vec3& pickDir) {
 
 	// compute direction of picking ray by subtracting intersection point with camera position
 	pickDir = (start - cameraOrigin).normalize(1.0f);
+}
+
+Frustum Renderer::getPickFrustum() {
+	vec3 rayOrigin[4];
+	vec3 rayDir[4];
+
+	vec2 min = vec2(std::min(boxSelectStart.x, boxSelectEnd.x), std::min(boxSelectStart.y, boxSelectEnd.y));
+	vec2 max = vec2(std::max(boxSelectStart.x, boxSelectEnd.x), std::max(boxSelectStart.y, boxSelectEnd.y));
+
+	vec2 boxSelectCorners[4] = {
+		min,
+		vec2(max.x, min.y),
+		max,
+		vec2(min.x, max.y),
+	};
+
+	for (int i = 0; i < 4; i++) {
+		getPickRay(boxSelectCorners[i], rayOrigin[i], rayDir[i]);
+		//rayDir[i] = rayDir[i]*-1;
+	}
+	
+	Frustum f;
+	f.origin = cameraOrigin;
+	f.planes[0] = crossProduct(rayDir[1], rayDir[2]).normalize();
+	f.planes[1] = crossProduct(rayDir[3], rayDir[0]).normalize();
+	f.planes[2] = crossProduct(rayDir[0], rayDir[1]).normalize();
+	f.planes[3] = crossProduct(rayDir[2], rayDir[3]).normalize();
+
+	return f;
 }
 
 void Renderer::setupView() {
@@ -3490,6 +3590,9 @@ void Renderer::addNameTags() {
 		return;
 
 	Bsp* map = mapRenderer->map;
+
+	if (!map->valid || map->modelCount == 0)
+		return;
 
 	unordered_set<int> selected;
 	for (int i : pickInfo.ents)

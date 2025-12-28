@@ -212,18 +212,7 @@ float SprRenderer::getScaleToFitInsideCube(int size) {
 	return size / (float)max(maxWidth, maxHeight);
 }
 
-bool SprRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
-	if (!valid || loadState != MODEL_LOAD_DONE) {
-		return false;
-	}
-
-	if (!ent->didStudioDraw) {
-		return false;
-	}
-
-	EntRenderOpts renderOpts = ent->getRenderOpts();
-
-	vec3 ori = ent->getOrigin();
+float SprRenderer::getScale(vec3 ori, EntRenderOpts& renderOpts) {
 	float dist = (ori - g_app->cameraOrigin).length();
 
 	float scale = renderOpts.scale;
@@ -232,25 +221,18 @@ bool SprRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 		scale *= 1.0f / scale;
 	}
 
-	vec3 mins, maxs;
-	getBoundingBox(mins, maxs, scale);
-	mins += ent->drawOrigin;
-	maxs += ent->drawOrigin;
+	return scale;
+}
 
-	float oldBestDist = bestDist;
-	if (!pickAABB(start, rayDir, mins, maxs, bestDist) && !pointInBox(start, mins, maxs)) {
-		return false;
-	}
-	bestDist = oldBestDist;
-
+void SprRenderer::getPickVerts(Entity* ent, float scale, EntRenderOpts& renderOpts, vec3 pickVerts[4]) {
 	mat4x4 transform;
 	transform.loadIdentity();
 	transform.scale(scale, scale, scale);
 
 	vec3 camAngles = vec3(0, -90 - g_app->cameraAngles.z, g_app->cameraAngles.x) * (PI / 180.0f);
-	vec3 entAngles = ent->getAngles() * (PI/180.0f);
+	vec3 entAngles = ent->getAngles() * (PI / 180.0f);
 
-	int sprType = renderOpts.vp_type > 0 ? renderOpts.vp_type-1 : header->mode;
+	int sprType = renderOpts.vp_type > 0 ? renderOpts.vp_type - 1 : header->mode;
 	switch (sprType) {
 	default:
 	case VP_PARALLEL:
@@ -273,11 +255,39 @@ bool SprRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 	int frame = (int)ent->drawFrame % header->frames;
 	tVert* verts = (tVert*)frameBuffer->data;
 
-	vec3 pickVerts[4];
+	vec3 ori = ent->getOrigin();
 	for (int i = 0; i < 4; i++) {
 		vec3 vert = verts[frame * 4 + i].pos();
 		pickVerts[i] = ((transform * vec4(vert.x, vert.z, vert.y, 1)).xyz() + ori);
 	}
+}
+
+bool SprRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
+	if (!valid || loadState != MODEL_LOAD_DONE) {
+		return false;
+	}
+
+	if (!ent->didStudioDraw) {
+		return false;
+	}
+
+	EntRenderOpts renderOpts = ent->getRenderOpts();
+
+	float scale = getScale(ent->getOrigin(), renderOpts);
+
+	vec3 mins, maxs;
+	getBoundingBox(mins, maxs, scale);
+	mins += ent->drawOrigin;
+	maxs += ent->drawOrigin;
+
+	float oldBestDist = bestDist;
+	if (!pickAABB(start, rayDir, mins, maxs, bestDist) && !pointInBox(start, mins, maxs)) {
+		return false;
+	}
+	bestDist = oldBestDist;
+
+	vec3 pickVerts[4];
+	getPickVerts(ent, scale, renderOpts, pickVerts);
 
 	//Polygon3D poly({ pickVerts[0], pickVerts[1], pickVerts[2], pickVerts[3] });
 	//g_app->debugPoly = poly;
@@ -291,6 +301,41 @@ bool SprRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 	t = rayTriangleIntersect(start, rayDir, pickVerts[0], pickVerts[2], pickVerts[3]);
 	if (t > 0 && t < bestDist) {
 		bestDist = t;
+		return true;
+	}
+
+	return false;
+}
+
+bool SprRenderer::pick(Frustum& frustum, Entity* ent) {
+	if (!valid || loadState != MODEL_LOAD_DONE) {
+		return false;
+	}
+
+	if (!ent->didStudioDraw) {
+		return false;
+	}
+
+	EntRenderOpts renderOpts = ent->getRenderOpts();
+
+	float scale = getScale(ent->getOrigin(), renderOpts);
+
+	vec3 mins, maxs;
+	getBoundingBox(mins, maxs, scale);
+	mins += ent->drawOrigin;
+	maxs += ent->drawOrigin;
+
+	if (!isBoxInView(mins, maxs, frustum, 0)) {
+		return false;
+	}
+
+	vec3 pickVerts[4];
+	getPickVerts(ent, scale, renderOpts, pickVerts);
+
+	if (isPolyInView(Polygon3D({ pickVerts[0], pickVerts[1], pickVerts[2] }, true), frustum)) {
+		return true;
+	}
+	if (isPolyInView(Polygon3D({ pickVerts[0], pickVerts[2], pickVerts[3] }, true), frustum)) {
 		return true;
 	}
 
