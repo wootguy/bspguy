@@ -1746,6 +1746,11 @@ void Gui::drawStandardMenuBar() {
 
 		ImGui::Separator();
 
+		if (ImGui::MenuItem("Skybox", 0, g_settings.render_flags & RENDER_SKYBOX)) {
+			g_settings.render_flags ^= RENDER_SKYBOX;
+		}
+		tooltip(g, "Render the skybox. Reload the map to load a new sky after editing skyname in worldspawn.");
+
 		if (ImGui::MenuItem("Special World Faces", 0, g_settings.render_flags & RENDER_SPECIAL)) {
 			g_settings.render_flags ^= RENDER_SPECIAL;
 		}

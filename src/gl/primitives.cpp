@@ -81,39 +81,39 @@ tCube::tCube(vec3 mins, vec3 maxs)
 	tVert v1, v2, v3, v4;
 
 	v1 = tVert(mins.x, maxs.y, maxs.z, 0, 0);
-	v2 = tVert(mins.x, maxs.y, mins.z, 0, 1);
+	v2 = tVert(mins.x, maxs.y, mins.z, 1, 0);
 	v3 = tVert(mins.x, mins.y, mins.z, 1, 1);
-	v4 = tVert(mins.x, mins.y, maxs.z, 1, 0);
+	v4 = tVert(mins.x, mins.y, maxs.z, 0, 1);
 	left = tQuad(v1, v2, v3, v4);
 
 	v1 = tVert(maxs.x, maxs.y, mins.z, 0, 0);
-	v2 = tVert(maxs.x, maxs.y, maxs.z, 0, 1);
+	v2 = tVert(maxs.x, maxs.y, maxs.z, 1, 0);
 	v3 = tVert(maxs.x, mins.y, maxs.z, 1, 1);
-	v4 = tVert(maxs.x, mins.y, mins.z, 1, 0);
+	v4 = tVert(maxs.x, mins.y, mins.z, 0, 1);
 	right = tQuad(v1, v2, v3, v4);
 
-	v1 = tVert(mins.x, mins.y, mins.z, 0, 0);
-	v2 = tVert(maxs.x, mins.y, mins.z, 0, 1);
-	v3 = tVert(maxs.x, mins.y, maxs.z, 1, 1);
-	v4 = tVert(mins.x, mins.y, maxs.z, 1, 0);
+	v1 = tVert(mins.x, mins.y, mins.z, 0, 1);
+	v2 = tVert(maxs.x, mins.y, mins.z, 0, 0);
+	v3 = tVert(maxs.x, mins.y, maxs.z, 1, 0);
+	v4 = tVert(mins.x, mins.y, maxs.z, 1, 1);
 	top = tQuad(v1, v2, v3, v4);
 
-	v1 = tVert(mins.x, maxs.y, maxs.z, 0, 0);
-	v2 = tVert(maxs.x, maxs.y, maxs.z, 0, 1);
-	v3 = tVert(maxs.x, maxs.y, mins.z, 1, 1);
-	v4 = tVert(mins.x, maxs.y, mins.z, 1, 0);
+	v1 = tVert(mins.x, maxs.y, maxs.z, 1, 0);
+	v2 = tVert(maxs.x, maxs.y, maxs.z, 1, 1);
+	v3 = tVert(maxs.x, maxs.y, mins.z, 0, 1);
+	v4 = tVert(mins.x, maxs.y, mins.z, 0, 0);
 	bottom = tQuad(v1, v2, v3, v4);
 
 	v1 = tVert(mins.x, maxs.y, mins.z, 0, 0);
-	v2 = tVert(maxs.x, maxs.y, mins.z, 0, 1);
+	v2 = tVert(maxs.x, maxs.y, mins.z, 1, 0);
 	v3 = tVert(maxs.x, mins.y, mins.z, 1, 1);
-	v4 = tVert(mins.x, mins.y, mins.z, 1, 0);
+	v4 = tVert(mins.x, mins.y, mins.z, 0, 1);
 	front = tQuad(v1, v2, v3, v4);
 
 	v1 = tVert(maxs.x, maxs.y, maxs.z, 0, 0);
-	v2 = tVert(mins.x, maxs.y, maxs.z, 0, 1);
+	v2 = tVert(mins.x, maxs.y, maxs.z, 1, 0);
 	v3 = tVert(mins.x, mins.y, maxs.z, 1, 1);
-	v4 = tVert(maxs.x, mins.y, maxs.z, 1, 0);
+	v4 = tVert(maxs.x, mins.y, maxs.z, 0, 1);
 	back = tQuad(v1, v2, v3, v4);
 }
 

@@ -26,6 +26,8 @@
 #include <float.h>
 #include "MdlRenderer.h"
 #include "TextureArray.h"
+#include "tga.h"
+#include "bmp.h"
 
 
 BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
@@ -36,6 +38,8 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 	renderModels = NULL;
 	faceMaths = NULL;
 	miptexToTexArray = NULL;
+	memset(skyboxTextures, 0, sizeof(skyboxTextures));
+	memset(skyboxTexturesSwap, 0, sizeof(skyboxTexturesSwap));
 
 	whiteTex = new Texture(1, 1);
 	greyTex = new Texture(1, 1);
@@ -138,14 +142,7 @@ void BspRenderer::loadTextures() {
 	vector<string> tryPaths = getAssetPaths();
 
 	for (int i = 0; i < wadNames.size(); i++) {
-		string path;
-		for (int k = 0; k < tryPaths.size(); k++) {
-			string tryPath = tryPaths[k] + wadNames[i];
-			if (fileExists(tryPath)) {
-				path = tryPath;
-				break;
-			}
-		}
+		string path = findAsset(wadNames[i]);
 
 		if (path.empty()) {
 			logf("Missing WAD: %s\n", wadNames[i].c_str());
@@ -232,16 +229,66 @@ void BspRenderer::loadTextures() {
 				imageData[k].a = 0;
 		}
 
-		if (wadTex) {
-			delete[] wadTex->data;
-			delete wadTex;
-		}
-
 		// map->textures + texOffset + tex.nOffsets[0]
 
 		glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
 		glTextureArray->add(glTexturesSwap[i]);
 		glTexturesSwap[i]->generateMipMaps(3, palette[255]);
+
+		if (wadTex) {
+			delete[] wadTex->data;
+			delete wadTex;
+		}
+	}
+
+	// load skybox textures
+	{
+		memset(skyboxTexturesSwap, 0, sizeof(skyboxTexturesSwap));
+		Entity* world = map->ents[0];
+		string skyname = world->getKeyvalue("skyname");
+		if (skyname.empty())
+			skyname = "2desert";
+		//static const char* skySuffixes[6] = { "ft", "bk", "lf", "rt", "up", "dn" };
+		static const char* skySuffixes[6] = { "lf", "rt", "dn", "up", "bk", "ft" };
+
+		for (int i = 0; i < 6; i++) {
+			string skyPath = "gfx/env/" + skyname + skySuffixes[i];
+
+			string path = findAsset(skyPath + ".tga");
+			if (!path.empty()) {
+				COLOR3* pixels;
+				int width, height;
+				if (loadTGA(path.c_str(), pixels, width, height)) {
+					skyboxTexturesSwap[i] = new Texture(width, height, pixels);
+				}
+				else {
+					logf("Failed to load TGA file: %s\n", path.c_str());
+				}
+			}
+			else {
+				path = findAsset(skyPath + ".bmp");
+
+				if (!path.empty()) {
+					WADTEX tex = load8BitBMP(path.c_str());
+					if (tex.data) {
+						COLOR3* pixels = new COLOR3[tex.nWidth * tex.nHeight];
+						COLOR3* pal = tex.getPalette();
+						for (int k = 0; k < tex.nWidth * tex.nHeight; k++) {
+							pixels[k] = pal[tex.data[k]];
+						}
+
+						skyboxTexturesSwap[i] = new Texture(tex.nWidth, tex.nHeight, pixels);
+
+						delete[] tex.data;
+					}
+					else {
+						logf("Failed to load BMP as 8-bit: %s\n", path.c_str());
+					}
+				} else {
+					logf("Missing skybox image: %s\n", (skyPath + ".tga").c_str());
+				}
+			}
+		}
 	}
 
 	if (wadTexCount)
@@ -643,6 +690,12 @@ void BspRenderer::deleteTextures() {
 			delete glTextures[i];
 		}
 		delete[] glTextures;
+	}
+	for (int i = 0; i < 6; i++) {
+		if (skyboxTextures[i]) {
+			delete skyboxTextures[i];
+			skyboxTextures[i] = NULL;
+		}
 	}
 
 	glTextures = NULL;
@@ -1678,6 +1731,8 @@ BspRenderer::~BspRenderer() {
 		delete pvsDat->wireframePvsBuffer;
 		delete pvsDat;
 	}
+	if (skyBoxBuffer)
+		delete skyBoxBuffer;
 
 	deleteTextures();
 	deleteLightmapTextures();
@@ -1719,11 +1774,19 @@ void BspRenderer::delayLoadData() {
 		deleteTextures();
 		
 		glTextures = glTexturesSwap;
+		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
 		// non-3D version of textures needed for GUI
 		for (int i = 0; i < map->textureCount; i++) {
 			if (!glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGBA);
+		}
+		for (int i = 0; i < 6; i++) {
+			if (skyboxTextures[i]) {
+				skyboxTextures[i]->upload(GL_RGB, true);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Note: GL_CLAMP is significantly slower
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			}
 		}
 
 		glTextureArray->upload();
@@ -2451,6 +2514,41 @@ void BspRenderer::drawPointEntities() {
 	if (pointEntIdx - nextRangeDrawIdx > 0) {
 		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
 	}
+}
+
+void BspRenderer::drawSkybox() {
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0);
+	glDepthMask(GL_FALSE);
+	
+	vec3 ori = g_app->cameraOrigin.flip();
+	g_app->textureShader->bind();
+	g_app->textureShader->modelMat->loadIdentity();
+	g_app->textureShader->modelMat->translate(ori.x, ori.y, ori.z);
+	g_app->textureShader->updateMatrixes();
+
+	if (!skyBoxBuffer) {
+		tCube cube(vec3(-64, -64, -64), vec3(64, 64, 64));
+
+		skyBoxBuffer = new VertexBuffer(g_app->textureShader, 0, &cube, 6 * 6);
+		skyBoxBuffer->addAttribute(TEX_2F, "vTex");
+		skyBoxBuffer->addAttribute(POS_3F, "vPosition");
+		skyBoxBuffer->upload();
+	}
+
+	for (int i = 0; i < 6; i++) {
+		if (!skyboxTextures[i])
+			continue;
+
+		skyboxTextures[i]->bind();
+		skyBoxBuffer->drawRange(GL_TRIANGLES, i*6, i*6 + 6);
+	}
+
+	glDepthMask(GL_TRUE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 }
 
 void BspRenderer::drawPvs() {

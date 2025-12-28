@@ -153,6 +153,7 @@ private:
 	GLFWwindow* window;
 	ShaderProgram* bspShader = NULL;
 	ShaderProgram* colorShader = NULL;
+	ShaderProgram* textureShader = NULL;
 	ShaderProgram* mdlShader = NULL;
 	ShaderProgram* sprShader = NULL;
 	ShaderProgram* vec3Shader = NULL;

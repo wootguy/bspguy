@@ -57,6 +57,7 @@ set(SOURCE_FILES
 	src/util/mstream.h			src/util/mstream.cpp
 	src/util/ThreadSafeInt.h	src/util/ThreadSafeInt.cpp
 	src/util/bmp.h				src/util/bmp.cpp
+	src/util/tga.h				src/util/tga.cpp
 	src/globals.h				src/globals.cpp
 	
 	# Navigation meshes
@@ -118,6 +119,9 @@ set(SHADER_FILES
 	
 	src/shaders/cvert_vert.glsl
 	src/shaders/cvert_frag.glsl
+	
+	src/shaders/tvert_vert.glsl
+	src/shaders/tvert_frag.glsl
 	
 	src/shaders/bsp_vert.glsl
 	src/shaders/bsp_legacy_frag.glsl

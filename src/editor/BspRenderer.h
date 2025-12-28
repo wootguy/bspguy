@@ -45,6 +45,7 @@ enum RenderFlags {
 	RENDER_LEAF_GRAPH = (1 << 16),
 	RENDER_PVS = (1 << 17),
 	RENDER_NAME_TAGS = (1 << 18),
+	RENDER_SKYBOX = (1 << 19),
 };
 
 struct LightmapInfo {
@@ -205,6 +206,7 @@ public:
 	void drawModelWireframe(int modelIdx, bool highlight);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities();
+	void drawSkybox();
 	void drawPvs();
 	void updatePvs(vec3 viewOrigin);
 	void addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frustum* frustum, bool makeBuffer, vector<vec3>& allVerts);
@@ -267,10 +269,12 @@ private:
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
+	VertexBuffer* skyBoxBuffer = NULL;
 	vector<Polygon3D> facePolys; // for wpoly calculations
 
 	// textures loaded in a separate thread
 	Texture** glTexturesSwap;
+	Texture* skyboxTexturesSwap[6];
 	TextureArray* glTextureArray;
 	TexArrayOffset* miptexToTexArray; // maps iMiptex to a texture layer in an unknown texturearray
 
@@ -288,6 +292,7 @@ private:
 	NavMesh* debugNavMesh;
 
 
+	Texture* skyboxTextures[6];
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;
 	Texture* whiteTex = NULL;

@@ -344,6 +344,7 @@ void Renderer::compileShaders() {
 	if (!bspShader) {
 		bspShader = new ShaderProgram("BSP");
 		colorShader = new ShaderProgram("Color");
+		textureShader = new ShaderProgram("Texture");
 		mdlShader = new ShaderProgram("MDL");
 		sprShader = new ShaderProgram("SPR");
 		vec3Shader = new ShaderProgram("vec3");
@@ -374,6 +375,11 @@ void Renderer::compileShaders() {
 	colorShader->addUniform("colorMult", UNIFORM_VEC4);
 	colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
 	
+	textureShader->compile(tvert_vert_glsl, tvert_frag_glsl);
+	textureShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	textureShader->setMatrixNames(NULL, "modelViewProjection");
+	textureShader->setVertexAttributeNames("vPosition", "vTex", NULL, NULL);
+
 	mdlShader->compile(mdl_vert, mdl_frag_glsl);
 	mdlShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	mdlShader->setMatrixNames(NULL, "modelViewProjection");
@@ -507,6 +513,11 @@ void Renderer::renderLoop() {
 		isLoading = reloading;
 
 		glCheckError("Setting up view");
+
+		if (g_settings.render_flags & RENDER_SKYBOX) {
+			mapRenderer->drawSkybox();
+			glCheckError("Rendering skybox");
+		}
 
 		vector<OrderedEnt> orderedEnts;
 		mapRenderer->getRenderEnts(orderedEnts);
@@ -770,8 +781,13 @@ void Renderer::renderLoop() {
 			colorShader->popMatrix(MAT_VIEW);
 		}
 
-		if (!g_app->hideGui)
+		if (!g_app->hideGui) {
 			gui->draw();
+			g_active_shader_program = -1;
+		}
+		else {
+			gui->texts.clear();
+		}
 
 		if (!isLoading && openMapAfterLoad.size()) {
 			openMap(openMapAfterLoad.c_str());

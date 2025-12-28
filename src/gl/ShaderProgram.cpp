@@ -3,7 +3,7 @@
 #include "util.h"
 #include <string.h>
 
-static int g_active_shader_program;
+int g_active_shader_program;
 
 ShaderProgram::ShaderProgram(string name)
 {

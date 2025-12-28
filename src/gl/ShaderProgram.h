@@ -36,6 +36,8 @@ struct ShaderUniform {
 	uniform_type type;
 };
 
+extern int g_active_shader_program;
+
 class ShaderProgram
 {
 public:
