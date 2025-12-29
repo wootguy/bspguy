@@ -116,6 +116,7 @@ private:
 	bool showRadPrepPopup = false;
 	bool refreshTexlightList = false;
 	unordered_map<string, string> texlights;
+	unordered_map<string, string> copiedKeyvalues; // keyvalues copied in the keyvalue editor
 
 	ImFont* defaultFont;
 	ImFont* consoleFont;

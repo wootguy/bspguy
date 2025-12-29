@@ -4028,6 +4028,8 @@ void Gui::drawDebugWidget() {
 }
 
 void Gui::drawKeyvalueEditor() {
+	ImGuiContext& g = *GImGui;
+
 	//ImGui::SetNextWindowBgAlpha(0.75f);
 
 	static int selectedFgdIdx = -1;
@@ -4155,6 +4157,8 @@ void Gui::drawKeyvalueEditor() {
 
 			ImGui::Dummy(ImVec2(0, 10));
 
+			float tabBarY = ImGui::GetCursorPosY();
+
 			if (ImGui::BeginTabBar("##tabs"))
 			{
 				if (ImGui::BeginTabItem("Attributes")) {
@@ -4187,6 +4191,91 @@ void Gui::drawKeyvalueEditor() {
 					ImGui::EndTabItem();
 				}
 			}
+
+			const ImGuiStyle& style = ImGui::GetStyle();
+
+			// Compute widths
+			float wPurge = ImGui::CalcTextSize("Purge").x + style.FramePadding.x * 2.0f;
+			float wCopy = ImGui::CalcTextSize("Copy").x + style.FramePadding.x * 2.0f;
+			float wPaste = ImGui::CalcTextSize("Paste").x + style.FramePadding.x * 2.0f;
+			float scrollbarW = ImGui::GetStyle().ScrollbarSize + style.ItemSpacing.x;
+			float totalW = wPurge + wCopy + wPaste + scrollbarW + style.ItemSpacing.x * 2.0f;
+			float right = ImGui::GetContentRegionMax().x;
+
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(right - totalW);
+			ImGui::SetCursorPosY(tabBarY);
+
+			if (ImGui::Button("Purge")) {
+				app->updateEntityUndoState();
+
+				vector<Entity*> ents = app->pickInfo.getEnts();
+				for (Entity* ent : ents) {
+					unordered_map<string, string> allKeys = ent->getAllKeyvalues();
+					allKeys.erase("origin");
+					allKeys.erase("classname");
+					for (auto item : allKeys) {
+						ent->removeKeyvalue(item.first);
+					}
+				}
+
+				app->pushEntityUndoState("Purge keyvalues");
+			}
+			tooltip(g, "Delete all keyvalues except for origin and classname.");
+
+			ImGui::SameLine();
+			ImGui::SetCursorPosY(tabBarY);
+			if (ImGui::Button("Copy")) {
+				copiedKeyvalues.clear();
+				unordered_set<string> conflictedKeys;
+
+				vector<Entity*> ents = app->pickInfo.getEnts();
+				for (Entity* ent : ents) {
+					unordered_map<string, string> allKeys = ent->getAllKeyvalues();
+					allKeys.erase("origin");
+					allKeys.erase("classname");
+					for (auto item : allKeys) {
+						if (copiedKeyvalues.find(item.first) != copiedKeyvalues.end()) {
+							if (copiedKeyvalues[item.first] != item.second) {
+								conflictedKeys.insert(item.first);
+							}
+						}
+
+						copiedKeyvalues[item.first] = item.second;
+					}
+				}
+
+				for (string item : conflictedKeys) {
+					copiedKeyvalues.erase(item);
+				}
+			}
+			tooltip(g, "Copy all keyvalues except for origin and classname. Keyvalues with conflicts "
+				"are excluded when multiple entities are selected.");
+
+			if (copiedKeyvalues.empty())
+				ImGui::BeginDisabled();
+			ImGui::SameLine();
+			ImGui::SetCursorPosY(tabBarY);
+			if (ImGui::Button("Paste")) {
+				app->updateEntityUndoState();
+
+				vector<Entity*> ents = app->pickInfo.getEnts();
+				for (Entity* ent : ents) {
+					for (auto item : copiedKeyvalues) {
+						ent->setOrAddKeyvalue(item.first, item.second);
+					}
+				}
+
+				app->pushEntityUndoState("Paste keyvalues");
+			}
+			tooltip(g, "Apply copied keyvalues to the selected entities.");
+
+			if (copiedKeyvalues.empty())
+				ImGui::EndDisabled();
+
+			ImGui::PopStyleVar();
+
 			ImGui::EndTabBar();
 
 		}
