@@ -2183,6 +2183,61 @@ void Gui::drawStandardMenuBar() {
 		}
 		tooltip(g, "Prepare the map for light recompilation with VHLT.");
 
+		if (ImGui::MenuItem("Recover Oprhaned Models", 0, false, !app->isLoading)) {
+			unordered_set<int> usedModels;
+			
+			for (Entity* ent : map->ents) {
+				usedModels.insert(ent->getBspModelIdx());
+			}
+
+			vec3 ori;
+			ori.z = map->models[0].nMaxs.z + 256;
+			vec3 lastSz;
+
+			vector<Entity*> newEnts;
+
+			for (int i = 1; i < map->modelCount; i++) {
+				if (usedModels.count(i))
+					continue;
+
+				BSPMODEL& model = map->models[i];
+				vec3 offset = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+				ori.x += lastSz.x;
+				ori.x += (model.nMaxs - model.nMins).x;
+
+				Entity* ent = new Entity();
+				ent->setOrAddKeyvalue("origin", (ori - offset).toKeyvalueString());
+				ent->setOrAddKeyvalue("model", cstrf("*%d", i));
+				ent->setOrAddKeyvalue("classname", "func_illusionary");
+				newEnts.push_back(ent);
+				
+				lastSz = model.nMaxs - model.nMins;
+			}
+
+			if (newEnts.size()) {
+				logf("Recovered %d orphaned BSP models.\n", newEnts.size());
+				CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Recover Orphaned Models", newEnts);
+				createCommand->execute();
+				app->pushUndoCommand(createCommand);
+
+				app->pickInfo.deselect();
+				app->hiddenLeaves.clear();
+				app->pickMode = PICK_OBJECT;
+				for (int i = 0; i < newEnts.size(); i++) {
+					app->pickInfo.selectEnt(map->ents.size() - (1 + i));
+				}
+
+				// focus the camera on the new ents
+				app->cameraOrigin = ori + vec3(lastSz.x + 128,0,128);
+				app->cameraAngles = vec3(10, 0, -90);
+			}
+			else {
+				logf("No BSP models are orphaned.\n");
+			}
+			
+		}
+		tooltip(g, "Create entities for all BSP models that no longer have an entity assigned to them.");
+
 		if (ImGui::MenuItem("Scale Invisible Faces", 0, false, !app->isLoading)) {
 			LumpReplaceCommand* command = new LumpReplaceCommand("AllocBlock Reduction");
 			if (map->allocblock_reduction() == 0) {

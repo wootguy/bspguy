@@ -8,9 +8,9 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - cant use hotkeys in entity report
 
 // todo:
+// cant use hotkeys in entity report
 // folder picker for settings paths (tinyfd uses the annoying picker)
 // rad textures darker than they should be due to lightmaps
 // ripent saftey warning
@@ -24,7 +24,7 @@
 // expand input text for multiline
 // speed up clipnode gen ?
 // scale axes and vertex editing in wrong place for rotated solids
-// - ! textures dont count toward allocblock?
+// ! textures dont count toward allocblock?
 // alt instead of ctrl for slow movement, then can use hotkeys
 // invalid solid undo not reverting plane vertex positions sometimes
 // dbm_14 invisible triggers not showing clipndoes.
