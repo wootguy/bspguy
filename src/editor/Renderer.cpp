@@ -514,7 +514,7 @@ void Renderer::renderLoop() {
 
 		glCheckError("Setting up view");
 
-		if (g_settings.render_flags & RENDER_SKYBOX) {
+		if (previewMode || (g_settings.render_flags & RENDER_SKYBOX)) {
 			mapRenderer->drawSkybox();
 			glCheckError("Rendering skybox");
 		}
@@ -528,7 +528,7 @@ void Renderer::renderLoop() {
 		glCheckError("Rendering BSP (opaque pass)");
 
 		// wireframe pass
-		if (g_settings.render_flags & RENDER_WIREFRAME) {
+		if (!previewMode && (g_settings.render_flags & RENDER_WIREFRAME)) {
 			mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, true);
 			glCheckError("Rendering BSP (wireframe pass)");
 		}
@@ -547,7 +547,7 @@ void Renderer::renderLoop() {
 		mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true, false);
 		glCheckError("Rendering BSP (transparency pass)");
 
-		if (pickMode == PICK_LEAF) {
+		if (pickMode == PICK_LEAF && !previewMode) {
 			mapRenderer->renderLeaves();
 		}
 
@@ -566,22 +566,22 @@ void Renderer::renderLoop() {
 
 		model.loadIdentity();
 
-		colorShader->bind();
-		drawEntDirectionVectors(); // draws over world faces
-		glCheckError("Rendering entity vectors");
+		if (!previewMode) {
+			colorShader->bind();
+			drawEntDirectionVectors(); // draws over world faces
+			glCheckError("Rendering entity vectors");
 
-		drawTextureAxes();
-		glCheckError("Rendering texture axes");
+			drawTextureAxes();
+			glCheckError("Rendering texture axes");
 
-		int modelIdx = pickInfo.getModelIndex();
+			int modelIdx = pickInfo.getModelIndex();
 
-		if (true) {
 			if (debugClipnodes && modelIdx > 0) {
 				BSPMODEL* pickModel = pickInfo.getModel();
 				glDisable(GL_CULL_FACE);
 				int currentPlane = 0;
 				drawClipnodes(pickInfo.getMap(), pickModel->iHeadnodes[1], currentPlane, debugInt);
-				debugIntMax = currentPlane-1;
+				debugIntMax = currentPlane - 1;
 				glEnable(GL_CULL_FACE);
 			}
 
@@ -688,61 +688,61 @@ void Renderer::renderLoop() {
 			}
 
 			glCheckError("Rendering cull box");
-		}
 
-		drawEntConnections();
-		if (entConnectionPoints && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
-			model.loadIdentity();
-			colorShader->updateMatrixes();
-			glDisable(GL_DEPTH_TEST);
-			entConnectionPoints->draw(GL_TRIANGLES);
-			glEnable(GL_DEPTH_TEST);
-		}
-
-		glCheckError("Rendering entity connections");
-
-		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
-		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
-		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
-		bool isTransformingWorld = pickInfo.getEntIndex() == 0 && transformTarget != TRANSFORM_OBJECT;
-		if (showDragAxes && !movingEnt && !isTransformingWorld && pickInfo.getEntIndex() >= 0 && (isTransformingValid || isMovingOrigin)) {
-			drawTransformAxes();
-		}
-
-		glCheckError("Rendering transform axes");
-
-		if (modelIdx > 0 && pickMode == PICK_OBJECT) {
-			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
-				drawModelVerts();
-				glCheckError("Rendering model verts");
+			drawEntConnections();
+			if (entConnectionPoints && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
+				model.loadIdentity();
+				colorShader->updateMatrixes();
+				glDisable(GL_DEPTH_TEST);
+				entConnectionPoints->draw(GL_TRIANGLES);
+				glEnable(GL_DEPTH_TEST);
 			}
-			if (transformTarget == TRANSFORM_ORIGIN) {
-				drawModelOrigin();
-				glCheckError("Rendering model origin");
+
+			glCheckError("Rendering entity connections");
+
+			bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
+			bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
+			bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+			bool isTransformingWorld = pickInfo.getEntIndex() == 0 && transformTarget != TRANSFORM_OBJECT;
+			if (showDragAxes && !movingEnt && !isTransformingWorld && pickInfo.getEntIndex() >= 0 && (isTransformingValid || isMovingOrigin)) {
+				drawTransformAxes();
 			}
+
+			glCheckError("Rendering transform axes");
+
+			if (modelIdx > 0 && pickMode == PICK_OBJECT) {
+				if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
+					drawModelVerts();
+					glCheckError("Rendering model verts");
+				}
+				if (transformTarget == TRANSFORM_ORIGIN) {
+					drawModelOrigin();
+					glCheckError("Rendering model origin");
+				}
+			}
+
+			if (g_app->debugPoly.isValid)
+				drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 0, 150));
+			if (g_app->debugPoly2.isValid)
+				drawPolygon3D(g_app->debugPoly2, COLOR4(255, 0, 0, 150));
+			if (g_app->debugPoly3.isValid)
+				drawPolygon3D(g_app->debugPoly3, COLOR4(255, 255, 255, 150));
+			if (g_app->debugLine0 != g_app->debugLine1) {
+				drawLine(debugLine0, debugLine1, { 128, 0, 255, 255 });
+				drawLine(debugLine2, debugLine3, { 0, 255, 0, 255 });
+				drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
+			}
+
+			glCheckError("Rendering debug polys");
+
+			renderNavMesh();
+
+			if (pickMode == PICK_LEAF && (g_settings.render_flags & RENDER_LEAF_GRAPH)) {
+				renderLeafGraph(mapRenderer->leafNavMesh);
+			}
+
+			addNameTags();
 		}
-
-		if (g_app->debugPoly.isValid)
-			drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 0, 150));
-		if (g_app->debugPoly2.isValid)
-			drawPolygon3D(g_app->debugPoly2, COLOR4(255, 0, 0, 150));
-		if (g_app->debugPoly3.isValid)
-			drawPolygon3D(g_app->debugPoly3, COLOR4(255, 255, 255, 150));
-		if (g_app->debugLine0 != g_app->debugLine1) {
-			drawLine(debugLine0, debugLine1, { 128, 0, 255, 255 });
-			drawLine(debugLine2, debugLine3, { 0, 255, 0, 255 });
-			drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
-		}
-
-		glCheckError("Rendering debug polys");
-
-		renderNavMesh();
-
-		if (pickMode == PICK_LEAF && (g_settings.render_flags & RENDER_LEAF_GRAPH)) {
-			renderLeafGraph(mapRenderer->leafNavMesh);
-		}
-
-		addNameTags();
 
 		vec3 forward, right, up;
 		makeVectors(cameraAngles, forward, right, up);
@@ -779,6 +779,12 @@ void Renderer::renderLoop() {
 			glEnable(GL_DEPTH_TEST);
 			colorShader->popMatrix(MAT_PROJECTION);
 			colorShader->popMatrix(MAT_VIEW);
+		}
+
+		// updated here so imgui can use control logic from this class
+		for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+			pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
+			released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
 		}
 
 		if (!g_app->hideGui) {
@@ -1910,11 +1916,6 @@ void Renderer::drawTextureAxes() {
 void Renderer::controls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
-		pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
-		released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
-	}
-
 	anyCtrlPressed = pressed[GLFW_KEY_LEFT_CONTROL] || pressed[GLFW_KEY_RIGHT_CONTROL];
 	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
@@ -2038,9 +2039,13 @@ void Renderer::vertexEditControls() {
 
 void Renderer::cameraPickingControls() {
 	static bool transforming;
+	static bool clickedInViewport; // fix select from mouse press in imgui then release in viewport
 
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 		transforming = transformAxisControls();
+
+		if (oldLeftMouse != GLFW_PRESS)
+			clickedInViewport = true;
 
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -2106,7 +2111,7 @@ void Renderer::cameraPickingControls() {
 			pushEntityUndoState("Move Entity");
 		}
 
-		if (oldLeftMouse == GLFW_PRESS && !transforming) {
+		if (oldLeftMouse == GLFW_PRESS && clickedInViewport && !transforming) {
 			applyTransform();
 
 			if (invalidSolid) {
@@ -2134,6 +2139,7 @@ void Renderer::cameraPickingControls() {
 			pickCount++;
 		}
 
+		clickedInViewport = false;
 		isBoxSelecting = false;
 	}
 }
@@ -2519,6 +2525,7 @@ void Renderer::globalShortcutControls() {
 	if (anyCtrlPressed && pressed[GLFW_KEY_Y] && !oldPressed[GLFW_KEY_Y]) {
 		redo();
 	}
+	previewMode = pressed[GLFW_KEY_R];
 	if (!anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		cameraMouseCapture = !cameraMouseCapture;
 
@@ -3354,7 +3361,7 @@ bool Renderer::drawModelsAndSprites() {
 	colorShader->bind();
 	colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
 
-	if (!(g_settings.render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES)))
+	if (!previewMode && !(g_settings.render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES)))
 		return false;
 
 	glEnable(GL_CULL_FACE);
@@ -3489,7 +3496,7 @@ bool Renderer::drawModelsAndSprites() {
 
 		bool isSelected = selectedEnts.count(entidx);
 
-		bool skipRender = mdl->isStudioModel() && !(g_settings.render_flags & RENDER_STUDIO_MDL)
+		bool skipRender = !previewMode && mdl->isStudioModel() && !(g_settings.render_flags & RENDER_STUDIO_MDL)
 			|| mdl->isSprite() && !(g_settings.render_flags & RENDER_SPRITES);
 
 		if (skipRender)
@@ -3499,7 +3506,7 @@ bool Renderer::drawModelsAndSprites() {
 		if (!entcube->buffer->isUploaded())
 			continue;
 
-		{ // draw the colored transparent cube
+		if (!previewMode) { // draw the colored transparent cube
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -3548,7 +3555,11 @@ bool Renderer::drawModelsAndSprites() {
 		else if (mdl->isSprite()) {
 			COLOR3 color = COLOR3(255, 255, 255);
 			COLOR3 outlineColor = COLOR3(0, 0, 0);
-			bool treatAsIcon = ent->isIconSprite || !(g_settings.render_flags & RENDER_RENDER_MODES);
+			bool useRenderModes = g_app->previewMode || (g_settings.render_flags & RENDER_RENDER_MODES);
+			bool treatAsIcon = ent->isIconSprite || !useRenderModes;
+
+			if (ent->isIconSprite && previewMode)
+				continue;
 
 			if (treatAsIcon) {
 				vec3 sz = entcube->maxs - entcube->mins;
@@ -3569,8 +3580,9 @@ bool Renderer::drawModelsAndSprites() {
 				color = COLOR3(255, 32, 32);
 				outlineColor = COLOR3(255, 255, 0);
 			}
+			bool noOutline = treatAsIcon || previewMode;
 
-			((SprRenderer*)mdl)->draw(drawOri, drawAngles, ent, renderOpts, color, outlineColor, treatAsIcon);
+			((SprRenderer*)mdl)->draw(drawOri, drawAngles, ent, renderOpts, color, outlineColor, noOutline);
 			glCheckError("Rendering SPR");
 		}
 		

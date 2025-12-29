@@ -254,6 +254,7 @@ private:
 	bool anyAltPressed;
 	bool anyShiftPressed;
 	bool cameraMouseCapture = false; // rotate the camera without holding a mouse button
+	bool previewMode = false; // render the map as it would appear in-game
 
 	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally

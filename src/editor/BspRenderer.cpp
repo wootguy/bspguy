@@ -2176,13 +2176,13 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	if ((g_settings.render_flags & RENDER_POINT_ENTS) && !transparencyPass && !wireframePass) {
+	if ((g_settings.render_flags & RENDER_POINT_ENTS) && !transparencyPass && !wireframePass && !g_app->previewMode) {
 		drawPointEntities();
 		activeShader->bind();
 	}
 
 	// draw clipnodes in a separate pass to prevent interleaving shader binds
-	if (clipnodesLoaded && transparencyPass && !wireframePass) {
+	if (clipnodesLoaded && transparencyPass && !wireframePass && !g_app->previewMode) {
 		g_app->colorShader->bind();
 
 		if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
@@ -2282,7 +2282,7 @@ bool BspRenderer::willDrawModel(Entity* ent, int modelIdx, bool transparent) {
 	EntRenderOpts opts = ent->getRenderOpts();
 	bool isTransparent = false;
 
-	if (g_settings.render_flags & RENDER_RENDER_MODES) {
+	if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
 		switch (opts.rendermode) {
 		case RENDER_MODE_SOLID:
 			isTransparent = true;
@@ -2308,7 +2308,7 @@ bool BspRenderer::willDrawModel(Entity* ent, int modelIdx, bool transparent) {
 			continue;
 
 		if (rgroup.transparent) {
-			if (modelIdx == 0 && !(g_settings.render_flags & RENDER_SPECIAL))
+			if (modelIdx == 0 && (!(g_settings.render_flags & RENDER_SPECIAL) || g_app->previewMode))
 				continue;
 			else if (modelIdx != 0 && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
 				continue;
@@ -2331,7 +2331,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 		return;
 	}
 
-	if (g_settings.render_flags & RENDER_RENDER_MODES) {
+	if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
 		switch (opts.rendermode) {
 		default:
 		case RENDER_MODE_NORMAL:
@@ -2393,7 +2393,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 			continue;
 
 		if (rgroup.transparent) {
-			if (modelIdx == 0 && !(g_settings.render_flags & RENDER_SPECIAL))
+			if (modelIdx == 0 && (!(g_settings.render_flags & RENDER_SPECIAL) || g_app->previewMode))
 				continue;
 			else if (modelIdx != 0 && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
 				continue;
@@ -2750,7 +2750,7 @@ void BspRenderer::pickFrustum(Frustum& frustum, unordered_set<int>& pickEnts,
 		pickFrustumLeaves(frustum, pickLeaves);
 	}
 
-	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES);
+	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES) && !g_app->previewMode;
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 		Entity* ent = map->ents[i];
@@ -2816,7 +2816,7 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 	frustum.origin -= offset;
 
 	bool foundBetterPick = false;
-	bool skipSpecial = !(g_settings.render_flags & RENDER_SPECIAL);
+	bool skipSpecial = !(g_settings.render_flags & RENDER_SPECIAL) || g_app->previewMode;
 
 	bool hasAngles = rot != vec3();
 	mat4x4 angleTransform = map->ents[testEntidx]->getRotationMatrix(true);
@@ -2910,7 +2910,7 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 		foundBetterPick = true;
 	}
 
-	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES);
+	bool renderSmallSprites = !(g_settings.render_flags & RENDER_RENDER_MODES) && !g_app->previewMode;
 
 	for (int i = 0, sz = map->ents.size(); i < sz; i++) {
 		Entity* ent = map->ents[i];
@@ -2973,7 +2973,7 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 	start -= offset;
 
 	bool foundBetterPick = false;
-	bool skipSpecial = !(g_settings.render_flags & RENDER_SPECIAL);
+	bool skipSpecial = !(g_settings.render_flags & RENDER_SPECIAL) || g_app->previewMode;
 
 	bool hasAngles = rot != vec3();
 	mat4x4 angleTransform = map->ents[testEntidx]->getRotationMatrix(true);

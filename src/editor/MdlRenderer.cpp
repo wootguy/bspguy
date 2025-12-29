@@ -1436,7 +1436,7 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 	shader->bind();
 	int defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 
-	if (g_settings.render_flags & RENDER_RENDER_MODES) {
+	if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
 		
 		switch (opts.rendermode) {
 		default:

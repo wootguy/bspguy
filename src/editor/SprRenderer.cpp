@@ -216,7 +216,8 @@ float SprRenderer::getScale(vec3 ori, EntRenderOpts& renderOpts) {
 	float dist = (ori - g_app->cameraOrigin).length();
 
 	float scale = renderOpts.scale;
-	if (renderOpts.rendermode == RENDER_MODE_GLOW && (g_settings.render_flags & RENDER_RENDER_MODES)) {
+	bool useRenderModes = g_app->previewMode || (g_settings.render_flags & RENDER_RENDER_MODES);
+	if (renderOpts.rendermode == RENDER_MODE_GLOW && useRenderModes) {
 		scale *= dist * 0.02f;
 		scale *= 1.0f / scale;
 	}
@@ -351,7 +352,7 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	float framerate = opts.framerate != 0 ? opts.framerate : 10.0f;
 	float scale = opts.scale;
 
-	if (g_settings.render_flags & RENDER_RENDER_MODES) {
+	if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
 		switch (opts.rendermode) {
 		default:
 		case RENDER_MODE_NORMAL:
@@ -454,7 +455,8 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 		glDisable(GL_ALPHA_TEST);
 	}
 
-	if (opts.rendermode == RENDER_MODE_GLOW && (g_settings.render_flags & RENDER_RENDER_MODES)) {
+	bool useRenderModes = g_app->previewMode || (g_settings.render_flags & RENDER_RENDER_MODES);
+	if (opts.rendermode == RENDER_MODE_GLOW && useRenderModes) {
 		glEnable(GL_DEPTH_TEST);
 		scale = 1.0f / scale; // the growing sprite borders are distracting
 		g_app->sprShader->modelMat->scale(scale, scale, scale);

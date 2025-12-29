@@ -8,11 +8,9 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - search spawnflags value
-// - starting click in imgui and ending click in viewport selects something
 
 // todo:
-// cant use hotkeys in entity report
+// check for problems widget
 // folder picker for settings paths (tinyfd uses the annoying picker)
 // rad textures darker than they should be due to lightmaps
 // ripent saftey warning
