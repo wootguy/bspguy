@@ -1994,35 +1994,6 @@ void Gui::drawStandardMenuBar() {
 
 		bool hasAnyCollision = anyHullValid[1] || anyHullValid[2] || anyHullValid[3];
 
-		/*
-		if (ImGui::BeginMenu("Delete Hull", hasAnyCollision && !app->isLoading)) {
-			for (int i = 1; i < MAX_MAP_HULLS; i++) {
-				if (ImGui::MenuItem(("Hull " + to_string(i)).c_str(), NULL, false, anyHullValid[i])) {
-					Bsp* map = app->mapRenderer->map;
-					map->delete_hull(i, -1);
-					app->mapRenderer->reloadClipnodes();
-					logf("Deleted hull %d in map %s\n", i, map->name.c_str());
-					checkValidHulls();
-				}
-			}
-			ImGui::EndMenu();
-		}
-		tooltip(g, "Deletes a BSP hull from all models including worldspawn. This saves a large "
-			"amount of clipnodes but breaks collision for entities that use the hulls.\n\n"
-			"Some entities may fall outside of the world when the map starts. In most cases it's "
-			"better to use the Redirect Hull option or let the Optimize command decide which"
-			"hulls to redirect.\n");
-		*/
-
-		if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
-			deduplicateOpen = 1;
-		}
-		tooltip(g, "Scans for duplicated BSP models and updates entity model keys to reference only one model from set of duplicated models. "
-			"This lowers the model count and allows more game models to be precached. Lightmaps are ignored during the scan, so this might "
-			"make some entities appear too bright in dark areas, or too dark in lit areas.\n\n"
-			"This does not delete BSP data unless you run the Clean command afterward. Cut/hide problematic entities before "
-			"deduplicating if you don't want their models swapped.");
-
 		if (ImGui::BeginMenu("Delete BSP Data", !app->isLoading)) {
 			if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("Clean " + map->name);
@@ -2171,85 +2142,116 @@ void Gui::drawStandardMenuBar() {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::MenuItem("Fix Bad Surface Extents", 0, false, !app->isLoading)) {
-			showDownscalePopup = true;
-		}
-		tooltip(g, "Fix all faces with bad surface extents.");
-
-		if (ImGui::MenuItem("RAD Preparation", 0, false, !app->isLoading)) {
-			showRadPrepPopup = true;
-			refreshTexlightList = true;
-			texlights = map->get_tex_lights();
-		}
-		tooltip(g, "Prepare the map for light recompilation with VHLT.");
-
-		if (ImGui::MenuItem("Recover Oprhaned Models", 0, false, !app->isLoading)) {
-			unordered_set<int> usedModels;
-			
-			for (Entity* ent : map->ents) {
-				usedModels.insert(ent->getBspModelIdx());
+		if (ImGui::BeginMenu("Faces")) {
+			if (ImGui::MenuItem("Fix Bad Surface Extents", 0, false, !app->isLoading)) {
+				showDownscalePopup = true;
 			}
+			tooltip(g, "Fix all faces with bad surface extents.");
 
-			vec3 ori;
-			ori.z = map->models[0].nMaxs.z + 256;
-			vec3 lastSz;
-
-			vector<Entity*> newEnts;
-
-			for (int i = 1; i < map->modelCount; i++) {
-				if (usedModels.count(i))
-					continue;
-
-				BSPMODEL& model = map->models[i];
-				vec3 offset = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
-				ori.x += lastSz.x;
-				ori.x += (model.nMaxs - model.nMins).x;
-
-				Entity* ent = new Entity();
-				ent->setOrAddKeyvalue("origin", (ori - offset).toKeyvalueString());
-				ent->setOrAddKeyvalue("model", cstrf("*%d", i));
-				ent->setOrAddKeyvalue("classname", "func_illusionary");
-				newEnts.push_back(ent);
-				
-				lastSz = model.nMaxs - model.nMins;
+			if (ImGui::MenuItem("Scale Invisible Faces", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("AllocBlock Reduction");
+				if (map->allocblock_reduction() == 0) {
+					delete command;
+				}
+				else {
+					command->pushUndoState();
+				}
 			}
+			tooltip(g, "Scales up textures on invisible model faces to reduce AllocBlock size. "
+				"Manually increase texture scales or downscale large textures to reduce "
+				"AllocBlocks further.");
 
-			if (newEnts.size()) {
-				logf("Recovered %d orphaned BSP models.\n", newEnts.size());
-				CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Recover Orphaned Models", newEnts);
-				createCommand->execute();
-				app->pushUndoCommand(createCommand);
+			ImGui::EndMenu();
+		}
 
-				app->pickInfo.deselect();
-				app->hiddenLeaves.clear();
-				app->pickMode = PICK_OBJECT;
-				for (int i = 0; i < newEnts.size(); i++) {
-					app->pickInfo.selectEnt(map->ents.size() - (1 + i));
+		if (ImGui::BeginMenu("Models")) {
+			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
+				deduplicateOpen = 1;
+			}
+			tooltip(g, "Scans for duplicated BSP models and updates entity model keys to reference only one model from set of duplicated models. "
+				"This lowers the model count and allows more game models to be precached. Lightmaps are ignored during the scan, so this might "
+				"make some entities appear too bright in dark areas, or too dark in lit areas.\n\n"
+				"This does not delete BSP data unless you run the Clean command afterward. Cut/hide problematic entities before "
+				"deduplicating if you don't want their models swapped.");
+
+			if (ImGui::MenuItem("Recover Oprhaned Models", 0, false, !app->isLoading)) {
+				unordered_set<int> usedModels;
+
+				for (Entity* ent : map->ents) {
+					usedModels.insert(ent->getBspModelIdx());
 				}
 
-				// focus the camera on the new ents
-				app->cameraOrigin = ori + vec3(lastSz.x + 128,0,128);
-				app->cameraAngles = vec3(10, 0, -90);
-			}
-			else {
-				logf("No BSP models are orphaned.\n");
-			}
-			
-		}
-		tooltip(g, "Create entities for all BSP models that no longer have an entity assigned to them.");
+				vec3 ori;
+				ori.z = map->models[0].nMaxs.z + 256;
+				vec3 lastSz;
 
-		if (ImGui::MenuItem("Scale Invisible Faces", 0, false, !app->isLoading)) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("AllocBlock Reduction");
-			if (map->allocblock_reduction() == 0) {
-				delete command;
+				vector<Entity*> newEnts;
+
+				for (int i = 1; i < map->modelCount; i++) {
+					if (usedModels.count(i))
+						continue;
+
+					BSPMODEL& model = map->models[i];
+					vec3 offset = model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+					ori.x += lastSz.x;
+					ori.x += (model.nMaxs - model.nMins).x;
+
+					Entity* ent = new Entity();
+					ent->setOrAddKeyvalue("origin", (ori - offset).toKeyvalueString());
+					ent->setOrAddKeyvalue("model", cstrf("*%d", i));
+					ent->setOrAddKeyvalue("classname", "func_illusionary");
+					newEnts.push_back(ent);
+
+					lastSz = model.nMaxs - model.nMins;
+				}
+
+				if (newEnts.size()) {
+					logf("Recovered %d orphaned BSP models.\n", newEnts.size());
+					CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Recover Orphaned Models", newEnts);
+					createCommand->execute();
+					app->pushUndoCommand(createCommand);
+
+					app->pickInfo.deselect();
+					app->hiddenLeaves.clear();
+					app->pickMode = PICK_OBJECT;
+					for (int i = 0; i < newEnts.size(); i++) {
+						app->pickInfo.selectEnt(map->ents.size() - (1 + i));
+					}
+
+					// focus the camera on the new ents
+					app->cameraOrigin = ori + vec3(lastSz.x + 128, 0, 128);
+					app->cameraAngles = vec3(10, 0, -90);
+				}
+				else {
+					logf("No BSP models are orphaned.\n");
+				}
 			}
-			else {
-				command->pushUndoState();
+			tooltip(g, "Create entities for all BSP models that no longer have an entity assigned to them.");
+
+			if (ImGui::MenuItem("Zero Model Origins", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("Zero Model Origins");
+
+				int moveCount = 0;
+				moveCount += map->zero_entity_origins("func_ladder");
+				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+
+				BspRenderer* renderer = app->mapRenderer;
+
+				if (moveCount) {
+					command->pushUndoState();
+				}
+				else {
+					delete command;
+					logf("No entity origins need moving\n");
+				}
 			}
+			tooltip(g, "Some BSP models break when used in an entity with a non-zero origin (ladders, "
+				"water, mortar fields). This will move affected entity origins to (0,0,0) while keeping "
+				"models in the same place, duplicating them if necessary.\n");
+
+			ImGui::EndMenu();
 		}
-		tooltip(g, "Scales up textures on invisible model faces to reduce AllocBlock size. "
-			"Manually increase texture scales or downscale large textures to reduce "
-			"AllocBlocks further.");
 
 		if (ImGui::BeginMenu("Textures")) {
 			if (ImGui::MenuItem("Create Series WAD", "")) {
@@ -2340,26 +2342,13 @@ void Gui::drawStandardMenuBar() {
 
 			ImGui::EndMenu();
 		}
-
-		if (ImGui::MenuItem("Zero Entity Origins", 0, false, !app->isLoading)) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("Zero Entity Origins");
-
-			int moveCount = 0;
-			moveCount += map->zero_entity_origins("func_ladder");
-			moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-			moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
-
-			BspRenderer* renderer = app->mapRenderer;
-
-			if (moveCount) {
-				command->pushUndoState();
-			}
-			else {
-				delete command;
-				logf("No entity origins need moving\n");
-			}
+		
+		if (ImGui::MenuItem("RAD Preparation", 0, false, !app->isLoading)) {
+			showRadPrepPopup = true;
+			refreshTexlightList = true;
+			texlights = map->get_tex_lights();
 		}
-		tooltip(g, "Some entities break when their origin is non-zero (ladders, water, mortar fields).\nThis will move affected entity origins to (0,0,0), duplicating models if necessary.\n");
+		tooltip(g, "Prepare the map for light recompilation with VHLT.");
 
 		ImGui::EndDisabled();
 		ImGui::EndMenu();
