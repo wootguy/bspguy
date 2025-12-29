@@ -4180,6 +4180,9 @@ void Gui::drawKeyvalueEditor() {
 
 			if (ImGui::BeginTabBar("##tabs"))
 			{
+				const ImGuiStyle& style = ImGui::GetStyle();
+				ImVec2 condensedPadding = ImVec2(style.FramePadding.x, roundf(0.70f*uiScale));
+
 				if (ImGui::BeginTabItem("Attributes")) {
 					ImGui::Dummy(ImVec2(0, 10 * uiScale));
 					if (!sameClassesSelected) {
@@ -4187,7 +4190,9 @@ void Gui::drawKeyvalueEditor() {
 						ImGui::Text("Use the Raw Edit tab instead.");
 					}
 					else {
+						ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, condensedPadding);
 						drawKeyvalueEditor_SmartEditTab(fgd);
+						ImGui::PopStyleVar();
 					}
 					ImGui::EndTabItem();
 				}
@@ -4199,14 +4204,18 @@ void Gui::drawKeyvalueEditor() {
 						ImGui::Text("Use the Raw Edit tab instead.");
 					}
 					else {
+						ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, condensedPadding);
 						drawKeyvalueEditor_FlagsTab(fgd);
+						ImGui::PopStyleVar();
 					}
 					ImGui::EndTabItem();
 				}
 
 				if (ImGui::BeginTabItem("Raw Edit")) {
 					ImGui::Dummy(ImVec2(0, 10 * uiScale));
+					ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, condensedPadding);
 					drawKeyvalueEditor_RawEditTab();
+					ImGui::PopStyleVar();
 					ImGui::EndTabItem();
 				}
 			}
@@ -5009,7 +5018,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			ImGui::PushStyleColor(ImGuiCol_Header, hoveredDrag[i] ? dragColor : dragButColor);
 			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, dragColor);
 			ImGui::PushStyleColor(ImGuiCol_HeaderActive, dragColor);
-			ImGui::Selectable(item, true);
+			ImGui::Selectable(item, true, 0, ImVec2(0, 19*uiScale));
 			ImGui::PopStyleColor(3);
 			style.SelectableTextAlign.x = 0.0f;
 
@@ -6025,12 +6034,11 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("Recommended scales per screen resolution:\n"
-					"65%% = 720p (small but enough room for all widgets)\n"
-					"85%% = 1080p (can handle a larger font)\n"
-					"110%% = 2k (nice size font with widget space to spare)\n"
-					"200%% = 4k (just guessing, i don't havea 4k screen)\n"
-					"\n110%% is the default scaling in older versions of bspguy. That's the scaling I "
-					"designed the UI for. I think it looks good on a 27\" 2k screen.");
+					"720p = 65%% (small but enough room for all widgets)\n"
+					"1080p = 85%%\n"
+					"1440p = 110%%\n"
+					"2160p = 170%%\n"
+					"\n110%% is the default scaling in older versions of bspguy.");
 			}
 
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
@@ -6457,7 +6465,7 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 	int midWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
 	int nameWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "marksurfaces").x;
 
-	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), roundf(1.0f*uiScale)));
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), 0));
 	if (ImGui::BeginTable("StatsTable", 3, ImGuiTableFlags_BordersInnerV)) {
 		ImGui::TableSetupColumn("Data Type", ImGuiTableColumnFlags_WidthFixed, nameWidth*uiScale);
 		ImGui::TableSetupColumn(" Current / Max", ImGuiTableColumnFlags_WidthFixed, midWidth*uiScale);
@@ -6487,7 +6495,10 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 			ImGui::TableNextColumn();
 			ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + roundf(2*uiScale));
+			ImGui::PushFont(consoleFont, g_font_scale_base*0.85f);
 			ImGui::ProgressBar(stats[i].progress, ImVec2(-1, 0), stats[i].fullness.c_str());
+			ImGui::PopFont();
 			ImGui::PopStyleVar();
 			ImGui::PopStyleColor(1);
 			ImGui::TableNextColumn();
@@ -6957,7 +6968,7 @@ void Gui::drawFaceExtentsLimitTab() {
 
 void Gui::drawEntityReport() {
 	ImGui::SetNextWindowSize(ImVec2(400 * uiScale, 600 * uiScale), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(320 * uiScale, 350 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(300 * uiScale, 350 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	struct ReportEnt {
 		int idx;
@@ -7599,7 +7610,7 @@ void Gui::drawLightmapsEditor() {
 
 void Gui::drawFaceEditor() {
 	ImGui::SetNextWindowSize(ImVec2(300 * uiScale, 570 * uiScale), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(260 * uiScale, 540 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(260 * uiScale, 510 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
 
 	ImGuiContext& g = *GImGui;
 	BspRenderer* mapRenderer = app->mapRenderer ? app->mapRenderer : NULL;
@@ -8258,7 +8269,7 @@ void Gui::drawTextureEditor() {
 	}
 
 	ImGui::Text(("Source: " + texture_src).c_str());
-	ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
+	//ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
 
 	ImGuiIO& io = ImGui::GetIO();
 	int bestWidth = app->windowWidth * 0.5f;
