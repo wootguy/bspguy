@@ -5916,9 +5916,11 @@ void Gui::drawSettings() {
 			}
 			ImGui::NextColumn();
 
+			ImGui::Checkbox("Invert Y Axis", &g_settings.invert_y_axis);
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("The unicode font may take a long time to load depending on your specs.\nA new version of ImGui is coming soon to improve that.\n");
+				ImGui::SetTooltip("Invert Y axis camera rotation.\n");
 			}
+			ImGui::NextColumn();
 		}
 		else if (settingsTab == 1) {
 			static const char* renderers[RENDERER_COUNT] = {

@@ -2225,13 +2225,14 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 	double now = glfwGetTime();
 	double deltaTime = now - lastTime;
 	lastTime = now;
+	float ymult = g_settings.invert_y_axis ? -1 : 1;
 
 	if (pressed[GLFW_KEY_DOWN]) {
-		cameraAngles.x += rotationSpeed * deltaTime * 50;
+		cameraAngles.x += rotationSpeed * deltaTime * 50 * ymult;
 		cameraAngles.x = clamp(cameraAngles.x, -90.0f, 90.0f);
 	}
 	if (pressed[GLFW_KEY_UP]) {
-		cameraAngles.x -= rotationSpeed * deltaTime * 50;
+		cameraAngles.x -= rotationSpeed * deltaTime * 50 * ymult;
 		cameraAngles.x = clamp(cameraAngles.x, -90.0f, 90.0f);
 	}
 	if (pressed[GLFW_KEY_LEFT]) {
@@ -2253,7 +2254,7 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 		else {
 			vec2 drag = mousePos - lastMousePos;
 			cameraAngles.z += drag.x * rotationSpeed*0.1f;
-			cameraAngles.x += drag.y * rotationSpeed*0.1f;
+			cameraAngles.x += drag.y * rotationSpeed*0.1f * ymult;
 
 			totalMouseDrag += vec2(fabs(drag.x), fabs(drag.y));
 

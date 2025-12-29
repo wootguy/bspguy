@@ -96,6 +96,7 @@ void AppSettings::load() {
 			else if (key == "show_transform_axes") { g_settings.show_transform_axes = atoi(val.c_str()) != 0; }
 			else if (key == "verbose_logs") { g_settings.verboseLogs = atoi(val.c_str()) != 0; }
 			else if (key == "confirm_exit") { g_settings.confirm_exit = atoi(val.c_str()) != 0; }
+			else if (key == "invert_y_axis") { g_settings.invert_y_axis = atoi(val.c_str()) != 0; }
 			else if (key == "first_load") { g_settings.first_load = atoi(val.c_str()) != 0; }
 			else if (key == "mapsize_auto") { g_settings.mapsize_auto = atoi(val.c_str()) != 0; }
 			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
@@ -206,6 +207,7 @@ void AppSettings::save() {
 	file << "show_transform_axes=" << g_settings.show_transform_axes << endl;
 	file << "verbose_logs=" << g_settings.verboseLogs << endl;
 	file << "confirm_exit=" << g_settings.confirm_exit << endl;
+	file << "invert_y_axis=" << g_settings.invert_y_axis << endl;
 	file << "first_load=" << g_settings.first_load << endl;
 	file << "texture_filtering=" << g_settings.texture_filtering << endl;
 	file << "fov=" << g_settings.fov << endl;

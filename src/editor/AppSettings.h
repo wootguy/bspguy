@@ -24,6 +24,7 @@ struct AppSettings {
 	int autoload_layout_width;
 	int autoload_layout_height;
 	bool confirm_exit;
+	bool invert_y_axis;
 	bool first_load;
 	int mapsize_min;
 	int mapsize_max;
