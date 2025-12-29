@@ -8,10 +8,8 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - dpi awareness making font too small on 720 screen
 // - search spawnflags value
 // - starting click in imgui and ending click in viewport selects something
-// - word wrap messages
 
 // todo:
 // cant use hotkeys in entity report
@@ -19,13 +17,11 @@
 // rad textures darker than they should be due to lightmaps
 // ripent saftey warning
 // hold click to select behind
-// skybox rendering
 // orient turrets based on key
 // dialogs for errors / warnings
 // ignorable popups for misc messages
 // "pose" key for dead monsters ? (svencoop1)
 // ent links should be animated.people ask what each color means
-// expand input text for multiline
 // speed up clipnode gen ?
 // scale axes and vertex editing in wrong place for rotated solids
 // ! textures dont count toward allocblock?

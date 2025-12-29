@@ -4048,6 +4048,7 @@ void Gui::drawDebugWidget() {
 
 void Gui::drawKeyvalueEditor() {
 	ImGuiContext& g = *GImGui;
+	ImGuiStyle& style = ImGui::GetStyle();
 
 	//ImGui::SetNextWindowBgAlpha(0.75f);
 
@@ -4176,11 +4177,10 @@ void Gui::drawKeyvalueEditor() {
 
 			ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
-			float tabBarY = ImGui::GetCursorPosY();
+			float tabBarY = ImGui::GetCursorPosY() - style.ItemSpacing.y*2;
 
 			if (ImGui::BeginTabBar("##tabs"))
 			{
-				const ImGuiStyle& style = ImGui::GetStyle();
 				ImVec2 condensedPadding = ImVec2(style.FramePadding.x, roundf(0.70f*uiScale));
 
 				if (ImGui::BeginTabItem("Attributes")) {
@@ -4191,8 +4191,9 @@ void Gui::drawKeyvalueEditor() {
 					}
 					else {
 						ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, condensedPadding);
+						ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(style.FramePadding.x, roundf(1.0f*uiScale)));
 						drawKeyvalueEditor_SmartEditTab(fgd);
-						ImGui::PopStyleVar();
+						ImGui::PopStyleVar(2);
 					}
 					ImGui::EndTabItem();
 				}
@@ -4219,8 +4220,6 @@ void Gui::drawKeyvalueEditor() {
 					ImGui::EndTabItem();
 				}
 			}
-
-			const ImGuiStyle& style = ImGui::GetStyle();
 
 			// Compute widths
 			float wPurge = ImGui::CalcTextSize("Purge").x + style.FramePadding.x * 2.0f;
@@ -4337,13 +4336,8 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 	ImGui::BeginChild("SmartEditWindow");
 
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
-	float inputWidth = (ImGui::GetWindowWidth() - (paddingx * 2)) * 0.5f;
 
 	static int lastPickCount = 0;
-
-	// needed if autoresize is true
-	if (ImGui::GetScrollMaxY() > 0)
-		inputWidth -= style.ScrollbarSize * 0.5f;
 
 	if (fgdClass != NULL) {
 		struct KeyGroup {
@@ -4393,6 +4387,7 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 			groups.push_back(tempGroup);
 
 		int keyOffset = 0;
+		bool lastWasCollapsible = false;
 		for (int k = 0; k < groups.size(); k++) {
 			COLOR3 c2 = groups[k].color;
 			ImVec4 c = ImVec4(c2.r / 255.0f, c2.g / 255.0f, c2.b / 255.0f, 1.0f);
@@ -4400,35 +4395,38 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 			bool isSelf = toLowerCase(groups[k].name) == lowerClass;
 
 			if (groups[k].keys.size() > 3 && !isSelf) {
-				ImGui::Columns(1);
-
 				ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(c.x, c.y, c.z, 0.3f)); // Set background color (blue)
 				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(c.x, c.y, c.z, 0.4f)); // Set hovered color (lighter blue)
 				ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(c.x, c.y, c.z, 0.2f)); // Set active color (darker blue)
 
-				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(c.x, c.y, c.z, 0.05f));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(c.x, c.y, c.z, 0.1f));
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f));  // Set InputText background to fully opaque (white)
 				ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f)); // Hovered state
 				ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.1137f, 0.1882f, 0.2824f, 1.0f));
 
 				static bool isExpanded = true;
 
-				ImGui::BeginChild(("ChildArea" + groups[k].name).c_str(), ImVec2(-FLT_MIN, 0.0f), ImGuiChildFlags_AutoResizeY);
-				string title = groups[k].name + " (" + to_string(groups[k].keys.size()) + ")";
-				if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-					ImGui::Dummy(ImVec2(0, 2));
-					drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, inputWidth, true, keyOffset);
-					ImGui::Dummy(ImVec2(0, 2));
+				// fix too little space before collapsible group after a non-collapsible one
+				if (!lastWasCollapsible) {
+					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, style.FramePadding.y*2));
+					ImGui::Dummy(ImVec2(0, 0));
+					ImGui::PopStyleVar(1);
 				}
 
+				ImGui::BeginChild(("ChildArea" + groups[k].name).c_str(), ImVec2(-FLT_MIN, 0.0f), ImGuiChildFlags_AutoResizeY);
+				string title = groups[k].name;
+
+				if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+					drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, true, keyOffset);
+				}
+				
 				ImGui::EndChild();
-				//ImGui::PopStyleColor(3);
 				ImGui::PopStyleColor(7);
+				lastWasCollapsible = true;
 			}
 			else {
-				drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, inputWidth, false, keyOffset);
+				drawKeyvalueEditor_SmartEditTab_GroupKeys(groups[k].keys, false, keyOffset);
 			}
-			//ImGui::PopStyleColor(3);
 
 			keyOffset += groups[k].keys.size();
 		}
@@ -4436,13 +4434,12 @@ void Gui::drawKeyvalueEditor_SmartEditTab(Fgd* fgd) {
 		lastPickCount = app->pickCount;
 	}
 
-	ImGui::Columns(1);
-
 	ImGui::EndChild();
 }
 
-void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, float inputWidth, bool isGrouped, int keyOffset) {
+void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, bool isGrouped, int keyOffset) {
 	ImGuiContext& g = *GImGui;
+	ImGuiStyle& style = ImGui::GetStyle();
 	
 	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
 	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
@@ -4455,225 +4452,234 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, 
 		BspRenderer* bspRenderer;
 	};
 	
-	static InputData inputData[MAX_KEYS_PER_ENT];
+	static InputData inputData[MAX_KEYS_PER_ENT];	
+	int keynameColWidth = std::min(400 * uiScale, ImGui::GetContentRegionAvail().x * 0.4f);
 
-	ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
-	
-	vector<Entity*> pickEnts = app->pickInfo.getEnts();
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+	if (ImGui::BeginTable("table", 2, ImGuiTableFlags_SizingFixedFit)) {
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, keynameColWidth);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-	for (int i = 0; i < keys.size(); i++) {
-		KeyvalueDef& keyvalue = *keys[i];
-		string key = keyvalue.name;
-		if (key == "spawnflags") {
-			continue;
-		}
+		//ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
 
-		bool matchingValues = true;
-		string matchValue = pickEnts[0]->getKeyvalue(key);
-		for (Entity* ent : pickEnts) {
-			if (ent->hasKey(key)) {
-				if (matchValue != ent->getKeyvalue(key)) {
-					matchingValues = false;
-					break;
-				}
+		vector<Entity*> pickEnts = app->pickInfo.getEnts();
+
+		for (int i = 0; i < keys.size(); i++) {
+			KeyvalueDef& keyvalue = *keys[i];
+			string key = keyvalue.name;
+			if (key == "spawnflags") {
+				continue;
 			}
-		}
 
-		string value = matchingValues ? matchValue : "(no change)";
-		string niceName = keyvalue.smartName.length() ? keyvalue.smartName : keyvalue.name;
-
-		// TODO: ImGui doesn't have placeholder text like in HTML forms,
-		// but it would be nice to show an example/default value here somehow.
-		// Forcing the default value is bad because that can change entity behavior
-		// in unexpected ways. The default should always be an empty string or 0 when
-		// you don't care about the key. I think I remember there being strange problems
-		// when JACK would autofill default values for every possible key in an entity.
-		// 
-		//if (value.empty() && keyvalue.defaultValue.length()) {
-		//	value = keyvalue.defaultValue;
-		//}
-
-		int bufferIdx = keyOffset + i;
-		strcpy(keyNames[bufferIdx], niceName.c_str());
-		strcpy(keyValues[bufferIdx], value.c_str());
-
-		inputData[bufferIdx].key = key;
-		inputData[bufferIdx].defaultValue = keyvalue.defaultValue;
-		inputData[bufferIdx].bspRenderer = app->mapRenderer;
-		inputData[bufferIdx].matchingValues = matchingValues;
-		inputData[bufferIdx].idx = bufferIdx;
-
-		ImGui::SetNextItemWidth(inputWidth);
-		ImGui::AlignTextToFramePadding();
-		if (isGrouped) {
-			ImGui::Dummy(ImVec2(20, 0));
-			ImGui::SameLine();
-		}
-		ImGui::Text(keyNames[bufferIdx]);
-		if (ImGui::IsItemHovered()) {
-			string tooltip = key;
-			if (keyvalue.smartName.length())
-				tooltip += " : " + keyvalue.smartName;
-			if (keyvalue.description.size()) {
-				tooltip += " : " + keyvalue.description;
-			}
-			//ImGui::SetTooltip((key + "(" + keyvalue.valueType + ") : " + niceName).c_str());
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-		ImGui::NextColumn();
-
-		ImGui::SetNextItemWidth(inputWidth);
-
-		bool colorChanged = true;
-		if (!matchingValues) {
-			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
-			ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.5f, 0.0f, 0.7f));
-		}
-		else {
-			colorChanged = false;
-		}
-
-		if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
-			string selectedValue = keyvalue.choices[0].name;
-			int ikey = atoi(value.c_str());
-
-			for (int k = 0; k < keyvalue.choices.size(); k++) {
-				KeyvalueChoice& choice = keyvalue.choices[k];
-
-				if ((choice.isInteger && ikey == choice.ivalue) ||
-					(!choice.isInteger && value == choice.svalue)) {
-					selectedValue = choice.name;
+			bool matchingValues = true;
+			string matchValue = pickEnts[0]->getKeyvalue(key);
+			for (Entity* ent : pickEnts) {
+				if (ent->hasKey(key)) {
+					if (matchValue != ent->getKeyvalue(key)) {
+						matchingValues = false;
+						break;
+					}
 				}
 			}
 
-			if (ImGui::BeginCombo(("##val" + to_string(bufferIdx)).c_str(), selectedValue.c_str()))
-			{
+			string value = matchingValues ? matchValue : "(no change)";
+			string niceName = keyvalue.smartName.length() ? keyvalue.smartName : keyvalue.name;
+
+			// TODO: ImGui doesn't have placeholder text like in HTML forms,
+			// but it would be nice to show an example/default value here somehow.
+			// Forcing the default value is bad because that can change entity behavior
+			// in unexpected ways. The default should always be an empty string or 0 when
+			// you don't care about the key. I think I remember there being strange problems
+			// when JACK would autofill default values for every possible key in an entity.
+			// 
+			//if (value.empty() && keyvalue.defaultValue.length()) {
+			//	value = keyvalue.defaultValue;
+			//}
+
+			int bufferIdx = keyOffset + i;
+			strcpy(keyNames[bufferIdx], niceName.c_str());
+			strcpy(keyValues[bufferIdx], value.c_str());
+
+			inputData[bufferIdx].key = key;
+			inputData[bufferIdx].defaultValue = keyvalue.defaultValue;
+			inputData[bufferIdx].bspRenderer = app->mapRenderer;
+			inputData[bufferIdx].matchingValues = matchingValues;
+			inputData[bufferIdx].idx = bufferIdx;
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+
+			ImGui::Text(keyNames[bufferIdx]);
+			if (ImGui::IsItemHovered()) {
+				string tooltip = key;
+				if (keyvalue.smartName.length())
+					tooltip += " : " + keyvalue.smartName;
+				if (keyvalue.description.size()) {
+					tooltip += " : " + keyvalue.description;
+				}
+				//ImGui::SetTooltip((key + "(" + keyvalue.valueType + ") : " + niceName).c_str());
+				ImGui::SetTooltip("%s", tooltip.c_str());
+			}
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - style.FramePadding.x);
+
+			bool colorChanged = true;
+			if (!matchingValues) {
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
+				ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.5f, 0.0f, 0.7f));
+			}
+			else {
+				colorChanged = false;
+			}
+
+			if (keyvalue.iType == FGD_KEY_CHOICES && keyvalue.choices.size() > 0) {
+				string selectedValue = keyvalue.choices[0].name;
+				int ikey = atoi(value.c_str());
+
 				for (int k = 0; k < keyvalue.choices.size(); k++) {
 					KeyvalueChoice& choice = keyvalue.choices[k];
-					bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
 
-					if (ImGui::Selectable((choice.name).c_str(), selected)) {
-						for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
-							int idx = g_app->pickInfo.ents[i];
-							Entity* ent = g_app->pickInfo.getMap()->ents[idx];
-							ent->setOrAddKeyvalue(key, choice.svalue);
-							app->mapRenderer->refreshEnt(idx);
-						}
+					if ((choice.isInteger && ikey == choice.ivalue) ||
+						(!choice.isInteger && value == choice.svalue)) {
+						selectedValue = choice.name;
+					}
+				}
+
+				if (ImGui::BeginCombo(("##val" + to_string(bufferIdx)).c_str(), selectedValue.c_str()))
+				{
+					for (int k = 0; k < keyvalue.choices.size(); k++) {
+						KeyvalueChoice& choice = keyvalue.choices[k];
+						bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
+
+						if (ImGui::Selectable((choice.name).c_str(), selected)) {
+							for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+								int idx = g_app->pickInfo.ents[i];
+								Entity* ent = g_app->pickInfo.getMap()->ents[idx];
+								ent->setOrAddKeyvalue(key, choice.svalue);
+								app->mapRenderer->refreshEnt(idx);
+							}
 						
-						app->updateEntConnections();
-						app->pushEntityUndoState("Edit Keyvalue");
-					}
-					if (ImGui::IsItemHovered()) {
-						string tooltip = choice.svalue + " : " + choice.name;
-						if (choice.desc.size()) {
-							tooltip += " : " + choice.desc;
+							app->updateEntConnections();
+							app->pushEntityUndoState("Edit Keyvalue");
 						}
-						ImGui::SetTooltip("%s", tooltip.c_str());
-					}
-				}
-
-				ImGui::EndCombo();
-			}
-		}
-		else {
-			struct InputChangeCallback {
-				static int keyValueChangedCommon(ImGuiInputTextCallbackData* data) {
-					InputData* dat = (InputData*)data->UserData;
-
-					if (!dat->matchingValues) {
-						keyValues[dat->idx][0] = 0; // clear the "(no change)" text
-						data->Buf[0] = 0;
-						data->BufTextLen = 0;
-						data->BufDirty = true;
-						data->CursorPos = 0;
-					}
-
-					for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
-						int idx = g_app->pickInfo.ents[i];
-						Entity* ent = g_app->pickInfo.getMap()->ents[idx];
-
-						string newVal = data->Buf;
-						if (newVal.empty()) {
-							ent->removeKeyvalue(dat->key);
+						if (ImGui::IsItemHovered()) {
+							string tooltip = choice.svalue + " : " + choice.name;
+							if (choice.desc.size()) {
+								tooltip += " : " + choice.desc;
+							}
+							ImGui::SetTooltip("%s", tooltip.c_str());
 						}
-						else {
-							ent->setOrAddKeyvalue(dat->key, newVal);
-						}
-						dat->bspRenderer->refreshEnt(idx);
 					}
 
-					if (g_app->pickInfo.ents.size() < 100)
-						g_app->updateEntConnections();
-					g_app->forceRefreshTransformWindow = true;
-					return 1;
-				}
-
-				static int keyValueChangedNumber(ImGuiInputTextCallbackData* data) {
-					if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
-						if (data->EventChar < 256) {
-							if (strchr("-0123456789", (char)data->EventChar))
-								return 0;
-						}
-						return 1;
-					}
-
-					return keyValueChangedCommon(data);
-				}
-
-				static int keyValueChangedText(ImGuiInputTextCallbackData* data) {
-					if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
-						if (data->EventChar == '\n' || data->EventChar == '\r')
-							return 1;
-						return 0;
-					}
-
-					return keyValueChangedCommon(data);
-				}
-			};
-
-			if (keyvalue.iType == FGD_KEY_INTEGER) {
-				ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], 64,
-					ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
-					InputChangeCallback::keyValueChangedNumber, &inputData[bufferIdx]);
-				if (ImGui::IsItemDeactivatedAfterEdit()) {
-					app->updateEntConnections();
+					ImGui::EndCombo();
 				}
 			}
 			else {
-				// calc field size for text wrapping
-				ImVec2 textSize = ImGui::CalcTextSize(keyValues[bufferIdx]);
-				int fieldWidth = inputWidth;
-				ImVec2 framePadding = ImGui::GetStyle().FramePadding;
-				int lineWidth = fieldWidth - framePadding.x * 2;
-				int extraLines = (int)(textSize.x / lineWidth) * 1.2f; // scaled up to account for wasted space during wraps
-				int fieldHeight = ImGui::GetFrameHeight() + textSize.y * std::min(extraLines, 8);
-				int draggableHeight = fieldHeight - framePadding.y * 2;
+				struct InputChangeCallback {
+					static int keyValueChangedCommon(ImGuiInputTextCallbackData* data) {
+						InputData* dat = (InputData*)data->UserData;
 
-				ImGui::InputTextMultiline(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(),
-					keyValues[bufferIdx], MAX_VAL_LEN, ImVec2(fieldWidth, fieldHeight),
-					ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
-					InputChangeCallback::keyValueChangedText, &inputData[bufferIdx]);
-				if (ImGui::IsItemDeactivatedAfterEdit()) {
-					app->updateEntConnections();
+						if (!dat->matchingValues) {
+							keyValues[dat->idx][0] = 0; // clear the "(no change)" text
+							data->Buf[0] = 0;
+							data->BufTextLen = 0;
+							data->BufDirty = true;
+							data->CursorPos = 0;
+						}
+
+						for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
+							int idx = g_app->pickInfo.ents[i];
+							Entity* ent = g_app->pickInfo.getMap()->ents[idx];
+
+							string newVal = data->Buf;
+							if (newVal.empty()) {
+								ent->removeKeyvalue(dat->key);
+							}
+							else {
+								ent->setOrAddKeyvalue(dat->key, newVal);
+							}
+							dat->bspRenderer->refreshEnt(idx);
+						}
+
+						if (g_app->pickInfo.ents.size() < 100)
+							g_app->updateEntConnections();
+						g_app->forceRefreshTransformWindow = true;
+						return 1;
+					}
+
+					static int keyValueChangedNumber(ImGuiInputTextCallbackData* data) {
+						if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+							if (data->EventChar < 256) {
+								if (strchr("-0123456789", (char)data->EventChar))
+									return 0;
+							}
+							return 1;
+						}
+
+						return keyValueChangedCommon(data);
+					}
+
+					static int keyValueChangedText(ImGuiInputTextCallbackData* data) {
+						if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+							if (data->EventChar == '\n' || data->EventChar == '\r')
+								return 1;
+							return 0;
+						}
+
+						return keyValueChangedCommon(data);
+					}
+				};
+
+				if (keyvalue.iType == FGD_KEY_INTEGER) {
+					ImGui::InputText(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(), keyValues[bufferIdx], 64,
+						ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
+						InputChangeCallback::keyValueChangedNumber, &inputData[bufferIdx]);
+					if (ImGui::IsItemDeactivatedAfterEdit()) {
+						app->updateEntConnections();
+					}
+				}
+				else {
+					// calc field size for text wrapping
+					// calc field size for text wrapping
+					int textWidth = ImGui::CalcTextSize(keyValues[bufferIdx]).x;
+					int fieldWidth = ImGui::GetContentRegionAvail().x - style.FramePadding.x;
+					ImVec2 framePadding = style.FramePadding;
+					int lineWidth = fieldWidth - (framePadding.x * 2 + style.ScrollbarSize);
+					int fieldHeight = ImGui::GetFrameHeight();
+					if (textWidth > lineWidth) {
+						// scaled up to account for wasted space during wraps
+						int extraLines = std::max(1.0f, (int)((textWidth + lineWidth * 0.5f) / lineWidth) * 1.2f);
+						fieldHeight += ImGui::GetTextLineHeight() * std::min(extraLines, 8);
+					}
+
+					ImGui::InputTextMultiline(("##val" + to_string(bufferIdx) + "_" + to_string(app->pickCount)).c_str(),
+						keyValues[bufferIdx], MAX_VAL_LEN, ImVec2(fieldWidth, fieldHeight),
+						ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
+						InputChangeCallback::keyValueChangedText, &inputData[bufferIdx]);
+					if (ImGui::IsItemDeactivatedAfterEdit()) {
+						app->updateEntConnections();
+					}
 				}
 			}
-		}
-		if (ImGui::IsItemHovered() && ImGui::GetItemRectSize().x < ImGui::CalcTextSize(keyValues[bufferIdx]).x) {
-			tooltip(g, keyValues[bufferIdx], 0);
-		}
+			if (ImGui::IsItemHovered() && ImGui::GetItemRectSize().x < ImGui::CalcTextSize(keyValues[bufferIdx]).x) {
+				tooltip(g, keyValues[bufferIdx], 0);
+			}
 
-		if (ImGui::IsItemHovered()) {
-			if (!matchingValues) {
-				ImGui::SetTooltip("This value differs between the selected entities");
+			if (ImGui::IsItemHovered()) {
+				if (!matchingValues) {
+					ImGui::SetTooltip("This value differs between the selected entities");
+				}
+			}
+
+			if (colorChanged) {
+				ImGui::PopStyleColor(2);
 			}
 		}
 
-		if (colorChanged) {
-			ImGui::PopStyleColor(2);
-		}
-
-		ImGui::NextColumn();
+		ImGui::EndTable();
 	}
+	ImGui::PopStyleVar(1);
 }
 
 void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
@@ -4790,11 +4796,13 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 	ImGui::Columns(4, "keyvalcols", false);
 
 	float butColWidth = defaultFont->CalcTextSizeA(GImGui->FontSize, 100, 100, " X ").x + style.FramePadding.x * 4;
-	float textColWidth = (ImGui::GetWindowWidth() - (butColWidth + style.FramePadding.x * 2) * 2) * 0.5f;
+	float textColWidth = (ImGui::GetWindowWidth() - (butColWidth + style.FramePadding.x * 2) * 2);
+	float keyColWidth = std::min(300*uiScale, textColWidth * 0.5f);
+	float valColWidth = textColWidth - keyColWidth;
 
 	ImGui::SetColumnWidth(0, butColWidth);
-	ImGui::SetColumnWidth(1, textColWidth);
-	ImGui::SetColumnWidth(2, textColWidth);
+	ImGui::SetColumnWidth(1, keyColWidth);
+	ImGui::SetColumnWidth(2, valColWidth);
 	ImGui::SetColumnWidth(3, butColWidth);
 
 	ImGui::NextColumn();
@@ -4807,18 +4815,19 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 
 	ImGui::Columns(4, "keyvalcols2", false);
 
-	textColWidth -= style.ScrollbarSize; // double space to prevent accidental deletes
+	textColWidth -= style.ScrollbarSize*2; // double space to prevent accidental deletes
+	keyColWidth = std::min(300 * uiScale, textColWidth * 0.5f);
+	valColWidth = textColWidth - keyColWidth;
 
 	ImGui::SetColumnWidth(0, butColWidth);
-	ImGui::SetColumnWidth(1, textColWidth);
-	ImGui::SetColumnWidth(2, textColWidth);
+	ImGui::SetColumnWidth(1, keyColWidth);
+	ImGui::SetColumnWidth(2, valColWidth);
 	ImGui::SetColumnWidth(3, butColWidth);
 
 	static char keyNames[MAX_KEYS_PER_ENT][MAX_KEY_LEN];
 	static char keyValues[MAX_KEYS_PER_ENT][MAX_VAL_LEN];
 
 	float paddingx = style.WindowPadding.x + style.FramePadding.x;
-	float inputWidth = (ImGui::GetWindowWidth() - paddingx * 2) * 0.5f;
 
 	unordered_set<string> addedKeys;
 	static vector<string> combinedKeys;
@@ -5001,14 +5010,19 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 		const char* item = dragIds[i];
 
 		// calc field size for text wrapping
-		ImVec2 textSize = ImGui::CalcTextSize(keyValues[i]);
-		int wrapPad = ImGui::CalcTextSize(" X ").x + 20;
-		int fieldWidth = inputWidth - wrapPad;
 		ImVec2 framePadding = ImGui::GetStyle().FramePadding;
-		int lineWidth = fieldWidth - framePadding.x * 2;
-		int extraLines = (int)(textSize.x / lineWidth) * 1.2f; // scaled up to account for wasted space during wraps
-		int fieldHeight = ImGui::GetFrameHeight() + textSize.y * std::min(extraLines, 8);
-		int draggableHeight = fieldHeight - framePadding.y * 2;
+		int textWidthKey = ImGui::CalcTextSize(keyNames[i]).x;
+		int textWidthVal = ImGui::CalcTextSize(keyValues[i]).x;
+		int lineWidthKey = keyColWidth - (framePadding.x * 2 + style.ScrollbarSize);
+		int lineWidthVal = valColWidth - (framePadding.x * 2 + style.ScrollbarSize);
+		int fieldHeight = ImGui::GetFrameHeight();
+		if (textWidthKey > lineWidthKey || textWidthVal > lineWidthVal) {
+			// scaled up to account for wasted space during wraps
+			int extraLinesKey = std::max(1.0f, (int)((textWidthKey + lineWidthKey*0.5f) / lineWidthKey) * 1.2f);
+			int extraLinesVal = std::max(1.0f, (int)((textWidthVal + lineWidthVal*0.5f) / lineWidthVal) * 1.2f);
+			int extraLines = std::max(extraLinesKey, extraLinesVal);
+			fieldHeight += ImGui::GetTextLineHeight() * std::min(extraLines, 8);
+		}
 
 		// drag buttons
 		{
@@ -5034,7 +5048,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
 			{
 				Entity* ent = app->pickInfo.getEnt();
-				int deltaY = (ImGui::GetMousePos().y - startY) - textSize.y;
+				int deltaY = (ImGui::GetMousePos().y - startY) - ImGui::GetTextLineHeight();
 
 				int bestDist = INT32_MAX;
 				int bestDropIdx = -1;
@@ -5119,7 +5133,7 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			}
 
 			ImGui::InputTextMultiline(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(),
-				keyNames[i], MAX_KEY_LEN, ImVec2(fieldWidth, fieldHeight),
+				keyNames[i], MAX_KEY_LEN, ImVec2(keyColWidth, fieldHeight),
 				ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
 			
@@ -5169,14 +5183,14 @@ void Gui::drawKeyvalueEditor_RawEditTab() {
 			}
 
 			ImGui::InputTextMultiline(("##val" + to_string(i) + to_string(app->pickCount)).c_str(), 
-				keyValues[i], MAX_VAL_LEN, ImVec2(fieldWidth, fieldHeight),
+				keyValues[i], MAX_VAL_LEN, ImVec2(valColWidth, fieldHeight),
 				ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
 			if (ImGui::IsItemHovered()) {
 				if (!matchingValues) {
 					ImGui::SetTooltip("This value differs between the selected entities");
 				}
-				else if (ImGui::GetItemRectSize().x - 50 < textSize.x) {
+				else if (fieldHeight > ImGui::GetTextLineHeight()) {
 					tooltip(g, keyValues[i], 0);
 				}
 			}
