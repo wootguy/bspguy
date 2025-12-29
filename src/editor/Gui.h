@@ -155,6 +155,7 @@ private:
 	bool entityReportReselectNeeded = false;
 
 	float mainMenuBarHeight;
+	float uiScale;
 
 	int confirmMerge = 0;
 	int deduplicateOpen = 0;
@@ -198,7 +199,7 @@ private:
 	void clearLog();
 	void addLog(const char* s);
 	void loadFonts();
-	void updateFontScale();
+	void updateUiScale();
 	void checkFaceErrors();
 	string getUserLayoutPath(); // path to user's saved widget layout
 	void createSeriesWad();

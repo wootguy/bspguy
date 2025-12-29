@@ -31,6 +31,9 @@
 
 float g_tooltip_delay = 0.6f; // time in seconds before showing a tooltip
 
+// absolute font scale which every other font is relatively scaled on
+int g_font_scale_base = 22;
+
 string iniPath = getConfigDir() + "imgui.ini";
 
 char const* bspFilterPatterns[1] = { "*.bsp" };
@@ -2442,6 +2445,21 @@ void Gui::drawStandardMenuBar() {
 		tooltip(g, "Automatically loads your saved widget layout whenever the window resizes to the same "
 			" resolution you saved at.\n");
 
+		if (ImGui::MenuItem("Reset Widget Sizes")) {
+			ImGui::ClearWindowSettings("###limits");
+			ImGui::ClearWindowSettings("###entreport");
+			ImGui::ClearWindowSettings("Messages");
+			ImGui::ClearWindowSettings("Transformation");
+			ImGui::ClearWindowSettings("Keyvalue Editor");
+			ImGui::ClearWindowSettings("Editor Setup");
+			ImGui::ClearWindowSettings("Face Editor");
+			ImGui::ClearWindowSettings("Help");
+			ImGui::ClearWindowSettings("About");
+		}
+		tooltip(g, "Reset widget sizes to their defaults.\n");
+
+		ImGui::ClearIniSettings();
+
 		ImGui::PopItemFlag();
 
 		ImGui::EndMenu();
@@ -2597,7 +2615,7 @@ void Gui::drawStatusBar() {
 		
 		static char cam_origin[32];
 		static char cam_angles[32];
-		int fontSize = g_settings.fontSize;
+		int fontSize = g_font_scale_base;
 		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
 		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
 		float originWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, cam_origin).x;
@@ -2907,7 +2925,7 @@ void Gui::drawPopups() {
 
 		ImGui::TextWrapped("Fixes are applied in order.");
 
-		ImVec2 cellPadding(5.0f, 10.0f); // x = horizontal, y = vertical
+		ImVec2 cellPadding(5.0f * uiScale, 10.0f * uiScale); // x = horizontal, y = vertical
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
 
 		if (ImGui::BeginTable("MyTable", 4, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersH)) {
@@ -2925,11 +2943,11 @@ void Gui::drawPopups() {
 			tooltip(g, "Subdivide faces for a texture if additional faces would be below the Subdivide Limit. The drawback to this method is reduced in-game performace from higher poly counts.");
 
 			ImGui::TableNextColumn();
-			ImGui::Dummy(ImVec2(20, 0));
+			ImGui::Dummy(ImVec2(20 * uiScale, 0));
 
 			ImGui::TableNextColumn();
 			ImGui::BeginDisabled(!shouldSubdivide);
-			ImGui::SetNextItemWidth(200);
+			ImGui::SetNextItemWidth(200 * uiScale);
 			ImGui::DragInt("Face Limit", &subdivideMax, 0.1f, 0, g_limits.max_faces);
 			tooltip(g, "This limit is applied per texture, not globally. All faces for a texture will be subdivided only if the newly created face count is less than this limit.\n");
 			ImGui::EndDisabled();
@@ -2943,11 +2961,11 @@ void Gui::drawPopups() {
 			tooltip(g, "Downscale a texture if subdivision would create more faces than desired.\n");
 
 			ImGui::TableNextColumn();
-			ImGui::Dummy(ImVec2(20, 0));
+			ImGui::Dummy(ImVec2(20 * uiScale, 0));
 
 			ImGui::TableNextColumn();
 			ImGui::BeginDisabled(!shouldDownscale);
-			ImGui::SetNextItemWidth(200);
+			ImGui::SetNextItemWidth(200 * uiScale);
 			if (ImGui::InputScalar("Size Limit", ImGuiDataType_U32, (void*)&minDim, &step)) {
 				minDim = max(16, (minDim / 16) * 16);
 			}
@@ -2974,7 +2992,7 @@ void Gui::drawPopups() {
 			ImGui::EndTable();
 		}
 		ImGui::PopStyleVar();
-		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 		ImGui::BeginDisabled(!shouldSubdivide && !shouldScale && !shouldDownscale);
 		if (ImGui::Button("Apply Fixes")) {
@@ -3008,16 +3026,16 @@ void Gui::drawPopups() {
 		ImGui::OpenPopup("Configure Texlights");
 	}
 
-	ImGui::SetNextWindowSize(ImVec2(400, max(400.0f, app->windowHeight*0.6f)), ImGuiCond_Appearing);
+	ImGui::SetNextWindowSize(ImVec2(400 * uiScale, max(400.0f * uiScale, app->windowHeight*0.6f)), ImGuiCond_Appearing);
 	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSizeConstraints(ImVec2(350, 300), ImVec2(FLT_MAX, app->windowHeight));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(350*uiScale, 300 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
 	if (ImGui::BeginPopupModal("Configure Texlights", NULL, 0)) {
 
 		ImGui::TextWrapped("Texture light information may be needed for recompiling map lighting. "
 			"Below are texlights found in this map's info_texlight entities."
 		);
 
-		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 		if (ImGui::Button("Add Default")) {
 			static unordered_map<string, string> hammer35_texlights = {
@@ -3211,7 +3229,7 @@ void Gui::drawPopups() {
 		}
 
 		ImVec2 multisize = ImGui::GetContentRegionAvail();
-		multisize.y -= 80.0f;
+		multisize.y -= 80.0f * uiScale;
 		ImGui::InputTextMultiline("##texlights", buffer, sizeof(buffer), multisize);
 		if (string(buffer) != oldBuffer) {
 			oldBuffer = buffer;
@@ -3227,7 +3245,7 @@ void Gui::drawPopups() {
 		}
 		ImGui::Text("%d texlights", numtexlight);
 
-		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 		if (ImGui::Button("Prepare")) {
 			
@@ -3330,6 +3348,10 @@ void Gui::drawPopups() {
 				command->pushUndoState();
 			}
 
+			map->update_ent_lump();
+			map->write(map->path);
+			app->setInitialLumpState();
+
 			ImGui::CloseCurrentPopup();
 			showRadPrepPopup = false;
 		}
@@ -3338,7 +3360,8 @@ void Gui::drawPopups() {
 			"2. Convert light/light_spot entities to light_surface, if that's what they were originally.\n"
 			"3. Delete embedded RAD textures (fixes \"Malformed face\" errors when these are invalid).\n"
 			"4. Duplicate shared texlight models (deduplicated models can't emit light).\n"
-			"5. Generate a \"" + map->name + ".wa_\" file for running RAD without the -notextures option.").c_str()
+			"5. Generate a \"" + map->name + ".wa_\" file for running RAD without the -notextures option.\n"
+			"6. Save the map.").c_str()
 		);
 
 		ImGui::SameLine();
@@ -3355,7 +3378,7 @@ void Gui::drawPopups() {
 
 	ImGui::SetNextWindowSize(ImVec2(600, 0), ImGuiCond_Appearing);
 	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSizeConstraints(ImVec2(500, 300), ImVec2(FLT_MAX, app->windowHeight));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(500 * uiScale, 300 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
 	if (ImGui::BeginPopupModal("Merge Multiple", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 		static bool optimizeMerge = false;
 		static bool forceNohull2 = false;
@@ -3372,9 +3395,9 @@ void Gui::drawPopups() {
 		ImGui::TextWrapped((to_string(numSelected) + " BSPs selected for merging:").c_str());
 
 		ImGui::Columns(2, 0, false);
-		ImGui::SetColumnWidth(0, 450);
-		ImGui::SetColumnWidth(1, 50);
-		ImGui::SetNextItemWidth(450);
+		ImGui::SetColumnWidth(0, 450 * uiScale);
+		ImGui::SetColumnWidth(1, 50 * uiScale);
+		ImGui::SetNextItemWidth(450 * uiScale);
 		ImGui::InputText("##mergelist", mapList, 8192); ImGui::NextColumn();
 
 		if (ImGui::Button(" ... ")) {
@@ -3388,13 +3411,13 @@ void Gui::drawPopups() {
 			}
 		}
 
-		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 		ImGui::Columns(4, 0, false);
-		ImGui::SetColumnWidth(0, 130);
-		ImGui::SetColumnWidth(1, 80);
-		ImGui::SetColumnWidth(2, 80);
-		ImGui::SetColumnWidth(3, 200);
+		ImGui::SetColumnWidth(0, 130 * uiScale);
+		ImGui::SetColumnWidth(1, 80 * uiScale);
+		ImGui::SetColumnWidth(2, 80 * uiScale);
+		ImGui::SetColumnWidth(3, 200 * uiScale);
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Series Ripent: "); ImGui::NextColumn();
 
@@ -3435,32 +3458,32 @@ void Gui::drawPopups() {
 		}
 
 		ImGui::Columns(1);
-		ImGui::Dummy(ImVec2(0, 2));
+		ImGui::Dummy(ImVec2(0, roundf(2 * uiScale)));
 		ImGui::Text("Preparations:");
 		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(3, 0));
+		ImGui::Dummy(ImVec2(roundf(3 * uiScale), 0));
 		ImGui::SameLine();
 		
 		ImGui::Checkbox("Optimize", &optimizeMerge);
 		tooltip(g, (string("Optimizes maps before merging. Try this if map limits are exceeded.\n\nOptimizing ") + g_optimize_tip).c_str());
 
 		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(10, 0));
+		ImGui::Dummy(ImVec2(10 * uiScale, 0));
 		ImGui::SameLine();
 		ImGui::Checkbox("No Hull 2", &forceNohull2);
 		tooltip(g, "Forces redirection of hull 2 to hull 1 in each map before merging. This reduces "
 			"clipnodes and collision accuracy for large monsters and pushables.");
 
-		ImGui::Dummy(ImVec2(0, 2));
+		ImGui::Dummy(ImVec2(0, roundf(2 * uiScale)));
 		ImGui::Text("Map Size: ");
 		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(30, 0));
+		ImGui::Dummy(ImVec2(30 * uiScale, 0));
 		ImGui::SameLine();
 		ImGui::Text((string("+/-") + to_string(g_settings.mapsize_max)).c_str());
 		if (ImGui::IsItemHovered())
 			tooltip(g, "Change the Map Size in the Settings menu to adjust the bounds for merged maps.\n");
 
-		ImGui::Dummy(ImVec2(0, 10));
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 		if (numSelected < 2) {
 			ImGui::BeginDisabled();
@@ -3528,7 +3551,7 @@ void Gui::drawPopups() {
 }
 
 void Gui::drawToolbar() {
-	ImVec2 window_pos = ImVec2(10.0f, 35.0f);
+	ImVec2 window_pos = ImVec2(6.0f*uiScale, 35.0f*uiScale);
 	ImVec2 window_pos_pivot = ImVec2(0.0f, 0.0f);
 	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
 	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -3538,7 +3561,7 @@ void Gui::drawToolbar() {
 		ImGuiContext& g = *GImGui;
 		ImVec4 dimColor = style.Colors[ImGuiCol_FrameBg];
 		ImVec4 selectColor = style.Colors[ImGuiCol_FrameBgActive];
-		float iconWidth = (g_settings.fontSize / 22.0f) * 32;
+		float iconWidth = uiScale * 32;
 		ImVec2 iconSize = ImVec2(iconWidth, iconWidth);
 		ImVec4 testColor = ImVec4(1, 0, 0, 1);
 		selectColor.x *= selectColor.w;
@@ -3789,7 +3812,7 @@ void Gui::drawStatusMessage() {
 				lastTick = clock();
 			}
 
-			ImGui::PushFont(consoleFont, g_settings.fontSize);
+			ImGui::PushFont(consoleFont, g_font_scale_base);
 			switch (loadTick) {
 			default:
 			case 0: ImGui::Text("Loading |"); break;
@@ -4023,8 +4046,8 @@ void Gui::drawKeyvalueEditor() {
 
 	static int selectedFgdIdx = -1;
 
-	ImGui::SetNextWindowSize(ImVec2(610, 610), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(610 * uiScale, 610 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(470*uiScale, 250 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 	//ImGui::SetNextWindowContentSize(ImVec2(550, 0.0f));
 	if (ImGui::Begin("Keyvalue Editor", &showKeyvalueWidget, 0)) {
 		if (app->pickInfo.ents.size() > 0) {
@@ -4057,7 +4080,7 @@ void Gui::drawKeyvalueEditor() {
 			}
 
 			ImGui::Columns(2, "smartcolumns", false);
-			ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
+			ImGui::PushFont(defaultFont, g_font_scale_base * 1.1f);
 			ImGui::AlignTextToFramePadding();
 			ImGui::Text("Class:");
 			ImGui::SameLine();
@@ -4077,7 +4100,7 @@ void Gui::drawKeyvalueEditor() {
 
 			if (fgd) {
 				ImGui::NextColumn();
-				ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
+				ImGui::PushFont(defaultFont, g_font_scale_base * 1.1f);
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("FGD:");
 				if (ImGui::IsItemHovered()) {
@@ -4085,7 +4108,7 @@ void Gui::drawKeyvalueEditor() {
 					ImGui::SetTooltip("The Game Definition File determines which keyvalues/flags to display.\n\n"
 						"This will change automatically if an entity definition isn't found\n"
 						"in the FGD you previously selected.\n");
-					ImGui::PushFont(defaultFont, g_settings.fontSize * 1.1f);
+					ImGui::PushFont(defaultFont, g_font_scale_base * 1.1f);
 				}
 				ImGui::SameLine();
 				if (ImGui::Button((" " + fgd->name + " ").c_str()))
@@ -4144,14 +4167,14 @@ void Gui::drawKeyvalueEditor() {
 				ImGui::EndPopup();
 			}
 
-			ImGui::Dummy(ImVec2(0, 10));
+			ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 			float tabBarY = ImGui::GetCursorPosY();
 
 			if (ImGui::BeginTabBar("##tabs"))
 			{
 				if (ImGui::BeginTabItem("Attributes")) {
-					ImGui::Dummy(ImVec2(0, 10));
+					ImGui::Dummy(ImVec2(0, 10 * uiScale));
 					if (!sameClassesSelected) {
 						ImGui::Text("Multiple entity classes selected.");
 						ImGui::Text("Use the Raw Edit tab instead.");
@@ -4163,7 +4186,7 @@ void Gui::drawKeyvalueEditor() {
 				}
 
 				if (ImGui::BeginTabItem("Flags")) {
-					ImGui::Dummy(ImVec2(0, 10));
+					ImGui::Dummy(ImVec2(0, 10 * uiScale));
 					if (!sameClassesSelected) {
 						ImGui::Text("Multiple entity classes selected.");
 						ImGui::Text("Use the Raw Edit tab instead.");
@@ -4175,7 +4198,7 @@ void Gui::drawKeyvalueEditor() {
 				}
 
 				if (ImGui::BeginTabItem("Raw Edit")) {
-					ImGui::Dummy(ImVec2(0, 10));
+					ImGui::Dummy(ImVec2(0, 10 * uiScale));
 					drawKeyvalueEditor_RawEditTab();
 					ImGui::EndTabItem();
 				}
@@ -4187,8 +4210,7 @@ void Gui::drawKeyvalueEditor() {
 			float wPurge = ImGui::CalcTextSize("Purge").x + style.FramePadding.x * 2.0f;
 			float wCopy = ImGui::CalcTextSize("Copy").x + style.FramePadding.x * 2.0f;
 			float wPaste = ImGui::CalcTextSize("Paste").x + style.FramePadding.x * 2.0f;
-			float scrollbarW = ImGui::GetStyle().ScrollbarSize + style.ItemSpacing.x;
-			float totalW = wPurge + wCopy + wPaste + scrollbarW + style.ItemSpacing.x * 2.0f;
+			float totalW = wPurge + wCopy + wPaste + (style.ItemSpacing.x * 4.0f);
 			float right = ImGui::GetContentRegionMax().x;
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
@@ -5220,8 +5242,8 @@ void Gui::drawTransformWidget() {
 	BspRenderer* bspRenderer = app->mapRenderer;
 	Bsp* map = app->pickInfo.getMap();
 
-	ImGui::SetNextWindowSize(ImVec2(430, 380), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(340, 140), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(430*uiScale, 380 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(340 * uiScale, 140 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 
 	static int x, y, z; // grid snapped origin
@@ -5325,13 +5347,13 @@ void Gui::drawTransformWidget() {
 		bool inputsAreDragging = false;
 		bool canEditBspModel = app->pickInfo.getModel() && !app->modelUsesSharedStructures && app->isTransformableSolid;
 
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 2.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), roundf(2.0f*uiScale)));
 		if (ImGui::BeginTable("TransformTable", 5, ImGuiTableFlags_SizingFixedFit)) {
-			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 60);
+			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, uiScale*60);
 			ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, 5);
+			ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, uiScale*5);
 
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
@@ -5824,18 +5846,28 @@ void Gui::loadFonts() {
 		logf("Failed to decompress font! Crash imminent.\n");
 	}
 
-	//defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_settings.fontSize, NULL, ranges.Data);
-	//consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_settings.fontSize, NULL, ranges.Data);
-	
-	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_settings.fontSize);
-	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_settings.fontSize);
+	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_font_scale_base);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_font_scale_base);
 
-	updateFontScale();
+	updateUiScale();
 }
 
-void Gui::updateFontScale() {
+void Gui::updateUiScale() {
+	ImGuiIO& io = ImGui::GetIO();
+	ImGuiStyle& style = ImGui::GetStyle();
+	
+	g_settings.ui_scale = clamp(g_settings.ui_scale, 50, 200);
+	uiScale = g_settings.ui_scale * 0.01f;
+
 	// 1.1 to keep consistent with previous version size
-	ImGui::GetStyle().FontScaleMain = (g_settings.fontSize / 22.0f) * 1.1f;
+	style.FontScaleMain = uiScale;
+
+	style.FramePadding = ImVec2(roundf(4.0f * uiScale), roundf(2.0f * uiScale));
+	style.ItemSpacing = ImVec2(roundf(8.0f * uiScale), roundf(3.0f * uiScale));
+	style.ItemInnerSpacing = ImVec2(roundf(4.0f * uiScale), roundf(4.0f * uiScale));
+	style.WindowPadding = ImVec2(roundf(8.0f * uiScale), roundf(8.0f * uiScale));
+	style.IndentSpacing = roundf(21.0f * uiScale);
+	style.GrabMinSize = roundf(12.0f * uiScale);
 }
 
 void Gui::drawLog() {
@@ -5881,7 +5913,7 @@ void Gui::drawLog() {
 		ImGui::EndPopup();
 	}
 
-	ImGui::PushFont(consoleFont, g_settings.fontSize * 0.9f);
+	ImGui::PushFont(consoleFont, g_font_scale_base * 0.9f);
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	const char* buf = Buf.begin();
 	const char* buf_end = Buf.end();
@@ -5917,8 +5949,8 @@ void Gui::drawLog() {
 void Gui::drawSettings() {
 
 	ImGui::SetNextWindowPos(ImVec2(5, 50), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(790, 460), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(740, 200), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(790*uiScale, 460 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(550 * uiScale, 270 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	if (ImGui::Begin("Editor Setup", &showSettingsWidget))
 	{
@@ -5932,7 +5964,7 @@ void Gui::drawSettings() {
 		};
 
 		// left
-		ImGui::BeginChild("left pane", ImVec2(150, 0), true);
+		ImGui::BeginChild("left pane", ImVec2(130 * uiScale, 0), true);
 
 		for (int i = 0; i < settings_tabs; i++) {
 			if (ImGui::Selectable(tab_titles[i], settingsTab == i))
@@ -5945,7 +5977,7 @@ void Gui::drawSettings() {
 		// right
 		bool hasFooter = settingsTab >= 2;
 		ImGui::BeginGroup();
-		int footerHeight = hasFooter ? ImGui::GetFrameHeightWithSpacing() + 4 : 0;
+		int footerHeight = hasFooter ? ImGui::GetFrameHeightWithSpacing() + roundf(4*uiScale) : 0;
 		ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
 		ImGui::Text(tab_titles[settingsTab]);
 		ImGui::Separator();
@@ -5969,17 +6001,29 @@ void Gui::drawSettings() {
 			reloadSettings = false;
 		}
 
-		int pathWidth = ImGui::GetWindowWidth() - 60;
-		int delWidth = 50;
+		int pathWidth = ImGui::GetWindowWidth() - 60 * uiScale;
+		int delWidth = 50 * uiScale;
 
 		ImGui::BeginChild("right pane content");
 		if (settingsTab == 0) {
+			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 180 * uiScale);
 			ImGui::DragFloat("Movement Speed", &app->moveSpeed, 0.1f, 0.1f, 1000, "%.1f");
 			ImGui::DragFloat("Rotation Speed", &app->rotationSpeed, 0.01f, 0.1f, 100, "%.1f");
-			if (ImGui::DragInt("Font Size", &g_settings.fontSize, 0.1f, 8, 48, "%d pixels")) {
-				updateFontScale();
+
+			if (ImGui::DragInt("UI Scale", &g_settings.ui_scale, 0.1f, 50, 200, "%d%%")) {
+				updateUiScale();
 			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Recommended scales per screen resolution:\n"
+					"75%% = 720p\n"
+					"90%% = 1080p\n"
+					"110%% = 2k\n"
+					"200%% = 4k\n"
+					"110% was the default scaling in older version of bspguy");
+			}
+
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
+			ImGui::PopItemWidth();
 
 			ImGui::Columns(2);
 			ImGui::Checkbox("Verbose Logging", &g_verbose);
@@ -6005,6 +6049,8 @@ void Gui::drawSettings() {
 				"OpenGL",
 				"OpenGL (Legacy)",
 			};
+
+			ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 210 * uiScale);
 
 			if (ImGui::BeginCombo("Renderer", renderers[g_settings.renderer]))
 			{
@@ -6033,6 +6079,7 @@ void Gui::drawSettings() {
 			ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 			ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 			ImGui::DragFloat("Model Render Distance", &app->zFarMdl, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
+			ImGui::PopItemWidth();
 
 			ImGui::Columns(2);
 			ImGui::Checkbox("Animate Models", &g_settings.animate_models);
@@ -6060,6 +6107,7 @@ void Gui::drawSettings() {
 			*/
 		}
 		else if (settingsTab == 2) {
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 150 * uiScale);
 			if (ImGui::InputText("##GameDir", gamedir, 256, ImGuiInputTextFlags_ElideLeft)) {
 				g_settings.gamedir = string(gamedir);
 			}
@@ -6072,7 +6120,7 @@ void Gui::drawSettings() {
 					"C:\\Steam\\steamapps\\common\\Half-Life\n\n"
 					"This path isn't required. You can use absolute paths for Assets and FGDs if you want.");
 			}
-			ImGui::Dummy(ImVec2(0, 10));
+			ImGui::Dummy(ImVec2(0, 10 * uiScale));
 
 			for (int i = 0; i < numRes; i++) {
 				ImGui::SetNextItemWidth(pathWidth);
@@ -6114,7 +6162,7 @@ void Gui::drawSettings() {
 		}
 		else if (settingsTab == 3) {
 			for (int i = 0; i < numFgds; i++) {
-				ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 100);
+				ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 100 * uiScale);
 				tmpFgdPaths[i].resize(256);
 
 				bool isFound = !tmpFgdPaths[i].empty() && !findAsset(tmpFgdPaths[i]).empty();
@@ -6205,7 +6253,8 @@ void Gui::drawSettings() {
 }
 
 void Gui::drawHelp() {
-	ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(620 * uiScale, 400 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(620 * uiScale, 300 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	if (ImGui::Begin("Help", &showHelpWidget)) {
 
@@ -6308,7 +6357,9 @@ void Gui::drawHelp() {
 }
 
 void Gui::drawAbout() {
-	ImGui::SetNextWindowSize(ImVec2(500, 140), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(500 * uiScale, 140 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(250 * uiScale, 140 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
+
 	if (ImGui::Begin("About", &showAboutWidget)) {
 		ImGui::InputText("Version", (char*)g_version_string, strlen(g_version_string)+1, ImGuiInputTextFlags_ReadOnly);
 
@@ -6383,17 +6434,17 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 
 	if (!modalMode)
 		ImGui::BeginChild("##content");
-	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFont, g_settings.fontSize);
+	ImGui::Dummy(ImVec2(0, 10*uiScale));
+	ImGui::PushFont(consoleFont, g_font_scale_base);
 
-	int fontSize = g_settings.fontSize;
+	int fontSize = g_font_scale_base;
 	int midWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "    Current / Max    ").x;
 	int nameWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "marksurfaces").x;
 
-	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 1.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), roundf(1.0f*uiScale)));
 	if (ImGui::BeginTable("StatsTable", 3, ImGuiTableFlags_BordersInnerV)) {
-		ImGui::TableSetupColumn("Data Type", ImGuiTableColumnFlags_WidthFixed, nameWidth);
-		ImGui::TableSetupColumn(" Current / Max", ImGuiTableColumnFlags_WidthFixed, midWidth);
+		ImGui::TableSetupColumn("Data Type", ImGuiTableColumnFlags_WidthFixed, nameWidth*uiScale);
+		ImGui::TableSetupColumn(" Current / Max", ImGuiTableColumnFlags_WidthFixed, midWidth*uiScale);
 		ImGui::TableSetupColumn("Fullness", ImGuiTableColumnFlags_WidthStretch);
 		
 		ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, ImVec4(0, 0, 0, 0));
@@ -6403,7 +6454,7 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 		ImGui::PopStyleColor(3);
 
 		// manually create the bottom border
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 0.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), 0.0f));
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImGuiCol_Border));
 		ImGui::PopStyleVar();
@@ -6436,8 +6487,8 @@ void Gui::drawLimitsSummary(Bsp* map, bool modalMode) {
 }
 
 void Gui::drawLimits() {
-	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(450, 200), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSize(ImVec2(550*uiScale, 630 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(450 * uiScale, 200 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	Bsp* map = app->mapRenderer->map;
 	string title = "Map Limits";
@@ -6535,19 +6586,19 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	vector<ModelInfo>& modelInfos = limitModels[sortMode];
 
 	ImGui::BeginChild("content");
-	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFont, g_settings.fontSize);
+	ImGui::Dummy(ImVec2(0, 10*uiScale));
+	ImGui::PushFont(consoleFont, g_font_scale_base);
 
-	int fontSize = g_settings.fontSize;
+	int fontSize = g_font_scale_base;
 	int valWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Clipnodes ").x;
 	int usageWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "  Usage   ").x;
 	int modelWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Model ").x;
-	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth);
+	int bigWidth = ImGui::GetWindowWidth() - (valWidth + usageWidth + modelWidth)*uiScale;
 	ImGui::Columns(4);
 	ImGui::SetColumnWidth(0, bigWidth);
-	ImGui::SetColumnWidth(1, modelWidth);
-	ImGui::SetColumnWidth(2, valWidth);
-	ImGui::SetColumnWidth(3, usageWidth);
+	ImGui::SetColumnWidth(1, modelWidth * uiScale);
+	ImGui::SetColumnWidth(2, valWidth * uiScale);
+	ImGui::SetColumnWidth(3, usageWidth * uiScale);
 
 	ImGui::Text("Classname"); ImGui::NextColumn();
 	ImGui::Text("Model"); ImGui::NextColumn();
@@ -6559,9 +6610,9 @@ void Gui::drawLimitTab(Bsp* map, int sortMode) {
 	ImGui::BeginChild("chart");
 	ImGui::Columns(4);
 	ImGui::SetColumnWidth(0, bigWidth);
-	ImGui::SetColumnWidth(1, modelWidth);
-	ImGui::SetColumnWidth(2, valWidth);
-	ImGui::SetColumnWidth(3, usageWidth);
+	ImGui::SetColumnWidth(1, modelWidth * uiScale);
+	ImGui::SetColumnWidth(2, valWidth * uiScale);
+	ImGui::SetColumnWidth(3, usageWidth * uiScale);
 
 	int selected = app->pickInfo.getEntIndex();
 
@@ -6679,9 +6730,9 @@ void Gui::drawAllocBlockLimitTab(Bsp* map) {
 
 	ImGui::BeginChild("content");
 	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFont, g_settings.fontSize);
+	ImGui::PushFont(consoleFont, g_font_scale_base);
 
-	int fontSize = g_settings.fontSize;
+	int fontSize = g_font_scale_base;
 	int valWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Clipnodes ").x;
 	int usageWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, "  Usage   ").x;
 	int modelWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Model ").x;
@@ -6817,17 +6868,17 @@ void Gui::drawFaceExtentsLimitTab() {
 	vector<ExtentInfo>& allocInfos = limitExtents;
 
 	ImGui::BeginChild("content");
-	ImGui::Dummy(ImVec2(0, 10));
-	ImGui::PushFont(consoleFont, g_settings.fontSize);
+	ImGui::Dummy(ImVec2(0, 10*uiScale));
+	ImGui::PushFont(consoleFont, g_font_scale_base);
 
-	int fontSize = g_settings.fontSize;
+	int fontSize = g_font_scale_base;
 	int facesWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Faces ").x;
 	int subsWidth = consoleFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " Subs Needed ").x;
-	int bigWidth = ImGui::GetWindowWidth() - (facesWidth + subsWidth);
+	int bigWidth = ImGui::GetWindowWidth() - (facesWidth + subsWidth)*uiScale;
 	ImGui::Columns(3);
 	ImGui::SetColumnWidth(0, bigWidth);
-	ImGui::SetColumnWidth(1, facesWidth);
-	ImGui::SetColumnWidth(2, subsWidth);
+	ImGui::SetColumnWidth(1, facesWidth * uiScale);
+	ImGui::SetColumnWidth(2, subsWidth * uiScale);
 
 	ImGui::Text("Texture"); ImGui::NextColumn();
 	ImGui::Text("Faces"); ImGui::NextColumn();
@@ -6838,8 +6889,8 @@ void Gui::drawFaceExtentsLimitTab() {
 	ImGui::BeginChild("chart");
 	ImGui::Columns(3);
 	ImGui::SetColumnWidth(0, bigWidth);
-	ImGui::SetColumnWidth(1, facesWidth);
-	ImGui::SetColumnWidth(2, subsWidth);
+	ImGui::SetColumnWidth(1, facesWidth * uiScale);
+	ImGui::SetColumnWidth(2, subsWidth * uiScale);
 
 	int selected = app->pickInfo.getFaceIndex();
 
@@ -6889,7 +6940,8 @@ void Gui::drawFaceExtentsLimitTab() {
 }
 
 void Gui::drawEntityReport() {
-	ImGui::SetNextWindowSize(ImVec2(550, 630), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(400 * uiScale, 600 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(320 * uiScale, 350 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40));
 
 	struct ReportEnt {
 		int idx;
@@ -6924,7 +6976,7 @@ void Gui::drawEntityReport() {
 			ImGuiIO& io = ImGui::GetIO();
 			const ImGuiKeyChord expected_key_mod_flags = io.KeyMods;
 
-			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16;
+			int footerHeight = ImGui::GetFrameHeightWithSpacing() * 5 + 16 * uiScale;
 			ImGui::BeginChild("entlist", ImVec2(0, -footerHeight));
 
 			if (entityReportFilterNeeded) {
@@ -7132,10 +7184,10 @@ void Gui::drawEntityReport() {
 
 			ImGui::EndChild();
 
-			ImGui::BeginChild("filters");
+			ImGui::BeginChild("filters", ImVec2(0,0), 0, ImGuiWindowFlags_NoScrollbar);
 
 			ImGui::Separator();
-			ImGui::Dummy(ImVec2(0, 8));
+			ImGui::Dummy(ImVec2(0, 8 * uiScale));
 
 			static vector<string> usedClasses;
 			static set<string> uniqueClasses;
@@ -7143,7 +7195,7 @@ void Gui::drawEntityReport() {
 			static bool comboWasOpen = false;
 
 			ImGui::Text("Classname Filter");
-			if (ImGui::BeginCombo("##classfilter", classFilter.c_str()))
+			if (ImGui::BeginCombo("##classfilter", classFilter.c_str(), ImGuiComboFlags_HeightLarge))
 			{
 				if (!comboWasOpen) {
 					comboWasOpen = true;
@@ -7191,13 +7243,12 @@ void Gui::drawEntityReport() {
 				comboWasOpen = false;
 			}
 
-			ImGui::Dummy(ImVec2(0, 8));
+			ImGui::Dummy(ImVec2(0, 8 * uiScale));
 			ImGui::Text("Keyvalue Filter");
 
 			ImGuiStyle& style = ImGui::GetStyle();
-			float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-			float inputWidth = (ImGui::GetWindowWidth() - (padding + style.ScrollbarSize)) * 0.5f;
-			int fontSize = g_settings.fontSize;
+			float inputWidth = ImGui::GetWindowWidth() * 0.5f;
+			int fontSize = g_font_scale_base;
 			inputWidth -= defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, " = ").x;
 
 			for (int i = 0; i < MAX_FILTERS; i++) {
@@ -7531,14 +7582,14 @@ void Gui::drawLightmapsEditor() {
 }
 
 void Gui::drawFaceEditor() {
-	ImGui::SetNextWindowSize(ImVec2(300, 570), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(200, 420), ImVec2(FLT_MAX, app->windowHeight));
+	ImGui::SetNextWindowSize(ImVec2(300 * uiScale, 570 * uiScale), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSizeConstraints(ImVec2(260 * uiScale, 540 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
 
 	ImGuiContext& g = *GImGui;
 	BspRenderer* mapRenderer = app->mapRenderer ? app->mapRenderer : NULL;
 	Bsp* map = app->pickInfo.getMap();
 
-	if (ImGui::Begin("Face Editor", &showFaceEditorWidget)) {
+	if (ImGui::Begin("Face Editor", &showFaceEditorWidget, ImGuiWindowFlags_NoScrollbar)) {
 
 		if (mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->pickInfo.faces.size() == 0)
 		{
@@ -7548,7 +7599,7 @@ void Gui::drawFaceEditor() {
 			static char findfaceid[256];
 			static char findtexid[256];
 
-			ImGui::Dummy(ImVec2(0, 20));
+			ImGui::Dummy(ImVec2(0, 20 * uiScale));
 
 			ImGui::Text("Texture Name");
 			ImGui::InputText("##Texture", findtex, MAXTEXTURENAME);
@@ -7573,7 +7624,7 @@ void Gui::drawFaceEditor() {
 			}
 			tooltip(g, "Select all faces that use the given texture");
 
-			ImGui::Dummy(ImVec2(0, 20));
+			ImGui::Dummy(ImVec2(0, 20 * uiScale));
 
 			ImGui::Text("Texture ID");
 			ImGui::InputText("##TextureId", findtexid, 256);
@@ -7598,7 +7649,7 @@ void Gui::drawFaceEditor() {
 			}
 			tooltip(g, "Select all faces that use the given texture ID.");
 
-			ImGui::Dummy(ImVec2(0, 20));
+			ImGui::Dummy(ImVec2(0, 20 * uiScale));
 
 			ImGui::Text("Face ID");
 			ImGui::InputText("##Face ID", findfaceid, 256);
@@ -7770,12 +7821,12 @@ void Gui::drawTextureEditor() {
 
 	bool userStoppedEditing = false; // user stopped dragging or finished typing an input
 
-	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 2.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f*uiScale), roundf(2.0f*uiScale)));
 	if (ImGui::BeginTable("TransformTexTable", 4, ImGuiTableFlags_SizingFixedFit)) {
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 60);
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 60 * uiScale);
 		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, 5);
+		ImGui::TableSetupColumn("pad", ImGuiTableColumnFlags_WidthFixed, 5 * uiScale);
 
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();
@@ -7846,7 +7897,7 @@ void Gui::drawTextureEditor() {
 		ImGui::EndTooltip();
 	}
 
-	ImGui::SameLine(0, 20);
+	ImGui::SameLine(0, 20 * uiScale);
 		
 	if (g_app->isLoading) {
 		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
@@ -7920,10 +7971,14 @@ void Gui::drawTextureEditor() {
 		ImGui::PopStyleVar();
 	}
 
-	ImGui::Dummy(ImVec2(0, 8));
+	ImGui::Dummy(ImVec2(0, roundf(8 * uiScale)));
+
+	float spaceLeft = ImGui::GetContentRegionAvail().x;
+	float buttonWidth = ImGui::CalcTextSize("  512x512  ").x;
+	spaceLeft -= buttonWidth;
 
 	ImGui::Text("Texture name");
-	ImGui::SetNextItemWidth(inputWidth + 40);
+	ImGui::SetNextItemWidth(spaceLeft);
 	if (!validTexture) {
 		ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 	}
@@ -8081,7 +8136,7 @@ void Gui::drawTextureEditor() {
 
 	refreshAfterFacePaste = false;
 
-	float imgWidth = min(256.0f, inputWidth * 2 - 2);
+	float imgWidth = min(235.0f * uiScale, ImGui::GetContentRegionAvail().x - style.WindowPadding.x);
 	ImVec2 imgSize = ImVec2(imgWidth, imgWidth);
 	if (ImGui::ImageButton("texicon", textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
 		logf("Texture browser not implemented.\n");
@@ -8192,7 +8247,7 @@ void Gui::drawTextureEditor() {
 	ImGuiIO& io = ImGui::GetIO();
 	int bestWidth = app->windowWidth * 0.5f;
 	ImGui::SetNextWindowSize(ImVec2(bestWidth, bestWidth*0.8f), ImGuiCond_Appearing);
-	ImGui::SetNextWindowSizeConstraints(ImVec2(340, 140), ImVec2(FLT_MAX, app->windowHeight - 40));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(340 * uiScale, 140 * uiScale), ImVec2(FLT_MAX, app->windowHeight - 40 * uiScale));
 	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 	if (ImGui::BeginPopupModal("Resize Texture", NULL, 0))
 	{
@@ -8288,17 +8343,17 @@ void Gui::drawTextureEditor() {
 			}
 		}
 
-		ImGui::SetNextItemWidth(200);
+		ImGui::SetNextItemWidth(200 * uiScale);
 		if (ImGui::InputScalar("Width", ImGuiDataType_U16, (void*)&resizeWidth, &step)) {
 			resizeWidth = min((int)resizeOriginalWidth, max(16, (resizeWidth / 16) * 16));
 			reloadPreview = true;
 		}
-		ImGui::SetNextItemWidth(200);
+		ImGui::SetNextItemWidth(200 * uiScale);
 		if (ImGui::InputScalar("Height", ImGuiDataType_U16, (void*)&resizeHeight, &step)) {
 			resizeHeight = min((int)resizeOriginalHeight, max(16, (resizeHeight / 16) * 16));
 			reloadPreview = true;
 		}
-		ImGui::SetNextItemWidth(200);
+		ImGui::SetNextItemWidth(200 * uiScale);
 
 		if (ImGui::BeginCombo("Resampling", resampler.name)) {
 			for (int i = 0; i < 4; i++) {
@@ -8313,7 +8368,7 @@ void Gui::drawTextureEditor() {
 			ImGui::EndCombo();
 		}
 
-		ImGui::Dummy(ImVec2(0, 5));
+		ImGui::Dummy(ImVec2(0, roundf(5 * uiScale)));
 		if (ImGui::Button("Reset")) {
 			resizeWidth = resizeOriginalWidth;
 			resizeHeight = resizeOriginalHeight;
@@ -8353,12 +8408,12 @@ void Gui::drawTextureEditor() {
 		}
 		ImGui::Columns(1);
 
-		ImGui::Dummy(ImVec2(0, 5));
+		ImGui::Dummy(ImVec2(0, roundf(5 * uiScale)));
 		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0, 5));
+		ImGui::Dummy(ImVec2(0, roundf(5 * uiScale)));
 
 		ImGui::BeginDisabled((resizeWidth == resizeOriginalWidth && resizeHeight == resizeOriginalHeight) || !originalTexture);
-		if (ImGui::Button("Resize", ImVec2(120, 0))) {
+		if (ImGui::Button("Resize", ImVec2(120 * uiScale, 0))) {
 			LumpReplaceCommand* command = new LumpReplaceCommand("Resize Texture");
 			map->downscale_texture(resizeTextureIdx, resizeWidth, resizeHeight, resampler.mode);
 			command->pushUndoState();
@@ -8372,7 +8427,7 @@ void Gui::drawTextureEditor() {
 		}
 		ImGui::EndDisabled();
 		ImGui::SameLine();
-		if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+		if (ImGui::Button("Cancel", ImVec2(120 * uiScale, 0))) {
 			ImGui::CloseCurrentPopup();
 			delete previewTexture;
 			previewTexture = NULL;

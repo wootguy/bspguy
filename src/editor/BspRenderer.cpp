@@ -242,7 +242,7 @@ void BspRenderer::loadTextures() {
 	}
 
 	// load skybox textures
-	{
+	if (map->ents.size()) {
 		memset(skyboxTexturesSwap, 0, sizeof(skyboxTexturesSwap));
 		Entity* world = map->ents[0];
 		string skyname = world->getKeyvalue("skyname");
@@ -2596,7 +2596,7 @@ void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frus
 }
 
 void BspRenderer::updatePvs(vec3 viewOrigin) {
-	int ileaf = map->get_leaf(viewOrigin, 0);
+	int ileaf = map->ents.size() ? map->get_leaf(viewOrigin, 0) : 0;
 
 	if (pvsDat) {
 		delete pvsDat->wireframePvsBuffer;

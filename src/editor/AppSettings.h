@@ -14,7 +14,7 @@ struct AppSettings {
 	int windowX;
 	int windowY;
 	int maximized;
-	int fontSize;
+	int ui_scale;
 	int engine;
 	std::string gamedir;
 	bool valid;

@@ -16,7 +16,7 @@ void AppSettings::loadDefault()
 	windowY = 0;
 #endif
 	maximized = 0;
-	fontSize = 22;
+	ui_scale = 100;
 	gamedir = std::string();
 	valid = false;
 	undoLevels = 64;
@@ -107,7 +107,8 @@ void AppSettings::load() {
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
 			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
-			else if (key == "font_size") { g_settings.fontSize = atoi(val.c_str()); }
+			else if (key == "ui_scale") { g_settings.ui_scale = atoi(val.c_str()); }
+			else if (key == "font_size") { g_settings.ui_scale = atoi(val.c_str()) / 22.0f * 1.1f; } // legacy setting
 			else if (key == "undo_levels") { g_settings.undoLevels = atoi(val.c_str()); }
 			else if (key == "gamedir") { g_settings.gamedir = val; }
 			else if (key == "fgd") { fgdPaths.push_back(val); }
@@ -139,6 +140,8 @@ void AppSettings::load() {
 		g_settings.windowX = 0;
 	}
 
+	if (ui_scale == 0)
+		ui_scale = 100;
 
 #ifdef WIN32
 	// Fix invisibled window header for primary screen.
@@ -216,7 +219,8 @@ void AppSettings::save() {
 	file << "move_speed=" << g_settings.moveSpeed << endl;
 	file << "rot_speed=" << g_settings.rotSpeed << endl;
 	file << "render_flags=" << g_settings.render_flags << endl;
-	file << "font_size=" << g_settings.fontSize << endl;
+	file << "font_size=" << (int)((g_settings.ui_scale * 0.01f * 1.1f) * 22) << endl; // legacy setting
+	file << "ui_scale=" << g_settings.ui_scale << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
 	file << "autoload_layout=" << g_settings.autoload_layout << endl;
 	file << "autoload_layout_width=" << g_settings.autoload_layout_width << endl;

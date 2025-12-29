@@ -2974,7 +2974,9 @@ void Renderer::addMap(Bsp* map) {
 	//if (!pickInfo.map) 
 	{
 		pickInfo.deselect();
-		pickInfo.selectEnt(0);
+
+		if (map->ents.size())
+			pickInfo.selectEnt(0);
 		/*
 		* TODO: move camera to center of map
 		// Move camera to first entity with origin

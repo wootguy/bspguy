@@ -8,6 +8,10 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
+// - dpi awareness making font too small on 720 screen
+// - search spawnflags value
+// - starting click in imgui and ending click in viewport selects something
+// - word wrap messages
 
 // todo:
 // cant use hotkeys in entity report
