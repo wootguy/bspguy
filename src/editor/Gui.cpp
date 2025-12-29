@@ -4460,8 +4460,6 @@ void Gui::drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, 
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, keynameColWidth);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-		//ImGui::Columns(2, "smartcolumns", false); // 4-ways, with border
-
 		vector<Entity*> pickEnts = app->pickInfo.getEnts();
 
 		for (int i = 0; i < keys.size(); i++) {
@@ -4763,6 +4761,8 @@ void Gui::drawKeyvalueEditor_FlagsTab(Fgd* fgd) {
 			app->updateEntConnections();
 
 			app->pushEntityUndoState(checkboxEnabled[i] ? "Enable Flag" : "Disable Flag");
+
+			entityReportFilterNeeded = true;
 		}
 		if (ImGui::IsItemHovered()) {
 			if (flagsDiffer) {
@@ -7022,6 +7022,13 @@ void Gui::drawEntityReport() {
 
 			if (entityReportFilterNeeded) {
 				filteredEnts.clear();
+				static string searchKeys[MAX_FILTERS];
+				static string searchValues[MAX_FILTERS];
+				for (int i = 0; i < MAX_FILTERS; i++) {
+					searchKeys[i] = trimSpaces(toLowerCase(keyFilter[i]));
+					searchValues[i] = trimSpaces(toLowerCase(valueFilter[i]));
+				}
+
 				for (int i = 1; i < map->ents.size(); i++) {
 					Entity* ent = map->ents[i];
 					string cname = ent->getClassname();
@@ -7036,7 +7043,7 @@ void Gui::drawEntityReport() {
 
 					for (int k = 0; k < MAX_FILTERS; k++) {
 						if (strlen(keyFilter[k]) > 0) {
-							string searchKey = trimSpaces(toLowerCase(keyFilter[k]));
+							string searchKey = searchKeys[k];
 
 							bool foundKey = false;
 							string actualKey;
@@ -7053,8 +7060,34 @@ void Gui::drawEntityReport() {
 								break;
 							}
 
-							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
-							if (!searchValue.empty()) {
+							string searchValue = searchValues[k];
+							if (searchKey == "spawnflags") {
+								int spawnflags = atoi(ent->getKeyvalue(actualKey).c_str());
+								int searchFlags = 0;
+
+								if (isNumeric(searchValue)) {
+									searchFlags = atoi(searchValue.c_str());
+								}
+								else {
+									Fgd* fgd = app->mergedFgd;
+									FgdClass* fgdClass = fgd ? fgd->getFgdClass(ent->getClassname()) : NULL;
+									
+									for (int i = 0; i < 32 && fgdClass; i++) {
+										string flagName = toLowerCase(fgdClass->spawnFlagNames[i]);
+										if (flagName.find(searchValue) != string::npos) {
+											searchFlags |= (1 << i);
+										}
+									}
+								}
+
+								bool partialMatch = partialMatches && !(spawnflags & searchFlags);
+								bool exactMatch = !partialMatches && spawnflags == searchFlags;
+								if (searchFlags == 0 || (!partialMatch && !exactMatch)) {
+									visible = false;
+									break;
+								}
+							}
+							else if (!searchValue.empty()) {
 								if ((partialMatches && ent->getKeyvalue(actualKey).find(searchValue) == string::npos) ||
 									(!partialMatches && ent->getKeyvalue(actualKey) != searchValue)) {
 									visible = false;
@@ -7063,7 +7096,7 @@ void Gui::drawEntityReport() {
 							}
 						}
 						else if (strlen(valueFilter[k]) > 0) {
-							string searchValue = trimSpaces(toLowerCase(valueFilter[k]));
+							string searchValue = searchValues[k];
 							bool foundMatch = false;
 							for (int c = 0; c < ent->keyOrder.size(); c++) {
 								string val = toLowerCase(ent->getKeyvalue(ent->keyOrder[c]));
@@ -7072,6 +7105,27 @@ void Gui::drawEntityReport() {
 									break;
 								}
 							}
+
+							int entSpawnflags = atoi(ent->getKeyvalue("spawnflags").c_str());
+							Fgd* fgd = app->mergedFgd;
+							FgdClass* fgdClass = fgd ? fgd->getFgdClass(ent->getClassname()) : NULL;
+							int searchFlags = atoi(searchValue.c_str());
+
+							for (int i = 0; i < 32 && fgdClass; i++) {
+								string flagName = toLowerCase(fgdClass->spawnFlagNames[i]);
+								bool partialMatch = partialMatches && flagName.find(searchValue) != string::npos;
+								bool exactMatch = !partialMatches && flagName == searchValue;
+								if ((partialMatch || exactMatch) && (entSpawnflags & (1 << i))) {
+									foundMatch = true;
+									break;
+								}
+
+								if (partialMatches && (searchFlags & entSpawnflags)) {
+									foundMatch = true;
+									break;
+								}
+							}
+
 							if (!foundMatch) {
 								visible = false;
 								break;
@@ -7308,7 +7362,8 @@ void Gui::drawEntityReport() {
 					entityReportFilterNeeded = true;
 				}
 				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Filter entities by key value. Leave blank to include all values.");
+					ImGui::SetTooltip("Filter entities by key value. Leave blank to include all values." 
+						"\n\nWhen searching for a spawnflag, you can use either the integer value or its label.");
 				}
 			}
 
