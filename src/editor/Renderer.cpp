@@ -3957,6 +3957,7 @@ void Renderer::updateModelVerts() {
 
 	updateSelectionSize();
 
+	modelUsesSharedStructures = false;
 	for (int idx : pickInfo.getModelIndexes()) {
 		modelUsesSharedStructures |= map->does_model_use_shared_structures(idx);
 		if (modelUsesSharedStructures)
