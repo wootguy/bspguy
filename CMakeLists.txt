@@ -104,6 +104,7 @@ set(SOURCE_FILES
 	imgui/imgui_demo.cpp
 	imgui/backends/imgui_impl_glfw.cpp
 	imgui/backends/imgui_impl_opengl2.cpp
+	imgui/misc/freetype/imgui_freetype.cpp
 	src/util/lodepng.h
 	src/util/lodepng.cpp
 	src/util/tinyfiledialogs.c
@@ -163,6 +164,7 @@ include_directories(src/lib)
 include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(imgui/backends)
+include_directories(imgui/misc/freetype)
 include_directories(glew/include)
 include_directories(${CMAKE_BINARY_DIR})
 
@@ -195,6 +197,7 @@ if(MSVC)
 	
 		
 	add_subdirectory(glfw)
+	add_subdirectory(freetype)
 	
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bspguy)
 	
@@ -204,7 +207,7 @@ if(MSVC)
 		set(GLEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/glew/lib/Release/x64/glew32s.lib)
 	endif()
 	
-	target_link_libraries(${PROJECT_NAME} opengl32 ${GLEW_PATH})
+	target_link_libraries(${PROJECT_NAME} opengl32 freetype ${GLEW_PATH})
 	
 	source_group("Header Files\\bsp" FILES	src/bsp/BspMerger.h
 											src/bsp/Bsp.h
@@ -332,7 +335,7 @@ if(MSVC)
 
 else()
 	add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-	target_link_libraries(${PROJECT_NAME} glfw liblzma GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs ${CMAKE_DL_LIBS})
+	target_link_libraries(${PROJECT_NAME} glfw liblzma freetype GL GLU X11 Xxf86vm Xrandr pthread Xi GLEW stdc++fs ${CMAKE_DL_LIBS})
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type -fno-omit-frame-pointer -std=c++11")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_MODE -g -O0")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")

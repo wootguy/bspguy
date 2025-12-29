@@ -1,5 +1,6 @@
 #include <GL/glew.h>
 #include "imgui.h"
+#include "imgui_freetype.h" 
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl2.h"
 #include "imgui_internal.h"
@@ -115,6 +116,7 @@ private:
 	bool showMergePopupAfterFailPopup = false;
 	bool showRadPrepPopup = false;
 	bool refreshTexlightList = false;
+	bool shouldReloadFonts = false;
 	unordered_map<string, string> texlights;
 	unordered_map<string, string> copiedKeyvalues; // keyvalues copied in the keyvalue editor
 

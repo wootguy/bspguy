@@ -226,6 +226,13 @@ void Gui::draw() {
 	ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
 	glDisable(GL_SCISSOR_TEST);
+
+	if (shouldReloadFonts) {
+		shouldReloadFonts = false;
+		ImGuiIO& io = ImGui::GetIO();
+		io.Fonts->Clear();
+		loadFonts();
+	}
 }
 
 void Gui::openContextMenu(int entIdx) {
@@ -5846,6 +5853,8 @@ void Gui::loadFonts() {
 		logf("Failed to decompress font! Crash imminent.\n");
 	}
 
+	io.Fonts->SetFontLoader(g_settings.freetype_font ? ImGuiFreeType::GetFontLoader() : NULL);
+
 	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_font_scale_base);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_font_scale_base);
 
@@ -5868,6 +5877,7 @@ void Gui::updateUiScale() {
 	style.WindowPadding = ImVec2(roundf(8.0f * uiScale), roundf(8.0f * uiScale));
 	style.IndentSpacing = roundf(21.0f * uiScale);
 	style.GrabMinSize = roundf(12.0f * uiScale);
+	style.ScrollbarSize = roundf(12.0f * uiScale);
 }
 
 void Gui::drawLog() {
@@ -6015,11 +6025,12 @@ void Gui::drawSettings() {
 			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("Recommended scales per screen resolution:\n"
-					"75%% = 720p\n"
-					"90%% = 1080p\n"
-					"110%% = 2k\n"
-					"200%% = 4k\n"
-					"110% was the default scaling in older version of bspguy");
+					"65%% = 720p (small but enough room for all widgets)\n"
+					"85%% = 1080p (can handle a larger font)\n"
+					"110%% = 2k (nice size font with widget space to spare)\n"
+					"200%% = 4k (just guessing, i don't havea 4k screen)\n"
+					"\n110%% is the default scaling in older versions of bspguy. That's the scaling I "
+					"designed the UI for. I think it looks good on a 27\" 2k screen.");
 			}
 
 			ImGui::DragInt("Undo Levels", &app->undoLevels, 0.05f, 0, 64);
@@ -6030,19 +6041,24 @@ void Gui::drawSettings() {
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("For troubleshooting the program");
 			}
+			ImGui::Checkbox("Invert Y Axis", &g_settings.invert_y_axis);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Invert Y axis camera rotation.\n");
+			}
 			ImGui::NextColumn();
 
 			ImGui::Checkbox("Confirm Close", &g_settings.confirm_exit);
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("Show a warning dialog if closing the map without saving changes.\n");
 			}
-			ImGui::NextColumn();
 
-			ImGui::Checkbox("Invert Y Axis", &g_settings.invert_y_axis);
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Invert Y axis camera rotation.\n");
+			if (ImGui::Checkbox("FreeType Font", &g_settings.freetype_font)) {
+				shouldReloadFonts = true;
 			}
-			ImGui::NextColumn();
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Enable the FreeType font renderer. This makes text less blurry. "
+					"Quality improvement is subjective.\n");
+			}
 		}
 		else if (settingsTab == 1) {
 			static const char* renderers[RENDERER_COUNT] = {

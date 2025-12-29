@@ -32,6 +32,7 @@ struct AppSettings {
 	bool texture_filtering;
 	int renderer;
 	bool animate_models;
+	bool freetype_font;
 
 	bool debug_open;
 	bool keyvalue_open;
