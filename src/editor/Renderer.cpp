@@ -23,6 +23,7 @@
 #include "tinyfiledialogs.h"
 #include <lodepng.h>
 #include "embedded_shaders.h"
+#include "Widget.h"
 
 #include "icons/app.h"
 #include "icons/app2.h"
@@ -154,6 +155,7 @@ GLFWmonitor* GetMonitorForWindow(GLFWwindow* window) {
 }
 
 Renderer::Renderer() {
+	g_app = this;
 	programStartTime = glfwGetTime();
 	g_settings.loadDefault();
 	g_settings.load();
@@ -209,8 +211,6 @@ Renderer::Renderer() {
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-
-	g_app = this;
 
 	g_progress.simpleMode = true;
 
@@ -1494,13 +1494,13 @@ void Renderer::openMap(Bsp* map) {
 }
 
 void Renderer::saveSettings() {
-	g_settings.debug_open = gui->showDebugWidget;
-	g_settings.keyvalue_open = gui->showKeyvalueWidget;
-	g_settings.transform_open = gui->showTransformWidget;
-	g_settings.log_open = gui->showLogWidget;
-	g_settings.settings_open = gui->showSettingsWidget;
-	g_settings.limits_open = gui->showLimitsWidget;
-	g_settings.entreport_open = gui->showEntityReport;
+	g_settings.debug_open = gui->widgets[WIDGET_DEBUG]->widgetVisible;
+	g_settings.keyvalue_open = gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible;
+	g_settings.transform_open = gui->widgets[WIDGET_TRANSFORM]->widgetVisible;
+	g_settings.log_open = gui->widgets[WIDGET_MESSAGES]->widgetVisible;
+	g_settings.settings_open = gui->widgets[WIDGET_SETTINGS]->widgetVisible;
+	g_settings.limits_open = gui->widgets[WIDGET_LIMITS]->widgetVisible;
+	g_settings.entreport_open = gui->widgets[WIDGET_ENT_REPORT]->widgetVisible;
 	g_settings.settings_tab = gui->settingsTab;
 	g_settings.vsync = gui->vsync;
 	g_settings.show_transform_axes = showDragAxes;
@@ -1514,13 +1514,13 @@ void Renderer::saveSettings() {
 }
 
 void Renderer::loadSettings() {
-	gui->showDebugWidget = g_settings.debug_open;
-	gui->showKeyvalueWidget = g_settings.keyvalue_open;
-	gui->showTransformWidget = g_settings.transform_open;
-	gui->showLogWidget = g_settings.log_open;
-	gui->showSettingsWidget = g_settings.settings_open;
-	gui->showLimitsWidget = g_settings.limits_open;
-	gui->showEntityReport = g_settings.entreport_open;
+	gui->widgets[WIDGET_DEBUG]->widgetVisible = g_settings.debug_open;
+	gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = g_settings.keyvalue_open;
+	gui->widgets[WIDGET_TRANSFORM]->widgetVisible = g_settings.transform_open;
+	gui->widgets[WIDGET_MESSAGES]->widgetVisible = g_settings.log_open;
+	gui->widgets[WIDGET_SETTINGS]->widgetVisible = g_settings.settings_open;
+	gui->widgets[WIDGET_LIMITS]->widgetVisible = g_settings.limits_open;
+	gui->widgets[WIDGET_ENT_REPORT]->widgetVisible = g_settings.entreport_open;
 
 	gui->settingsTab = g_settings.settings_tab;
 	gui->openSavedTabs = true;
@@ -2016,7 +2016,7 @@ void Renderer::vertexEditControls() {
 		}
 		else
 		{
-			gui->showEntityReport = !gui->showEntityReport;
+			gui->widgets[WIDGET_ENT_REPORT]->widgetVisible = !gui->widgets[WIDGET_ENT_REPORT]->widgetVisible;
 		}
 	}
 
@@ -2482,7 +2482,7 @@ void Renderer::shortcutControls() {
 			}
 		}
 		if (anyCtrlPressed && pressed[GLFW_KEY_M] && !oldPressed[GLFW_KEY_M]) {
-			gui->showTransformWidget = !gui->showTransformWidget;
+			gui->widgets[WIDGET_TRANSFORM]->widgetVisible = !gui->widgets[WIDGET_TRANSFORM]->widgetVisible;
 		}
 		if (anyCtrlPressed && pressed[GLFW_KEY_O] && !oldPressed[GLFW_KEY_O]) {
 			openMap((char*)NULL);
@@ -2491,7 +2491,7 @@ void Renderer::shortcutControls() {
 			gui->saveAs();
 		}
 		if (anyAltPressed && anyEnterPressed) {
-			gui->showKeyvalueWidget = !gui->showKeyvalueWidget;
+			gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = !gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible;
 		}
 		if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE]) {
 			deleteEnts();

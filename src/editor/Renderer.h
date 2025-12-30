@@ -1,3 +1,4 @@
+#pragma once
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "primitives.h"
@@ -58,6 +59,14 @@ class Renderer;
 
 class Renderer {
 	friend class Gui;
+	friend class Widget;
+	friend class DebugWidget;
+	friend class KeyvalueEditor;
+	friend class TransformWidget;
+	friend class SettingsWidget;
+	friend class LimitsWidget;
+	friend class EntityReport;
+	friend class FaceEditor;
 	friend class EditEntitiesCommand;
 	friend class DeleteEntitiesCommand;
 	friend class CreateEntitiesCommand;

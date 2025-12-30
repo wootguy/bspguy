@@ -91,6 +91,19 @@ set(SOURCE_FILES
 	src/editor/TextureAtlas.h		src/editor/TextureAtlas.cpp
 	src/editor/studio.h
 	
+	# widgets
+	src/editor/widgets/Widget.h			src/editor/widgets/Widget.cpp
+	src/editor/widgets/DebugWidget.cpp
+	src/editor/widgets/KeyvalueEditor.cpp
+	src/editor/widgets/TransformWidget.cpp
+	src/editor/widgets/EntityReport.cpp
+	src/editor/widgets/FaceEditor.cpp
+	src/editor/widgets/HelpWidget.cpp
+	src/editor/widgets/AboutWidget.cpp
+	src/editor/widgets/LogWidget.cpp
+	src/editor/widgets/LimitsWidget.h	src/editor/widgets/LimitsWidget.cpp
+	src/editor/widgets/SettingsWidget.cpp
+	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
 	src/qtools/vis.h		src/qtools/vis.cpp
@@ -156,6 +169,7 @@ include_directories(src/bsp)
 include_directories(src/cli)
 include_directories(src/data)
 include_directories(src/editor)
+include_directories(src/editor/widgets)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
@@ -171,6 +185,8 @@ include_directories(${CMAKE_BINARY_DIR})
 add_definitions(-DGLEW_STATIC)
 
 if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+
 	add_executable(${PROJECT_NAME} ${SOURCE_FILES} src/data/icons/app_icon.rc)
 	target_link_libraries(${PROJECT_NAME} glfw liblzma)
 
@@ -279,6 +295,21 @@ if(MSVC)
 												src/editor/SprRenderer.cpp
 												src/editor/BaseRenderer.cpp
 												src/editor/Clipper.cpp)
+												
+	source_group("Header Files\\editor\\widgets" FILES	src/editor/widgets/Widget.h)
+											
+	source_group("Source Files\\editor\\widgets" FILES	src/editor/widgets/Widget.cpp
+												src/editor/widgets/DebugWidget.cpp
+												src/editor/widgets/KeyvalueEditor.cpp
+												src/editor/widgets/TransformWidget.cpp
+												src/editor/widgets/EntityReport.cpp
+												src/editor/widgets/FaceEditor.cpp
+												src/editor/widgets/HelpWidget.cpp
+												src/editor/widgets/LogWidget.cpp
+												src/editor/widgets/LimitsWidget.cpp
+												src/editor/widgets/SettingsWidget.cpp
+												src/editor/widgets/AboutWidget.cpp
+	)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h
 												src/qtools/vis.h
@@ -296,7 +327,10 @@ if(MSVC)
 												src/util/lzma_util.h
 												src/util/ThreadSafeInt.h
 												src/util/mat4x4.h
-												src/util/bmp.h)
+												src/util/bmp.h
+												src/util/tga.h
+												src/util/quant.h
+												)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
 												src/util/vectors.cpp
@@ -306,7 +340,10 @@ if(MSVC)
 												src/util/lzma_util.cpp
 												src/util/ThreadSafeInt.cpp
 												src/util/mat4x4.cpp
-												src/util/bmp.cpp)
+												src/util/bmp.cpp
+												src/util/tga.cpp
+												src/util/quant.cpp
+												)
 												
 	source_group("Header Files\\nav" FILES		src/nav/NavMesh.h
 												src/nav/NavMeshGenerator.h
@@ -331,6 +368,8 @@ if(MSVC)
 													imgui/imgui_demo.cpp
 													imgui/backends/imgui_impl_glfw.cpp
 													imgui/backends/imgui_impl_opengl2.cpp
+													imgui/misc/freetype/imgui_freetype.cpp
+													src/util/tinyfiledialogs.c
 													src/util/lodepng.cpp)
 
 else()

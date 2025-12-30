@@ -1,3 +1,4 @@
+#pragma once
 #include <GL/glew.h>
 #include "imgui.h"
 #include "imgui_freetype.h" 
@@ -12,41 +13,20 @@
 
 class Entity;
 class Texture;
+class Widget;
 
-struct ModelInfo {
-	string classname;
-	string targetname;
-	string model;
-	string val;
-	string usage;
-	int entIdx;
-};
-
-struct AllocInfo {
-	string texname;
-	string faceCount;
-	string val;
-	string usage;
-	float sort;
-	int faceIdx;
-};
-
-struct ExtentInfo {
-	string texname;
-	string dimensions;
-	string faceCount;
-	string subsNeeded;
-	int mip;
-	int sort;
-};
-
-struct StatInfo {
-	string name;
-	string val;
-	string max;
-	string fullness;
-	float progress;
-	ImVec4 color;
+enum WidgetIds {
+	WIDGET_DEBUG,
+	WIDGET_KEYVALUE_EDITOR,
+	WIDGET_TRANSFORM,
+	WIDGET_MESSAGES,
+	WIDGET_SETTINGS,
+	WIDGET_HELP,
+	WIDGET_ABOUT,
+	WIDGET_LIMITS,
+	WIDGET_ENT_REPORT,
+	WIDGET_FACE_EDITOR,
+	NUM_WIDGET_IDS
 };
 
 enum Text2dAlignment {
@@ -70,13 +50,40 @@ struct Text2D {
 
 class Renderer;
 
+extern int g_font_scale_base;
+extern float g_tooltip_delay;
+
+extern char const* bspFilterPatterns[1];
+extern char const* entFilterPatterns[1];
+extern char const* wadFilterPatterns[1];
+extern char const* prtFilterPatterns[1];
+extern char const* radFilterPatterns[1];
+extern char const* imgFilterPatterns[2];
+extern char const* pngFilterPatterns[1];
+extern char const* bmpFilterPatterns[1];
+
 class Gui {
 	friend class Renderer;
+	friend class SettingsWidget;
+	friend class FaceEditor;
 
 public:
 	Renderer* app;
 	int hoveredOOB;
 	bool lightmapEditorNeedsUpdate = true;
+	bool entityReportFilterNeeded = true;
+	bool entityReportReselectNeeded = false;
+	bool reloadSettings = true;
+	int guiHoverAxis; // axis being hovered in the transform menu
+	int settingsTab = 0; // active tab in the setting widget
+	bool loadedStats = false; // set to false to force limits widget to reload stats
+	bool loadedLimit[SORT_MODES] = { false }; // set to false to force reload of a stat category
+	bool badSurfaceExtents = false; // selected face has bad extents
+	bool lightmapTooLarge = false; // selected face has too big of a lightmap
+	Widget* widgets[NUM_WIDGET_IDS];
+
+	ImFont* defaultFont;
+	ImFont* consoleFont;
 
 	Gui(Renderer* app);
 
@@ -97,18 +104,6 @@ public:
 private:
 	bool vsync = true;
 	bool polycount = false;
-	bool showDebugWidget = false;
-	bool showKeyvalueWidget = false;
-	bool showTransformWidget = false;
-	bool showLogWidget = false;
-	bool showSettingsWidget = false;
-	bool showHelpWidget = false;
-	bool showAboutWidget = false;
-	bool showLimitsWidget = true;
-	bool showFaceEditorWidget = false;
-	bool showEntityReport = false;
-	bool reloadSettings = true;
-	int settingsTab = 0;
 	bool openSavedTabs = false;
 	bool transparentClipnodes = true;
 	bool showDownscalePopup = false;
@@ -118,43 +113,19 @@ private:
 	bool refreshTexlightList = false;
 	bool shouldReloadFonts = false;
 	unordered_map<string, string> texlights;
-	unordered_map<string, string> copiedKeyvalues; // keyvalues copied in the keyvalue editor
 
-	ImFont* defaultFont;
-	ImFont* consoleFont;
 	bool shouldReloadTextureInfo = false;
 
 	Texture* objectIconTexture;
 	Texture* faceIconTexture;
 	Texture* leafIconTexture;
 
-	bool badSurfaceExtents = false;
-	bool lightmapTooLarge = false;
-
-	bool loadedLimit[SORT_MODES] = { false };
-	vector<ModelInfo> limitModels[SORT_MODES];
-	vector<AllocInfo> limitAllocs;
-	vector<ExtentInfo> limitExtents;
-	bool loadedStats = false;
-	vector<StatInfo> stats;
-
 	bool anyHullValid[MAX_MAP_HULLS] = { false };
 
-	int guiHoverAxis; // axis being hovered in the transform menu
 	int contextMenuEnt = -1; // open entity context menu if >= 0
 	int emptyContextMenu = 0; // open context menu for rightclicking world/void
 
 	int copiedMiptex = -1;
-	int copiedLightmapFace = -1; // index into faces
-	int copiedLightmapLayer = 0; // index into styles
-	bool refreshAfterFacePaste = false;
-
-	ImGuiTextBuffer Buf = ImGuiTextBuffer();
-	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
-	bool AutoScroll = true;  // Keep scrolling if already at the bottom
-
-	bool entityReportFilterNeeded = true;
-	bool entityReportReselectNeeded = false;
 
 	float mainMenuBarHeight;
 	float uiScale;
@@ -171,38 +142,13 @@ private:
 	void drawPopups();
 	void drawToolbar();
 	void drawStatusMessage();
-	void drawDebugWidget();
-	void drawKeyvalueEditor();
-	void drawKeyvalueEditor_SmartEditTab(Fgd* fgd);
-	void drawKeyvalueEditor_SmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, bool isGrouped, int keyOffset);
-	void drawKeyvalueEditor_FlagsTab(Fgd* fgd);
-	void drawKeyvalueEditor_RawEditTab();
-	void drawTransformWidget();
-	void drawLog();
-	void drawSettings();
 	void drawWelcomePopup();
-	void drawHelp();
-	void drawAbout();
-	void drawLimits();
-	void drawLimitsSummary(Bsp* map, bool modalMode);
-	void drawFaceEditor();
-	void drawLightmapsEditor();
-	void drawTextureEditor();
-	void drawLimitTab(Bsp* map, int sortMode);
-	void drawAllocBlockLimitTab(Bsp* map);
-	void drawFaceExtentsLimitTab();
-	void drawEntityReport();
 	void drawDebugText();
-	StatInfo calcStat(string name, uint val, uint max, bool isMem);
-	ModelInfo calcModelStat(Bsp* map, STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 	void checkValidHulls();
 	void reloadLimits();
 
-	void clearLog();
-	void addLog(const char* s);
 	void loadFonts();
 	void updateUiScale();
-	void checkFaceErrors();
 	string getUserLayoutPath(); // path to user's saved widget layout
 	void createSeriesWad();
 	void addText(Text2D text);
