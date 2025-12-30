@@ -31,6 +31,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/xz/src/liblzma/api)
 
 set(SOURCE_FILES 
 	src/main.cpp
+	src/globals.h	src/globals.cpp
 	src/types.h
 	
 	# command line
@@ -46,19 +47,22 @@ set(SOURCE_FILES
 	src/bsp/Keyvalue.h		src/bsp/Keyvalue.cpp
 	src/bsp/Wad.h			src/bsp/Wad.cpp
 	src/bsp/remap.h			src/bsp/remap.cpp
-	src/bsp/colors.h		src/bsp/colors.cpp
 	
-	# Math and stuff
+	# Math
+	src/math/vectors.h			src/math/vectors.cpp
+	src/math/mat4x4.h			src/math/mat4x4.cpp
+	src/math/Polygon3D.h		src/math/Polygon3D.cpp
+	src/math/Line2D.h			src/math/Line2D.cpp
+	src/math/Clipper.h			src/math/Clipper.cpp
+	
+	# Misc utils
 	src/util/util.h				src/util/util.cpp
-	src/util/vectors.h			src/util/vectors.cpp
-	src/util/mat4x4.h			src/util/mat4x4.cpp
-	src/util/Polygon3D.h		src/util/Polygon3D.cpp
-	src/util/Line2D.h			src/util/Line2D.cpp
 	src/util/mstream.h			src/util/mstream.cpp
 	src/util/ThreadSafeInt.h	src/util/ThreadSafeInt.cpp
 	src/util/bmp.h				src/util/bmp.cpp
 	src/util/tga.h				src/util/tga.cpp
-	src/globals.h				src/globals.cpp
+	src/util/colors.h			src/util/colors.cpp
+	src/util/studio.h
 	
 	# Navigation meshes
 	src/nav/NavMesh.h				src/nav/NavMesh.cpp
@@ -74,43 +78,43 @@ set(SOURCE_FILES
 	src/gl/ShaderProgram.h		src/gl/ShaderProgram.cpp
 	src/gl/VertexBuffer.h		src/gl/VertexBuffer.cpp
 	src/gl/Texture.h			src/gl/Texture.cpp
-	src/gl/TextureArray.h			src/gl/TextureArray.cpp
+	src/gl/TextureArray.h		src/gl/TextureArray.cpp
+	src/gl/TextureAtlas.h		src/gl/TextureAtlas.cpp
 	
-	# 3D editor
-	src/editor/Renderer.h			src/editor/Renderer.cpp
-	src/editor/BspRenderer.h		src/editor/BspRenderer.cpp
-	src/editor/PointEntRenderer.h	src/editor/PointEntRenderer.cpp
+	# Core editor logic
+	src/editor/Editor.h				src/editor/Editor.cpp
 	src/editor/Fgd.h				src/editor/Fgd.cpp
-	src/editor/Clipper.h			src/editor/Clipper.cpp
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
-	src/editor/MdlRenderer.h		src/editor/MdlRenderer.cpp
-	src/editor/SprRenderer.h		src/editor/SprRenderer.cpp
-	src/editor/BaseRenderer.h		src/editor/BaseRenderer.cpp
-	src/editor/TextureAtlas.h		src/editor/TextureAtlas.cpp
-	src/editor/studio.h
+	
+	# 3D viewport
+	src/editor/viewport/BspRenderer.h		src/editor/viewport/BspRenderer.cpp
+	src/editor/viewport/PointEntRenderer.h	src/editor/viewport/PointEntRenderer.cpp
+	src/editor/viewport/MdlRenderer.h		src/editor/viewport/MdlRenderer.cpp
+	src/editor/viewport/SprRenderer.h		src/editor/viewport/SprRenderer.cpp
+	src/editor/viewport/BaseRenderer.h		src/editor/viewport/BaseRenderer.cpp
 	
 	# UI components
-	src/editor/Gui.h					src/editor/Gui.cpp
-	src/editor/ui/MenuBar.h				src/editor/ui/MenuBar.cpp
+	src/editor/gui/Gui.h					src/editor/gui/Gui.cpp
+	src/editor/gui/MenuBar.h				src/editor/gui/MenuBar.cpp
 	
 	# widgets
-	src/editor/widgets/Widget.h			src/editor/widgets/Widget.cpp
-	src/editor/widgets/DebugWidget.cpp
-	src/editor/widgets/KeyvalueEditor.cpp
-	src/editor/widgets/TransformWidget.cpp
-	src/editor/widgets/EntityReport.cpp
-	src/editor/widgets/FaceEditor.cpp
-	src/editor/widgets/HelpWidget.cpp
-	src/editor/widgets/AboutWidget.cpp
-	src/editor/widgets/LogWidget.cpp
-	src/editor/widgets/LimitsWidget.h	src/editor/widgets/LimitsWidget.cpp
-	src/editor/widgets/SettingsWidget.cpp
-	src/editor/widgets/RadWidget.cpp
-	src/editor/widgets/DedupModelsWidget.cpp
-	src/editor/widgets/MapMergeWidget.cpp
-	src/editor/widgets/FixExtentsWidget.cpp
-	src/editor/widgets/ModelMergeWidget.cpp
+	src/editor/gui/widgets/Widget.h			src/editor/gui/widgets/Widget.cpp
+	src/editor/gui/widgets/DebugWidget.cpp
+	src/editor/gui/widgets/KeyvalueEditor.cpp
+	src/editor/gui/widgets/TransformWidget.cpp
+	src/editor/gui/widgets/EntityReport.cpp
+	src/editor/gui/widgets/FaceEditor.cpp
+	src/editor/gui/widgets/HelpWidget.cpp
+	src/editor/gui/widgets/AboutWidget.cpp
+	src/editor/gui/widgets/LogWidget.cpp
+	src/editor/gui/widgets/LimitsWidget.h	src/editor/gui/widgets/LimitsWidget.cpp
+	src/editor/gui/widgets/SettingsWidget.cpp
+	src/editor/gui/widgets/RadWidget.cpp
+	src/editor/gui/widgets/DedupModelsWidget.cpp
+	src/editor/gui/widgets/MapMergeWidget.cpp
+	src/editor/gui/widgets/FixExtentsWidget.cpp
+	src/editor/gui/widgets/ModelMergeWidget.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -126,11 +130,11 @@ set(SOURCE_FILES
 	imgui/backends/imgui_impl_glfw.cpp
 	imgui/backends/imgui_impl_opengl2.cpp
 	imgui/misc/freetype/imgui_freetype.cpp
-	src/util/lodepng.h
-	src/util/lodepng.cpp
-	src/util/tinyfiledialogs.c
-	src/util/tinyfiledialogs.h
-	src/util/lzma_util.h src/util/lzma_util.cpp
+	src/lib/lodepng.h
+	src/lib/lodepng.cpp
+	src/lib/tinyfiledialogs.c
+	src/lib/tinyfiledialogs.h
+	src/lib/lzma_util.h src/lib/lzma_util.cpp
 	src/util/quant.h src/util/quant.cpp
 )
 
@@ -177,11 +181,13 @@ include_directories(src/bsp)
 include_directories(src/cli)
 include_directories(src/data)
 include_directories(src/editor)
-include_directories(src/editor/widgets)
-include_directories(src/editor/ui)
+include_directories(src/editor/viewport)
+include_directories(src/editor/gui)
+include_directories(src/editor/gui/widgets)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
+include_directories(src/math)
 include_directories(src/nav)
 include_directories(src/lib)
 include_directories(imgui)
@@ -241,7 +247,6 @@ if(MSVC)
 											src/bsp/Entity.h
 											src/bsp/Keyvalue.h
 											src/bsp/Wad.h
-											src/bsp/colors.h
 											src/bsp/remap.h)
 											
 	source_group("Source Files\\bsp" FILES	src/bsp/BspMerger.cpp
@@ -250,7 +255,6 @@ if(MSVC)
 											src/bsp/Entity.cpp
 											src/bsp/Keyvalue.cpp
 											src/bsp/Wad.cpp
-											src/bsp/colors.cpp
 											src/bsp/remap.cpp)
 	
 	source_group("Header Files\\cli" FILES	src/cli/CommandLine.h
@@ -264,6 +268,7 @@ if(MSVC)
 											src/gl/VertexBuffer.h
 											src/gl/Texture.h
 											src/gl/TextureArray.h
+											src/gl/TextureAtlas.h
 											src/gl/primitives.h
 											${CMAKE_BINARY_DIR}/embedded_shaders.h
 											src/gl/shaders.h)
@@ -273,63 +278,63 @@ if(MSVC)
 											src/gl/VertexBuffer.cpp
 											src/gl/Texture.cpp
 											src/gl/TextureArray.cpp
+											src/gl/TextureAtlas.cpp
 											src/gl/primitives.cpp
 											${CMAKE_BINARY_DIR}/embedded_shaders.cpp
 											src/gl/shaders.cpp)
 											
 	source_group("Source Files\\gl\\shaders" FILES ${SHADER_FILES})
 											
-	source_group("Header Files\\editor" FILES	src/editor/BspRenderer.h
-												src/editor/TextureAtlas.h
-												src/editor/Renderer.h
+	source_group("Header Files\\editor" FILES	src/editor/Editor.h
 												src/editor/Fgd.h
 												src/editor/Gui.h
-												src/editor/PointEntRenderer.h
 												src/editor/Command.h
-												src/editor/AppSettings.h
-												src/editor/MdlRenderer.h
-												src/editor/SprRenderer.h
-												src/editor/BaseRenderer.h
-												src/editor/Clipper.h)
+												src/editor/AppSettings.h)
 											
-	source_group("Source Files\\editor" FILES	src/editor/BspRenderer.cpp
-												src/editor/TextureAtlas.cpp
-												src/editor/Renderer.cpp
+	source_group("Source Files\\editor" FILES	src/editor/Editor.cpp
 												src/editor/Fgd.cpp
-												src/editor/PointEntRenderer.cpp
 												src/editor/Command.cpp
-												src/editor/AppSettings.cpp
-												src/editor/MdlRenderer.cpp
-												src/editor/SprRenderer.cpp
-												src/editor/BaseRenderer.cpp
-												src/editor/Clipper.cpp)
+												src/editor/AppSettings.cpp)
 												
-	source_group("Header Files\\editor\\widgets" FILES	src/editor/widgets/Widget.h)
+	source_group("Header Files\\editor\\viewport" FILES	src/editor/viewport/BspRenderer.h
+												src/editor/viewport/PointEntRenderer.h
+												src/editor/viewport/MdlRenderer.h
+												src/editor/viewport/SprRenderer.h
+												src/editor/viewport/BaseRenderer.h)
 											
-	source_group("Source Files\\editor\\widgets" FILES	src/editor/widgets/Widget.cpp
-												src/editor/widgets/DebugWidget.cpp
-												src/editor/widgets/KeyvalueEditor.cpp
-												src/editor/widgets/TransformWidget.cpp
-												src/editor/widgets/EntityReport.cpp
-												src/editor/widgets/FaceEditor.cpp
-												src/editor/widgets/HelpWidget.cpp
-												src/editor/widgets/LogWidget.cpp
-												src/editor/widgets/LimitsWidget.cpp
-												src/editor/widgets/SettingsWidget.cpp
-												src/editor/widgets/AboutWidget.cpp
-												src/editor/widgets/RadWidget.cpp
-												src/editor/widgets/DedupModelsWidget.cpp
-												src/editor/widgets/MapMergeWidget.cpp
-												src/editor/widgets/FixExtentsWidget.cpp
-												src/editor/widgets/ModelMergeWidget.cpp
+	source_group("Source Files\\editor\\viewport" FILES	
+												src/editor/viewport/BspRenderer.cpp
+												src/editor/viewport/PointEntRenderer.cpp
+												src/editor/viewport/MdlRenderer.cpp
+												src/editor/viewport/SprRenderer.cpp
+												src/editor/viewport/BaseRenderer.cpp)
+												
+	source_group("Header Files\\editor\\gui\\widgets" FILES	src/editor/gui/widgets/Widget.h)
+											
+	source_group("Source Files\\editor\\gui\\widgets" FILES	src/editor/gui/widgets/Widget.cpp
+												src/editor/gui/widgets/DebugWidget.cpp
+												src/editor/gui/widgets/KeyvalueEditor.cpp
+												src/editor/gui/widgets/TransformWidget.cpp
+												src/editor/gui/widgets/EntityReport.cpp
+												src/editor/gui/widgets/FaceEditor.cpp
+												src/editor/gui/widgets/HelpWidget.cpp
+												src/editor/gui/widgets/LogWidget.cpp
+												src/editor/gui/widgets/LimitsWidget.cpp
+												src/editor/gui/widgets/SettingsWidget.cpp
+												src/editor/gui/widgets/AboutWidget.cpp
+												src/editor/gui/widgets/RadWidget.cpp
+												src/editor/gui/widgets/DedupModelsWidget.cpp
+												src/editor/gui/widgets/MapMergeWidget.cpp
+												src/editor/gui/widgets/FixExtentsWidget.cpp
+												src/editor/gui/widgets/ModelMergeWidget.cpp
 	)
 	
-	source_group("Header Files\\editor\\ui" FILES	src/editor/ui/MenuBar.h
-													src/editor/Gui.h
+	source_group("Header Files\\editor\\gui" FILES	src/editor/gui/MenuBar.h
+											src/editor/gui/Gui.h
 	)
 											
-	source_group("Source Files\\editor\\ui" FILES	src/editor/ui/MenuBar.cpp
-													src/editor/Gui.cpp
+	source_group("Source Files\\editor\\gui" FILES	src/editor/gui/MenuBar.cpp
+											src/editor/gui/Gui.cpp
 	)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h
@@ -341,29 +346,35 @@ if(MSVC)
 												src/qtools/winding.cpp)
 												
 	source_group("Header Files\\util" FILES		src/util/util.h
-												src/util/vectors.h
-												src/util/Polygon3D.h
-												src/util/Line2D.h
 												src/util/mstream.h
-												src/util/lzma_util.h
 												src/util/ThreadSafeInt.h
-												src/util/mat4x4.h
 												src/util/bmp.h
 												src/util/tga.h
 												src/util/quant.h
+												src/util/colors.h
 												)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
-												src/util/vectors.cpp
-												src/util/Polygon3D.cpp
-												src/util/Line2D.cpp
 												src/util/mstream.cpp
-												src/util/lzma_util.cpp
 												src/util/ThreadSafeInt.cpp
-												src/util/mat4x4.cpp
 												src/util/bmp.cpp
 												src/util/tga.cpp
 												src/util/quant.cpp
+												src/util/colors.cpp
+												)
+												
+	source_group("Header Files\\math" FILES src/math/vectors.h
+												src/math/Polygon3D.h
+												src/math/Clipper.h
+												src/math/Line2D.h
+												src/math/mat4x4.h
+												)
+												
+	source_group("Source Files\\math" FILES src/math/vectors.cpp
+												src/math/Polygon3D.cpp
+												src/math/Clipper.cpp
+												src/math/Line2D.cpp
+												src/math/mat4x4.cpp
 												)
 												
 	source_group("Header Files\\nav" FILES		src/nav/NavMesh.h
@@ -380,18 +391,20 @@ if(MSVC)
 												src/nav/PolyOctree.cpp
 												src/nav/LeafOctree.cpp)
 	
-	source_group("Header Files\\util\\lib" FILES	src/util/lodepng.h)
+	source_group("Header Files\\lib" FILES	src/lib/lodepng.h 
+											src/lib/lzma_util.h)
 	
-	source_group("Source Files\\util\\lib" FILES	imgui/imgui.cpp
-													imgui/imgui_tables.cpp
-													imgui/imgui_widgets.cpp
-													imgui/imgui_draw.cpp
-													imgui/imgui_demo.cpp
-													imgui/backends/imgui_impl_glfw.cpp
-													imgui/backends/imgui_impl_opengl2.cpp
-													imgui/misc/freetype/imgui_freetype.cpp
-													src/util/tinyfiledialogs.c
-													src/util/lodepng.cpp)
+	source_group("Source Files\\lib" FILES	imgui/imgui.cpp
+											imgui/imgui_tables.cpp
+											imgui/imgui_widgets.cpp
+											imgui/imgui_draw.cpp
+											imgui/imgui_demo.cpp
+											imgui/backends/imgui_impl_glfw.cpp
+											imgui/backends/imgui_impl_opengl2.cpp
+											imgui/misc/freetype/imgui_freetype.cpp
+											src/lib/tinyfiledialogs.c
+											src/lib/lzma_util.cpp
+											src/lib/lodepng.cpp)
 
 else()
 	add_executable(${PROJECT_NAME} ${SOURCE_FILES})
