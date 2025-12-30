@@ -38,7 +38,7 @@ struct MapLimits {
 	int max_texturepixels;
 };
 
-class Renderer;
+class Editor;
 
 extern bool g_verbose;
 extern ProgressMeter g_progress;
@@ -47,7 +47,7 @@ extern const char* g_version_string;
 extern std::mutex g_log_mutex;
 
 extern AppSettings g_settings;
-extern Renderer* g_app;
+extern Editor* g_app;
 extern MapLimits g_limits;
 extern MapLimits g_engine_limits[ENGINE_TYPES];
 

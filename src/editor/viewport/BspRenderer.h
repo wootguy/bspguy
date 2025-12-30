@@ -183,7 +183,7 @@ public:
 class Wad;
 
 class BspRenderer {
-	friend class Renderer;
+	friend class Editor;
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;

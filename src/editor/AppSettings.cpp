@@ -3,7 +3,7 @@
 #include "BspRenderer.h"
 #include <fstream>
 #include "util.h"
-#include "Renderer.h"
+#include "Editor.h"
 
 void AppSettings::loadDefault()
 {

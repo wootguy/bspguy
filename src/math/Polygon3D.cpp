@@ -1,6 +1,6 @@
 #include "Polygon3D.h"
 #include "util.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 #include <float.h>
 #include <stack>

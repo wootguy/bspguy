@@ -9,7 +9,7 @@
 #include "Polygon3D.h"
 #include <float.h>
 #include "globals.h"
-#include "Renderer.h"
+#include "Editor.h"
 
 MdlRenderer::MdlRenderer(string modelPath) {
 	this->fpath = modelPath;

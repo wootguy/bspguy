@@ -5,7 +5,7 @@
 #include <sstream>
 #include "Bsp.h"
 #include "globals.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include <unordered_set>
 #include "Fgd.h"
 

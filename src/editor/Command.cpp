@@ -1,5 +1,5 @@
 #include "Command.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "Gui.h"
 #include <lodepng.h>
 #include "Bsp.h"

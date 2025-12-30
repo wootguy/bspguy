@@ -1,6 +1,6 @@
 #pragma once
 #include "Gui.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 #include "Command.h"
 #include "tinyfiledialogs.h"
@@ -9,14 +9,14 @@ class MenuBar {
 public:
 	float height = 0; // height of the menu bar
 
-	MenuBar(Renderer* app, Gui* gui) : app(app), gui(gui) {}
+	MenuBar(Editor* app, Gui* gui) : app(app), gui(gui) {}
 
 	void draw();
 	void drawEditOptions(bool isMainMenu);
 	void saveAs();
 
 private:
-	Renderer* app;
+	Editor* app;
 	Gui* gui;
 	bool editWasOpen = false;
 	bool transparentClipnodes = true;

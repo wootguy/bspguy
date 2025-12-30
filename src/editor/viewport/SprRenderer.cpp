@@ -4,7 +4,7 @@
 #include <GLFW/glfw3.h>
 #include "primitives.h"
 #include "ShaderProgram.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 
 SprRenderer::SprRenderer(string sprPath) {

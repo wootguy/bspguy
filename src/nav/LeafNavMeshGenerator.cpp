@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 #include "LeafNavMeshGenerator.h"
 #include "GLFW/glfw3.h"

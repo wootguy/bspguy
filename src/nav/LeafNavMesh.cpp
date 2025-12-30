@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "Editor.h"
 #include "LeafNavMesh.h"
 #include "GLFW/glfw3.h"
 #include "PolyOctree.h"

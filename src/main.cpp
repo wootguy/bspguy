@@ -2,7 +2,7 @@
 #include "BspMerger.h"
 #include <string>
 #include "CommandLine.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 
 // fix v6:
@@ -175,7 +175,7 @@ void start_viewer(const char* map) {
 		}
 	}
 
-	Renderer renderer = Renderer();
+	Editor renderer = Editor();
 
 	if (!map) {
 		Bsp* emptyBsp = new Bsp();

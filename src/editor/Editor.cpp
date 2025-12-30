@@ -32,7 +32,7 @@
 // everything except VIS, ENTITIES, MARKSURFS
 #define EDIT_MODEL_LUMPS (PLANES | TEXTURES | VERTICES | NODES | TEXINFO | FACES | LIGHTING | CLIPNODES | LEAVES | EDGES | SURFEDGES | MODELS)
 
-future<void> Renderer::fgdFuture;
+future<void> Editor::fgdFuture;
 
 int glGetErrorDebug() {
 	return glGetError();
@@ -155,7 +155,7 @@ GLFWmonitor* GetMonitorForWindow(GLFWwindow* window) {
 	return bestMonitor;
 }
 
-Renderer::Renderer() {
+Editor::Editor() {
 	g_app = this;
 	programStartTime = glfwGetTime();
 	g_settings.loadDefault();
@@ -220,7 +220,7 @@ Renderer::Renderer() {
 	loadSettings();
 
 	reloading = true;
-	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+	fgdFuture = async(launch::async, &Editor::loadFgds, this);
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
 	memset(&initialLumpState, 0, sizeof(LumpState));
@@ -231,7 +231,7 @@ Renderer::Renderer() {
 	//cameraAngles = vec3(0, 0, 0);
 }
 
-bool Renderer::createWindow() {
+bool Editor::createWindow() {
 	if (!glfwInit())
 	{
 		logf("GLFW initialization failed\n");
@@ -316,7 +316,7 @@ bool Renderer::createWindow() {
 	return true;
 }
 
-void Renderer::compileShaders() {
+void Editor::compileShaders() {
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
 
 	const char* bspFragShader = bsp_legacy_frag_glsl;
@@ -421,11 +421,11 @@ void Renderer::compileShaders() {
 	glCheckError("compiling shaders");
 }
 
-Renderer::~Renderer() {
+Editor::~Editor() {
 	glfwTerminate();
 }
 
-void Renderer::renderLoop() {
+void Editor::renderLoop() {
 	glCheckError("entering renderloop");
 
 	glEnable(GL_DEPTH_TEST);
@@ -826,7 +826,7 @@ void Renderer::renderLoop() {
 	glfwTerminate();
 }
 
-void Renderer::renderNavMesh() {
+void Editor::renderNavMesh() {
 	const bool navmeshwipcode = false;
 	if (!navmeshwipcode)
 		return;
@@ -1187,7 +1187,7 @@ void Renderer::renderNavMesh() {
 	glCheckError("Rendering nav mesh");
 }
 
-void Renderer::renderLeafGraph(LeafNavMesh* mesh) {
+void Editor::renderLeafGraph(LeafNavMesh* mesh) {
 	if (isLoading || !mesh)
 		return;
 
@@ -1248,7 +1248,7 @@ void Renderer::renderLeafGraph(LeafNavMesh* mesh) {
 	}
 }
 
-void Renderer::renderArrangeMaps() {
+void Editor::renderArrangeMaps() {
 	struct RenderMap {
 		BspRenderer* renderer;
 		Entity* controlEnt;
@@ -1326,7 +1326,7 @@ void Renderer::renderArrangeMaps() {
 	}
 }
 
-void Renderer::postLoadFgds()
+void Editor::postLoadFgds()
 {
 	delete pointEntRenderer;
 	delete mergedFgd;
@@ -1358,16 +1358,16 @@ void Renderer::postLoadFgds()
 	updateEntDirectionVectors();
 }
 
-void Renderer::postLoadFgdsAndTextures() {
+void Editor::postLoadFgdsAndTextures() {
 	if (reloading) {
 		logf("Previous reload not finished. Aborting reload.");
 		return;
 	}
 	reloading = reloadingGameDir = true;
-	fgdFuture = async(launch::async, &Renderer::loadFgds, this);
+	fgdFuture = async(launch::async, &Editor::loadFgds, this);
 }
 
-void Renderer::clearMapData() {
+void Editor::clearMapData() {
 	clearUndoCommands();
 	clearRedoCommands();
 	mapArrangeMode = false;
@@ -1422,7 +1422,7 @@ void Renderer::clearMapData() {
 	forceAngleRotation = false; // can cause confusion opening a new map
 }
 
-void Renderer::reloadMaps() {
+void Editor::reloadMaps() {
 	if (!g_app->confirmMapExit()) {
 		return;
 	}
@@ -1437,13 +1437,13 @@ void Renderer::reloadMaps() {
 	logf("Reloaded maps\n");
 }
 
-void Renderer::updateWindowTitle() {
+void Editor::updateWindowTitle() {
 	string map = mapRenderer->map->path;
 	string title = map.empty() ? "bspguy" : getAbsolutePath(map) + " - bspguy";
 	glfwSetWindowTitle(window, title.c_str());
 }
 
-void Renderer::openMap(const char* fpath) {
+void Editor::openMap(const char* fpath) {
 	if (!g_app->confirmMapExit()) {
 		return;
 	}
@@ -1478,7 +1478,7 @@ void Renderer::openMap(const char* fpath) {
 	openMap(map);
 }
 
-void Renderer::openMap(Bsp* map) {
+void Editor::openMap(Bsp* map) {
 	for (BspRenderer* render : arrangeBsps) {
 		if (render->map == map) {
 			render->map = NULL; // don't delete the map about to be opened;
@@ -1494,7 +1494,7 @@ void Renderer::openMap(Bsp* map) {
 	logf("Loaded map: %s\n", map->path.c_str());
 }
 
-void Renderer::saveSettings() {
+void Editor::saveSettings() {
 	g_settings.debug_open = gui->widgets[WIDGET_DEBUG]->widgetVisible;
 	g_settings.keyvalue_open = gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible;
 	g_settings.transform_open = gui->widgets[WIDGET_TRANSFORM]->widgetVisible;
@@ -1514,7 +1514,7 @@ void Renderer::saveSettings() {
 	g_settings.rotSpeed = rotationSpeed;
 }
 
-void Renderer::loadSettings() {
+void Editor::loadSettings() {
 	gui->widgets[WIDGET_DEBUG]->widgetVisible = g_settings.debug_open;
 	gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = g_settings.keyvalue_open;
 	gui->widgets[WIDGET_TRANSFORM]->widgetVisible = g_settings.transform_open;
@@ -1544,7 +1544,7 @@ void Renderer::loadSettings() {
 	glfwSwapInterval(gui->vsync ? 1 : 0);
 }
 
-void Renderer::loadFgds() {
+void Editor::loadFgds() {
 	Fgd* mergedFgd = NULL;
 
 	vector<Fgd*> fgds;
@@ -1584,7 +1584,7 @@ void Renderer::loadFgds() {
 	swapPointEntRenderer = new PointEntRenderer(mergedFgd, fgds, colorShader);
 }
 
-void Renderer::drawModelVerts() {
+void Editor::drawModelVerts() {
 	if (modelVertBuff == NULL || modelVerts.size() == 0)
 		return;
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -1658,7 +1658,7 @@ void Renderer::drawModelVerts() {
 	modelVertBuff->draw(GL_TRIANGLES);
 }
 
-void Renderer::drawModelOrigin() {
+void Editor::drawModelOrigin() {
 	if (modelOriginBuff == NULL)
 		return;
 
@@ -1698,7 +1698,7 @@ void Renderer::drawModelOrigin() {
 	modelOriginBuff->draw(GL_TRIANGLES);
 }
 
-void Renderer::drawTransformAxes() {
+void Editor::drawTransformAxes() {
 	if (!canTransform) {
 		return;
 	}
@@ -1733,7 +1733,7 @@ void Renderer::drawTransformAxes() {
 	}
 }
 
-void Renderer::drawEntConnections() {
+void Editor::drawEntConnections() {
 	if (entConnections && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
 		model.loadIdentity();
 		model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
@@ -1742,7 +1742,7 @@ void Renderer::drawEntConnections() {
 	}
 }
 
-void Renderer::updateEntDirectionVectors() {
+void Editor::updateEntDirectionVectors() {
 	if (entDirectionVectors) {
 		delete entDirectionVectors;
 		entDirectionVectors = NULL;
@@ -1809,7 +1809,7 @@ void Renderer::updateEntDirectionVectors() {
 	entDirectionVectors->upload();
 }
 
-void Renderer::drawEntDirectionVectors() {
+void Editor::drawEntDirectionVectors() {
 	if (!entDirectionVectors) {
 		return;
 	}
@@ -1829,7 +1829,7 @@ void Renderer::drawEntDirectionVectors() {
 	glCullFace(GL_BACK);
 }
 
-void Renderer::updateTextureAxes() {
+void Editor::updateTextureAxes() {
 	if (allTextureAxes) {
 		delete allTextureAxes;
 		allTextureAxes = NULL;
@@ -1896,7 +1896,7 @@ void Renderer::updateTextureAxes() {
 	allTextureAxes->ownData = true;
 }
 
-void Renderer::drawTextureAxes() {
+void Editor::drawTextureAxes() {
 	if (!allTextureAxes) {
 		return;
 	}
@@ -1914,7 +1914,7 @@ void Renderer::drawTextureAxes() {
 	glEnable(GL_DEPTH_TEST);
 }
 
-void Renderer::controls() {
+void Editor::controls() {
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
 	anyCtrlPressed = pressed[GLFW_KEY_LEFT_CONTROL] || pressed[GLFW_KEY_RIGHT_CONTROL];
@@ -1979,7 +1979,7 @@ void Renderer::controls() {
 	oldScroll = g_scroll;
 }
 
-void Renderer::vertexEditControls() {
+void Editor::vertexEditControls() {
 	canTransform = true;
 	if (transformTarget == TRANSFORM_VERTEX) {
 		canTransform = false;
@@ -2038,7 +2038,7 @@ void Renderer::vertexEditControls() {
 	}
 }
 
-void Renderer::cameraPickingControls() {
+void Editor::cameraPickingControls() {
 	static bool transforming;
 	static bool clickedInViewport; // fix select from mouse press in imgui then release in viewport
 
@@ -2145,7 +2145,7 @@ void Renderer::cameraPickingControls() {
 	}
 }
 
-void Renderer::applyTransform(bool forceUpdate) {
+void Editor::applyTransform(bool forceUpdate) {
 	if (!isTransformableSolid || modelUsesSharedStructures) {
 		return;
 	}
@@ -2227,7 +2227,7 @@ void Renderer::applyTransform(bool forceUpdate) {
 	}
 }
 
-void Renderer::cameraRotationControls(vec2 mousePos) {
+void Editor::cameraRotationControls(vec2 mousePos) {
 	static double lastTime = 0;
 	double now = glfwGetTime();
 	double deltaTime = now - lastTime;
@@ -2292,7 +2292,7 @@ void Renderer::cameraRotationControls(vec2 mousePos) {
 	}
 }
 
-void Renderer::cameraObjectHovering() {
+void Editor::cameraObjectHovering() {
 	originHovered = false;
 
 	if (modelUsesSharedStructures && (transformTarget != TRANSFORM_OBJECT || transformMode != TRANSFORM_MOVE))
@@ -2388,7 +2388,7 @@ void Renderer::cameraObjectHovering() {
 	}
 }
 
-void Renderer::cameraContextMenus() {
+void Editor::cameraContextMenus() {
 	// context menus
 	bool wasTurning = cameraIsRotating && totalMouseDrag.length() >= 1;
 	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE && oldRightMouse != GLFW_RELEASE && !wasTurning) {
@@ -2408,7 +2408,7 @@ void Renderer::cameraContextMenus() {
 	}
 }
 
-void Renderer::moveGrabbedEnts() {
+void Editor::moveGrabbedEnts() {
 	// grabbing
 	if (movingEnt && pickInfo.getEntIndex() > 0) {
 		if (g_scroll != oldScroll) {
@@ -2444,7 +2444,7 @@ void Renderer::moveGrabbedEnts() {
 	}
 }
 
-void Renderer::shortcutControls() {
+void Editor::shortcutControls() {
 	ImGuiIO& io = ImGui::GetIO();
 
 	if (pickMode == PICK_OBJECT) {
@@ -2519,7 +2519,7 @@ void Renderer::shortcutControls() {
 	}
 }
 
-void Renderer::globalShortcutControls() {
+void Editor::globalShortcutControls() {
 	if (anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		undo();
 	}
@@ -2542,7 +2542,7 @@ void Renderer::globalShortcutControls() {
 	}
 }
 
-void Renderer::pickObject(bool boxSelect) {
+void Editor::pickObject(bool boxSelect) {
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
@@ -2746,7 +2746,7 @@ void Renderer::pickObject(bool boxSelect) {
 	updateEntConnections();
 }
 
-bool Renderer::transformAxisControls() {
+bool Editor::transformAxisControls() {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 
@@ -2843,7 +2843,7 @@ bool Renderer::transformAxisControls() {
 	return false;
 }
 
-vec3 Renderer::getMoveDir()
+vec3 Editor::getMoveDir()
 {
 	mat4x4 rotMat;
 	rotMat.loadIdentity();
@@ -2883,13 +2883,13 @@ vec3 Renderer::getMoveDir()
 	return wishdir;
 }
 
-void Renderer::getPickRay(vec3& start, vec3& pickDir) {
+void Editor::getPickRay(vec3& start, vec3& pickDir) {
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
 	return getPickRay(vec2(xpos, ypos), start, pickDir);
 }
 
-void Renderer::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
+void Editor::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
 	// invert ypos
 	mousePos.y = windowHeight - mousePos.y;
 
@@ -2920,7 +2920,7 @@ void Renderer::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
 	pickDir = (start - cameraOrigin).normalize(1.0f);
 }
 
-Frustum Renderer::getPickFrustum() {
+Frustum Editor::getPickFrustum() {
 	vec3 rayOrigin[4];
 	vec3 rayDir[4];
 
@@ -2949,7 +2949,7 @@ Frustum Renderer::getPickFrustum() {
 	return f;
 }
 
-void Renderer::setupView() {
+void Editor::setupView() {
 	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 	glViewport(0, 0, windowWidth, windowHeight);
@@ -2963,7 +2963,7 @@ void Renderer::setupView() {
 	view.translate(-cameraOrigin.x, -cameraOrigin.z, cameraOrigin.y);
 }
 
-void Renderer::addMap(Bsp* map) {
+void Editor::addMap(Bsp* map) {
 	g_settings.addRecentFile(map->path);
 	g_settings.save(); // in case the program crashes
 	
@@ -3009,7 +3009,7 @@ void Renderer::addMap(Bsp* map) {
 	glCheckError("add map");
 }
 
-void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
+void Editor::drawLine(vec3 start, vec3 end, COLOR4 color) {
 	cVert verts[2];
 
 	verts[0].x = start.x;
@@ -3027,7 +3027,7 @@ void Renderer::drawLine(vec3 start, vec3 end, COLOR4 color) {
 	buffer.draw(GL_LINES);
 }
 
-void Renderer::drawArrow(vec3 start, vec3 end, COLOR4 color) {
+void Editor::drawArrow(vec3 start, vec3 end, COLOR4 color) {
 	struct cArrow {
 		cCube shaft; // minor todo: one face can be omitted. make a new struct
 		cPyramid tip;
@@ -3056,7 +3056,7 @@ void Renderer::drawArrow(vec3 start, vec3 end, COLOR4 color) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawLine2D(vec2 start, vec2 end, COLOR4 color) {
+void Editor::drawLine2D(vec2 start, vec2 end, COLOR4 color) {
 	cVert verts[2];
 
 	verts[0].x = start.x;
@@ -3074,7 +3074,7 @@ void Renderer::drawLine2D(vec2 start, vec2 end, COLOR4 color) {
 	buffer.draw(GL_LINES);
 }
 
-void Renderer::drawBox(vec3 center, float width, COLOR4 color) {
+void Editor::drawBox(vec3 center, float width, COLOR4 color) {
 	width *= 0.5f;
 	vec3 sz = vec3(width, width, width);
 	vec3 pos = vec3(center.x, center.z, -center.y);
@@ -3085,7 +3085,7 @@ void Renderer::drawBox(vec3 center, float width, COLOR4 color) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawBoxOutline(vec3 center, float width, COLOR4 color) {
+void Editor::drawBoxOutline(vec3 center, float width, COLOR4 color) {
 	width *= 0.5f;
 	vec3 sz = vec3(width, width, width);
 	vec3 pos = vec3(center.x, center.z, -center.y);
@@ -3123,7 +3123,7 @@ void Renderer::drawBoxOutline(vec3 center, float width, COLOR4 color) {
 	buffer.draw(GL_LINES);
 }
 
-void Renderer::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
+void Editor::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
 	mins = vec3(mins.x, mins.z, -mins.y);
 	maxs = vec3(maxs.x, maxs.z, -maxs.y);
 
@@ -3134,7 +3134,7 @@ void Renderer::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
+void Editor::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
 	colorShader->bind();
 	model.loadIdentity();
 	colorShader->updateMatrixes();
@@ -3155,7 +3155,7 @@ void Renderer::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
 	buffer.draw(GL_TRIANGLE_FAN);
 }
 
-void Renderer::drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color) {
+void Editor::drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color) {
 	for (int i = 0; i < poly.size(); i++) {
 		vec2 v1 = poly[i];
 		vec2 v2 = poly[(i + 1) % poly.size()];
@@ -3166,7 +3166,7 @@ void Renderer::drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 c
 	}
 }
 
-void Renderer::drawBox2D(vec2 center, float width, COLOR4 color) {
+void Editor::drawBox2D(vec2 center, float width, COLOR4 color) {
 	vec2 pos = vec2(center.x, center.y) - vec2(width*0.5f, width *0.5f);
 	cQuad cube(pos.x, pos.y, width, width, color);
 
@@ -3175,14 +3175,14 @@ void Renderer::drawBox2D(vec2 center, float width, COLOR4 color) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawRect2D(vec2 pos, vec2 size, COLOR4 color) {
+void Editor::drawRect2D(vec2 pos, vec2 size, COLOR4 color) {
 	cQuad cube(pos.x, pos.y, size.x, size.y, color);
 	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
 	buffer.upload();
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
+void Editor::drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
 
 	vec3 ori = plane.vNormal * plane.fDist;
 	vec3 crossDir = fabs(plane.vNormal.z) > 0.9f ? vec3(1, 0, 0) : vec3(0, 0, 1);
@@ -3205,7 +3205,7 @@ void Renderer::drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
 	buffer.draw(GL_TRIANGLES);
 }
 
-void Renderer::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
+void Editor::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
 	if (iNode == -1)
 		return;
 	BSPCLIPNODE& node = map->clipnodes[iNode];
@@ -3221,7 +3221,7 @@ void Renderer::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activeP
 	}
 }
 
-void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
+void Editor::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
 	if (iNode == -1)
 		return;
 	BSPNODE& node = map->nodes[iNode];
@@ -3237,7 +3237,7 @@ void Renderer::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane
 	}
 }
 
-BaseRenderer* Renderer::loadModel(Entity* ent) {
+BaseRenderer* Editor::loadModel(Entity* ent) {
 	if (ent->hasCachedMdl) {
 		return ent->cachedMdl;
 	}
@@ -3349,7 +3349,7 @@ BaseRenderer* Renderer::loadModel(Entity* ent) {
 	return mdl->second;
 }
 
-bool Renderer::drawModelsAndSprites() {
+bool Editor::drawModelsAndSprites() {
 	if (!(g_settings.render_flags & RENDER_POINT_ENTS))
 		return false;
 
@@ -3617,7 +3617,7 @@ bool Renderer::drawModelsAndSprites() {
 	return modelsLoading;
 }
 
-void Renderer::addNameTags() {
+void Editor::addNameTags() {
 	if (!(g_settings.render_flags & RENDER_NAME_TAGS))
 		return;
 
@@ -3704,11 +3704,11 @@ void Renderer::addNameTags() {
 	}
 }
 
-vec3 Renderer::getEntOrigin(Bsp* map, Entity* ent) {
+vec3 Editor::getEntOrigin(Bsp* map, Entity* ent) {
 	return ent->getOrigin() + getEntOffset(map, ent);
 }
 
-vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
+vec3 Editor::getEntOffset(Bsp* map, Entity* ent) {
 	int modelIdx = ent->getBspModelIdx();
 	if (modelIdx > 0 && modelIdx < map->modelCount) {
 		BSPMODEL& model = map->models[modelIdx];
@@ -3723,7 +3723,7 @@ vec3 Renderer::getEntOffset(Bsp* map, Entity* ent) {
 	return vec3(0, 0, 0);
 }
 
-void Renderer::updateDragAxes() {
+void Editor::updateDragAxes() {
 	Bsp* map = NULL;
 	Entity* ent = NULL;
 	vec3 mapOffset;
@@ -3898,7 +3898,7 @@ void Renderer::updateDragAxes() {
 	activeAxes.origin += mapOffset;
 }
 
-vec3 Renderer::getAxisDragPoint(vec3 origin) {
+vec3 Editor::getAxisDragPoint(vec3 origin) {
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
@@ -3935,7 +3935,7 @@ vec3 Renderer::getAxisDragPoint(vec3 origin) {
 	return pickStart + pickDir * intersectDist;
 }
 
-void Renderer::updateModelVerts() {
+void Editor::updateModelVerts() {
 
 	if (modelVertBuff) {
 		delete modelVertBuff;
@@ -4003,7 +4003,7 @@ void Renderer::updateModelVerts() {
 	//logf("%d intersection points\n", modelVerts.size());
 }
 
-void Renderer::updateSelectionSize() {
+void Editor::updateSelectionSize() {
 	selectionSize = vec3();
 
 	if (!pickInfo.getEnt() || !pickInfo.getMap()) {
@@ -4051,7 +4051,7 @@ void Renderer::updateSelectionSize() {
 	}
 }
 
-void Renderer::updateEntConnections() {
+void Editor::updateEntConnections() {
 	// todo: these shouldn't be here
 	updateCullBox();
 	updateEntDirectionVectors();
@@ -4150,7 +4150,7 @@ void Renderer::updateEntConnections() {
 	}
 }
 
-void Renderer::updateEntConnectionPositions() {
+void Editor::updateEntConnectionPositions() {
 	// todo: these shouldn't be here
 	updateCullBox();
 	updateEntDirectionVectors();
@@ -4187,7 +4187,7 @@ void Renderer::updateEntConnectionPositions() {
 	entConnectionPoints->upload();
 }
 
-void Renderer::updateCullBox() {
+void Editor::updateCullBox() {
 	if (!mapRenderer) {
 		hasCullbox = false;
 		return;
@@ -4209,7 +4209,7 @@ void Renderer::updateCullBox() {
 	hasCullbox = findCount > 1;
 }
 
-bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
+bool Editor::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid) {
 	outSolid.faces.clear();
 	outSolid.hullEdges.clear();
 	outSolid.hullVerts.clear();
@@ -4302,7 +4302,7 @@ bool Renderer::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& 
 	return true;
 }
 
-void Renderer::scaleSelectedObject(float x, float y, float z) {
+void Editor::scaleSelectedObject(float x, float y, float z) {
 	vec3 minDist;
 	vec3 maxDist;
 
@@ -4327,7 +4327,7 @@ void Renderer::scaleSelectedObject(float x, float y, float z) {
 	scaleSelectedObject(dir, vec3());
 }
 
-void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
+void Editor::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	if (!pickInfo.getEnt() || pickInfo.getModelIndex() <= 0)
 		return;
 
@@ -4474,7 +4474,7 @@ void Renderer::scaleSelectedObject(vec3 dir, vec3 fromDir) {
 	}
 }
 
-void Renderer::moveSelectedVerts(vec3 delta) {
+void Editor::moveSelectedVerts(vec3 delta) {
 	for (int i = 0; i < modelVerts.size(); i++) {
 		if (modelVerts[i].selected) {
 			modelVerts[i].pos = modelVerts[i].startPos + delta;
@@ -4489,7 +4489,7 @@ void Renderer::moveSelectedVerts(vec3 delta) {
 	mapRenderer->refreshModel(pickInfo.getModelIndex());
 }
 
-void Renderer::splitFace() {
+void Editor::splitFace() {
 	Bsp* map = pickInfo.getMap();
 
 	// find the pseudo-edge to split with
@@ -4676,7 +4676,7 @@ void Renderer::splitFace() {
 	gui->reloadLimits();
 }
 
-void Renderer::scaleSelectedVerts(float x, float y, float z) {
+void Editor::scaleSelectedVerts(float x, float y, float z) {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 	vec3 fromOrigin = activeAxes.origin;
@@ -4718,13 +4718,13 @@ void Renderer::scaleSelectedVerts(float x, float y, float z) {
 	updateSelectionSize();
 }
 
-vec3 Renderer::getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& edge) {
+vec3 Editor::getEdgeControlPoint(vector<TransformVert>& hullVerts, HullEdge& edge) {
 	vec3 v0 = hullVerts[edge.verts[0]].pos;
 	vec3 v1 = hullVerts[edge.verts[1]].pos;
 	return v0 + (v1 - v0) * 0.5f;
 }
 
-vec3 Renderer::getCentroid(vector<TransformVert>& hullVerts) {
+vec3 Editor::getCentroid(vector<TransformVert>& hullVerts) {
 	vec3 centroid;
 	for (int i = 0; i < hullVerts.size(); i++) {
 		centroid += hullVerts[i].pos;
@@ -4732,7 +4732,7 @@ vec3 Renderer::getCentroid(vector<TransformVert>& hullVerts) {
 	return centroid / (float)hullVerts.size();
 }
 
-vec3 Renderer::snapToGrid(vec3 pos) {
+vec3 Editor::snapToGrid(vec3 pos) {
 	float snapSize = pow(2.0, gridSnapLevel);
 	float halfSnap = snapSize * 0.5f;
 	
@@ -4743,7 +4743,7 @@ vec3 Renderer::snapToGrid(vec3 pos) {
 	return vec3(x, y, z);
 }
 
-void Renderer::hideSelectedLeaves() {
+void Editor::hideSelectedLeaves() {
 	for (int idx : pickInfo.leaves) {
 		hiddenLeaves.insert(idx);
 	}
@@ -4755,7 +4755,7 @@ void Renderer::hideSelectedLeaves() {
 	mapRenderer->hideLeaves(true);
 }
 
-void Renderer::unhideLeaves() {
+void Editor::unhideLeaves() {
 	hiddenLeaves.clear();
 	mapRenderer->hideLeaves(false);
 	mapRenderer->highlightPickedFaces(false);
@@ -4763,7 +4763,7 @@ void Renderer::unhideLeaves() {
 	pickInfo.deselect();
 }
 
-void Renderer::hideSelectedFaces() {
+void Editor::hideSelectedFaces() {
 	for (int idx : pickInfo.faces) {
 		hiddenFaces.insert(idx);
 	}
@@ -4776,7 +4776,7 @@ void Renderer::hideSelectedFaces() {
 	mapRenderer->hideLeaves(true);
 }
 
-void Renderer::unhideFaces() {
+void Editor::unhideFaces() {
 	mapRenderer->hideFaces(false);
 	hiddenFaces.clear();
 	mapRenderer->highlightPickedFaces(false);
@@ -4784,7 +4784,7 @@ void Renderer::unhideFaces() {
 	updateTextureAxes();
 }
 
-void Renderer::grabEnts() {
+void Editor::grabEnts() {
 	if (pickInfo.getEntIndex() <= 0)
 		return;
 	movingEnt = true;
@@ -4806,7 +4806,7 @@ void Renderer::grabEnts() {
 	grabStartOrigin = centroid;
 }
 
-void Renderer::unhideSelectedEnts() {
+void Editor::unhideSelectedEnts() {
 	vector<Entity*> ents = pickInfo.getEnts();
 
 	if (ents.empty())
@@ -4828,7 +4828,7 @@ void Renderer::unhideSelectedEnts() {
 	mapRenderer->preRenderEnts();
 }
 
-void Renderer::hideSelectedEnts() {
+void Editor::hideSelectedEnts() {
 	vector<Entity*> ents = pickInfo.getEnts();
 	
 	if (ents.empty() || mapArrangeMode)
@@ -4843,7 +4843,7 @@ void Renderer::hideSelectedEnts() {
 	mapRenderer->preRenderEnts();
 }
 
-void Renderer::unhideEnts() {
+void Editor::unhideEnts() {
 	vector<Entity*> ents = pickInfo.getEnts();
 	Bsp* map = mapRenderer->map;
 
@@ -4860,7 +4860,7 @@ void Renderer::unhideEnts() {
 	logf("Unhid %d entities\n", numHidden);
 }
 
-void Renderer::cutEnts() {
+void Editor::cutEnts() {
 	if (pickInfo.getEntIndex() <= 0 || mapArrangeMode)
 		return;
 
@@ -4884,7 +4884,7 @@ void Renderer::cutEnts() {
 	ImGui::SetClipboardText(serialized.c_str());
 }
 
-void Renderer::copyEnts(bool stringifyBspModels) {
+void Editor::copyEnts(bool stringifyBspModels) {
 	if (pickInfo.getEntIndex() <= 0 || mapArrangeMode)
 		return;
 
@@ -4901,7 +4901,7 @@ void Renderer::copyEnts(bool stringifyBspModels) {
 	ImGui::SetClipboardText(serialized.c_str());
 }
 
-bool Renderer::canPasteEnts() {
+bool Editor::canPasteEnts() {
 	const char* clipBoardText = ImGui::GetClipboardText();
 	if (!clipBoardText) {
 		return false;
@@ -4911,7 +4911,7 @@ bool Renderer::canPasteEnts() {
 	return !createCommand.parse().empty();
 }
 
-void Renderer::pasteEnts(bool noModifyOrigin) {
+void Editor::pasteEnts(bool noModifyOrigin) {
 	if (mapArrangeMode)
 		return;
 
@@ -4974,7 +4974,7 @@ void Renderer::pasteEnts(bool noModifyOrigin) {
 	postSelectEnt();
 }
 
-void Renderer::pasteEntsFromText(string text, bool noModifyOrigin) {
+void Editor::pasteEntsFromText(string text, bool noModifyOrigin) {
 	if (mapArrangeMode)
 		return;
 	Bsp* map = pickInfo.getMap() ? pickInfo.getMap() : mapRenderer->map;
@@ -5020,7 +5020,7 @@ void Renderer::pasteEntsFromText(string text, bool noModifyOrigin) {
 	postSelectEnt();
 }
 
-void Renderer::deleteEnts() {
+void Editor::deleteEnts() {
 	if (pickInfo.getEntIndex() <= 0 || mapArrangeMode)
 		return;
 
@@ -5029,7 +5029,7 @@ void Renderer::deleteEnts() {
 	pushUndoCommand(deleteCommand);
 }
 
-void Renderer::deselectObject() {
+void Editor::deselectObject() {
 	if (pickInfo.getEnt() && pickInfo.getEnt()->isBspModel())
 		saveLumpState(pickInfo.getMap(), 0xffffffff, true);
 
@@ -5050,26 +5050,26 @@ void Renderer::deselectObject() {
 	updateEntConnections();
 }
 
-void Renderer::deselectFaces() {
+void Editor::deselectFaces() {
 	mapRenderer->highlightPickedFaces(false);
 	pickInfo.deselect();
 }
 
-void Renderer::postSelectEnt() {
+void Editor::postSelectEnt() {
 	updateSelectionSize();
 	updateEntConnections();
 	updateEntityUndoState();
 	pickCount++; // force transform window update
 }
 
-void Renderer::goToCoords(float x, float y, float z)
+void Editor::goToCoords(float x, float y, float z)
 {
 	cameraOrigin.x = x;
 	cameraOrigin.y = y;
 	cameraOrigin.z = z;
 }
 
-void Renderer::goToEnt(Bsp* map, int entIdx) {
+void Editor::goToEnt(Bsp* map, int entIdx) {
 	Entity* ent = map->ents[entIdx];
 
 	vec3 size;
@@ -5085,7 +5085,7 @@ void Renderer::goToEnt(Bsp* map, int entIdx) {
 	cameraOrigin = getEntOrigin(map, ent) - cameraForward * (size.length() + 64.0f);
 }
 
-void Renderer::goToFace(Bsp* map, int faceIdx) {
+void Editor::goToFace(Bsp* map, int faceIdx) {
 
 	int modelIdx = 0;
 	for (int i = 0; i < map->modelCount; i++) {
@@ -5122,7 +5122,7 @@ void Renderer::goToFace(Bsp* map, int faceIdx) {
 }
 
 
-void Renderer::ungrabEnts() {
+void Editor::ungrabEnts() {
 	if (!movingEnt) {
 		return;
 	}
@@ -5134,7 +5134,7 @@ void Renderer::ungrabEnts() {
 	pickCount++; // force transform window to recalc offsets
 }
 
-void Renderer::updateEntityUndoState() {
+void Editor::updateEntityUndoState() {
 	//logf("Update entity undo state\n");
 	for (int i = 0; i < undoEntityState.size(); i++)
 		delete undoEntityState[i].ent;
@@ -5154,7 +5154,7 @@ void Renderer::updateEntityUndoState() {
 		undoEntOrigin = pickInfo.getEnt()->getOrigin();
 }
 
-void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
+void Editor::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 	if (deleteOldState) {
 		for (int i = 0; i < HEADER_LUMPS; i++) {
 			if (undoLumpState.lumps[i])
@@ -5165,7 +5165,7 @@ void Renderer::saveLumpState(Bsp* map, int targetLumps, bool deleteOldState) {
 	undoLumpState = map->duplicate_lumps(targetLumps);
 }
 
-void Renderer::updateEntityLumpUndoState(Bsp* map) {
+void Editor::updateEntityLumpUndoState(Bsp* map) {
 	if (undoLumpState.lumps[LUMP_ENTITIES])
 		delete[] undoLumpState.lumps[LUMP_ENTITIES];
 
@@ -5174,7 +5174,7 @@ void Renderer::updateEntityLumpUndoState(Bsp* map) {
 	undoLumpState.lumpLen[LUMP_ENTITIES] = dupLump.lumpLen[LUMP_ENTITIES];
 }
 
-bool Renderer::canPushEntityUndoState() {
+bool Editor::canPushEntityUndoState() {
 	if (!undoEntityState.size()) {
 		return false;
 	}
@@ -5214,7 +5214,7 @@ bool Renderer::canPushEntityUndoState() {
 	return false;
 }
 
-void Renderer::pushEntityUndoState(string actionDesc) {
+void Editor::pushEntityUndoState(string actionDesc) {
 	if (!canPushEntityUndoState()) {
 		//logf("nothint to undo\n");
 		return; // nothing to undo
@@ -5230,7 +5230,7 @@ void Renderer::pushEntityUndoState(string actionDesc) {
 	updateEntityUndoState();
 }
 
-void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
+void Editor::pushModelUndoState(string actionDesc, int targetLumps) {
 	if (!pickInfo.getEnt() || pickInfo.getModelIndex() <= 0) {
 		return;
 	}
@@ -5272,7 +5272,7 @@ void Renderer::pushModelUndoState(string actionDesc, int targetLumps) {
 	updateEntityUndoState();
 }
 
-void Renderer::pushUndoCommand(Command* cmd) {
+void Editor::pushUndoCommand(Command* cmd) {
 	undoHistory.push_back(cmd);
 	clearRedoCommands();
 
@@ -5284,7 +5284,7 @@ void Renderer::pushUndoCommand(Command* cmd) {
 	calcUndoMemoryUsage();
 }
 
-void Renderer::undo() {
+void Editor::undo() {
 	if (undoHistory.empty()) {
 		return;
 	}
@@ -5300,7 +5300,7 @@ void Renderer::undo() {
 	redoHistory.push_back(undoCommand);
 }
 
-void Renderer::redo() {
+void Editor::redo() {
 	if (redoHistory.empty()) {
 		return;
 	}
@@ -5316,7 +5316,7 @@ void Renderer::redo() {
 	undoHistory.push_back(redoCommand);
 }
 
-void Renderer::clearUndoCommands() {
+void Editor::clearUndoCommands() {
 	for (int i = 0; i < undoHistory.size(); i++) {
 		delete undoHistory[i];
 		undoHistory[i] = NULL;
@@ -5326,7 +5326,7 @@ void Renderer::clearUndoCommands() {
 	calcUndoMemoryUsage();
 }
 
-void Renderer::clearRedoCommands() {
+void Editor::clearRedoCommands() {
 	for (int i = 0; i < redoHistory.size(); i++) {
 		delete redoHistory[i];
 		redoHistory[i] = NULL;
@@ -5336,7 +5336,7 @@ void Renderer::clearRedoCommands() {
 	calcUndoMemoryUsage();
 }
 
-void Renderer::calcUndoMemoryUsage() {
+void Editor::calcUndoMemoryUsage() {
 	undoMemoryUsage = (undoHistory.size() + redoHistory.size()) * sizeof(Command*);
 
 	for (int i = 0; i < undoHistory.size(); i++) {
@@ -5347,7 +5347,7 @@ void Renderer::calcUndoMemoryUsage() {
 	}
 }
 
-void Renderer::merge(string fpath) {
+void Editor::merge(string fpath) {
 	// don't save world offset from GUI in the undo state
 	vec3 worldOrigin = mapRenderer->map->ents[0]->getOrigin();
 	mapRenderer->map->ents[0]->setOrAddKeyvalue("origin", "0 0 0");
@@ -5409,7 +5409,7 @@ void Renderer::merge(string fpath) {
 	command->pushUndoState();
 }
 
-void Renderer::mergeMultiple(vector<string> fpaths, bool optimizeMerge, bool forceNohull2, int ripentmode) {
+void Editor::mergeMultiple(vector<string> fpaths, bool optimizeMerge, bool forceNohull2, int ripentmode) {
 	openMapAfterMergeCancel = mapRenderer->map->path;
 	mergeOptimize = optimizeMerge;
 	mergeNohull2 = forceNohull2;
@@ -5456,19 +5456,19 @@ void Renderer::mergeMultiple(vector<string> fpaths, bool optimizeMerge, bool for
 
 }
 
-void Renderer::getWindowSize(int& width, int& height) {
+void Editor::getWindowSize(int& width, int& height) {
 	glfwGetWindowSize(window, &width, &height);
 }
 
-void Renderer::handleResize(int width, int height) {
+void Editor::handleResize(int width, int height) {
 	gui->windowResized(width, height);
 }
 
-bool Renderer::entityHasFgd(string cname) {
+bool Editor::entityHasFgd(string cname) {
 	return mergedFgd ? mergedFgd->getFgdClass(cname) != NULL : false;
 }
 
-bool Renderer::confirmMapExit() {
+bool Editor::confirmMapExit() {
 	if (emptyMapLoaded || mapArrangeMode)
 		return true;
 
@@ -5522,7 +5522,7 @@ bool Renderer::confirmMapExit() {
 	return true;
 }
 
-void Renderer::setInitialLumpState() {
+void Editor::setInitialLumpState() {
 	Bsp* map = mapRenderer->map;
 
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -5537,7 +5537,7 @@ void Renderer::setInitialLumpState() {
 	saveLumpState(map, 0xffffffff, false);
 }
 
-vec3 Renderer::worldToScreen(const vec3& P) {
+vec3 Editor::worldToScreen(const vec3& P) {
 	vec3 forward, right, up;
 	vec3 angles = vec3(cameraAngles.x, -(cameraAngles.z - 90), cameraAngles.y);
 
@@ -5561,7 +5561,7 @@ vec3 Renderer::worldToScreen(const vec3& P) {
 	return { screenX, screenY, z };
 }
 
-Frustum Renderer::getCameraFrustum() {
+Frustum Editor::getCameraFrustum() {
 	float aspect = (float)windowWidth / (float)windowHeight;
 	return getViewFrustum(cameraOrigin - mapRenderer->mapOffset, cameraAngles, aspect, zNear, zFar, fov);
 }

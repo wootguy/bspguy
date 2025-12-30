@@ -3,7 +3,7 @@
 #include "primitives.h"
 #include "rad.h"
 #include "lodepng.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "Clipper.h"
 #include "Polygon3D.h"
 #include "NavMeshGenerator.h"

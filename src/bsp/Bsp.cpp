@@ -15,7 +15,7 @@
 #include <float.h>
 #include "Wad.h"
 #include <unordered_set>
-#include "Renderer.h"
+#include "Editor.h"
 #include "icons/aaatrigger.h"
 #include "mstream.h"
 #include "Fgd.h"

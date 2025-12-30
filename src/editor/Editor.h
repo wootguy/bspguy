@@ -55,9 +55,9 @@ struct EntConnection {
 	COLOR4 color;
 };
 
-class Renderer;
+class Editor;
 
-class Renderer {
+class Editor {
 	friend class Gui;
 	friend class MenuBar;
 	friend class Widget;
@@ -141,8 +141,8 @@ public:
 	int windowWidth;
 	int windowHeight;
 
-	Renderer();
-	~Renderer();
+	Editor();
+	~Editor();
 
 	void addMap(Bsp* map);
 

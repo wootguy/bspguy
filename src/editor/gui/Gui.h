@@ -56,7 +56,7 @@ struct Text2D {
 		: text(text), x(pos.x), y(pos.y), align(align), color(color) {}
 };
 
-class Renderer;
+class Editor;
 
 extern int g_font_scale_base;
 extern float g_tooltip_delay;
@@ -75,13 +75,13 @@ extern const char* g_optimize_tip;
 void tooltip(const char* text, float hoverDelay = g_tooltip_delay);
 
 class Gui {
-	friend class Renderer;
+	friend class Editor;
 	friend class MenuBar;
 	friend class SettingsWidget;
 	friend class FaceEditor;
 
 public:
-	Renderer* app;
+	Editor* app;
 
 	// state shared with vieport and ui components
 	int hoveredOOB;
@@ -102,7 +102,7 @@ public:
 	ImFont* defaultFont;
 	ImFont* consoleFont;
 
-	Gui(Renderer* app);
+	Gui(Editor* app);
 
 	void init();
 	void draw();

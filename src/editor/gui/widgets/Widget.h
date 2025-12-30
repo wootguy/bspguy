@@ -1,6 +1,6 @@
 #pragma once
 #include "Gui.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include "globals.h"
 #include "Command.h"
 #include "tinyfiledialogs.h"
@@ -21,7 +21,7 @@ public:
 	bool popupWasOpen = false; // true if the popup was open last frame
 
 	// for convenience
-	Renderer* app = NULL;
+	Editor* app = NULL;
 	Bsp* map = NULL;
 	ImGuiStyle& style;
 	ImGuiContext& g;

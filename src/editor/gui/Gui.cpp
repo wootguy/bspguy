@@ -1,6 +1,6 @@
 #include "Gui.h"
 #include "primitives.h"
-#include "Renderer.h"
+#include "Editor.h"
 #include <lodepng.h>
 #include "Entity.h"
 #include "Bsp.h"
@@ -71,7 +71,7 @@ void tooltip(const char* text, float hoverDelay) {
 	}
 }
 
-Gui::Gui(Renderer* app) {
+Gui::Gui(Editor* app) {
 	this->app = app;
 	init();
 }
