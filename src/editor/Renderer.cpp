@@ -24,6 +24,7 @@
 #include <lodepng.h>
 #include "embedded_shaders.h"
 #include "Widget.h"
+#include "MenuBar.h"
 
 #include "icons/app.h"
 #include "icons/app2.h"
@@ -2488,7 +2489,7 @@ void Renderer::shortcutControls() {
 			openMap((char*)NULL);
 		}
 		if (anyCtrlPressed && anyAltPressed && pressed[GLFW_KEY_S] && !oldPressed[GLFW_KEY_S]) {
-			gui->saveAs();
+			gui->menuBar->saveAs();
 		}
 		if (anyAltPressed && anyEnterPressed) {
 			gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = !gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible;

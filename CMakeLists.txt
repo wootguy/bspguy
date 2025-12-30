@@ -78,7 +78,6 @@ set(SOURCE_FILES
 	
 	# 3D editor
 	src/editor/Renderer.h			src/editor/Renderer.cpp
-	src/editor/Gui.h				src/editor/Gui.cpp
 	src/editor/BspRenderer.h		src/editor/BspRenderer.cpp
 	src/editor/PointEntRenderer.h	src/editor/PointEntRenderer.cpp
 	src/editor/Fgd.h				src/editor/Fgd.cpp
@@ -90,6 +89,10 @@ set(SOURCE_FILES
 	src/editor/BaseRenderer.h		src/editor/BaseRenderer.cpp
 	src/editor/TextureAtlas.h		src/editor/TextureAtlas.cpp
 	src/editor/studio.h
+	
+	# UI components
+	src/editor/Gui.h					src/editor/Gui.cpp
+	src/editor/ui/MenuBar.h				src/editor/ui/MenuBar.cpp
 	
 	# widgets
 	src/editor/widgets/Widget.h			src/editor/widgets/Widget.cpp
@@ -175,6 +178,7 @@ include_directories(src/cli)
 include_directories(src/data)
 include_directories(src/editor)
 include_directories(src/editor/widgets)
+include_directories(src/editor/ui)
 include_directories(src/gl)
 include_directories(src/qtools)
 include_directories(src/util)
@@ -292,7 +296,6 @@ if(MSVC)
 												src/editor/TextureAtlas.cpp
 												src/editor/Renderer.cpp
 												src/editor/Fgd.cpp
-												src/editor/Gui.cpp
 												src/editor/PointEntRenderer.cpp
 												src/editor/Command.cpp
 												src/editor/AppSettings.cpp
@@ -319,6 +322,14 @@ if(MSVC)
 												src/editor/widgets/MapMergeWidget.cpp
 												src/editor/widgets/FixExtentsWidget.cpp
 												src/editor/widgets/ModelMergeWidget.cpp
+	)
+	
+	source_group("Header Files\\editor\\ui" FILES	src/editor/ui/MenuBar.h
+													src/editor/Gui.h
+	)
+											
+	source_group("Source Files\\editor\\ui" FILES	src/editor/ui/MenuBar.cpp
+													src/editor/Gui.cpp
 	)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h

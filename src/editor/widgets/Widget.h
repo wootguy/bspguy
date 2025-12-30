@@ -42,9 +42,6 @@ public:
 
 	// called by you. Set pushStack to reopen this widget after the next one is dismissed
 	virtual void close(bool pushStack = false) { widgetVisible = false; shouldReturnToThisPopup = pushStack; }
-
-	void tooltip(const char* text, float hoverDelay=g_tooltip_delay);
-
 };
 
 class Popup : public Widget {

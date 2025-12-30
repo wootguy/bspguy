@@ -14,6 +14,7 @@
 class Entity;
 class Texture;
 class Widget;
+class MenuBar;
 
 enum WidgetIds {
 	WIDGET_DEBUG,
@@ -71,13 +72,18 @@ extern char const* bmpFilterPatterns[1];
 
 extern const char* g_optimize_tip;
 
+void tooltip(const char* text, float hoverDelay = g_tooltip_delay);
+
 class Gui {
 	friend class Renderer;
+	friend class MenuBar;
 	friend class SettingsWidget;
 	friend class FaceEditor;
 
 public:
 	Renderer* app;
+
+	// state shared with vieport and ui components
 	int hoveredOOB;
 	bool lightmapEditorNeedsUpdate = true;
 	bool entityReportFilterNeeded = true;
@@ -89,6 +95,8 @@ public:
 	bool loadedLimit[SORT_MODES] = { false }; // set to false to force reload of a stat category
 	bool badSurfaceExtents = false; // selected face has bad extents
 	bool lightmapTooLarge = false; // selected face has too big of a lightmap
+	bool anyHullValid[MAX_MAP_HULLS] = { false };
+
 	Widget* widgets[NUM_WIDGET_IDS];
 
 	ImFont* defaultFont;
@@ -106,16 +114,16 @@ public:
 	void copyLightmap(int faceIdx, int layer);
 	void pasteLightmap(int faceIdx, int layer);
 	void refresh();
-	void saveAs();
 	const char* openMap();
 	void windowResized(int width, int height);
 	void showWidget(int id, bool showNotHide);
 
 private:
+	MenuBar* menuBar = NULL;
+
 	bool vsync = true;
 	bool polycount = false;
 	bool openSavedTabs = false;
-	bool transparentClipnodes = true;
 	bool shouldReloadFonts = false;
 
 	bool shouldReloadTextureInfo = false;
@@ -124,23 +132,18 @@ private:
 	Texture* faceIconTexture;
 	Texture* leafIconTexture;
 
-	bool anyHullValid[MAX_MAP_HULLS] = { false };
-
 	int contextMenuEnt = -1; // open entity context menu if >= 0
 	int emptyContextMenu = 0; // open context menu for rightclicking world/void
 
 	int copiedMiptex = -1;
 
-	float mainMenuBarHeight;
 	float uiScale;
 
 	vector<Text2D> texts;
 	vector<int> popupStack; // return to a popup after dismissing another
 
+	void drawWidgets();
 	void draw3dContextMenus();
-	void drawEditOptions(bool isMainMenu);
-	void drawMenuBar();
-	void drawStandardMenuBar();
 	void drawStatusBar();
 	void drawPopups();
 	void drawToolbar();
@@ -153,7 +156,6 @@ private:
 	void loadFonts();
 	void updateUiScale();
 	string getUserLayoutPath(); // path to user's saved widget layout
-	void createSeriesWad();
 	void addText(Text2D text);
 	void switchToLeafSelectMode(bool selectFaceLeaves, bool strictFaceLeafSelection);
 	void selectLeafPvs();

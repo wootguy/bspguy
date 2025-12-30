@@ -59,6 +59,7 @@ class Renderer;
 
 class Renderer {
 	friend class Gui;
+	friend class MenuBar;
 	friend class Widget;
 	friend class DebugWidget;
 	friend class KeyvalueEditor;
