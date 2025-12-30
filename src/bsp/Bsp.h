@@ -469,6 +469,10 @@ public:
 	// for each entity, duplicate its BSP model, remove its origin offset.
 	// merge all models together into one, if none of their bounds overlap, even if this means
 	// duplicating model data (2 entities share the same model).
+	// returns: -1 = merge failed before bsp was modified, or invalid models are selected
+	//          -2 = merge aborted because clipnodes overlap
+	//          -3 = merge failed after bsp was modified
+	//          0+ = the new model index
 	int merge_models(vector<Entity*> ents, bool allowClipnodeOverlap);
 
 	// merge 2 models if their bounds don't overlap

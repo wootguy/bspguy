@@ -5634,8 +5634,8 @@ bool Bsp::validate() {
 		mark_model_structures(i, &usage, false);
 		usage.compute_sum();
 		if (usage.sum.faces != models[i].nFaces) {
-			//logf("Bad face count in model %d: %d / %d (fixed)\n", i, usage.sum.faces, models[i].nFaces);
-			logf("Bad face count in model %d: %d / %d\n", i, usage.sum.faces, models[i].nFaces);
+			// This isn't necessarily an error. A func_illusionary with a null face can set lower face count
+			logf("Unexpected face count in model %d: %d / %d\n", i, usage.sum.faces, models[i].nFaces);
 		}
 	}
 	if (totalVisLeaves != leafCount) {
@@ -5666,13 +5666,14 @@ bool Bsp::validate() {
 	int badOriginCount = 0;
 	int badModelRefCount = 0;
 	int missingBspModelCount = 0;
-	for (Entity* ent : ents) {
+	for (int i = 0; i < ents.size(); i++) {
+		Entity* ent = ents[i];
 		vec3 ori = ent->getOrigin();
+		string cname = ent->getClassname();
 		//float oob = g_engine_limits->max_mapboundary;
 		float oob = 8192;
 
 		if (ori.x || ori.y || ori.z) {
-			string cname = ent->getClassname();
 			if (cname == "func_ladder" || cname == "func_water" || cname == "func_mortar_field") {
 				badOriginCount++;
 			}
@@ -5690,8 +5691,10 @@ bool Bsp::validate() {
 		if (ent->getBspModelIdx() >= modelCount) {
 			badModelRefCount++;
 		}
-		FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(ent->getClassname()) : NULL;
-		if (fgd && fgd->classType == FGD_CLASS_SOLID && ent->getBspModelIdx() < 0) {
+
+		FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(cname) : NULL;
+		if (i > 0 && fgd && fgd->classType == FGD_CLASS_SOLID && ent->getBspModelIdx() < 0) {
+			debugf("Missing model key for \"%s\" (%s)\n", ent->getTargetname().c_str(), ent->getClassname().c_str());
 			missingBspModelCount++;
 		}
 	}
@@ -8813,10 +8816,6 @@ int Bsp::merge_models(vector<Entity*> mergeEnts, bool allowClipnodeOverlap) {
 		for (int h = 0; h < MAX_MAP_HULLS; h++) {
 			int hull = hullOrder[h];
 
-			if (h != 0) {
-				clipnodesOverlap = true;
-			}
-
 			for (int i = 0; i < mergedEnts.size(); i++) {
 				MergedEntity& enta = mergedEnts[i];
 
@@ -8904,10 +8903,6 @@ int Bsp::merge_models(vector<Entity*> mergeEnts, bool allowClipnodeOverlap) {
 			logf("The model merger is not smart enough to merge these models. Try merging a smaller group.\n");
 			return -1;
 		}
-	}
-
-	if (!allowClipnodeOverlap && clipnodesOverlap) {
-		return -2;
 	}
 
 	remove_unused_model_structures();

@@ -156,6 +156,27 @@ void Gui::init() {
 
 	widgets[WIDGET_FACE_EDITOR] = new FaceEditor(this, "Face Editor",
 		ImVec2(300, 570), ImVec2(260, 510), ImGuiWindowFlags_NoScrollbar);
+
+	widgets[WIDGET_RAD_PREP] = new RadWidget(this, "Configure Texlights",
+		ImVec2(350, 300), ImVec2(350, 300), 0);
+
+	widgets[WIDGET_DEDUP_MODELS] = new DedupModelsWidget(this, "Deduplicate Models",
+		ImVec2(400, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize);
+
+	widgets[WIDGET_MERGE_OVERLAP] = new MergeOverlapWidget(this, "Merge Overlap",
+		ImVec2(0, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize);
+
+	widgets[WIDGET_MERGE_FAILED] = new MergeFailedWidget(this, "Merge Failed",
+		ImVec2(0, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+	
+	widgets[WIDGET_MERGE_MULTI] = new MergeMultipleWidget(this, "Merge Multiple",
+		ImVec2(600, 0), ImVec2(500, 300), ImGuiWindowFlags_AlwaysAutoResize);
+
+	widgets[WIDGET_FIX_EXTENTS] = new FixExtentsWidget(this, "Fix Bad Surface Extents",
+		ImVec2(600, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize);
+
+	widgets[WIDGET_MODEL_MERGE_CONFIRM] = new ModelMergeWidget(this, "Confirm Merge",
+		ImVec2(400, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize);
 }
 
 void Gui::draw() {
@@ -184,6 +205,8 @@ void Gui::draw() {
 	for (Widget* widget : widgets) {
 		if (!widget->widgetVisible)
 			continue;
+		if (widget->isPopup)
+			continue; // drawn in 2nd pass later
 		if (g_app->mapArrangeMode && !widget->allowInMapArrangeMode)
 			continue;
 
@@ -1002,7 +1025,7 @@ void Gui::drawEditOptions(bool isMainMenu) {
 					delete command;
 
 					if (newIndex == -2) {
-						confirmMerge = 2;
+						showWidget(WIDGET_MODEL_MERGE_CONFIRM, true);
 					}
 				}
 			}
@@ -1512,7 +1535,7 @@ void Gui::drawStandardMenuBar() {
 			+ map->name + ",other_map\"").c_str());
 
 		if (ImGui::MenuItem("Merge Multiple", NULL, false, !app->isLoading) && g_app->confirmMapExit()) {
-			showMergePopup = true;
+			showWidget(WIDGET_MERGE_MULTI, true);
 		}
 		tooltip("Merge multiple BSPs into a new file.");
 
@@ -2143,7 +2166,7 @@ void Gui::drawStandardMenuBar() {
 
 		if (ImGui::BeginMenu("Faces")) {
 			if (ImGui::MenuItem("Fix Bad Surface Extents", 0, false, !app->isLoading)) {
-				showDownscalePopup = true;
+				showWidget(WIDGET_FIX_EXTENTS, true);
 			}
 			tooltip("Fix all faces with bad surface extents.");
 
@@ -2165,7 +2188,7 @@ void Gui::drawStandardMenuBar() {
 
 		if (ImGui::BeginMenu("Models")) {
 			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
-				deduplicateOpen = 1;
+				showWidget(WIDGET_DEDUP_MODELS, true);
 			}
 			tooltip("Scans for duplicated BSP models and updates entity model keys to reference only one model from set of duplicated models. "
 				"This lowers the model count and allows more game models to be precached. Lightmaps are ignored during the scan, so this might "
@@ -2343,9 +2366,7 @@ void Gui::drawStandardMenuBar() {
 		}
 		
 		if (ImGui::MenuItem("RAD Preparation", 0, false, !app->isLoading)) {
-			showRadPrepPopup = true;
-			refreshTexlightList = true;
-			texlights = map->get_tex_lights();
+			showWidget(WIDGET_RAD_PREP, true);
 		}
 		tooltip("Prepare the map for light recompilation with VHLT.");
 
@@ -2670,879 +2691,49 @@ void Gui::drawStatusBar() {
 }
 
 void Gui::drawPopups() {
-	ImGuiContext& g = *GImGui;
 	ImGuiIO& io = ImGui::GetIO();
-	Bsp* map = app->mapRenderer->map;
 
-	if (!g_app->mergeResult.map && !g_app->mergeResult.overflow && g_app->mergeResult.fpath.size())
-		ImGui::OpenPopup("Merge Overlap");
+	for (int id = 0; id < NUM_WIDGET_IDS; id++) {
+		Widget* widget = widgets[id];
+		if (!widget->widgetVisible || !widget->isPopup)
+			continue;
 
-	if (ImGui::BeginPopupModal("Merge Overlap", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-	{
-		Bsp* thismap = g_app->mapRenderer->map;
-		string name = stripExt(basename(g_app->mergeResult.fpath));
-		vec3 mergeMove = g_app->mergeResult.moveFixes;
-		vec3 mergeMove2 = g_app->mergeResult.moveFixes2;
+		ImGui::SetNextWindowSize(ImVec2(widget->widgetSizeDefault.x * uiScale, widget->widgetSizeDefault.y * uiScale), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSizeConstraints(ImVec2(widget->widgetSizeMin.x * uiScale, widget->widgetSizeMin.y * uiScale), ImVec2(FLT_MAX, app->windowHeight));
+		ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
-		ImGui::Text((thismap->name + " overlaps " + name + " and must be moved before merging.").c_str());
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-		ImGui::Text(("How do you want to move " + thismap->name + "?").c_str());
+		widget->uiScale = uiScale;
+		widget->map = g_app->mapRenderer->map;
+		widget->setup();
 
-		ImGui::Separator();
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-
-		ImGuiStyle& style = ImGui::GetStyle();
-		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-		float inputWidth = (ImGui::GetWindowWidth() - padding) * 0.33f;
-
-		ImGui::Columns(3, 0, false);
-
-		string xmove = "Move X +" + to_string((int)mergeMove.x);
-		string ymove = "Move Y +" + to_string((int)mergeMove.y);
-		string zmove = "Move Z +" + to_string((int)mergeMove.z);
-
-		string xmove2 = "Move X " + to_string((int)mergeMove2.x);
-		string ymove2 = "Move Y " + to_string((int)mergeMove2.y);
-		string zmove2 = "Move Z " + to_string((int)mergeMove2.z);
-
-		vec3 adjustment;
-		if (ImGui::Button(xmove.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(mergeMove.x, 0, 0);
+		if (!widget->popupWasOpen) {
+			widget->popupWasOpen = true;
+			widget->open();
 		}
 
-		ImGui::NextColumn();
-		if (ImGui::Button(ymove.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(0, mergeMove.y, 0);
-		}
+		ImGui::OpenPopup(widget->widgetName);
 
-		ImGui::NextColumn();
-		if (ImGui::Button(zmove.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(0, 0, mergeMove.z);
-		}
+		if (ImGui::BeginPopupModal(widget->widgetName, NULL, widget->widgetFlags)) {
+			widget->draw();
 
-		ImGui::NextColumn();
-		if (ImGui::Button(xmove2.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(mergeMove2.x, 0, 0);
-		}
-
-		ImGui::NextColumn();
-		if (ImGui::Button(ymove2.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(0, mergeMove2.y, 0);
-		}
-
-		ImGui::NextColumn();
-		if (ImGui::Button(zmove2.c_str(), ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			adjustment = vec3(0, 0, mergeMove2.z);
-		}
-
-		if (adjustment != vec3()) {
-			vec3 newOri = thismap->ents[0]->getOrigin() + adjustment;
-			thismap->ents[0]->setOrAddKeyvalue("origin", newOri.toKeyvalueString());
-			g_app->merge(g_app->mergeResult.fpath);
-		}
-
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-
-		ImGui::NextColumn();
-		ImGui::NextColumn();
-		if (ImGui::Button("Cancel", ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			g_app->mergeResult.fpath = "";
-		}
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-
-		ImGui::SetItemDefaultFocus();
-		ImGui::EndPopup();
-	}
-
-	if (g_app->mergeResult.overflow && g_app->mergeResult.fpath.size()) {
-		ImGui::OpenPopup("Merge Failed");
-		loadedStats = false;
-	}
-
-	if (ImGui::BeginPopupModal("Merge Failed", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
-	{
-		string engineName = g_settings.engine == ENGINE_HALF_LIFE ? "Half-Life" : "Sven Co-op";
-		ImGui::Text(("Merging the selected maps would overflow \"" + engineName + "\" engine limits.\n"
-			"Optimize the maps or manually remove unused structures before trying again.").c_str());
-
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-
-		ImGui::Separator();
-
-		((LimitsWidget*)widgets[WIDGET_LIMITS])->drawLimitsSummary(g_app->mergeResult.map, true);
-
-		ImGuiStyle& style = ImGui::GetStyle();
-		float padding = style.WindowPadding.x * 2 + style.FramePadding.x * 2;
-		float inputWidth = (ImGui::GetWindowWidth() - padding) * 0.33f;
-
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-		ImGui::Columns(3, 0, false);
-
-		ImGui::NextColumn();
-		if (ImGui::Button("OK", ImVec2(inputWidth, 0))) {
-			ImGui::CloseCurrentPopup();
-			g_app->mergeResult.fpath = "";
-			delete g_app->mergeResult.map;
-			g_app->mergeResult.map = NULL;
-			loadedStats = false;
-			
-			if (showMergePopupAfterFailPopup) {
-				showMergePopupAfterFailPopup = false;
-				showMergePopup = true;
-			}
-		}
-		ImGui::Dummy(ImVec2(0.0f, 20.0f));
-
-		ImGui::SetItemDefaultFocus();
-		ImGui::EndPopup();
-	}
-
-	if (confirmMerge == 2) {
-		ImGui::OpenPopup("Confirm Merge");
-	}
-
-	ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Appearing);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	if (ImGui::BeginPopupModal("Confirm Merge", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-		ImGui::TextWrapped("The selected models have clipnodes that are overlapping or can't be merged simply.\n\n"
-			"Inspect clipnodes after merging. They will likely be broken.");
-
-		ImGui::Dummy(ImVec2(0, 10));
-
-		if (ImGui::Button("Merge")) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("Merge Models");
-			Bsp* map = app->mapRenderer->map;
-			int newIndex = map->merge_models(app->pickInfo.getEnts(), true);
-
-			if (newIndex >= 0 || newIndex == -3) {
-				command->pushUndoState();
-			}
-			else {
-				delete command;
-			}
-
-			confirmMerge = 0;
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Cancel")) {
-			confirmMerge = 0;
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::EndPopup();
-	}
-
-	if (deduplicateOpen) {
-		ImGui::OpenPopup("Deduplicate Models");
-	}
-
-	ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Appearing);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	if (ImGui::BeginPopupModal("Deduplicate Models", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-		static bool allowShift = false;
-		static int dedupEstimate = -1;
-
-		ImGui::Text("Model count will be lowered by: %d", dedupEstimate);
-
-		if (dedupEstimate == -1) {
-			dedupEstimate = map->deduplicate_models(allowShift, true);
-		}
-
-		ImGui::Dummy(ImVec2(0, 10));
-
-		if (ImGui::Checkbox("Allow Shifted Textures", &allowShift)) {
-			dedupEstimate = -1;
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Ignore texture shifts when deduplicating. "
-				"Textures must still match for every face but the shift values don't need to be exactly the same.");
-		}
-
-		ImGui::Dummy(ImVec2(0, 10));
-
-		if (ImGui::Button("Deduplicate")) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("Deduplicate models");
-			map->deduplicate_models(allowShift, false);
-			command->pushUndoState();
-			ImGui::CloseCurrentPopup();
-			deduplicateOpen = 0;
-			dedupEstimate = -1;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Select Unique")) {
-			app->deselectObject();
-
-			for (int m = 1; m < map->modelCount; m++) {
-				for (int i = 0; i < map->ents.size(); i++) {
-					if (map->ents[i]->getBspModelIdx() == m) {
-						app->pickInfo.selectEnt(i);
-						break;
-					}
-				}
-			}
-			
-			app->postSelectEnt();
-			deduplicateOpen = 0;
-			dedupEstimate = -1;
-			ImGui::CloseCurrentPopup();
-		}
-		tooltip("Don't deduplicate models, just select entities that use a unique model.\n\nUse this then drag the entities out to space to see which models need merging (for when deduplication isn't enough).");
-
-		ImGui::SameLine();
-		if (ImGui::Button("Cancel")) {
-			deduplicateOpen = 0;
-			dedupEstimate = -1;
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::EndPopup();
-	}
-
-	if (showDownscalePopup) {
-		ImGui::OpenPopup("Fix Bad Surface Extents");
-	}
-
-	ImGui::SetNextWindowSize(ImVec2(600, 0), ImGuiCond_Appearing);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	if (ImGui::BeginPopupModal("Fix Bad Surface Extents", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-		static int minDim = 224;
-		static int step = 16;
-		static int subdivideMax = 20;
-		static bool shouldDownscale = true;
-		static bool shouldSubdivide = false;
-		static bool shouldScale = false;
-
-		ImGui::TextWrapped("Fixes are applied in order.");
-
-		ImVec2 cellPadding(5.0f * uiScale, 10.0f * uiScale); // x = horizontal, y = vertical
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
-
-		if (ImGui::BeginTable("MyTable", 4, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersH)) {
-			ImGui::TableSetupColumn("Fixed1", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableSetupColumn("Fixed2", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableSetupColumn("Fixed3", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableSetupColumn("Auto");
-
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-
-			ImGui::Text("1)");
-			ImGui::TableNextColumn();
-			ImGui::Checkbox("Subdivide Faces", &shouldSubdivide);
-			tooltip("Subdivide faces for a texture if additional faces would be below the Subdivide Limit. The drawback to this method is reduced in-game performace from higher poly counts.");
-
-			ImGui::TableNextColumn();
-			ImGui::Dummy(ImVec2(20 * uiScale, 0));
-
-			ImGui::TableNextColumn();
-			ImGui::BeginDisabled(!shouldSubdivide);
-			ImGui::SetNextItemWidth(200 * uiScale);
-			ImGui::DragInt("Face Limit", &subdivideMax, 0.1f, 0, g_limits.max_faces);
-			tooltip("This limit is applied per texture, not globally. All faces for a texture will be subdivided only if the newly created face count is less than this limit.\n");
-			ImGui::EndDisabled();
-
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-			ImGui::Text("2)");
-
-			ImGui::TableNextColumn();
-			ImGui::Checkbox("Downscale Textures", &shouldDownscale);
-			tooltip("Downscale a texture if subdivision would create more faces than desired.\n");
-
-			ImGui::TableNextColumn();
-			ImGui::Dummy(ImVec2(20 * uiScale, 0));
-
-			ImGui::TableNextColumn();
-			ImGui::BeginDisabled(!shouldDownscale);
-			ImGui::SetNextItemWidth(200 * uiScale);
-			if (ImGui::InputScalar("Size Limit", ImGuiDataType_U32, (void*)&minDim, &step)) {
-				minDim = max(16, (minDim / 16) * 16);
-			}
-			tooltip("Textures will be downscaled no lower than the limit you set here. Increase for higher texture quality. Decrease to fix more errors."
-				"\n\nThis applies only to the largest dimension of the texture. For example, setting 128 "
-				"here will allow downscaling a texture from 256x128 to 128x64, and no lower than that.\n\n"
-				"For Sven Co-op maps compiled with -subdivide 528:\n"
-				"224 fixes extents for texture sizes 512 and up.\n"
-				"112 fixes extents for texture sizes 256 and up.\n"
-				"48 fixes extents for texture sizes 128 and up.\n"
-				"16 fixes as many errors as possible.");
-			ImGui::EndDisabled();
-
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-			ImGui::Text("3)");
-
-			ImGui::TableNextColumn();
-			ImGui::Checkbox("Scale Faces", &shouldScale);
-			tooltip("Scale up faces if both downscaling and subdivsion failed. This ensures every face "
-				"has valid extents, but will misalign textures. In some cases that's ok (texture shifting "
-				"often doesn't matter for noisy terrain textures).\n");
-
-			ImGui::EndTable();
-		}
-		ImGui::PopStyleVar();
-		ImGui::Dummy(ImVec2(0, 10 * uiScale));
-
-		ImGui::BeginDisabled(!shouldSubdivide && !shouldScale && !shouldDownscale);
-		if (ImGui::Button("Apply Fixes")) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("Fix Bad Surface Extents");
-			if (shouldSubdivide)
-				map->fix_all_bad_surface_extents_with_subdivide(subdivideMax);
-
-			if (shouldDownscale)
-				map->fix_bad_surface_extents_with_downscale(minDim);
-
-			if (shouldScale)
-				map->fix_bad_surface_extents_with_scale();
-
-			command->pushUndoState();
-			ImGui::CloseCurrentPopup();
-			showDownscalePopup = false;
-		}
-		ImGui::EndDisabled();
-		ImGui::SameLine();
-
-		ImGui::SameLine();
-		if (ImGui::Button("Cancel")) {
-			ImGui::CloseCurrentPopup();
-			showDownscalePopup = false;
-		}
-		ImGui::EndPopup();
-	}
-
-
-	if (showRadPrepPopup) {
-		ImGui::OpenPopup("Configure Texlights");
-	}
-
-	ImGui::SetNextWindowSize(ImVec2(400 * uiScale, max(400.0f * uiScale, app->windowHeight*0.6f)), ImGuiCond_Appearing);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSizeConstraints(ImVec2(350*uiScale, 300 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
-	if (ImGui::BeginPopupModal("Configure Texlights", NULL, 0)) {
-
-		ImGui::TextWrapped("Texture light information may be needed for recompiling map lighting. "
-			"Below are texlights found in this map's info_texlight entities."
-		);
-
-		ImGui::Dummy(ImVec2(0, 10 * uiScale));
-
-		if (ImGui::Button("Add Default")) {
-			static unordered_map<string, string> hammer35_texlights = {
-				{"+0~WHITE", "255 255 255 100"},
-				{"+0~GENERIC65 ", "255 255 255 750"},
-				{"+0~GENERIC85", "110 140 235 20000 "},
-				{"+0~GENERIC86", "255 230 125 10000"},
-				{"+0~GENERIC86B", "60 220 170 20000"},
-				{"+0~GENERIC86R", "128 0 0 60000"},
-				{"GENERIC87A", "100  255 100 1000"},
-				{"GENERIC88A", "255 100 100 1000"},
-				{"GENERIC89A", "40 40 130 1000"},
-				{"GENERIC90A", "200 255 200 1000"},
-				{"GENERIC105", "255 100 100 1000"},
-				{"GENERIC106", "120 120 100 1000"},
-				{"GENERIC107", "180 50 180 1000"},
-				{"GEN_VEND1", "50 180 50 1000"},
-				{"EMERGLIGHT", "255 200 100 50000"},
-				{"+0~FIFTS_LGHT01", "160 170 220 4000"},
-				{"+0~FIFTIES_LGT2", "160 170 220 5000"},
-				{"+0~FIFTS_LGHT4", "160 170 220 4000"},
-				{"+0~LIGHT1", "40 60 150 3000"},
-				{"+0~LIGHT3A", "180 180 230 10000"},
-				{"+0~LIGHT4A", "200 190 130 11000"},
-				{"+0~LIGHT5A", "80 150 200 10000"},
-				{"+0~LIGHT6A", "150 5 5 25000"},
-				{"+0~TNNL_LGT1", "240 230 100 10000"},
-				{"+0~TNNL_LGT2", "190 255 255 12000"},
-				{"+0~TNNL_LGT3", "150 150 210 17000"},
-				{"+0~TNNL_LGT4", "170 90 40 10000"},
-				{"+0LAB1_W6D", "165 230 255 4000"},
-				{"+0LAB1_W6", "150 160 210 8800"},
-				{"+0LAB1_W7", "245 240 210 4000"},
-				{"SKKYLITE", "165 230 255 1000"},
-				{"+0~DRKMTLS1", "205 0 0 6000"},
-				{"+0~DRKMTLGT1", "200 200 180 6000"},
-				{"+0~DRKMTLS2", "150 120 20 30000"},
-				{"+0~DRKMTLS2C", "255 200 100 50000"},
-				{"+0DRKMTL_SCRN", "60 80 255 10000"},
-				{"~LAB_CRT9A", "225 150 150 100"},
-				{"~LAB_CRT9B", "100 100 255 100"},
-				{"~LAB_CRT9C", "100 200 150 100"},
-				{"~LIGHT3A", "190 20 20 3000"},
-				{"~LIGHT3B", "155 155 235 2000"},
-				{"~LIGHT3C", "220 210 150 2500"},
-				{"~LIGHT3E", "90 190 140 6000"},
-				{"C1A3C_MAP", "100 100 255 100"},
-				{"FIFTIES_MON1B", "100 100 180 30"},
-				{"+0~LAB_CRT8", "50 50 255 100"},
-				{"ELEV2_CIEL", "255 200 100 800"},
-				{"YELLOW", "255 200 100 2000"},
-				{"RED", "255 0 0 1000"},
-				{"C14_LIGHT_BIG00", "160 170 220 567"},
-				{"SUBWAY_LIGHTS", "160 170 220 8000"},
-				{"grate_light_ury", "160 170 220 8888"},
-				{"quaintLight1bar", "160 170 220 8888"},
-				{"C14_LIGHT_null", "160 170 220 200"},
-				{"comp_lights2", "255 200 100 200"},
-				{"light_newblue", "123 123 255 2222"},
-				{"C3A2_LIGHT", "255 255 128 4567"},
-				{"hera_light1", "0 128 255 2000"},
-				{"LITEPANEL1", "160 170 220 4000"},
-			};
-
-			unordered_map<string, string> addLights = map->filter_tex_lights(hammer35_texlights);
-			for (auto item : addLights) {
-				texlights[toUpperCase(item.first)] = item.second;
-			}
-			refreshTexlightList = true;
-		}
-		tooltip("Add default texlight values shipped with Valve Hammer Editor 3.5. Texture names not used in the map are ignored.");
-
-		ImGui::SameLine();
-		if (ImGui::Button("Add Custom")) {
-			char* fname = tinyfd_openFileDialog("Import lights.rad file", "",
-				1, radFilterPatterns, "Texlight File (*.rad)", 1);
-
-			if (fname) {
-				unordered_map<string, string> addLights = map->load_texlights_from_file(fname);
-				for (auto item : addLights) {
-					texlights[toUpperCase(item.first)] = item.second;
-				}
-				refreshTexlightList = true;
-			}
-		}
-		tooltip("Add texlights from a custom lights.rad file. Texture names not used in the map are ignored.");
-
-		ImGui::SameLine();
-		if (ImGui::Button("Estimate")) {
-
-			string msg = "False positives can be reduced by comparing this map with a copy "
-				"which was recompiled without lights.rad. Texlights identified in both maps "
-				"cannot possibly be texlights if only one map had texlights enabled.\n\n"
-				"Compare with a recompiled map?";
-			int ret = tinyfd_messageBox(
-				"Estimation Accuracy", /* NULL or "" */
-				msg.c_str(), /* NULL or "" may contain \n \t */
-				"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */
-				"question", /* "info" "warning" "error" "question" */
-				0);
-
-			unordered_map<string, string> addLights;
-
-			if (ret == 1) {
-				// bigger epsilon to catch more edge cases
-				addLights = map->estimate_texlights(8);
-
-				char* fname = tinyfd_openFileDialog("Select the recompiled BSP", "",
-					1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
-
-				if (fname) {
-					Bsp* othermap = new Bsp(fname);
-						
-					if (othermap->faceCount == map->faceCount && othermap->vertCount == map->vertCount) {
-						unordered_map<string, string> otherTexLights = othermap->get_tex_lights();
-						unordered_map<string, string> otherEstLights = othermap->estimate_texlights();
-						int oldSize = addLights.size();
-						for (auto item : otherEstLights) {
-							if (otherTexLights.count(item.first)) {
-								continue; // a texlight defined in info_texlights. this is valid.
-							}
-								
-							// any other texlight found in the recompiled map can't actually be a
-							// texlight because it's assumed to have have been recompiled with
-							// texlights disabled.
-							addLights.erase(item.first);
-						}
-						int removed = oldSize - addLights.size();
-						if (removed) {
-							logf("Ignored %d false positives (both maps guessed that a texture as a texlight, "
-								"but only one map has texlights enabled).\n", removed);
-						}
-						else {
-							logf("No false positives were removed after comparing with the recompiled map.\n");
-						}
-					}
-					else {
-						string msg = "The map you selected did not appear to the same map with recompiled lighting. Estimation cancelled.";
-						int ret = tinyfd_messageBox(
-							"Invalid Map", /* NULL or "" */
-							msg.c_str(), /* NULL or "" may contain \n \t */
-							"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
-							"error", /* "info" "warning" "error" "question" */
-							0);
-						addLights.clear();
-					}
-
-					delete othermap;
-				}
-			}
-			else {
-				// small epsilon to prevent too many false positives
-				addLights = map->estimate_texlights(8);
-			}
-
-			for (auto item : addLights) {
-				texlights[toUpperCase(item.first)] = item.second;
-			}
-			refreshTexlightList = true;
-		}
-		tooltip("Estimate texlight values by analyzing lightmaps. Colors "
-			"may be slightly off, and brightness will be very wrong, but this can give you "
-			"a good starting point.\n\n"
-
-			"Some texlights won't be detected if other lights are shining onto them to create inconsistent lightmaps. "
-			"Normal textures are falsely detected as texlights if they have perfectly consistent lightmaps."
-		);
-
-		static string oldBuffer;
-		static char buffer[65536] = "";
-		static int numtexlight = 0;
-
-		if (refreshTexlightList) {
-			string texlightString = "";
-
-			std::vector<std::string> keys;
-			for (const auto& item : texlights) {
-				keys.push_back(item.first);
-			}
-
-			sort(keys.begin(), keys.end());
-
-			for (const string& key : keys) {
-				texlightString += key + "\t\t" + texlights[key] + "\n";
-			}
-			strncpy(buffer, texlightString.c_str(), 65535);
-			buffer[65535] = 0;
-
-			refreshTexlightList = false;
-			numtexlight = texlights.size();
-		}
-
-		ImVec2 multisize = ImGui::GetContentRegionAvail();
-		multisize.y -= 80.0f * uiScale;
-		ImGui::InputTextMultiline("##texlights", buffer, sizeof(buffer), multisize);
-		if (string(buffer) != oldBuffer) {
-			oldBuffer = buffer;
-			refreshTexlightList = true;
-			texlights.clear();
-			vector<string> lines = splitString(buffer, "\n");
-			for (string line : lines) {
-				string name, args;
-				if (map->load_texlight_from_string(line, name, args)) {
-					texlights[name] = args;
-				}
-			}
-		}
-		ImGui::Text("%d texlights", numtexlight);
-
-		ImGui::Dummy(ImVec2(0, 10 * uiScale));
-
-		if (ImGui::Button("Prepare")) {
-			
-			LumpReplaceCommand* command = new LumpReplaceCommand("RAD Preparation");
-
-			bool didAnything = false;
-
-			if (map->replace_texlights(buffer)) {
-				didAnything = true;
-			}
-
-			int numDeletedRadTextures = map->delete_embedded_rad_textures(NULL);
-
-			if (numDeletedRadTextures == -1) {
-				string msg = "Embedded RAD textures are corrupted. If you have the original "
-					"unedited BSP file, you can try to recover texture data from it.\n\n"
-					"Do you want to recover data from the original BSP?";
-				int ret = tinyfd_messageBox(
-					"Corrupt Data", /* NULL or "" */
-					msg.c_str(), /* NULL or "" may contain \n \t */
-					"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */
-					"question", /* "info" "warning" "error" "question" */
-					0);
-
-				if (ret == 1) { // yes
-					char* fname = tinyfd_openFileDialog("Select the original BSP", "",
-						1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
-
-					if (fname) {
-						Bsp* ogbsp = new Bsp(fname);
-						numDeletedRadTextures = map->delete_embedded_rad_textures(ogbsp);
-
-						if (numDeletedRadTextures == -1) {
-							logf("Failed to delete embedded RAD textures. The original texture data no longer exists and could not be recovered.\n");
-						}
-						else if (numDeletedRadTextures > 0) {
-							didAnything = true;
-						}
-
-						delete ogbsp;
-					}
-				}
-				else {
-					logf("Failed to delete embedded RAD textures. The original texture data no longer exists.\n");
-				}
-			}
-			else if (numDeletedRadTextures > 0) {
-				didAnything = true;
-			}
-
-			// convert light_surface back to its original state
-			for (Entity* ent : map->ents) {
-				if (ent->hasKey("_tex")) {
-					string cname = ent->getClassname();
-					if (cname == "light" || cname == "light_spot") {
-						ent->setOrAddKeyvalue("classname", "light_surface");
-						ent->setOrAddKeyvalue("convertto", cname);
-						didAnything = true;
-					}
-				}
-			}
-
-			if (map->do_entities_share_models()) {
-				int numDup = map->make_unique_texlight_models();
-				if (numDup > 0) {
-					logf("Duplicated %d models. You can Deduplicate these after running RAD to keep the model count low.\n", numDup);
-					didAnything = true;
-				}
-				else {
-					logf("No models needed to be duplicated.\n");
-				}
-			}
-
-			int numMissing = map->count_missing_textures();
-
-			if (!didAnything)
-				logf("No changes were needed to prepare for RAD compilation.\n");
-
-			if (numMissing) {
-				string msg = "VHLT requires texture data for embedded lightmaps and texture reflection. "
-					"This map is missing " + to_string(numMissing) + " textures. To compile, you will need to choose one of these options:\n\n"
-					"1. Compile with -notextures to disable modern RAD features.\n"
-					"2. Update your settings to find missing WAD files.\n"
-					"3. Replace missing textures with the Face Editor.";
-				int ret = tinyfd_messageBox(
-					"Missing Textures", /* NULL or "" */
-					msg.c_str(), /* NULL or "" may contain \n \t */
-					"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
-					"warning", /* "info" "warning" "error" "question" */
-					0);
-			}
-			else {
-				map->generate_wa_file();
-			}
-
-			if (!didAnything) {
-				delete command;
-			}
-			else {
-				command->pushUndoState();
-			}
-
-			map->update_ent_lump();
-			map->write(map->path);
-			app->setInitialLumpState();
-
-			ImGui::CloseCurrentPopup();
-			showRadPrepPopup = false;
-		}
-		tooltip(("Prepararing this map will:\n\n"
-			"1. Create/update an info_texlights entity according to the above configuration.\n"
-			"2. Convert light/light_spot entities to light_surface, if that's what they were originally.\n"
-			"3. Delete embedded RAD textures (fixes \"Malformed face\" errors when these are invalid).\n"
-			"4. Duplicate shared texlight models (deduplicated models can't emit light).\n"
-			"5. Generate a \"" + map->name + ".wa_\" file for running RAD without the -notextures option.\n"
-			"6. Save the map.").c_str()
-		);
-
-		ImGui::SameLine();
-		if (ImGui::Button("Cancel")) {
-			showRadPrepPopup = false;
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::EndPopup();
-	}
-
-	if (showMergePopup) {
-		ImGui::OpenPopup("Merge Multiple");
-	}
-
-	ImGui::SetNextWindowSize(ImVec2(600, 0), ImGuiCond_Appearing);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSizeConstraints(ImVec2(500 * uiScale, 300 * uiScale), ImVec2(FLT_MAX, app->windowHeight));
-	if (ImGui::BeginPopupModal("Merge Multiple", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-		static bool optimizeMerge = false;
-		static bool forceNohull2 = false;
-		static int ripentmode = 0;
-		static char mapList[8192];
-		static int numSelected = 0;
-		static bool dirtyMaplist = true;
-
-		if (dirtyMaplist) {
-			numSelected = splitString(mapList, "|").size();
-			dirtyMaplist = false;
-		}
-
-		ImGui::TextWrapped((to_string(numSelected) + " BSPs selected for merging:").c_str());
-
-		ImGui::Columns(2, 0, false);
-		ImGui::SetColumnWidth(0, 450 * uiScale);
-		ImGui::SetColumnWidth(1, 50 * uiScale);
-		ImGui::SetNextItemWidth(450 * uiScale);
-		ImGui::InputText("##mergelist", mapList, 8192); ImGui::NextColumn();
-
-		if (ImGui::Button(" ... ")) {
-			char* fname = tinyfd_openFileDialog("Merge Multiple", "",
-				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
-
-			if (fname) {
-				strncpy(mapList, fname, 8192);
-				mapList[8191] = 0;
-				dirtyMaplist = true;
-			}
-		}
-
-		ImGui::Dummy(ImVec2(0, 10 * uiScale));
-
-		ImGui::Columns(4, 0, false);
-		ImGui::SetColumnWidth(0, 130 * uiScale);
-		ImGui::SetColumnWidth(1, 80 * uiScale);
-		ImGui::SetColumnWidth(2, 80 * uiScale);
-		ImGui::SetColumnWidth(3, 200 * uiScale);
-		ImGui::AlignTextToFramePadding();
-		ImGui::Text("Series Ripent: "); ImGui::NextColumn();
-
-		ImGui::RadioButton("No", &ripentmode, 0); ImGui::NextColumn();
-		if (ImGui::IsItemHovered()) {
-			tooltip("Do not touch any of the map entity logic.\n");
-		}
-
-		ImGui::RadioButton("Yes", &ripentmode, 1); ImGui::NextColumn();
-		if (ImGui::IsItemHovered()) {
-			tooltip(
-				"Ripent the maps so that they play as a connected map series. This requires the bspguy\n"
-				"map script/plugin to be added to the map CFG. The plugin ensures only one map's entities\n"
-				"are active at once. This saves you time and reduces lag in maps with lots of entities.\n\n"
-
-				"The following changes will be applied:\n"
-				"- trigger_changelevel is replaced with trigger_once for map transition logic.\n"
-				"- trigger_changesky is added for map transitions that change the skybox.\n"
-				"- bspguy_equip entities are added where you can set up CFG loadouts for each map.\n"
-				"- various entities and keyvalues are added for the bspguy plugin transition logic.\n"
-			);
-		}
-
-		ImGui::RadioButton("Yes (scriptless)", &ripentmode, 2); ImGui::NextColumn();
-		if (ImGui::IsItemHovered()) {
-			tooltip(
-				"This removes the need for the bspguy map script/plugin by emulating its functionality with map\n"
-				"entities. The resulting entity logic will be more complex and error-prone. This also greatly\n"
-				"increases the active entity count as entities from all maps will be loaded at once.\n\n"
-
-				"Enabling this option will apply these additional ripent changes:\n"
-				"- entities are renamed to prevent conflicts between maps.\n"
-				"- monsters are replaced with squadmakers and spawned when needed to reduce lag.\n"
-				"- spawns are disabled in all but the first map.\n"
-				"- info_player_start/coop/dm2 is replaced with info_player_deathmatch.\n"
-				"- trigger_auto is replaced with trigger_relay and triggered on map transitions.\n"
-			);
-		}
-
-		ImGui::Columns(1);
-		ImGui::Dummy(ImVec2(0, roundf(2 * uiScale)));
-		ImGui::Text("Preparations:");
-		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(roundf(3 * uiScale), 0));
-		ImGui::SameLine();
-		
-		ImGui::Checkbox("Optimize", &optimizeMerge);
-		tooltip((string("Optimizes maps before merging. Try this if map limits are exceeded.\n\nOptimizing ") + g_optimize_tip).c_str());
-
-		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(10 * uiScale, 0));
-		ImGui::SameLine();
-		ImGui::Checkbox("No Hull 2", &forceNohull2);
-		tooltip("Forces redirection of hull 2 to hull 1 in each map before merging. This reduces "
-			"clipnodes and collision accuracy for large monsters and pushables.");
-
-		ImGui::Dummy(ImVec2(0, roundf(2 * uiScale)));
-		ImGui::Text("Map Size: ");
-		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(30 * uiScale, 0));
-		ImGui::SameLine();
-		ImGui::Text((string("+/-") + to_string(g_settings.mapsize_max)).c_str());
-		if (ImGui::IsItemHovered())
-			tooltip("Change the Map Size in the Settings menu to adjust the bounds for merged maps.\n");
-
-		ImGui::Dummy(ImVec2(0, 10 * uiScale));
-
-		if (numSelected < 2) {
-			ImGui::BeginDisabled();
-		}
-		if (ImGui::Button("Merge")) {
-			vector<string> input_maps = splitString(mapList, "|");
-
-			MergeResult result = BspMerger::createMergedMap(input_maps, "merged_map", optimizeMerge,
-				forceNohull2, ripentmode);
-		
-			if (result.invalidMaps) {
-				string msg = "One or more of the input maps failed to load.";
-				int ret = tinyfd_messageBox(
-					"Invalid Map", /* NULL or "" */
-					msg.c_str(), /* NULL or "" may contain \n \t */
-					"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
-					"error", /* "info" "warning" "error" "question" */
-					0);
-			}
-			else if (result.overflow) {
-				g_app->mergeResult = result;
-				showMergePopup = false;
+			if (!widget->widgetVisible) {
+				ImGui::SetItemDefaultFocus();
 				ImGui::CloseCurrentPopup();
-				showMergePopupAfterFailPopup = true;
-			}
-			else if (result.notEnoughSpace) {
-				string msg = "The merger failed to fit all maps inside the configured Map Size.\n\n"
-					"Do you want to try arranging the maps yourself?";
-				int ret = tinyfd_messageBox(
-					"Packing Failure", /* NULL or "" */
-					msg.c_str(), /* NULL or "" may contain \n \t */
-					"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */
-					"warning", /* "info" "warning" "error" "question" */
-					0);
+				widget->popupWasOpen = false;
 
-				if (result.map)
-					delete result.map;
+				if (popupStack.size()) {
+					showWidget(popupStack.back(), true);
+					popupStack.pop_back();
+				}
 
-				if (ret == 1) {
-					showMergePopup = false;
-					widgets[WIDGET_TRANSFORM]->widgetVisible = true;
-					ImGui::CloseCurrentPopup();
-					g_app->mergeMultiple(input_maps, optimizeMerge, forceNohull2, ripentmode);
+				if (widget->shouldReturnToThisPopup) {
+					widget->shouldReturnToThisPopup = false;
+					popupStack.push_back(id);
 				}
 			}
-			else if (result.map->isWritable()) {
-				g_app->openMap(result.map);
-				showMergePopup = false;
-				ImGui::CloseCurrentPopup();
-			}
-		}
-		if (numSelected < 2) {
-			ImGui::EndDisabled();
-		}
 
-		ImGui::SameLine();
-
-		if (ImGui::Button("Cancel")) {
-			showMergePopup = false;
-			ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
 		}
-
-		ImGui::EndPopup();
 	}
 }
 
@@ -4272,4 +3463,8 @@ void Gui::selectLeafPvs() {
 	app->mapRenderer->highlightPickedFaces(true);
 	app->mapRenderer->highlightPickedLeaves(true);
 	app->updateTextureAxes();
+}
+
+void Gui::showWidget(int id, bool showNotHide) {
+	widgets[id]->widgetVisible = showNotHide;
 }

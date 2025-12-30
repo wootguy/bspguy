@@ -103,6 +103,11 @@ set(SOURCE_FILES
 	src/editor/widgets/LogWidget.cpp
 	src/editor/widgets/LimitsWidget.h	src/editor/widgets/LimitsWidget.cpp
 	src/editor/widgets/SettingsWidget.cpp
+	src/editor/widgets/RadWidget.cpp
+	src/editor/widgets/DedupModelsWidget.cpp
+	src/editor/widgets/MapMergeWidget.cpp
+	src/editor/widgets/FixExtentsWidget.cpp
+	src/editor/widgets/ModelMergeWidget.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -309,6 +314,11 @@ if(MSVC)
 												src/editor/widgets/LimitsWidget.cpp
 												src/editor/widgets/SettingsWidget.cpp
 												src/editor/widgets/AboutWidget.cpp
+												src/editor/widgets/RadWidget.cpp
+												src/editor/widgets/DedupModelsWidget.cpp
+												src/editor/widgets/MapMergeWidget.cpp
+												src/editor/widgets/FixExtentsWidget.cpp
+												src/editor/widgets/ModelMergeWidget.cpp
 	)
 											
 	source_group("Header Files\\qtools" FILES	src/qtools/rad.h

@@ -5388,6 +5388,7 @@ void Renderer::merge(string fpath) {
 
 		mergeResult.map = NULL;
 		delete command;
+		gui->showWidget(WIDGET_MERGE_OVERLAP, true);
 		return;
 	}
 

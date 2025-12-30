@@ -26,6 +26,13 @@ enum WidgetIds {
 	WIDGET_LIMITS,
 	WIDGET_ENT_REPORT,
 	WIDGET_FACE_EDITOR,
+	WIDGET_RAD_PREP,
+	WIDGET_DEDUP_MODELS,
+	WIDGET_MERGE_OVERLAP,
+	WIDGET_MERGE_FAILED,
+	WIDGET_MERGE_MULTI,
+	WIDGET_FIX_EXTENTS,
+	WIDGET_MODEL_MERGE_CONFIRM,
 	NUM_WIDGET_IDS
 };
 
@@ -61,6 +68,8 @@ extern char const* radFilterPatterns[1];
 extern char const* imgFilterPatterns[2];
 extern char const* pngFilterPatterns[1];
 extern char const* bmpFilterPatterns[1];
+
+extern const char* g_optimize_tip;
 
 class Gui {
 	friend class Renderer;
@@ -100,19 +109,14 @@ public:
 	void saveAs();
 	const char* openMap();
 	void windowResized(int width, int height);
+	void showWidget(int id, bool showNotHide);
 
 private:
 	bool vsync = true;
 	bool polycount = false;
 	bool openSavedTabs = false;
 	bool transparentClipnodes = true;
-	bool showDownscalePopup = false;
-	bool showMergePopup = false;
-	bool showMergePopupAfterFailPopup = false;
-	bool showRadPrepPopup = false;
-	bool refreshTexlightList = false;
 	bool shouldReloadFonts = false;
-	unordered_map<string, string> texlights;
 
 	bool shouldReloadTextureInfo = false;
 
@@ -130,9 +134,8 @@ private:
 	float mainMenuBarHeight;
 	float uiScale;
 
-	int confirmMerge = 0;
-	int deduplicateOpen = 0;
 	vector<Text2D> texts;
+	vector<int> popupStack; // return to a popup after dismissing another
 
 	void draw3dContextMenus();
 	void drawEditOptions(bool isMainMenu);

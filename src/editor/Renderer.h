@@ -67,6 +67,9 @@ class Renderer {
 	friend class LimitsWidget;
 	friend class EntityReport;
 	friend class FaceEditor;
+	friend class RadWidget;
+	friend class DedupModelsWidget;
+	friend class ModelMergeWidget;
 	friend class EditEntitiesCommand;
 	friend class DeleteEntitiesCommand;
 	friend class CreateEntitiesCommand;
