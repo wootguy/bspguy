@@ -62,6 +62,7 @@ set(SOURCE_FILES
 	src/util/bmp.h				src/util/bmp.cpp
 	src/util/tga.h				src/util/tga.cpp
 	src/util/colors.h			src/util/colors.cpp
+	src/util/render_utils.h		src/util/render_utils.cpp
 	src/util/studio.h
 	
 	# Navigation meshes
@@ -86,13 +87,16 @@ set(SOURCE_FILES
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
+	src/editor/PickInfo.h			src/editor/PickInfo.cpp
 	
 	# 3D viewport
 	src/editor/viewport/BspRenderer.h		src/editor/viewport/BspRenderer.cpp
 	src/editor/viewport/PointEntRenderer.h	src/editor/viewport/PointEntRenderer.cpp
-	src/editor/viewport/MdlRenderer.h		src/editor/viewport/MdlRenderer.cpp
+	src/editor/viewport/StudioMdlRenderer.h		src/editor/viewport/StudioMdlRenderer.cpp
 	src/editor/viewport/SprRenderer.h		src/editor/viewport/SprRenderer.cpp
 	src/editor/viewport/BaseRenderer.h		src/editor/viewport/BaseRenderer.cpp
+	src/editor/viewport/ModelRenderer.h		src/editor/viewport/ModelRenderer.cpp
+	src/editor/viewport/NavRenderer.h		src/editor/viewport/NavRenderer.cpp
 	
 	# UI components
 	src/editor/gui/Gui.h					src/editor/gui/Gui.cpp
@@ -289,23 +293,29 @@ if(MSVC)
 												src/editor/Fgd.h
 												src/editor/Gui.h
 												src/editor/Command.h
+												src/editor/PickInfo.h
 												src/editor/AppSettings.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/Editor.cpp
 												src/editor/Fgd.cpp
 												src/editor/Command.cpp
+												src/editor/PickInfo.cpp
 												src/editor/AppSettings.cpp)
 												
 	source_group("Header Files\\editor\\viewport" FILES	src/editor/viewport/BspRenderer.h
 												src/editor/viewport/PointEntRenderer.h
-												src/editor/viewport/MdlRenderer.h
+												src/editor/viewport/ModelRenderer.h
+												src/editor/viewport/NavRenderer.h
+												src/editor/viewport/StudioMdlRenderer.h
 												src/editor/viewport/SprRenderer.h
 												src/editor/viewport/BaseRenderer.h)
 											
 	source_group("Source Files\\editor\\viewport" FILES	
 												src/editor/viewport/BspRenderer.cpp
 												src/editor/viewport/PointEntRenderer.cpp
-												src/editor/viewport/MdlRenderer.cpp
+												src/editor/viewport/ModelRenderer.cpp
+												src/editor/viewport/NavRenderer.cpp
+												src/editor/viewport/StudioMdlRenderer.cpp
 												src/editor/viewport/SprRenderer.cpp
 												src/editor/viewport/BaseRenderer.cpp)
 												
@@ -352,6 +362,7 @@ if(MSVC)
 												src/util/tga.h
 												src/util/quant.h
 												src/util/colors.h
+												src/util/render_utils.h
 												)
 												
 	source_group("Source Files\\util" FILES		src/util/util.cpp
@@ -361,6 +372,7 @@ if(MSVC)
 												src/util/tga.cpp
 												src/util/quant.cpp
 												src/util/colors.cpp
+												src/util/render_utils.cpp
 												)
 												
 	source_group("Header Files\\math" FILES src/math/vectors.h

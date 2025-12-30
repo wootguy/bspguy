@@ -39,6 +39,7 @@ void MenuBar::draw() {
 	else {
 		drawFileMenu();
 		drawEditMenu();
+		drawViewMenu();
 		drawSettingsMenu();
 		drawCreateMenu();
 		drawToolsMenu();

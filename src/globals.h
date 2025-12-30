@@ -7,10 +7,36 @@
 #include <thread>
 #include "AppSettings.h"
 
+class Editor;
+class ShaderProgram;
+
 enum engine_types {
 	ENGINE_HALF_LIFE,
 	ENGINE_SVEN_COOP,
 	ENGINE_TYPES
+};
+
+enum RenderFlags {
+	RENDER_TEXTURES = (1 << 0),
+	RENDER_LIGHTMAPS = (1 << 1),
+	RENDER_WIREFRAME = (1 << 2),
+	RENDER_ENTS = (1 << 3),
+	RENDER_SPECIAL = (1 << 4),
+	RENDER_SPECIAL_ENTS = (1 << 5),
+	RENDER_POINT_ENTS = (1 << 6),
+	RENDER_ORIGIN = (1 << 7),
+	RENDER_WORLD_CLIPNODES = (1 << 8),
+	RENDER_ENT_CLIPNODES = (1 << 9),
+	RENDER_ENT_CONNECTIONS = (1 << 10),
+	RENDER_MAP_BOUNDARY = (1 << 11),
+	RENDER_STUDIO_MDL = (1 << 12),
+	RENDER_SPRITES = (1 << 13),
+	RENDER_ENT_DIRECTIONS = (1 << 14),
+	RENDER_RENDER_MODES = (1 << 15),
+	RENDER_LEAF_GRAPH = (1 << 16),
+	RENDER_PVS = (1 << 17),
+	RENDER_NAME_TAGS = (1 << 18),
+	RENDER_SKYBOX = (1 << 19),
 };
 
 struct MapLimits {
@@ -38,7 +64,15 @@ struct MapLimits {
 	int max_texturepixels;
 };
 
-class Editor;
+struct GlobalShaders {
+	ShaderProgram* bsp = NULL;
+	ShaderProgram* color = NULL;
+	ShaderProgram* texture = NULL;
+	ShaderProgram* mdl = NULL;
+	ShaderProgram* spr = NULL;
+	ShaderProgram* vec3 = NULL;
+	ShaderProgram* sprOutline = NULL;
+};
 
 extern bool g_verbose;
 extern ProgressMeter g_progress;
@@ -50,6 +84,7 @@ extern AppSettings g_settings;
 extern Editor* g_app;
 extern MapLimits g_limits;
 extern MapLimits g_engine_limits[ENGINE_TYPES];
+extern GlobalShaders g_shaders;
 
 extern std::string g_config_dir;
 extern std::string g_settings_path;

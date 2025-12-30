@@ -192,8 +192,8 @@ void SprRenderer::loadData() {
 		frameOffset += sizeof(FrameHeader) + (frame->width * frame->height);
 	}
 
-	frameBuffer = new VertexBuffer(g_app->sprShader, TEX_2F | POS_3F, frameVerts, framesVertCount);
-	outlineBuffer = new VertexBuffer(g_app->sprOutlineShader, POS_3F, outlineVerts, linesVertCount);
+	frameBuffer = new VertexBuffer(g_shaders.spr, TEX_2F | POS_3F, frameVerts, framesVertCount);
+	outlineBuffer = new VertexBuffer(g_shaders.sprOutline, POS_3F, outlineVerts, linesVertCount);
 
 	delete[] palette;
 
@@ -400,17 +400,17 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	ent->drawFrame += opts.framerate * deltaTime;
 	int frame = (int)ent->drawFrame % header->frames;
 	
-	g_app->sprShader->bind();
+	g_shaders.spr->bind();
 
 	glActiveTexture(GL_TEXTURE0);
-	g_app->sprShader->setUniform("color", color.toVec());
+	g_shaders.spr->setUniform("color", color.toVec());
 
 	glTextures[frame]->bind();
 
-	g_app->sprShader->pushMatrix(MAT_MODEL);
-	g_app->sprShader->modelMat->loadIdentity();
-	g_app->sprShader->modelMat->translate(ori.x, ori.z, -ori.y);
-	g_app->sprShader->modelMat->scale(scale, scale, scale);
+	g_shaders.spr->pushMatrix(MAT_MODEL);
+	g_shaders.spr->modelMat->loadIdentity();
+	g_shaders.spr->modelMat->translate(ori.x, ori.z, -ori.y);
+	g_shaders.spr->modelMat->scale(scale, scale, scale);
 
 	// Worldcraft only sets y rotation, copy to Z (logic from Half-Life's env_sprite)
 	if (opts.vp_type == 0 && angles.y != 0 && angles.z == 0)
@@ -428,18 +428,18 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	default:
 	case VP_PARALLEL:
 	case VP_PARALLEL_ORIENTED:
-		g_app->sprShader->modelMat->rotateY(camAngles.y);
-		g_app->sprShader->modelMat->rotateZ(camAngles.z);
-		g_app->sprShader->modelMat->rotateX(entAngles.y);
+		g_shaders.spr->modelMat->rotateY(camAngles.y);
+		g_shaders.spr->modelMat->rotateZ(camAngles.z);
+		g_shaders.spr->modelMat->rotateX(entAngles.y);
 		break;
 	case VP_PARALLEL_UPRIGHT:
 	case FACING_UPRIGHT: // it's broken in-game, but it sort of looks like parallel_upright
-		g_app->sprShader->modelMat->rotateY(camAngles.y);
+		g_shaders.spr->modelMat->rotateY(camAngles.y);
 		break;
 	case ORIENTED:
-		g_app->sprShader->modelMat->rotateY(entAngles.y + PI);
-		g_app->sprShader->modelMat->rotateZ(entAngles.x);
-		g_app->sprShader->modelMat->rotateX(-entAngles.z);
+		g_shaders.spr->modelMat->rotateY(entAngles.y + PI);
+		g_shaders.spr->modelMat->rotateZ(entAngles.x);
+		g_shaders.spr->modelMat->rotateX(-entAngles.z);
 		break;
 	}
 
@@ -448,7 +448,7 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 		glAlphaFunc(GL_GREATER, 0.5f);
 	}
 
-	g_app->sprShader->updateMatrixes();
+	g_shaders.spr->updateMatrixes();
 	frameBuffer->drawRange(GL_TRIANGLE_FAN, frame * 4, frame * 4 + 4);
 
 	if (header->format == SPR_ALPHATEST) {
@@ -459,18 +459,18 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	if (opts.rendermode == RENDER_MODE_GLOW && useRenderModes) {
 		glEnable(GL_DEPTH_TEST);
 		scale = 1.0f / scale; // the growing sprite borders are distracting
-		g_app->sprShader->modelMat->scale(scale, scale, scale);
+		g_shaders.spr->modelMat->scale(scale, scale, scale);
 	}
 
 	if ((g_settings.render_flags & RENDER_WIREFRAME) && !noOutline) {
-		g_app->sprOutlineShader->bind();
-		*g_app->sprOutlineShader->modelMat = *g_app->sprShader->modelMat;
-		g_app->sprOutlineShader->updateMatrixes();
-		g_app->sprOutlineShader->setUniform("color", vec4(outlineColor.toVec(), 1));
+		g_shaders.sprOutline->bind();
+		*g_shaders.sprOutline->modelMat = *g_shaders.spr->modelMat;
+		g_shaders.sprOutline->updateMatrixes();
+		g_shaders.sprOutline->setUniform("color", vec4(outlineColor.toVec(), 1));
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		outlineBuffer->drawRange(GL_LINE_STRIP, frame * 5, frame * 5 + 5);
 	}
 
-	g_app->sprShader->popMatrix(MAT_MODEL);
+	g_shaders.spr->popMatrix(MAT_MODEL);
 }

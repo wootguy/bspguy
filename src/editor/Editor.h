@@ -2,16 +2,18 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "primitives.h"
-#include "BspRenderer.h"
 #include "bsptypes.h"
 #include "BspMerger.h"
 #include <unordered_map>
 #include <unordered_set>
+#include <future>
+#include "PickInfo.h"
 
 class Gui;
 class Fgd;
 class Command;
 class BspRenderer;
+class ModelRenderer;
 class VertexBuffer;
 class ShaderProgram;
 class PointEntRenderer;
@@ -19,6 +21,8 @@ class Entity;
 class Bsp;
 class LeafNavMesh;
 class BaseRenderer;
+class NavRenderer;
+class NavMesh;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -55,12 +59,14 @@ struct EntConnection {
 	COLOR4 color;
 };
 
-class Editor;
+struct EntityState {
+	int index;
+	Entity* ent;
+};
 
 class Editor {
 	friend class Gui;
 	friend class MenuBar;
-	friend class Widget;
 	friend class DebugWidget;
 	friend class KeyvalueEditor;
 	friend class TransformWidget;
@@ -70,64 +76,36 @@ class Editor {
 	friend class FaceEditor;
 	friend class RadWidget;
 	friend class DedupModelsWidget;
-	friend class ModelMergeWidget;
 	friend class EditEntitiesCommand;
 	friend class DeleteEntitiesCommand;
 	friend class CreateEntitiesCommand;
 	friend class CreateEntityFromTextCommand;
 	friend class EditBspModelCommand;
 	friend class LumpReplaceCommand;
-	friend class ModelEditCommand;
 	friend class FacesEditCommand;
-	friend class LightmapsEditCommand;
-	friend class LeafNavMesh;
 	friend class BspRenderer;
-	friend class MdlRenderer;
 	friend class SprRenderer;
-	friend class Entity;
 	friend class PickInfo;
-	friend class Bsp;
 
 public:
 	BspRenderer* mapRenderer;
+	ModelRenderer* modelRenderer;
+	NavRenderer* navRenderer;
+	Fgd* mergedFgd = NULL; // merged FGD
+	MergeResult mergeResult;
+	PickInfo pickInfo = PickInfo();
+	int pickMode = PICK_OBJECT;
+	Gui* gui;
 
-	vec3 debugPoint;
-	vec3 debugVec0;
-	vec3 debugVec1;
-	vec3 debugVec2;
-	vec3 debugVec3;
-
-	int debugInt = 0;
-	int debugIntMax = 0;
-	int debugNode = 0;
-	int debugNodeMax = 0;
-	bool debugClipnodes = false;
-	bool debugNodes = false;
 	int clipnodeRenderHull = -1;
 	bool emptyMapLoaded = false;
-
-	vec3 debugLine0;
-	vec3 debugLine1;
-	vec3 debugLine2;
-	vec3 debugLine3;
-	vec3 debugLine4;
-	vec3 debugLine5;
-	Line2D debugCut;
-	Polygon3D debugPoly;
-	Polygon3D debugPoly2;
-	Polygon3D debugPoly3;
-	vector<vec2> debugVerts2d;
-	NavMesh* debugNavMesh = NULL;
-	LeafNavMesh* debugLeafNavMesh = NULL;
-	int debugNavPoly = -1;
-	vec3 debugTraceStart;
-	TraceResult debugTrace;
-	MergeResult mergeResult;
+	bool previewMode = false; // render the map as it would appear in-game	
 
 	bool hideGui = false;
 	bool isFocused = false;
 	bool isHovered = false;
 	bool isIconified = false;
+	bool isLoading = false;
 
 	bool mapArrangeMode = false; // user is arranging maps for a multi-map merge
 	vector<BspRenderer*> arrangeBsps; // maps the user is arranging
@@ -141,15 +119,49 @@ public:
 	int windowWidth;
 	int windowHeight;
 
+	// button states
+	bool pressed[GLFW_KEY_LAST];
+	bool released[GLFW_KEY_LAST];
+	char oldPressed[GLFW_KEY_LAST];
+	char oldReleased[GLFW_KEY_LAST];
+	bool anyCtrlPressed;
+	bool anyAltPressed;
+	bool anyShiftPressed;
+
+	// vars for debugging
+	bool debugClipnodes = false;
+	bool debugNodes = false;
+	vec3 debugPoint;
+	vec3 debugVec0;
+	vec3 debugVec1;
+	vec3 debugVec2;
+	vec3 debugVec3;
+	int debugInt = 0;
+	int debugIntMax = 0;
+	int debugNode = 0;
+	int debugNodeMax = 0;
+	vec3 debugLine0;
+	vec3 debugLine1;
+	vec3 debugLine2;
+	vec3 debugLine3;
+	vec3 debugLine4;
+	vec3 debugLine5;
+	Line2D debugCut;
+	Polygon3D debugPoly;
+	Polygon3D debugPoly2;
+	Polygon3D debugPoly3;
+	vector<vec2> debugVerts2d;
+	NavMesh* debugNavMesh = NULL;
+	int debugNavPoly = -1;
+	vec3 debugTraceStart;
+	TraceResult debugTrace;
+
 	Editor();
 	~Editor();
 
 	void addMap(Bsp* map);
 
 	void renderLoop();
-	void renderNavMesh();
-	void renderLeafGraph(LeafNavMesh* mesh);
-	void renderArrangeMaps();
 	void postLoadFgdsAndTextures();
 	void postLoadFgds();
 	void reloadMaps();
@@ -162,32 +174,23 @@ public:
 	void handleResize(int width, int height);
 	bool confirmMapExit();
 
+	vector<Entity*>& ents();
+	Frustum getCameraFrustum();
+	vec3 worldToScreen(const vec3& P);
+
 private:
 	GLFWwindow* window;
-	ShaderProgram* bspShader = NULL;
-	ShaderProgram* colorShader = NULL;
-	ShaderProgram* textureShader = NULL;
-	ShaderProgram* mdlShader = NULL;
-	ShaderProgram* sprShader = NULL;
-	ShaderProgram* vec3Shader = NULL;
-	ShaderProgram* sprOutlineShader = NULL;
 
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
-	Gui* gui;
 
 	static future<void> fgdFuture;
 	bool reloading = false;
 	bool reloadingGameDir = false;
-	bool isLoading = false;
 	string openMapAfterLoad; // map to open after current map finishes loading
 	double programStartTime = -1;
 
-	Fgd* mergedFgd = NULL; // merged FGD
 	vector<Fgd*> fgds; // individually loaded FGDs
-
-	unordered_map<string, BaseRenderer*> studioModels; // maps a path to a model/sprite renderer
-	unordered_map<string, string> studioModelPaths; // maps a entity path to an existing path, or blank if not found
 
 	vec3 cameraOrigin;
 	vec3 cameraAngles;
@@ -200,7 +203,6 @@ private:
 	float fov = 75.0f;
 	float zNear = 1.0f;
 	float zFar = 262144.0f;
-	float zFarMdl = 2048.0f;
 	float rotationSpeed = 5.0f;
 	mat4x4 model = mat4x4(), view = mat4x4(), projection = mat4x4(), modelView = mat4x4(), modelViewProjection = mat4x4();
 
@@ -220,7 +222,6 @@ private:
 	int gridSnapLevel = 0;
 	int transformMode = TRANSFORM_MOVE;
 	int transformTarget = TRANSFORM_OBJECT;
-	int pickMode = PICK_OBJECT;
 	bool showDragAxes = false;
 	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
 	vec3 axisDragStart;
@@ -259,17 +260,8 @@ private:
 	int oldLeftMouse;
 	int oldRightMouse;
 	int oldScroll;
-	bool pressed[GLFW_KEY_LAST];
-	bool released[GLFW_KEY_LAST];
-	char oldPressed[GLFW_KEY_LAST];
-	char oldReleased[GLFW_KEY_LAST];
-	bool anyCtrlPressed;
-	bool anyAltPressed;
-	bool anyShiftPressed;
 	bool cameraMouseCapture = false; // rotate the camera without holding a mouse button
-	bool previewMode = false; // render the map as it would appear in-game
 
-	PickInfo pickInfo = PickInfo();
 	int pickCount = 0; // used to give unique IDs to text inputs so switching ents doesn't update keys accidentally
 	int vertPickCount = 0;
 	bool forceRefreshTransformWindow;
@@ -306,7 +298,9 @@ private:
 	bool createWindow();
 	void compileShaders();
 	vec3 getMoveDir();
-	void controls();
+	void controlsBegin(); // get key state
+	void controlsEnd(); // save old key states
+	void viewportControls();
 	void cameraPickingControls();
 	void vertexEditControls();
 	void cameraRotationControls(vec2 mousePos);
@@ -323,30 +317,30 @@ private:
 	void getPickRay(vec2 mousePos, vec3& start, vec3& pickDir);
 	Frustum getPickFrustum(); // for box selection
 
+	// draw stuff
+	void drawViewport(); // all the 3D stuff and some screen space overlays
+	void drawMapBoundary();
+	void drawDebugObjects();
+	void drawMouseObjects(); // box selection, center cross, ...
+	void drawArrangeMaps();
 	void drawModelVerts();
 	void drawModelOrigin();
 	void drawTransformAxes();
 	void drawEntConnections();
-	void updateEntDirectionVectors();
 	void drawEntDirectionVectors(); // show which way the entity will move according to its angles key
-	void updateTextureAxes();
 	void drawTextureAxes();
-	void drawLine(vec3 start, vec3 end, COLOR4 color);
-	void drawLine2D(vec2 start, vec2 end, COLOR4 color);
-	void drawArrow(vec3 start, vec3 end, COLOR4 color);
-	void drawBox(vec3 center, float width, COLOR4 color);
-	void drawBoxOutline(vec3 center, float width, COLOR4 color);
-	void drawBox(vec3 mins, vec3 maxs, COLOR4 color);
-	void drawPolygon3D(Polygon3D& poly, COLOR4 color);
-	void drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color); // returns render scale
-	void drawBox2D(vec2 center, float width, COLOR4 color);
-	void drawRect2D(vec2 pos, vec2 size, COLOR4 color);
-	void drawPlane(BSPPLANE& plane, COLOR4 color, float sz=32768);
-	void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
-	void drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane);
-	bool drawModelsAndSprites();
+
+	// update the buffers for drawing
+	void updateEntDirectionVectors();
+	void setupTransformAxes();
+	void updateTextureAxes();
+	void updateDragAxes();
+	void updateModelVerts();
+	void updateSelectionSize();
+	void updateEntConnections();
+	void updateEntConnectionPositions(); // only updates positions in the buffer
+
 	void addNameTags();
-	BaseRenderer* loadModel(Entity* ent);
 
 	vec3 getEntOrigin(Bsp* map, Entity* ent);
 	vec3 getEntOffset(Bsp* map, Entity* ent);
@@ -354,11 +348,6 @@ private:
 	vec3 getAxisDragPoint(vec3 origin);
 	int getDefaultTextureIdx();
 
-	void updateDragAxes();
-	void updateModelVerts();
-	void updateSelectionSize();
-	void updateEntConnections();
-	void updateEntConnectionPositions(); // only updates positions in the buffer
 	bool getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& outSolid); // calculate face vertices from plane intersections
 	void moveSelectedVerts(vec3 delta);
 	void splitFace();
@@ -414,6 +403,4 @@ private:
 	void updateWindowTitle();
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
 	void setInitialLumpState();
-	vec3 worldToScreen(const vec3& P);
-	Frustum getCameraFrustum();
 };

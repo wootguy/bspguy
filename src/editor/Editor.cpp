@@ -17,7 +17,7 @@
 #include "LeafNavMeshGenerator.h"
 #include <algorithm>
 #include "BspMerger.h"
-#include "MdlRenderer.h"
+#include "StudioMdlRenderer.h"
 #include "SprRenderer.h"
 #include <unordered_set>
 #include "tinyfiledialogs.h"
@@ -25,6 +25,9 @@
 #include "embedded_shaders.h"
 #include "Widget.h"
 #include "MenuBar.h"
+#include "render_utils.h"
+#include "ModelRenderer.h"
+#include "NavRenderer.h"
 
 #include "icons/app.h"
 #include "icons/app2.h"
@@ -215,7 +218,9 @@ Editor::Editor() {
 
 	g_progress.simpleMode = true;
 
-	pointEntRenderer = new PointEntRenderer(NULL, vector<Fgd*>(), colorShader);
+	pointEntRenderer = new PointEntRenderer(NULL, vector<Fgd*>());
+	modelRenderer = new ModelRenderer();
+	navRenderer = new NavRenderer();
 
 	loadSettings();
 
@@ -342,81 +347,81 @@ void Editor::compileShaders() {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
 	}
 
-	if (!bspShader) {
-		bspShader = new ShaderProgram("BSP");
-		colorShader = new ShaderProgram("Color");
-		textureShader = new ShaderProgram("Texture");
-		mdlShader = new ShaderProgram("MDL");
-		sprShader = new ShaderProgram("SPR");
-		vec3Shader = new ShaderProgram("vec3");
-		sprOutlineShader = new ShaderProgram("SPR outline");
+	if (!g_shaders.bsp) {
+		g_shaders.bsp = new ShaderProgram("BSP");
+		g_shaders.color = new ShaderProgram("Color");
+		g_shaders.texture = new ShaderProgram("Texture");
+		g_shaders.mdl = new ShaderProgram("MDL");
+		g_shaders.spr = new ShaderProgram("SPR");
+		g_shaders.vec3 = new ShaderProgram("vec3");
+		g_shaders.sprOutline = new ShaderProgram("SPR outline");
 	}
 	else {
 		logf("Recompiling shaders\n");
 	}
 
-	bspShader->compile(bsp_vert_glsl, bspFragShader);
-	bspShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	bspShader->setMatrixNames(NULL, "modelViewProjection");
-	bspShader->addUniform("sTex", UNIFORM_INT);
-	bspShader->addUniform("colorMult", UNIFORM_VEC4);
-	bspShader->addUniform("alphaTest", UNIFORM_FLOAT);
-	bspShader->addUniform("gamma", UNIFORM_FLOAT);
-	bspShader->setUniform("sTex", 0);
+	g_shaders.bsp->compile(bsp_vert_glsl, bspFragShader);
+	g_shaders.bsp->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.bsp->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.bsp->addUniform("sTex", UNIFORM_INT);
+	g_shaders.bsp->addUniform("colorMult", UNIFORM_VEC4);
+	g_shaders.bsp->addUniform("alphaTest", UNIFORM_FLOAT);
+	g_shaders.bsp->addUniform("gamma", UNIFORM_FLOAT);
+	g_shaders.bsp->setUniform("sTex", 0);
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
 		string name = "sLightmapTex" + to_string(s);
-		bspShader->addUniform(name, UNIFORM_INT);
-		bspShader->setUniform(name, s + 1);
+		g_shaders.bsp->addUniform(name, UNIFORM_INT);
+		g_shaders.bsp->setUniform(name, s + 1);
 	}
 	
-	colorShader->compile(cvert_vert_glsl, cvert_frag_glsl);
-	colorShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	colorShader->setMatrixNames(NULL, "modelViewProjection");
-	colorShader->setVertexAttributeNames("vPosition", "vColor", NULL, NULL);
-	colorShader->addUniform("colorMult", UNIFORM_VEC4);
-	colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
+	g_shaders.color->compile(cvert_vert_glsl, cvert_frag_glsl);
+	g_shaders.color->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.color->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.color->setVertexAttributeNames("vPosition", "vColor", NULL, NULL);
+	g_shaders.color->addUniform("colorMult", UNIFORM_VEC4);
+	g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 	
-	textureShader->compile(tvert_vert_glsl, tvert_frag_glsl);
-	textureShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	textureShader->setMatrixNames(NULL, "modelViewProjection");
-	textureShader->setVertexAttributeNames("vPosition", "vTex", NULL, NULL);
+	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl);
+	g_shaders.texture->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.texture->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.texture->setVertexAttributeNames("vPosition", "vTex", NULL, NULL);
 
-	mdlShader->compile(mdl_vert, mdl_frag_glsl);
-	mdlShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	mdlShader->setMatrixNames(NULL, "modelViewProjection");
-	mdlShader->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
-	mdlShader->addUniform("sTex", UNIFORM_INT);
-	mdlShader->addUniform("elights", UNIFORM_INT);
-	mdlShader->addUniform("ambient", UNIFORM_VEC3);
-	mdlShader->addUniform("lights", UNIFORM_MAT3);
-	mdlShader->addUniform("additiveEnable", UNIFORM_INT);
-	mdlShader->addUniform("chromeEnable", UNIFORM_INT);
-	mdlShader->addUniform("flatshadeEnable", UNIFORM_INT);
-	mdlShader->addUniform("colorMult", UNIFORM_VEC4);
-	mdlShader->addUniform("viewerOrigin", UNIFORM_VEC3);
-	mdlShader->addUniform("viewerRight", UNIFORM_VEC3);
+	g_shaders.mdl->compile(mdl_vert, mdl_frag_glsl);
+	g_shaders.mdl->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.mdl->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.mdl->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
+	g_shaders.mdl->addUniform("sTex", UNIFORM_INT);
+	g_shaders.mdl->addUniform("elights", UNIFORM_INT);
+	g_shaders.mdl->addUniform("ambient", UNIFORM_VEC3);
+	g_shaders.mdl->addUniform("lights", UNIFORM_MAT3);
+	g_shaders.mdl->addUniform("additiveEnable", UNIFORM_INT);
+	g_shaders.mdl->addUniform("chromeEnable", UNIFORM_INT);
+	g_shaders.mdl->addUniform("flatshadeEnable", UNIFORM_INT);
+	g_shaders.mdl->addUniform("colorMult", UNIFORM_VEC4);
+	g_shaders.mdl->addUniform("viewerOrigin", UNIFORM_VEC3);
+	g_shaders.mdl->addUniform("viewerRight", UNIFORM_VEC3);
 	if (g_settings.renderer != RENDERER_OPENGL_21_LEGACY) {
-		mdlShader->addUniform("boneMatrixTexture", UNIFORM_INT);
+		g_shaders.mdl->addUniform("boneMatrixTexture", UNIFORM_INT);
 	}
 
-	sprShader->compile(spr_vert_glsl, spr_frag_glsl);
-	sprShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	sprShader->setMatrixNames(NULL, "modelViewProjection");
-	sprShader->setVertexAttributeNames("vPosition", NULL, "vTex", NULL);
-	sprShader->addUniform("color", UNIFORM_VEC4);
+	g_shaders.spr->compile(spr_vert_glsl, spr_frag_glsl);
+	g_shaders.spr->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.spr->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.spr->setVertexAttributeNames("vPosition", NULL, "vTex", NULL);
+	g_shaders.spr->addUniform("color", UNIFORM_VEC4);
 
-	vec3Shader->compile(vec3_vert_glsl, vec3_frag_glsl);
-	vec3Shader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	vec3Shader->setMatrixNames(NULL, "modelViewProjection");
-	vec3Shader->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
-	vec3Shader->addUniform("color", UNIFORM_VEC4);
-	vec3Shader->setUniform("color", vec4(1, 1, 1, 1));
+	g_shaders.vec3->compile(vec3_vert_glsl, vec3_frag_glsl);
+	g_shaders.vec3->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.vec3->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.vec3->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
+	g_shaders.vec3->addUniform("color", UNIFORM_VEC4);
+	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
 
-	sprOutlineShader->compile(vec3_vert_glsl, vec3_depth_frag_glsl);
-	sprOutlineShader->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	sprOutlineShader->setMatrixNames(NULL, "modelViewProjection");
-	sprOutlineShader->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
-	sprOutlineShader->addUniform("color", UNIFORM_VEC4);
+	g_shaders.sprOutline->compile(vec3_vert_glsl, vec3_depth_frag_glsl);
+	g_shaders.sprOutline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.sprOutline->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.sprOutline->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
+	g_shaders.sprOutline->addUniform("color", UNIFORM_VEC4);
 
 	glCheckError("compiling shaders");
 }
@@ -425,15 +430,7 @@ Editor::~Editor() {
 	glfwTerminate();
 }
 
-void Editor::renderLoop() {
-	glCheckError("entering renderloop");
-
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-
-	glCheckError("renderloop state enable");
-
+void Editor::setupTransformAxes() {
 	{
 		moveAxes.dimColor[0] = { 110, 0, 160, 255 };
 		moveAxes.dimColor[1] = { 0, 160, 0, 255 };
@@ -447,7 +444,7 @@ void Editor::renderLoop() {
 
 		// flipped for HL coords
 		moveAxes.model = new cCube[4];
-		moveAxes.buffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, moveAxes.model, 6 * 6 * 4);
+		moveAxes.buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, moveAxes.model, 6 * 6 * 4);
 		moveAxes.numAxes = 4;
 	}
 
@@ -470,7 +467,7 @@ void Editor::renderLoop() {
 
 		// flipped for HL coords
 		scaleAxes.model = new cCube[6];
-		scaleAxes.buffer = new VertexBuffer(colorShader, COLOR_4B | POS_3F, scaleAxes.model, 6 * 6 * 6);
+		scaleAxes.buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, scaleAxes.model, 6 * 6 * 6);
 		scaleAxes.numAxes = 6;
 	}
 
@@ -479,10 +476,18 @@ void Editor::renderLoop() {
 	updateDragAxes();
 
 	glCheckError("updating transform axes");
+}
 
-	float s = 1.0f;
-	cCube vertCube(vec3(-s, -s, -s), vec3(s, s, s), { 0, 128, 255, 255 });
-	VertexBuffer vertCubeBuffer(colorShader, COLOR_4B | POS_3F, &vertCube, 6 * 6);
+void Editor::renderLoop() {
+	glCheckError("entering renderloop");
+
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	glCheckError("renderloop state enable");
+
+	setupTransformAxes();
 
 	glCheckError("pre render loop");
 
@@ -497,296 +502,15 @@ void Editor::renderLoop() {
 		
 		//FIXME : frameTimeScale = 0.05f / frameDelta ???
 		frameTimeScale = 144.0f / fps;
-
 		lastFrameTime = glfwGetTime();
-
-		float spin = glfwGetTime() * 2;
-		model.loadIdentity();
-		model.rotateZ(spin);
-		model.rotateX(spin);
+		isLoading = reloading;
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		setupView();
-		glEnable(GL_CULL_FACE);
-		glEnable(GL_DEPTH_TEST);
-
-		isLoading = reloading;
-
-		glCheckError("Setting up view");
-
-		if (previewMode || (g_settings.render_flags & RENDER_SKYBOX)) {
-			mapRenderer->drawSkybox();
-			glCheckError("Rendering skybox");
-		}
-
-		vector<OrderedEnt> orderedEnts;
-		mapRenderer->getRenderEnts(orderedEnts);
-
-		// draw opaque world/entity faces
-		mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, false);
-
-		glCheckError("Rendering BSP (opaque pass)");
-
-		// wireframe pass
-		if (!previewMode && (g_settings.render_flags & RENDER_WIREFRAME)) {
-			mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, true);
-			glCheckError("Rendering BSP (wireframe pass)");
-		}
-		
-		// studio models have transparent boxes that need to draw over the world but behind transparent
-		// brushes like a trigger_once which is rendered using the clipnode model
-		if (drawModelsAndSprites()) {
-			isLoading = true;
-		}
-		glCheckError("Rendering models and sprites");
-		
-		if (mapArrangeMode)
-			renderArrangeMaps();
-
-		// draw transparent entity faces
-		mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true, false);
-		glCheckError("Rendering BSP (transparency pass)");
-
-		if (pickMode == PICK_LEAF && !previewMode) {
-			mapRenderer->renderLeaves();
-		}
-
-		if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
-			mapRenderer->updatePvs(cameraOrigin);
-			
-			if ((g_settings.render_flags & RENDER_PVS))
-				mapRenderer->drawPvs();
-		}
-
-		glCheckError("Rendering leaf selection");
-
-		if (!mapRenderer->isFinishedLoading()) {
-			isLoading = true;
-		}
-
-		model.loadIdentity();
-
-		if (!previewMode) {
-			colorShader->bind();
-			drawEntDirectionVectors(); // draws over world faces
-			glCheckError("Rendering entity vectors");
-
-			drawTextureAxes();
-			glCheckError("Rendering texture axes");
-
-			int modelIdx = pickInfo.getModelIndex();
-
-			if (debugClipnodes && modelIdx > 0) {
-				BSPMODEL* pickModel = pickInfo.getModel();
-				glDisable(GL_CULL_FACE);
-				int currentPlane = 0;
-				drawClipnodes(pickInfo.getMap(), pickModel->iHeadnodes[1], currentPlane, debugInt);
-				debugIntMax = currentPlane - 1;
-				glEnable(GL_CULL_FACE);
-			}
-
-			if (debugNodes && modelIdx > 0) {
-				BSPMODEL* pickModel = pickInfo.getModel();
-				glDisable(GL_CULL_FACE);
-				int currentPlane = 0;
-				drawNodes(pickInfo.getMap(), pickModel->iHeadnodes[0], currentPlane, debugNode);
-				debugNodeMax = currentPlane - 1;
-				glEnable(GL_CULL_FACE);
-			}
-
-			/*
-			if (gui->showDebugWidget && pickInfo.getFace()) {
-				BSPFACE& face = *pickInfo.getFace();
-				Bsp* map = mapRenderer->map;
-				glDisable(GL_CULL_FACE);
-
-				for (int i = 0; i < face.nEdges; i++) {
-					int32_t edgeIdx = map->surfedges[face.iFirstEdge + i];
-					BSPEDGE& edge = map->edges[abs(edgeIdx)];
-					int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-					drawBox(map->verts[vertIdx], 8, COLOR4(0, 128, 0, 255));
-					drawLine(map->verts[edge.iVertex[0]], map->verts[edge.iVertex[1]], COLOR4(128, 0, 255, 255));
-				
-					vec3 start = map->verts[edge.iVertex[0]];
-					vec3 end = map->verts[edge.iVertex[1]];
-					drawArrow(start, end, COLOR4(0, 255, 0, 255));
-				}
-				glEnable(GL_CULL_FACE);
-			}
-			*/
-
-			glCheckError("Rendering debug clipnodes");
-
-			if ((g_settings.render_flags & (RENDER_ORIGIN | RENDER_MAP_BOUNDARY)) || hasCullbox) {
-				colorShader->bind();
-				model.loadIdentity();
-				colorShader->pushMatrix(MAT_MODEL);
-				colorShader->updateMatrixes();
-				glDisable(GL_CULL_FACE);
-				
-				if ((g_settings.render_flags & RENDER_MAP_BOUNDARY) && !emptyMapLoaded) {
-					glDepthFunc(GL_LESS);
-
-					COLOR4 red = COLOR4(255, 0, 0, 64);
-					COLOR4 invisible = COLOR4(0, 0, 0, 0);
-					COLOR4 green = COLOR4(0, 255, 0, 64);
-					COLOR4 boxColor = gui->hoveredOOB == 0 ? red : green;
-					vec3 center = vec3();
-					float width = g_settings.mapsize_max;
-					vec3 sz = vec3(width, width, width);
-					vec3 pos = vec3(center.x, center.z, -center.y);
-					cCube cube(pos - sz, pos + sz, gui->hoveredOOB == 0 ? red : green);
-
-					if (gui->hoveredOOB >= 0) {
-						red = COLOR4(255, 0, 0, 128);
-
-						BSPPLANE plane;
-						plane.fDist = g_settings.mapsize_max;
-						switch (gui->hoveredOOB) {
-						case 1: plane.vNormal = vec3(1, 0, 0); cube.right.setColor(invisible); break;
-						case 2: plane.vNormal = vec3(-1, 0, 0); cube.left.setColor(invisible); break;
-						case 3: plane.vNormal = vec3(0, 1, 0);  cube.front.setColor(invisible); break;
-						case 4: plane.vNormal = vec3(0, -1, 0); cube.back.setColor(invisible); break;
-						case 5: plane.vNormal = vec3(0, 0, 1); cube.bottom.setColor(invisible); break;
-						case 6: plane.vNormal = vec3(0, 0, -1); cube.top.setColor(invisible); break;
-						}
-
-						drawPlane(plane, red, g_settings.mapsize_max*1.2f);
-					}
-
-					{
-						VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
-						buffer.upload();
-						buffer.draw(GL_TRIANGLES);
-					}
-					glDepthFunc(GL_LEQUAL);
-
-					glDepthFunc(GL_LEQUAL); // draw lines in front (still causes some z fighting)
-					drawBoxOutline(vec3(), g_settings.mapsize_max * 2, COLOR4(0, 0, 0, 255));
-					
-					glDepthFunc(GL_LESS);
-				}
-
-				if (pickInfo.getEnt()) {
-					vec3 offset = mapRenderer->renderOffset;
-					model.translate(offset.x, offset.y, offset.z);
-				}
-				colorShader->updateMatrixes();
-
-				if (hasCullbox) {
-					drawBox(cullMins, cullMaxs, COLOR4(255, 0, 0, 64));
-				}
-
-				if (g_settings.render_flags & RENDER_ORIGIN) {
-					drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
-					drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
-					drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
-				}
-
-				glEnable(GL_CULL_FACE);
-				colorShader->popMatrix(MAT_MODEL);
-			}
-
-			glCheckError("Rendering cull box");
-
-			drawEntConnections();
-			if (entConnectionPoints && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
-				model.loadIdentity();
-				colorShader->updateMatrixes();
-				glDisable(GL_DEPTH_TEST);
-				entConnectionPoints->draw(GL_TRIANGLES);
-				glEnable(GL_DEPTH_TEST);
-			}
-
-			glCheckError("Rendering entity connections");
-
-			bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
-			bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
-			bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
-			bool isTransformingWorld = pickInfo.getEntIndex() == 0 && transformTarget != TRANSFORM_OBJECT;
-			if (showDragAxes && !movingEnt && !isTransformingWorld && pickInfo.getEntIndex() >= 0 && (isTransformingValid || isMovingOrigin)) {
-				drawTransformAxes();
-			}
-
-			glCheckError("Rendering transform axes");
-
-			if (modelIdx > 0 && pickMode == PICK_OBJECT) {
-				if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
-					drawModelVerts();
-					glCheckError("Rendering model verts");
-				}
-				if (transformTarget == TRANSFORM_ORIGIN) {
-					drawModelOrigin();
-					glCheckError("Rendering model origin");
-				}
-			}
-
-			if (g_app->debugPoly.isValid)
-				drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 0, 150));
-			if (g_app->debugPoly2.isValid)
-				drawPolygon3D(g_app->debugPoly2, COLOR4(255, 0, 0, 150));
-			if (g_app->debugPoly3.isValid)
-				drawPolygon3D(g_app->debugPoly3, COLOR4(255, 255, 255, 150));
-			if (g_app->debugLine0 != g_app->debugLine1) {
-				drawLine(debugLine0, debugLine1, { 128, 0, 255, 255 });
-				drawLine(debugLine2, debugLine3, { 0, 255, 0, 255 });
-				drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
-			}
-
-			glCheckError("Rendering debug polys");
-
-			renderNavMesh();
-
-			if (pickMode == PICK_LEAF && (g_settings.render_flags & RENDER_LEAF_GRAPH)) {
-				renderLeafGraph(mapRenderer->leafNavMesh);
-			}
-
-			addNameTags();
-		}
-
-		vec3 forward, right, up;
-		makeVectors(cameraAngles, forward, right, up);
-		//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
-
-		if (cameraMouseCapture || isBoxSelecting) {
-			colorShader->bind();
-			colorShader->pushMatrix(MAT_PROJECTION);
-			colorShader->pushMatrix(MAT_VIEW);
-			projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
-			view.loadIdentity();
-			colorShader->updateMatrixes();
-			glDisable(GL_DEPTH_TEST);
-
-			if (cameraMouseCapture) {
-				int border = 1;
-				int thick = 2;
-				int len = 12;
-				vec2 center(windowWidth / 2, windowHeight / 2);
-
-				drawRect2D(center - vec2(len + border, thick / 2 + border), vec2(len * 2 + border * 2, thick + border * 2), COLOR4(0, 0, 0, 255));
-				drawRect2D(center - vec2(thick / 2 + border, len + border), vec2(thick + border * 2, len * 2 + border * 2), COLOR4(0, 0, 0, 255));
-
-				drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
-				drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
-			}
-			if (isBoxSelecting && (boxSelectEnd - boxSelectStart).length() > 8) {
-				drawLine2D(vec2(boxSelectStart.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
-				drawLine2D(vec2(boxSelectEnd.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
-				drawLine2D(vec2(boxSelectEnd.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
-				drawLine2D(vec2(boxSelectStart.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
-			}
-
-			glEnable(GL_DEPTH_TEST);
-			colorShader->popMatrix(MAT_PROJECTION);
-			colorShader->popMatrix(MAT_VIEW);
-		}
+		drawViewport();
 
 		// updated here so imgui can use control logic from this class
-		for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
-			pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
-			released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
-		}
+		controlsBegin();
 
 		if (!g_app->hideGui) {
 			gui->draw();
@@ -796,16 +520,16 @@ void Editor::renderLoop() {
 			gui->texts.clear();
 		}
 
+		viewportControls();
+		controlsEnd();
+
+		glfwSwapBuffers(window);
+		glCheckError("Swap buffers and controls");
+
 		if (!isLoading && openMapAfterLoad.size()) {
 			openMap(openMapAfterLoad.c_str());
 			glCheckError("Opening map");
 		}
-
-		controls();
-
-		glfwSwapBuffers(window);
-
-		glCheckError("Swap buffers and controls");
 
 		if (reloading && fgdFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 			postLoadFgds();
@@ -824,506 +548,6 @@ void Editor::renderLoop() {
 	}
 
 	glfwTerminate();
-}
-
-void Editor::renderNavMesh() {
-	const bool navmeshwipcode = false;
-	if (!navmeshwipcode)
-		return;
-
-	colorShader->bind();
-	model.loadIdentity();
-	colorShader->updateMatrixes();
-	glDisable(GL_CULL_FACE);
-
-	glLineWidth(128.0f);
-	drawLine(debugLine0, debugLine1, { 255, 0, 0, 255 });
-
-	drawLine(debugTraceStart, debugTrace.vecEndPos, COLOR4(255, 0, 0, 255));
-
-	Bsp* map = mapRenderer->map;
-
-	if (debugNavMesh && debugNavPoly != -1) {
-		glLineWidth(1);
-		NavNode& node = debugNavMesh->nodes[debugNavPoly];
-		Polygon3D& poly = debugNavMesh->polys[debugNavPoly];
-
-		for (int i = 0; i < MAX_NAV_LINKS; i++) {
-			NavLink& link = node.links[i];
-			if (link.node == -1) {
-				break;
-			}
-			Polygon3D& linkPoly = debugNavMesh->polys[link.node];
-
-			vec3 srcMid, dstMid;
-			debugNavMesh->getLinkMidPoints(debugNavPoly, i, srcMid, dstMid);
-
-			glDisable(GL_DEPTH_TEST);
-			drawLine(poly.center, srcMid, COLOR4(0, 255, 255, 255));
-			drawLine(srcMid, dstMid, COLOR4(0, 255, 255, 255));
-			drawLine(dstMid, linkPoly.center, COLOR4(0, 255, 255, 255));
-
-			if (fabs(link.zDist) > NAV_STEP_HEIGHT) {
-				Bsp* map = mapRenderer->map;
-				int i = link.srcEdge;
-				int k = link.dstEdge;
-				int inext = (i + 1) % poly.verts.size();
-				int knext = (k + 1) % linkPoly.verts.size();
-
-				Line2D thisEdge(poly.topdownVerts[i], poly.topdownVerts[inext]);
-				Line2D otherEdge(linkPoly.topdownVerts[k], linkPoly.topdownVerts[knext]);
-
-				float t0, t1, t2, t3;
-				float overlapDist = thisEdge.getOverlapRanges(otherEdge, t0, t1, t2, t3);
-
-				vec3 delta1 = poly.verts[inext] - poly.verts[i];
-				vec3 delta2 = linkPoly.verts[knext] - linkPoly.verts[k];
-				vec3 e1 = poly.verts[i] + delta1 * t0;
-				vec3 e2 = poly.verts[i] + delta1 * t1;
-				vec3 e3 = linkPoly.verts[k] + delta2 * t2;
-				vec3 e4 = linkPoly.verts[k] + delta2 * t3;
-
-				bool isBelow = link.zDist > 0;
-				delta1 = e2 - e1;
-				delta2 = e4 - e3;
-				vec3 mid1 = e1 + delta1 * 0.5f;
-				vec3 mid2 = e3 + delta2 * 0.5f;
-				vec3 inwardDir = crossProduct(poly.plane_z, delta1.normalize());
-				vec3 testOffset = (isBelow ? inwardDir : inwardDir * -1) + vec3(0, 0, 1.0f);
-
-				float flatLen = (e2.xy() - e1.xy()).length();
-				float stepUnits = 1.0f;
-				float step = stepUnits / flatLen;
-				TraceResult tr;
-				bool isBlocked = true;
-				for (float f = 0; f < 0.5f; f += step) {
-					vec3 test1 = mid1 + (delta1 * f) + testOffset;
-					vec3 test2 = mid2 + (delta2 * f) + testOffset;
-					vec3 test3 = mid1 + (delta1 * -f) + testOffset;
-					vec3 test4 = mid2 + (delta2 * -f) + testOffset;
-
-					map->traceHull(test1, test2, 3, &tr);
-					if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.99f) {
-						drawLine(test1, test2, COLOR4(255, 255, 0, 255));
-					}
-					else {
-						drawLine(test1, test2, COLOR4(255, 0, 0, 255));
-					}
-
-					map->traceHull(test3, test4, 3, &tr);
-					if (!tr.fAllSolid && !tr.fStartSolid && tr.flFraction > 0.99f) {
-						drawLine(test3, test4, COLOR4(255, 255, 0, 255));
-					}
-					else {
-						drawLine(test3, test4, COLOR4(255, 0, 0, 255));
-					}
-				}
-
-				//if (isBlocked) {
-				//	continue;
-				//}
-			}
-
-			glEnable(GL_DEPTH_TEST);
-			drawBox(linkPoly.center, 4, COLOR4(0, 255, 255, 255));
-		}
-	}
-
-	if (!debugLeafNavMesh && !isLoading) {
-		//LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map, false, CONTENTS_EMPTY, 3);
-		LeafNavMesh* navMesh = LeafNavMeshGenerator().generate(map, true, CONTENTS_NOT_SOLID, 0);
-		debugLeafNavMesh = navMesh;
-	}
-
-	if (debugLeafNavMesh && !isLoading) {
-		glLineWidth(1);
-
-		// split leaves dynamically by solid entities
-		//debugLeafNavMesh->refreshNodes(map);
-
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-
-		int leafNavIdx = debugLeafNavMesh->getNodeIdx(map, cameraOrigin);
-
-		// draw split leaves
-		for (int i = 0; i < debugLeafNavMesh->nodes.size(); i++) {
-			LeafNode& node = debugLeafNavMesh->nodes[i];
-
-			if (node.childIdx != NAV_INVALID_IDX) {
-				continue;
-			}
-
-			if (!node.face_buffer) {
-				mapRenderer->generateSingleLeafNavMeshBuffer(&node);
-
-				if (!node.face_buffer) {
-					continue;
-				}
-			}
-
-			node.face_buffer->draw(GL_TRIANGLES);
-			node.wireframe_buffer->draw(GL_LINES);
-		}
-
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_DEPTH_TEST);
-
-		if (leafNavIdx >= 0 && leafNavIdx < debugLeafNavMesh->nodes.size()) {
-
-			if (pickInfo.getEnt() && pickInfo.getEntIndex() != 0) {
-				glDisable(GL_DEPTH_TEST);
-
-				int endNode = debugLeafNavMesh->getNodeIdx(map, pickInfo.getEnt());
-				//vector<int> route = debugLeafNavMesh->AStarRoute(leafNavIdx, endNode);
-				vector<int> route = debugLeafNavMesh->dijkstraRoute(leafNavIdx, endNode);
-
-				if (route.size()) {
-					LeafNode* lastNode = &debugLeafNavMesh->nodes[route[0]];
-
-					vec3 lastPos = lastNode->origin;
-					drawBox(lastNode->origin, 2, COLOR4(0, 255, 255, 255));
-
-					for (int i = 1; i < route.size(); i++) {
-						LeafNode& node = debugLeafNavMesh->nodes[route[i]];
-
-						vec3 nodeCenter = node.origin;
-
-						for (int k = 0; k < lastNode->links.size(); k++) {
-							LeafLink& link = lastNode->links[k];
-
-							if (link.node == route[i]) {
-								vec3 linkPoint = link.pos;
-
-								if (link.baseCost > 16000) {
-									drawLine(lastPos, linkPoint, COLOR4(255, 0, 0, 255));
-									drawLine(linkPoint, node.origin, COLOR4(255, 0, 0, 255));
-								}
-								else if (link.baseCost > 0) {
-									drawLine(lastPos, linkPoint, COLOR4(255, 64, 0, 255));
-									drawLine(linkPoint, node.origin, COLOR4(255, 64, 0, 255));
-								}
-								else if (link.costMultiplier > 99.0f) {
-									drawLine(lastPos, linkPoint, COLOR4(255, 255, 0, 255));
-									drawLine(linkPoint, node.origin, COLOR4(255, 255, 0, 255));
-								}
-								else if (link.costMultiplier > 9.0f) {
-									drawLine(lastPos, linkPoint, COLOR4(255, 0, 255, 255));
-									drawLine(linkPoint, node.origin, COLOR4(255, 0, 255, 255));
-								}
-								else if (link.costMultiplier > 1.9f) {
-									drawLine(lastPos, linkPoint, COLOR4(64, 255, 0, 255));
-									drawLine(linkPoint, node.origin, COLOR4(64, 255, 0, 255));
-								}
-								else {
-									drawLine(lastPos, linkPoint, COLOR4(0, 255, 255, 255));
-									drawLine(linkPoint, node.origin, COLOR4(0, 255, 255, 255));
-								}
-								drawBox(nodeCenter, 2, COLOR4(0, 255, 255, 255));
-								lastPos = nodeCenter;
-								break;
-							}
-						}
-
-						lastNode = &node;
-					}
-
-					drawLine(lastPos, pickInfo.getEnt()->getHullOrigin(map), COLOR4(0, 255, 255, 255));
-				}
-			}
-			else {
-				LeafNode& node = debugLeafNavMesh->nodes[leafNavIdx];
-
-				drawBox(node.origin, 2, COLOR4(0, 255, 0, 255));
-
-				std::string linkStr;
-
-				for (int i = 0; i < node.links.size(); i++) {
-					LeafLink& link = node.links[i];
-					if (link.node == -1) {
-						break;
-					}
-					LeafNode& linkLeaf = debugLeafNavMesh->nodes[link.node];
-					if (linkLeaf.childIdx != NAV_INVALID_IDX) {
-						continue;
-					}
-
-					Polygon3D& linkArea = link.linkArea;
-
-					if (link.baseCost > 16000) {
-						drawLine(node.origin, link.pos, COLOR4(255, 0, 0, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(255, 0, 0, 255));
-					}
-					else if (link.baseCost > 0) {
-						drawLine(node.origin, link.pos, COLOR4(255, 128, 0, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(255, 128, 0, 255));
-					}
-					else if (link.costMultiplier > 99.0f) {
-						drawLine(node.origin, link.pos, COLOR4(255, 255, 0, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(255, 255, 0, 255));
-					}
-					else if (link.costMultiplier > 9.0f) {
-						drawLine(node.origin, link.pos, COLOR4(255, 0, 255, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(255, 0, 255, 255));
-					}
-					else if (link.costMultiplier > 1.9f) {
-						drawLine(node.origin, link.pos, COLOR4(64, 255, 0, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(64, 255, 0, 255));
-					}
-					else {
-						drawLine(node.origin, link.pos, COLOR4(0, 255, 255, 255));
-						drawLine(link.pos, linkLeaf.origin, COLOR4(0, 255, 255, 255));
-					}
-
-					if (node.leafIdx == 208 && linkLeaf.leafIdx == 76) {
-						for (int k = 0; k < linkArea.verts.size(); k++) {
-							drawBox(linkArea.verts[k], 1, COLOR4(255, 255, 0, 255));
-						}
-					}
-					drawBox(link.pos, 1, COLOR4(0, 255, 0, 255));
-					drawBox(linkLeaf.origin, 2, COLOR4(0, 255, 255, 255));
-					linkStr += to_string(link.node) + " (" + to_string(linkArea.verts.size()) + "v), ";
-
-					/*
-					for (int k = 0; k < node.links.size(); k++) {
-						if (i == k)
-							continue;
-						drawLine(link.pos, node.links[k].pos, COLOR4(64, 0, 255, 255));
-					}
-					*/
-				}
-
-				//logf("Leaf node idx: %d, links: %s\n", leafNavIdx, linkStr.c_str());
-			}
-
-		}
-		if (false) {
-			// special case: touching on a single edge point
-			//Polygon3D poly1({ vec3(213.996979, 202.000000, 362.000000), vec3(213.996979, 202.000000, 198.000824), vec3(213.996979, 105.996414, 198.000824), vec3(213.996979, 105.996414, 362.000000), });
-			//Polygon3D poly2({ vec3(80.000969, -496.000000, 266.002014), vec3(310.000000, -496.000000, 266.002014), vec3(310.000000, 106.003876, 266.002014), vec3(80.000999, 106.003876, 266.002014), });
-
-			Polygon3D poly1({ vec3(310.000000, 330.000000, 294.000000), vec3(213.996979, 330.000000, 294.000000), vec3(213.996979, 330.000000, 362.001282), vec3(310.000000, 330.000000, 362.001282), });
-			Polygon3D poly2({ vec3(496.000000, -496.000000, 294.000000), vec3(496.000000, 431.998474, 294.000000), vec3(80.002045, 431.998474, 294.000000), vec3(80.002045, -496.000000, 294.000000), });
-
-			vec3 start, end;
-			poly1.planeIntersectionLine(poly2, start, end);
-
-			vec3 ipos;
-			COLOR4 c1 = poly1.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
-			COLOR4 c2 = poly2.intersect2D(start, end, ipos) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
-			COLOR4 c3 = poly1.intersects(poly2) ? COLOR4(255, 0, 0, 100) : COLOR4(0, 255, 255, 100);
-
-			//drawPolygon3D(Polygon3D(poly1), c3);
-			//drawPolygon3D(Polygon3D(poly2), c3);
-			//drawLine(start, end, COLOR4(100, 0, 255, 255));
-
-			//drawPolygon3D(g_app->debugPoly, COLOR4(255, 255, 255, 150));
-		}
-
-		if (debugPoly.isValid && debugPoly2.isValid) {
-			colorShader->bind();
-			colorShader->pushMatrix(MAT_PROJECTION);
-			colorShader->pushMatrix(MAT_VIEW);
-			projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
-			view.loadIdentity();
-			colorShader->updateMatrixes();
-
-			vec2 maxSz = vec2(500, 500);
-			vec2 sz = debugPoly.localMaxs - debugPoly.localMins;
-			float scale = min(maxSz.y / sz.y, maxSz.x / sz.x);
-			vec2 offset = debugPoly.localMins * -scale;
-			vec2 pos = offset + vec2(700, 100);
-
-			vector<vec2> projectedVerts;
-			for (vec3& v : debugPoly2.verts) {
-				projectedVerts.push_back(debugPoly.project(v));
-			}
-
-			drawPolygon2D(debugPoly.localVerts, pos, scale, COLOR4(255, 0, 0, 255));
-			drawPolygon2D(projectedVerts, pos, scale, COLOR4(255, 0, 0, 255));
-
-			debugPoly.coplanerIntersectArea(debugPoly2);
-
-			for (int i = 0; i < debugVerts2d.size(); i++) {
-				vec2 v = debugVerts2d[i];
-				vec2 vpos = pos + v*scale;
-				gui->addText(Text2D(vpos, cstrf("Vert %d: %d %d", i, (int)v.x, (int)v.y)));
-				drawBox2D(vpos, 8, COLOR4(255, 255, 0, 255));
-			}
-
-			// draw camera origin in the same coordinate space
-			vec2 cam = debugPoly.project(cameraOrigin);
-			drawBox2D(pos + cam * scale, 16, debugPoly.isInside(cam) ? COLOR4(0, 255, 0, 255) : COLOR4(255, 32, 0, 255));
-
-			colorShader->popMatrix(MAT_PROJECTION);
-			colorShader->popMatrix(MAT_VIEW);
-		}
-	}
-
-	if (pickInfo.getFace()) {
-		BSPFACE& face = *pickInfo.getFace();
-		BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-
-		vector<vec3> faceVerts;
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = edgeIdx >= 0 ? edge.iVertex[0] : edge.iVertex[1];
-
-			faceVerts.push_back(map->verts[vertIdx]);
-		}
-
-		Polygon3D poly(faceVerts);
-		//vec3 center = poly.center + pickInfo.ent->getOrigin();
-		vec3 center = poly.center - poly.plane_z;
-
-		drawLine(center, center + info.vS * -10, { 128, 0, 255, 255 });
-		drawLine(center, center + info.vT * -10, { 0, 255, 0, 255 });
-		drawLine(center, center + poly.plane_z * -10, { 255, 255, 255, 255 });
-	}
-
-	glLineWidth(1);
-
-	glCheckError("Rendering nav mesh");
-}
-
-void Editor::renderLeafGraph(LeafNavMesh* mesh) {
-	if (isLoading || !mesh)
-		return;
-
-	int leafNavIdx = mesh->getNodeIdx(mapRenderer->map, cameraOrigin);
-
-	if (leafNavIdx == NAV_INVALID_IDX)
-		return;
-
-	LeafNode& node = mesh->nodes[leafNavIdx];
-
-	colorShader->bind();
-	model.loadIdentity();
-	colorShader->updateMatrixes();
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-
-	drawBox(node.origin, 2, COLOR4(0, 255, 0, 255));
-
-	{
-		vec3 screenOri = worldToScreen(node.origin - vec3(0, 0, 1));
-		if (screenOri.z > 0) {
-			const char* label = cstrf("Leaf %d", (int)node.leafIdx);
-			gui->addText(Text2D(screenOri.x, screenOri.y, label, TEXT2D_ALIGN_CENTER));
-		}
-	}
-
-	for (int i = 0; i < node.links.size(); i++) {
-		LeafLink& link = node.links[i];
-		if (link.node == -1) {
-			break;
-		}
-		LeafNode& linkLeaf = mesh->nodes[link.node];
-		if (linkLeaf.childIdx != NAV_INVALID_IDX) {
-			continue;
-		}
-
-		Polygon3D& linkArea = link.linkArea;
-
-		drawLine(node.origin, link.pos, COLOR4(255, 128, 0, 255));
-		drawLine(link.pos, linkLeaf.origin, COLOR4(255, 128, 0, 255));
-
-		for (int i = 0; i < linkArea.verts.size(); i++) {
-			vec3& v1 = linkArea.verts[i];
-			vec3& v2 = linkArea.verts[(i + 1) % linkArea.verts.size()];
-
-			drawLine(v1, v2, COLOR4(255, 255, 0, 255));
-		}
-
-		drawBox(link.pos, 1, COLOR4(255, 255, 0, 255));
-		drawLine(link.pos, link.pos + linkArea.plane_z * 16, COLOR4(255, 255, 0, 255));
-		drawBox(linkLeaf.origin, 2, COLOR4(0, 255, 0, 255));
-
-		vec3 screenOri = worldToScreen(linkLeaf.origin - vec3(0,0,1));
-		if (screenOri.z > 0) {
-			const char* label = cstrf("Leaf %d", (int)linkLeaf.leafIdx);
-			gui->addText(Text2D(screenOri.x, screenOri.y, label, TEXT2D_ALIGN_CENTER));
-		}
-	}
-}
-
-void Editor::renderArrangeMaps() {
-	struct RenderMap {
-		BspRenderer* renderer;
-		Entity* controlEnt;
-		vector<OrderedEnt> orderedEnts;
-		vec3 mins, maxs;
-	};
-	vector<RenderMap> renderMaps;
-
-	int idx = 1;
-	for (BspRenderer* arrangeBsp : arrangeBsps) {
-		Entity* controlEnt = mapRenderer->map->ents[idx++];
-		arrangeBsp->map->ents[0]->setOrAddKeyvalue("origin", controlEnt->getOrigin().toKeyvalueString());
-
-		vector<OrderedEnt> orderedEnts;
-		arrangeBsp->getRenderEnts(orderedEnts);
-
-		RenderMap rmap;
-		rmap.controlEnt = controlEnt;
-		rmap.renderer = arrangeBsp;
-		rmap.orderedEnts = orderedEnts;
-		arrangeBsp->map->get_bounding_box(rmap.mins, rmap.maxs);
-
-		renderMaps.push_back(rmap);
-	}
-
-	for (RenderMap& arrangeBsp : renderMaps) {
-		// opaque pass
-		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, false);
-	}
-
-	for (RenderMap& arrangeBsp : renderMaps) {
-		// wireframe pass
-		if (g_settings.render_flags & RENDER_WIREFRAME) {
-			arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, true);
-			glCheckError("Rendering BSP (wireframe pass)");
-		}
-	}
-
-	for (RenderMap& arrangeBsp : renderMaps) {
-		// transparency pass
-		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, true, false);
-	}
-
-	colorShader->bind();
-	colorShader->modelMat->loadIdentity();
-	colorShader->updateMatrixes();
-
-	for (RenderMap& rmap : renderMaps) {
-		Bsp* map = rmap.renderer->map;
-		COLOR4 boxColor = COLOR4(0, 0, 255, 128);
-
-		vector<Entity*> selected = pickInfo.getEnts();
-		for (Entity* selectedEnt : selected) {
-			if (selectedEnt == rmap.controlEnt) {
-				boxColor.g = 128;
-			}
-		}
-
-		bool collision = false;
-		for (RenderMap& othermap : renderMaps) {
-			if (rmap.renderer == othermap.renderer)
-				continue;
-			if (boxesIntersect(rmap.mins, rmap.maxs, othermap.mins, othermap.maxs)) {
-				collision = true;
-				break;
-			}
-		}
-
-		if (collision) {
-			boxColor.r = 255;
-			boxColor.b = 0;
-		}
-
-		drawBox(rmap.mins, rmap.maxs, boxColor);
-	}
 }
 
 void Editor::postLoadFgds()
@@ -1530,7 +754,7 @@ void Editor::loadSettings() {
 	showDragAxes = g_settings.show_transform_axes;
 	g_verbose = g_settings.verboseLogs;
 	zFar = g_settings.zfar;
-	zFarMdl = g_settings.zFarMdl;
+	modelRenderer->renderDist = g_settings.zFarMdl;
 	fov = g_settings.fov;
 	g_settings.render_flags = g_settings.render_flags;
 	undoLevels = g_settings.undoLevels;
@@ -1581,7 +805,363 @@ void Editor::loadFgds() {
 		fgds.push_back(tmp);
 	}
 
-	swapPointEntRenderer = new PointEntRenderer(mergedFgd, fgds, colorShader);
+	swapPointEntRenderer = new PointEntRenderer(mergedFgd, fgds);
+}
+
+void Editor::drawViewport() {
+	setupView();
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+
+	glCheckError("Setting up view");
+
+	if (previewMode || (g_settings.render_flags & RENDER_SKYBOX)) {
+		mapRenderer->drawSkybox();
+		glCheckError("Rendering skybox");
+	}
+
+	vector<OrderedEnt> orderedEnts;
+	mapRenderer->getRenderEnts(orderedEnts);
+
+	// draw opaque world/entity faces
+	mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, false);
+
+	glCheckError("Rendering BSP (opaque pass)");
+
+	// wireframe pass
+	if (!previewMode && (g_settings.render_flags & RENDER_WIREFRAME)) {
+		mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, true);
+		glCheckError("Rendering BSP (wireframe pass)");
+	}
+
+	// studio models have transparent boxes that need to draw over the world but behind transparent
+	// brushes like a trigger_once which is rendered using the clipnode model
+	if (modelRenderer->drawModelsAndSprites(mapRenderer->renderOffset, cameraOrigin, cameraAngles)) {
+		isLoading = true;
+	}
+	glCheckError("Rendering models and sprites");
+
+	// draw transparent entity faces
+	mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true, false);
+	glCheckError("Rendering BSP (transparency pass)");
+
+	if (mapArrangeMode)
+		drawArrangeMaps();
+
+	if (pickMode == PICK_LEAF && !previewMode) {
+		mapRenderer->renderLeaves();
+	}
+
+	if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
+		mapRenderer->updatePvs(cameraOrigin);
+
+		if ((g_settings.render_flags & RENDER_PVS))
+			mapRenderer->drawPvs();
+	}
+
+	glCheckError("Rendering leaf selection");
+
+	if (!mapRenderer->isFinishedLoading()) {
+		isLoading = true;
+	}
+
+	model.loadIdentity();
+
+	if (!previewMode) {
+		g_shaders.color->bind();
+		drawEntDirectionVectors(); // draws over world faces
+		glCheckError("Rendering entity vectors");
+
+		drawTextureAxes();
+		glCheckError("Rendering texture axes");
+
+		if ((g_settings.render_flags & (RENDER_ORIGIN | RENDER_MAP_BOUNDARY)) || hasCullbox) {
+			g_shaders.color->bind();
+			model.loadIdentity();
+			g_shaders.color->pushMatrix(MAT_MODEL);
+			g_shaders.color->updateMatrixes();
+			glDisable(GL_CULL_FACE);
+
+			if ((g_settings.render_flags & RENDER_MAP_BOUNDARY) && !emptyMapLoaded) {
+				drawMapBoundary();
+			}
+
+			if (pickInfo.getEnt()) {
+				vec3 offset = mapRenderer->renderOffset;
+				model.translate(offset.x, offset.y, offset.z);
+			}
+			g_shaders.color->updateMatrixes();
+
+			if (hasCullbox) {
+				drawBox(cullMins, cullMaxs, COLOR4(255, 0, 0, 64));
+			}
+
+			if (g_settings.render_flags & RENDER_ORIGIN) {
+				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
+				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
+				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
+			}
+
+			glEnable(GL_CULL_FACE);
+			g_shaders.color->popMatrix(MAT_MODEL);
+		}
+		glCheckError("Rendering map boundary/cull box");
+
+		drawEntConnections();
+		glCheckError("Rendering entity connections");
+
+		bool isScalingObject = transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT;
+		bool isMovingOrigin = transformMode == TRANSFORM_MOVE && transformTarget == TRANSFORM_ORIGIN && originSelected;
+		bool isTransformingValid = ((isTransformableSolid && !modelUsesSharedStructures) || !isScalingObject) && transformTarget != TRANSFORM_ORIGIN;
+		bool isTransformingWorld = pickInfo.getEntIndex() == 0 && transformTarget != TRANSFORM_OBJECT;
+		if (showDragAxes && !movingEnt && !isTransformingWorld && pickInfo.getEntIndex() >= 0 && (isTransformingValid || isMovingOrigin)) {
+			drawTransformAxes();
+			glCheckError("Rendering transform axes");
+		}
+
+		int modelIdx = pickInfo.getModelIndex();
+		if (modelIdx > 0 && pickMode == PICK_OBJECT) {
+			if (transformTarget == TRANSFORM_VERTEX && isTransformableSolid) {
+				drawModelVerts();
+				glCheckError("Rendering model verts");
+			}
+			if (transformTarget == TRANSFORM_ORIGIN) {
+				drawModelOrigin();
+				glCheckError("Rendering model origin");
+			}
+		}
+
+		drawDebugObjects();
+		glCheckError("Rendering debug polys");
+
+		navRenderer->renderNavMesh(mapRenderer->map, cameraOrigin);
+
+		if (pickMode == PICK_LEAF && (g_settings.render_flags & RENDER_LEAF_GRAPH)) {
+			navRenderer->renderLeafGraph(mapRenderer->leafNavMesh, cameraOrigin, mapRenderer->map);
+		}
+
+		addNameTags();
+	}
+
+	vec3 forward, right, up;
+	makeVectors(cameraAngles, forward, right, up);
+	//logf("DRAW %.1f %.1f %.1f -> %.1f %.1f %.1f\n", pickStart.x, pickStart.y, pickStart.z, pickDir.x, pickDir.y, pickDir.z);
+
+	drawMouseObjects();
+	glCheckError("Draw mouse objects");
+}
+
+void Editor::drawMapBoundary() {
+	glDepthFunc(GL_LESS);
+
+	COLOR4 red = COLOR4(255, 0, 0, 64);
+	COLOR4 invisible = COLOR4(0, 0, 0, 0);
+	COLOR4 green = COLOR4(0, 255, 0, 64);
+	COLOR4 boxColor = gui->hoveredOOB == 0 ? red : green;
+	vec3 center = vec3();
+	float width = g_settings.mapsize_max;
+	vec3 sz = vec3(width, width, width);
+	vec3 pos = vec3(center.x, center.z, -center.y);
+	cCube cube(pos - sz, pos + sz, gui->hoveredOOB == 0 ? red : green);
+
+	if (gui->hoveredOOB >= 0) {
+		red = COLOR4(255, 0, 0, 128);
+
+		BSPPLANE plane;
+		plane.fDist = g_settings.mapsize_max;
+		switch (gui->hoveredOOB) {
+		case 1: plane.vNormal = vec3(1, 0, 0); cube.right.setColor(invisible); break;
+		case 2: plane.vNormal = vec3(-1, 0, 0); cube.left.setColor(invisible); break;
+		case 3: plane.vNormal = vec3(0, 1, 0);  cube.front.setColor(invisible); break;
+		case 4: plane.vNormal = vec3(0, -1, 0); cube.back.setColor(invisible); break;
+		case 5: plane.vNormal = vec3(0, 0, 1); cube.bottom.setColor(invisible); break;
+		case 6: plane.vNormal = vec3(0, 0, -1); cube.top.setColor(invisible); break;
+		}
+
+		drawPlane(plane, red, g_settings.mapsize_max * 1.2f);
+	}
+
+	{
+		VertexBuffer buffer(g_shaders.color, COLOR_4B | POS_3F, &cube, 6 * 6);
+		buffer.upload();
+		buffer.draw(GL_TRIANGLES);
+	}
+	glDepthFunc(GL_LEQUAL);
+
+	glDepthFunc(GL_LEQUAL); // draw lines in front (still causes some z fighting)
+	drawBoxOutline(vec3(), g_settings.mapsize_max * 2, COLOR4(0, 0, 0, 255));
+
+	glDepthFunc(GL_LESS);
+}
+
+void Editor::drawDebugObjects() {
+	int modelIdx = pickInfo.getModelIndex();
+
+	if (debugClipnodes && modelIdx > 0) {
+		BSPMODEL* pickModel = pickInfo.getModel();
+		glDisable(GL_CULL_FACE);
+		int currentPlane = 0;
+		drawClipnodes(pickInfo.getMap(), pickModel->iHeadnodes[1], currentPlane, debugInt);
+		debugIntMax = currentPlane - 1;
+		glEnable(GL_CULL_FACE);
+	}
+
+	if (debugNodes && modelIdx > 0) {
+		BSPMODEL* pickModel = pickInfo.getModel();
+		glDisable(GL_CULL_FACE);
+		int currentPlane = 0;
+		drawNodes(pickInfo.getMap(), pickModel->iHeadnodes[0], currentPlane, debugNode);
+		debugNodeMax = currentPlane - 1;
+		glEnable(GL_CULL_FACE);
+	}
+
+	if (g_app->debugPoly.isValid)
+		drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 0, 150));
+	if (g_app->debugPoly2.isValid)
+		drawPolygon3D(g_app->debugPoly2, COLOR4(255, 0, 0, 150));
+	if (g_app->debugPoly3.isValid)
+		drawPolygon3D(g_app->debugPoly3, COLOR4(255, 255, 255, 150));
+	if (g_app->debugLine0 != g_app->debugLine1) {
+		drawLine(debugLine0, debugLine1, { 128, 0, 255, 255 });
+		drawLine(debugLine2, debugLine3, { 0, 255, 0, 255 });
+		drawLine(debugLine4, debugLine5, { 255, 128, 0, 255 });
+	}
+
+	/*
+	if (gui->showDebugWidget && pickInfo.getFace()) {
+		BSPFACE& face = *pickInfo.getFace();
+		Bsp* map = mapRenderer->map;
+		glDisable(GL_CULL_FACE);
+
+		for (int i = 0; i < face.nEdges; i++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + i];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+			drawBox(map->verts[vertIdx], 8, COLOR4(0, 128, 0, 255));
+			drawLine(map->verts[edge.iVertex[0]], map->verts[edge.iVertex[1]], COLOR4(128, 0, 255, 255));
+
+			vec3 start = map->verts[edge.iVertex[0]];
+			vec3 end = map->verts[edge.iVertex[1]];
+			drawArrow(start, end, COLOR4(0, 255, 0, 255));
+		}
+		glEnable(GL_CULL_FACE);
+	}
+	*/
+
+	//glCheckError("Rendering debug clipnodes");
+}
+
+void Editor::drawMouseObjects() {
+	if (cameraMouseCapture || isBoxSelecting) {
+		g_shaders.color->bind();
+		g_shaders.color->pushMatrix(MAT_PROJECTION);
+		g_shaders.color->pushMatrix(MAT_VIEW);
+		projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
+		view.loadIdentity();
+		g_shaders.color->updateMatrixes();
+		glDisable(GL_DEPTH_TEST);
+
+		if (cameraMouseCapture) {
+			int border = 1;
+			int thick = 2;
+			int len = 12;
+			vec2 center(windowWidth / 2, windowHeight / 2);
+
+			drawRect2D(center - vec2(len + border, thick / 2 + border), vec2(len * 2 + border * 2, thick + border * 2), COLOR4(0, 0, 0, 255));
+			drawRect2D(center - vec2(thick / 2 + border, len + border), vec2(thick + border * 2, len * 2 + border * 2), COLOR4(0, 0, 0, 255));
+
+			drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
+			drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
+		}
+		if (isBoxSelecting && (boxSelectEnd - boxSelectStart).length() > 8) {
+			drawLine2D(vec2(boxSelectStart.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
+			drawLine2D(vec2(boxSelectEnd.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
+			drawLine2D(vec2(boxSelectEnd.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
+			drawLine2D(vec2(boxSelectStart.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
+		}
+
+		glEnable(GL_DEPTH_TEST);
+		g_shaders.color->popMatrix(MAT_PROJECTION);
+		g_shaders.color->popMatrix(MAT_VIEW);
+	}
+}
+
+void Editor::drawArrangeMaps() {
+	struct RenderMap {
+		BspRenderer* renderer;
+		Entity* controlEnt;
+		vector<OrderedEnt> orderedEnts;
+		vec3 mins, maxs;
+	};
+	vector<RenderMap> renderMaps;
+
+	int idx = 1;
+	for (BspRenderer* arrangeBsp : arrangeBsps) {
+		Entity* controlEnt = mapRenderer->map->ents[idx++];
+		arrangeBsp->map->ents[0]->setOrAddKeyvalue("origin", controlEnt->getOrigin().toKeyvalueString());
+
+		vector<OrderedEnt> orderedEnts;
+		arrangeBsp->getRenderEnts(orderedEnts);
+
+		RenderMap rmap;
+		rmap.controlEnt = controlEnt;
+		rmap.renderer = arrangeBsp;
+		rmap.orderedEnts = orderedEnts;
+		arrangeBsp->map->get_bounding_box(rmap.mins, rmap.maxs);
+
+		renderMaps.push_back(rmap);
+	}
+
+	for (RenderMap& arrangeBsp : renderMaps) {
+		// opaque pass
+		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, false);
+	}
+
+	for (RenderMap& arrangeBsp : renderMaps) {
+		// wireframe pass
+		if (g_settings.render_flags & RENDER_WIREFRAME) {
+			arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, true);
+			glCheckError("Rendering BSP (wireframe pass)");
+		}
+	}
+
+	for (RenderMap& arrangeBsp : renderMaps) {
+		// transparency pass
+		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, true, false);
+	}
+
+	g_shaders.color->bind();
+	g_shaders.color->modelMat->loadIdentity();
+	g_shaders.color->updateMatrixes();
+
+	for (RenderMap& rmap : renderMaps) {
+		Bsp* map = rmap.renderer->map;
+		COLOR4 boxColor = COLOR4(0, 0, 255, 128);
+
+		vector<Entity*> selected = pickInfo.getEnts();
+		for (Entity* selectedEnt : selected) {
+			if (selectedEnt == rmap.controlEnt) {
+				boxColor.g = 128;
+			}
+		}
+
+		bool collision = false;
+		for (RenderMap& othermap : renderMaps) {
+			if (rmap.renderer == othermap.renderer)
+				continue;
+			if (boxesIntersect(rmap.mins, rmap.maxs, othermap.mins, othermap.maxs)) {
+				collision = true;
+				break;
+			}
+		}
+
+		if (collision) {
+			boxColor.r = 255;
+			boxColor.b = 0;
+		}
+
+		drawBox(rmap.mins, rmap.maxs, boxColor);
+	}
 }
 
 void Editor::drawModelVerts() {
@@ -1654,7 +1234,7 @@ void Editor::drawModelVerts() {
 
 	model.loadIdentity();
 	model.translate(renderOffset.x, renderOffset.y, renderOffset.z);
-	colorShader->updateMatrixes();
+	g_shaders.color->updateMatrixes();
 	modelVertBuff->draw(GL_TRIANGLES);
 }
 
@@ -1694,7 +1274,7 @@ void Editor::drawModelOrigin() {
 	modelOriginBuff->upload();
 
 	model.loadIdentity();
-	colorShader->updateMatrixes();
+	g_shaders.color->updateMatrixes();
 	modelOriginBuff->draw(GL_TRIANGLES);
 }
 
@@ -1712,7 +1292,7 @@ void Editor::drawTransformAxes() {
 	if (transformMode == TRANSFORM_SCALE && transformTarget == TRANSFORM_OBJECT) {
 		vec3 ori = scaleAxes.origin;
 		model.translate(ori.x, ori.z, -ori.y);
-		colorShader->updateMatrixes();
+		g_shaders.color->updateMatrixes();
 		scaleAxes.buffer->upload();
 		scaleAxes.buffer->draw(GL_TRIANGLES);
 	}
@@ -1727,7 +1307,7 @@ void Editor::drawTransformAxes() {
 
 		float offset = shouldOffset ? 64 : 0;
 		model.translate(ori.x, ori.z + offset, -ori.y);
-		colorShader->updateMatrixes();
+		g_shaders.color->updateMatrixes();
 		moveAxes.buffer->upload();
 		moveAxes.buffer->draw(GL_TRIANGLES);
 	}
@@ -1737,8 +1317,16 @@ void Editor::drawEntConnections() {
 	if (entConnections && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
 		model.loadIdentity();
 		model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
-		colorShader->updateMatrixes();
+		g_shaders.color->updateMatrixes();
 		entConnections->draw(GL_LINES);
+	}
+
+	if (entConnectionPoints && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
+		model.loadIdentity();
+		g_shaders.color->updateMatrixes();
+		glDisable(GL_DEPTH_TEST);
+		entConnectionPoints->draw(GL_TRIANGLES);
+		glEnable(GL_DEPTH_TEST);
 	}
 }
 
@@ -1804,7 +1392,7 @@ void Editor::updateEntDirectionVectors() {
 		}
 	}
 
-	entDirectionVectors = new VertexBuffer(colorShader, COLOR_4B | POS_3F, arrows, numPointers * arrowVerts);
+	entDirectionVectors = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, arrows, numPointers * arrowVerts);
 	entDirectionVectors->ownData = true;
 	entDirectionVectors->upload();
 }
@@ -1818,10 +1406,10 @@ void Editor::drawEntDirectionVectors() {
 	glDisable(GL_DEPTH_TEST);
 	glDepthFunc(GL_ALWAYS);
 
-	colorShader->bind();
+	g_shaders.color->bind();
 	model.loadIdentity();
 	model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
-	colorShader->updateMatrixes();
+	g_shaders.color->updateMatrixes();
 	entDirectionVectors->draw(GL_TRIANGLES);
 
 	glDepthFunc(GL_LESS);
@@ -1891,7 +1479,7 @@ void Editor::updateTextureAxes() {
 	cVert* uploadVerts = new cVert[verts.size()];
 	memcpy(uploadVerts, &verts[0], sizeof(cVert) * verts.size());
 
-	allTextureAxes = new VertexBuffer(colorShader, COLOR_4B | POS_3F, uploadVerts, verts.size());
+	allTextureAxes = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, uploadVerts, verts.size());
 	allTextureAxes->upload();
 	allTextureAxes->ownData = true;
 }
@@ -1904,22 +1492,41 @@ void Editor::drawTextureAxes() {
 	glDisable(GL_DEPTH_TEST);
 	glDepthFunc(GL_ALWAYS);
 
-	colorShader->bind();
+	g_shaders.color->bind();
 	model.loadIdentity();
 	model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
-	colorShader->updateMatrixes();
+	g_shaders.color->updateMatrixes();
 	allTextureAxes->draw(GL_LINES);
 
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
 }
 
-void Editor::controls() {
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+void Editor::controlsBegin() {
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		pressed[i] = glfwGetKey(window, i) == GLFW_PRESS;
+		released[i] = glfwGetKey(window, i) == GLFW_RELEASE;
+	}
 
 	anyCtrlPressed = pressed[GLFW_KEY_LEFT_CONTROL] || pressed[GLFW_KEY_RIGHT_CONTROL];
 	anyAltPressed = pressed[GLFW_KEY_LEFT_ALT] || pressed[GLFW_KEY_RIGHT_ALT];
 	anyShiftPressed = pressed[GLFW_KEY_LEFT_SHIFT] || pressed[GLFW_KEY_RIGHT_SHIFT];
+}
+
+void Editor::controlsEnd() {
+	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+
+	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
+		oldPressed[i] = pressed[i];
+		oldReleased[i] = released[i];
+	}
+
+	oldScroll = g_scroll;
+}
+
+void Editor::viewportControls() {
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
 	static bool oldWantTextInput = false;
 	static bool guiWasFocused = false;
@@ -1963,20 +1570,11 @@ void Editor::controls() {
 		if (!guiWasFocused) {
 			cameraObjectHovering();
 			vertexEditControls();
+			navRenderer->controls();
 		}
 
 		cameraPickingControls();
 	}
-
-	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-
-	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
-		oldPressed[i] = pressed[i];
-		oldReleased[i] = released[i];
-	}
-
-	oldScroll = g_scroll;
 }
 
 void Editor::vertexEditControls() {
@@ -2006,34 +1604,11 @@ void Editor::vertexEditControls() {
 
 	if (pressed[GLFW_KEY_F] && !oldPressed[GLFW_KEY_F])
 	{
-		if (!anyCtrlPressed)
-		{
+		if (!anyCtrlPressed) {
 			splitFace();
-			if (debugLeafNavMesh && pickMode == PICK_OBJECT && !isLoading) {
-				Bsp* map = mapRenderer->map;
-				debugLeafNavMesh->refreshNodes(map);
-				debugInt++;
-			}
 		}
-		else
-		{
+		else {
 			gui->widgets[WIDGET_ENT_REPORT]->widgetVisible = !gui->widgets[WIDGET_ENT_REPORT]->widgetVisible;
-		}
-	}
-
-	if (debugLeafNavMesh) {
-		if (pressed[GLFW_KEY_G] && !oldPressed[GLFW_KEY_G]) {
-			debugInt -= 2;
-			Bsp* map = mapRenderer->map;
-			debugLeafNavMesh->refreshNodes(map);
-			debugInt++;
-		}
-
-		if (pressed[GLFW_KEY_H] && !oldPressed[GLFW_KEY_H]) {
-			debugInt = 269;
-			Bsp* map = mapRenderer->map;
-			debugLeafNavMesh->refreshNodes(map);
-			debugInt++;
 		}
 	}
 }
@@ -2967,10 +2542,8 @@ void Editor::addMap(Bsp* map) {
 	g_settings.addRecentFile(map->path);
 	g_settings.save(); // in case the program crashes
 	
-	if (debugLeafNavMesh) {
-		delete debugLeafNavMesh;
-		debugLeafNavMesh = NULL;
-	}
+	delete navRenderer;
+	navRenderer = new NavRenderer();
 
 	mapRenderer = new BspRenderer(map, pointEntRenderer);
 
@@ -3007,614 +2580,6 @@ void Editor::addMap(Bsp* map) {
 	emptyMapLoaded = false;
 
 	glCheckError("add map");
-}
-
-void Editor::drawLine(vec3 start, vec3 end, COLOR4 color) {
-	cVert verts[2];
-
-	verts[0].x = start.x;
-	verts[0].y = start.z;
-	verts[0].z = -start.y;
-	verts[0].c = color;
-
-	verts[1].x = end.x;
-	verts[1].y = end.z;
-	verts[1].z = -end.y;
-	verts[1].c = color;
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &verts[0], 2);
-	buffer.upload();
-	buffer.draw(GL_LINES);
-}
-
-void Editor::drawArrow(vec3 start, vec3 end, COLOR4 color) {
-	struct cArrow {
-		cCube shaft; // minor todo: one face can be omitted. make a new struct
-		cPyramid tip;
-	};
-	int arrowVerts = 6 * 6 + (6 + 3 * 4);
-	
-	vec3 angles = VecToAngles((end - start).normalize());
-	mat4x4 rotMat;
-	rotMat.loadIdentity();
-	rotMat.rotateZ(-angles.x * (PI / 180.0f));
-	rotMat.rotateY(-angles.y * (PI / 180.0f));
-
-	float len = (end - start).length();
-	cArrow arrow;
-	arrow.shaft = cCube(vec3(-1, -1, -1), vec3(len - 16, 1, 1), color);
-	arrow.tip = cPyramid(vec3(len - 16, 0, 0), 4, 16, color);
-
-	cVert* rawVerts = (cVert*)&arrow;
-	for (int k = 0; k < arrowVerts; k++) {
-		vec3* pos = (vec3*)&rawVerts[k].x;
-		*pos = (rotMat * vec4(*pos, 1)).xyz() + start.flip();
-	}
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &arrow, arrowVerts);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawLine2D(vec2 start, vec2 end, COLOR4 color) {
-	cVert verts[2];
-
-	verts[0].x = start.x;
-	verts[0].y = start.y;
-	verts[0].z = 0;
-	verts[0].c = color;
-
-	verts[1].x = end.x;
-	verts[1].y = end.y;
-	verts[1].z = 0;
-	verts[1].c = color;
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &verts[0], 2);
-	buffer.upload();
-	buffer.draw(GL_LINES);
-}
-
-void Editor::drawBox(vec3 center, float width, COLOR4 color) {
-	width *= 0.5f;
-	vec3 sz = vec3(width, width, width);
-	vec3 pos = vec3(center.x, center.z, -center.y);
-	cCube cube(pos - sz, pos + sz, color);
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawBoxOutline(vec3 center, float width, COLOR4 color) {
-	width *= 0.5f;
-	vec3 sz = vec3(width, width, width);
-	vec3 pos = vec3(center.x, center.z, -center.y);
-	vec3 mins = pos - sz;
-	vec3 maxs = pos + sz;
-
-	vec3 corners[8] = {
-		vec3(mins.x, mins.y, mins.z), // 0
-		vec3(maxs.x, mins.y, mins.z), // 1
-		vec3(mins.x, maxs.y, mins.z), // 2
-		vec3(maxs.x, maxs.y, mins.z), // 3
-		vec3(mins.x, mins.y, maxs.z), // 4
-		vec3(maxs.x, mins.y, maxs.z), // 5
-		vec3(mins.x, maxs.y, maxs.z), // 6
-		vec3(maxs.x, maxs.y, maxs.z),  // 7
-	};
-
-	cVert edges[24] = {
-		cVert(corners[0], color), cVert(corners[1], color),
-		cVert(corners[1], color), cVert(corners[3], color),
-		cVert(corners[3], color), cVert(corners[2], color),
-		cVert(corners[2], color), cVert(corners[0], color),
-		cVert(corners[4], color), cVert(corners[5], color),
-		cVert(corners[5], color), cVert(corners[7], color),
-		cVert(corners[7], color), cVert(corners[6], color),
-		cVert(corners[6], color), cVert(corners[4], color),
-		cVert(corners[0], color), cVert(corners[4], color),
-		cVert(corners[1], color), cVert(corners[5], color),
-		cVert(corners[2], color), cVert(corners[6], color),
-		cVert(corners[3], color), cVert(corners[7], color),
-	};
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &edges, 24);
-	buffer.upload();
-	buffer.draw(GL_LINES);
-}
-
-void Editor::drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
-	mins = vec3(mins.x, mins.z, -mins.y);
-	maxs = vec3(maxs.x, maxs.z, -maxs.y);
-
-	cCube cube(mins, maxs, color);
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6 * 6);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawPolygon3D(Polygon3D& poly, COLOR4 color) {
-	colorShader->bind();
-	model.loadIdentity();
-	colorShader->updateMatrixes();
-	glDisable(GL_CULL_FACE);
-
-	static cVert verts[64];
-
-	for (int i = 0; i < poly.verts.size() && i < 64; i++) {
-		vec3 pos = poly.verts[i];
-		verts[i].x = pos.x;
-		verts[i].y = pos.z;
-		verts[i].z = -pos.y;
-		verts[i].c = color;
-	}
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, verts, poly.verts.size());
-	buffer.upload();
-	buffer.draw(GL_TRIANGLE_FAN);
-}
-
-void Editor::drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color) {
-	for (int i = 0; i < poly.size(); i++) {
-		vec2 v1 = poly[i];
-		vec2 v2 = poly[(i + 1) % poly.size()];
-		drawLine2D(pos + v1*scale, pos + v2 * scale, color);
-		if (i == 0) {
-			drawLine2D(pos + v1 * scale, pos + (v1 + (v2-v1)*0.5f) * scale, COLOR4(0,255,0,255));
-		}
-	}
-}
-
-void Editor::drawBox2D(vec2 center, float width, COLOR4 color) {
-	vec2 pos = vec2(center.x, center.y) - vec2(width*0.5f, width *0.5f);
-	cQuad cube(pos.x, pos.y, width, width, color);
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawRect2D(vec2 pos, vec2 size, COLOR4 color) {
-	cQuad cube(pos.x, pos.y, size.x, size.y, color);
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &cube, 6);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
-
-	vec3 ori = plane.vNormal * plane.fDist;
-	vec3 crossDir = fabs(plane.vNormal.z) > 0.9f ? vec3(1, 0, 0) : vec3(0, 0, 1);
-	vec3 right = crossProduct(plane.vNormal, crossDir);
-	vec3 up = crossProduct(right, plane.vNormal);
-
-	vec3 topLeft = vec3(ori + right * -sz + up * sz).flip();
-	vec3 topRight = vec3(ori + right * sz + up * sz).flip();
-	vec3 bottomLeft = vec3(ori + right * -sz + up * -sz).flip();
-	vec3 bottomRight = vec3(ori + right * sz + up * -sz).flip();
-
-	cVert topLeftVert(topLeft, color);
-	cVert topRightVert(topRight, color);
-	cVert bottomLeftVert(bottomLeft, color);
-	cVert bottomRightVert(bottomRight, color);
-	cQuad quad(bottomRightVert, bottomLeftVert, topLeftVert, topRightVert);
-
-	VertexBuffer buffer(colorShader, COLOR_4B | POS_3F, &quad, 6);
-	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
-}
-
-void Editor::drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
-	if (iNode == -1)
-		return;
-	BSPCLIPNODE& node = map->clipnodes[iNode];
-
-	if (currentPlane == activePlane)
-		drawPlane(map->planes[node.iPlane], { 255, 255, 255, 255 });
-	currentPlane++;
-
-	for (int i = 0; i < 2; i++) {
-		if (node.iChildren[i] >= 0) {
-			drawClipnodes(map, node.iChildren[i], currentPlane, activePlane);
-		}
-	}
-}
-
-void Editor::drawNodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {
-	if (iNode == -1)
-		return;
-	BSPNODE& node = map->nodes[iNode];
-
-	if (currentPlane == activePlane)
-		drawPlane(map->planes[node.iPlane], { 255, 128, 128, 255 });
-	currentPlane++;
-
-	for (int i = 0; i < 2; i++) {
-		if (node.iChildren[i] >= 0) {
-			drawNodes(map, node.iChildren[i], currentPlane, activePlane);
-		}
-	}
-}
-
-BaseRenderer* Editor::loadModel(Entity* ent) {
-	if (ent->hasCachedMdl) {
-		return ent->cachedMdl;
-	}
-	if (g_loading_models.getValue() > 0) {
-		return NULL;
-	}
-
-	struct ModelKey {
-		string name;
-		bool isClassname;
-	};
-
-	static vector<ModelKey> tryModelKeys = {
-		{"model", false},
-		{"new_model", false},
-		{"classname", true},
-		{"monstertype", true},
-	};
-
-	string model;
-	string lowerModel;
-	bool foundModelKey = false;
-	bool isMdlNotSpr = true;
-	ent->isIconSprite = false;
-	for (int i = 0; i < tryModelKeys.size(); i++) {
-		ModelKey key = tryModelKeys[i];
-		model = ent->getKeyvalue(key.name);
-
-		if (tryModelKeys[i].isClassname) {
-			if (g_app->mergedFgd) {
-				FgdClass* fgd = g_app->mergedFgd->getFgdClass(ent->getKeyvalue(key.name));
-				if (fgd) {
-					if (fgd->model.length()) {
-						model = fgd->model;
-					}
-					else if (fgd->sprite.length()) {
-						model = fgd->sprite;
-					}
-					else if (fgd->iconSprite.length()) {
-						model = fgd->iconSprite;
-						ent->isIconSprite = true;
-					}
-					lowerModel = toLowerCase(model);
-				}
-			}
-			else {
-				continue;
-			}
-		}
-		else {
-			lowerModel = toLowerCase(model);
-		}
-
-		bool hasMdlExt = lowerModel.size() > 4 && lowerModel.find(".mdl") == lowerModel.size() - 4;
-		bool hasSprExt = lowerModel.size() > 4 && lowerModel.find(".spr") == lowerModel.size() - 4;
-		if (hasSprExt || hasMdlExt) {
-			foundModelKey = true;
-			ent->cachedMdlCname = key.isClassname ? ent->getKeyvalue(key.name) : ent->getClassname();
-			isMdlNotSpr = hasMdlExt;
-			break;
-		}
-	}
-
-	if (!foundModelKey) {
-		//logf("No model key found for '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
-		ent->hasCachedMdl = true;
-		return NULL; // no MDL found
-	}
-
-	auto cache = studioModelPaths.find(lowerModel);
-	if (cache == studioModelPaths.end()) {
-		string findPath = findAsset(model);
-		studioModelPaths[lowerModel] = findPath;
-		if (!findPath.size()) {
-			logf("Failed to find model for entity '%s' (%s): %s\n",
-				ent->getTargetname().c_str(), ent->getClassname().c_str(),
-				model.c_str());
-			ent->hasCachedMdl = true;
-			return NULL;
-		}
-	}
-
-	string modelPath = studioModelPaths[lowerModel];
-	if (!modelPath.size()) {
-		//logf("Empty string for model path in entity '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
-		ent->hasCachedMdl = true;
-		return NULL;
-	}
-
-	auto mdl = studioModels.find(modelPath);
-	if (mdl == studioModels.end()) {
-		BaseRenderer* newModel = NULL;
-		if (isMdlNotSpr) {
-			newModel = new MdlRenderer(modelPath);
-		}
-		else {
-			newModel = new SprRenderer(modelPath);
-		}
-		
-		studioModels[modelPath] = newModel;
-		ent->cachedMdl = newModel;
-		ent->hasCachedMdl = true;
-		//logf("Begin load model for entity '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
-		return newModel;
-	}
-
-	ent->cachedMdl = mdl->second;
-	ent->hasCachedMdl = true;
-	return mdl->second;
-}
-
-bool Editor::drawModelsAndSprites() {
-	if (!(g_settings.render_flags & RENDER_POINT_ENTS))
-		return false;
-
-	if (mapRenderer->map->ents.empty()) {
-		return false;
-	}
-
-	vec3 worldOffset = mapRenderer->map->ents[0]->getOrigin();
-	
-	colorShader->bind();
-	colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
-
-	if (!previewMode && !(g_settings.render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES)))
-		return false;
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-
-	int drawCount = 0;
-
-	unordered_set<int> selectedEnts;
-	for (int idx : pickInfo.ents) {
-		selectedEnts.insert(idx);
-	}
-
-	vec3 renderOffset = mapRenderer->renderOffset;
-
-	vec3 camForward, camRight, camUp;
-	makeVectors(cameraAngles, camForward, camRight, camUp);
-
-	struct DepthSortedEnt {
-		Entity* ent;
-		int idx;
-		vec3 origin;
-		vec3 angles;
-		BaseRenderer* mdl;
-		float dist; // distance from camera
-	};
-
-	
-	Frustum frustum = getCameraFrustum();
-
-	bool modelsLoading = false;
-
-	vector<DepthSortedEnt> depthSortedMdlEnts;
-	for (int i = 0; i < mapRenderer->map->ents.size(); i++) {
-		Entity* ent = mapRenderer->map->ents[i];
-		DepthSortedEnt sent;
-		sent.ent = ent;
-		sent.mdl = loadModel(sent.ent);
-		sent.ent->didStudioDraw = false;
-
-		if (ent->hidden)
-			continue;
-
-		if (sent.mdl && (sent.mdl->loadState != MODEL_LOAD_DONE)) {
-			modelsLoading = true;
-		}
-
-		if (sent.mdl && sent.mdl->loadState != MODEL_LOAD_INITIAL) {
-			if (sent.mdl->loadState == MODEL_LOAD_WAITING) {
-				if (g_loading_models.getValue() == 0) {
-					g_loading_models.inc();
-					sent.mdl->loadState = MODEL_LOAD_INITIAL;
-					std::thread(&BaseRenderer::loadData, sent.mdl).detach();
-				}
-			}
-			else if (!sent.mdl->valid) {
-				logf("Failed to load model: %s\n", sent.mdl->fpath.c_str());
-				studioModels[ent->cachedMdl->fpath] = NULL;
-				delete sent.mdl;
-				ent->cachedMdl = sent.mdl = NULL;
-			}
-			else if (sent.mdl->loadState == MODEL_LOAD_UPLOAD) {
-				sent.mdl->upload();
-				const char* typ = sent.mdl->isSprite() ? "SPR" : "MDL";
-				if (sent.mdl->loadState != MODEL_LOAD_UPLOAD)
-					debugf("Loaded %s: %s\n", typ, sent.mdl->fpath.c_str());
-			}
-		}
-
-		if (sent.mdl && sent.mdl->loadState == MODEL_LOAD_DONE && sent.mdl->valid) {
-			if (!ent->drawCached) {
-				ent->drawOrigin = ent->getOrigin();
-				ent->drawAngles = ent->getVisualAngles();
-				EntRenderOpts opts = ent->getRenderOpts();
-
-				if (sent.mdl->isStudioModel()) {
-					vec3 mins, maxs;
-					((MdlRenderer*)sent.mdl)->getModelBoundingBox(ent->drawAngles, opts.sequence, mins, maxs);
-					ent->drawMin = mins + sent.origin;
-					ent->drawMax = maxs + sent.origin;
-				}
-				else {
-					vec3 mins, maxs;
-					((SprRenderer*)sent.mdl)->getBoundingBox(mins, maxs, opts.scale);
-					ent->drawMin = mins + sent.origin;
-					ent->drawMax = maxs + sent.origin;
-				}
-			}
-
-			sent.idx = i;
-			sent.origin = ent->drawOrigin;
-			sent.dist = dotProduct(sent.origin - cameraOrigin, camForward);
-
-			if (sent.ent->lastDrawCall == 0) {
-				// need to draw at least once to know mins/maxs
-				depthSortedMdlEnts.push_back(sent);
-				continue;
-			}
-
-			if (!sent.ent->drawCached) {
-				EntRenderOpts opts = ent->getRenderOpts();
-
-				if (sent.mdl->isStudioModel()) {
-					vec3 mins, maxs;
-					((MdlRenderer*)sent.mdl)->getModelBoundingBox(ent->drawAngles, opts.sequence, mins, maxs);
-					ent->drawMin = mins + sent.origin;
-					ent->drawMax = maxs + sent.origin;
-				}
-				else {
-					EntRenderOpts opts = ent->getRenderOpts();
-					vec3 mins, maxs;
-					((SprRenderer*)sent.mdl)->getBoundingBox(mins, maxs, opts.scale);
-					ent->drawMin = mins + sent.origin;
-					ent->drawMax = maxs + sent.origin;
-				}
-				ent->drawCached = true;
-			}
-
-			if (isBoxInView(ent->drawMin, ent->drawMax, frustum, zFarMdl))
-				depthSortedMdlEnts.push_back(sent);
-		}
-	}
-	sort(depthSortedMdlEnts.begin(), depthSortedMdlEnts.end(), [](const DepthSortedEnt& a, const DepthSortedEnt& b) {
-		return a.dist > b.dist;
-	});
-
-	glCheckError("Model/sprite rendering setup");
-
-	for (int i = 0; i < depthSortedMdlEnts.size(); i++) {
-		Entity* ent = depthSortedMdlEnts[i].ent;
-		BaseRenderer* mdl = depthSortedMdlEnts[i].mdl;
-		int entidx = depthSortedMdlEnts[i].idx;
-
-		bool isSelected = selectedEnts.count(entidx);
-
-		bool skipRender = !previewMode && mdl->isStudioModel() && !(g_settings.render_flags & RENDER_STUDIO_MDL)
-			|| mdl->isSprite() && !(g_settings.render_flags & RENDER_SPRITES);
-
-		if (skipRender)
-			continue;
-
-		EntCube* entcube = mapRenderer->renderEnts[depthSortedMdlEnts[i].idx].pointEntCube;
-		if (!entcube->buffer->isUploaded())
-			continue;
-
-		if (!previewMode) { // draw the colored transparent cube
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			//EntCube* entcube = mapRenderer->pointEntRenderer->getEntCube(ent);
-			colorShader->bind();
-			colorShader->pushMatrix(MAT_MODEL);
-			*colorShader->modelMat = mapRenderer->renderEnts[entidx].modelMat;
-			colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-			colorShader->updateMatrixes();
-
-			if (isSelected) {
-				//glDepthFunc(GL_ALWAYS); // ignore depth testing for the world but not for the model
-				colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
-				entcube->wireframeBuffer->draw(GL_LINES);
-				//glDepthFunc(GL_LESS);
-
-				glDepthMask(GL_FALSE); // let model draw over this
-				colorShader->setUniform("colorMult", vec4(1, 1, 1, 0.5f));
-				entcube->selectBuffer->draw(GL_TRIANGLES);
-				glDepthMask(GL_TRUE);
-			}
-			else {
-				glDepthMask(GL_FALSE);
-				colorShader->setUniform("colorMult", vec4(1.0f, 1.0f, 1.0f, 0.5f));
-				entcube->buffer->draw(GL_TRIANGLES);
-				glDepthMask(GL_TRUE);
-				
-				colorShader->setUniform("colorMult", vec4(0.0f, 0.0f, 0.0f, 1.0f));
-				entcube->wireframeBuffer->draw(GL_LINES);
-			}
-
-			colorShader->popMatrix(MAT_MODEL);
-
-			glCheckError("Rendering model/sprite cube");
-		}
-
-		// draw the model
-		ent->didStudioDraw = true;
-		EntRenderOpts renderOpts = ent->getRenderOpts();
-		vec3 drawOri = ent->drawOrigin + worldOffset;
-		vec3 drawAngles = ent->drawAngles;
-
-		if (mdl->isStudioModel()) {
-			((MdlRenderer*)mdl)->draw(drawOri, drawAngles, ent, g_app->cameraOrigin, g_app->cameraRight, isSelected);
-		}
-		else if (mdl->isSprite()) {
-			COLOR3 color = COLOR3(255, 255, 255);
-			COLOR3 outlineColor = COLOR3(0, 0, 0);
-			bool useRenderModes = g_app->previewMode || (g_settings.render_flags & RENDER_RENDER_MODES);
-			bool treatAsIcon = ent->isIconSprite || !useRenderModes;
-
-			if (ent->isIconSprite && previewMode)
-				continue;
-
-			if (treatAsIcon) {
-				vec3 sz = entcube->maxs - entcube->mins;
-				float minDim = min(min(sz.x, sz.y), sz.z);
-				renderOpts.scale = ((SprRenderer*)mdl)->getScaleToFitInsideCube(minDim);
-			
-				if (ent->isIconSprite)
-					color = ent->getFgdTint();
-				
-				if (!ent->canRotate()) {
-					drawAngles = vec3();
-				}
-				if (isSelected) {
-					color = COLOR3(255, 0, 0);
-				}
-			}
-			else if (isSelected) {
-				color = COLOR3(255, 32, 32);
-				outlineColor = COLOR3(255, 255, 0);
-			}
-			bool noOutline = treatAsIcon || previewMode;
-
-			((SprRenderer*)mdl)->draw(drawOri, drawAngles, ent, renderOpts, color, outlineColor, noOutline);
-			glCheckError("Rendering SPR");
-		}
-		
-		drawCount++;
-
-		// debug the model verts bounding box
-		if (false && mdl->isStudioModel()) {
-			vec3 mins, maxs;
-			((MdlRenderer*)mdl)->getModelBoundingBox(ent->drawAngles, renderOpts.sequence, mins, maxs);
-			mins += ent->drawOrigin;
-			maxs += ent->drawOrigin;
-
-			colorShader->bind();
-			colorShader->setUniform("colorMult", vec4(1.0f, 1.0f, 1.0f, 1.0f));
-			drawBox(mins, maxs, COLOR4(255, 255, 0, 255));
-			glCheckError("Rendering debug MDL");
-		}
-	}
-
-	//logf("Draw %d models\n", drawCount);
-
-	glCullFace(GL_BACK);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	colorShader->bind();
-	colorShader->setUniform("colorMult", vec4(1.0f, 1.0f, 1.0f, 1.0f));
-
-	glCheckError("Model/sprite rendering cleanup");
-
-	return modelsLoading;
 }
 
 void Editor::addNameTags() {
@@ -3967,7 +2932,7 @@ void Editor::updateModelVerts() {
 		transformedOrigin = oldOrigin = pickInfo.getOrigin();
 	}
 	
-	modelOriginBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, &modelOriginCube, 6 * 6);
+	modelOriginBuff = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, &modelOriginCube, 6 * 6);
 	modelOriginBuff->upload();
 
 	updateSelectionSize();
@@ -3998,7 +2963,7 @@ void Editor::updateModelVerts() {
 
 	int numCubes = modelVerts.size() + modelEdges.size();
 	modelVertCubes = new cCube[numCubes];
-	modelVertBuff = new VertexBuffer(colorShader, COLOR_4B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
+	modelVertBuff = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
 	modelVertBuff->upload();
 	//logf("%d intersection points\n", modelVerts.size());
 }
@@ -4141,8 +3106,8 @@ void Editor::updateEntConnections() {
 			lines[idx++] = cVert(ori, link.color);
 		}
 
-		entConnections = new VertexBuffer(colorShader, COLOR_4B | POS_3F, lines, numVerts);
-		entConnectionPoints = new VertexBuffer(colorShader, COLOR_4B | POS_3F, points, numPoints * 6 * 6);
+		entConnections = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, lines, numVerts);
+		entConnectionPoints = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, points, numPoints * 6 * 6);
 		entConnections->ownData = true;
 		entConnectionPoints->ownData = true;
 		entConnections->upload();
@@ -5564,4 +4529,9 @@ vec3 Editor::worldToScreen(const vec3& P) {
 Frustum Editor::getCameraFrustum() {
 	float aspect = (float)windowWidth / (float)windowHeight;
 	return getViewFrustum(cameraOrigin - mapRenderer->mapOffset, cameraAngles, aspect, zNear, zFar, fov);
+}
+
+vector<Entity*>& Editor::ents() {
+	static vector<Entity*> dummyList;
+	return (mapRenderer && mapRenderer->map) ? mapRenderer->map->ents : dummyList;
 }

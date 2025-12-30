@@ -1,6 +1,8 @@
 #include "Widget.h"
 #include "LeafNavMesh.h"
 #include "Entity.h"
+#include "render_utils.h"
+#include "NavRenderer.h"
 
 void DebugWidget::setup() {
 	ImGui::SetNextWindowBgAlpha(0.75f);
@@ -122,7 +124,7 @@ void DebugWidget::drawSelectionDetails() {
 				BSPEDGE& edge = map->edges[abs(edgeIdx)];
 				ImGui::Text("Edge %d = [%d, %d] ", edgeIdx, edge.iVertex[0], edge.iVertex[1]);
 
-				app->drawBox(map->verts[edge.iVertex[0]], 8, COLOR4(0, 128, 0, 255));
+				drawBox(map->verts[edge.iVertex[0]], 8, COLOR4(0, 128, 0, 255));
 			}
 		}
 	}
@@ -163,8 +165,8 @@ void DebugWidget::drawSelectionDetails() {
 					if (i == 0) {
 						ImGui::Text("Leaf: %d", leafIdx);
 					}
-					else if (g_app->debugLeafNavMesh && i == app->debugLeafNavMesh->hull) {
-						int leafNavIdx = app->debugLeafNavMesh->getNodeIdx(map, localCamera);
+					else if (app->navRenderer->debugLeafNavMesh && i == app->navRenderer->debugLeafNavMesh->hull) {
+						int leafNavIdx = app->navRenderer->debugLeafNavMesh->getNodeIdx(map, localCamera);
 
 						ImGui::Text("Nav ID: %d", leafNavIdx);
 					}

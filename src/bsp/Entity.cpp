@@ -8,6 +8,7 @@
 #include "Editor.h"
 #include <unordered_set>
 #include "Fgd.h"
+#include "BspRenderer.h"
 
 using namespace std;
 

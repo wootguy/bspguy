@@ -8,6 +8,9 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
+// - box select shown when moving worldspawn, can be activated during select too
+// - box select offset by world offset
+// - name tag render distance
 
 // todo:
 // check for problems widget

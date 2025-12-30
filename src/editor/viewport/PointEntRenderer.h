@@ -24,7 +24,7 @@ public:
 	Fgd* mergedFgd;
 	vector<Fgd*> fgds;
 
-	PointEntRenderer(Fgd* mergedFgd, const vector<Fgd*>& fgds, ShaderProgram* colorShader);
+	PointEntRenderer(Fgd* mergedFgd, const vector<Fgd*>& fgds);
 	~PointEntRenderer();
 
 	EntCube* getEntCube(Entity* ent);
@@ -32,7 +32,6 @@ public:
 	void uploadCubeBuffers();
 
 private:
-	ShaderProgram* colorShader;
 	map<string, EntCube*> cubeMap;
 	vector<EntCube*> entCubes;
 

@@ -11,6 +11,7 @@
 #include "colors.h"
 #include <stdint.h>
 #include "Polygon3D.h"
+#include "globals.h"
 
 #define PRINT_BLUE		1
 #define PRINT_GREEN		2

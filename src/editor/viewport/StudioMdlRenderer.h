@@ -36,7 +36,7 @@ struct MdlMeshRender {
 
 class Entity;
 
-class MdlRenderer : public BaseRenderer {
+class StudioMdlRenderer : public BaseRenderer {
 public:
 	uint8_t iController[4];
 	uint8_t iBlender[2];
@@ -48,8 +48,8 @@ public:
 	vec3 drawOrigin;
 	int drawBody;
 
-	MdlRenderer(string modelPath);
-	~MdlRenderer();
+	StudioMdlRenderer(string modelPath);
+	~StudioMdlRenderer();
 
 	void draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected);
 

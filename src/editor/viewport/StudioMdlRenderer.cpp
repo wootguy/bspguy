@@ -1,4 +1,4 @@
-#include "MdlRenderer.h"
+#include "StudioMdlRenderer.h"
 #include "util.h"
 #include "Wad.h"
 #include <GL/glew.h>
@@ -11,14 +11,14 @@
 #include "globals.h"
 #include "Editor.h"
 
-MdlRenderer::MdlRenderer(string modelPath) {
+StudioMdlRenderer::StudioMdlRenderer(string modelPath) {
 	this->fpath = modelPath;
 	valid = false;
 	needTransform = true;
 	u_boneTexture = -1;
 	oldLegacyMode = false;
 
-	shader = g_app->mdlShader;
+	shader = g_shaders.mdl;
 
 	//loadFuture = async(launch::async, &MdlRenderer::loadData, this);
 	//loadData();
@@ -27,7 +27,7 @@ MdlRenderer::MdlRenderer(string modelPath) {
 	loadState = MODEL_LOAD_WAITING;
 }
 
-MdlRenderer::~MdlRenderer() {
+StudioMdlRenderer::~StudioMdlRenderer() {
 	if (valid) {
 		for (int i = 0; i < numTextures; i++) {
 			delete glTextures[i];
@@ -75,7 +75,7 @@ MdlRenderer::~MdlRenderer() {
 		glDeleteTextures(1, &u_boneTexture);
 }
 
-bool MdlRenderer::validate() {
+bool StudioMdlRenderer::validate() {
 	if (string(header->name).length() <= 0) {
 		return false;
 	}
@@ -295,7 +295,7 @@ bool MdlRenderer::validate() {
 	return true;
 }
 
-bool MdlRenderer::isEmpty() {
+bool StudioMdlRenderer::isEmpty() {
 	bool isEmptyModel = true;
 
 	for (int b = 0; b < header->numbodyparts; b++) {
@@ -317,16 +317,16 @@ bool MdlRenderer::isEmpty() {
 	return isEmptyModel;
 }
 
-bool MdlRenderer::hasExternalTextures() {
+bool StudioMdlRenderer::hasExternalTextures() {
 	// textures aren't needed if the model has no triangles
 	return header->numtextures == 0 && !isEmpty();
 }
 
-bool MdlRenderer::hasExternalSequences() {
+bool StudioMdlRenderer::hasExternalSequences() {
 	return header->numseqgroups > 1;
 }
 
-void MdlRenderer::loadData() {
+void StudioMdlRenderer::loadData() {
 	int len;
 	char* buffer = loadFile(fpath, len);
 	if (!buffer) {
@@ -371,7 +371,7 @@ void MdlRenderer::loadData() {
 	g_loading_models.dec();
 }
 
-void MdlRenderer::upload() {
+void StudioMdlRenderer::upload() {
 	glCheckError("MDL upload entered");
 
 	if (loadState != MODEL_LOAD_UPLOAD) {
@@ -433,7 +433,7 @@ void MdlRenderer::upload() {
 	loadState = MODEL_LOAD_DONE;
 }
 
-bool MdlRenderer::loadTextureData() {
+bool StudioMdlRenderer::loadTextureData() {
 	bool externalTextures = hasExternalTextures();
 
 	if (externalTextures) {
@@ -515,7 +515,7 @@ bool MdlRenderer::loadTextureData() {
 	return true;
 }
 
-bool MdlRenderer::loadSequenceData() {
+bool StudioMdlRenderer::loadSequenceData() {
 	if (!hasExternalSequences()) {
 		return true;
 	}
@@ -546,7 +546,7 @@ bool MdlRenderer::loadSequenceData() {
 	return true;
 }
 
-bool MdlRenderer::loadMeshes() {
+bool StudioMdlRenderer::loadMeshes() {
 	int uiDrawnPolys = 0;
 	int meshBytes = 0;
 
@@ -733,7 +733,7 @@ bool MdlRenderer::loadMeshes() {
 				meshBuffers[b][m][k].verts = new boneVert[totalElements];
 				meshBuffers[b][m][k].numVerts = totalElements;
 				memcpy(meshBuffers[b][m][k].verts, &allVerts[0], totalElements * sizeof(boneVert));
-				meshBuffers[b][m][k].buffer = new VertexBuffer(g_app->mdlShader, NORM_3F | TEX_2F | POS_3F, meshBuffers[b][m][k].verts, meshBuffers[b][m][k].numVerts);
+				meshBuffers[b][m][k].buffer = new VertexBuffer(g_shaders.mdl, NORM_3F | TEX_2F | POS_3F, meshBuffers[b][m][k].verts, meshBuffers[b][m][k].numVerts);
 				meshBuffers[b][m][k].buffer->addAttribute(1, GL_FLOAT, GL_FALSE, "vBone");
 				//meshBuffers[b][m][k].buffer->upload();
 
@@ -747,7 +747,7 @@ bool MdlRenderer::loadMeshes() {
 	return true;
 }
 
-mstudioanim_t* MdlRenderer::GetAnim(mstudioseqdesc_t* pseqdesc) {
+mstudioanim_t* StudioMdlRenderer::GetAnim(mstudioseqdesc_t* pseqdesc) {
 	data.seek(header->seqgroupindex + pseqdesc->seqgroup*sizeof(mstudioseqgroup_t));
 	mstudioseqgroup_t* pseqgroup = (mstudioseqgroup_t*)data.getOffsetBuffer();
 
@@ -774,7 +774,7 @@ mstudioanim_t* MdlRenderer::GetAnim(mstudioseqdesc_t* pseqdesc) {
 	return extdat.eom() ? anim : (mstudioanim_t*)extdat.getOffsetBuffer();
 }
 
-mstudioseqdesc_t* MdlRenderer::getSequence(int seq) {
+mstudioseqdesc_t* StudioMdlRenderer::getSequence(int seq) {
 	if (seq < 0 || seq > header->numseq) {
 		return NULL;
 	}
@@ -783,7 +783,7 @@ mstudioseqdesc_t* MdlRenderer::getSequence(int seq) {
 	return (mstudioseqdesc_t*)data.getOffsetBuffer();
 }
 
-void MdlRenderer::CalcBoneAdj()
+void StudioMdlRenderer::CalcBoneAdj()
 {
 	data.seek(header->bonecontrollerindex);
 	mstudiobonecontroller_t* pbonecontroller = (mstudiobonecontroller_t*) data.getOffsetBuffer();
@@ -944,7 +944,7 @@ void VectorIRotate(vec3& vector, float** matrix, vec3& outResult)
 	outResult.z = vector.x * matrix[0][2] + vector.y * matrix[1][2] + vector.z * matrix[2][2];
 }
 
-void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, vec4& q)
+void StudioMdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, vec4& q)
 {
 	vec3 angle1Vec;
 	vec3 angle2Vec;
@@ -1023,7 +1023,7 @@ void MdlRenderer::CalcBoneQuaternion(const int frame, const float s, const mstud
 	}
 }
 
-void MdlRenderer::CalcBonePosition(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, float* pos)
+void StudioMdlRenderer::CalcBonePosition(const int frame, const float s, const mstudiobone_t* const pbone, const mstudioanim_t* const panim, float* pos)
 {
 	for (int j = 0; j < 3; j++)
 	{
@@ -1072,7 +1072,7 @@ void MdlRenderer::CalcBonePosition(const int frame, const float s, const mstudio
 	}
 }
 
-void MdlRenderer::CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f, bool isGait)
+void StudioMdlRenderer::CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const pseqdesc, const mstudioanim_t* panim, const float f, bool isGait)
 {
 	const int frame = (int)f;
 	const float s = (f - frame);
@@ -1113,7 +1113,7 @@ void MdlRenderer::CalcBones(vec3* pos, vec4* q, const mstudioseqdesc_t* const ps
 		pos[pseqdesc->motionbone].z = 0.0;
 }
 
-void MdlRenderer::SlerpBones(vec4* q1, vec3* pos1, vec4* q2, vec3* pos2, float s)
+void StudioMdlRenderer::SlerpBones(vec4* q1, vec3* pos1, vec4* q2, vec3* pos2, float s)
 {
 	vec4 q3;
 
@@ -1131,7 +1131,7 @@ void MdlRenderer::SlerpBones(vec4* q1, vec3* pos1, vec4* q2, vec3* pos2, float s
 	}
 }
 
-void MdlRenderer::QuaternionMatrix(float* quaternion, float matrix[3][4])
+void StudioMdlRenderer::QuaternionMatrix(float* quaternion, float matrix[3][4])
 {
 	matrix[0][0] = 1.0 - 2.0 * quaternion[1] * quaternion[1] - 2.0 * quaternion[2] * quaternion[2];
 	matrix[1][0] = 2.0 * quaternion[0] * quaternion[1] + 2.0 * quaternion[3] * quaternion[2];
@@ -1162,7 +1162,7 @@ void R_ConcatTransforms(float in1[3][4], float in2[3][4], float out[3][4])
 	out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] + in1[2][2] * in2[2][3] + in1[2][3];
 }
 
-void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence, float gaitframe)
+void StudioMdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitsequence, float gaitframe)
 {
 	if (loadState != MODEL_LOAD_DONE && g_main_thread_id != this_thread::get_id()) {
 		return; // don't let multiple threads access the same buffers
@@ -1260,7 +1260,7 @@ void MdlRenderer::SetUpBones(vec3 angles, int sequence, float frame, int gaitseq
 	}
 }
 
-void MdlRenderer::untransformVerts() {
+void StudioMdlRenderer::untransformVerts() {
 	for (int b = 0; b < header->numbodyparts; b++) {
 		data.seek(header->bodypartindex + b * sizeof(mstudiobodyparts_t));
 		mstudiobodyparts_t* bod = (mstudiobodyparts_t*)data.getOffsetBuffer();
@@ -1303,7 +1303,7 @@ void MdlRenderer::untransformVerts() {
 	}
 }
 
-void MdlRenderer::transformVerts(int body, bool forRender, vec3 viewerOrigin, vec3 viewerRight) {
+void StudioMdlRenderer::transformVerts(int body, bool forRender, vec3 viewerOrigin, vec3 viewerRight) {
 	int modelIdx = 0;
 
 	int bodyValue = clamp(body, 0, 255);
@@ -1394,7 +1394,7 @@ void MdlRenderer::transformVerts(int body, bool forRender, vec3 viewerOrigin, ve
 	}
 }
 
-void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected) {
+void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected) {
 	glCheckError("entering MDL render");
 	
 	if (!valid || loadState != MODEL_LOAD_DONE) {
@@ -1610,7 +1610,7 @@ void MdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin,
 }
 
 // get a AABB containing all model vertices at the given angles and animation frame
-void MdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs) {
+void StudioMdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec3& maxs) {
 	if (loadState != MODEL_LOAD_DONE && g_main_thread_id != this_thread::get_id()) {
 		// don't let main thread transform verts before they're loaded
 		mins = vec3();
@@ -1701,7 +1701,7 @@ void MdlRenderer::getModelBoundingBox(vec3 angles, int sequence, vec3& mins, vec
 	}
 }
 
-bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
+bool StudioMdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 	if (!valid || loadState != MODEL_LOAD_DONE) {
 		return false;
 	}
@@ -1762,7 +1762,7 @@ bool MdlRenderer::pick(vec3 start, vec3 rayDir, Entity* ent, float& bestDist) {
 	return false;
 }
 
-bool MdlRenderer::pick(Frustum& frustum, Entity* ent) {
+bool StudioMdlRenderer::pick(Frustum& frustum, Entity* ent) {
 	if (!valid || loadState != MODEL_LOAD_DONE) {
 		return false;
 	}

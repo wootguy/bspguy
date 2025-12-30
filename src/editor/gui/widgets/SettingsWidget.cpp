@@ -1,4 +1,5 @@
 #include "Widget.h"
+#include "ModelRenderer.h"
 
 void SettingsWidget::setup() {
 	ImGui::SetNextWindowPos(ImVec2(5 * uiScale, 50 * uiScale), ImGuiCond_FirstUseEver);
@@ -134,7 +135,7 @@ void SettingsWidget::draw() {
 
 		ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 		ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
-		ImGui::DragFloat("Model Render Distance", &app->zFarMdl, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
+		ImGui::DragFloat("Model Render Distance", &app->modelRenderer->renderDist, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 		ImGui::PopItemWidth();
 
 		ImGui::Columns(2);
@@ -298,7 +299,7 @@ void SettingsWidget::draw() {
 			app->postLoadFgds();
 			app->mapRenderer->reload();
 			g_settings.save();
-			app->studioModelPaths.clear();
+			app->modelRenderer->clearCache();
 		}
 		ImGui::EndDisabled();
 	}

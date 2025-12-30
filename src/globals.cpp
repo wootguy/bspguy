@@ -18,6 +18,8 @@ std::set<std::string> g_parsed_fgds;
 MapLimits g_limits;
 MapLimits g_engine_limits[ENGINE_TYPES];
 
+GlobalShaders g_shaders;
+
 int g_max_texture_size = 512;
 int g_max_texture_array_layers = 512;
 int g_max_vtf_units = 0;

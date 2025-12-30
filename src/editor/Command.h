@@ -2,6 +2,7 @@
 #include "BspRenderer.h"
 #include "bsptypes.h"
 #include "unordered_set"
+#include "Editor.h"
 
 // Undoable actions following the Command Pattern
 

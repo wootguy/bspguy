@@ -7,6 +7,7 @@
 #include "colors.h"
 #include "primitives.h"
 #include <unordered_set>
+#include "PickInfo.h"
 
 class NavMesh;
 class LeafNavMesh;
@@ -24,29 +25,11 @@ class Entity;
 struct LeafNode;
 struct WADTEX;
 struct Frustum;
-
-enum RenderFlags {
-	RENDER_TEXTURES = (1 << 0),
-	RENDER_LIGHTMAPS = (1 << 1),
-	RENDER_WIREFRAME = (1 << 2),
-	RENDER_ENTS = (1 << 3),
-	RENDER_SPECIAL = (1 << 4),
-	RENDER_SPECIAL_ENTS = (1 << 5),
-	RENDER_POINT_ENTS = (1 << 6),
-	RENDER_ORIGIN = (1 << 7),
-	RENDER_WORLD_CLIPNODES = (1 << 8),
-	RENDER_ENT_CLIPNODES = (1 << 9),
-	RENDER_ENT_CONNECTIONS = (1 << 10),
-	RENDER_MAP_BOUNDARY = (1 << 11),
-	RENDER_STUDIO_MDL = (1 << 12),
-	RENDER_SPRITES = (1 << 13),
-	RENDER_ENT_DIRECTIONS = (1 << 14),
-	RENDER_RENDER_MODES = (1 << 15),
-	RENDER_LEAF_GRAPH = (1 << 16),
-	RENDER_PVS = (1 << 17),
-	RENDER_NAME_TAGS = (1 << 18),
-	RENDER_SKYBOX = (1 << 19),
-};
+struct BSPMODEL;
+struct BSPFACE;
+struct BSPLEAF;
+struct NodeVolumeCuts;
+class Wad;
 
 struct LightmapInfo {
 	// each face can have 4 lightmaps, and those may be split across multiple atlases
@@ -135,55 +118,9 @@ struct OrderedEnt {
 	mat4x4 transform;
 };
 
-struct BSPMODEL;
-struct BSPFACE;
-struct BSPLEAF;
-struct NodeVolumeCuts;
-
-struct EntityState {
-	int index;
-	Entity* ent;
-};
-
-class PickInfo {
-public:
-	vector<int> ents; // selected entity indexes
-	vector<int> faces; // selected face indexes
-	vector<int> leaves; // selected leaf indexes
-
-	PickInfo() {}
-
-	Bsp* getMap();
-	void selectEnt(int entIdx);
-	void selectFace(int faceIdx);
-	void selectLeaf(int leafIdx);
-	void deselect();
-	void deselectEnt(int entIdx);
-	void deselectFace(int faceIdx);
-	void deselectLeaf(int leafIdx);
-	Entity* getEnt();
-	int getEntIndex();
-	int getModelIndex();
-	BSPMODEL* getModel();
-	BSPFACE* getFace();
-	int getFaceIndex();
-	int getLeafIndex();
-	vec3 getOrigin(); // origin of the selected entity
-	bool isFaceSelected(int faceIdx);
-	bool isLeafSelected(int leafIdx);
-	bool isEntSelected(int entIdx);
-	vector<Entity*> getEnts();
-	vector<BSPFACE*> getFaces();
-	vector<BSPLEAF*> getLeaves();
-	vector<int> getModelIndexes();
-	bool shouldHideSelection();
-	void selectLeafFaces(); // highlights all faces referenced in selected leaves
-};
-
-class Wad;
 
 class BspRenderer {
-	friend class Editor;
+	friend class ModelRenderer;
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
@@ -258,6 +195,7 @@ public:
 	void write_obj_file();
 
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
+	EntCube* getEntCube(int idx);
 
 private:
 	ShaderProgram* activeShader;

@@ -24,7 +24,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <float.h>
-#include "MdlRenderer.h"
+#include "StudioMdlRenderer.h"
 #include "TextureArray.h"
 #include "tga.h"
 #include "bmp.h"
@@ -398,7 +398,7 @@ void BspRenderer::addClipnodeModel(int modelIdx) {
 }
 
 void BspRenderer::updateModelShaders() {
-	activeShader = g_app->bspShader;
+	activeShader = g_shaders.bsp;
 
 	for (int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
@@ -733,7 +733,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	vector<vector<lightmapVert>> renderGroupVerts;
 	vector<vec3> modelWireframeVerts;
 
-	activeShader = g_app->bspShader;
+	activeShader = g_shaders.bsp;
 
 	for (int i = 0; i < model.nFaces; i++) {
 		int faceIdx = model.iFirstFace + i;
@@ -950,7 +950,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderModel->wireframeVertCount = modelWireframeVerts.size();
 		memcpy(renderModel->wireframeVerts, &modelWireframeVerts[0], renderModel->wireframeVertCount * sizeof(vec3));
 
-		renderModel->wireframeBuffer = new VertexBuffer(g_app->vec3Shader, 0);
+		renderModel->wireframeBuffer = new VertexBuffer(g_shaders.vec3, 0);
 		renderModel->wireframeBuffer->addAttribute(POS_3F, "vPosition");
 		renderModel->wireframeBuffer->setData(renderModel->wireframeVerts, renderModel->wireframeVertCount);
 		renderModel->wireframeBuffer->upload();
@@ -1190,10 +1190,10 @@ void BspRenderer::generateNavMeshBuffer() {
 		return;
 	}
 
-	renderClip->clipnodeBuffer[hull] = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+	renderClip->clipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
 	renderClip->clipnodeBuffer[hull]->ownData = true;
 
-	renderClip->wireframeClipnodeBuffer[hull] = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+	renderClip->wireframeClipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
 	renderClip->wireframeClipnodeBuffer[hull]->ownData = true;
 
 	renderClip->faceMaths[hull] = faceMaths;
@@ -1284,8 +1284,8 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 		delete node->wireframe_buffer;
 	}
 
-	node->face_buffer = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, output, allVerts.size());
-	node->wireframe_buffer = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+	node->face_buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
+	node->wireframe_buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
 
 	node->face_buffer->ownData = true;
 	node->wireframe_buffer->ownData = true;
@@ -1341,10 +1341,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 			continue;
 		}
 
-		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
 		renderClip->clipnodeBuffer[i]->ownData = true;
 
-		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
 		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
 
 		renderClip->faceMaths[i] = faceMaths;
@@ -1407,10 +1407,10 @@ void BspRenderer::generateLeafBuffer() {
 		return;
 	}
 
-	renderLeafDat->leafBuffer = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, output, allVerts.size());
+	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
 	renderLeafDat->leafBuffer->ownData = true;
 
-	renderLeafDat->wireframeLeafBuffer = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
+	renderLeafDat->wireframeLeafBuffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
 	renderLeafDat->wireframeLeafBuffer->ownData = true;
 
 	renderLeafDat->faceMaths = faceMaths;
@@ -1579,7 +1579,7 @@ void BspRenderer::preRenderEnts() {
 		}
 	}
 
-	pointEnts = new VertexBuffer(g_app->colorShader, COLOR_4B | POS_3F, entCubes, numPointEnts * 6 * 6);
+	pointEnts = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, entCubes, numPointEnts * 6 * 6);
 	pointEnts->ownData = true;
 	pointEnts->upload();
 
@@ -2116,10 +2116,10 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 	
 	BSPMODEL& world = map->models[0];
 
-	activeShader = g_app->bspShader;
+	activeShader = g_shaders.bsp;
 
 	if (wireframePass)
-		activeShader = g_app->vec3Shader;
+		activeShader = g_shaders.vec3;
 
 	activeShader->bind();
 	activeShader->modelMat->loadIdentity();
@@ -2183,14 +2183,14 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 
 	// draw clipnodes in a separate pass to prevent interleaving shader binds
 	if (clipnodesLoaded && transparencyPass && !wireframePass && !g_app->previewMode) {
-		g_app->colorShader->bind();
+		g_shaders.color->bind();
 
 		if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
 			drawModelClipnodes(0, false, clipnodeHull);
 		}
 
 		if ((g_settings.render_flags & RENDER_ENTS) && (g_settings.render_flags & RENDER_ENT_CLIPNODES)) {
-			g_app->colorShader->pushMatrix(MAT_MODEL);
+			g_shaders.color->pushMatrix(MAT_MODEL);
 			for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
 				const OrderedEnt& orderEnt = orderedEnts[i];
 				int modelIdx = orderEnt.modelIdx;
@@ -2209,21 +2209,21 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 						continue; // skip rendering for models that have faces, if in auto mode
 					}
 					
-					*g_app->colorShader->modelMat = orderEnt.transform;
-					g_app->colorShader->updateMatrixes();
+					*g_shaders.color->modelMat = orderEnt.transform;
+					g_shaders.color->updateMatrixes();
 
 					if (ent->highlighted) {
-						g_app->colorShader->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
+						g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
 					}
 
 					drawModelClipnodes(modelIdx, false, clipnodeHull);
 
 					if (ent->highlighted) {
-						g_app->colorShader->setUniform("colorMult", vec4(1, 1, 1, 1));
+						g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 					}
 				}
 			}
-			g_app->colorShader->popMatrix(MAT_MODEL);
+			g_shaders.color->popMatrix(MAT_MODEL);
 		}		
 	}
 
@@ -2239,10 +2239,10 @@ void BspRenderer::renderLeaves() {
 
 	// draw clipnodes in a separate pass to prevent interleaving shader binds
 	if (leavesLoaded) {
-		g_app->colorShader->bind();
-		g_app->colorShader->modelMat->loadIdentity();
-		g_app->colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-		g_app->colorShader->updateMatrixes();
+		g_shaders.color->bind();
+		g_shaders.color->modelMat->loadIdentity();
+		g_shaders.color->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+		g_shaders.color->updateMatrixes();
 
 		if (renderLeafDat->leafBuffer) {
 			renderLeafDat->leafBuffer->draw(GL_TRIANGLES);
@@ -2261,11 +2261,11 @@ void BspRenderer::drawModelWireframe(int modelIdx, bool highlight) {
 
 	if (renderModels[modelIdx].wireframeBuffer && modelIdx < numRenderModels) {
 		if (highlight)
-			g_app->vec3Shader->setUniform("color", vec4(1, 1, 0, 1));
+			g_shaders.vec3->setUniform("color", vec4(1, 1, 0, 1));
 		else if (modelIdx > 0)
-			g_app->vec3Shader->setUniform("color", vec4(0, 0, 0.78f, 0));
+			g_shaders.vec3->setUniform("color", vec4(0, 0, 0.78f, 0));
 		else
-			g_app->vec3Shader->setUniform("color", vec4(0.25f, 0.25f, 0.25f, 1));
+			g_shaders.vec3->setUniform("color", vec4(0.25f, 0.25f, 0.25f, 1));
 
 		renderModels[modelIdx].wireframeBuffer->draw(GL_LINES);
 	}
@@ -2466,8 +2466,8 @@ void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) 
 }
 
 void BspRenderer::drawPointEntities() {
-	g_app->colorShader->bind();
-	g_app->colorShader->updateMatrixes();
+	g_shaders.color->bind();
+	g_shaders.color->updateMatrixes();
 
 	if (g_app->pickInfo.ents.empty() && !(g_settings.render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES))) {
 		if (pointEnts->numVerts > 0)
@@ -2493,10 +2493,10 @@ void BspRenderer::drawPointEntities() {
 			nextRangeDrawIdx = pointEntIdx+1;
 
 			if (!map->ents[i]->didStudioDraw) {
-				g_app->colorShader->pushMatrix(MAT_MODEL);
-				*g_app->colorShader->modelMat = renderEnts[i].modelMat;
-				g_app->colorShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-				g_app->colorShader->updateMatrixes();
+				g_shaders.color->pushMatrix(MAT_MODEL);
+				*g_shaders.color->modelMat = renderEnts[i].modelMat;
+				g_shaders.color->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+				g_shaders.color->updateMatrixes();
 
 				if (ent->highlighted)
 					renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
@@ -2504,7 +2504,7 @@ void BspRenderer::drawPointEntities() {
 					renderEnts[i].pointEntCube->buffer->draw(GL_TRIANGLES);
 				renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
 
-				g_app->colorShader->popMatrix(MAT_MODEL);
+				g_shaders.color->popMatrix(MAT_MODEL);
 			}
 		}
 
@@ -2524,15 +2524,15 @@ void BspRenderer::drawSkybox() {
 	glDepthMask(GL_FALSE);
 	
 	vec3 ori = g_app->cameraOrigin.flip();
-	g_app->textureShader->bind();
-	g_app->textureShader->modelMat->loadIdentity();
-	g_app->textureShader->modelMat->translate(ori.x, ori.y, ori.z);
-	g_app->textureShader->updateMatrixes();
+	g_shaders.texture->bind();
+	g_shaders.texture->modelMat->loadIdentity();
+	g_shaders.texture->modelMat->translate(ori.x, ori.y, ori.z);
+	g_shaders.texture->updateMatrixes();
 
 	if (!skyBoxBuffer) {
 		tCube cube(vec3(-64, -64, -64), vec3(64, 64, 64));
 
-		skyBoxBuffer = new VertexBuffer(g_app->textureShader, 0, &cube, 6 * 6);
+		skyBoxBuffer = new VertexBuffer(g_shaders.texture, 0, &cube, 6 * 6);
 		skyBoxBuffer->addAttribute(TEX_2F, "vTex");
 		skyBoxBuffer->addAttribute(POS_3F, "vPosition");
 		skyBoxBuffer->upload();
@@ -2557,11 +2557,11 @@ void BspRenderer::drawPvs() {
 
 	glDisable(GL_DEPTH_TEST);
 
-	g_app->vec3Shader->bind();
-	g_app->vec3Shader->modelMat->loadIdentity();
-	g_app->vec3Shader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-	g_app->vec3Shader->updateMatrixes();
-	g_app->vec3Shader->setUniform("color", vec4(1, 1, 1, 1));
+	g_shaders.vec3->bind();
+	g_shaders.vec3->modelMat->loadIdentity();
+	g_shaders.vec3->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	g_shaders.vec3->updateMatrixes();
+	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
 
 	pvsDat->wireframePvsBuffer->draw(GL_LINES);
 
@@ -2708,7 +2708,7 @@ void BspRenderer::updatePvs(vec3 viewOrigin) {
 		vec3* vertDat = new vec3[allVerts.size()];
 		memcpy(vertDat, &allVerts[0], allVerts.size() * sizeof(vec3));
 
-		pvsDat->wireframePvsBuffer = new VertexBuffer(g_app->vec3Shader, POS_3F, vertDat, allVerts.size());
+		pvsDat->wireframePvsBuffer = new VertexBuffer(g_shaders.vec3, POS_3F, vertDat, allVerts.size());
 		pvsDat->wireframePvsBuffer->ownData = true;
 		pvsDat->wireframePvsBuffer->upload();
 	}
@@ -3137,257 +3137,6 @@ int BspRenderer::getBestClipnodeHull(int modelIdx) {
 	return -1;
 }
 
-
-void PickInfo::selectEnt(int entIdx) {
-	Bsp* map = getMap();
-
-	if (entIdx >= 0 && entIdx < map->ents.size()) {
-		for (int i = 0; i < ents.size(); i++) {
-			if (ents[i] == entIdx) {
-				return;
-			}
-		}
-		ents.push_back(entIdx);
-	}
-	else
-		logf("Failed to select ent index out of range %d\n", entIdx);
-
-	//logf("select ent %d\n", entIdx);
-}
-
-void PickInfo::selectFace(int faceIdx) {
-	for (int i = 0; i < faces.size(); i++) {
-		if (faces[i] == faceIdx) {
-			return;
-		}
-	}
-	faces.push_back(faceIdx);
-	//logf("select face %d\n", faceIdx);
-}
-
-void PickInfo::selectLeaf(int leafIdx) {
-	for (int i = 0; i < leaves.size(); i++) {
-		if (leaves[i] == leafIdx) {
-			return;
-		}
-	}
-	leaves.push_back(leafIdx);
-}
-
-void PickInfo::deselect() {
-	ents.clear();
-	faces.clear();
-	leaves.clear();
-	g_app->pickCount++;
-	//logf("Deselect\n");
-}
-
-void PickInfo::deselectEnt(int entIdx) {
-	for (int i = 0; i < ents.size(); i++) {
-		if (ents[i] == entIdx) {
-			ents.erase(ents.begin() + i);
-			return;
-		}
-	}
-}
-
-void PickInfo::deselectFace(int faceIdx) {
-	for (int i = 0; i < faces.size(); i++) {
-		if (faces[i] == faceIdx) {
-			faces.erase(faces.begin() + i);
-			return;
-		}
-	}
-}
-
-void PickInfo::deselectLeaf(int leafIdx) {
-	for (int i = 0; i < leaves.size(); i++) {
-		if (leaves[i] == leafIdx) {
-			leaves.erase(leaves.begin() + i);
-			return;
-		}
-	}
-}
-
-Bsp* PickInfo::getMap() {
-	return g_app->mapRenderer->map;
-}
-
-Entity* PickInfo::getEnt() {
-	Bsp* map = getMap();
-	int idx = getEntIndex();
-	return idx != -1 ? map->ents[idx] : NULL;
-}
-
-int PickInfo::getEntIndex() {
-	Bsp* map = getMap();
-	if (ents.size() && map && ents[0] >= 0 && ents[0] < map->ents.size()) {
-		return ents[0];
-	}
-	return -1;
-}
-
-int PickInfo::getModelIndex() {
-	Bsp* map = getMap();
-	int idx = getEntIndex();
-	Entity* ent = idx != -1 ? map->ents[idx] : NULL;
-	int faceIdx = faces.size() == 1 ? faces[0] : -1;
-
-	if (idx == 0) {
-		return 0;
-	}
-	else if (ent) {
-		return ent->getBspModelIdx();
-	}
-	else if (faceIdx >= 0 && faceIdx < map->faceCount) {
-		return map->get_model_from_face(faceIdx);
-	}
-
-	return -1;
-}
-
-BSPMODEL* PickInfo::getModel() {
-	Bsp* map = getMap();
-	int idx = getModelIndex();
-
-	return idx > 0 && idx < map->modelCount ? &map->models[idx] : NULL;
-}
-
-BSPFACE* PickInfo::getFace() {
-	Bsp* map = getMap();
-	int idx = getFaceIndex();
-	return idx >= 0 ? &map->faces[idx] : NULL;
-}
-
-int PickInfo::getFaceIndex() {
-	Bsp* map = getMap();
-	int faceIdx = faces.size() == 1 ? faces[0] : -1;
-	return faceIdx >= 0 && faceIdx < map->faceCount ? faceIdx : -1;
-}
-
-int PickInfo::getLeafIndex() {
-	Bsp* map = getMap();
-	int leafIdx = leaves.size() == 1 ? leaves[0] : -1;
-	return leafIdx >= 0 && leafIdx < map->leafCount ? leafIdx : -1;
-}
-
-vec3 PickInfo::getOrigin() {
-	Entity* ent = getEnt();
-	return ent ? ent->getOrigin() : vec3();
-}
-
-bool PickInfo::isFaceSelected(int faceIdx) {
-	for (int idx : faces) {
-		if (idx == faceIdx) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool PickInfo::isLeafSelected(int leafIdx) {
-	for (int idx : leaves) {
-		if (idx == leafIdx) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool PickInfo::isEntSelected(int entIdx) {
-	for (int idx : ents) {
-		if (idx == entIdx) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-vector<Entity*> PickInfo::getEnts() {
-	vector<Entity*> outEnts;
-	Bsp* map = getMap();
-
-	for (int i = 0; i < ents.size(); i++) {
-		int idx = ents[i];
-		if (map && idx >= 0 && idx < map->ents.size()) {
-			outEnts.push_back(map->ents[idx]);
-		}
-	}
-
-	return outEnts;
-}
-
-vector<BSPFACE*> PickInfo::getFaces() {
-	vector<BSPFACE*> outFaces;
-	Bsp* map = getMap();
-
-	for (int i = 0; i < faces.size(); i++) {
-		int idx = faces[i];
-		if (map && idx >= 0 && idx < map->faceCount) {
-			outFaces.push_back(&map->faces[idx]);
-		}
-	}
-
-	return outFaces;
-}
-
-vector<BSPLEAF*> PickInfo::getLeaves() {
-	vector<BSPLEAF*> outLeaves;
-	Bsp* map = getMap();
-
-	for (int i = 0; i < leaves.size(); i++) {
-		int idx = leaves[i];
-		if (map && idx >= 0 && idx < map->leafCount) {
-			outLeaves.push_back(&map->leaves[idx]);
-		}
-	}
-
-	return outLeaves;
-}
-
-vector<int> PickInfo::getModelIndexes() {
-	vector<int> outIdx;
-	Bsp* map = getMap();
-
-	for (int i = 0; i < ents.size(); i++) {
-		int modelIdx = map->ents[ents[i]]->getBspModelIdx();
-		if (modelIdx >= 0)
-			outIdx.push_back(modelIdx);
-	}
-	for (int i = 0; i < faces.size(); i++) {
-		outIdx.push_back(map->get_model_from_face(faces[i]));
-	}
-
-	return outIdx;
-}
-
-bool PickInfo::shouldHideSelection() {
-	bool shouldHide = false;
-	vector<Entity*> pickEnts = getEnts();
-	for (Entity* ent : pickEnts) {
-		if (!ent->hidden) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void PickInfo::selectLeafFaces() {
-	Bsp* map = getMap();
-	faces.clear();
-
-	for (int i = 0; i < leaves.size(); i++) {
-		int idx = leaves[i];
-		if (map && idx >= 0 && idx < map->leafCount) {
-			BSPLEAF& leaf = map->leaves[idx];
-
-			for (int k = 0; k < leaf.nMarkSurfaces; k++) {
-				selectFace(map->marksurfs[leaf.iFirstMarkSurface + k]);
-			}
-		}
-	}
+EntCube* BspRenderer::getEntCube(int idx) {
+	return renderEnts[idx].pointEntCube;
 }

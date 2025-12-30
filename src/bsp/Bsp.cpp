@@ -24,6 +24,7 @@
 #include "NavMeshGenerator.h"
 #include "PolyOctree.h"
 #include "TextureAtlas.h"
+#include "BspRenderer.h"
 
 typedef map< string, vec3 > mapStringToVector;
 

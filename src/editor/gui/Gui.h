@@ -117,6 +117,7 @@ public:
 	const char* openMap();
 	void windowResized(int width, int height);
 	void showWidget(int id, bool showNotHide);
+	void addText(Text2D text);
 
 private:
 	MenuBar* menuBar = NULL;
@@ -156,7 +157,6 @@ private:
 	void loadFonts();
 	void updateUiScale();
 	string getUserLayoutPath(); // path to user's saved widget layout
-	void addText(Text2D text);
 	void switchToLeafSelectMode(bool selectFaceLeaves, bool strictFaceLeafSelection);
 	void selectLeafPvs();
 };
