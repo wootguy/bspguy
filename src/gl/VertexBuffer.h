@@ -38,10 +38,11 @@ struct VertexAttr
 	int size;       // size of the attribute in bytes
 	int normalized; // GL_TRUE/GL_FALSE Ex: byte color values are normalized (0-255 = 0.0-1.0)
 	const char* varName;
+	bool inShader;
 
 	VertexAttr() : handle(-1) {}
 
-	VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName);
+	VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName, bool inShader=true);
 };
 
 class VertexBuffer
@@ -66,14 +67,15 @@ public:
 	bool isUploaded();
 	void upload();
 	void deleteBuffer();
-	void setShader(ShaderProgram* program, bool hideErrors=false);
+	void setShader(ShaderProgram* program);
 
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
 
-	void addAttribute(int numValues, int valueType, int normalized, const char* varName);
-	void addAttribute(int type, const char* varName);
-	void bindAttributes(bool hideErrors = false); // find handles for all vertex attributes (call from main thread only)
+	// inShader = true if the attribute is expected to exist in the shader (not optimized away)
+	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader=true);
+	void addAttribute(int type, const char* varName, bool inShader=true);
+	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 
 private:
 	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes

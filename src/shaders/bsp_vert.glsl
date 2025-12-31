@@ -7,6 +7,7 @@ uniform vec4 colorMult;
 // vertex variables
 attribute vec3 vPosition;
 attribute vec3 vTex;
+attribute vec4 vAtlas;
 attribute vec3 vLightmapTex0;
 attribute vec3 vLightmapTex1;
 attribute vec3 vLightmapTex2;
@@ -15,6 +16,7 @@ attribute vec4 vColor;
 
 // fragment variables
 varying vec3 fTex;
+varying vec4 fAtlas;
 varying vec3 fLightmapTex0;
 varying vec3 fLightmapTex1;
 varying vec3 fLightmapTex2;
@@ -30,4 +32,5 @@ void main()
 	fLightmapTex2 = vLightmapTex2;
 	fLightmapTex3 = vLightmapTex3;
 	fColor = vColor * colorMult;
+	fAtlas = vAtlas;
 }

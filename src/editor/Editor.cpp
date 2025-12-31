@@ -347,6 +347,13 @@ void Editor::compileShaders() {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
 	}
 
+	if (g_settings.texture_atlas) {
+		g_opengl_texture_array_support = false;
+		g_opengl_3d_texture_support = false;
+		bspFragShader = bsp_atlas_frag_glsl;
+	}	
+	
+
 	if (!g_shaders.bsp) {
 		g_shaders.bsp = new ShaderProgram("BSP");
 		g_shaders.color = new ShaderProgram("Color");

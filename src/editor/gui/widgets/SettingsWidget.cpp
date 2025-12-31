@@ -133,6 +133,35 @@ void SettingsWidget::draw() {
 			ImGui::EndCombo();
 		}
 
+		static const char* texture_qualities[2] = {
+			"High",
+			"Low",
+		};
+		if (ImGui::BeginCombo("Texture Quality", texture_qualities[g_settings.texture_atlas]))
+		{
+			if (ImGui::Selectable(texture_qualities[0], !g_settings.texture_atlas)) {
+				g_settings.texture_atlas = false;
+				app->deselectObject();
+				g_app->compileShaders();
+				g_app->mapRenderer->reload();
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Render textures as they would appear in-game.\n");
+			}
+
+			if (ImGui::Selectable(texture_qualities[1], g_settings.texture_atlas)) {
+				g_settings.texture_atlas = true;
+				app->deselectObject();
+				g_app->compileShaders();
+				g_app->mapRenderer->reload();
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Boosts FPS when rendering the world and solid entities.\n"
+					"Textures will shimmer in the distance because of disabled mipmaps.\n");
+			}
+			ImGui::EndCombo();
+		}
+
 		ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 		ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
 		ImGui::DragFloat("Model Render Distance", &app->modelRenderer->renderDist, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);

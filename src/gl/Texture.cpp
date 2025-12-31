@@ -229,7 +229,7 @@ void Texture::upload(int format, bool lightmap)
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
 		if (!lightmap && width % 16 == 0 && height % 16 == 0 && format == GL_RGBA) {
-			const int mipLevels = 3;
+			const int mipLevels = mipmaps.size();
 			COLOR4* texdata = (COLOR4*)data;
 
 			for (MipTexture& mip : mipmaps) {

@@ -27,8 +27,9 @@ VertexAttr commonAttr[VBUF_FLAGBITS] =
 	VertexAttr(3, GL_FLOAT,         -1, GL_FALSE, "POS_3F"), // POS_3F
 };
 
-VertexAttr::VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName)
-	: numValues(numValues), valueType(valueType), handle(handle), normalized(normalized), varName(varName)
+VertexAttr::VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName, bool inShader)
+	: numValues(numValues), valueType(valueType), handle(handle), normalized(normalized),
+	varName(varName), inShader(inShader)
 {
 	switch (valueType)
 	{
@@ -102,14 +103,14 @@ void VertexBuffer::addAttributes(int attFlags)
 	}
 }
 
-void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, const char* varName) {
-	VertexAttr attribute(numValues, valueType, -1, normalized, varName);
+void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader) {
+	VertexAttr attribute(numValues, valueType, -1, normalized, varName, inShader);
 
 	attribs.push_back(attribute);
 	elementSize += attribute.size;
 }
 
-void VertexBuffer::addAttribute(int type, const char* varName) {
+void VertexBuffer::addAttribute(int type, const char* varName, bool inShader) {
 
 	int idx = 0;
 	while (type >>= 1)
@@ -125,12 +126,13 @@ void VertexBuffer::addAttribute(int type, const char* varName) {
 	VertexAttr attribute = commonAttr[idx];
 	attribute.handle = -1;
 	attribute.varName = varName;
+	attribute.inShader = inShader;
 
 	attribs.push_back(attribute);
 	elementSize += attribute.size;
 }
 
-void VertexBuffer::setShader(ShaderProgram* program, bool hideErrors) {
+void VertexBuffer::setShader(ShaderProgram* program) {
 	shaderProgram = program;
 	attributesBound = false;
 	for (int i = 0; i < attribs.size(); i++)
@@ -140,14 +142,14 @@ void VertexBuffer::setShader(ShaderProgram* program, bool hideErrors) {
 		}
 	}
 
-	bindAttributes(hideErrors);
+	bindAttributes();
 	if (vboId != -1) {
 		deleteBuffer();
 		upload();
 	}
 }
 
-void VertexBuffer::bindAttributes(bool hideErrors) {
+void VertexBuffer::bindAttributes() {
 	if (attributesBound)
 		return;
 
@@ -155,13 +157,15 @@ void VertexBuffer::bindAttributes(bool hideErrors) {
 
 	for (int i = 0; i < attribs.size(); i++)
 	{
-		if (attribs[i].handle != -1)
+		if (attribs[i].handle != -1 || !attribs[i].inShader)
 			continue;
 
 		attribs[i].handle = glGetAttribLocation(shaderProgram->ID, attribs[i].varName);
 
-		if (attribs[i].handle == -1)
-			logf("Could not find vertex attribute: %s\n", attribs[i].varName);
+		if (attribs[i].handle == -1) {
+			logf("Could not find vertex attribute '%s' in shader '%s'\n",
+				attribs[i].varName, shaderProgram->name.c_str());
+		}
 	}
 
 	attributesBound = true;

@@ -113,6 +113,8 @@ void BspRenderer::preloadTextures() {
 		
 		miptexToTexArray[i] = glTextureArray->tally(tex->nWidth, tex->nHeight);
 	}
+
+	buildTextureAtlases();
 }
 
 Texture* BspRenderer::generateMissingTexture(int width, int height) {
@@ -241,6 +243,19 @@ void BspRenderer::loadTextures() {
 		}
 	}
 
+	fillTextureAtlases();
+
+	loadSkyboxTextures();
+
+	if (wadTexCount)
+		debugf("Loaded %d wad textures\n", wadTexCount);
+	if (embedCount)
+		debugf("Loaded %d embedded textures\n", embedCount);
+	if (missingCount)
+		debugf("%d missing textures\n", missingCount);
+}
+
+void BspRenderer::loadSkyboxTextures() {
 	// load skybox textures
 	if (map->ents.size()) {
 		memset(skyboxTexturesSwap, 0, sizeof(skyboxTexturesSwap));
@@ -284,29 +299,175 @@ void BspRenderer::loadTextures() {
 					else {
 						logf("Failed to load BMP as 8-bit: %s\n", path.c_str());
 					}
-				} else {
+				}
+				else {
 					logf("Missing skybox image: %s\n", (skyPath + ".tga").c_str());
 				}
 			}
 		}
 	}
+}
 
-	if (wadTexCount)
-		debugf("Loaded %d wad textures\n", wadTexCount);
-	if (embedCount)
-		debugf("Loaded %d embedded textures\n", embedCount);
-	if (missingCount)
-		debugf("%d missing textures\n", missingCount);
+void BspRenderer::buildTextureAtlases() {
+	if (!g_settings.texture_atlas) {
+		textureAtlasInfos.clear();
+		textureAtlasInfos.reserve(map->textureCount);
+		numTextureAtlases = 0;
+		return;
+	}
+
+	double startTime = glfwGetTime();
+
+	int maxSize = g_settings.renderer == RENDERER_OPENGL_21_LEGACY ? 1024 : 2048; // old gpu lied about max texture size
+	textureAtlasSz = clamp(g_max_texture_size, 512, maxSize);
+	textureAtlasZoneSz = textureAtlasSz; // 64 is too small for maps like snd, 256 or greater is slower
+
+	vector<TextureAtlas*> atlases;
+	atlases.push_back(new TextureAtlas(textureAtlasSz, textureAtlasSz, textureAtlasZoneSz));
+
+	textureAtlasInfos.clear();
+	textureAtlasInfos.reserve(map->textureCount);
+	for (int i = 0; i < map->textureCount; i++) {
+		BSPMIPTEX* tex = map->get_texture(i);
+
+		SubTexture sub;
+		sub.idx = i;
+		sub.w = (tex ? tex->nWidth : 16);
+		sub.h = (tex ? tex->nHeight : 16);
+		sub.x = sub.y = 0;
+		sub.sz = sub.w * sub.h;
+
+		textureAtlasInfos.push_back(sub);
+	}
+	sort(textureAtlasInfos.begin(), textureAtlasInfos.end(), [](const SubTexture& a, const SubTexture& b) {
+		return a.sz > b.sz;
+	});
+
+	debugf("Building texture atlases\n");
+
+	int atlasId = 0;
+	for (int i = 0; i < textureAtlasInfos.size(); i++) {
+		SubTexture& info = textureAtlasInfos[i];
+
+		// TODO: Try fitting in earlier atlases before using the latest one
+		if (!atlases[atlasId]->insert(i, info.w, info.h, info.x, info.y)) {
+			atlases.push_back(new TextureAtlas(textureAtlasSz, textureAtlasSz, textureAtlasZoneSz));
+			atlasId++;
+
+			if (!atlases[atlasId]->insert(i, info.w, info.h, info.x, info.y)) {
+				logf("Texture too big for atlas size! (%dx%d)\n", info.w, info.h);
+				continue;
+			}
+		}
+
+		info.atlasId = atlasId;
+	}
+
+	for (int i = 0; i < atlases.size(); i++) {
+		delete atlases[i];
+	}
+
+	numTextureAtlases = atlases.size();
+
+	// so array index == texture index
+	sort(textureAtlasInfos.begin(), textureAtlasInfos.end(), [](const SubTexture& a, const SubTexture& b) {
+		return a.idx < b.idx;
+	});
+
+	debugf("Fit %d textures into %d atlases (%dx%d) in %.2fs\n",
+		map->textureCount, atlasId + 1, textureAtlasSz, textureAtlasSz, glfwGetTime() - startTime);
+}
+
+void BspRenderer::fillTextureAtlases() {
+	if (!g_settings.texture_atlas) {
+		glTextureAtlasesSwap = NULL;
+		return;
+	}
+
+	glTextureAtlasesSwap = new Texture*[numTextureAtlases];
+
+	//int mipLevels = 3;
+	int mipLevels = 0; // mip-map seams aren't fixable without a large perf/memory impact
+
+	for (int i = 0; i < numTextureAtlases; i++) {
+		glTextureAtlasesSwap[i] = new Texture(textureAtlasSz, textureAtlasSz);
+		memset(glTextureAtlasesSwap[i]->data, 0, textureAtlasSz * textureAtlasSz * sizeof(COLOR4));
+
+		// mip map generation for the atlas must be manual so textures don't average each other
+		for (int m = 1; m <= mipLevels; m++) {
+			int mipSz = textureAtlasSz >> m;
+
+			MipTexture mip;
+			mip.width = mipSz;
+			mip.height = mipSz;
+			mip.data = new COLOR4[mipSz * mipSz];
+			mip.level = m;
+
+			glTextureAtlasesSwap[i]->mipmaps.push_back(mip);
+		}
+	}
+
+	for (int i = 0; i < textureAtlasInfos.size(); i++) {
+		SubTexture& info = textureAtlasInfos[i];
+
+		if (info.atlasId >= numTextureAtlases) {
+			logf("Bad atlas texture dst id %d\n", info.atlasId);
+			continue;
+		}
+		if (info.idx >= map->textureCount) {
+			logf("Bad atlas texture src id %d\n", info.idx);
+			continue;
+		}
+
+		// copy lightmap data into atlas
+		COLOR4* lightSrc = (COLOR4*)(glTexturesSwap[info.idx]->data);
+		COLOR4* lightDst = (COLOR4*)(glTextureAtlasesSwap[info.atlasId]->data);
+
+		for (int y = 0; y < info.h; y++) {
+			for (int x = 0; x < info.w; x++) {
+				int src = y * info.w + x;
+				int dst = (info.y + y) * textureAtlasSz + info.x + x;
+				lightDst[dst] = lightSrc[src];
+			}
+		}
+
+		for (int m = 1; m <= mipLevels; m++) {
+			if (m > glTexturesSwap[info.idx]->mipmaps.size()) {
+				logf("Bad mipmaps for %d\n", info.idx);
+				continue;
+			}
+
+			int mipSz = textureAtlasSz >> m;
+
+			MipTexture& mip = glTextureAtlasesSwap[info.atlasId]->mipmaps[m - 1];
+
+			int ix = info.x >> m;
+			int iy = info.y >> m;
+			int iw = info.w >> m;
+			int ih = info.h >> m;
+			lightSrc = (COLOR4*)(glTexturesSwap[info.idx]->mipmaps[m-1].data);
+
+			for (int y = 0; y < ih; y++) {
+				for (int x = 0; x < iw; x++) {
+					int src = y * iw + x;
+					int dst = (iy + y) * mipSz + ix + x;
+					mip.data[dst] = lightSrc[src];
+				}
+			}
+		}
+
+		delete glTexturesSwap[i];
+		glTexturesSwap[i] = NULL;
+	}
 }
 
 void BspRenderer::reload() {
 	g_app->isLoading = true;
-	preloadTextures();
+	reloadTextures(); // geometry data depends on texture preloading
 	updateLightmapInfos();
 	calcFaceMaths();
 	preRenderFaces();
 	preRenderEnts();
-	reloadTextures();
 	reloadLightmaps();
 	reloadClipnodes();
 
@@ -327,9 +488,13 @@ void BspRenderer::reloadTextures(bool reloadNow) {
 
 		deleteTextures();
 		glTextures = glTexturesSwap;
+		glTextureAtlases = glTextureAtlasesSwap;
 		for (int i = 0; i < map->textureCount; i++) {
 			if (!glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGBA);
+		}
+		for (int i = 0; i < numTextureAtlases; i++) {
+			glTextureAtlases[i]->upload(GL_RGBA);
 		}
 		glTextureArray->upload();
 		numLoadedTextures = map->textureCount;
@@ -403,9 +568,9 @@ void BspRenderer::updateModelShaders() {
 	for (int i = 0; i < numRenderModels; i++) {
 		RenderModel& model = renderModels[i];
 		for (int k = 0; k < model.groupCount; k++) {
-			model.renderGroups[k].buffer->setShader(activeShader, true);
+			model.renderGroups[k].buffer->setShader(activeShader);
 		}
-		model.wireframeBuffer->setShader(activeShader, true);
+		model.wireframeBuffer->setShader(activeShader);
 	}
 }
 
@@ -690,6 +855,7 @@ void BspRenderer::deleteTextures() {
 			delete glTextures[i];
 		}
 		delete[] glTextures;
+		glTextures = NULL;
 	}
 	for (int i = 0; i < 6; i++) {
 		if (skyboxTextures[i]) {
@@ -697,8 +863,13 @@ void BspRenderer::deleteTextures() {
 			skyboxTextures[i] = NULL;
 		}
 	}
-
-	glTextures = NULL;
+	if (glTextureAtlases) {
+		for (int i = 0; i < numTextureAtlases; i++) {
+			delete glTextureAtlases[i];
+		}
+		delete[] glTextureAtlases;
+		glTextureAtlases = NULL;
+	}
 }
 
 void BspRenderer::deleteLightmapTextures() {
@@ -745,6 +916,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
 		BSPMIPTEX* tex = map->get_texture(texinfo.iMiptex);
 		TexArrayOffset& texArrayOffset = miptexToTexArray[texinfo.iMiptex];
+		SubTexture& atlasInfo = textureAtlasInfos[texinfo.iMiptex];
 		float texArrayIdx = texArrayOffset.layer;
 
 		if (!g_opengl_texture_array_support) {
@@ -813,6 +985,19 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			verts[e].v = fV * th;
 			verts[e].w = texArrayIdx;
 
+			if (g_settings.texture_atlas) {
+				verts[e].ux = (atlasInfo.x / (float)textureAtlasSz);
+				verts[e].uy = (atlasInfo.y / (float)textureAtlasSz);
+				verts[e].uw = (atlasInfo.w / (float)textureAtlasSz);
+				verts[e].uh = (atlasInfo.h / (float)textureAtlasSz);
+			}
+			else {
+				verts[e].ux = 0;
+				verts[e].uy = 0;
+				verts[e].uw = 1;
+				verts[e].uh = 1;
+			}
+
 			// lightmap texture coords
 			if (hasLighting && lightmapsGenerated) {
 				float fLightMapU = lmap->midTexU + (fU - lmap->midPolyU) / 16.0f;
@@ -874,10 +1059,16 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		bool isTransparent = opacity < 1.0f;
 		int groupIdx = -1;
 		for (int k = 0; k < renderGroups.size(); k++) {
+			// split groups on unique texture IDs
 			bool textureMatch = !texturesLoaded || 
 				renderGroups[k].arrayTextureIdx == miptexToTexArray[texinfo.iMiptex].arrayIdx;
-
-			if (!g_opengl_texture_array_support && !g_opengl_3d_texture_support) {
+			if (g_settings.texture_atlas) {
+				// using texture atlases instead of arrays
+				textureMatch = !texturesLoaded ||
+					renderGroups[k].atlasTextureIdx == textureAtlasInfos[texinfo.iMiptex].atlasId;
+			}
+			else if (!g_opengl_texture_array_support && !g_opengl_3d_texture_support) {
+				// no batching possible, fall back to one texture ID per texture (ultra slow)
 				textureMatch = !texturesLoaded || renderGroups[k].texture == gltex;
 			}
 
@@ -903,6 +1094,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			newGroup.verts = NULL;
 			newGroup.transparent = isTransparent;
 			newGroup.arrayTextureIdx = miptexToTexArray[texinfo.iMiptex].arrayIdx;
+			newGroup.atlasTextureIdx = textureAtlasInfos[texinfo.iMiptex].atlasId;
 			newGroup.texture = texturesLoaded ? gltex : greyTex;
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
 				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
@@ -910,6 +1102,15 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			renderGroups.push_back(newGroup);
 			renderGroupVerts.push_back(vector<lightmapVert>());
 			groupIdx = renderGroups.size() - 1;
+
+			/*
+			logf("Render group %d using atlas %d transparent %d, lightatlas %d %d %d %d\n",
+				groupIdx, newGroup.atlasTextureIdx, (int)isTransparent,
+				lightmapAtlas[0] ? lightmapAtlas[0]->id : -1,
+				lightmapAtlas[1] ? lightmapAtlas[1]->id : -1,
+				lightmapAtlas[2] ? lightmapAtlas[2]->id : -1,
+				lightmapAtlas[3] ? lightmapAtlas[3]->id : -1);
+			*/
 		}
 
 		renderModel->renderFaces[i].group = groupIdx;
@@ -933,6 +1134,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vTex");
+		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vAtlas", g_settings.texture_atlas);
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
@@ -1774,11 +1976,12 @@ void BspRenderer::delayLoadData() {
 		deleteTextures();
 		
 		glTextures = glTexturesSwap;
+		glTextureAtlases = glTextureAtlasesSwap;
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
 		// non-3D version of textures needed for GUI
 		for (int i = 0; i < map->textureCount; i++) {
-			if (!glTextures[i]->uploaded)
+			if (glTextures[i] && !glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGBA);
 		}
 		for (int i = 0; i < 6; i++) {
@@ -1787,6 +1990,16 @@ void BspRenderer::delayLoadData() {
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Note: GL_CLAMP is significantly slower
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			}
+		}
+		for (int i = 0; i < numTextureAtlases; i++) {
+			//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
+			//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
+			//lodepng_encode32_file(cstrf("atlas_%d.png", i), glTextureAtlasesSwap[i]->data, textureAtlasSz, textureAtlasSz);
+			glTextureAtlases[i]->upload(GL_RGBA);
+
+			// disable mip-maps because they show seams which can't be fixed without 4x texture memory
+			// and atlas size. https://0fps.net/2013/07/09/texture-atlases-wrapping-and-mip-mapping/
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 		}
 
 		glTextureArray->upload();
@@ -1805,7 +2018,6 @@ void BspRenderer::delayLoadData() {
 			RenderClipnodes& clip = renderClipnodes[i];
 			for (int k = 0; k < MAX_MAP_HULLS; k++) {
 				if (clip.clipnodeBuffer[k]) {
-					clip.clipnodeBuffer[k]->bindAttributes(true);
 					clip.clipnodeBuffer[k]->upload();
 					clip.wireframeClipnodeBuffer[k]->upload();
 				}
@@ -2403,8 +2615,14 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 
 		// bind the texture
 		glActiveTexture(GL_TEXTURE0);
-		if (texturesLoaded && (g_settings.render_flags & RENDER_TEXTURES))
-			rgroup.texture->bind();
+		if (texturesLoaded && (g_settings.render_flags & RENDER_TEXTURES)) {
+			if (g_settings.texture_atlas) {
+				glTextureAtlases[rgroup.atlasTextureIdx]->bind();
+			}
+			else {
+				rgroup.texture->bind();
+			}
+		}
 		else {
 			if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
 				whiteTex3D->bind();

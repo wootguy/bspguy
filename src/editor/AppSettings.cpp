@@ -103,6 +103,7 @@ void AppSettings::load() {
 			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
 			else if (key == "animate_models") { g_settings.animate_models = atoi(val.c_str()) != 0; }
 			else if (key == "freetype_font") { g_settings.freetype_font = atoi(val.c_str()) != 0; }
+			else if (key == "texture_atlas") { g_settings.texture_atlas = atoi(val.c_str()) != 0; }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -236,6 +237,7 @@ void AppSettings::save() {
 	file << "engine=" << g_settings.engine << endl;
 	file << "animate_models=" << g_settings.animate_models << endl;
 	file << "freetype_font=" << g_settings.freetype_font << endl;
+	file << "texture_atlas=" << g_settings.texture_atlas << endl;
 }
 
 void AppSettings::addRecentFile(string map) {

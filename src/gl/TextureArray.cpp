@@ -194,7 +194,7 @@ void TextureArray::upload() {
 		if (buckets[i].count) {
 			bucketCount++;
 			textureCount += buckets[i].count;
-			debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
+			//debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
 			
 			int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
 

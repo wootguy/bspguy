@@ -43,6 +43,14 @@ struct LightmapInfo {
 	float midPolyU, midPolyV;
 };
 
+// texture within an atlas
+struct SubTexture {
+	int idx; // texture index
+	int atlasId;
+	int x, y, w, h;
+	int sz;
+};
+
 struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
 	vec3 plane_x;
@@ -66,6 +74,7 @@ struct RenderGroup {
 	lightmapVert* verts;
 	int vertCount;
 	int arrayTextureIdx;
+	int atlasTextureIdx;
 	Texture* texture;
 	Texture* lightmapAtlas[MAXLIGHTMAPS];
 	VertexBuffer* buffer;
@@ -180,6 +189,9 @@ public:
 
 	void preloadTextures(); // sets texture array positions for textures so geometry loader can set uvs
 	void loadTextures(); // will reload them if already loaded
+	void loadSkyboxTextures();
+	void buildTextureAtlases(); // figure out where each texture will go
+	void fillTextureAtlases(); // fill in the texture data loaded separately
 	void updateLightmapInfos();
 	bool isFinishedLoading();
 
@@ -217,6 +229,7 @@ private:
 	TexArrayOffset* miptexToTexArray; // maps iMiptex to a texture layer in an unknown texturearray
 
 	int numLightmapAtlases;
+	int numTextureAtlases;
 	int numRenderModels;
 	int numRenderClipnodes;
 	int numRenderLightmapInfos;
@@ -225,6 +238,8 @@ private:
 	int numLoadedTextures = 0;
 	int lightmapAtlasSz;
 	int lightmapAtlasZoneSz;
+	int textureAtlasSz;
+	int textureAtlasZoneSz;
 
 	vector<Polygon3D> debugFaces;
 	NavMesh* debugNavMesh;
@@ -233,6 +248,9 @@ private:
 	Texture* skyboxTextures[6];
 	Texture** glTextures = NULL;
 	Texture** glLightmapTextures = NULL;
+	Texture** glTextureAtlases = NULL;
+	Texture** glTextureAtlasesSwap = NULL;
+	vector<SubTexture> textureAtlasInfos;
 	Texture* whiteTex = NULL;
 	Texture* whiteTex3D = NULL;
 	Texture* redTex = NULL;

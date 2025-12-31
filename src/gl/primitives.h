@@ -22,6 +22,7 @@ struct lightmapVert
 {
 	// texture coordinates
 	float u, v, w; // w = texture layer in array texture
+	float ux, uy, uw, uh; // position and dimensions of the texture in an atlas
 
 	// lightmap texture coordinates
 	// last value scales the lightmap brightness
