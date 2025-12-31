@@ -554,10 +554,10 @@ void BspRenderer::delayLoadLeaves() {
 
 void BspRenderer::addClipnodeModel(int modelIdx) {
 	RenderClipnodes* newRenderClipnodes = new RenderClipnodes[numRenderClipnodes +1];
-	memcpy(newRenderClipnodes, renderClipnodes, numRenderClipnodes * sizeof(RenderClipnodes));
+	memcpy(newRenderClipnodes, renderClipnodeDat, numRenderClipnodes * sizeof(RenderClipnodes));
 	memset(&newRenderClipnodes[numRenderClipnodes], 0, sizeof(RenderClipnodes));
 	numRenderClipnodes++;
-	renderClipnodes = newRenderClipnodes;
+	renderClipnodeDat = newRenderClipnodes;
 	
 	generateClipnodeBuffer(modelIdx);
 }
@@ -786,14 +786,14 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 }
 
 void BspRenderer::deleteRenderClipnodes() {
-	if (renderClipnodes != NULL) {
+	if (renderClipnodeDat != NULL) {
 		for (int i = 0; i < numRenderClipnodes; i++) {
-			deleteRenderModelClipnodes(&renderClipnodes[i]);
+			deleteRenderModelClipnodes(&renderClipnodeDat[i]);
 		}
-		delete[] renderClipnodes;
+		delete[] renderClipnodeDat;
 	}
 
-	renderClipnodes = NULL;
+	renderClipnodeDat = NULL;
 }
 
 void BspRenderer::deleteRenderLeaves() {
@@ -1243,10 +1243,10 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 		leafNavMesh = NULL;
 	}
 
-	deleteRenderModelClipnodes(&renderClipnodes[modelIdx]);
+	deleteRenderModelClipnodes(&renderClipnodeDat[modelIdx]);
 	generateClipnodeBuffer(modelIdx);
 
-	RenderClipnodes& renderClip = renderClipnodes[modelIdx];
+	RenderClipnodes& renderClip = renderClipnodeDat[modelIdx];
 
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		if (renderClip.clipnodeBuffer[i])
@@ -1260,8 +1260,8 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 
 void BspRenderer::loadClipnodes() {
 	numRenderClipnodes = map->modelCount;
-	renderClipnodes = new RenderClipnodes[numRenderClipnodes];
-	memset(renderClipnodes, 0, numRenderClipnodes * sizeof(RenderClipnodes));
+	renderClipnodeDat = new RenderClipnodes[numRenderClipnodes];
+	memset(renderClipnodeDat, 0, numRenderClipnodes * sizeof(RenderClipnodes));
 
 	for (int i = 0; i < numRenderClipnodes; i++) {
 		generateClipnodeBuffer(i);
@@ -1275,7 +1275,7 @@ void BspRenderer::loadLeaves() {
 
 void BspRenderer::generateNavMeshBuffer() {
 	int hull = 3;
-	RenderClipnodes* renderClip = &renderClipnodes[0];
+	RenderClipnodes* renderClip = &renderClipnodeDat[0];
 	renderClip->clipnodeBuffer[hull] = NULL;
 	renderClip->wireframeClipnodeBuffer[hull] = NULL;
 
@@ -1495,7 +1495,7 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 
 void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	BSPMODEL& model = map->models[modelIdx];
-	RenderClipnodes* renderClip = &renderClipnodes[modelIdx];
+	RenderClipnodes* renderClip = &renderClipnodeDat[modelIdx];
 
 	vec3 min = vec3(model.nMins.x, model.nMins.y, model.nMins.z);
 	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
@@ -1736,13 +1736,13 @@ void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<
 void BspRenderer::updateClipnodeOpacity(byte newValue) {
 	for (int i = 0; i < numRenderClipnodes; i++) {
 		for (int k = 0; k < MAX_MAP_HULLS; k++) {
-			if (renderClipnodes[i].clipnodeBuffer[k]) {
-				cVert* data = (cVert*)renderClipnodes[i].clipnodeBuffer[k]->data;
-				for (int v = 0; v < renderClipnodes[i].clipnodeBuffer[k]->numVerts; v++) {
+			if (renderClipnodeDat[i].clipnodeBuffer[k]) {
+				cVert* data = (cVert*)renderClipnodeDat[i].clipnodeBuffer[k]->data;
+				for (int v = 0; v < renderClipnodeDat[i].clipnodeBuffer[k]->numVerts; v++) {
 					data[v].c.a = newValue;
 				}
-				renderClipnodes[i].clipnodeBuffer[k]->deleteBuffer();
-				renderClipnodes[i].clipnodeBuffer[k]->upload();
+				renderClipnodeDat[i].clipnodeBuffer[k]->deleteBuffer();
+				renderClipnodeDat[i].clipnodeBuffer[k]->upload();
 			}
 		}
 	}
@@ -2015,7 +2015,7 @@ void BspRenderer::delayLoadData() {
 	if (!clipnodesLoaded && clipnodesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 
 		for (int i = 0; i < numRenderClipnodes; i++) {
-			RenderClipnodes& clip = renderClipnodes[i];
+			RenderClipnodes& clip = renderClipnodeDat[i];
 			for (int k = 0; k < MAX_MAP_HULLS; k++) {
 				if (clip.clipnodeBuffer[k]) {
 					clip.clipnodeBuffer[k]->upload();
@@ -2321,18 +2321,13 @@ void BspRenderer::getRenderEnts(vector<OrderedEnt>& ents) {
 		});
 }
 
-void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop,
-	int clipnodeHull, bool transparencyPass, bool wireframePass) {
+void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass) {
 	if (map->ents.empty())
 		return;
 	
 	BSPMODEL& world = map->models[0];
 
 	activeShader = g_shaders.bsp;
-
-	if (wireframePass)
-		activeShader = g_shaders.vec3;
-
 	activeShader->bind();
 	activeShader->modelMat->loadIdentity();
 	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
@@ -2342,22 +2337,15 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
 
-	if (!wireframePass) {
-		if ((g_settings.render_flags & RENDER_LIGHTMAPS) && (g_settings.render_flags & RENDER_TEXTURES)) {
-			activeShader->setUniform("gamma", 1.5f);
-		}
-		else {
-			activeShader->setUniform("gamma", 1.0f);
-		}
+	if ((g_settings.render_flags & RENDER_LIGHTMAPS) && (g_settings.render_flags & RENDER_TEXTURES)) {
+		activeShader->setUniform("gamma", 1.5f);
+	}
+	else {
+		activeShader->setUniform("gamma", 1.0f);
 	}
 
-	if (!map->ents[0]->hidden) {
-		if (wireframePass)
-			drawModelWireframe(0, false);
-		else {
-			if (map->modelCount > 0)
-				drawModel(map->ents[0], 0, transparencyPass, false);
-		}
+	if (!map->ents[0]->hidden && map->modelCount > 0) {
+		drawModel(map->ents[0], 0, transparencyPass, false);
 	}
 
 	activeShader->pushMatrix(MAT_MODEL);
@@ -2369,7 +2357,7 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 			Entity* ent = orderEnt.ent;
 			if (ent->hidden)
 				continue;
-			if (!wireframePass && !willDrawModel(ent, modelIdx, transparencyPass))
+			if (!willDrawModel(ent, modelIdx, transparencyPass))
 				continue;
 
 			if (highlightAlwaysOnTop && ent->highlighted)
@@ -2378,71 +2366,115 @@ void BspRenderer::render(const vector<OrderedEnt>& orderedEnts, bool highlightAl
 			*activeShader->modelMat = orderEnt.transform;
 			activeShader->updateMatrixes();
 
-			if (wireframePass)
-				drawModelWireframe(modelIdx, ent->highlighted);
-			else
-				drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
+			drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
 		}
 	}
 	activeShader->popMatrix(MAT_MODEL);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+}
 
-	if ((g_settings.render_flags & RENDER_POINT_ENTS) && !transparencyPass && !wireframePass && !g_app->previewMode) {
-		drawPointEntities();
-		activeShader->bind();
+void BspRenderer::renderWireframe(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop) {
+	if (map->ents.empty())
+		return;
+
+	BSPMODEL& world = map->models[0];
+
+	activeShader = g_shaders.vec3;
+	activeShader->bind();
+	activeShader->modelMat->loadIdentity();
+	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	activeShader->updateMatrixes();
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthFunc(GL_LEQUAL);
+
+	if (!map->ents[0]->hidden) {
+		drawModelWireframe(0, false);
 	}
 
-	// draw clipnodes in a separate pass to prevent interleaving shader binds
-	if (clipnodesLoaded && transparencyPass && !wireframePass && !g_app->previewMode) {
-		g_shaders.color->bind();
+	activeShader->pushMatrix(MAT_MODEL);
+	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
+		const OrderedEnt& orderEnt = orderedEnts[i];
+		int modelIdx = orderEnt.modelIdx;
 
-		if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
-			drawModelClipnodes(0, false, clipnodeHull);
+		if (modelIdx >= 0 && modelIdx < map->modelCount) {
+			Entity* ent = orderEnt.ent;
+			if (ent->hidden)
+				continue;
+
+			if (highlightAlwaysOnTop && ent->highlighted)
+				glDisable(GL_DEPTH_TEST);
+
+			*activeShader->modelMat = orderEnt.transform;
+			activeShader->updateMatrixes();
+
+			drawModelWireframe(modelIdx, ent->highlighted);
 		}
+	}
+	activeShader->popMatrix(MAT_MODEL);
+}
 
-		if ((g_settings.render_flags & RENDER_ENTS) && (g_settings.render_flags & RENDER_ENT_CLIPNODES)) {
-			g_shaders.color->pushMatrix(MAT_MODEL);
-			for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
-				const OrderedEnt& orderEnt = orderedEnts[i];
-				int modelIdx = orderEnt.modelIdx;
+void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull) {
+	if (map->ents.empty() || !clipnodesLoaded || g_app->previewMode)
+		return;
 
-				if (modelIdx >= 0 && modelIdx < map->modelCount) {
-					Entity* ent = orderEnt.ent;
-					if (ent->hidden)
-						continue;
+	BSPMODEL& world = map->models[0];
 
-					RenderClipnodes& clip = renderClipnodes[modelIdx];
-					if (clipnodeHull == -1 && getBestClipnodeHull(modelIdx) == -1) {
-						continue; // skip if no hull can be drawn
-					}
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthFunc(GL_LEQUAL);
 
-					if (clipnodeHull == -1 && renderModels[modelIdx].groupCount > 0) {
-						continue; // skip rendering for models that have faces, if in auto mode
-					}
-					
-					*g_shaders.color->modelMat = orderEnt.transform;
-					g_shaders.color->updateMatrixes();
+	// clipnodes are drawn in a separate pass to prevent interleaving shader binds
+	g_shaders.color->bind();
 
-					if (ent->highlighted) {
-						g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
-					}
+	if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
+		drawModelClipnodes(0, false, clipnodeHull);
+	}
 
-					drawModelClipnodes(modelIdx, false, clipnodeHull);
+	if ((g_settings.render_flags & RENDER_ENTS) && (g_settings.render_flags & RENDER_ENT_CLIPNODES)) {
+		g_shaders.color->pushMatrix(MAT_MODEL);
+		for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
+			const OrderedEnt& orderEnt = orderedEnts[i];
+			int modelIdx = orderEnt.modelIdx;
 
-					if (ent->highlighted) {
-						g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
-					}
+			if (modelIdx >= 0 && modelIdx < map->modelCount) {
+				Entity* ent = orderEnt.ent;
+				if (ent->hidden)
+					continue;
+
+				RenderClipnodes& clip = renderClipnodeDat[modelIdx];
+				if (clipnodeHull == -1 && getBestClipnodeHull(modelIdx) == -1) {
+					continue; // skip if no hull can be drawn
+				}
+
+				if (clipnodeHull == -1 && renderModels[modelIdx].groupCount > 0) {
+					continue; // skip rendering for models that have faces, if in auto mode
+				}
+
+				*g_shaders.color->modelMat = orderEnt.transform;
+				g_shaders.color->updateMatrixes();
+
+				if (ent->highlighted) {
+					g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
+				}
+
+				drawModelClipnodes(modelIdx, false, clipnodeHull);
+
+				if (ent->highlighted) {
+					g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 				}
 			}
-			g_shaders.color->popMatrix(MAT_MODEL);
-		}		
+		}
+		g_shaders.color->popMatrix(MAT_MODEL);
 	}
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
-	delayLoadData();
 }
+
 
 void BspRenderer::renderLeaves() {
 	glEnable(GL_BLEND);
@@ -2668,7 +2700,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 }
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
-	RenderClipnodes& clip = renderClipnodes[modelIdx];
+	RenderClipnodes& clip = renderClipnodeDat[modelIdx];
 
 	if (hullIdx == -1) {
 		hullIdx = getBestClipnodeHull(modelIdx);
@@ -2684,6 +2716,10 @@ void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) 
 }
 
 void BspRenderer::drawPointEntities() {
+	if (!(g_settings.render_flags & RENDER_POINT_ENTS) || g_app->previewMode) {
+		return;
+	}
+
 	g_shaders.color->bind();
 	g_shaders.color->updateMatrixes();
 
@@ -3072,8 +3108,8 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 	}
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
-		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
+			FaceMath faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
 				rotateFaceMath(faceMath, angleTransform);
@@ -3243,8 +3279,8 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 	}
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
-		for (int i = 0; i < renderClipnodes[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath faceMath = renderClipnodes[modelIdx].faceMaths[hullIdx][i];
+		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
+			FaceMath faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
 				rotateFaceMath(faceMath, angleTransform);
@@ -3336,7 +3372,7 @@ int BspRenderer::getBestClipnodeHull(int modelIdx) {
 		return -1;
 	}
 
-	RenderClipnodes& clip = renderClipnodes[modelIdx];
+	RenderClipnodes& clip = renderClipnodeDat[modelIdx];
 
 	// prefer hull that most closely matches the object size from a player's perspective
 	if (clip.clipnodeBuffer[0]) {

@@ -514,6 +514,7 @@ void Editor::renderLoop() {
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		mapRenderer->delayLoadData();
 		drawViewport();
 
 		// updated here so imgui can use control logic from this class
@@ -831,13 +832,14 @@ void Editor::drawViewport() {
 	mapRenderer->getRenderEnts(orderedEnts);
 
 	// draw opaque world/entity faces
-	mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, false);
+	mapRenderer->renderSolids(orderedEnts, transformTarget == TRANSFORM_VERTEX, false);
+	mapRenderer->drawPointEntities();
 
 	glCheckError("Rendering BSP (opaque pass)");
 
 	// wireframe pass
 	if (!previewMode && (g_settings.render_flags & RENDER_WIREFRAME)) {
-		mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, false, true);
+		mapRenderer->renderWireframe(orderedEnts, transformTarget == TRANSFORM_VERTEX);
 		glCheckError("Rendering BSP (wireframe pass)");
 	}
 
@@ -849,7 +851,8 @@ void Editor::drawViewport() {
 	glCheckError("Rendering models and sprites");
 
 	// draw transparent entity faces
-	mapRenderer->render(orderedEnts, transformTarget == TRANSFORM_VERTEX, clipnodeRenderHull, true, false);
+	mapRenderer->renderSolids(orderedEnts, transformTarget == TRANSFORM_VERTEX, true);
+	mapRenderer->renderClipnodes(orderedEnts, clipnodeRenderHull);
 	glCheckError("Rendering BSP (transparency pass)");
 
 	if (mapArrangeMode)
@@ -1121,20 +1124,22 @@ void Editor::drawArrangeMaps() {
 
 	for (RenderMap& arrangeBsp : renderMaps) {
 		// opaque pass
-		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, false);
+		arrangeBsp.renderer->renderSolids(arrangeBsp.orderedEnts, false, false);
+		arrangeBsp.renderer->drawPointEntities();
 	}
 
 	for (RenderMap& arrangeBsp : renderMaps) {
 		// wireframe pass
 		if (g_settings.render_flags & RENDER_WIREFRAME) {
-			arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, false, true);
+			arrangeBsp.renderer->renderWireframe(arrangeBsp.orderedEnts, false);
 			glCheckError("Rendering BSP (wireframe pass)");
 		}
 	}
 
 	for (RenderMap& arrangeBsp : renderMaps) {
 		// transparency pass
-		arrangeBsp.renderer->render(arrangeBsp.orderedEnts, false, clipnodeRenderHull, true, false);
+		arrangeBsp.renderer->renderSolids(arrangeBsp.orderedEnts, false, true);
+		arrangeBsp.renderer->renderClipnodes(arrangeBsp.orderedEnts, clipnodeRenderHull);
 	}
 
 	g_shaders.color->bind();

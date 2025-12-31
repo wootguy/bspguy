@@ -143,8 +143,9 @@ public:
 	~BspRenderer();
 
 	void getRenderEnts(vector<OrderedEnt>& ents); // calc ent data for multipass rendering
-	void render(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop,
-		int clipnodeHull, bool transparencyPass, bool wireframePass);
+	void renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass);
+	void renderWireframe(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop);
+	void renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull);
 	void renderLeaves();
 
 	bool willDrawModel(Entity* ent, int modelIdx, bool transparent);
@@ -208,6 +209,7 @@ public:
 
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
 	EntCube* getEntCube(int idx);
+	void delayLoadData();
 
 private:
 	ShaderProgram* activeShader;
@@ -215,7 +217,7 @@ private:
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;
 	RenderModel* renderModels = NULL;
-	RenderClipnodes* renderClipnodes = NULL;
+	RenderClipnodes* renderClipnodeDat = NULL;
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
@@ -289,7 +291,6 @@ private:
 	void deleteTextures();
 	void deleteLightmapTextures();
 	void deleteFaceMaths();
-	void delayLoadData();
 	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
 	Texture* generateMissingTexture(int width, int height);
