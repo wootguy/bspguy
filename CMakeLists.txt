@@ -150,6 +150,9 @@ set(SHADER_FILES
 	src/shaders/cvert_vert.glsl
 	src/shaders/cvert_frag.glsl
 	
+	src/shaders/clipnode_vert.glsl
+	src/shaders/clipnode_frag.glsl
+	
 	src/shaders/tvert_vert.glsl
 	src/shaders/tvert_frag.glsl
 	

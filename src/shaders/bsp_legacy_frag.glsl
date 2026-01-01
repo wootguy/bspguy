@@ -1,6 +1,10 @@
 #version 120
 uniform float alphaTest;
 uniform float gamma;
+uniform float wireframeEnable;
+uniform vec4 wireframeColorDark;
+uniform vec4 wireframeColorBright;
+uniform float wireframeThickness;
 
 varying vec3 fTex;
 varying vec3 fLightmapTex0;
@@ -8,6 +12,8 @@ varying vec3 fLightmapTex1;
 varying vec3 fLightmapTex2;
 varying vec3 fLightmapTex3;
 varying vec4 fColor;
+varying vec3 fBary;
+varying vec3 fEdgeEnable;
 
 uniform sampler2D sTex;
 uniform sampler2D sLightmapTex0;
@@ -16,7 +22,7 @@ uniform sampler2D sLightmapTex2;
 uniform sampler2D sLightmapTex3;
 
 void main()
-{
+{	
 	vec4 texel = texture2D(sTex, fTex.xy);
 	if (alphaTest != 0.0) {
 		if (texel.a == 0.0) {
@@ -35,5 +41,23 @@ void main()
 	lightmap += texture2D(sLightmapTex3, fLightmapTex3.xy).rgb * fLightmapTex3.z;
 	vec3 color = texel.rgb * lightmap * fColor.rgb;
 
-	gl_FragColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);
+	vec4 texColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);
+	
+	if (wireframeEnable != 0) {
+		vec3 a = smoothstep(vec3(0.0), fwidth(fBary) * wireframeThickness, fBary);
+		a = mix(vec3(1.0), a, fEdgeEnable);
+		float dist = min(min(a.x, a.y), a.z);
+		
+		if (dist < 1.0) {
+			float lum = dot(texColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+			gl_FragColor = (lum > 0.25) ? wireframeColorBright : wireframeColorDark;
+			return;
+		}
+	}
+	
+	if (!gl_FrontFacing) {
+		discard;
+	}
+	
+	gl_FragColor = texColor;
 }

@@ -23,7 +23,7 @@ LeafNode::LeafNode() {
 	center = origin = mins = maxs = vec3();
 	parentIdx = NAV_INVALID_IDX;
 	childIdx = NAV_INVALID_IDX;
-	face_buffer = wireframe_buffer = NULL;
+	face_buffer = NULL;
 }
 
 bool LeafNode::isInside(vec3 p, float epsilon) {
@@ -625,9 +625,6 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 			if (node.parentIdx != NAV_INVALID_IDX || node.entidx != 0) {
 				if (node.face_buffer) {
 					delete node.face_buffer;
-				}
-				if (node.wireframe_buffer) {
-					delete node.wireframe_buffer;
 				}
 
 				if (node.entidx != 0) {

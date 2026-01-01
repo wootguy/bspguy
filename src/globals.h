@@ -37,6 +37,7 @@ enum RenderFlags {
 	RENDER_PVS = (1 << 17),
 	RENDER_NAME_TAGS = (1 << 18),
 	RENDER_SKYBOX = (1 << 19),
+	RENDER_CLIPNODE_OPAQUE = (1 << 20),
 };
 
 struct MapLimits {
@@ -67,6 +68,7 @@ struct MapLimits {
 struct GlobalShaders {
 	ShaderProgram* bsp = NULL;
 	ShaderProgram* color = NULL;
+	ShaderProgram* clipnode = NULL;
 	ShaderProgram* texture = NULL;
 	ShaderProgram* mdl = NULL;
 	ShaderProgram* spr = NULL;

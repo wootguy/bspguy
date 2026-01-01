@@ -3,6 +3,7 @@
 #include "vectors.h"
 #include "colors.h"
 #include "bsplimits.h"
+#include <stdint.h>
 
 #pragma pack(push, 1)
 struct tVert
@@ -23,6 +24,8 @@ struct lightmapVert
 	// texture coordinates
 	float u, v, w; // w = texture layer in array texture
 	float ux, uy, uw, uh; // position and dimensions of the texture in an atlas
+	uint8_t bx, by, bz; // barycentric coordinates for wireframe (edge detection)
+	uint8_t ex, ey, ez; // mark which edges should be enabled in the wireframe
 
 	// lightmap texture coordinates
 	// last value scales the lightmap brightness
@@ -32,6 +35,17 @@ struct lightmapVert
 	float x, y, z;
 
 	vec3 pos() { return vec3(x, y, z); }
+};
+
+struct clipnodeVert {
+	uint8_t bx, by, bz; // barycentric coordinates for wireframe (edge detection)
+	uint8_t ex, ey, ez; // mark which edges should be enabled in the wireframe
+
+	COLOR4 c;
+	vec3 pos;
+
+	clipnodeVert() {}
+	clipnodeVert(vec3 pos, COLOR4 c) : c(c), pos(pos) {}
 };
 
 struct cVert

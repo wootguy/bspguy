@@ -8,6 +8,8 @@ uniform vec4 colorMult;
 attribute vec3 vPosition;
 attribute vec3 vTex;
 attribute vec4 vAtlas;
+attribute vec3 vBary;
+attribute vec3 vEdgeEnable;
 attribute vec3 vLightmapTex0;
 attribute vec3 vLightmapTex1;
 attribute vec3 vLightmapTex2;
@@ -22,6 +24,8 @@ varying vec3 fLightmapTex1;
 varying vec3 fLightmapTex2;
 varying vec3 fLightmapTex3;
 varying vec4 fColor;
+varying vec3 fBary;
+varying vec3 fEdgeEnable;
 
 void main()
 {
@@ -33,4 +37,6 @@ void main()
 	fLightmapTex3 = vLightmapTex3;
 	fColor = vColor * colorMult;
 	fAtlas = vAtlas;
+	fBary = vBary;
+    fEdgeEnable = vEdgeEnable;
 }

@@ -36,7 +36,6 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 
 	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
 		megaRenderClipnodes.buffer[i] = NULL;
-		megaRenderClipnodes.wireframeBuffer[i] = NULL;
 	}
 
 	memset(skyboxTextures, 0, sizeof(skyboxTextures));
@@ -577,7 +576,6 @@ void BspRenderer::updateModelShaders() {
 		for (int k = 0; k < model.groupCount; k++) {
 			model.renderGroups[k].buffer->setShader(activeShader);
 		}
-		model.wireframeBuffer->setShader(activeShader);
 	}
 }
 
@@ -728,7 +726,7 @@ void BspRenderer::updateLightmapInfos() {
 
 void BspRenderer::preRenderFaces() {
 	deleteRenderFaces();
-	refreshMegaBuffers();
+	reloadMegaBuffers();
 
 	memset(lightStyleCount, 0, sizeof(lightStyleCount));
 
@@ -778,17 +776,11 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 		group.verts = NULL;
 		group.buffer = NULL;
 	}
-	if (renderModel->wireframeVerts)
-		delete[] renderModel->wireframeVerts;
-	if (renderModel->wireframeBuffer)
-		delete renderModel->wireframeBuffer;
 	if (renderModel->renderGroups)
 		delete[] renderModel->renderGroups;
 	if (renderModel->renderFaces)
 		delete[] renderModel->renderFaces;
 
-	renderModel->wireframeVerts = NULL;
-	renderModel->wireframeBuffer = NULL;
 	renderModel->renderGroups = NULL;
 	renderModel->renderFaces = NULL;
 }
@@ -816,11 +808,6 @@ void BspRenderer::deleteRenderLeaves() {
 			renderLeafDat->leafBuffer = NULL;
 		}
 
-		if (renderLeafDat->wireframeLeafBuffer) {
-			delete renderLeafDat->wireframeLeafBuffer;
-			renderLeafDat->wireframeLeafBuffer = NULL;
-		}
-
 		delete renderLeafDat;
 		renderLeafDat = NULL;
 	}
@@ -837,10 +824,8 @@ void BspRenderer::deleteRenderModelClipnodes(RenderClipnodes* renderClip) {
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		if (renderClip->clipnodeBuffer[i]) {
 			delete renderClip->clipnodeBuffer[i];
-			delete renderClip->wireframeClipnodeBuffer[i];
 		}
 		renderClip->clipnodeBuffer[i] = NULL;
-		renderClip->wireframeClipnodeBuffer[i] = NULL;
 	}
 }
 
@@ -910,7 +895,6 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 	vector<RenderGroup> renderGroups;
 	vector<vector<lightmapVert>> renderGroupVerts;
-	vector<vec3> modelWireframeVerts;
 
 	activeShader = g_shaders.bsp;
 
@@ -1039,22 +1023,34 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 		// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
 		int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
-		int wireframeVertCount = face.nEdges * 2;
 		lightmapVert* newVerts = new lightmapVert[newCount];
-		vec3* wireframeVerts = new vec3[wireframeVertCount];
 
 		int idx = 0;
-		for (int k = 2; k < face.nEdges; k++) {
+		for (int k = 2; k < face.nEdges; k++, idx += 3) {
 			// reverse order due to coordinate system swap
-			newVerts[idx++] = verts[k];
-			newVerts[idx++] = verts[k - 1];
-			newVerts[idx++] = verts[0];	
-		}
+			newVerts[idx+0] = verts[k];
+			newVerts[idx+1] = verts[k - 1];
+			newVerts[idx+2] = verts[0];
 
-		idx = 0;
-		for (int k = 0; k < face.nEdges; k++) {
-			wireframeVerts[idx++] = verts[k].pos();
-			wireframeVerts[idx++] = verts[(k + 1) % face.nEdges].pos();
+			// barycentric coords for wireframe edge detection
+			newVerts[idx + 0].bx = 255;
+			newVerts[idx + 0].by = 0;
+			newVerts[idx + 0].bz = 0;
+
+			newVerts[idx + 1].bx = 0;
+			newVerts[idx + 1].by = 255;
+			newVerts[idx + 1].bz = 0;
+
+			newVerts[idx + 2].bx = 0;
+			newVerts[idx + 2].by = 0;
+			newVerts[idx + 2].bz = 255;
+
+			// select which edges to draw (not the inner edges of the fan)
+			for (int j = 0; j < 3; j++) {
+				newVerts[idx + j].ex = k == 2;
+				newVerts[idx + j].ey = k == face.nEdges - 1;
+				newVerts[idx + j].ez = 1;
+			}
 		}
 
 		delete[] verts;
@@ -1126,10 +1122,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderModel->renderFaces[i].vertCount = vertCount;
 
 		renderGroupVerts[groupIdx].insert(renderGroupVerts[groupIdx].end(), verts, verts + vertCount);
-		modelWireframeVerts.insert(modelWireframeVerts.end(), wireframeVerts, wireframeVerts + wireframeVertCount);
 
 		delete[] verts;
-		delete[] wireframeVerts;
 	}
 
 	renderModel->renderGroups = new RenderGroup[renderGroups.size()];
@@ -1143,6 +1137,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vTex");
 		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vAtlas", g_settings.texture_atlas);
+		renderGroups[i].buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
+		renderGroups[i].buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
 		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
@@ -1153,21 +1149,6 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderGroups[i].buffer->upload();
 
 		renderModel->renderGroups[i] = renderGroups[i];
-	}
-
-	if (modelWireframeVerts.size()) {
-		renderModel->wireframeVerts = new vec3[modelWireframeVerts.size()];
-		renderModel->wireframeVertCount = modelWireframeVerts.size();
-		memcpy(renderModel->wireframeVerts, &modelWireframeVerts[0], renderModel->wireframeVertCount * sizeof(vec3));
-
-		renderModel->wireframeBuffer = new VertexBuffer(g_shaders.vec3, 0);
-		renderModel->wireframeBuffer->addAttribute(POS_3F, "vPosition");
-		renderModel->wireframeBuffer->setData(renderModel->wireframeVerts, renderModel->wireframeVertCount);
-		renderModel->wireframeBuffer->upload();
-	}
-	else {
-		renderModel->wireframeVerts = NULL;
-		renderModel->wireframeVertCount = 0;
 	}
 
 	for (int i = 0; i < model.nFaces; i++) {
@@ -1206,19 +1187,12 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 	for (MegaRenderGroup& mega : megaRenderGroups) {
 		delete mega.group.buffer;
 	}
-	delete megaRenderWireframes.buffer;
-	megaRenderWireframes.buffer = NULL;
-	megaRenderWireframes.vertCount = 0;
-	megaRenderWireframes.refs.clear();
 
 	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
 		delete megaRenderClipnodes.buffer[i];
-		delete megaRenderClipnodes.wireframeBuffer[i];
 		megaRenderClipnodes.buffer[i] = NULL;
-		megaRenderClipnodes.wireframeBuffer[i] = NULL;
 	}
 	memset(megaRenderClipnodes.totalVerts, 0, sizeof(megaRenderClipnodes.totalVerts));
-	memset(megaRenderClipnodes.totalWireVerts, 0, sizeof(megaRenderClipnodes.totalWireVerts));
 	megaRenderClipnodes.refs.clear();
 
 	megaRenderGroups.clear();
@@ -1264,9 +1238,6 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 			}
 		}
 
-		megaRenderWireframes.vertCount += model.wireframeVertCount;
-		megaRenderWireframes.refs.push_back(i);
-
 		if (clipnodesLoaded) {
 			megaRenderClipnodes.refs.push_back(i);
 			for (int k = 0; k < MAX_MAP_HULLS+1; k++) {
@@ -1283,12 +1254,8 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 				}
 
 				VertexBuffer* buf = renderClipnodeDat[ent.modelIdx].clipnodeBuffer[hull];
-				VertexBuffer* wireBuf = renderClipnodeDat[ent.modelIdx].wireframeClipnodeBuffer[hull];
 				if (buf) {
 					megaRenderClipnodes.totalVerts[k] += buf->numVerts;
-				}
-				if (wireBuf) {
-					megaRenderClipnodes.totalWireVerts[k] += wireBuf->numVerts;
 				}
 			}
 		}
@@ -1324,33 +1291,12 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		mega.group.buffer->upload();
 	}
 
-	// create wireframe models buffer
-	if (megaRenderWireframes.vertCount) {
-		vec3* verts = new vec3[megaRenderWireframes.vertCount];
-		int vertIdx = 0;
-
-		for (int& idx : megaRenderWireframes.refs) {
-			OrderedEnt& ent = ents[idx];
-			RenderModel& refModel = renderModels[ent.modelIdx];
-
-			for (int k = 0; k < refModel.wireframeVertCount; k++, vertIdx++) {
-				verts[vertIdx] = ent.transform.multRowMajor(refModel.wireframeVerts[k]);
-			}
-		}
-
-		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.vec3, POS_3F, verts, megaRenderWireframes.vertCount);
-		megaBuffer->ownData = true;
-		megaRenderWireframes.buffer = megaBuffer;
-		megaRenderWireframes.buffer->upload();
-	}
-
 	// create clipnode models buffer
 	for (int i = 0; i < MAX_MAP_HULLS+1 && clipnodesLoaded; i++) {
-		cVert* verts = new cVert[megaRenderClipnodes.totalVerts[i]];
-		cVert* wireVerts = new cVert[megaRenderClipnodes.totalWireVerts[i]];
+		clipnodeVert* verts = new clipnodeVert[megaRenderClipnodes.totalVerts[i]];
 
 		int vertIdx = 0;
-		int wireVertIdx = 0;
+		VertexBuffer* sampleBuf = NULL;
 		for (int idx : megaRenderClipnodes.refs) {
 			OrderedEnt& ent = ents[idx];
 
@@ -1367,48 +1313,28 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 			}
 
 			VertexBuffer* srcBuf = renderClipnodeDat[ent.modelIdx].clipnodeBuffer[hull];
-			VertexBuffer* srcBufWire = renderClipnodeDat[ent.modelIdx].wireframeClipnodeBuffer[hull];
 			if (!srcBuf)
 				continue;
 
-			{
-				int numVerts = srcBuf->numVerts;
-				cVert* srcData = (cVert*)srcBuf->data;
+			sampleBuf = srcBuf;
+			int numVerts = srcBuf->numVerts;
+			clipnodeVert* srcData = (clipnodeVert*)srcBuf->data;
 
-				for (int k = 0; k < numVerts; k++, vertIdx++) {
-					verts[vertIdx].c = srcData[k].c;
+			for (int k = 0; k < numVerts; k++, vertIdx++) {
+				verts[vertIdx] = srcData[k];
 
-					vec3* v = (vec3*)(&verts[vertIdx].x);
-					*v = ent.transform.multRowMajor(*(vec3*)(&srcData[k].x));
-				}
-			}
-
-			{
-				int numVerts = srcBufWire->numVerts;
-				cVert* srcData = (cVert*)srcBufWire->data;
-
-				for (int k = 0; k < numVerts; k++, wireVertIdx++) {
-					wireVerts[wireVertIdx].c = srcData[k].c;
-
-					vec3* v = (vec3*)(&wireVerts[wireVertIdx].x);
-					*v = ent.transform.multRowMajor(*(vec3*)(&srcData[k].x));
-				}
+				verts[vertIdx].pos = ent.transform.multRowMajor(srcData[k].pos);
 			}
 		}
 
-		if (vertIdx != 0) {
-			VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.color, POS_3F | COLOR_4B, verts, megaRenderClipnodes.totalVerts[i]);
-			megaBuffer->ownData = true;
-			megaRenderClipnodes.buffer[i] = megaBuffer;
-			megaRenderClipnodes.buffer[i]->upload();
-		}
+		if (vertIdx == 0)
+			continue;
 
-		if (wireVertIdx != 0) {
-			VertexBuffer* megaWireBuffer = new VertexBuffer(g_shaders.color, POS_3F | COLOR_4B, wireVerts, megaRenderClipnodes.totalWireVerts[i]);
-			megaWireBuffer->ownData = true;
-			megaRenderClipnodes.wireframeBuffer[i] = megaWireBuffer;
-			megaRenderClipnodes.wireframeBuffer[i]->upload();
-		}
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.clipnode, 0, verts, megaRenderClipnodes.totalVerts[i]);
+		megaBuffer->addAttributes(sampleBuf->attribs);
+		megaBuffer->ownData = true;
+		megaRenderClipnodes.buffer[i] = megaBuffer;
+		megaRenderClipnodes.buffer[i]->upload();
 	}
 
 	logf("Created %d mega groups from %d model groups in %dms\n",
@@ -1475,9 +1401,7 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 
 	if (modelIdx == 0 && renderLeafDat != NULL && renderLeafDat->leafBuffer) {
 		delete renderLeafDat->leafBuffer;
-		delete renderLeafDat->wireframeLeafBuffer;
 		renderLeafDat->leafBuffer = NULL;
-		renderLeafDat->wireframeLeafBuffer = NULL;
 	}
 
 	if (leafNavMesh) {
@@ -1493,8 +1417,6 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		if (renderClip.clipnodeBuffer[i])
 			renderClip.clipnodeBuffer[i]->upload();
-		if (renderClip.wireframeClipnodeBuffer[i])
-			renderClip.wireframeClipnodeBuffer[i]->upload();
 	}
 
 	return true;
@@ -1519,7 +1441,6 @@ void BspRenderer::generateNavMeshBuffer() {
 	int hull = 3;
 	RenderClipnodes* renderClip = &renderClipnodeDat[0];
 	renderClip->clipnodeBuffer[hull] = NULL;
-	renderClip->wireframeClipnodeBuffer[hull] = NULL;
 
 	NavMesh* navMesh = NavMeshGenerator().generate(map, hull);
 	vector<Polygon3D> navPolys = navMesh->getPolys();
@@ -1537,8 +1458,7 @@ void BspRenderer::generateNavMeshBuffer() {
 	};
 	COLOR4 color = hullColors[hull];
 
-	vector<cVert> allVerts;
-	vector<cVert> wireframeVerts;
+	vector<clipnodeVert> allVerts;
 	vector<FaceMath> faceMaths;
 
 	for (int m = 0; m < navPolys.size(); m++) {
@@ -1565,12 +1485,6 @@ void BspRenderer::generateNavMeshBuffer() {
 			renderVerts.resize(poly.verts.size());
 			for (int i = 0; i < poly.verts.size(); i++) {
 				renderVerts[i] = poly.verts[i].flip();
-			}
-
-			COLOR4 wireframeColor = { 0, 0, 0, 255 };
-			for (int k = 0; k < renderVerts.size(); k++) {
-				wireframeVerts.push_back(cVert(renderVerts[k], wireframeColor));
-				wireframeVerts.push_back(cVert(renderVerts[(k + 1) % renderVerts.size()], wireframeColor));
 			}
 
 			vec3 lightDir = vec3(1, 1, -1).normalize();
@@ -1611,34 +1525,25 @@ void BspRenderer::generateNavMeshBuffer() {
 
 			// convert from TRIANGLE_FAN style verts to TRIANGLES
 			for (int k = 2; k < renderVerts.size(); k++) {
-				allVerts.push_back(cVert(renderVerts[0], faceColor));
-				allVerts.push_back(cVert(renderVerts[k - 1], faceColor));
-				allVerts.push_back(cVert(renderVerts[k], faceColor));
+				allVerts.push_back(clipnodeVert(renderVerts[0], faceColor));
+				allVerts.push_back(clipnodeVert(renderVerts[k - 1], faceColor));
+				allVerts.push_back(clipnodeVert(renderVerts[k], faceColor));
 			}
 		}
 	}
 
-	cVert* output = new cVert[allVerts.size()];
+	clipnodeVert* output = new clipnodeVert[allVerts.size()];
 	for (int i = 0; i < allVerts.size(); i++) {
 		output[i] = allVerts[i];
 	}
 
-	cVert* wireOutput = new cVert[wireframeVerts.size()];
-	for (int i = 0; i < wireframeVerts.size(); i++) {
-		wireOutput[i] = wireframeVerts[i];
-	}
-
-	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+	if (allVerts.size() == 0) {
 		renderClip->clipnodeBuffer[hull] = NULL;
-		renderClip->wireframeClipnodeBuffer[hull] = NULL;
 		return;
 	}
 
 	renderClip->clipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
 	renderClip->clipnodeBuffer[hull]->ownData = true;
-
-	renderClip->wireframeClipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
-	renderClip->wireframeClipnodeBuffer[hull]->ownData = true;
 
 	renderClip->faceMaths[hull] = faceMaths;
 
@@ -1671,8 +1576,7 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 
 	color.a = 64;
 
-	vector<cVert> allVerts;
-	vector<cVert> wireframeVerts;
+	vector<clipnodeVert> allVerts;
 
 	LeafNode& mesh = *node;
 
@@ -1688,12 +1592,6 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 			renderVerts[i] = poly.verts[i].flip();
 		}
 
-		COLOR4 wireframeColor = { 0, 0, 0, 255 };
-		for (int k = 0; k < renderVerts.size(); k++) {
-			wireframeVerts.push_back(cVert(renderVerts[k], wireframeColor));
-			wireframeVerts.push_back(cVert(renderVerts[(k + 1) % renderVerts.size()], wireframeColor));
-		}
-
 		const vec3 lightDir = vec3(1, 1, -1).normalize();
 		float dot = (dotProduct(normal, lightDir) + 1) / 2.0f;
 		if (dot > 0.5f) {
@@ -1703,36 +1601,31 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 
 		// convert from TRIANGLE_FAN style verts to TRIANGLES
 		for (int k = 2; k < renderVerts.size(); k++) {
-			allVerts.push_back(cVert(renderVerts[0], faceColor));
-			allVerts.push_back(cVert(renderVerts[k - 1], faceColor));
-			allVerts.push_back(cVert(renderVerts[k], faceColor));
+			allVerts.push_back(clipnodeVert(renderVerts[0], faceColor));
+			allVerts.push_back(clipnodeVert(renderVerts[k - 1], faceColor));
+			allVerts.push_back(clipnodeVert(renderVerts[k], faceColor));
 		}
 	}
 
-	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+	if (allVerts.size() == 0) {
 		return;
 	}
 
-	cVert* output = new cVert[allVerts.size()];
+	clipnodeVert* output = new clipnodeVert[allVerts.size()];
 	for (int i = 0; i < allVerts.size(); i++) {
 		output[i] = allVerts[i];
 	}
 
-	cVert* wireOutput = new cVert[wireframeVerts.size()];
-	for (int i = 0; i < wireframeVerts.size(); i++) {
-		wireOutput[i] = wireframeVerts[i];
-	}
-
 	if (node->face_buffer) {
 		delete node->face_buffer;
-		delete node->wireframe_buffer;
 	}
 
-	node->face_buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
-	node->wireframe_buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
-
+	node->face_buffer = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
+	node->face_buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
+	node->face_buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
+	node->face_buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+	node->face_buffer->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	node->face_buffer->ownData = true;
-	node->wireframe_buffer->ownData = true;
 }
 
 void BspRenderer::generateClipnodeBuffer(int modelIdx) {
@@ -1744,7 +1637,6 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
 		renderClip->clipnodeBuffer[i] = NULL;
-		renderClip->wireframeClipnodeBuffer[i] = NULL;
 	}
 
 	Clipper clipper;
@@ -1753,43 +1645,37 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i, CONTENTS_SOLID);
 		
 		static COLOR4 hullColors[] = {
-			COLOR4(255, 255, 255, 128),
-			COLOR4(96, 255, 255, 128),
-			COLOR4(255, 96, 255, 128),
-			COLOR4(255, 255, 96, 128),
+			COLOR4(255, 255, 255, 255),
+			COLOR4(96, 255, 255, 255),
+			COLOR4(255, 96, 255, 255),
+			COLOR4(255, 255, 96, 255),
 		};
 		COLOR4 color = hullColors[i];
 
-		vector<cVert> allVerts;
-		vector<cVert> wireframeVerts;
+		vector<clipnodeVert> allVerts;
 		vector<FaceMath> faceMaths;
 
 		for (int k = 0; k < solidNodes.size(); k++) {
 			clipnodeLeafCount++;
-			generateNodeMesh(&solidNodes[k], color, allVerts, wireframeVerts, faceMaths, solidNodes[k].nodeIdx);
+			generateNodeMesh(&solidNodes[k], color, allVerts, faceMaths, solidNodes[k].nodeIdx);
 		}
 
-		cVert* output = new cVert[allVerts.size()];
+		clipnodeVert* output = new clipnodeVert[allVerts.size()];
 		for (int i = 0; i < allVerts.size(); i++) {
 			output[i] = allVerts[i];
 		}
 
-		cVert* wireOutput = new cVert[wireframeVerts.size()];
-		for (int i = 0; i < wireframeVerts.size(); i++) {
-			wireOutput[i] = wireframeVerts[i];
-		}
-
-		if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+		if (allVerts.size() == 0) {
 			renderClip->clipnodeBuffer[i] = NULL;
-			renderClip->wireframeClipnodeBuffer[i] = NULL;
 			continue;
 		}
 
-		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
+		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
+		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
+		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
+		renderClip->clipnodeBuffer[i]->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_FLOAT, 0, "vPosition");
 		renderClip->clipnodeBuffer[i]->ownData = true;
-
-		renderClip->wireframeClipnodeBuffer[i] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
-		renderClip->wireframeClipnodeBuffer[i]->ownData = true;
 
 		renderClip->faceMaths[i] = faceMaths;
 	}
@@ -1806,56 +1692,45 @@ void BspRenderer::generateLeafBuffer() {
 	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
 
 	renderLeafDat->leafBuffer = NULL;
-	renderLeafDat->wireframeLeafBuffer = NULL;
 	leafNavMesh = NULL;
 
 	Clipper clipper;
 
 	vector<NodeVolumeCuts> leafNodes = map->get_model_leaf_volume_cuts(0, 0, CONTENTS_NOT_LEAF_0);
-	static COLOR4 color = COLOR4(255, 255, 255, 128);
+	static COLOR4 color = COLOR4(255, 255, 255, 255);
 
-	vector<cVert> allVerts;
-	vector<cVert> wireframeVerts;
+	vector<clipnodeVert> allVerts;
 	vector<FaceMath> faceMaths;
 
 	for (int i = 0; i < 65536; i++) {
 		renderLeafDat->leafRanges[i].clear();
-		renderLeafDat->leafWireRanges[i].clear();
 	}
 
 	for (int k = 0; k < leafNodes.size(); k++) {
 		int leafIdx = leafNodes[k].leafIdx;
 		int start = allVerts.size();
-		int wstart = wireframeVerts.size();
-		generateNodeMesh(&leafNodes[k], color, allVerts, wireframeVerts, faceMaths, leafNodes[k].leafIdx);
+		generateNodeMesh(&leafNodes[k], color, allVerts, faceMaths, leafNodes[k].leafIdx);
 		
 		for (int i = start; i < allVerts.size(); i++) {
 			renderLeafDat->leafRanges[leafIdx].push_back(i);
 		}
-		for (int i = wstart; i < wireframeVerts.size(); i++) {
-			renderLeafDat->leafWireRanges[leafIdx].push_back(i);
-		}
 	}
 
-	cVert* output = new cVert[allVerts.size()];
+	clipnodeVert* output = new clipnodeVert[allVerts.size()];
 	for (int i = 0; i < allVerts.size(); i++) {
 		output[i] = allVerts[i];
 	}
 
-	cVert* wireOutput = new cVert[wireframeVerts.size()];
-	for (int i = 0; i < wireframeVerts.size(); i++) {
-		wireOutput[i] = wireframeVerts[i];
-	}
-
-	if (allVerts.size() == 0 || wireframeVerts.size() == 0) {
+	if (allVerts.size() == 0) {
 		return;
 	}
 
-	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
+	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
+	renderLeafDat->leafBuffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
+	renderLeafDat->leafBuffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
+	renderLeafDat->leafBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+	renderLeafDat->leafBuffer->addAttribute(POS_3F, "vPosition");
 	renderLeafDat->leafBuffer->ownData = true;
-
-	renderLeafDat->wireframeLeafBuffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, wireOutput, wireframeVerts.size());
-	renderLeafDat->wireframeLeafBuffer->ownData = true;
 
 	renderLeafDat->faceMaths = faceMaths;
 
@@ -1867,8 +1742,8 @@ void BspRenderer::generateLeafBuffer() {
 	leafNavMesh = LeafNavMeshGenerator().generate(map, true, CONTENTS_NOT_LEAF_0, 0);
 }
 
-void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<cVert>& allVerts,
-	vector<cVert>& wireframeVerts, vector<FaceMath>& faceMaths, int elementIndex) {
+void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<clipnodeVert>& allVerts,
+	vector<FaceMath>& faceMaths, int elementIndex) {
 	Clipper clipper;
 	CMesh mesh = clipper.clip(volume->cuts);
 	clipnodeLeafCount++;
@@ -1952,12 +1827,6 @@ void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<
 				faceVerts[i] = faceVerts[i].flip();
 			}
 
-			COLOR4 wireframeColor = { 0, 0, 0, 255 };
-			for (int k = 0; k < faceVerts.size(); k++) {
-				wireframeVerts.push_back(cVert(faceVerts[k], wireframeColor));
-				wireframeVerts.push_back(cVert(faceVerts[(k + 1) % faceVerts.size()], wireframeColor));
-			}
-
 			vec3 lightDir = vec3(1, 1, -1).normalize();
 			float dot = (dotProduct(normal * -1, lightDir) + 1) / 2.0f;
 			if (dot > 0.5f) {
@@ -1967,24 +1836,33 @@ void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<
 
 			// convert from TRIANGLE_FAN style verts to TRIANGLES
 			for (int k = 2; k < faceVerts.size(); k++) {
-				allVerts.push_back(cVert(faceVerts[0], faceColor));
-				allVerts.push_back(cVert(faceVerts[k - 1], faceColor));
-				allVerts.push_back(cVert(faceVerts[k], faceColor));
-			}
-		}
-	}
-}
+				clipnodeVert verts[3] = {
+					clipnodeVert(faceVerts[0], faceColor),
+					clipnodeVert(faceVerts[k - 1], faceColor),
+					clipnodeVert(faceVerts[k], faceColor),
+				};
 
-void BspRenderer::updateClipnodeOpacity(byte newValue) {
-	for (int i = 0; i < numRenderClipnodes; i++) {
-		for (int k = 0; k < MAX_MAP_HULLS; k++) {
-			if (renderClipnodeDat[i].clipnodeBuffer[k]) {
-				cVert* data = (cVert*)renderClipnodeDat[i].clipnodeBuffer[k]->data;
-				for (int v = 0; v < renderClipnodeDat[i].clipnodeBuffer[k]->numVerts; v++) {
-					data[v].c.a = newValue;
+				// barycentric coords for wireframe edge detection
+				verts[0].bx = 1;
+				verts[0].by = 0;
+				verts[0].bz = 0;
+
+				verts[1].bx = 0;
+				verts[1].by = 1;
+				verts[1].bz = 0;
+
+				verts[2].bx = 0;
+				verts[2].by = 0;
+				verts[2].bz = 1;
+
+				// select which edges to draw (not the inner edges of the fan)
+				for (int j = 0; j < 3; j++) {
+					verts[j].ex = 1;
+					verts[j].ey = k == faceVerts.size() - 1;
+					verts[j].ez = k == 2;
+					
+					allVerts.push_back(verts[j]);
 				}
-				renderClipnodeDat[i].clipnodeBuffer[k]->deleteBuffer();
-				renderClipnodeDat[i].clipnodeBuffer[k]->upload();
 			}
 		}
 	}
@@ -2180,10 +2058,8 @@ BspRenderer::~BspRenderer() {
 	for (MegaRenderGroup& mega : megaRenderGroups) {
 		delete mega.group.buffer;
 	}
-	delete megaRenderWireframes.buffer;
 	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
 		delete megaRenderClipnodes.buffer[i];
-		delete megaRenderClipnodes.wireframeBuffer[i];
 	}
 
 	deleteTextures();
@@ -2270,13 +2146,12 @@ void BspRenderer::delayLoadData() {
 			for (int k = 0; k < MAX_MAP_HULLS; k++) {
 				if (clip.clipnodeBuffer[k]) {
 					clip.clipnodeBuffer[k]->upload();
-					clip.wireframeClipnodeBuffer[k]->upload();
 				}
 			}
 		}
 
 		clipnodesLoaded = true;
-		refreshMegaBuffers();
+		reloadMegaBuffers();
 		debugf("Loaded %d clipnode leaves\n", clipnodeLeafCount);
 	}
 
@@ -2286,7 +2161,6 @@ void BspRenderer::delayLoadData() {
 
 		if (renderLeafDat) {
 			renderLeafDat->leafBuffer->upload();
-			renderLeafDat->wireframeLeafBuffer->upload();
 
 			if (g_app->pickMode == PICK_LEAF) {
 				highlightPickedLeaves(true); // switching from face to leaf pick mode for the first time
@@ -2342,8 +2216,7 @@ void BspRenderer::highlightPickedLeaves(bool highlight) {
 	if (!leavesLoaded || !renderLeafDat->leafBuffer)
 		return;
 
-	cVert* verts = (cVert*)renderLeafDat->leafBuffer->data;
-	cVert* wireVerts = (cVert*)renderLeafDat->wireframeLeafBuffer->data;
+	clipnodeVert* verts = (clipnodeVert*)renderLeafDat->leafBuffer->data;
 
 	if (!highlight) {
 		for (int i = 0; i < renderLeafDat->leafBuffer->numVerts; i++) {
@@ -2351,11 +2224,6 @@ void BspRenderer::highlightPickedLeaves(bool highlight) {
 			verts[i].c.r = og.r;
 			verts[i].c.g = og.g;
 			verts[i].c.b = og.b;
-		}
-		for (int i = 0; i < renderLeafDat->wireframeLeafBuffer->numVerts; i++) {
-			wireVerts[i].c.r = 0;
-			wireVerts[i].c.g = 0;
-			wireVerts[i].c.b = 0;
 		}
 		hideLeaves(true);
 	}
@@ -2368,34 +2236,22 @@ void BspRenderer::highlightPickedLeaves(bool highlight) {
 				verts[idx].c.g = 0;
 				verts[idx].c.b = 0;
 			}
-
-			for (int idx : renderLeafDat->leafWireRanges[leafIdx]) {
-				wireVerts[idx].c.r = 255;
-				wireVerts[idx].c.g = 255;
-				wireVerts[idx].c.b = 0;
-			}
 		}
 	}
 
 	renderLeafDat->leafBuffer->deleteBuffer();
 	renderLeafDat->leafBuffer->upload();
-	renderLeafDat->wireframeLeafBuffer->deleteBuffer();
-	renderLeafDat->wireframeLeafBuffer->upload();
 }
 
 void BspRenderer::hideLeaves(bool hideNotUnhide) {
 	if (!leavesLoaded || !renderLeafDat->leafBuffer)
 		return;
 
-	cVert* verts = (cVert*)renderLeafDat->leafBuffer->data;
-	cVert* wireVerts = (cVert*)renderLeafDat->wireframeLeafBuffer->data;
+	clipnodeVert* verts = (clipnodeVert*)renderLeafDat->leafBuffer->data;
 
 	if (!hideNotUnhide) {
 		for (int i = 0; i < renderLeafDat->leafBuffer->numVerts; i++) {
 			verts[i].c.a = renderLeafDat->originalColors[i].a;
-		}
-		for (int i = 0; i < renderLeafDat->wireframeLeafBuffer->numVerts; i++) {
-			wireVerts[i].c.a = 255;
 		}
 	}
 	else {
@@ -2403,16 +2259,11 @@ void BspRenderer::hideLeaves(bool hideNotUnhide) {
 			for (int idx : renderLeafDat->leafRanges[leafIdx]) {
 				verts[idx].c.a = 0;
 			}
-			for (int idx : renderLeafDat->leafWireRanges[leafIdx]) {
-				wireVerts[idx].c.a = 0;
-			}
 		}
 	}
 
 	renderLeafDat->leafBuffer->deleteBuffer();
 	renderLeafDat->leafBuffer->upload();
-	renderLeafDat->wireframeLeafBuffer->deleteBuffer();
-	renderLeafDat->wireframeLeafBuffer->upload();
 }
 
 void BspRenderer::hideFaces(bool hideNotUnhide) {
@@ -2593,6 +2444,10 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	activeShader->updateMatrixes();
 
+	bool allWireframes = (g_settings.render_flags & RENDER_WIREFRAME);
+	activeShader->setUniform("wireframeEnable", allWireframes);
+
+	//glDisable(GL_CULL_FACE); // too expensive on fill-rate limited hardware
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
@@ -2605,6 +2460,8 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	}
 
 	if (!map->ents[0]->hidden && map->modelCount > 0) {
+		activeShader->setUniform("wireframeColorDark", vec4(0.5f, 0.5f, 0.5f, 1));
+		activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0, 1));
 		drawModel(map->ents[0], 0, transparencyPass, false);
 	}
 
@@ -2614,6 +2471,8 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	activeShader->modelMat->loadIdentity();
 	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	activeShader->updateMatrixes();
+	activeShader->setUniform("wireframeColorDark", vec4(0.2f, 0.2f, 1, 1));
+	activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.8f, 1));
 
 	for (MegaRenderGroup& mega : megaRenderGroups) {
 		RenderGroup& rgroup = mega.group;
@@ -2625,6 +2484,8 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 
 		drawModelRenderGroup(rgroup, false, true);
 	}
+
+	activeShader->setUniform("wireframeEnable", 1);
 
 	int renderEnts = 0;
 	activeShader->pushMatrix(MAT_MODEL);
@@ -2646,6 +2507,15 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 			*activeShader->modelMat = orderEnt.transformWorld;
 			activeShader->updateMatrixes();
 
+			if (ent->highlighted) {
+				activeShader->setUniform("wireframeColorDark", vec4(1, 1, 0, 1));
+				activeShader->setUniform("wireframeColorBright", vec4(1, 1, 0, 1));
+			}
+			else {
+				activeShader->setUniform("wireframeColorDark", vec4(0.1f, 0.1f, 1, 1));
+				activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.5f, 1));
+			}
+			
 			drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
 		}
 	}
@@ -2656,65 +2526,7 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
-}
-
-void BspRenderer::renderWireframe(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop) {
-	if (map->ents.empty())
-		return;
-
-	BSPMODEL& world = map->models[0];
-
-	activeShader = g_shaders.vec3;
-	activeShader->bind();
-	activeShader->modelMat->loadIdentity();
-	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-	activeShader->updateMatrixes();
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthFunc(GL_LEQUAL);
-
-	bool allWireframes = (g_settings.render_flags & RENDER_WIREFRAME);
-
-	if (!map->ents[0]->hidden && allWireframes) {
-		g_shaders.vec3->setUniform("color", vec4(0.25f, 0.25f, 0.25f, 1));
-		renderModels[0].wireframeBuffer->draw(GL_LINES);
-	}
-
-	if (!(g_settings.render_flags & RENDER_ENTS))
-		return;
-
-	if (allWireframes) {
-		g_shaders.vec3->setUniform("color", vec4(0, 0, 0.78f, 1));
-		megaRenderWireframes.buffer->draw(GL_LINES);
-	}
-
-	activeShader->pushMatrix(MAT_MODEL);
-	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
-		const OrderedEnt& orderEnt = orderedEnts[i];
-		int modelIdx = orderEnt.modelIdx;
-
-		if (modelIdx >= 0 && modelIdx < map->modelCount) {
-			Entity* ent = orderEnt.ent;
-			if (ent->hidden || orderEnt.isInMegaRenderGroup)
-				continue;
-			if (!allWireframes && !ent->highlighted)
-				continue;
-
-			if (highlightAlwaysOnTop && ent->highlighted)
-				glDisable(GL_DEPTH_TEST);
-
-			*activeShader->modelMat = orderEnt.transform;
-			activeShader->updateMatrixes();
-
-			if (renderModels[modelIdx].wireframeBuffer && modelIdx < numRenderModels) {
-				vec4 color = ent->highlighted ? vec4(1, 1, 0, 1) : vec4(0, 0, 0.78f, 1);
-				g_shaders.vec3->setUniform("color", color);
-				renderModels[modelIdx].wireframeBuffer->draw(GL_LINES);
-			}
-		}
-	}
-	activeShader->popMatrix(MAT_MODEL);
+	glEnable(GL_CULL_FACE);
 }
 
 void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull) {
@@ -2728,7 +2540,12 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 	glDepthFunc(GL_LEQUAL);
 
 	// clipnodes are drawn in a separate pass to prevent interleaving shader binds
-	g_shaders.color->bind();
+	g_shaders.clipnode->bind();
+
+	if (g_settings.render_flags & RENDER_CLIPNODE_OPAQUE)
+		g_shaders.clipnode->setUniform("opacity", 1);
+	else
+		g_shaders.clipnode->setUniform("opacity", 0.5f);
 
 	if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
 		drawModelClipnodes(0, false, clipnodeHull);
@@ -2741,13 +2558,10 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 	if (groupHull == -1)
 		groupHull = MAX_MAP_HULLS;
 	VertexBuffer* buffer = megaRenderClipnodes.buffer[groupHull];
-	VertexBuffer* wireBuffer = megaRenderClipnodes.wireframeBuffer[groupHull];
 	if (buffer)
 		buffer->draw(GL_TRIANGLES);
-	if (wireBuffer)
-		wireBuffer->draw(GL_LINES);
 
-	g_shaders.color->pushMatrix(MAT_MODEL);
+	g_shaders.clipnode->pushMatrix(MAT_MODEL);
 	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
 		const OrderedEnt& orderEnt = orderedEnts[i];
 		int modelIdx = orderEnt.modelIdx;
@@ -2766,8 +2580,8 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 				continue; // skip rendering for models that have faces, if in auto mode
 			}
 
-			*g_shaders.color->modelMat = orderEnt.transform;
-			g_shaders.color->updateMatrixes();
+			*g_shaders.clipnode->modelMat = orderEnt.transform;
+			g_shaders.clipnode->updateMatrixes();
 
 			if (ent->highlighted) {
 				g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
@@ -2776,11 +2590,11 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 			drawModelClipnodes(modelIdx, false, clipnodeHull);
 
 			if (ent->highlighted) {
-				g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
+				g_shaders.clipnode->setUniform("colorMult", vec4(1, 1, 1, 1));
 			}
 		}
 	}
-	g_shaders.color->popMatrix(MAT_MODEL);
+	g_shaders.clipnode->popMatrix(MAT_MODEL);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
@@ -2793,14 +2607,13 @@ void BspRenderer::renderLeaves() {
 
 	// draw clipnodes in a separate pass to prevent interleaving shader binds
 	if (leavesLoaded) {
-		g_shaders.color->bind();
-		g_shaders.color->modelMat->loadIdentity();
-		g_shaders.color->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
-		g_shaders.color->updateMatrixes();
+		g_shaders.clipnode->bind();
+		g_shaders.clipnode->modelMat->loadIdentity();
+		g_shaders.clipnode->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+		g_shaders.clipnode->updateMatrixes();
 
 		if (renderLeafDat->leafBuffer) {
 			renderLeafDat->leafBuffer->draw(GL_TRIANGLES);
-			renderLeafDat->wireframeLeafBuffer->draw(GL_LINES);
 		}
 	}
 
@@ -3007,7 +2820,6 @@ void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) 
 	
 	if (clip.clipnodeBuffer[hullIdx]) {
 		clip.clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
-		clip.wireframeClipnodeBuffer[hullIdx]->draw(GL_LINES);
 	}
 }
 

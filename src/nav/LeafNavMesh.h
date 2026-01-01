@@ -56,7 +56,6 @@ struct LeafNode {
 	vec3 mins, maxs; // for octree insertion, not needed after generation
 	vector<Polygon3D> leafFaces;
 	VertexBuffer* face_buffer;
-	VertexBuffer* wireframe_buffer;
 
 	LeafNode();
 

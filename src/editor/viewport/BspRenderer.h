@@ -92,25 +92,18 @@ struct RenderModel {
 	int groupCount;
 	RenderFace* renderFaces;
 	int renderFaceCount;
-
-	VertexBuffer* wireframeBuffer;
-	vec3* wireframeVerts; // verts for rendering wireframe
-	int wireframeVertCount;
 };
 
 struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
-	VertexBuffer* wireframeClipnodeBuffer[MAX_MAP_HULLS];
 	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
 struct RenderLeaves {
 	VertexBuffer* leafBuffer;
-	VertexBuffer* wireframeLeafBuffer;
 	vector<FaceMath> faceMaths;
 	vector<COLOR4> originalColors; // original color values for each vertex
 	vector<int> leafRanges[65536]; // maps a leaf index to vertex indexes in the leafBuffer
-	vector<int> leafWireRanges[65536]; // maps a leaf index to wireframe vertex indexes in the leafBuffer
 };
 
 struct RenderPvs {
@@ -141,17 +134,9 @@ struct MegaRenderGroup {
 	vector<EntModelGroupIdx> refs; // which entities to load vertices from
 };
 
-struct MegaRenderWireframe {
-	VertexBuffer* buffer = NULL;
-	int vertCount = 0;
-	vector<int> refs;
-};
-
 struct MegaRenderClipnodes {
 	VertexBuffer* buffer[MAX_MAP_HULLS+1];
-	VertexBuffer* wireframeBuffer[MAX_MAP_HULLS+1];
 	int totalVerts[MAX_MAP_HULLS+1]; // extra hull for the automatic hull mode
-	int totalWireVerts[MAX_MAP_HULLS+1]; // extra hull for the automatic hull mode
 	vector<int> refs; // which entities to load vertices from
 };
 
@@ -171,7 +156,6 @@ public:
 
 	void getRenderEnts(vector<OrderedEnt>& ents); // calc ent data for multipass rendering
 	void renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass);
-	void renderWireframe(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop);
 	void renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull);
 	void renderLeaves();
 
@@ -201,7 +185,6 @@ public:
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
-	void updateClipnodeOpacity(byte newValue);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures(bool reloadNow=false);
@@ -240,7 +223,7 @@ public:
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
 	EntCube* getEntCube(int idx);
 	void delayLoadData();
-	void refreshMegaBuffers() { megaGroupUpdateIdx = -1; }
+	void reloadMegaBuffers() { megaGroupUpdateIdx = -1; }
 
 private:
 	ShaderProgram* activeShader;
@@ -252,7 +235,6 @@ private:
 										 // properties. There may be duplicates as a single model can be 
 										 // used in many entities.
 	MegaRenderClipnodes megaRenderClipnodes; // same as groups but for clipnodes
-	MegaRenderWireframe megaRenderWireframes; // same as groups but for wireframes
 	int megaGroupUpdateIdx; // no update if this matches the last value, set to -1 to force an update
 	unordered_set<int> megaGroupEnts; // ent indexes that are part of a mega group
 	RenderClipnodes* renderClipnodeDat = NULL;
@@ -319,8 +301,8 @@ private:
 	void loadLeaves();
 	void generateClipnodeBuffer(int modelIdx);
 	void generateLeafBuffer();
-	void generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<cVert>& allVerts,
-		vector<cVert>& wireframeVerts, vector<FaceMath>& faceMaths, int elementIndex);
+	void generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<clipnodeVert>& allVerts,
+		vector<FaceMath>& faceMaths, int elementIndex);
 	void generateNavMeshBuffer();
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);

@@ -185,7 +185,6 @@ void NavRenderer::renderNavMesh(Bsp* map, vec3 cameraOrigin) {
 			}
 
 			node.face_buffer->draw(GL_TRIANGLES);
-			node.wireframe_buffer->draw(GL_LINES);
 		}
 
 		glDisable(GL_CULL_FACE);

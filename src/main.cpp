@@ -19,6 +19,10 @@
 // - models loaded when i only wanted sprites
 // - can't select models by polys anymore
 // - mega render updates too slow for every click
+// - even lower texture quality for maps with huge textures
+// - mega buffer for leaves
+// - rendering stats (context switches, polys drawn, data used)
+// - wrong textures in legacy high textures
 
 // todo:
 // check for problems widget

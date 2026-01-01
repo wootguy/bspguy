@@ -356,6 +356,7 @@ void Editor::compileShaders() {
 
 	if (!g_shaders.bsp) {
 		g_shaders.bsp = new ShaderProgram("BSP");
+		g_shaders.clipnode = new ShaderProgram("Clipnode");
 		g_shaders.color = new ShaderProgram("Color");
 		g_shaders.texture = new ShaderProgram("Texture");
 		g_shaders.mdl = new ShaderProgram("MDL");
@@ -374,7 +375,12 @@ void Editor::compileShaders() {
 	g_shaders.bsp->addUniform("colorMult", UNIFORM_VEC4);
 	g_shaders.bsp->addUniform("alphaTest", UNIFORM_FLOAT);
 	g_shaders.bsp->addUniform("gamma", UNIFORM_FLOAT);
+	g_shaders.bsp->addUniform("wireframeEnable", UNIFORM_FLOAT);
+	g_shaders.bsp->addUniform("wireframeColorDark", UNIFORM_VEC4);
+	g_shaders.bsp->addUniform("wireframeColorBright", UNIFORM_VEC4);
+	g_shaders.bsp->addUniform("wireframeThickness", UNIFORM_FLOAT);
 	g_shaders.bsp->setUniform("sTex", 0);
+	g_shaders.bsp->setUniform("wireframeThickness", 0.5f);
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
 		string name = "sLightmapTex" + to_string(s);
 		g_shaders.bsp->addUniform(name, UNIFORM_INT);
@@ -388,6 +394,16 @@ void Editor::compileShaders() {
 	g_shaders.color->addUniform("colorMult", UNIFORM_VEC4);
 	g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 	
+	g_shaders.clipnode->compile(clipnode_vert_glsl, clipnode_frag_glsl);
+	g_shaders.clipnode->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+	g_shaders.clipnode->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.clipnode->addUniform("colorMult", UNIFORM_VEC4);
+	g_shaders.clipnode->addUniform("wireframeThickness", UNIFORM_FLOAT);
+	g_shaders.clipnode->addUniform("opacity", UNIFORM_FLOAT);
+	g_shaders.clipnode->setUniform("colorMult", vec4(1, 1, 1, 1));
+	g_shaders.clipnode->setUniform("wireframeThickness", 0.5f);
+	g_shaders.clipnode->setUniform("opacity", 0.5f);
+
 	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl);
 	g_shaders.texture->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.texture->setMatrixNames(NULL, "modelViewProjection");
@@ -837,12 +853,6 @@ void Editor::drawViewport() {
 
 	glCheckError("Rendering BSP (opaque pass)");
 
-	// wireframe pass
-	if (!previewMode) {
-		mapRenderer->renderWireframe(orderedEnts, transformTarget == TRANSFORM_VERTEX);
-		glCheckError("Rendering BSP (wireframe pass)");
-	}
-
 	// studio models have transparent boxes that need to draw over the world but behind transparent
 	// brushes like a trigger_once which is rendered using the clipnode model
 	if (modelRenderer->drawModelsAndSprites(mapRenderer->renderOffset, cameraOrigin, cameraAngles)) {
@@ -1126,14 +1136,6 @@ void Editor::drawArrangeMaps() {
 		// opaque pass
 		arrangeBsp.renderer->renderSolids(arrangeBsp.orderedEnts, false, false);
 		arrangeBsp.renderer->drawPointEntities();
-	}
-
-	for (RenderMap& arrangeBsp : renderMaps) {
-		// wireframe pass
-		if (g_settings.render_flags & RENDER_WIREFRAME) {
-			arrangeBsp.renderer->renderWireframe(arrangeBsp.orderedEnts, false);
-			glCheckError("Rendering BSP (wireframe pass)");
-		}
 	}
 
 	for (RenderMap& arrangeBsp : renderMaps) {
@@ -3834,7 +3836,7 @@ void Editor::unhideEnts() {
 
 	anyHiddenEnts = false;
 	mapRenderer->preRenderEnts();
-	mapRenderer->refreshMegaBuffers();
+	mapRenderer->reloadMegaBuffers();
 	logf("Unhid %d entities\n", numHidden);
 }
 

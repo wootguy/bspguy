@@ -839,9 +839,8 @@ void MenuBar::drawViewMenu() {
 			}
 			tooltip("Render clipnode hulls for solid entities");
 
-			if (ImGui::MenuItem("Transparency", 0, transparentClipnodes)) {
-				transparentClipnodes = !transparentClipnodes;
-				g_app->mapRenderer->updateClipnodeOpacity(transparentClipnodes ? 128 : 255);
+			if (ImGui::MenuItem("Transparency", 0, !(g_settings.render_flags & RENDER_CLIPNODE_OPAQUE))) {
+				g_settings.render_flags ^= RENDER_CLIPNODE_OPAQUE;
 			}
 			tooltip("Render clipnode meshes with transparency.");
 			g_settings.render_flags = g_settings.render_flags;
