@@ -314,6 +314,25 @@ vec4 operator*( mat4x4 mat, vec4 vec )
 	res.x = mat.m[0]*vec.x + mat.m[4]*vec.y + mat.m[8]*vec.z  + mat.m[12]*vec.w;
 	res.y = mat.m[1]*vec.x + mat.m[5]*vec.y + mat.m[9]*vec.z  + mat.m[13]*vec.w;
 	res.z = mat.m[2]*vec.x + mat.m[6]*vec.y + mat.m[10]*vec.z + mat.m[14]*vec.w;
-	res.w = vec.w;
+	res.w = mat.m[3] * vec.x + mat.m[7] * vec.y + mat.m[11] * vec.z + mat.m[15] * vec.w;
 	return res;
+}
+
+vec4 mat4x4::multRowMajor(const vec4& v)
+{
+	vec4 r;
+	r.x = v.x * m[0] + v.y * m[1] + v.z * m[2] + v.w * m[3];
+	r.y = v.x * m[4] + v.y * m[5] + v.z * m[6] + v.w * m[7];
+	r.z = v.x * m[8] + v.y * m[9] + v.z * m[10] + v.w * m[11];
+	r.w = v.x * m[12] + v.y * m[13] + v.z * m[14] + v.w * m[15];
+	return r;
+}
+
+vec3 mat4x4::multRowMajor(const vec3& v)
+{
+	vec3 r;
+	r.x = v.x * m[0] + v.y * m[1] + v.z * m[2] + m[3];
+	r.y = v.x * m[4] + v.y * m[5] + v.z * m[6] + m[7];
+	r.z = v.x * m[8] + v.y * m[9] + v.z * m[10] + m[11];
+	return r;
 }

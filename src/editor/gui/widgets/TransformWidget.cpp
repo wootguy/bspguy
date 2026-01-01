@@ -343,6 +343,7 @@ void TransformWidget::draw() {
 
 	if (ImGui::Checkbox("Force Rotate", &app->forceAngleRotation)) {
 		app->updateEntConnectionPositions();
+		app->mapRenderer->refreshMegaBuffers();
 
 		for (int i = 0; i < map->ents.size(); i++) {
 			Entity* ent = map->ents[i];

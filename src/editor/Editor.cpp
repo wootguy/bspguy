@@ -838,7 +838,7 @@ void Editor::drawViewport() {
 	glCheckError("Rendering BSP (opaque pass)");
 
 	// wireframe pass
-	if (!previewMode && (g_settings.render_flags & RENDER_WIREFRAME)) {
+	if (!previewMode) {
 		mapRenderer->renderWireframe(orderedEnts, transformTarget == TRANSFORM_VERTEX);
 		glCheckError("Rendering BSP (wireframe pass)");
 	}
@@ -3834,6 +3834,7 @@ void Editor::unhideEnts() {
 
 	anyHiddenEnts = false;
 	mapRenderer->preRenderEnts();
+	mapRenderer->refreshMegaBuffers();
 	logf("Unhid %d entities\n", numHidden);
 }
 

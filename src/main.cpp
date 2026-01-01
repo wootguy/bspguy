@@ -11,6 +11,14 @@
 // - box select shown when moving worldspawn, can be activated during select too
 // - box select offset by world offset
 // - name tag render distance
+// - minimizing resizes widgets
+// - slow to select lots of ents
+// - more space for key names in smart edit
+// - show highlighted name tags with infinite distance and no world clipping
+// - name tags expensive even with nothing shown
+// - models loaded when i only wanted sprites
+// - can't select models by polys anymore
+// - mega render updates too slow for every click
 
 // todo:
 // check for problems widget

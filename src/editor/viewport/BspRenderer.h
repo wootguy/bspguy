@@ -123,10 +123,37 @@ struct RenderPvs {
 
 struct OrderedEnt {
 	Entity* ent;
+	int entIdx;
 	int modelIdx;
-	mat4x4 transform;
+	bool isInMegaRenderGroup; // true if the transformed model for this entity was combined into a mega group and shouldn't be drawn individually
+	mat4x4 transform;		// local transform (origin + rotation)
+	mat4x4 transformWorld; // local transform + world offset applied
 };
 
+// references a render group in a rendermodel referenced by an entity index
+struct EntModelGroupIdx {
+	int entIdx;
+	int groupIdx;
+};
+
+struct MegaRenderGroup {
+	RenderGroup group;
+	vector<EntModelGroupIdx> refs; // which entities to load vertices from
+};
+
+struct MegaRenderWireframe {
+	VertexBuffer* buffer = NULL;
+	int vertCount = 0;
+	vector<int> refs;
+};
+
+struct MegaRenderClipnodes {
+	VertexBuffer* buffer[MAX_MAP_HULLS+1];
+	VertexBuffer* wireframeBuffer[MAX_MAP_HULLS+1];
+	int totalVerts[MAX_MAP_HULLS+1]; // extra hull for the automatic hull mode
+	int totalWireVerts[MAX_MAP_HULLS+1]; // extra hull for the automatic hull mode
+	vector<int> refs; // which entities to load vertices from
+};
 
 class BspRenderer {
 	friend class ModelRenderer;
@@ -150,6 +177,7 @@ public:
 
 	bool willDrawModel(Entity* ent, int modelIdx, bool transparent);
 	void drawModel(Entity* ent, int modelIdx, bool transparent, bool highlight);
+	void drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool useLightmaps);
 	void drawModelWireframe(int modelIdx, bool highlight);
 	void drawModelClipnodes(int modelIdx, bool highlight, int hullIdx);
 	void drawPointEntities();
@@ -168,6 +196,8 @@ public:
 
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);
+	bool RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& groupb);
+	void refreshMegaBuffers(vector<OrderedEnt>& ents); // update combined render groups for batching solid entity rendering
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx);
@@ -210,6 +240,7 @@ public:
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
 	EntCube* getEntCube(int idx);
 	void delayLoadData();
+	void refreshMegaBuffers() { megaGroupUpdateIdx = -1; }
 
 private:
 	ShaderProgram* activeShader;
@@ -217,6 +248,13 @@ private:
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;
 	RenderModel* renderModels = NULL;
+	vector<MegaRenderGroup> megaRenderGroups; // a combination of many bsp models that all share the same
+										 // properties. There may be duplicates as a single model can be 
+										 // used in many entities.
+	MegaRenderClipnodes megaRenderClipnodes; // same as groups but for clipnodes
+	MegaRenderWireframe megaRenderWireframes; // same as groups but for wireframes
+	int megaGroupUpdateIdx; // no update if this matches the last value, set to -1 to force an update
+	unordered_set<int> megaGroupEnts; // ent indexes that are part of a mega group
 	RenderClipnodes* renderClipnodeDat = NULL;
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
@@ -228,10 +266,11 @@ private:
 	Texture** glTexturesSwap;
 	Texture* skyboxTexturesSwap[6];
 	TextureArray* glTextureArray;
-	TexArrayOffset* miptexToTexArray; // maps iMiptex to a texture layer in an unknown texturearray
+	TexArrayOffset* miptexToTexArray = NULL; // maps iMiptex to a texture layer in an unknown texturearray
 
 	int numLightmapAtlases;
 	int numTextureAtlases;
+	int numTextureAtlasesSwap;
 	int numRenderModels;
 	int numRenderClipnodes;
 	int numRenderLightmapInfos;

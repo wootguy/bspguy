@@ -75,6 +75,8 @@ public:
 	// inShader = true if the attribute is expected to exist in the shader (not optimized away)
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader=true);
 	void addAttribute(int type, const char* varName, bool inShader=true);
+	void addAttribute(const VertexAttr& attr);
+	void addAttributes(const std::vector<VertexAttr>& otherAttr);
 	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 
 private:

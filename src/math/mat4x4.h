@@ -23,6 +23,9 @@ struct mat4x4
 
 	void rotateZ(float r);
 
+	vec4 multRowMajor(const vec4& v);
+	vec3 multRowMajor(const vec3& v);
+
 	// converts row-major matrix to column-major (for OpenGL)
 	mat4x4 transpose();
 

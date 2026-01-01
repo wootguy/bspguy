@@ -110,6 +110,17 @@ void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, co
 	elementSize += attribute.size;
 }
 
+void VertexBuffer::addAttribute(const VertexAttr& attrib) {
+	attribs.push_back(attrib);
+	elementSize += attrib.size;
+}
+
+void VertexBuffer::addAttributes(const vector<VertexAttr>& otherAttr) {
+	for (const VertexAttr& attr : otherAttr) {
+		addAttribute(attr);
+	}
+}
+
 void VertexBuffer::addAttribute(int type, const char* varName, bool inShader) {
 
 	int idx = 0;

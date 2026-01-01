@@ -34,10 +34,11 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 	this->map = map;
 	this->pointEntRenderer = pointEntRenderer;
 
-	renderEnts = NULL;
-	renderModels = NULL;
-	faceMaths = NULL;
-	miptexToTexArray = NULL;
+	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
+		megaRenderClipnodes.buffer[i] = NULL;
+		megaRenderClipnodes.wireframeBuffer[i] = NULL;
+	}
+
 	memset(skyboxTextures, 0, sizeof(skyboxTextures));
 	memset(skyboxTexturesSwap, 0, sizeof(skyboxTexturesSwap));
 
@@ -312,15 +313,19 @@ void BspRenderer::buildTextureAtlases() {
 	if (!g_settings.texture_atlas) {
 		textureAtlasInfos.clear();
 		textureAtlasInfos.reserve(map->textureCount);
-		numTextureAtlases = 0;
+		numTextureAtlasesSwap = 0;
 		return;
 	}
 
 	double startTime = glfwGetTime();
 
-	int maxSize = g_settings.renderer == RENDERER_OPENGL_21_LEGACY ? 1024 : 2048; // old gpu lied about max texture size
+	int idealMaxSize = min(g_max_texture_size, 4096);
+	int maxSize = g_settings.renderer == RENDERER_OPENGL_21_LEGACY ? 1024 : idealMaxSize; // old gpu lied about max texture size
 	textureAtlasSz = clamp(g_max_texture_size, 512, maxSize);
 	textureAtlasZoneSz = textureAtlasSz; // 64 is too small for maps like snd, 256 or greater is slower
+	if (textureAtlasZoneSz == 4096) {
+		textureAtlasZoneSz = 2048;
+	}
 
 	vector<TextureAtlas*> atlases;
 	atlases.push_back(new TextureAtlas(textureAtlasSz, textureAtlasSz, textureAtlasZoneSz));
@@ -367,7 +372,7 @@ void BspRenderer::buildTextureAtlases() {
 		delete atlases[i];
 	}
 
-	numTextureAtlases = atlases.size();
+	numTextureAtlasesSwap = atlases.size();
 
 	// so array index == texture index
 	sort(textureAtlasInfos.begin(), textureAtlasInfos.end(), [](const SubTexture& a, const SubTexture& b) {
@@ -384,12 +389,12 @@ void BspRenderer::fillTextureAtlases() {
 		return;
 	}
 
-	glTextureAtlasesSwap = new Texture*[numTextureAtlases];
+	glTextureAtlasesSwap = new Texture*[numTextureAtlasesSwap];
 
 	//int mipLevels = 3;
 	int mipLevels = 0; // mip-map seams aren't fixable without a large perf/memory impact
 
-	for (int i = 0; i < numTextureAtlases; i++) {
+	for (int i = 0; i < numTextureAtlasesSwap; i++) {
 		glTextureAtlasesSwap[i] = new Texture(textureAtlasSz, textureAtlasSz);
 		memset(glTextureAtlasesSwap[i]->data, 0, textureAtlasSz * textureAtlasSz * sizeof(COLOR4));
 
@@ -410,7 +415,7 @@ void BspRenderer::fillTextureAtlases() {
 	for (int i = 0; i < textureAtlasInfos.size(); i++) {
 		SubTexture& info = textureAtlasInfos[i];
 
-		if (info.atlasId >= numTextureAtlases) {
+		if (info.atlasId >= numTextureAtlasesSwap) {
 			logf("Bad atlas texture dst id %d\n", info.atlasId);
 			continue;
 		}
@@ -456,8 +461,9 @@ void BspRenderer::fillTextureAtlases() {
 			}
 		}
 
-		delete glTexturesSwap[i];
-		glTexturesSwap[i] = NULL;
+		// individual textures used in face editor, don't delete
+		//delete glTexturesSwap[i];
+		//glTexturesSwap[i] = NULL;
 	}
 }
 
@@ -489,6 +495,7 @@ void BspRenderer::reloadTextures(bool reloadNow) {
 		deleteTextures();
 		glTextures = glTexturesSwap;
 		glTextureAtlases = glTextureAtlasesSwap;
+		numTextureAtlases = numTextureAtlasesSwap;
 		for (int i = 0; i < map->textureCount; i++) {
 			if (!glTextures[i]->uploaded)
 				glTextures[i]->upload(GL_RGBA);
@@ -721,6 +728,7 @@ void BspRenderer::updateLightmapInfos() {
 
 void BspRenderer::preRenderFaces() {
 	deleteRenderFaces();
+	refreshMegaBuffers();
 
 	memset(lightStyleCount, 0, sizeof(lightStyleCount));
 
@@ -1171,6 +1179,240 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	}
 
 	return renderModel->groupCount;
+}
+
+bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& groupb) {
+	if (groupa.arrayTextureIdx != groupb.arrayTextureIdx)
+		return false;
+	if (groupa.atlasTextureIdx != groupb.atlasTextureIdx)
+		return false;
+	if (groupa.transparent != groupb.transparent)
+		return false;
+
+	for (int s = 0; s < MAXLIGHTMAPS; s++) 
+		if (groupa.lightmapAtlas[s] != groupb.lightmapAtlas[s])
+			return false;
+	
+	return true;
+}
+
+void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
+	if (g_app->pickCount == megaGroupUpdateIdx)
+		return;
+	megaGroupUpdateIdx = g_app->pickCount;
+
+	float start = glfwGetTime();
+
+	for (MegaRenderGroup& mega : megaRenderGroups) {
+		delete mega.group.buffer;
+	}
+	delete megaRenderWireframes.buffer;
+	megaRenderWireframes.buffer = NULL;
+	megaRenderWireframes.vertCount = 0;
+	megaRenderWireframes.refs.clear();
+
+	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
+		delete megaRenderClipnodes.buffer[i];
+		delete megaRenderClipnodes.wireframeBuffer[i];
+		megaRenderClipnodes.buffer[i] = NULL;
+		megaRenderClipnodes.wireframeBuffer[i] = NULL;
+	}
+	memset(megaRenderClipnodes.totalVerts, 0, sizeof(megaRenderClipnodes.totalVerts));
+	memset(megaRenderClipnodes.totalWireVerts, 0, sizeof(megaRenderClipnodes.totalWireVerts));
+	megaRenderClipnodes.refs.clear();
+
+	megaRenderGroups.clear();
+	megaGroupEnts.clear();
+	int totalModelGroups = 0;
+
+	// find which entities can be included in the mega buffer and tally vertex counts
+	for (int i = 0; i < ents.size(); i++) {
+		OrderedEnt& ent = ents[i];
+		EntRenderOpts& opts = ent.ent->getRenderOpts();
+
+		// don't combine models for entities that have special rendering properties applied
+		if (ent.modelIdx == -1 || ent.ent->highlighted || ent.ent->hidden)
+			continue;
+		if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
+			if (opts.rendermode != RENDER_MODE_NORMAL)
+				continue;
+		}
+		megaGroupEnts.insert(ent.entIdx);
+
+		RenderModel& model = renderModels[ent.modelIdx];
+		totalModelGroups += model.groupCount;
+		for (int g = 0; g < model.groupCount; g++) {
+			RenderGroup& group = model.renderGroups[g];
+
+			bool wasCombined = false;
+			for (int k = 0; k < megaRenderGroups.size(); k++) {
+				MegaRenderGroup& mega = megaRenderGroups[k];
+
+				if (RenderGroupsAreCombinable(group, mega.group)) {
+					mega.group.vertCount += group.vertCount;
+					mega.refs.push_back({i, g});
+					wasCombined = true;
+					break;
+				}
+			}
+
+			if (!wasCombined) {
+				MegaRenderGroup newGroup;
+				newGroup.group = group;
+				newGroup.refs.push_back({ i, g });
+				megaRenderGroups.push_back(newGroup);
+			}
+		}
+
+		megaRenderWireframes.vertCount += model.wireframeVertCount;
+		megaRenderWireframes.refs.push_back(i);
+
+		if (clipnodesLoaded) {
+			megaRenderClipnodes.refs.push_back(i);
+			for (int k = 0; k < MAX_MAP_HULLS+1; k++) {
+				int hull = k;
+
+				if (hull == MAX_MAP_HULLS) {
+					hull = getBestClipnodeHull(ent.modelIdx);
+
+					if (hull == -1)
+						continue; // has no clipnodes
+
+					if (renderModels[ent.modelIdx].groupCount > 0)
+						continue; // has faces. clipnodes won't be shown in auto mode
+				}
+
+				VertexBuffer* buf = renderClipnodeDat[ent.modelIdx].clipnodeBuffer[hull];
+				VertexBuffer* wireBuf = renderClipnodeDat[ent.modelIdx].wireframeClipnodeBuffer[hull];
+				if (buf) {
+					megaRenderClipnodes.totalVerts[k] += buf->numVerts;
+				}
+				if (wireBuf) {
+					megaRenderClipnodes.totalWireVerts[k] += wireBuf->numVerts;
+				}
+			}
+		}
+	}
+
+	// create solid models buffer
+	for (int i = 0; i < megaRenderGroups.size(); i++) {
+		MegaRenderGroup& mega = megaRenderGroups[i];
+
+		// solid models
+		lightmapVert* verts = new lightmapVert[mega.group.vertCount];
+		int vertIdx = 0;
+
+		for (EntModelGroupIdx& ref : mega.refs) {
+			OrderedEnt& ent = ents[ref.entIdx];
+			RenderGroup& refGroup = renderModels[ent.modelIdx].renderGroups[ref.groupIdx];
+
+			for (int k = 0; k < refGroup.vertCount; k++, vertIdx++) {
+				verts[vertIdx] = refGroup.verts[k];
+
+				vec3* v = (vec3*)(&verts[vertIdx].x);
+				*v = ent.transform.multRowMajor(*v);
+			}
+		}
+
+		if (vertIdx == 0)
+			continue;
+
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.bsp, 0, verts, mega.group.vertCount);
+		megaBuffer->addAttributes(mega.group.buffer->attribs);
+		megaBuffer->ownData = true;
+		mega.group.buffer = megaBuffer;
+		mega.group.buffer->upload();
+	}
+
+	// create wireframe models buffer
+	if (megaRenderWireframes.vertCount) {
+		vec3* verts = new vec3[megaRenderWireframes.vertCount];
+		int vertIdx = 0;
+
+		for (int& idx : megaRenderWireframes.refs) {
+			OrderedEnt& ent = ents[idx];
+			RenderModel& refModel = renderModels[ent.modelIdx];
+
+			for (int k = 0; k < refModel.wireframeVertCount; k++, vertIdx++) {
+				verts[vertIdx] = ent.transform.multRowMajor(refModel.wireframeVerts[k]);
+			}
+		}
+
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.vec3, POS_3F, verts, megaRenderWireframes.vertCount);
+		megaBuffer->ownData = true;
+		megaRenderWireframes.buffer = megaBuffer;
+		megaRenderWireframes.buffer->upload();
+	}
+
+	// create clipnode models buffer
+	for (int i = 0; i < MAX_MAP_HULLS+1 && clipnodesLoaded; i++) {
+		cVert* verts = new cVert[megaRenderClipnodes.totalVerts[i]];
+		cVert* wireVerts = new cVert[megaRenderClipnodes.totalWireVerts[i]];
+
+		int vertIdx = 0;
+		int wireVertIdx = 0;
+		for (int idx : megaRenderClipnodes.refs) {
+			OrderedEnt& ent = ents[idx];
+
+			int hull = i;
+
+			if (hull == MAX_MAP_HULLS) {
+				hull = getBestClipnodeHull(ent.modelIdx);
+
+				if (hull == -1)
+					continue; // has no clipnodes
+
+				if (renderModels[ent.modelIdx].groupCount > 0)
+					continue; // has faces. clipnodes won't be shown in auto mode
+			}
+
+			VertexBuffer* srcBuf = renderClipnodeDat[ent.modelIdx].clipnodeBuffer[hull];
+			VertexBuffer* srcBufWire = renderClipnodeDat[ent.modelIdx].wireframeClipnodeBuffer[hull];
+			if (!srcBuf)
+				continue;
+
+			{
+				int numVerts = srcBuf->numVerts;
+				cVert* srcData = (cVert*)srcBuf->data;
+
+				for (int k = 0; k < numVerts; k++, vertIdx++) {
+					verts[vertIdx].c = srcData[k].c;
+
+					vec3* v = (vec3*)(&verts[vertIdx].x);
+					*v = ent.transform.multRowMajor(*(vec3*)(&srcData[k].x));
+				}
+			}
+
+			{
+				int numVerts = srcBufWire->numVerts;
+				cVert* srcData = (cVert*)srcBufWire->data;
+
+				for (int k = 0; k < numVerts; k++, wireVertIdx++) {
+					wireVerts[wireVertIdx].c = srcData[k].c;
+
+					vec3* v = (vec3*)(&wireVerts[wireVertIdx].x);
+					*v = ent.transform.multRowMajor(*(vec3*)(&srcData[k].x));
+				}
+			}
+		}
+
+		if (vertIdx != 0) {
+			VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.color, POS_3F | COLOR_4B, verts, megaRenderClipnodes.totalVerts[i]);
+			megaBuffer->ownData = true;
+			megaRenderClipnodes.buffer[i] = megaBuffer;
+			megaRenderClipnodes.buffer[i]->upload();
+		}
+
+		if (wireVertIdx != 0) {
+			VertexBuffer* megaWireBuffer = new VertexBuffer(g_shaders.color, POS_3F | COLOR_4B, wireVerts, megaRenderClipnodes.totalWireVerts[i]);
+			megaWireBuffer->ownData = true;
+			megaRenderClipnodes.wireframeBuffer[i] = megaWireBuffer;
+			megaRenderClipnodes.wireframeBuffer[i]->upload();
+		}
+	}
+
+	logf("Created %d mega groups from %d model groups in %dms\n",
+		(int)megaRenderGroups.size(), totalModelGroups, (int)((glfwGetTime() - start)*1000));
 }
 
 void BspRenderer::write_obj_file() {
@@ -1935,6 +2177,14 @@ BspRenderer::~BspRenderer() {
 	}
 	if (skyBoxBuffer)
 		delete skyBoxBuffer;
+	for (MegaRenderGroup& mega : megaRenderGroups) {
+		delete mega.group.buffer;
+	}
+	delete megaRenderWireframes.buffer;
+	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
+		delete megaRenderClipnodes.buffer[i];
+		delete megaRenderClipnodes.wireframeBuffer[i];
+	}
 
 	deleteTextures();
 	deleteLightmapTextures();
@@ -1977,6 +2227,7 @@ void BspRenderer::delayLoadData() {
 		
 		glTextures = glTexturesSwap;
 		glTextureAtlases = glTextureAtlasesSwap;
+		numTextureAtlases = numTextureAtlasesSwap;
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
 		// non-3D version of textures needed for GUI
@@ -2025,6 +2276,7 @@ void BspRenderer::delayLoadData() {
 		}
 
 		clipnodesLoaded = true;
+		refreshMegaBuffers();
 		debugf("Loaded %d clipnode leaves\n", clipnodeLeafCount);
 	}
 
@@ -2301,24 +2553,32 @@ void BspRenderer::getRenderEnts(vector<OrderedEnt>& ents) {
 	for (int i = 0; i < map->ents.size(); i++) {
 		map->ents[i]->highlighted = false;
 		OrderedEnt ent;
+		ent.isInMegaRenderGroup = megaGroupEnts.count(i);
 		ent.ent = map->ents[i];
+		ent.entIdx = i;
 		ent.modelIdx = map->ents[i]->getBspModelIdx();
 		if (ent.modelIdx >= map->modelCount) {
 			continue;
 		}
-		ent.transform = renderEnts[i].modelMat;
-		ent.transform.translate(renderOffset.x, renderOffset.y, renderOffset.z);
-		ent.transform = ent.transform * map->ents[i]->getRotationMatrix(false);
+		const mat4x4& rotMat = map->ents[i]->getRotationMatrix(false);
+		ent.transform = renderEnts[i].modelMat * rotMat;
+
+		ent.transformWorld = renderEnts[i].modelMat;
+		ent.transformWorld.translate(renderOffset.x, renderOffset.y, renderOffset.z);
+		ent.transformWorld = ent.transformWorld * rotMat;
+
 		ents.push_back(ent);
 	}
-	for (Entity* highlightEnt : g_app->pickInfo.getEnts()) {
-		highlightEnt->highlighted = true;
+	for (Entity* ent : g_app->pickInfo.getEnts()) {
+		ent->highlighted = true;
 	}
 
 	// draw highlighted ents last
 	sort(ents.begin(), ents.end(), [](const OrderedEnt& a, const OrderedEnt& b) {
 		return a.ent->highlighted < b.ent->highlighted;
-		});
+	});
+
+	refreshMegaBuffers(ents);
 }
 
 void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass) {
@@ -2348,6 +2608,25 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 		drawModel(map->ents[0], 0, transparencyPass, false);
 	}
 
+	if (!(g_settings.render_flags & RENDER_ENTS))
+		return;
+
+	activeShader->modelMat->loadIdentity();
+	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	activeShader->updateMatrixes();
+
+	for (MegaRenderGroup& mega : megaRenderGroups) {
+		RenderGroup& rgroup = mega.group;
+
+		if (rgroup.transparent != transparencyPass)
+			continue;
+		if (rgroup.transparent && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
+			continue;
+
+		drawModelRenderGroup(rgroup, false, true);
+	}
+
+	int renderEnts = 0;
 	activeShader->pushMatrix(MAT_MODEL);
 	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
 		const OrderedEnt& orderEnt = orderedEnts[i];
@@ -2355,7 +2634,7 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
 			Entity* ent = orderEnt.ent;
-			if (ent->hidden)
+			if (ent->hidden || orderEnt.isInMegaRenderGroup)
 				continue;
 			if (!willDrawModel(ent, modelIdx, transparencyPass))
 				continue;
@@ -2363,13 +2642,17 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 			if (highlightAlwaysOnTop && ent->highlighted)
 				glDisable(GL_DEPTH_TEST);
 			
-			*activeShader->modelMat = orderEnt.transform;
+			renderEnts++;
+			*activeShader->modelMat = orderEnt.transformWorld;
 			activeShader->updateMatrixes();
 
 			drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
 		}
 	}
 	activeShader->popMatrix(MAT_MODEL);
+
+	//if (!transparencyPass)
+	//	logf("Rendered %d solids + %d mega groups\n", renderEnts, (int)megaRenderGroups.size());
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
@@ -2391,8 +2674,19 @@ void BspRenderer::renderWireframe(const vector<OrderedEnt>& orderedEnts, bool hi
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
 
-	if (!map->ents[0]->hidden) {
-		drawModelWireframe(0, false);
+	bool allWireframes = (g_settings.render_flags & RENDER_WIREFRAME);
+
+	if (!map->ents[0]->hidden && allWireframes) {
+		g_shaders.vec3->setUniform("color", vec4(0.25f, 0.25f, 0.25f, 1));
+		renderModels[0].wireframeBuffer->draw(GL_LINES);
+	}
+
+	if (!(g_settings.render_flags & RENDER_ENTS))
+		return;
+
+	if (allWireframes) {
+		g_shaders.vec3->setUniform("color", vec4(0, 0, 0.78f, 1));
+		megaRenderWireframes.buffer->draw(GL_LINES);
 	}
 
 	activeShader->pushMatrix(MAT_MODEL);
@@ -2402,7 +2696,9 @@ void BspRenderer::renderWireframe(const vector<OrderedEnt>& orderedEnts, bool hi
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
 			Entity* ent = orderEnt.ent;
-			if (ent->hidden)
+			if (ent->hidden || orderEnt.isInMegaRenderGroup)
+				continue;
+			if (!allWireframes && !ent->highlighted)
 				continue;
 
 			if (highlightAlwaysOnTop && ent->highlighted)
@@ -2411,7 +2707,11 @@ void BspRenderer::renderWireframe(const vector<OrderedEnt>& orderedEnts, bool hi
 			*activeShader->modelMat = orderEnt.transform;
 			activeShader->updateMatrixes();
 
-			drawModelWireframe(modelIdx, ent->highlighted);
+			if (renderModels[modelIdx].wireframeBuffer && modelIdx < numRenderModels) {
+				vec4 color = ent->highlighted ? vec4(1, 1, 0, 1) : vec4(0, 0, 0.78f, 1);
+				g_shaders.vec3->setUniform("color", color);
+				renderModels[modelIdx].wireframeBuffer->draw(GL_LINES);
+			}
 		}
 	}
 	activeShader->popMatrix(MAT_MODEL);
@@ -2434,47 +2734,57 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 		drawModelClipnodes(0, false, clipnodeHull);
 	}
 
-	if ((g_settings.render_flags & RENDER_ENTS) && (g_settings.render_flags & RENDER_ENT_CLIPNODES)) {
-		g_shaders.color->pushMatrix(MAT_MODEL);
-		for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
-			const OrderedEnt& orderEnt = orderedEnts[i];
-			int modelIdx = orderEnt.modelIdx;
+	if (!(g_settings.render_flags & RENDER_ENTS) || !(g_settings.render_flags & RENDER_ENT_CLIPNODES))
+		return;
 
-			if (modelIdx >= 0 && modelIdx < map->modelCount) {
-				Entity* ent = orderEnt.ent;
-				if (ent->hidden)
-					continue;
+	int groupHull = clipnodeHull;
+	if (groupHull == -1)
+		groupHull = MAX_MAP_HULLS;
+	VertexBuffer* buffer = megaRenderClipnodes.buffer[groupHull];
+	VertexBuffer* wireBuffer = megaRenderClipnodes.wireframeBuffer[groupHull];
+	if (buffer)
+		buffer->draw(GL_TRIANGLES);
+	if (wireBuffer)
+		wireBuffer->draw(GL_LINES);
 
-				RenderClipnodes& clip = renderClipnodeDat[modelIdx];
-				if (clipnodeHull == -1 && getBestClipnodeHull(modelIdx) == -1) {
-					continue; // skip if no hull can be drawn
-				}
+	g_shaders.color->pushMatrix(MAT_MODEL);
+	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
+		const OrderedEnt& orderEnt = orderedEnts[i];
+		int modelIdx = orderEnt.modelIdx;
 
-				if (clipnodeHull == -1 && renderModels[modelIdx].groupCount > 0) {
-					continue; // skip rendering for models that have faces, if in auto mode
-				}
+		if (modelIdx >= 0 && modelIdx < map->modelCount) {
+			Entity* ent = orderEnt.ent;
+			if (ent->hidden || orderEnt.isInMegaRenderGroup)
+				continue;
 
-				*g_shaders.color->modelMat = orderEnt.transform;
-				g_shaders.color->updateMatrixes();
+			RenderClipnodes& clip = renderClipnodeDat[modelIdx];
+			if (clipnodeHull == -1 && getBestClipnodeHull(modelIdx) == -1) {
+				continue; // skip if no hull can be drawn
+			}
 
-				if (ent->highlighted) {
-					g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
-				}
+			if (clipnodeHull == -1 && renderModels[modelIdx].groupCount > 0) {
+				continue; // skip rendering for models that have faces, if in auto mode
+			}
 
-				drawModelClipnodes(modelIdx, false, clipnodeHull);
+			*g_shaders.color->modelMat = orderEnt.transform;
+			g_shaders.color->updateMatrixes();
 
-				if (ent->highlighted) {
-					g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
-				}
+			if (ent->highlighted) {
+				g_shaders.color->setUniform("colorMult", vec4(1, 0.25f, 0.25f, 1));
+			}
+
+			drawModelClipnodes(modelIdx, false, clipnodeHull);
+
+			if (ent->highlighted) {
+				g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 			}
 		}
-		g_shaders.color->popMatrix(MAT_MODEL);
 	}
+	g_shaders.color->popMatrix(MAT_MODEL);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 }
-
 
 void BspRenderer::renderLeaves() {
 	glEnable(GL_BLEND);
@@ -2497,22 +2807,6 @@ void BspRenderer::renderLeaves() {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 	delayLoadData();
-}
-
-void BspRenderer::drawModelWireframe(int modelIdx, bool highlight) {
-	if (modelIdx != 0 && !(g_settings.render_flags & RENDER_ENTS))
-		return;
-
-	if (renderModels[modelIdx].wireframeBuffer && modelIdx < numRenderModels) {
-		if (highlight)
-			g_shaders.vec3->setUniform("color", vec4(1, 1, 0, 1));
-		else if (modelIdx > 0)
-			g_shaders.vec3->setUniform("color", vec4(0, 0, 0.78f, 0));
-		else
-			g_shaders.vec3->setUniform("color", vec4(0.25f, 0.25f, 0.25f, 1));
-
-		renderModels[modelIdx].wireframeBuffer->draw(GL_LINES);
-	}
 }
 
 bool BspRenderer::willDrawModel(Entity* ent, int modelIdx, bool transparent) {
@@ -2642,61 +2936,63 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 			else if (modelIdx != 0 && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
 				continue;
 		}
-		else if (modelIdx != 0 && !(g_settings.render_flags & RENDER_ENTS))
-			continue;
 
-		// bind the texture
-		glActiveTexture(GL_TEXTURE0);
-		if (texturesLoaded && (g_settings.render_flags & RENDER_TEXTURES)) {
-			if (g_settings.texture_atlas) {
-				glTextureAtlases[rgroup.atlasTextureIdx]->bind();
-			}
-			else {
-				rgroup.texture->bind();
-			}
+		drawModelRenderGroup(rgroup, highlight, useLightmaps);
+	}
+}
+
+void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool useLightmaps) {
+	// bind the texture
+	glActiveTexture(GL_TEXTURE0);
+	if (texturesLoaded && (g_settings.render_flags & RENDER_TEXTURES)) {
+		if (g_settings.texture_atlas) {
+			glTextureAtlases[rgroup.atlasTextureIdx]->bind();
 		}
 		else {
-			if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
-				whiteTex3D->bind();
-			}
-			else {
+			rgroup.texture->bind();
+		}
+	}
+	else {
+		if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
+			whiteTex3D->bind();
+		}
+		else {
+			whiteTex->bind();
+		}
+	}
+
+	// bind lightmaps for each style
+	for (int s = 0; s < MAXLIGHTMAPS; s++) {
+		glActiveTexture(GL_TEXTURE1 + s);
+
+		if (highlight) {
+			redTex->bind();
+		}
+		else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps) {
+			if (s == 0) {
 				whiteTex->bind();
 			}
-		}
-
-		// bind lightmaps for each style
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			glActiveTexture(GL_TEXTURE1 + s);
-
-			if (highlight) {
-				redTex->bind();
-			}
-			else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps) {
-				if (s == 0) {
-					whiteTex->bind();
-				}
-				else {
-					blackTex->bind();
-				}
-			}
-			else if (lightmapsUploaded) {
-				if (!g_app->lightStylesEnabled[s]) {
-					blackTex->bind();
-					continue;
-				}
-
-				rgroup.lightmapAtlas[s]->bind();
-			}
 			else {
-				if (s == 0)
-					greyTex->bind();
-				else
-					blackTex->bind();
+				blackTex->bind();
 			}
 		}
+		else if (lightmapsUploaded) {
+			if (!g_app->lightStylesEnabled[s]) {
+				blackTex->bind();
+				continue;
+			}
 
-		rgroup.buffer->draw(GL_TRIANGLES);
+			rgroup.lightmapAtlas[s]->bind();
+		}
+		else {
+			if (s == 0)
+				greyTex->bind();
+			else
+				blackTex->bind();
+		}
 	}
+
+	rgroup.buffer->draw(GL_TRIANGLES);
 }
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
