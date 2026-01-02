@@ -289,6 +289,9 @@ private:
 	// 3 = bidirectional
 	unordered_map<int, int> entLinks;
 
+	// ent idx -> list of ent idx targets
+	vector<unordered_set<uint16_t>> entConnectionGraph;
+
 	bool isBoxSelecting;
 	vec2 boxSelectStart, boxSelectEnd;
 

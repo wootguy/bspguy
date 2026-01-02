@@ -157,3 +157,25 @@ void PointEntRenderer::uploadCubeBuffers() {
 		cube->wireframeBuffer->upload();
 	}
 }
+
+int EntCube::calcMemoryUsage() {
+	int bytes = sizeof(EntCube);
+	bytes += buffer->calcMemoryUsage();
+	bytes += selectBuffer->calcMemoryUsage();
+	bytes += wireframeBuffer->calcMemoryUsage();
+	return bytes;
+}
+
+int PointEntRenderer::calcMemoryUsage() {
+	int bytes = sizeof(PointEntRenderer) + sizeof(Fgd*)*fgds.size();
+
+	for (EntCube* cube : entCubes) {
+		bytes += cube->calcMemoryUsage();
+	}
+
+	for (auto item : cubeMap) {
+		bytes += sizeof(item.first) + item.first.size() + sizeof(EntCube*);
+	}
+
+	return bytes;
+}

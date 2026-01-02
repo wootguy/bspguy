@@ -549,6 +549,8 @@ public:
 
 	void update_lump_pointers();
 
+	int calcMemoryUsage();
+
 private:
 	bool* pvsFaces = NULL; // flags which faces are marked for rendering in the PVS
 	int pvsFaceCount = 0;

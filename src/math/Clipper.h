@@ -42,6 +42,8 @@ struct CFace {
 		this->edges = edges;
 		this->normal = normal;
 	}
+
+	int calcMemoryUsage() { return sizeof(CFace) + sizeof(int) * edges.size(); }
 };
 
 struct CMesh {
@@ -57,6 +59,14 @@ struct CMesh {
 		verts.clear();
 		edges.clear();
 		faces.clear();
+	}
+
+	int calcMemoryUsage() {
+		int bytes = sizeof(CMesh) + sizeof(CEdge)*edges.size() + sizeof(CVertex)*verts.size();
+		for (CFace& face : faces) {
+			bytes += face.calcMemoryUsage();
+		}
+		return bytes;
 	}
 };
 

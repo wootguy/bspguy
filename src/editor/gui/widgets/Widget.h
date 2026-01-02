@@ -42,6 +42,8 @@ public:
 
 	// called by you. Set pushStack to reopen this widget after the next one is dismissed
 	virtual void close(bool pushStack = false) { widgetVisible = false; shouldReturnToThisPopup = pushStack; }
+
+	virtual int calcMemoryUsage() { return sizeof(Widget); }
 };
 
 class Popup : public Widget {
@@ -87,6 +89,8 @@ class LogWidget : public Widget {
 
 	void clearLog();
 	void addLog(const char* s);
+
+	int calcMemoryUsage();
 };
 
 class SettingsWidget : public Widget {

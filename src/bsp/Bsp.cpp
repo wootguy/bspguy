@@ -10366,3 +10366,15 @@ void Bsp::append_lump(int lumpIdx, void* newData, int appendLength) {
 
 	replace_lump(lumpIdx, newLump, oldLen + appendLength);
 }
+
+int Bsp::calcMemoryUsage() {
+	int bytes = sizeof(Bsp);
+	if (lumps) {
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			bytes += header.lump[i].nLength;
+		}
+	}
+
+	bytes += path.size() + name.size();
+	return bytes;
+}

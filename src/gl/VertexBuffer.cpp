@@ -303,3 +303,10 @@ void VertexBuffer::draw(int primitive)
 {
 	drawRange(primitive, 0, numVerts);
 }
+
+int VertexBuffer::calcMemoryUsage() {
+	int bytes = sizeof(VertexBuffer);
+	bytes += sizeof(VertexAttr) * attribs.size();
+	bytes += elementSize * numVerts;
+	return bytes;
+}

@@ -470,3 +470,24 @@ void ShaderProgram::popMatrix(int matType)
 
 	updateMatrixes(); // TODO: this is expensive but i don't want to deal with the bugs right now. It breaks point ents.
 }
+
+int ShaderProgram::calcMemoryUsage() {
+	int bytes = sizeof(ShaderProgram);
+	bytes += name.size();
+	bytes += vShader ? sizeof(vShader) : 0;
+	bytes += fShader ? sizeof(fShader) : 0;
+
+	for (auto item : uniforms) {
+		bytes += item.first.size() + sizeof(string) + sizeof(ShaderUniform);
+	}
+
+	for (const string& item : loggedErrors) {
+		bytes += item.size() + sizeof(string);
+	}
+
+	for (int i = 0; i < 3; i++) {
+		bytes += matStack[i].size() + sizeof(mat4x4);
+	}
+
+	return bytes;
+}

@@ -81,3 +81,7 @@ void LogWidget::addLog(const char* s)
 		if (Buf[old_size] == '\n')
 			LineOffsets.push_back(old_size + 1);
 }
+
+int LogWidget::calcMemoryUsage() {
+	return sizeof(LogWidget) + Buf.size() + LineOffsets.size()*sizeof(int);
+}

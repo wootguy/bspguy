@@ -156,3 +156,12 @@ void NavMesh::getLinkMidPoints(int iNode, int iLink, vec3& srcMid, vec3& dstMid)
 		dstMid = borderStart + (borderEnd - borderStart) * 0.5f;
 	}
 }
+
+
+int NavMesh::calcMemoryUsage() {
+	int bytes = sizeof(NavMesh);
+	for (int i = 0; i < numPolys; i++) {
+		bytes += polys[i].calcMemoryUsage() - sizeof(Polygon3D);
+	}
+	return bytes;
+}

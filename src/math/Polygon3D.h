@@ -124,4 +124,6 @@ public:
 
 	// reverse vertex order and normal
 	void flip();
+
+	int calcMemoryUsage();
 };

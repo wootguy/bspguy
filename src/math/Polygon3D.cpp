@@ -789,3 +789,13 @@ void Polygon3D::flip() {
 	localToWorld = worldToLocal.invert();
 	*/
 }
+
+int Polygon3D::calcMemoryUsage() {
+	int bytes = sizeof(Polygon3D);
+
+	bytes += sizeof(vec3) * verts.size();
+	bytes += sizeof(vec2) * localVerts.size();
+	bytes += sizeof(vec2) * topdownVerts.size();
+
+	return bytes;
+}

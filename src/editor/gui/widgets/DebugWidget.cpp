@@ -197,17 +197,71 @@ void DebugWidget::draw() {
 		ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen);
 	}
 
-	if (ImGui::CollapsingHeader("Render Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::Text("Objects: %d", g_renderStats.numObjects);
-		ImGui::Text("Vertices: %d k", g_renderStats.numVerts / 1000);
-		ImGui::Text("Vertex Mem: %.2f MB", (float)g_renderStats.vertMem / (1024.0f*1024.0f));
-		ImGui::Text("Texture Mem: %.2f MB", (float)g_renderStats.texMem / (1024.0f*1024.0f));
-		ImGui::Text("Matrix uploads: %d", g_renderStats.numMatrixUploads);
-		ImGui::Text("Uniform uploads: %d", g_renderStats.numUniformsUploaded);
-		ImGui::Text("Texture binds: %d", g_renderStats.numTextureBinds);
-		ImGui::Text("Shader binds: %d", g_renderStats.numShaderBinds);
-		g_renderStats.clear();
+		if (ImGui::TreeNodeEx("Render Stats", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent();
+			
+			ImGui::Text("Objects: %d", g_renderStats.numObjects);
+			ImGui::Text("Vertices: %d k", g_renderStats.numVerts / 1000);
+			ImGui::Text("Matrix uploads: %d", g_renderStats.numMatrixUploads);
+			ImGui::Text("Uniform uploads: %d", g_renderStats.numUniformsUploaded);
+			ImGui::Text("Texture binds: %d", g_renderStats.numTextureBinds);
+			ImGui::Text("Shader binds: %d", g_renderStats.numShaderBinds);
+			g_renderStats.clear();
+
+			ImGui::Unindent();
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNodeEx("VRAM", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent();
+
+			ImGui::Text("Vertices: %.2f MB", g_renderStats.vertMem / (1024.0f * 1024.0f));
+			ImGui::Text("Textures: %.2f MB", g_renderStats.texMem / (1024.0f * 1024.0f));
+
+			ImGui::Unindent();
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNodeEx("RAM", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent();
+
+			int entData = 0;
+			for (Entity* ent : map->ents) {
+				entData += ent->getMemoryUsage();
+			}
+			for (auto item : g_stringMap) {
+				entData += item.first.size() * 2 + sizeof(string_t);
+			}
+
+			int fgdBytes = app->mergedFgd ? app->mergedFgd->calcMemoryUsage() : 0;
+			for (Fgd* fgd : app->fgds) {
+				fgdBytes += fgd->calcMemoryUsage();
+			}
+
+			int bspMem = app->mapRenderer->map->calcMemoryUsage();
+			int bspRenderMem = app->mapRenderer->calcMemoryUsage();
+			int guiMem = app->gui->calcMemUsage();
+
+			int total = fgdBytes + bspMem + bspRenderMem + entData + app->undoMemoryUsage + guiMem;
+
+			ImGui::Text("BSP: %.2f MB", bspMem / (1024.0f * 1024.0f));
+			ImGui::Text("BSP Renderer: %.2f MB", bspRenderMem / (1024.0f * 1024.0f));
+			ImGui::Text("FGDs: %.2f MB", fgdBytes / (1024.0f * 1024.0f));
+			ImGui::Text("Entities: %.2f MB\n", entData / (1024.0f * 1024.0f));
+#ifdef DEBUG_MODE
+			ImGui::Text("GUI: %.2f MB\n", guiMem / (1024.0f * 1024.0f));
+#endif
+			ImGui::Text("Undo History: %.2f MB\n", app->undoMemoryUsage / (1024.0f * 1024.0f));
+			ImGui::Text("TOTAL: %.2f MB\n", total / (1024.0f * 1024.0f));
+
+			ImGui::Unindent();
+			ImGui::TreePop();
+		}
 	}
 
 #ifdef DEBUG_MODE
@@ -217,9 +271,6 @@ void DebugWidget::draw() {
 		ImGui::Text("DebugVec1 %6.2f %6.2f %6.2f", app->debugVec1.x, app->debugVec1.y, app->debugVec1.z);
 		ImGui::Text("DebugVec2 %6.2f %6.2f %6.2f", app->debugVec2.x, app->debugVec2.y, app->debugVec2.z);
 		ImGui::Text("DebugVec3 %6.2f %6.2f %6.2f", app->debugVec3.x, app->debugVec3.y, app->debugVec3.z);
-
-		float mb = app->undoMemoryUsage / (1024.0f * 1024.0f);
-		ImGui::Text("Undo Memory Usage: %.2f MB\n", mb);
 	}
 #endif
 }

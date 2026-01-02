@@ -108,6 +108,8 @@ public:
 	void pushMatrix(int matType);
 	void popMatrix(int matType);
 
+	int calcMemoryUsage();
+
 private:
 	// uniforms
 	uint modelViewID = -1;

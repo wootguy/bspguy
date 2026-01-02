@@ -592,6 +592,11 @@ void BspRenderer::loadLightmaps() {
 	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
 	memset(atlasTextures[0]->data, 0, lightmapAtlasSz * lightmapAtlasSz * sizeof(COLOR3));
 
+	if (lightmaps) {
+		delete[] lightmaps;
+		lightmaps = NULL;
+	}
+
 	numRenderLightmapInfos = map->faceCount;
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
@@ -689,13 +694,12 @@ void BspRenderer::loadLightmaps() {
 		}
 	}
 
-	glLightmapTextures = new Texture * [atlasTextures.size()];
-	for (int i = 0; i < atlasTextures.size(); i++) {
+	numLightmapAtlases = atlasTextures.size();
+	glLightmapTextures = new Texture * [numLightmapAtlases];
+	for (int i = 0; i < numLightmapAtlases; i++) {
 		delete atlases[i];
 		glLightmapTextures[i] = atlasTextures[i];
 	}
-
-	numLightmapAtlases = atlasTextures.size();
 
 	//lodepng_encode24_file("atlas.png", atlasTextures[0]->data, lightmapAtlasSz, lightmapAtlasSz);
 	debugf("Fit %d lightmaps into %d atlases (%dx%d) in %.2fs\n",
@@ -3625,4 +3629,149 @@ int BspRenderer::getBestClipnodeHull(int modelIdx) {
 
 EntCube* BspRenderer::getEntCube(int idx) {
 	return renderEnts[idx].pointEntCube;
+}
+
+
+int RenderGroup::calcMemoryUsage() {
+	int bytes = sizeof(RenderGroup);
+	bytes += buffer->calcMemoryUsage();
+	return bytes;
+}
+
+int RenderModel::calcMemoryUsage() {
+	int bytes = sizeof(RenderModel) + renderFaceCount*sizeof(RenderFace);
+
+	for (int i = 0; i < groupCount; i++) {
+		renderGroups[i].calcMemoryUsage();
+	}
+
+	return bytes;
+}
+
+int RenderEnt::calcMemoryUsage() {
+	return sizeof(RenderEnt) + pointEntCube ? pointEntCube->calcMemoryUsage() : 0;
+}
+
+int FaceMath::calcMemoryUsage() {
+	int bytes = sizeof(FaceMath);
+	bytes += verts.size() + sizeof(vec3);
+	bytes += localVerts.size() + sizeof(vec2);
+	return bytes;
+}
+
+int PvsPoly::calcMemoryUsage() {
+	int bytes = sizeof(FaceMath);
+	bytes += verts.size() + sizeof(vec3);
+	return bytes;
+}
+
+int BspRenderer::calcMemoryUsage() {
+	if (g_app->isLoading)
+		return 0;
+
+	int bytes = sizeof(BspRenderer);
+	bytes += pointEntRenderer ? pointEntRenderer->calcMemoryUsage() : 0;
+	bytes += leafNavMesh ? leafNavMesh->calcMemoryUsage() : 0;
+
+	for (Wad* wad : wads) {
+		bytes += wad->calcMemoryUsage();
+	}
+
+	bytes += numRenderLightmapInfos * sizeof(LightmapInfo);
+
+	if (renderEnts) {
+		for (int i = 0; i < map->ents.size(); i++) {
+			bytes += renderEnts[i].calcMemoryUsage();
+		}
+	}
+	if (renderModels) {
+		for (int i = 0; i < numRenderModels; i++) {
+			bytes += renderModels[i].calcMemoryUsage();
+		}
+	}
+	
+	for (MegaRenderGroup& mega : megaRenderGroups) {
+		bytes += sizeof(MegaRenderGroup) + sizeof(EntModelGroupIdx) * mega.refs.size();
+		bytes += mega.group.calcMemoryUsage();
+	}
+	for (int i = 0; i < MAX_MAP_HULLS + 1; i++) {
+		bytes += megaRenderClipnodes.buffer[i] ? megaRenderClipnodes.buffer[i]->calcMemoryUsage() : 0;
+	}
+	bytes += megaRenderClipnodes.refs.size() * sizeof(int);
+	bytes += megaGroupEnts.size() * sizeof(int);
+
+	if (renderClipnodeDat) {
+		bytes += sizeof(RenderClipnodes)*numRenderClipnodes;
+
+		for (int i = 0; i < numRenderClipnodes; i++) {
+			RenderClipnodes& clip = renderClipnodeDat[i];
+
+			for (int k = 0; k < MAX_MAP_HULLS; k++) {
+				bytes += clip.clipnodeBuffer[k] ? clip.clipnodeBuffer[k]->calcMemoryUsage() : 0;
+				bytes += clip.faceMaths->size() * sizeof(FaceMath);
+			}
+		}
+	}
+
+	if (renderLeafDat) {
+		bytes += sizeof(RenderLeaves);
+		bytes += renderLeafDat->faceMaths.size() * sizeof(FaceMath);
+		bytes += renderLeafDat->originalColors.size() * sizeof(COLOR4);
+
+		for (int i = 0; i < 65536; i++) {
+			bytes += renderLeafDat->leafRanges[i].size() * sizeof(int);
+		}
+	}
+
+	for (int i = 0; i < numFaceMaths; i++) {
+		bytes += faceMaths[i].calcMemoryUsage();
+	}
+
+	bytes += pointEnts ? pointEnts->calcMemoryUsage() : 0;
+	bytes += skyBoxBuffer ? skyBoxBuffer->calcMemoryUsage() : 0;
+	
+	for (PvsPoly& poly : facePolys) {
+		bytes += poly.calcMemoryUsage();
+	}
+
+	if (glTextures) {
+		for (int i = 0; i < numLoadedTextures; i++) {
+			bytes += glTextures[i]->calcMemoryUsage();
+		}
+	}
+	
+	for (int i = 0; i < 6; i++) {
+		bytes += skyboxTextures[i] ? skyboxTextures[i]->calcMemoryUsage() : 0;
+	}
+
+	bytes += glTextureArray ? sizeof(glTextureArray) : NULL;
+
+	if (miptexToTexArray)
+		bytes += map->textureCount * sizeof(TexArrayOffset);
+
+	for (Polygon3D& poly : debugFaces) {
+		bytes += poly.calcMemoryUsage();
+	}
+
+	bytes += debugNavMesh ? debugNavMesh->calcMemoryUsage() : 0;
+
+	if (glLightmapTextures) {
+		for (int i = 0; i < numLightmapAtlases; i++) {
+			bytes += glLightmapTextures[i]->calcMemoryUsage();
+		}
+	}
+	if (glTextureAtlases) {
+		for (int i = 0; i < numTextureAtlases; i++) {
+			bytes += glTextureAtlases[i]->calcMemoryUsage();
+		}
+	}
+	
+	bytes += textureAtlasInfos.size() * sizeof(SubTexture);
+	bytes += whiteTex ? whiteTex->calcMemoryUsage() : 0;
+	bytes += whiteTex3D ? whiteTex3D->calcMemoryUsage() : 0;
+	bytes += redTex ? redTex->calcMemoryUsage() : 0;
+	bytes += greyTex ? greyTex->calcMemoryUsage() : 0;
+	bytes += blackTex ? blackTex->calcMemoryUsage() : 0;
+
+	return bytes;
 }

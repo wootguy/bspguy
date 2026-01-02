@@ -250,3 +250,15 @@ void TextureArray::upload() {
 	debugf("uploaded %d textures as %d arrays (%d resized, %.2f MB)\n",
 		textureCount, bucketCount, numResize, texDataSz / (1024.0f*1024.0f));
 }
+
+int TextureBucket::calcMemoryUsage() {
+	return sizeof(TextureBucket) + count * sizeof(Texture*);
+}
+
+int TextureArray::calcMemoryUsage() {
+	int bytes = sizeof(TextureArray);
+	for (int i = 0; i < TEXARRAY_BUCKET_COUNT; i++) {
+		bytes += buckets[i].calcMemoryUsage();
+	}
+	return bytes;
+}

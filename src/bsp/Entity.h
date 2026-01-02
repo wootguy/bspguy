@@ -28,6 +28,10 @@ struct EntRenderOpts {
 	int sequence;
 };
 
+typedef uint16_t string_t;
+extern unordered_map<string, uint16_t> g_stringMap; // maps a string to an integer for smaller connection graphs
+void clearStringMap();
+
 class Entity
 {
 public:
@@ -71,7 +75,7 @@ public:
 	bool isSprite();
 
 	string getTargetname();
-	const unordered_set<string>& getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
+	const unordered_set<string_t>& getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
 	string getClassname();
 
 	string getFullKvString();
@@ -98,11 +102,11 @@ public:
 
 	bool hasKey(const std::string& key);
 
-	unordered_set<string> getTargets();
+	const unordered_set<string_t>& getTargets();
 
 	bool hasTarget(string tname);
 
-	bool hasTarget(const unordered_set<string>& checkNames);
+	bool hasTarget(const unordered_set<string_t>& checkNames);
 
 	void renameTargetnameValues(string oldTargetname, string newTargetname);
 
@@ -120,8 +124,8 @@ private:
 	unordered_map<string, string> keyvalues;
 
 	int cachedModelIdx = -2; // -2 = not cached
-	unordered_set<string> cachedTargets;
-	unordered_set<string> cachedTargetnames;
+	unordered_set<string_t> cachedTargets;
+	unordered_set<string_t> cachedTargetnames;
 	bool targetsCached = false;
 	bool hasCachedTargetname = false;
 	bool hasCachedClassname = false;

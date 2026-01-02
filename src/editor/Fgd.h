@@ -35,6 +35,8 @@ struct KeyvalueChoice {
 	string desc; // optional
 	int ivalue = 0;
 	bool isInteger = false;
+
+	int calcMemoryUsage();
 };
 
 struct KeyvalueDef {
@@ -48,6 +50,8 @@ struct KeyvalueDef {
 	string sourceDesc; // description of where this keyvalue came from (fgd -> class -> key)
 	COLOR3 color;
 	vector<KeyvalueChoice> choices;
+
+	int calcMemoryUsage();
 };
 
 class Fgd;
@@ -97,11 +101,15 @@ struct FgdClass {
 	void getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList);
 
 	bool hasKey(string key);
+
+	int calcMemoryUsage();
 };
 
 struct FgdGroup {
 	vector<FgdClass*> classes;
 	string groupName;
+
+	int calcMemoryUsage();
 };
 
 class Fgd {
@@ -124,6 +132,8 @@ public:
 	void merge(Fgd* other);
 
 	FgdClass* getFgdClass(string cname);
+
+	int calcMemoryUsage();
 
 private:
 	char* startFileData;

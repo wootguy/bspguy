@@ -404,3 +404,7 @@ WADTEX loadTextureFromPng(const std::string& filename) {
 
 	return out;
 }
+
+int Wad::calcMemoryUsage() {
+	return sizeof(Wad) + filename.size() * numTex * sizeof(WADDIRENTRY);
+}

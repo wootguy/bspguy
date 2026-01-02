@@ -71,6 +71,26 @@ void tooltip(const char* text, float hoverDelay) {
 	}
 }
 
+size_t g_imgui_alloc_bytes = 0;
+int numAllocs = 0;
+unordered_map<void*, int> g_imgui_alloc_sizes;
+
+static void* ImGuiAlloc(size_t sz, void*)
+{
+	g_imgui_alloc_bytes += sz;
+	void* ptr = malloc(sz);
+	g_imgui_alloc_sizes[ptr] = sz;
+	numAllocs++;
+	return ptr;
+}
+
+static void ImGuiFree(void* ptr, void*)
+{
+	g_imgui_alloc_bytes -= g_imgui_alloc_sizes[ptr];
+	g_imgui_alloc_sizes.erase(ptr);
+	free(ptr);
+}
+
 Gui::Gui(Editor* app) {
 	this->app = app;
 	init();
@@ -79,6 +99,11 @@ Gui::Gui(Editor* app) {
 void Gui::init() {
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
+
+#ifdef DEBUG_MODE
+	ImGui::SetAllocatorFunctions(ImGuiAlloc, ImGuiFree);
+#endif
+
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
@@ -253,6 +278,10 @@ void Gui::draw() {
 	ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
 	glDisable(GL_SCISSOR_TEST);
+
+	ImGuiIO& io = ImGui::GetIO();
+	imguiDrawListBytes = io.MetricsRenderVertices * sizeof(ImDrawVert) +
+		io.MetricsRenderIndices * sizeof(ImDrawIdx);
 
 	if (shouldReloadFonts) {
 		shouldReloadFonts = false;
@@ -1374,7 +1403,7 @@ void Gui::loadFonts() {
 	vector<uint8_t> decompressed;
 
 	// data copied to new array so that ImGui doesn't delete static data
-	byte* consoleFontData = NULL;
+	static byte* consoleFontData = NULL;
 	int notosans_mono_sz = 0;
 	if (lzmaDecompress((uint8_t*)notosans_mono, sizeof(notosans_mono), decompressed)) {
 		notosans_mono_sz = decompressed.size();
@@ -1386,7 +1415,7 @@ void Gui::loadFonts() {
 	}
 
 	decompressed.clear();
-	byte* smallFontData = NULL;
+	static byte* smallFontData = NULL;
 
 	int notosans_unicode_sz = 0;
 	if (lzmaDecompress((uint8_t*)notosans_unicode, sizeof(notosans_unicode), decompressed)) {
@@ -1402,6 +1431,8 @@ void Gui::loadFonts() {
 
 	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_font_scale_base);
 	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_font_scale_base);
+
+	fontBytes = notosans_unicode_sz + notosans_mono_sz;
 
 	updateUiScale();
 }
@@ -1632,4 +1663,42 @@ void Gui::selectLeafPvs() {
 
 void Gui::showWidget(int id, bool showNotHide) {
 	widgets[id]->widgetVisible = showNotHide;
+}
+
+int Gui::calcMemUsage() {
+	int bytes = sizeof(Gui) + sizeof(MenuBar);
+
+	for (int i = 0; i < NUM_WIDGET_IDS; i++) {
+		bytes += widgets[i]->calcMemoryUsage();
+	}
+	bytes += popupStack.size() * sizeof(int);
+	bytes += objectIconTexture->calcMemoryUsage();
+	bytes += faceIconTexture->calcMemoryUsage();
+	bytes += leafIconTexture->calcMemoryUsage();
+
+	for (int i = 0; i < texts.size(); i++) {
+		bytes += sizeof(Text2D) + texts[i].text.size();
+	}
+
+	ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+	int w, h;
+	atlas->GetTexDataAsRGBA32(nullptr, &w, &h);
+	bytes += imguiDrawListBytes + w*h*4 + g_imgui_alloc_bytes;
+
+	bytes += g_log_buffer.size() * sizeof(string);
+	for (const string& s : g_log_buffer)
+		bytes += s.size();
+
+	bytes += g_shaders.bsp->calcMemoryUsage();
+	bytes += g_shaders.clipnode->calcMemoryUsage();
+	bytes += g_shaders.color->calcMemoryUsage();
+	bytes += g_shaders.mdl->calcMemoryUsage();
+	bytes += g_shaders.spr->calcMemoryUsage();
+	bytes += g_shaders.sprOutline->calcMemoryUsage();
+	bytes += g_shaders.texture->calcMemoryUsage();
+	bytes += g_shaders.vec3->calcMemoryUsage();
+
+	bytes += fontBytes;
+
+	return bytes;
 }

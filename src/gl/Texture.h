@@ -69,4 +69,6 @@ public:
 
 	// use this texture for rendering
 	void bind();
+
+	int calcMemoryUsage();
 };

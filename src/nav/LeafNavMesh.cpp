@@ -15,6 +15,7 @@
 #include <limits.h>
 #include "LeafOctree.h"
 #include "LeafNavMeshGenerator.h"
+#include "VertexBuffer.h"
 
 LeafNode::LeafNode() {
 	id = -1;
@@ -650,4 +651,46 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 	if (oldNodeCount != nodes.size())
 		logf("Split %d nodes into %d in %.2fs (%d poly tests)\n",
 			oldNodeCount, (int)nodes.size(), (float)(glfwGetTime() - refreshStart), g_app->debugInt);
+}
+
+int LeafNode::calcMemoryUsage() {
+	int bytes = sizeof(LeafNode);
+	bytes += sizeof(LeafLink) * links.size();
+	bytes += sizeof(EntState) * splittingEnts.size();
+	bytes += sizeof(Polygon3D) * leafFaces.size();
+	bytes += face_buffer->calcMemoryUsage();
+	bytes += clipMesh.calcMemoryUsage();
+
+	for (LeafLink& link : links) {
+		bytes += link.calcMemoryUsage();
+	}
+
+	for (Polygon3D& poly : leafFaces) {
+		bytes += poly.calcMemoryUsage();
+	}
+
+	return bytes;
+}
+
+int LeafNavMesh::calcMemoryUsage() {
+	int bytes = sizeof(LeafNavMesh);
+
+	for (LeafNode& node : nodes) {
+		bytes += node.calcMemoryUsage();
+	}
+
+	bytes += octree ? octree->calcMemoryUsage() : NULL;
+
+	for (vector<LeafNode>& nodeList : bspModelLeaves) {
+		bytes += sizeof(vector<LeafNode>);
+		for (LeafNode& node : nodeList) {
+			bytes += node.calcMemoryUsage();
+		}
+	}
+
+	for (LeafNode& node : bspModelNodes) {
+		bytes += node.calcMemoryUsage();
+	}
+
+	return bytes;
 }

@@ -78,6 +78,7 @@ public:
 	void addAttribute(const VertexAttr& attr);
 	void addAttributes(const std::vector<VertexAttr>& otherAttr);
 	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
+	int calcMemoryUsage();
 
 private:
 	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes

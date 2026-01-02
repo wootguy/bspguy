@@ -622,6 +622,7 @@ void Editor::clearMapData() {
 	pvsCopyLeaves.clear();
 	hiddenFaces.clear();
 	hiddenLeaves.clear();
+	clearStringMap();
 
 	/*
 	for (auto item : studioModels) {
@@ -3108,7 +3109,7 @@ void Editor::updateEntConnections() {
 
 	if (!(g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
 		return;
-	}
+	}	
 
 	unordered_set<int> testedTargets;
 
@@ -3122,7 +3123,7 @@ void Editor::updateEntConnections() {
 		for (int i = 0; i < pickInfo.ents.size(); i++) {
 			int entidx = pickInfo.ents[i];
 			Entity* self = map->ents[entidx];
-			const unordered_set<string>& selfNames = self->getAllTargetnames();
+			const unordered_set<string_t>& selfNames = self->getAllTargetnames();
 
 			for (int k = 0; k < map->ents.size(); k++) {
 				Entity* ent = map->ents[k];
@@ -3133,7 +3134,7 @@ void Editor::updateEntConnections() {
 				if (testedTargets.count(k))
 					continue;
 				
-				const unordered_set<string>& tnames = ent->getAllTargetnames();
+				const unordered_set<string_t>& tnames = ent->getAllTargetnames();
 				bool isTarget = tnames.size() && self->hasTarget(tnames);
 				bool isCaller = selfNames.size() && ent->hasTarget(selfNames);
 
@@ -4392,6 +4393,12 @@ void Editor::calcUndoMemoryUsage() {
 	for (int i = 0; i < redoHistory.size(); i++) {
 		undoMemoryUsage += redoHistory[i]->memoryUsage();
 	}
+
+	undoMemoryUsage += sizeof(LumpState)*2;
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		undoMemoryUsage += initialLumpState.lumpLen[i];
+		undoMemoryUsage += undoLumpState.lumpLen[i];
+	}
 }
 
 void Editor::merge(string fpath) {
@@ -4582,6 +4589,8 @@ void Editor::setInitialLumpState() {
 	saveLumpState(map, 0xffffffff, true);
 	initialLumpState = undoLumpState;
 	saveLumpState(map, 0xffffffff, false);
+
+	calcUndoMemoryUsage();
 }
 
 vec3 Editor::worldToScreen(const vec3& P) {

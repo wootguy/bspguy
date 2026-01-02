@@ -60,6 +60,8 @@ struct FaceMath {
 	vector<vec3> verts;
 	vector<vec2> localVerts;
 	int index; // used to map a face to an element in some other list (e.g. leaf node mesh -> leaf index)
+
+	int calcMemoryUsage();
 };
 
 struct RenderEnt {
@@ -68,6 +70,8 @@ struct RenderEnt {
 	vec3 angles; // vertex transformations for picking
 	int modelIdx; // -1 = point entity
 	EntCube* pointEntCube;
+
+	int calcMemoryUsage();
 };
 
 struct RenderGroup {
@@ -79,6 +83,8 @@ struct RenderGroup {
 	Texture* lightmapAtlas[MAXLIGHTMAPS];
 	VertexBuffer* buffer;
 	bool transparent;
+
+	int calcMemoryUsage();
 };
 
 struct RenderFace {
@@ -92,6 +98,8 @@ struct RenderModel {
 	int groupCount;
 	RenderFace* renderFaces;
 	int renderFaceCount;
+
+	int calcMemoryUsage();
 };
 
 struct RenderClipnodes {
@@ -145,6 +153,8 @@ struct PvsPoly {
 	vec3 normal;
 	vec3 mins, maxs;
 	vector<vec3> verts;
+
+	int calcMemoryUsage();
 };
 
 class BspRenderer {
@@ -234,6 +244,8 @@ public:
 	void delayLoadData();
 	void reloadMegaBuffers();
 
+	int calcMemoryUsage();
+
 private:
 	ShaderProgram* activeShader;
 
@@ -257,9 +269,9 @@ private:
 	vector<PvsPoly> facePolys; // for wpoly calculations
 
 	// textures loaded in a separate thread
-	Texture** glTexturesSwap;
+	Texture** glTexturesSwap = NULL;
 	Texture* skyboxTexturesSwap[6];
-	TextureArray* glTextureArray;
+	TextureArray* glTextureArray = NULL;
 	TexArrayOffset* miptexToTexArray = NULL; // maps iMiptex to a texture layer in an unknown texturearray
 
 	int numLightmapAtlases;
@@ -277,7 +289,7 @@ private:
 	int textureAtlasZoneSz;
 
 	vector<Polygon3D> debugFaces;
-	NavMesh* debugNavMesh;
+	NavMesh* debugNavMesh = NULL;
 
 
 	Texture* skyboxTextures[6];

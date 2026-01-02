@@ -1,7 +1,7 @@
 #pragma once
 #include "colors.h"
 #include "vectors.h"
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 class Fgd;
@@ -17,6 +17,8 @@ struct EntCube {
 	VertexBuffer* buffer;
 	VertexBuffer* selectBuffer; // red coloring for selected ents
 	VertexBuffer* wireframeBuffer; // yellow outline for selected ents
+
+	int calcMemoryUsage();
 };
 
 class PointEntRenderer {
@@ -30,9 +32,10 @@ public:
 	EntCube* getEntCube(Entity* ent);
 	EntCube* getEntCube(string cname);
 	void uploadCubeBuffers();
+	int calcMemoryUsage();
 
 private:
-	map<string, EntCube*> cubeMap;
+	unordered_map<string, EntCube*> cubeMap;
 	vector<EntCube*> entCubes;
 
 	void genPointEntCubes();

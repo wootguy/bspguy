@@ -7,6 +7,8 @@ struct TextureBucket {
 	Texture** textures;
 	uint32_t count;
 	uint32_t glArrayId;
+
+	int calcMemoryUsage();
 };
 
 struct TexArrayOffset {
@@ -35,4 +37,6 @@ public:
 
 	// removes textures from bucket arrays but does not delete the array textures
 	void clear();
+
+	int calcMemoryUsage();
 };

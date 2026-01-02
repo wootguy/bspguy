@@ -12,6 +12,49 @@
 
 using namespace std;
 
+unordered_map<string, uint16_t> g_stringMap;
+vector<string> g_stringMapInv;
+int g_stringId = 1;
+
+string_t make_string_t(string s) {
+	string_t& item = g_stringMap[s];
+
+	if (!item) {
+		item = g_stringId++;
+		g_stringMapInv.push_back(s);
+
+		if (g_stringId >= 65535) {
+			logf("Too many strings in string map! Entity connections will be broken\n");
+		}
+	}
+
+	return item;
+}
+
+string_t to_string_t(string s) {
+	auto item = g_stringMap.find(s);
+	if (item != g_stringMap.end())
+		return item->second;
+	return 0;
+}
+
+string get_string_t(string_t id) {
+	if (id-1 < g_stringMapInv.size())
+		return g_stringMapInv[id];
+	return "";
+}
+
+void clearStringMap() {
+	g_stringMap.clear();
+	g_stringMapInv.clear();
+	g_stringId = 1;
+
+	// invalidate connections that use these ids
+	for (Entity* ent : g_app->mapRenderer->map->ents) {
+		ent->clearCache();
+	}
+}
+
 Entity::Entity(void)
 {
 }
@@ -161,7 +204,7 @@ string Entity::getTargetname() {
 	return cachedTargetname;
 }
 
-const unordered_set<string>& Entity::getAllTargetnames() {
+const unordered_set<string_t>& Entity::getAllTargetnames() {
 	if (hasCachedTargetnames) {
 		return cachedTargetnames;
 	}
@@ -181,7 +224,7 @@ const unordered_set<string>& Entity::getAllTargetnames() {
 	for (const string& key : tnameKeys) {
 		string val = getKeyvalue(key);
 		if (val.size()) {
-			cachedTargetnames.insert(val);
+			cachedTargetnames.insert(make_string_t(val));
 		}
 	}
 
@@ -677,7 +720,7 @@ const char* potential_targetname_keys[TOTAL_TARGETNAME_KEYS] = {
 
 // This needs to be kept in sync with the FGD
 
-unordered_set<string> Entity::getTargets() {
+const unordered_set<string_t>& Entity::getTargets() {
 	if (targetsCached) {
 		return cachedTargets;
 	}
@@ -701,7 +744,7 @@ unordered_set<string> Entity::getTargets() {
 	for (const string& key : targetKeys) {
 		string val = getKeyvalue(key);
 		if (val.size()) {
-			cachedTargets.insert(val);
+			cachedTargets.insert(make_string_t(val));
 		}
 	}
 
@@ -716,7 +759,7 @@ unordered_set<string> Entity::getTargets() {
 			if (hashPos != string::npos) {
 				tname = tname.substr(0, hashPos);
 			}
-			cachedTargets.insert(tname);
+			cachedTargets.insert(make_string_t(tname));
 		}
 	}
 
@@ -730,15 +773,15 @@ bool Entity::hasTarget(string checkTarget) {
 		getTargets();
 	}
 
-	return cachedTargets.find(checkTarget) != cachedTargets.end();
+	return cachedTargets.find(to_string_t(checkTarget)) != cachedTargets.end();
 }
 
-bool Entity::hasTarget(const unordered_set<string>& checkNames) {
+bool Entity::hasTarget(const unordered_set<string_t>& checkNames) {
 	if (!targetsCached) {
 		getTargets();
 	}
 
-	for (const string& name : checkNames) {
+	for (string_t name : checkNames) {
 		if (cachedTargets.find(name) != cachedTargets.end()) {
 			return true;
 		}
@@ -784,15 +827,19 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 int Entity::getMemoryUsage() {
 	int size = sizeof(Entity);
 
-	for (string tar: cachedTargets) {
-		size += tar.size();
-	}
+	size += (cachedTargets.size() + cachedTargetnames.size()) * sizeof(string_t);
+
 	for (int i = 0; i < keyOrder.size(); i++) {
 		size += keyOrder[i].size();
 	}
 	for (const auto& entry : keyvalues) {
 		size += entry.first.size() + entry.second.size();
 	}
+
+	size += cachedAllKvStr.size();
+	size += cachedMdlCname.size();
+	size += cachedClassname.size();
+	size += cachedTargetname.size();
 
 	return size;
 }

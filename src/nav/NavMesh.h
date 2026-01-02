@@ -52,5 +52,7 @@ public:
 
 	vector<Polygon3D> getPolys();
 
+	int calcMemoryUsage();
+
 private:
 };

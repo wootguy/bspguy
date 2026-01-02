@@ -828,3 +828,68 @@ void Fgd::sortClasses() {
 	std::sort(pointEntGroups.begin(), pointEntGroups.end(), sortFgdGroups);
 	std::sort(solidEntGroups.begin(), solidEntGroups.end(), sortFgdGroups);
 }
+
+int KeyvalueChoice::calcMemoryUsage() {
+	int bytes = sizeof(KeyvalueChoice);
+	bytes += name.size() + svalue.size() + defaultValue.size() + desc.size();
+	return bytes;
+}
+
+int KeyvalueDef::calcMemoryUsage() {
+	int bytes = sizeof(KeyvalueDef);
+	bytes += name.size() + valueType.size() + smartName.size() + description.size() + defaultValue.size()
+		+ fgdSource.size() + sourceDesc.size();
+	for (KeyvalueChoice& choice : choices) {
+		bytes += choice.calcMemoryUsage();
+	}
+	return bytes;
+}
+
+int FgdClass::calcMemoryUsage() {
+	int bytes = sizeof(FgdClass);
+	bytes += name.size() + description.size() + url.size() + model.size() + sprite.size()
+		+ iconSprite.size() + iconColorKey.size();
+
+	for (int i = 0; i < 32; i++) {
+		bytes += spawnFlagDescs[i].size();
+		bytes += spawnFlagNames[i].size();
+	}
+	for (const string& s : baseClasses) {
+		bytes += s.size();
+	}
+	for (auto item : otherTypes) {
+		bytes += item.first.size() + item.second.size();
+	}
+	for (KeyvalueDef& def : keyvalues) {
+		bytes += def.calcMemoryUsage();
+	}
+
+	return bytes;
+}
+
+int FgdGroup::calcMemoryUsage() {
+	return sizeof(FgdGroup) + groupName.size() + classes.size() * sizeof(FgdClass*);
+}
+
+int Fgd::calcMemoryUsage() {
+	int bytes = sizeof(Fgd);
+	bytes += path.size() + name.size();
+
+	for (FgdClass* clazz : classes) {
+		bytes += clazz->calcMemoryUsage();
+	}
+
+	for (auto item : classMap) {
+		bytes += item.first.size() + sizeof(FgdClass*);
+	}
+
+	for (FgdGroup& group : pointEntGroups) {
+		bytes += group.calcMemoryUsage();
+	}
+
+	for (FgdGroup& group : solidEntGroups) {
+		bytes += group.calcMemoryUsage();
+	}
+
+	return bytes;
+}

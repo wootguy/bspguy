@@ -30,6 +30,8 @@ struct LeafLink {
 	
 	// for debugging
 	Polygon3D linkArea; // region in which leaves are making contact
+
+	int calcMemoryUsage() { return sizeof(LeafLink) + linkArea.calcMemoryUsage(); }
 };
 
 struct EntState {
@@ -68,6 +70,8 @@ struct LeafNode {
 	bool isInside(vec3 p, float epsilon=0.0f);
 
 	bool intersects(Polygon3D& poly);
+
+	int calcMemoryUsage();
 };
 
 
@@ -114,5 +118,5 @@ public:
 
 	LeafNode* findEntNode(int entidx);
 
-private:	
+	int calcMemoryUsage();
 };

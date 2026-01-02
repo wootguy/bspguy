@@ -36,6 +36,9 @@ public:
 
     void shiftLeafIds(int shiftStart, int shiftAmount);
 
+    int calcMemoryUsage();
+    void calcMemoryUsage(LeafOctant* node, int& usage);
+
 private:
     void buildOctree(LeafOctant* node, int currentDepth);
 

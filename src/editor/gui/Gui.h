@@ -121,6 +121,8 @@ public:
 	void showWidget(int id, bool showNotHide);
 	void addText(Text2D text);
 
+	int calcMemUsage();
+
 private:
 	MenuBar* menuBar = NULL;
 
@@ -137,6 +139,8 @@ private:
 
 	int contextMenuEnt = -1; // open entity context menu if >= 0
 	int emptyContextMenu = 0; // open context menu for rightclicking world/void
+	int imguiDrawListBytes;
+	int fontBytes;
 
 	int copiedMiptex = -1;
 

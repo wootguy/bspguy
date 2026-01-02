@@ -147,3 +147,18 @@ void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int current
         }
     }
 }
+
+int LeafOctree::calcMemoryUsage() {
+    int bytes = sizeof(LeafOctree);
+    calcMemoryUsage(root, bytes);
+    return bytes;
+}
+
+void LeafOctree::calcMemoryUsage(LeafOctant* node, int& usage) {
+    usage += sizeof(LeafOctant) + sizeof(uint16_t)*node->leaves.size();
+
+    for (int i = 0; i < 8; ++i) {
+        if (node->children[i])
+            calcMemoryUsage(node->children[i], usage);
+    }
+}

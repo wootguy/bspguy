@@ -15,6 +15,7 @@ Texture::Texture(int width, int height) {
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
 	this->data = new uint8_t[width*height*sizeof(COLOR4)];
+	this->format = GL_RGBA;
 	arrayId = -1;
 	layer = 0;
 	is3d = false;
@@ -27,6 +28,7 @@ Texture::Texture(int width, int height, int depth) {
 	this->nearFilter = GL_LINEAR;
 	this->farFilter = GL_LINEAR_MIPMAP_LINEAR;
 	this->data = new uint8_t[width * height * depth * sizeof(COLOR4)];
+	this->format = GL_RGBA;
 	arrayId = -1;
 	layer = 0;
 	is3d = true;
@@ -191,6 +193,7 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 		return;
 	}
 
+	this->format = format;
 	this->isLightmap = lightmap;
 	if (uploaded) {
 		g_renderStats.texMem -= uploadedDataSize;
@@ -314,4 +317,18 @@ void Texture::bind()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	}
+}
+
+
+int Texture::calcMemoryUsage() {
+	int bytes = sizeof(Texture);
+	int bpp = getPixelBytes(format);
+	bytes += data ? width * height * depth * bpp : 0;
+
+	for (MipTexture& mip : mipmaps) {
+		bytes += sizeof(MipTexture);
+		bytes += mip.data ? mip.width * mip.height * bpp : 0;
+	}
+
+	return bytes;
 }
