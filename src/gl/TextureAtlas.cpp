@@ -21,7 +21,7 @@ TextureNode::~TextureNode(void)
 	delete child[1];
 }
 
-bool TextureNode::insert(int iw, int ih, int& outX, int& outY)
+bool TextureNode::insert(int iw, int ih, uint16_t& outX, uint16_t& outY)
 {
 	if (child[0] != NULL) // not a leaf, try putting into child nodes
 	{
@@ -90,7 +90,7 @@ TextureAtlas::~TextureAtlas(void)
 	delete[] zones;
 }
 
-bool TextureAtlas::insert(int id, int iw, int ih, int& outX, int& outY) {
+bool TextureAtlas::insert(int id, int iw, int ih, uint16_t& outX, uint16_t& outY) {
 	int subAtlas = id % (subdivisions * subdivisions);
 	int subAtlasX = subAtlas % subdivisions;
 	int subAtlasY = subAtlas / subdivisions;

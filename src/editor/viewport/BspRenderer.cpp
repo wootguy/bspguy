@@ -732,7 +732,12 @@ void BspRenderer::preRenderFaces() {
 
 	for (int i = 0; i < map->faceCount; i++) {
 		Polygon3D poly = Polygon3D(map->get_face_verts(i), true);
-		facePolys.push_back(poly);
+		PvsPoly pvsPoly;
+		pvsPoly.verts = poly.verts;
+		pvsPoly.maxs = poly.worldMaxs;
+		pvsPoly.mins = poly.worldMins;
+		pvsPoly.normal = poly.plane_z;
+		facePolys.push_back(pvsPoly);
 
 		BSPFACE& face = map->faces[i];
 		for (int k = 0; k < MAXLIGHTMAPS; k++) {
@@ -3032,17 +3037,18 @@ void BspRenderer::drawPvs() {
 }
 
 void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frustum* frustum, bool makeBuffer, vector<vec3>& allVerts) {
-	Polygon3D& poly = facePolys[faceIdx];
+	PvsPoly& poly = facePolys[faceIdx];
 
 	BSPFACE& face = map->faces[faceIdx];
 	if (map->texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)
 		return; // special faces not rendered
 
-	if (poly.distance(viewOrigin - faceOffset) > 0) {
+	float dist = dotProduct((viewOrigin - faceOffset) - poly.verts[0], poly.normal);
+	if (dist > 0) {
 		return; // back face culled
 	}
 
-	if (!isBoxInView(faceOffset + poly.worldMins, faceOffset + poly.worldMaxs, *frustum, 0))
+	if (!isBoxInView(faceOffset + poly.mins, faceOffset + poly.maxs, *frustum, 0))
 		return; // frustum culled
 
 	pvsDat->wpoly++;

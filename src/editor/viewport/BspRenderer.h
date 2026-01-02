@@ -33,11 +33,11 @@ class Wad;
 
 struct LightmapInfo {
 	// each face can have 4 lightmaps, and those may be split across multiple atlases
-	int atlasId[MAXLIGHTMAPS];
-	int x[MAXLIGHTMAPS];
-	int y[MAXLIGHTMAPS];
+	uint16_t atlasId[MAXLIGHTMAPS];
+	uint16_t x[MAXLIGHTMAPS];
+	uint16_t y[MAXLIGHTMAPS];
 
-	int w, h;
+	uint16_t w, h;
 
 	float midTexU, midTexV;
 	float midPolyU, midPolyV;
@@ -47,7 +47,7 @@ struct LightmapInfo {
 struct SubTexture {
 	int idx; // texture index
 	int atlasId;
-	int x, y, w, h;
+	uint16_t x, y, w, h;
 	int sz;
 };
 
@@ -138,6 +138,13 @@ struct MegaRenderClipnodes {
 	VertexBuffer* buffer[MAX_MAP_HULLS+1];
 	int totalVerts[MAX_MAP_HULLS+1]; // extra hull for the automatic hull mode
 	vector<int> refs; // which entities to load vertices from
+};
+
+// data needed to check if a face is in the PVS
+struct PvsPoly {
+	vec3 normal;
+	vec3 mins, maxs;
+	vector<vec3> verts;
 };
 
 class BspRenderer {
@@ -247,7 +254,7 @@ private:
 	FaceMath* faceMaths = NULL;
 	VertexBuffer* pointEnts = NULL;
 	VertexBuffer* skyBoxBuffer = NULL;
-	vector<Polygon3D> facePolys; // for wpoly calculations
+	vector<PvsPoly> facePolys; // for wpoly calculations
 
 	// textures loaded in a separate thread
 	Texture** glTexturesSwap;

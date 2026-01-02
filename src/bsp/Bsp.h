@@ -64,7 +64,7 @@ struct AtlasLightmap {
 	int idx;
 	int layer;
 	int lightmapSz;
-	int x, y, w, h; // position in atlas
+	uint16_t x, y, w, h; // position in atlas
 };
 
 class Bsp

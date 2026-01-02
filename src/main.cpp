@@ -11,6 +11,7 @@
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
+// - lower mem usage (pal textures + wtf is cpu saving)
 // - mega buffer for leaves
 // - all name tags expensive even with nothing shown
 // - name tag render distance
