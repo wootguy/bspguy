@@ -56,6 +56,8 @@ struct Text2D {
 		: text(text), x(pos.x), y(pos.y), align(align), color(color) {}
 };
 
+#define MAX_GUI_NAME_TAG_CHARS (8192) // imgui crashes with too much text on screen
+
 class Editor;
 
 extern int g_font_scale_base;
@@ -141,6 +143,7 @@ private:
 	float uiScale;
 
 	vector<Text2D> texts;
+	int numWantTextChars = 0;
 	vector<int> popupStack; // return to a popup after dismissing another
 
 	void drawWidgets();

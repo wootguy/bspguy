@@ -878,6 +878,9 @@ void Entity::clearCache() {
 	hasCachedRotMatrixes = false;
 	hasCachedFgdTint = false;
 	hasCachedTargetnames = false;
+	didStudioDraw = false;
+	cachedMdlCname = "";
+	cachedFgdTint = COLOR3(0, 0, 0);
 	cachedMdl = NULL;
 	lastDrawCall = 0;
 	drawFrame = 0;

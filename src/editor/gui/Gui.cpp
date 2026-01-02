@@ -1461,6 +1461,11 @@ void Gui::drawWelcomePopup() {
 void Gui::drawDebugText() {
 	ImDrawList* imdl = ImGui::GetBackgroundDrawList();
 
+	if (numWantTextChars > MAX_GUI_NAME_TAG_CHARS) {
+		debugf("Too many GUI text chars! %d > %d\n", numWantTextChars, MAX_GUI_NAME_TAG_CHARS);
+	}
+	numWantTextChars = 0;
+
 	for (Text2D& text : texts) {
 		ImU32 color = IM_COL32(text.color.r, text.color.g, text.color.b, text.color.a);
 		ImVec2 pos = ImVec2(text.x, text.y);
@@ -1534,6 +1539,16 @@ string Gui::getUserLayoutPath() {
 }
 
 void Gui::addText(Text2D text) {
+	if (text.text.size() > 64) {
+		text.text = text.text.substr(0, 61) + "...";
+	}
+
+	numWantTextChars += text.text.size();
+
+	if (numWantTextChars >= MAX_GUI_NAME_TAG_CHARS) {
+		return;
+	}
+
 	texts.push_back(text);
 }
 

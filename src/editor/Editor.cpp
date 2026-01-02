@@ -519,6 +519,11 @@ void Editor::renderLoop() {
 	{
 		glfwPollEvents();
 
+		if (isIconified) {
+			sleepms(50);
+			continue;
+		}
+
 		float frameDelta = glfwGetTime() - lastFrameTime;
 		frameTimeScale = 0.05f / frameDelta;
 		float fps = 1.0f / frameDelta;
@@ -862,7 +867,11 @@ void Editor::drawViewport() {
 
 	// draw transparent entity faces
 	mapRenderer->renderSolids(orderedEnts, transformTarget == TRANSFORM_VERTEX, true);
-	mapRenderer->renderClipnodes(orderedEnts, clipnodeRenderHull);
+
+	// don't draw clipnodes in leaf mode because they're the same color/style and confuse picking
+	if (pickMode != PICK_LEAF)
+		mapRenderer->renderClipnodes(orderedEnts, clipnodeRenderHull);
+
 	glCheckError("Rendering BSP (transparency pass)");
 
 	if (mapArrangeMode)
@@ -1076,8 +1085,10 @@ void Editor::drawMouseObjects() {
 		g_shaders.color->bind();
 		g_shaders.color->pushMatrix(MAT_PROJECTION);
 		g_shaders.color->pushMatrix(MAT_VIEW);
+		g_shaders.color->pushMatrix(MAT_MODEL);
 		projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
 		view.loadIdentity();
+		model.loadIdentity();
 		g_shaders.color->updateMatrixes();
 		glDisable(GL_DEPTH_TEST);
 
@@ -1093,7 +1104,9 @@ void Editor::drawMouseObjects() {
 			drawRect2D(center - vec2(len, thick / 2), vec2(len * 2, thick), COLOR4(255, 255, 255, 255));
 			drawRect2D(center - vec2(thick / 2, len), vec2(thick, len * 2), COLOR4(255, 255, 255, 255));
 		}
-		if (isBoxSelecting && (boxSelectEnd - boxSelectStart).length() > 8) {
+
+		bool boxBigEnough = (boxSelectEnd - boxSelectStart).length() > 8;
+		if (isBoxSelecting && boxBigEnough && draggingAxis == -1) {
 			drawLine2D(vec2(boxSelectStart.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectStart.y), COLOR4(255, 255, 255, 255));
 			drawLine2D(vec2(boxSelectEnd.x, boxSelectStart.y), vec2(boxSelectEnd.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
 			drawLine2D(vec2(boxSelectEnd.x, boxSelectEnd.y), vec2(boxSelectStart.x, boxSelectEnd.y), COLOR4(255, 255, 255, 255));
@@ -1103,6 +1116,7 @@ void Editor::drawMouseObjects() {
 		glEnable(GL_DEPTH_TEST);
 		g_shaders.color->popMatrix(MAT_PROJECTION);
 		g_shaders.color->popMatrix(MAT_VIEW);
+		g_shaders.color->popMatrix(MAT_MODEL);
 	}
 }
 
@@ -1271,9 +1285,9 @@ void Editor::drawModelOrigin() {
 		vertDimColor = { 32, 32, 32, 255 };
 	}
 
-	vec3 ori = transformedOrigin + renderOffset;
+	vec3 ori = transformedOrigin;
 	float s = (ori - cameraOrigin).length() * vertExtentFactor;
-	ori = ori.flip();
+	ori = ori.flip() + renderOffset;
 
 	vec3 min = vec3(-s, -s, -s) + ori;
 	vec3 max = vec3(s, s, s) + ori;
@@ -1630,12 +1644,15 @@ void Editor::vertexEditControls() {
 void Editor::cameraPickingControls() {
 	static bool transforming;
 	static bool clickedInViewport; // fix select from mouse press in imgui then release in viewport
+	static bool clickedOnAxes;
 
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-		transforming = transformAxisControls();
-
-		if (oldLeftMouse != GLFW_PRESS)
+		if (oldLeftMouse != GLFW_PRESS) {
 			clickedInViewport = true;
+			clickedOnAxes = hoverAxis != -1;
+		}
+
+		transforming = clickedOnAxes ? transformAxisControls() : false;
 
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -1694,7 +1711,6 @@ void Editor::cameraPickingControls() {
 		}
 	}
 	else { // left mouse not pressed
-		pickClickHeld = false;
 		if (draggingAxis != -1) {
 			draggingAxis = -1;
 			applyTransform();
@@ -2115,7 +2131,20 @@ void Editor::globalShortcutControls() {
 	if (anyCtrlPressed && pressed[GLFW_KEY_Y] && !oldPressed[GLFW_KEY_Y]) {
 		redo();
 	}
+
+	static bool oldPreview = previewMode;
 	previewMode = pressed[GLFW_KEY_R];
+
+	if (previewMode != oldPreview) {
+		mapRenderer->reloadMegaBuffers();
+		if (!previewMode) {
+			for (Entity* ent : mapRenderer->map->ents)
+				ent->didStudioDraw = false; // fix ents disappearing when models are disabled
+		}
+	}
+	oldPreview = previewMode;
+
+
 	if (!anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		cameraMouseCapture = !cameraMouseCapture;
 
@@ -2330,8 +2359,6 @@ void Editor::pickObject(bool boxSelect) {
 		mapRenderer->highlightPickedLeaves(true);
 	}
 
-	pickClickHeld = true;
-
 	updateEntConnections();
 }
 
@@ -2339,7 +2366,7 @@ bool Editor::transformAxisControls() {
 
 	TransformAxes& activeAxes = *(transformMode == TRANSFORM_SCALE ? &scaleAxes : &moveAxes);
 
-	if (!canTransform || pickClickHeld || pickInfo.getEntIndex() < 0) {
+	if (!canTransform || pickInfo.getEntIndex() < 0) {
 		return false;
 	}
 
@@ -2597,10 +2624,11 @@ void Editor::addMap(Bsp* map) {
 }
 
 void Editor::addNameTags() {
-	if (!(g_settings.render_flags & RENDER_NAME_TAGS))
-		return;
-
 	Bsp* map = mapRenderer->map;
+
+	bool renderAllTags = g_settings.render_flags & RENDER_NAME_TAGS;
+	if (!renderAllTags && pickInfo.ents.empty() || map->ents.empty())
+		return;
 
 	if (!map->valid || map->modelCount == 0)
 		return;
@@ -2609,6 +2637,18 @@ void Editor::addNameTags() {
 	for (int i : pickInfo.ents)
 		selected.insert(i);
 
+	struct TagEnt {
+		Entity* ent;
+		int idx;
+		float dist;
+		vec3 ori;
+		string text;
+		COLOR4 color;
+	};
+
+	vector<TagEnt> tags;
+	vec3 worldOffset = map->ents[0]->getOrigin();
+
 	for (int i = 0; i < map->ents.size(); i++) {
 		Entity* ent = map->ents[i];
 		if (ent->hidden)
@@ -2616,34 +2656,6 @@ void Editor::addNameTags() {
 
 		string tname = ent->getTargetname();
 		if (tname.empty())
-			continue;
-
-		vec3 ori = ent->getOrigin();
-		int modelIdx = ent->getBspModelIdx();
-
-		if (modelIdx == -1) {
-			if (!(g_settings.render_flags & RENDER_POINT_ENTS))
-				continue;
-
-			EntCube* cube = mapRenderer->pointEntRenderer->getEntCube(ent);
-			ori += vec3(0, 0, cube->mins.z);
-		}
-		else {
-			if (!(g_settings.render_flags & RENDER_ENTS))
-				continue;
-
-			BSPMODEL& model = map->models[modelIdx];
-			float oldZ = ori.z;
-			ori += model.nMins + (model.nMaxs - model.nMins) * 0.5f;
-			ori.z = oldZ + model.nMins.z;
-		}
-		
-		if ((ori - cameraOrigin).length() > g_settings.zFarMdl) {
-			continue;
-		}
-		vec3 tpos = worldToScreen(ori);
-		
-		if (tpos.z < 0)
 			continue;
 
 		bool isSelected = selected.count(i);
@@ -2667,10 +2679,44 @@ void Editor::addNameTags() {
 					isLinked = true;
 				}
 			}
-			
 		}
-		
-		if (!isSelected && !isLinked && map->pointContents(map->models[0].iHeadnodes[0], cameraOrigin, 0) != CONTENTS_SOLID) {
+
+		bool isColored = isSelected || isLinked;
+
+		if (!isColored && !renderAllTags)
+			continue;
+
+		vec3 ori = ent->getOrigin() + worldOffset;
+		int modelIdx = ent->getBspModelIdx();
+
+		if (modelIdx == -1) {
+			if (!(g_settings.render_flags & RENDER_POINT_ENTS))
+				continue;
+
+			EntCube* cube = mapRenderer->pointEntRenderer->getEntCube(ent);
+			ori += vec3(0, 0, cube->mins.z);
+		}
+		else {
+			if (!(g_settings.render_flags & RENDER_ENTS))
+				continue;
+
+			BSPMODEL& model = map->models[modelIdx];
+			float oldZ = ori.z;
+			ori += model.nMins + (model.nMaxs - model.nMins) * 0.5f;
+			ori.z = oldZ + model.nMins.z;
+		}
+
+		vec3 tpos = worldToScreen(ori);
+
+		if (tpos.z < 0)
+			continue;
+
+		float dist = (ori - cameraOrigin).length();
+		if (!isColored && dist > g_settings.zFarMdl) {
+			continue;
+		}
+
+		if (!isColored && map->pointContents(map->models[0].iHeadnodes[0], cameraOrigin, 0) != CONTENTS_SOLID) {
 			// TODO: trace lines are broken. Some faces don't clip the trace
 			TraceResult tr;
 			map->traceHull(cameraOrigin, ori, 0, &tr);
@@ -2678,8 +2724,25 @@ void Editor::addNameTags() {
 			if ((tr.vecEndPos - ori).length() > 32)
 				continue;
 		}
-		
-		gui->addText(Text2D(tpos.x, tpos.y, tname, TEXT2D_ALIGN_CENTER, color));
+
+		TagEnt tag;
+		tag.ent = ent;
+		tag.idx = i;
+		tag.dist = dist;
+		tag.color = color;
+		tag.text = tname;
+		tag.ori = tpos;
+		tag.dist = isColored ? dist * 0.00001f : dist; // always draw highlighted stuff first, less chance of limiting
+		tags.push_back(tag);
+	}
+
+	// in case some can't be drawn due to text limits
+	sort(tags.begin(), tags.end(), [](TagEnt& a, TagEnt& b) {
+		return a.dist < b.dist;
+	});
+
+	for (TagEnt& tag : tags) {
+		gui->addText(Text2D(tag.ori.x, tag.ori.y, tag.text, TEXT2D_ALIGN_CENTER, tag.color));
 	}
 }
 

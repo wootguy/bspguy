@@ -81,6 +81,21 @@ BaseRenderer* ModelRenderer::loadModel(Entity* ent) {
 		}
 	}
 
+	if (!g_app->previewMode) {
+		if (isMdlNotSpr) {
+			if (!(g_settings.render_flags & RENDER_STUDIO_MDL)) {
+				ent->hasCachedMdl = true; // wait until models/sprites flag is ticked
+				return NULL;
+			}
+		}
+		else {
+			if (!(g_settings.render_flags & RENDER_SPRITES)) {
+				ent->hasCachedMdl = true;
+				return NULL;
+			}
+		}
+	}
+
 	if (!foundModelKey) {
 		//logf("No model key found for '%s' (%s): %s\n", ent->getKeyvalue("targetname"].c_str(), ent->getKeyvalue("classname"].c_str(), model.c_str());
 		ent->hasCachedMdl = true;

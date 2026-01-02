@@ -104,7 +104,7 @@ public:
 	bool hideGui = false;
 	bool isFocused = false;
 	bool isHovered = false;
-	bool isIconified = false;
+	bool isIconified = false; // window is minimized
 	bool isLoading = false;
 
 	bool mapArrangeMode = false; // user is arranging maps for a multi-map merge
@@ -223,7 +223,6 @@ private:
 	int transformMode = TRANSFORM_MOVE;
 	int transformTarget = TRANSFORM_OBJECT;
 	bool showDragAxes = false;
-	bool pickClickHeld = true; // true if the mouse button is still held after picking an object
 	vec3 axisDragStart;
 	vector<vec3> axisDragEntOriginStart; // starting positions for entities being dragged by visual axes
 	vector<ScalableTexinfo> scaleTexinfos; // texture coordinates to scale

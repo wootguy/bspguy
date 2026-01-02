@@ -106,6 +106,9 @@ void TransformWidget::draw() {
 	bool inputsAreDragging = false;
 	bool canEditBspModel = app->pickInfo.getModel() && !app->modelUsesSharedStructures && app->isTransformableSolid;
 
+	if (!canEditBspModel)
+		app->transformTarget = TRANSFORM_OBJECT;
+
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(roundf(2.0f * uiScale), roundf(2.0f * uiScale)));
 	if (ImGui::BeginTable("TransformTable", 5, ImGuiTableFlags_SizingFixedFit)) {
 		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, uiScale * 60);

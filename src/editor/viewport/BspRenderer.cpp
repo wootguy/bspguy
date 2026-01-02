@@ -1163,10 +1163,18 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 }
 
 bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& groupb) {
-	if (groupa.arrayTextureIdx != groupb.arrayTextureIdx)
+	if (g_settings.texture_atlas) {
+		if (groupa.atlasTextureIdx != groupb.atlasTextureIdx)
+			return false;
+	}
+	else if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
+		if (groupa.arrayTextureIdx != groupb.arrayTextureIdx)
+			return false;
+	}
+	else if (groupa.texture != groupb.texture) {
 		return false;
-	if (groupa.atlasTextureIdx != groupb.atlasTextureIdx)
-		return false;
+	}
+	
 	if (groupa.transparent != groupb.transparent)
 		return false;
 
@@ -3312,9 +3320,13 @@ bool BspRenderer::pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& 
 				entIdx = i;
 				foundBetterPick = true;
 			}
-			else if (ent->cachedMdl && !ent->isIconSprite && !renderSmallSprites && ent->cachedMdl->pick(start, dir, ent, bestDist)) {
-				entIdx = i;
-				foundBetterPick = true;
+			else if (ent->cachedMdl) {
+				bool bigSprite = !ent->isIconSprite && !renderSmallSprites;
+				bool shouldPickModel = bigSprite || ent->cachedMdl->isStudioModel();
+				if (shouldPickModel && ent->cachedMdl->pick(start, dir, ent, bestDist)) {
+					entIdx = i;
+					foundBetterPick = true;
+				}
 			}
 		}
 	}

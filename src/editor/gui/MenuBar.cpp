@@ -919,13 +919,16 @@ void MenuBar::drawViewMenu() {
 				"to find connections depending on the game the map was compiled for."
 			);
 
-			if (ImGui::MenuItem("Name Tags", 0, g_settings.render_flags & RENDER_NAME_TAGS)) {
+			if (ImGui::MenuItem("All Name Tags", 0, g_settings.render_flags & RENDER_NAME_TAGS)) {
 				g_settings.render_flags ^= RENDER_NAME_TAGS;
 			}
-			tooltip("Display entity target names");
+			tooltip("Display entity target names for all entities, not just what is selected. "
+				"This may lag you hard and clutter your screen with an unreadable mess of text. "
+				"It may also save you some clicking.");
 
 			if (ImGui::MenuItem("Render Modes", 0, g_settings.render_flags & RENDER_RENDER_MODES)) {
 				g_settings.render_flags ^= RENDER_RENDER_MODES;
+				app->mapRenderer->reloadMegaBuffers();
 			}
 			tooltip("Models, sprites, and brushes render as they would in-game. "
 				"Entity rendermode, renderamt, and rendercolor keys are respected.\n\n"
@@ -937,10 +940,8 @@ void MenuBar::drawViewMenu() {
 			if (ImGui::MenuItem("Models", 0, g_settings.render_flags & RENDER_STUDIO_MDL)) {
 				g_settings.render_flags ^= RENDER_STUDIO_MDL;
 
-				if (!(g_settings.render_flags & RENDER_STUDIO_MDL)) {
-					for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
-						app->mapRenderer->map->ents[i]->didStudioDraw = false;
-					}
+				for (Entity* ent : app->ents()) {
+					ent->clearCache();
 				}
 			}
 			tooltip("Display game models instead of colored cubes where available.");
@@ -948,10 +949,8 @@ void MenuBar::drawViewMenu() {
 			if (ImGui::MenuItem("Sprites", 0, g_settings.render_flags & RENDER_SPRITES)) {
 				g_settings.render_flags ^= RENDER_SPRITES;
 
-				if (!(g_settings.render_flags & RENDER_SPRITES)) {
-					for (int i = 0; i < app->mapRenderer->map->ents.size(); i++) {
-						app->mapRenderer->map->ents[i]->didStudioDraw = false;
-					}
+				for (Entity* ent : app->ents()) {
+					ent->clearCache();
 				}
 			}
 			tooltip("Display sprites instead of colored cubes where available.");

@@ -8,23 +8,21 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - box select shown when moving worldspawn, can be activated during select too
-// - box select offset by world offset
-// - name tag render distance
-// - minimizing resizes widgets
 // - slow to select lots of ents
-// - more space for key names in smart edit
-// - show highlighted name tags with infinite distance and no world clipping
-// - name tags expensive even with nothing shown
-// - models loaded when i only wanted sprites
-// - can't select models by polys anymore
+// - slow to click with models/sprites enabled in bts_rc
 // - mega render updates too slow for every click
+
+// nice to have v6:
 // - even lower texture quality for maps with huge textures
 // - mega buffer for leaves
-// - rendering stats (context switches, polys drawn, data used)
-// - wrong textures in legacy high textures
+// - all name tags expensive even with nothing shown
+// - name tag render distance
 
 // todo:
+// model render mode scale
+// rendering stats (context switches, polys drawn, data used)
+// auto scale lightmaps when editing faces
+// show error dialog when limits exceeded
 // check for problems widget
 // folder picker for settings paths (tinyfd uses the annoying picker)
 // rad textures darker than they should be due to lightmaps

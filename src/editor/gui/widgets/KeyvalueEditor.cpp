@@ -395,7 +395,7 @@ void KeyvalueEditor::drawSmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, bool
 	};
 
 	static InputData inputData[MAX_KEYS_PER_ENT];
-	int keynameColWidth = std::min(400 * uiScale, ImGui::GetContentRegionAvail().x * 0.4f);
+	int keynameColWidth = std::min(400 * uiScale, ImGui::GetContentRegionAvail().x * 0.5f);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	if (ImGui::BeginTable("table", 2, ImGuiTableFlags_SizingFixedFit)) {

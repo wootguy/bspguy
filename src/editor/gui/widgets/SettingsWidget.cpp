@@ -109,6 +109,10 @@ void SettingsWidget::draw() {
 
 		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 210 * uiScale);
 
+		bool isLoading = app->isLoading;
+		if (isLoading)
+			ImGui::BeginDisabled();
+
 		if (ImGui::BeginCombo("Renderer", renderers[g_settings.renderer]))
 		{
 			if (ImGui::Selectable(renderers[0], g_settings.renderer == RENDERER_OPENGL_21)) {
@@ -161,6 +165,9 @@ void SettingsWidget::draw() {
 			}
 			ImGui::EndCombo();
 		}
+
+		if (isLoading)
+			ImGui::EndDisabled();
 
 		ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 		ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
