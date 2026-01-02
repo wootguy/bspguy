@@ -8,9 +8,6 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - slow to select lots of ents
-// - slow to click with models/sprites enabled in bts_rc
-// - mega render updates too slow for every click
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
@@ -20,7 +17,6 @@
 
 // todo:
 // model render mode scale
-// rendering stats (context switches, polys drawn, data used)
 // auto scale lightmaps when editing faces
 // show error dialog when limits exceeded
 // check for problems widget

@@ -32,6 +32,7 @@ class Entity
 {
 public:
 	vector<string> keyOrder;
+	string cachedAllKvStr; // full list of keys and values for updating the entity lump faster
 	bool hidden = false; // hidden in the 3d view
 	bool highlighted = false; // temporary within a single render call only
 
@@ -70,8 +71,10 @@ public:
 	bool isSprite();
 
 	string getTargetname();
-	unordered_set<string> getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
+	const unordered_set<string>& getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
 	string getClassname();
+
+	string getFullKvString();
 
 	vec3 getOrigin();
 

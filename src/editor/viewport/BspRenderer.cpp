@@ -1289,6 +1289,9 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		return;
 	}
 
+	static int createMillis = 0;
+	static int totalModelGroups = 0;
+
 	if (megaGroupUpdateProgress == -1) {
 		megaGroupUpdateStartTime = glfwGetTime();
 		for (MegaRenderGroup& mega : megaRenderGroups) {
@@ -1305,16 +1308,15 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		megaRenderGroups.clear();
 		megaGroupEnts.clear();
 
-		int totalModelGroups = allocMegaBufferData(ents);
+		totalModelGroups = allocMegaBufferData(ents);
 
 		megaGroupUpdateProgress = 0;
 
-		logf("Creating %d mega groups from %d model groups in %dms\n",
-			(int)megaRenderGroups.size(), totalModelGroups, (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000));
+		createMillis = (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000);
 		return; // draw frame now so that entities are highlighted
 	}
 
-	const int maxVertsPerUpdate = 16384;
+	const int maxVertsPerUpdate = 16384*1000;
 	int oldProgress = megaGroupUpdateProgress;
 	megaGroupUpdateProgress = 0;
 
@@ -1423,7 +1425,9 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 	megaGroupUpdateIdx = g_app->pickCount;
 	megaGroupUpdateProgress = -1;
 
-	logf("Finished generating mega render groups in %dms\n", (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000));
+	int updateMillis = (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000);
+	debugf("Created %d mega groups from %d model groups in %d + %dms\n",
+		(int)megaRenderGroups.size(), totalModelGroups, createMillis, updateMillis);
 }
 
 void BspRenderer::write_obj_file() {
@@ -1986,7 +1990,7 @@ void BspRenderer::preRenderEnts() {
 	glCheckError("BSP pre render ents");
 }
 
-void BspRenderer::refreshPointEnt(int entIdx) {
+void BspRenderer::refreshPointEnt(int entIdx, bool uploadBuffer) {
 	int skipIdx = 0;
 
 	if (entIdx == 0)
@@ -2024,8 +2028,10 @@ void BspRenderer::refreshPointEnt(int entIdx) {
 		verts[k].z += offset.z;
 	}
 
-	pointEnts->deleteBuffer();
-	pointEnts->upload();
+	if (uploadBuffer) {
+		pointEnts->deleteBuffer();
+		pointEnts->upload();
+	}
 }
 
 void BspRenderer::refreshEnt(int entIdx) {
@@ -3171,21 +3177,26 @@ void BspRenderer::updatePvs(vec3 viewOrigin) {
 	}
 }
 
-void rotateFaceMath(FaceMath& faceMath, mat4x4& rotation) {
+FaceMath rotateFaceMath(const FaceMath& faceMath, mat4x4& rotation) {
+	FaceMath out;
+
 	vec3 pointOnPlane = (faceMath.plane_z * faceMath.fdist);
 	pointOnPlane = (rotation * vec4(pointOnPlane, 1)).xyz();
-	faceMath.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
-	faceMath.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
-	faceMath.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
-	faceMath.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
-	faceMath.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
+	out.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
+	out.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
+	out.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
+	out.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
+	out.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
 
-	faceMath.localVerts = vector<vec2>(faceMath.verts.size());
+	out.verts.resize(faceMath.verts.size());
+	out.localVerts = vector<vec2>(faceMath.verts.size());
 	for (int k = 0; k < faceMath.verts.size(); k++) {
 		vec3 rotVert = (rotation * vec4(faceMath.verts[k], 1)).xyz();
-		faceMath.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
-		faceMath.verts[k] = rotVert;
+		out.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
+		out.verts[k] = rotVert;
 	}
+
+	return out;
 }
 
 void BspRenderer::pickFrustum(Frustum& frustum, unordered_set<int>& pickEnts,
@@ -3282,10 +3293,12 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 		if (g_app->hiddenFaces.count(model.iFirstFace + k))
 			continue;
 
-		FaceMath faceMath = faceMaths[model.iFirstFace + k];
+		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
 
 		if (hasAngles) {
-			rotateFaceMath(faceMath, angleTransform);
+			static FaceMath temp;
+			temp = rotateFaceMath(faceMath, angleTransform);
+			faceMath = temp;
 		}
 
 		BSPFACE& face = map->faces[model.iFirstFace + k];
@@ -3312,10 +3325,12 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
+			FaceMath& faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
-				rotateFaceMath(faceMath, angleTransform);
+				static FaceMath temp;
+				temp = rotateFaceMath(faceMath, angleTransform);
+				faceMath = temp;
 			}
 
 			if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
@@ -3443,10 +3458,12 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 		if (g_app->hiddenFaces.count(model.iFirstFace + k))
 			continue;
 
-		FaceMath faceMath = faceMaths[model.iFirstFace + k];
+		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
 
 		if (hasAngles) {
-			rotateFaceMath(faceMath, angleTransform);
+			static FaceMath temp = faceMath;
+			temp = rotateFaceMath(faceMath, angleTransform);
+			faceMath = temp;
 		}
 
 		/*
@@ -3487,10 +3504,12 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
+			FaceMath& faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
-				rotateFaceMath(faceMath, angleTransform);
+				static FaceMath temp = faceMath;
+				temp = rotateFaceMath(faceMath, angleTransform);
+				faceMath = temp;
 			}
 
 			float t = bestDist;

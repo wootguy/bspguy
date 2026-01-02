@@ -87,6 +87,7 @@ bool Entity::renameKey(string oldName, string newName) {
 void Entity::clearAllKeyvalues() {
 	keyOrder.clear();
 	keyvalues.clear();
+	cachedAllKvStr = "";
 	cachedModelIdx = -2;
 }
 
@@ -160,7 +161,7 @@ string Entity::getTargetname() {
 	return cachedTargetname;
 }
 
-unordered_set<string> Entity::getAllTargetnames() {
+const unordered_set<string>& Entity::getAllTargetnames() {
 	if (hasCachedTargetnames) {
 		return cachedTargetnames;
 	}
@@ -203,6 +204,18 @@ string Entity::getClassname() {
 	hasCachedClassname = true;
 
 	return cachedClassname;
+}
+
+string Entity::getFullKvString() {
+	if (cachedAllKvStr.size()) {
+		return cachedAllKvStr;
+	}
+
+	for (int k = 0; k < keyOrder.size(); k++) {
+		cachedAllKvStr += "\"" + keyOrder[k] + "\" \"" + keyvalues[keyOrder[k]] + "\"\n";
+	}
+
+	return cachedAllKvStr;
 }
 
 vec3 Entity::getOrigin() {
@@ -764,6 +777,8 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 			}
 		}
 	}
+
+	clearCache();
 }
 
 int Entity::getMemoryUsage() {
@@ -880,6 +895,7 @@ void Entity::clearCache() {
 	hasCachedTargetnames = false;
 	didStudioDraw = false;
 	cachedMdlCname = "";
+	cachedAllKvStr = "";
 	cachedFgdTint = COLOR3(0, 0, 0);
 	cachedMdl = NULL;
 	lastDrawCall = 0;

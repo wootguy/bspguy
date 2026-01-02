@@ -4606,10 +4606,7 @@ void Bsp::update_ent_lump(bool stripNodes) {
 
 		ent_data << "{\n";
 
-		for (int k = 0; k < ents[i]->keyOrder.size(); k++) {
-			string key = ents[i]->keyOrder[k];
-			ent_data << "\"" << key << "\" \"" << ents[i]->getKeyvalue(key) << "\"\n";
-		}
+		ent_data << ents[i]->getFullKvString();
 
 		ent_data << "}";
 		if (i < ents.size() - 1) {

@@ -1013,6 +1013,7 @@ void KeyvalueEditor::drawRawEditTab() {
 					string temp = ent->keyOrder[i];
 					ent->keyOrder[i] = ent->keyOrder[n_next];
 					ent->keyOrder[n_next] = temp;
+					ent->cachedAllKvStr = "";
 
 					// fix false-positive error highlight
 					ignoreErrors = 2;

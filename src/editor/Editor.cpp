@@ -1337,19 +1337,20 @@ void Editor::drawTransformAxes() {
 }
 
 void Editor::drawEntConnections() {
-	if (entConnections && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
+	if (g_settings.render_flags & RENDER_ENT_CONNECTIONS) {
 		model.loadIdentity();
 		model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
 		g_shaders.color->updateMatrixes();
-		entConnections->draw(GL_LINES);
-	}
 
-	if (entConnectionPoints && (g_settings.render_flags & RENDER_ENT_CONNECTIONS)) {
-		model.loadIdentity();
-		g_shaders.color->updateMatrixes();
-		glDisable(GL_DEPTH_TEST);
-		entConnectionPoints->draw(GL_TRIANGLES);
-		glEnable(GL_DEPTH_TEST);
+		if (entConnections) {
+			entConnections->draw(GL_LINES);
+		}
+
+		if (entConnectionPoints) {
+			glDisable(GL_DEPTH_TEST);
+			entConnectionPoints->draw(GL_TRIANGLES);
+			glEnable(GL_DEPTH_TEST);
+		}
 	}
 }
 
@@ -2156,8 +2157,6 @@ void Editor::globalShortcutControls() {
 }
 
 void Editor::pickObject(bool boxSelect) {
-	float startTime = glfwGetTime();
-
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
@@ -2171,9 +2170,11 @@ void Editor::pickObject(bool boxSelect) {
 		for (int entIdx : pickInfo.ents) {
 			Entity* ent = pickInfo.getMap()->ents[entIdx];
 			if (!ent->isBspModel()) {
-				mapRenderer->refreshPointEnt(entIdx);
+				mapRenderer->refreshPointEnt(entIdx, false);
 			}
 		}
+		mapRenderer->pointEnts->deleteBuffer();
+		mapRenderer->pointEnts->upload();
 	}
 
 	unordered_set<int> boxSelectEnts, boxSelectFaces, boxSelectLeaves;
@@ -2269,8 +2270,6 @@ void Editor::pickObject(bool boxSelect) {
 		}
 		//logf("%d selected ents\n", pickInfo.ents.size());		
 
-		postSelectEnt();
-
 		if (pickInfo.getEnt()) {
 			updateModelVerts();
 			if (pickInfo.getEnt() && pickInfo.getEnt()->isBspModel())
@@ -2356,9 +2355,7 @@ void Editor::pickObject(bool boxSelect) {
 		mapRenderer->highlightPickedLeaves(true);
 	}
 
-	updateEntConnections();
-
-	debugf("Pick finished in %dms\n", (int)((glfwGetTime() - startTime) * 1000));
+	postSelectEnt();
 }
 
 bool Editor::transformAxisControls() {
@@ -3113,6 +3110,8 @@ void Editor::updateEntConnections() {
 		return;
 	}
 
+	unordered_set<int> testedTargets;
+
 	if (pickInfo.getMap() && pickInfo.getEnt()) {
 		Bsp* map = pickInfo.getMap();
 
@@ -3121,18 +3120,20 @@ void Editor::updateEntConnections() {
 		const COLOR4 bothColor = { 0, 255, 0, 255 };
 
 		for (int i = 0; i < pickInfo.ents.size(); i++) {
-			int entindx = pickInfo.ents[i];
-			Entity* self = map->ents[entindx];
-			unordered_set<string> selfNames = self->getAllTargetnames();
+			int entidx = pickInfo.ents[i];
+			Entity* self = map->ents[entidx];
+			const unordered_set<string>& selfNames = self->getAllTargetnames();
 
 			for (int k = 0; k < map->ents.size(); k++) {
 				Entity* ent = map->ents[k];
 
-				if (k == entindx)
+				if (k == entidx)
 					continue;
 
+				if (testedTargets.count(k))
+					continue;
 				
-				unordered_set<string> tnames = ent->getAllTargetnames();
+				const unordered_set<string>& tnames = ent->getAllTargetnames();
 				bool isTarget = tnames.size() && self->hasTarget(tnames);
 				bool isCaller = selfNames.size() && ent->hasTarget(selfNames);
 
@@ -3157,6 +3158,8 @@ void Editor::updateEntConnections() {
 					entConnectionLinks.push_back(link);
 				}
 			}
+
+			testedTargets.insert(entidx);
 		}
 
 		if (entConnectionLinks.empty()) {
@@ -4079,9 +4082,11 @@ void Editor::deselectObject() {
 	for (int entIdx : pickInfo.ents) {
 		Entity* ent = pickInfo.getMap()->ents[entIdx];
 		if (!ent->isBspModel()) {
-			mapRenderer->refreshPointEnt(entIdx);
+			mapRenderer->refreshPointEnt(entIdx, false);
 		}
 	}
+	mapRenderer->pointEnts->deleteBuffer();
+	mapRenderer->pointEnts->upload();
 
 	pickInfo.deselect();
 	isTransformableSolid = true;

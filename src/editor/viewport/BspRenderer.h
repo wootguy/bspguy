@@ -142,6 +142,7 @@ struct MegaRenderClipnodes {
 
 class BspRenderer {
 	friend class ModelRenderer;
+	friend class Editor;
 public:
 	Bsp* map;
 	PointEntRenderer* pointEntRenderer;
@@ -185,7 +186,7 @@ public:
 	void refreshMegaBuffers(vector<OrderedEnt>& ents); // update combined render groups for batching solid entity rendering
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
-	void refreshPointEnt(int entIdx);
+	void refreshPointEnt(int entIdx, bool uploadBuffer=true);
 
 	void reload(); // reloads all geometry, textures, and lightmaps
 	void reloadTextures(bool reloadNow=false);
