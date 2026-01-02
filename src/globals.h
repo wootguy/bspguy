@@ -76,6 +76,27 @@ struct GlobalShaders {
 	ShaderProgram* sprOutline = NULL;
 };
 
+struct RenderStats {
+	int64_t numVerts = 0;
+	int64_t numObjects = 0;
+	int64_t numShaderBinds = 0;
+	int64_t numTextureBinds = 0;
+	int64_t numMatrixUploads = 0;
+	int64_t numUniformsUploaded = 0;
+
+	int64_t vertMem = 0;
+	int64_t texMem = 0;
+
+	void clear() {
+		numVerts = 0;
+		numObjects = 0;
+		numShaderBinds = 0;
+		numTextureBinds = 0;
+		numMatrixUploads = 0;
+		numUniformsUploaded = 0;
+	}
+};
+
 extern bool g_verbose;
 extern ProgressMeter g_progress;
 extern std::vector<std::string> g_log_buffer;
@@ -87,6 +108,7 @@ extern Editor* g_app;
 extern MapLimits g_limits;
 extern MapLimits g_engine_limits[ENGINE_TYPES];
 extern GlobalShaders g_shaders;
+extern RenderStats g_renderStats;
 
 extern std::string g_config_dir;
 extern std::string g_settings_path;

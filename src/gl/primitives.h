@@ -19,27 +19,30 @@ struct tVert
 	vec3 pos() { return vec3(x, y, z); }
 };
 
-struct lightmapVert
-{
-	// texture coordinates
-	float u, v, w; // w = texture layer in array texture
-	float ux, uy, uw, uh; // position and dimensions of the texture in an atlas
-	uint8_t bx, by, bz; // barycentric coordinates for wireframe (edge detection)
-	uint8_t ex, ey, ez; // mark which edges should be enabled in the wireframe
+struct lightmapVert {
+	float u, v; // texture coordinates
 
-	// lightmap texture coordinates
-	// last value scales the lightmap brightness
-	float luv[MAXLIGHTMAPS][3];
+	// position and dimensions of texture in an atlas (multiples of 16)
+	// If array textures or 3d textures are enabled, then:
+	// aw=0, ah=0, ax=array layer (low byte), ay=array layer (high byte)
+	uint8_t ax, ay, aw, ah; 
 
-	float r, g, b, a;
+	uint16_t edges; // lower 3-bits: which edges to draw. upper 3 bits: x,y,z baycentric coords (0/1). 1 byte padding
+
+	// lightmap texture coordinates (coords are 1/16 scale, so max atlas size is 4096)
+	uint16_t luv[MAXLIGHTMAPS][2];
+
+	// lightmap brightness
+	uint8_t lb[MAXLIGHTMAPS];
+
+	COLOR4 c;
 	float x, y, z;
 
 	vec3 pos() { return vec3(x, y, z); }
 };
 
 struct clipnodeVert {
-	uint8_t bx, by, bz; // barycentric coordinates for wireframe (edge detection)
-	uint8_t ex, ey, ez; // mark which edges should be enabled in the wireframe
+	uint16_t edges;  // lower 3-bits: which edges to draw. upper 3 bits: x,y,z baycentric coords (0/1). 1 byte padding
 
 	COLOR4 c;
 	vec3 pos;

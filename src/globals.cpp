@@ -19,6 +19,7 @@ MapLimits g_limits;
 MapLimits g_engine_limits[ENGINE_TYPES];
 
 GlobalShaders g_shaders;
+RenderStats g_renderStats;
 
 int g_max_texture_size = 512;
 int g_max_texture_array_layers = 512;

@@ -8,10 +8,11 @@ uniform vec4 wireframeColorBright;
 uniform float wireframeThickness;
 
 varying vec3 fTex;
-varying vec3 fLightmapTex0;
-varying vec3 fLightmapTex1;
-varying vec3 fLightmapTex2;
-varying vec3 fLightmapTex3;
+varying vec2 fLightmapTex0;
+varying vec2 fLightmapTex1;
+varying vec2 fLightmapTex2;
+varying vec2 fLightmapTex3;
+varying vec4 fLightmapBright;
 varying vec4 fColor;
 varying vec3 fBary;
 varying vec3 fEdgeEnable;
@@ -36,10 +37,10 @@ void main()
 	if (fColor.a == 0.0)
 		discard;
 
-	vec3 lightmap = texture2D(sLightmapTex0, fLightmapTex0.xy).rgb * fLightmapTex0.z;
-	lightmap += texture2D(sLightmapTex1, fLightmapTex1.xy).rgb * fLightmapTex1.z;
-	lightmap += texture2D(sLightmapTex2, fLightmapTex2.xy).rgb * fLightmapTex2.z;
-	lightmap += texture2D(sLightmapTex3, fLightmapTex3.xy).rgb * fLightmapTex3.z;
+	vec3 lightmap = texture2D(sLightmapTex0, fLightmapTex0.xy).rgb * fLightmapBright.x;
+	lightmap += texture2D(sLightmapTex1, fLightmapTex1).rgb * fLightmapBright.y;
+	lightmap += texture2D(sLightmapTex2, fLightmapTex2).rgb * fLightmapBright.z;
+	lightmap += texture2D(sLightmapTex3, fLightmapTex3).rgb * fLightmapBright.w;
 	vec3 color = texel.rgb * lightmap * fColor.rgb;
 
 	vec4 texColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);

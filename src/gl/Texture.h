@@ -50,6 +50,7 @@ public:
 	bool uploaded = false;
 	bool isLightmap = false; // always filtered
 	bool is3d;
+	int uploadedDataSize;
 
 	Texture(int width, int height);
 	Texture(int width, int height, int depth);
@@ -62,7 +63,9 @@ public:
 	void generateMipMaps(int mipLevels, COLOR3 maskColor);
 
 	// upload the texture with the specified settings
-	void upload(int format, bool lighmap=false);
+	void upload(int format, bool lighmap=false, bool deleteData=true);
+
+	static int getPixelBytes(int format);
 
 	// use this texture for rendering
 	void bind();

@@ -194,18 +194,22 @@ void TextureArray::upload() {
 		if (buckets[i].count) {
 			bucketCount++;
 			textureCount += buckets[i].count;
-			//debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
+			debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
 			
 			int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
 
 			glBindTexture(glParam3d, buckets[i].glArrayId);
 			glTexImage3D(glParam3d, 0, GL_RGBA, sizeX, sizeY, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-			
+			g_renderStats.texMem += sizeX * sizeY * buckets[i].count * 4;
+
 			// allocate mipmaps (TODO: enable conditionally and only for texture arrays, 3D can't have mips)
 			if (g_opengl_texture_array_support) {
 				glTexImage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA, sizeX >> 1, sizeY >> 1, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 				glTexImage3D(GL_TEXTURE_2D_ARRAY, 2, GL_RGBA, sizeX >> 2, sizeY >> 2, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 				glTexImage3D(GL_TEXTURE_2D_ARRAY, 3, GL_RGBA, sizeX >> 3, sizeY >> 3, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+				g_renderStats.texMem += (sizeX >> 1) * (sizeY >> 1) * buckets[i].count * 4;
+				g_renderStats.texMem += (sizeX >> 2) * (sizeY >> 2) * buckets[i].count * 4;
+				g_renderStats.texMem += (sizeX >> 3) * (sizeY >> 3) * buckets[i].count * 4;
 			}
 
 			texDataSz += buckets[i].count * sizeX * sizeY * 3;
@@ -223,9 +227,6 @@ void TextureArray::upload() {
 								mip.width, mip.height, 1, GL_RGBA, GL_UNSIGNED_BYTE, mip.data);
 						}
 					}
-
-					delete[] buckets[i].textures[k]->data;
-					buckets[i].textures[k]->data = NULL;
 				}
 			}
 

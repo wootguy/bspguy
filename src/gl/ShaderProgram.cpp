@@ -70,6 +70,7 @@ void ShaderProgram::bind()
 {
 	if (g_active_shader_program != ID)
 	{
+		g_renderStats.numShaderBinds++;
 		g_active_shader_program = ID;
 		glUseProgram(ID);
 	}
@@ -95,6 +96,7 @@ void ShaderProgram::updateMatrixes()
 	*modelViewProjMat = *projMat * *modelViewMat;
 	*modelViewMat = modelViewMat->transpose();
 	*modelViewProjMat = modelViewProjMat->transpose();
+	g_renderStats.numMatrixUploads += 2;
 
 	if (modelViewID != -1)
 		glUniformMatrix4fv(modelViewID, 1, false, (float*)modelViewMat);
@@ -229,6 +231,8 @@ void ShaderProgram::setUniform(string uniformName, float value) {
 	if (uniform.location == -1)
 		return;
 
+	g_renderStats.numUniformsUploaded++;
+
 	if (uniform.type == UNIFORM_FLOAT) {
 		glUniform1f(uniform.location, value);
 	}
@@ -246,6 +250,8 @@ void ShaderProgram::setUniform(string uniformName, vec2 value) {
 	if (uniform.location == -1)
 		return;
 
+	g_renderStats.numUniformsUploaded++;
+
 	if (uniform.type == UNIFORM_VEC2) {
 		glUniform2f(uniform.location, value.x, value.y);
 	}
@@ -259,6 +265,8 @@ void ShaderProgram::setUniform(string uniformName, vec3 value) {
 
 	if (uniform.location == -1)
 		return;
+
+	g_renderStats.numUniformsUploaded++;
 
 	if (uniform.type == UNIFORM_VEC3) {
 		glUniform3f(uniform.location, value.x, value.y, value.z);
@@ -274,6 +282,8 @@ void ShaderProgram::setUniform(string uniformName, vec4 value) {
 	if (uniform.location == -1)
 		return;
 
+	g_renderStats.numUniformsUploaded++;
+
 	if (uniform.type == UNIFORM_VEC4) {
 		glUniform4f(uniform.location, value.x, value.y, value.z, value.w);
 	}
@@ -287,6 +297,8 @@ void ShaderProgram::setUniform(string uniformName, int value) {
 
 	if (uniform.location == -1)
 		return;
+
+	g_renderStats.numUniformsUploaded++;
 
 	if (uniform.type == UNIFORM_INT) {
 		glUniform1i(uniform.location, value);
@@ -305,6 +317,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2) {
 	if (uniform.location == -1)
 		return;
 
+	g_renderStats.numUniformsUploaded++;
+
 	if (uniform.type == UNIFORM_IVEC2) {
 		glUniform2i(uniform.location, value, value2);
 	}
@@ -318,6 +332,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 
 	if (uniform.location == -1)
 		return;
+
+	g_renderStats.numUniformsUploaded++;
 
 	if (uniform.type == UNIFORM_IVEC3) {
 		glUniform3i(uniform.location, value, value2, value3);
@@ -333,6 +349,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 	if (uniform.location == -1)
 		return;
 
+	g_renderStats.numUniformsUploaded++;
+
 	if (uniform.type == UNIFORM_IVEC4) {
 		glUniform4i(uniform.location, value, value2, value3, value4);
 	}
@@ -346,6 +364,8 @@ void ShaderProgram::setUniform(string uniformName, float* values, int count) {
 
 	if (uniform.location == -1)
 		return;
+
+	g_renderStats.numUniformsUploaded++;
 
 	switch (uniform.type) {
 	case UNIFORM_FLOAT:
@@ -381,6 +401,8 @@ void ShaderProgram::setUniform(string uniformName, int* values, int count) {
 
 	if (uniform.location == -1)
 		return;
+
+	g_renderStats.numUniformsUploaded++;
 
 	switch (uniform.type) {
 	case UNIFORM_INT:

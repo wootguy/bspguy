@@ -181,6 +181,7 @@ public:
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);
 	bool RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& groupb);
+	int allocMegaBufferData(vector<OrderedEnt>& ents);
 	void refreshMegaBuffers(vector<OrderedEnt>& ents); // update combined render groups for batching solid entity rendering
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
@@ -223,7 +224,7 @@ public:
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
 	EntCube* getEntCube(int idx);
 	void delayLoadData();
-	void reloadMegaBuffers() { megaGroupUpdateIdx = -1; }
+	void reloadMegaBuffers();
 
 private:
 	ShaderProgram* activeShader;
@@ -236,6 +237,9 @@ private:
 										 // used in many entities.
 	MegaRenderClipnodes megaRenderClipnodes; // same as groups but for clipnodes
 	int megaGroupUpdateIdx; // no update if this matches the last value, set to -1 to force an update
+	int megaGroupUpdateLastPickCount;
+	int megaGroupUpdateProgress; // used to limit buffers updated per frame to prevent lag on every click
+	float megaGroupUpdateStartTime;
 	unordered_set<int> megaGroupEnts; // ent indexes that are part of a mega group
 	RenderClipnodes* renderClipnodeDat = NULL;
 	RenderLeaves* renderLeafDat = NULL;
@@ -295,6 +299,9 @@ private:
 	bool leavesThreadFinished = false; // true if the loading thread is not running
 	bool leavesLoaded = false; // true if leaf data is ready to use
 	future<void> leavesFuture;
+
+	bool megaBufferThreadFinished = false; // true if the loading thread is not running
+	future<void> megaBufferFuture;
 
 	void loadLightmaps();
 	void loadClipnodes();

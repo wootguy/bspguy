@@ -197,6 +197,20 @@ void DebugWidget::draw() {
 		ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen);
 	}
 
+	if (ImGui::CollapsingHeader("Render Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::Text("Objects: %d", g_renderStats.numObjects);
+		ImGui::Text("Vertices: %d k", g_renderStats.numVerts / 1000);
+		ImGui::Text("Vertex Mem: %.2f MB", (float)g_renderStats.vertMem / (1024.0f*1024.0f));
+		ImGui::Text("Texture Mem: %.2f MB", (float)g_renderStats.texMem / (1024.0f*1024.0f));
+		ImGui::Text("Matrix uploads: %d", g_renderStats.numMatrixUploads);
+		ImGui::Text("Uniform uploads: %d", g_renderStats.numUniformsUploaded);
+		ImGui::Text("Texture binds: %d", g_renderStats.numTextureBinds);
+		ImGui::Text("Shader binds: %d", g_renderStats.numShaderBinds);
+		g_renderStats.clear();
+	}
+
+#ifdef DEBUG_MODE
 	if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::Text("DebugVec0 %6.2f %6.2f %6.2f", app->debugVec0.x, app->debugVec0.y, app->debugVec0.z);
@@ -207,4 +221,5 @@ void DebugWidget::draw() {
 		float mb = app->undoMemoryUsage / (1024.0f * 1024.0f);
 		ImGui::Text("Undo Memory Usage: %.2f MB\n", mb);
 	}
+#endif
 }

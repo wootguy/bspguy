@@ -909,12 +909,14 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		BSPMIPTEX* tex = map->get_texture(texinfo.iMiptex);
 		TexArrayOffset& texArrayOffset = miptexToTexArray[texinfo.iMiptex];
 		SubTexture& atlasInfo = textureAtlasInfos[texinfo.iMiptex];
-		float texArrayIdx = texArrayOffset.layer;
+		int texArrayIdx = texArrayOffset.layer;
 
+		/*
 		if (!g_opengl_texture_array_support) {
 			texArrayIdx /= (float)glTextureArray->buckets[texArrayOffset.arrayIdx].count;
-			texArrayIdx += 0.00001f; // nudge layer up a bit to prevent GL_NEAREST rounding down to a previous texture
+			texArrayIdx += 0.00001f; // nudge layer up a bit to prevent GL_NEAREST rounding down to a previous texture with 3d textures
 		}
+		*/
 
 		int texWidth, texHeight;
 		if (tex) {
@@ -937,8 +939,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		float lw = 0;
 		float lh = 0;
 		if (lightmapsGenerated) {
-			lw = (float)lmap->w / (float)lightmapAtlasSz;
-			lh = (float)lmap->h / (float)lightmapAtlasSz;
+			lw = (float)lmap->w;
+			lh = (float)lmap->h;
 		}
 
 		bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
@@ -963,10 +965,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			verts[e].y = vert.z;
 			verts[e].z = -vert.y;
 
-			verts[e].r = 1.0f;
-			verts[e].g = 1.0f;
-			verts[e].b = 1.0f;
-			verts[e].a = isSpecial ? 0.5f : 1.0f;
+			verts[e].c = COLOR4(255, 255, 255, isSpecial ? 128 : 255);
 
 			// texture coords
 			float tw = 1.0f / (float)texWidth;
@@ -975,19 +974,18 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			float fV = dotProduct(texinfo.vT, vert) + texinfo.shiftT;
 			verts[e].u = fU * tw;
 			verts[e].v = fV * th;
-			verts[e].w = texArrayIdx;
 
 			if (g_settings.texture_atlas) {
-				verts[e].ux = (atlasInfo.x / (float)textureAtlasSz);
-				verts[e].uy = (atlasInfo.y / (float)textureAtlasSz);
-				verts[e].uw = (atlasInfo.w / (float)textureAtlasSz);
-				verts[e].uh = (atlasInfo.h / (float)textureAtlasSz);
+				verts[e].ax = atlasInfo.x / 16;
+				verts[e].ay = atlasInfo.y / 16;
+				verts[e].aw = atlasInfo.w / 16;
+				verts[e].ah = atlasInfo.h / 16;
 			}
 			else {
-				verts[e].ux = 0;
-				verts[e].uy = 0;
-				verts[e].uw = 1;
-				verts[e].uh = 1;
+				verts[e].ax = texArrayIdx % 256;
+				verts[e].ay = texArrayIdx / 256;
+				verts[e].aw = 0;
+				verts[e].ah = 0;
 			}
 
 			// lightmap texture coords
@@ -995,14 +993,9 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 				float fLightMapU = lmap->midTexU + (fU - lmap->midPolyU) / 16.0f;
 				float fLightMapV = lmap->midTexV + (fV - lmap->midPolyV) / 16.0f;
 
-				float uu = (fLightMapU / (float)lmap->w) * lw;
-				float vv = (fLightMapV / (float)lmap->h) * lh;
-
-				float pixelStep = 1.0f / (float)lightmapAtlasSz;
-
 				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					verts[e].luv[s][0] = uu + lmap->x[s] * pixelStep;
-					verts[e].luv[s][1] = vv + lmap->y[s] * pixelStep;
+					verts[e].luv[s][0] = (fLightMapU + lmap->x[s]) * 16;
+					verts[e].luv[s][1] = (fLightMapV + lmap->y[s]) * 16;
 				}
 			}
 			else {
@@ -1013,9 +1006,9 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			}
 			// set lightmap scales
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
-				verts[e].luv[s][2] = (hasLighting && face.nStyles[s] != 255) ? 1.0f : 0.0f;
+				verts[e].lb[s] = (hasLighting && face.nStyles[s] != 255) ? 255 : 0.0f;
 				if (isSpecial && s == 0) {
-					verts[e].luv[s][2] = 1.0f;
+					verts[e].lb[s] = 255;
 				}
 			}
 		}
@@ -1032,25 +1025,17 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			newVerts[idx+1] = verts[k - 1];
 			newVerts[idx+2] = verts[0];
 
+			// which edges to draw
+			uint8_t edgeEnableMask = 4;
+			if (k == 2)
+				edgeEnableMask |= 1;
+			if (k == face.nEdges - 1)
+				edgeEnableMask |= 2;
+
 			// barycentric coords for wireframe edge detection
-			newVerts[idx + 0].bx = 255;
-			newVerts[idx + 0].by = 0;
-			newVerts[idx + 0].bz = 0;
-
-			newVerts[idx + 1].bx = 0;
-			newVerts[idx + 1].by = 255;
-			newVerts[idx + 1].bz = 0;
-
-			newVerts[idx + 2].bx = 0;
-			newVerts[idx + 2].by = 0;
-			newVerts[idx + 2].bz = 255;
-
-			// select which edges to draw (not the inner edges of the fan)
-			for (int j = 0; j < 3; j++) {
-				newVerts[idx + j].ex = k == 2;
-				newVerts[idx + j].ey = k == face.nEdges - 1;
-				newVerts[idx + j].ez = 1;
-			}
+			newVerts[idx + 0].edges = (1 << 3) | edgeEnableMask;
+			newVerts[idx + 1].edges = (2 << 3) | edgeEnableMask;
+			newVerts[idx + 2].edges = (4 << 3) | edgeEnableMask;
 		}
 
 		delete[] verts;
@@ -1135,15 +1120,15 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
 
 		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vTex");
-		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vAtlas", g_settings.texture_atlas);
-		renderGroups[i].buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
-		renderGroups[i].buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex0");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex1");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex2");
-		renderGroups[i].buffer->addAttribute(3, GL_FLOAT, 0, "vLightmapTex3");
-		renderGroups[i].buffer->addAttribute(4, GL_FLOAT, 0, "vColor");
+		renderGroups[i].buffer->addAttribute(2, GL_FLOAT, 0, "vTex");
+		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
+		renderGroups[i].buffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
+		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex0");
+		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex1");
+		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex2");
+		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex3");
+		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
+		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
 		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
 		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 		renderGroups[i].buffer->upload();
@@ -1185,27 +1170,8 @@ bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& gr
 	return true;
 }
 
-void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
-	if (g_app->pickCount == megaGroupUpdateIdx)
-		return;
-	megaGroupUpdateIdx = g_app->pickCount;
-
-	float start = glfwGetTime();
-
-	for (MegaRenderGroup& mega : megaRenderGroups) {
-		delete mega.group.buffer;
-	}
-
-	for (int i = 0; i < MAX_MAP_HULLS+1; i++) {
-		delete megaRenderClipnodes.buffer[i];
-		megaRenderClipnodes.buffer[i] = NULL;
-	}
-	memset(megaRenderClipnodes.totalVerts, 0, sizeof(megaRenderClipnodes.totalVerts));
-	megaRenderClipnodes.refs.clear();
-
-	megaRenderGroups.clear();
-	megaGroupEnts.clear();
-	int totalModelGroups = 0;
+int BspRenderer::allocMegaBufferData(vector<OrderedEnt>& ents) {
+	int totalMegaModelGroups = 0;
 
 	// find which entities can be included in the mega buffer and tally vertex counts
 	for (int i = 0; i < ents.size(); i++) {
@@ -1222,7 +1188,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		megaGroupEnts.insert(ent.entIdx);
 
 		RenderModel& model = renderModels[ent.modelIdx];
-		totalModelGroups += model.groupCount;
+		totalMegaModelGroups += model.groupCount;
 		for (int g = 0; g < model.groupCount; g++) {
 			RenderGroup& group = model.renderGroups[g];
 
@@ -1232,7 +1198,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 
 				if (RenderGroupsAreCombinable(group, mega.group)) {
 					mega.group.vertCount += group.vertCount;
-					mega.refs.push_back({i, g});
+					mega.refs.push_back({ i, g });
 					wasCombined = true;
 					break;
 				}
@@ -1241,6 +1207,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 			if (!wasCombined) {
 				MegaRenderGroup newGroup;
 				newGroup.group = group;
+				newGroup.group.buffer = NULL;
 				newGroup.refs.push_back({ i, g });
 				megaRenderGroups.push_back(newGroup);
 			}
@@ -1248,7 +1215,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 
 		if (clipnodesLoaded) {
 			megaRenderClipnodes.refs.push_back(i);
-			for (int k = 0; k < MAX_MAP_HULLS+1; k++) {
+			for (int k = 0; k < MAX_MAP_HULLS + 1; k++) {
 				int hull = k;
 
 				if (hull == MAX_MAP_HULLS) {
@@ -1269,17 +1236,122 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		}
 	}
 
+	// create mega group buffers but don't fill them yet
+	for (int i = 0; i < megaRenderGroups.size(); i++) {
+		MegaRenderGroup& mega = megaRenderGroups[i];
+
+		if (mega.group.vertCount == 0) {
+			mega.group.buffer = NULL;
+			continue;
+		}
+
+		lightmapVert* verts = new lightmapVert[mega.group.vertCount];
+
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.bsp, 0, verts, mega.group.vertCount);
+		megaBuffer->addAttribute(2, GL_FLOAT, 0, "vTex");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
+		megaBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
+		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex0");
+		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex1");
+		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex2");
+		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex3");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+		megaBuffer->addAttribute(POS_3F, "vPosition");
+		megaBuffer->ownData = true;
+		mega.group.buffer = megaBuffer;
+	}
+
+	for (int i = 0; i < MAX_MAP_HULLS + 1 && clipnodesLoaded; i++) {
+		if (megaRenderClipnodes.totalVerts[i] == 0) {
+			megaRenderClipnodes.buffer[i] = NULL;
+			continue;
+		}
+
+		clipnodeVert* verts = new clipnodeVert[megaRenderClipnodes.totalVerts[i]];
+
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.clipnode, 0, verts, megaRenderClipnodes.totalVerts[i]);
+		megaBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+		megaBuffer->addAttribute(3, GL_FLOAT, 0, "vPosition");
+		megaBuffer->ownData = true;
+		megaRenderClipnodes.buffer[i] = megaBuffer;
+	}
+
+	return totalMegaModelGroups;
+}
+
+void BspRenderer::reloadMegaBuffers() {
+	megaGroupUpdateIdx = -1;
+	megaGroupUpdateProgress = -1;
+	megaGroupUpdateLastPickCount = -1;
+}
+
+void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
+	if (g_app->pickCount != megaGroupUpdateLastPickCount) {
+		reloadMegaBuffers();
+		megaGroupUpdateLastPickCount = g_app->pickCount;
+	}
+	else if (megaGroupUpdateProgress == -1) {
+		return;
+	}
+
+	if (megaGroupUpdateProgress == -1) {
+		megaGroupUpdateStartTime = glfwGetTime();
+		for (MegaRenderGroup& mega : megaRenderGroups) {
+			delete mega.group.buffer;
+		}
+
+		for (int i = 0; i < MAX_MAP_HULLS + 1; i++) {
+			delete megaRenderClipnodes.buffer[i];
+			megaRenderClipnodes.buffer[i] = NULL;
+		}
+		memset(megaRenderClipnodes.totalVerts, 0, sizeof(megaRenderClipnodes.totalVerts));
+		megaRenderClipnodes.refs.clear();
+
+		megaRenderGroups.clear();
+		megaGroupEnts.clear();
+
+		int totalModelGroups = allocMegaBufferData(ents);
+
+		megaGroupUpdateProgress = 0;
+
+		logf("Creating %d mega groups from %d model groups in %dms\n",
+			(int)megaRenderGroups.size(), totalModelGroups, (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000));
+		return; // draw frame now so that entities are highlighted
+	}
+
+	const int maxVertsPerUpdate = 16384;
+	int oldProgress = megaGroupUpdateProgress;
+	megaGroupUpdateProgress = 0;
+
 	// create solid models buffer
 	for (int i = 0; i < megaRenderGroups.size(); i++) {
 		MegaRenderGroup& mega = megaRenderGroups[i];
 
-		// solid models
-		lightmapVert* verts = new lightmapVert[mega.group.vertCount];
-		int vertIdx = 0;
+		if (!mega.group.buffer)
+			continue;
 
+		// solid models
+		lightmapVert* verts = (lightmapVert*)mega.group.buffer->data;
+
+		bool didAnyWork = false;
+
+		int vertIdx = 0;
 		for (EntModelGroupIdx& ref : mega.refs) {
 			OrderedEnt& ent = ents[ref.entIdx];
 			RenderGroup& refGroup = renderModels[ent.modelIdx].renderGroups[ref.groupIdx];
+
+			if (megaGroupUpdateProgress < oldProgress) {
+				megaGroupUpdateProgress += refGroup.vertCount;
+				vertIdx += refGroup.vertCount;
+				continue;
+			}
+
+			int workDone = megaGroupUpdateProgress - oldProgress;
+			if (workDone > 0 && workDone + refGroup.vertCount > maxVertsPerUpdate) {
+				return; // do more work later
+			}
 
 			for (int k = 0; k < refGroup.vertCount; k++, vertIdx++) {
 				verts[vertIdx] = refGroup.verts[k];
@@ -1287,22 +1359,24 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 				vec3* v = (vec3*)(&verts[vertIdx].x);
 				*v = ent.transform.multRowMajor(*v);
 			}
+
+			megaGroupUpdateProgress += refGroup.vertCount;
+			didAnyWork = true;
 		}
 
-		if (vertIdx == 0)
-			continue;
-
-		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.bsp, 0, verts, mega.group.vertCount);
-		megaBuffer->addAttributes(mega.group.buffer->attribs);
-		megaBuffer->ownData = true;
-		mega.group.buffer = megaBuffer;
-		mega.group.buffer->upload();
+		if (didAnyWork) {
+			mega.group.buffer->upload();
+		}
 	}
 
 	// create clipnode models buffer
 	for (int i = 0; i < MAX_MAP_HULLS+1 && clipnodesLoaded; i++) {
-		clipnodeVert* verts = new clipnodeVert[megaRenderClipnodes.totalVerts[i]];
+		if (!megaRenderClipnodes.buffer[i])
+			continue;
 
+		clipnodeVert* verts = (clipnodeVert*)megaRenderClipnodes.buffer[i]->data;
+
+		bool didAnyWork = false;
 		int vertIdx = 0;
 		VertexBuffer* sampleBuf = NULL;
 		for (int idx : megaRenderClipnodes.refs) {
@@ -1328,25 +1402,35 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 			int numVerts = srcBuf->numVerts;
 			clipnodeVert* srcData = (clipnodeVert*)srcBuf->data;
 
+			if (megaGroupUpdateProgress < oldProgress) {
+				megaGroupUpdateProgress += numVerts;
+				vertIdx += numVerts;
+				continue;
+			}
+
+			int workDone = megaGroupUpdateProgress - oldProgress;
+			if (workDone > 0 && workDone + numVerts > maxVertsPerUpdate) {
+				return; // do more work later
+			}
+
 			for (int k = 0; k < numVerts; k++, vertIdx++) {
 				verts[vertIdx] = srcData[k];
 
 				verts[vertIdx].pos = ent.transform.multRowMajor(srcData[k].pos);
 			}
+
+			megaGroupUpdateProgress += numVerts;
+			didAnyWork = true;
 		}
 
-		if (vertIdx == 0)
-			continue;
-
-		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.clipnode, 0, verts, megaRenderClipnodes.totalVerts[i]);
-		megaBuffer->addAttributes(sampleBuf->attribs);
-		megaBuffer->ownData = true;
-		megaRenderClipnodes.buffer[i] = megaBuffer;
-		megaRenderClipnodes.buffer[i]->upload();
+		if (didAnyWork)
+			megaRenderClipnodes.buffer[i]->upload();
 	}
 
-	logf("Created %d mega groups from %d model groups in %dms\n",
-		(int)megaRenderGroups.size(), totalModelGroups, (int)((glfwGetTime() - start)*1000));
+	megaGroupUpdateIdx = g_app->pickCount;
+	megaGroupUpdateProgress = -1;
+
+	logf("Finished generating mega render groups in %dms\n", (int)((glfwGetTime() - megaGroupUpdateStartTime) * 1000));
 }
 
 void BspRenderer::write_obj_file() {
@@ -1679,8 +1763,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		}
 
 		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
-		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
-		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
+		renderClip->clipnodeBuffer[i]->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
 		renderClip->clipnodeBuffer[i]->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
 		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_FLOAT, 0, "vPosition");
 		renderClip->clipnodeBuffer[i]->ownData = true;
@@ -1734,8 +1817,7 @@ void BspRenderer::generateLeafBuffer() {
 	}
 
 	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
-	renderLeafDat->leafBuffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
-	renderLeafDat->leafBuffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
+	renderLeafDat->leafBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
 	renderLeafDat->leafBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
 	renderLeafDat->leafBuffer->addAttribute(POS_3F, "vPosition");
 	renderLeafDat->leafBuffer->ownData = true;
@@ -1850,25 +1932,20 @@ void BspRenderer::generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<
 					clipnodeVert(faceVerts[k], faceColor),
 				};
 
+				// which edges to draw
+				uint8_t edgeEnableMask = 1;
+				if (k == 2)
+					edgeEnableMask |= 4;
+				if (k == faceVerts.size() - 1)
+					edgeEnableMask |= 2;
+
 				// barycentric coords for wireframe edge detection
-				verts[0].bx = 1;
-				verts[0].by = 0;
-				verts[0].bz = 0;
-
-				verts[1].bx = 0;
-				verts[1].by = 1;
-				verts[1].bz = 0;
-
-				verts[2].bx = 0;
-				verts[2].by = 0;
-				verts[2].bz = 1;
+				verts[0].edges = (1 << 3) | edgeEnableMask;
+				verts[1].edges = (2 << 3) | edgeEnableMask;
+				verts[2].edges = (4 << 3) | edgeEnableMask;
 
 				// select which edges to draw (not the inner edges of the fan)
 				for (int j = 0; j < 3; j++) {
-					verts[j].ex = 1;
-					verts[j].ey = k == faceVerts.size() - 1;
-					verts[j].ez = k == 2;
-					
 					allVerts.push_back(verts[j]);
 				}
 			}
@@ -2104,6 +2181,9 @@ void BspRenderer::delayLoadData() {
 			highlightPickedFaces(true); // re-highlight selection
 		}
 
+		g_shaders.bsp->bind();
+		g_shaders.bsp->setUniform("lightmapAtlasScale", (1.0f / lightmapAtlasSz) * (1.0f / 16.0f));
+
 		lightmapsUploaded = true;
 	}
 	else if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
@@ -2114,10 +2194,16 @@ void BspRenderer::delayLoadData() {
 		numTextureAtlases = numTextureAtlasesSwap;
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
+		g_shaders.bsp->bind();
+		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz);
+
+		glTextureArray->upload();
+
 		// non-3D version of textures needed for GUI
 		for (int i = 0; i < map->textureCount; i++) {
-			if (glTextures[i] && !glTextures[i]->uploaded)
+			if (glTextures[i] && !glTextures[i]->uploaded) {
 				glTextures[i]->upload(GL_RGBA);
+			}
 		}
 		for (int i = 0; i < 6; i++) {
 			if (skyboxTextures[i]) {
@@ -2137,7 +2223,6 @@ void BspRenderer::delayLoadData() {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 		}
 
-		glTextureArray->upload();
 		numLoadedTextures = map->textureCount;
 
 		texturesLoaded = true;
@@ -2197,18 +2282,18 @@ void BspRenderer::highlightPickedFaces(bool highlight) {
 		}
 
 		float r, g, b;
-		r = g = b = 1.0f;
+		r = g = b = 255;
 
 		if (highlight) {
-			r = 0.86f;
+			r = 220;
 			g = 0;
 			b = 0;
 		}
 
 		for (int k = 0; k < rface->vertCount; k++) {
-			rgroup->verts[rface->vertOffset + k].r = r;
-			rgroup->verts[rface->vertOffset + k].g = g;
-			rgroup->verts[rface->vertOffset + k].b = b;
+			rgroup->verts[rface->vertOffset + k].c.r = r;
+			rgroup->verts[rface->vertOffset + k].c.g = g;
+			rgroup->verts[rface->vertOffset + k].c.b = b;
 		}
 
 		uploadGroups.insert(rgroup);
@@ -2295,7 +2380,7 @@ void BspRenderer::hideFaces(bool hideNotUnhide) {
 		}
 
 		for (int k = 0; k < rface->vertCount; k++) {
-			rgroup->verts[rface->vertOffset + k].a = a;
+			rgroup->verts[rface->vertOffset + k].c.a = a;
 		}
 
 		uploadGroups.insert(rgroup);
@@ -2482,18 +2567,20 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	activeShader->setUniform("wireframeColorDark", vec4(0.2f, 0.2f, 1, 1));
 	activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.8f, 1));
 
-	for (MegaRenderGroup& mega : megaRenderGroups) {
-		RenderGroup& rgroup = mega.group;
+	bool useMegaGroups = megaGroupUpdateProgress == -1;
 
-		if (rgroup.transparent != transparencyPass)
-			continue;
-		if (rgroup.transparent && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
-			continue;
+	if (useMegaGroups) {
+		for (MegaRenderGroup& mega : megaRenderGroups) {
+			RenderGroup& rgroup = mega.group;
 
-		drawModelRenderGroup(rgroup, false, true);
+			if (rgroup.transparent != transparencyPass)
+				continue;
+			if (rgroup.transparent && !(g_settings.render_flags & RENDER_SPECIAL_ENTS))
+				continue;
+
+			drawModelRenderGroup(rgroup, false, true);
+		}
 	}
-
-	activeShader->setUniform("wireframeEnable", 1);
 
 	int renderEnts = 0;
 	activeShader->pushMatrix(MAT_MODEL);
@@ -2503,7 +2590,7 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
 			Entity* ent = orderEnt.ent;
-			if (ent->hidden || orderEnt.isInMegaRenderGroup)
+			if (ent->hidden || (useMegaGroups && orderEnt.isInMegaRenderGroup))
 				continue;
 			if (!willDrawModel(ent, modelIdx, transparencyPass))
 				continue;
@@ -2518,10 +2605,12 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 			if (ent->highlighted) {
 				activeShader->setUniform("wireframeColorDark", vec4(1, 1, 0, 1));
 				activeShader->setUniform("wireframeColorBright", vec4(1, 1, 0, 1));
+				activeShader->setUniform("wireframeEnable", 1);
 			}
 			else {
-				activeShader->setUniform("wireframeColorDark", vec4(0.1f, 0.1f, 1, 1));
-				activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.5f, 1));
+				activeShader->setUniform("wireframeColorDark", vec4(0.2f, 0.2f, 1, 1));
+				activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.8f, 1));
+				activeShader->setUniform("wireframeEnable", allWireframes);
 			}
 			
 			drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
@@ -2541,14 +2630,15 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 	if (map->ents.empty() || !clipnodesLoaded || g_app->previewMode)
 		return;
 
-	BSPMODEL& world = map->models[0];
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
 
 	// clipnodes are drawn in a separate pass to prevent interleaving shader binds
 	g_shaders.clipnode->bind();
+	g_shaders.clipnode->modelMat->loadIdentity();
+	g_shaders.clipnode->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	g_shaders.clipnode->updateMatrixes();
 
 	if (g_settings.render_flags & RENDER_CLIPNODE_OPAQUE)
 		g_shaders.clipnode->setUniform("opacity", 1);
@@ -2562,12 +2652,16 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 	if (!(g_settings.render_flags & RENDER_ENTS) || !(g_settings.render_flags & RENDER_ENT_CLIPNODES))
 		return;
 
-	int groupHull = clipnodeHull;
-	if (groupHull == -1)
-		groupHull = MAX_MAP_HULLS;
-	VertexBuffer* buffer = megaRenderClipnodes.buffer[groupHull];
-	if (buffer)
-		buffer->draw(GL_TRIANGLES);
+	bool useMegaGroups = megaGroupUpdateProgress == -1;
+
+	if (useMegaGroups) {
+		int groupHull = clipnodeHull;
+		if (groupHull == -1)
+			groupHull = MAX_MAP_HULLS;
+		VertexBuffer* buffer = megaRenderClipnodes.buffer[groupHull];
+		if (buffer)
+			buffer->draw(GL_TRIANGLES);
+	}	
 
 	g_shaders.clipnode->pushMatrix(MAT_MODEL);
 	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
@@ -2576,7 +2670,7 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
 			Entity* ent = orderEnt.ent;
-			if (ent->hidden || orderEnt.isInMegaRenderGroup)
+			if (ent->hidden || (useMegaGroups && orderEnt.isInMegaRenderGroup))
 				continue;
 
 			RenderClipnodes& clip = renderClipnodeDat[modelIdx];

@@ -47,8 +47,10 @@ Texture::Texture( int width, int height, void * data )
 
 Texture::~Texture()
 {
-	if (uploaded)
+	if (uploaded) {
 		glDeleteTextures(1, &id);
+		g_renderStats.texMem -= uploadedDataSize;
+	}
 	if (data)
 		delete[] data;
 	for (MipTexture& mip : mipmaps) {
@@ -173,16 +175,30 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 	delete[] data24;
 }
 
-void Texture::upload(int format, bool lightmap)
+int Texture::getPixelBytes(int format) {
+	switch (format) {
+	default:
+		return 4;
+	case GL_RGB: return 3;
+	case GL_RGBA: return 4;
+	case GL_RGBA32F: return 16;
+	}
+}
+
+void Texture::upload(int format, bool lightmap, bool deleteData)
 {
 	if (!data) {
 		return;
 	}
+
 	this->isLightmap = lightmap;
 	if (uploaded) {
+		g_renderStats.texMem -= uploadedDataSize;
 		glDeleteTextures(1, &id);
 	}
 	glGenTextures(1, &id);
+
+	uploadedDataSize = 0;
 
 	if (is3d) {
 		int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
@@ -227,6 +243,7 @@ void Texture::upload(int format, bool lightmap)
 		}
 
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		uploadedDataSize += width * height * getPixelBytes(format);
 
 		if (!lightmap && width % 16 == 0 && height % 16 == 0 && format == GL_RGBA) {
 			const int mipLevels = mipmaps.size();
@@ -234,6 +251,7 @@ void Texture::upload(int format, bool lightmap)
 
 			for (MipTexture& mip : mipmaps) {
 				glTexImage2D(GL_TEXTURE_2D, mip.level, format, mip.width, mip.height, 0, format, GL_UNSIGNED_BYTE, mip.data);
+				uploadedDataSize += width * height * getPixelBytes(format);
 			}
 
 			if (mipmaps.size()) {
@@ -249,11 +267,24 @@ void Texture::upload(int format, bool lightmap)
 		}
 	}
 
+	if (deleteData) {
+		// don't keep duplicate data in cpu mem
+		delete[] data;
+		for (MipTexture& mip : mipmaps) {
+			delete[] mip.data;
+			mip.data = NULL;
+		}
+		mipmaps.clear();
+		data = NULL;
+	}
+
 	uploaded = true;
+	g_renderStats.texMem += uploadedDataSize;
 }
 
 void Texture::bind()
 {	
+	g_renderStats.numTextureBinds++;
 	int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
 	int glFilter3d = g_opengl_texture_array_support ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST;
 

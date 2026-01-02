@@ -379,6 +379,8 @@ void Editor::compileShaders() {
 	g_shaders.bsp->addUniform("wireframeColorDark", UNIFORM_VEC4);
 	g_shaders.bsp->addUniform("wireframeColorBright", UNIFORM_VEC4);
 	g_shaders.bsp->addUniform("wireframeThickness", UNIFORM_FLOAT);
+	g_shaders.bsp->addUniform("textureAtlasScale", UNIFORM_FLOAT);
+	g_shaders.bsp->addUniform("lightmapAtlasScale", UNIFORM_FLOAT);
 	g_shaders.bsp->setUniform("sTex", 0);
 	g_shaders.bsp->setUniform("wireframeThickness", 0.5f);
 	for (int s = 0; s < MAXLIGHTMAPS; s++) {
@@ -2161,6 +2163,8 @@ void Editor::globalShortcutControls() {
 }
 
 void Editor::pickObject(bool boxSelect) {
+	float startTime = glfwGetTime();
+
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 
@@ -2360,6 +2364,8 @@ void Editor::pickObject(bool boxSelect) {
 	}
 
 	updateEntConnections();
+
+	debugf("Pick finished in %dms\n", (int)((glfwGetTime() - startTime) * 1000));
 }
 
 bool Editor::transformAxisControls() {

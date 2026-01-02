@@ -229,11 +229,15 @@ void VertexBuffer::upload() {
 
 	if (g_use_vao)
 		glBindVertexArray(0);
+
+	g_renderStats.vertMem += numVerts * elementSize;
 }
 
 void VertexBuffer::deleteBuffer() {
-	if (vboId != -1)
+	if (vboId != -1) {
 		glDeleteBuffers(1, &vboId);
+		g_renderStats.vertMem -= numVerts * elementSize;
+	}
 	if (vaoId != -1)
 		glDeleteBuffers(1, &vaoId);
 	vboId = -1;
@@ -250,6 +254,9 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 
 	shaderProgram->bind();
 	bindAttributes();
+	
+	g_renderStats.numObjects++;
+	g_renderStats.numVerts += end - start;
 
 	if (vaoId != -1)
 		glBindVertexArray(vaoId);
