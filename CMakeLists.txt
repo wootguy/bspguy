@@ -158,7 +158,6 @@ set(SHADER_FILES
 	
 	src/shaders/bsp_vert.glsl
 	src/shaders/bsp_legacy_frag.glsl
-	src/shaders/bsp_3dtex_frag.glsl
 	src/shaders/bsp_arraytex_frag.glsl
 	src/shaders/bsp_atlas_frag.glsl
 	

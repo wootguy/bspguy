@@ -123,6 +123,5 @@ extern int g_max_texture_size;
 extern int g_max_texture_array_layers;
 extern int g_max_vtf_units;
 extern bool g_opengl_texture_array_support;
-extern bool g_opengl_3d_texture_support;
 
 void glCheckError(const char* checkMessage);

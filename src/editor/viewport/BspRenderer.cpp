@@ -64,7 +64,7 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 	greyTex->upload(GL_RGB);
 	blackTex->upload(GL_RGB);
 
-	if (g_opengl_3d_texture_support || g_opengl_texture_array_support)
+	if (g_opengl_texture_array_support)
 		whiteTex3D->upload(GL_RGB); // only needed if texture arrays/3d textures are supported
 
 	glCheckError("creating plain textures in BSP renderer");
@@ -911,13 +911,6 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		SubTexture& atlasInfo = textureAtlasInfos[texinfo.iMiptex];
 		int texArrayIdx = texArrayOffset.layer;
 
-		/*
-		if (!g_opengl_texture_array_support) {
-			texArrayIdx /= (float)glTextureArray->buckets[texArrayOffset.arrayIdx].count;
-			texArrayIdx += 0.00001f; // nudge layer up a bit to prevent GL_NEAREST rounding down to a previous texture with 3d textures
-		}
-		*/
-
 		int texWidth, texHeight;
 		if (tex) {
 			texWidth = tex->nWidth;
@@ -1056,7 +1049,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 				textureMatch = !texturesLoaded ||
 					renderGroups[k].atlasTextureIdx == textureAtlasInfos[texinfo.iMiptex].atlasId;
 			}
-			else if (!g_opengl_texture_array_support && !g_opengl_3d_texture_support) {
+			else if (!g_opengl_texture_array_support) {
 				// no batching possible, fall back to one texture ID per texture (ultra slow)
 				textureMatch = !texturesLoaded || renderGroups[k].texture == gltex;
 			}
@@ -1152,7 +1145,7 @@ bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& gr
 		if (groupa.atlasTextureIdx != groupb.atlasTextureIdx)
 			return false;
 	}
-	else if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
+	else if (g_opengl_texture_array_support) {
 		if (groupa.arrayTextureIdx != groupb.arrayTextureIdx)
 			return false;
 	}
@@ -2868,7 +2861,7 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		}
 	}
 	else {
-		if (g_opengl_3d_texture_support || g_opengl_texture_array_support) {
+		if (g_opengl_texture_array_support) {
 			whiteTex3D->bind();
 		}
 		else {

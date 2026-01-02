@@ -328,7 +328,6 @@ void Editor::compileShaders() {
 	const char* mdl_vert = mdl_vert_glsl;
 
 	g_opengl_texture_array_support = false;
-	g_opengl_3d_texture_support = false;
 
 	if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY) {
 		logf("Legacy renderer selected. Not checking extension support.\n");
@@ -338,18 +337,12 @@ void Editor::compileShaders() {
 		g_opengl_texture_array_support = true;
 		bspFragShader = bsp_arraytex_frag_glsl;
 	}
-	else if (strstr(openglExts, "GL_EXT_texture3D")) {
-		logf("Texture arrays not supported. 3D textures without filtering will be used instead\n");
-		g_opengl_3d_texture_support = true;
-		bspFragShader = bsp_3dtex_frag_glsl;
-	}
 	else {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
 	}
 
 	if (g_settings.texture_atlas) {
 		g_opengl_texture_array_support = false;
-		g_opengl_3d_texture_support = false;
 		bspFragShader = bsp_atlas_frag_glsl;
 	}	
 	
