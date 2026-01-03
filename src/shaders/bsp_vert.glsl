@@ -11,14 +11,12 @@ attribute vec3 vPosition;
 attribute vec2 vTex;
 attribute vec4 vAtlas;
 attribute float vEdges;
-attribute vec2 vLightmapTex0;
-attribute vec2 vLightmapTex1;
-attribute vec2 vLightmapTex2;
-attribute vec2 vLightmapTex3;
+attribute vec4 vLightmapTex01;
+attribute vec4 vLightmapTex23;
 attribute vec4 vLightmapBright;
 attribute vec4 vColor;
 
-// fragment variables
+// fragment variables (no more than 32 floats for max compatibility)
 varying vec3 fTex;
 varying vec4 fAtlas;
 varying vec2 fLightmapTex0;
@@ -34,10 +32,10 @@ void main()
 {
 	gl_Position = modelViewProjection * vec4(vPosition, 1);
 	fTex = vec3(vTex, vAtlas.x + vAtlas.y*256);
-	fLightmapTex0 = vLightmapTex0*lightmapAtlasScale;
-	fLightmapTex1 = vLightmapTex1*lightmapAtlasScale;
-	fLightmapTex2 = vLightmapTex2*lightmapAtlasScale;
-	fLightmapTex3 = vLightmapTex3*lightmapAtlasScale;
+	fLightmapTex0 = vLightmapTex01.xy*lightmapAtlasScale;
+	fLightmapTex1 = vLightmapTex01.zw*lightmapAtlasScale;
+	fLightmapTex2 = vLightmapTex23.xy*lightmapAtlasScale;
+	fLightmapTex3 = vLightmapTex23.zw*lightmapAtlasScale;
 	fLightmapBright = vLightmapBright;
 	fColor = vColor * colorMult;
 	fAtlas = vec4(vAtlas.x*16, vAtlas.y*16, vAtlas.z*16, vAtlas.w*16);

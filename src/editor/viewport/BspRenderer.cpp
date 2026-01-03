@@ -349,8 +349,6 @@ void BspRenderer::buildTextureAtlases() {
 		return a.sz > b.sz;
 	});
 
-	debugf("Building texture atlases\n");
-
 	int atlasId = 0;
 	for (int i = 0; i < textureAtlasInfos.size(); i++) {
 		SubTexture& info = textureAtlasInfos[i];
@@ -1122,10 +1120,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderGroups[i].buffer->addAttribute(2, GL_FLOAT, 0, "vTex");
 		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
 		renderGroups[i].buffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex0");
-		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex1");
-		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex2");
-		renderGroups[i].buffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex3");
+		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01");
+		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23");
 		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
 		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
 		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
@@ -1250,10 +1246,8 @@ int BspRenderer::allocMegaBufferData(vector<OrderedEnt>& ents) {
 		megaBuffer->addAttribute(2, GL_FLOAT, 0, "vTex");
 		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
 		megaBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex0");
-		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex1");
-		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex2");
-		megaBuffer->addAttribute(2, GL_UNSIGNED_SHORT, 0, "vLightmapTex3");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01");
+		megaBuffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23");
 		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
 		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
 		megaBuffer->addAttribute(POS_3F, "vPosition");

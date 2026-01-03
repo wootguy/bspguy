@@ -163,6 +163,7 @@ Editor::Editor() {
 	programStartTime = glfwGetTime();
 	g_settings.loadDefault();
 	g_settings.load();
+	loadSettings();
 	g_settings.renderer = clamp(g_settings.renderer, 0, RENDERER_COUNT - 1);
 	memset(lightStylesEnabled, true, sizeof(bool) * MAXLIGHTMAPS);
 
@@ -173,19 +174,28 @@ Editor::Editor() {
 
 	glCheckError("window creation");
 
-	GLint texImageUnits;
+	GLint texImageUnits, vertexAttributes, varyingFloats;
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &g_max_texture_size);
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texImageUnits);
 	glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &g_max_texture_array_layers);
 	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &g_max_vtf_units);
+	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertexAttributes);
+	glGetIntegerv(GL_MAX_VARYING_FLOATS, &varyingFloats);
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
 
-	logf("OpenGL Version: %s\n", (char*)glGetString(GL_VERSION));
+	logf("\nOpenGL Version: %s\n", (char*)glGetString(GL_VERSION));
 	debugf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
+	debugf("    Max Vertex Attributes: %d / %d\n", vertexAttributes, MAX_VERTEX_ATTRIBUTES);
+	debugf("    Max Varying Floats: %d / 32\n", varyingFloats);
 	debugf("    Texture Units: %d / 5\n", texImageUnits);
 	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
 	debugf("OpenGL Extensions:\n%s\n", openglExts);
+	logf("\n");
+
+	if (varyingFloats < 32 || vertexAttributes < MAX_VERTEX_ATTRIBUTES || texImageUnits < 5) {
+		logf("\nYOUR SYSTEM IS INCOMPATIBLE. EVERYTHING IS BROKEN.\n\n");
+	}
 
 	glCheckError("checking extensions");
 
@@ -222,7 +232,7 @@ Editor::Editor() {
 	modelRenderer = new ModelRenderer();
 	navRenderer = new NavRenderer();
 
-	loadSettings();
+	loadWidgetStates();
 
 	reloading = true;
 
@@ -769,7 +779,7 @@ void Editor::saveSettings() {
 	g_settings.rotSpeed = rotationSpeed;
 }
 
-void Editor::loadSettings() {
+void Editor::loadWidgetStates() {
 	gui->widgets[WIDGET_DEBUG]->widgetVisible = g_settings.debug_open;
 	gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = g_settings.keyvalue_open;
 	gui->widgets[WIDGET_TRANSFORM]->widgetVisible = g_settings.transform_open;
@@ -780,12 +790,16 @@ void Editor::loadSettings() {
 
 	gui->settingsTab = g_settings.settings_tab;
 	gui->openSavedTabs = true;
-
 	gui->vsync = g_settings.vsync;
+	modelRenderer->renderDist = g_settings.zFarMdl;
+
+	glfwSwapInterval(gui->vsync ? 1 : 0);
+}
+
+void Editor::loadSettings() {
 	showDragAxes = g_settings.show_transform_axes;
 	g_verbose = g_settings.verboseLogs;
 	zFar = g_settings.zfar;
-	modelRenderer->renderDist = g_settings.zFarMdl;
 	fov = g_settings.fov;
 	g_settings.render_flags = g_settings.render_flags;
 	undoLevels = g_settings.undoLevels;
@@ -795,8 +809,6 @@ void Editor::loadSettings() {
 	if (!showDragAxes) {
 		transformMode = TRANSFORM_NONE;
 	}
-
-	glfwSwapInterval(gui->vsync ? 1 : 0);
 }
 
 void Editor::loadFgds() {

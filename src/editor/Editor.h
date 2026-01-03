@@ -169,6 +169,7 @@ public:
 	void openMap(Bsp* map);
 	void saveSettings();
 	void loadSettings();
+	void loadWidgetStates();
 	void merge(string fpath);
 	void mergeMultiple(vector<string> fpaths, bool optimizeMerge, bool forceNohull2, int ripentmode);
 	void handleResize(int width, int height);

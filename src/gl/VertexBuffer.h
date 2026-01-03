@@ -30,7 +30,7 @@ class ShaderProgram;
 #define VBUF_COLOR_MASK 0x78 // mask for all color flags
 #define VBUF_NORM_MASK 0x180 // mask for all normal flags
 
-#define MAX_VERTEX_ATTRIBUTES 16 // TODO: limit to 8 for ancient intel gpus
+#define MAX_VERTEX_ATTRIBUTES 8 // keep low for ancient intel igpus
 
 struct VertexAttr
 {
