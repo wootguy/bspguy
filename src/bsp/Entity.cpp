@@ -16,6 +16,7 @@ unordered_map<string, uint16_t> g_stringMap;
 vector<string> g_stringMapInv;
 int g_stringId = 1;
 
+/*
 string_t make_string_t(string s) {
 	string_t& item = g_stringMap[s];
 
@@ -54,6 +55,9 @@ void clearStringMap() {
 		ent->clearCache();
 	}
 }
+*/
+
+void clearStringMap() {}
 
 Entity::Entity(void)
 {
@@ -69,28 +73,25 @@ Entity::~Entity(void)
 }
 
 const string Entity::getKeyvalue(string key) {
-	auto found = keyvalues.find(key);
-	if (found == keyvalues.end()) {
-		return "";
-	}
-	return found->second;
+	const char* found = keyvalues.get(key.c_str());
+	return found ? found : "";
 }
 
-unordered_map<string, string> Entity::getAllKeyvalues() {
+StringMap Entity::getAllKeyvalues() {
 	return keyvalues;
 }
 
 void Entity::setOrAddKeyvalue(const std::string& key, const std::string& value) {
 	clearCache();
 
-	auto existing = keyvalues.find(key);
-	if (existing != keyvalues.end()) {
-		existing->second = value;
+	const char* found = keyvalues.get(key.c_str());
+	if (found) {
+		keyvalues.put(key.c_str(), value.c_str());
 		return;
 	}
 
 	keyOrder.push_back(key);
-	keyvalues[key] = value;
+	keyvalues.put(key.c_str(), value.c_str());
 }
 
 void Entity::removeKeyvalue(const std::string& key) {
@@ -102,7 +103,7 @@ void Entity::removeKeyvalue(const std::string& key) {
 	else {
 		logf("Desync between keyorder and keyvalues!\n");
 	}
-	keyvalues.erase(key);
+	keyvalues.del(key.c_str());
 	clearCache();
 }
 
@@ -120,9 +121,10 @@ bool Entity::renameKey(string oldName, string newName) {
 		return false;
 	}
 	
+	const char* oldVal = keyvalues.get(oldName.c_str());
 	keyOrder[hasKey] = newName;
-	keyvalues[newName] = keyvalues[oldName];
-	keyvalues.erase(oldName);
+	keyvalues.del(oldName.c_str());
+	keyvalues.put(newName.c_str(), oldVal ? oldVal : "");
 	clearCache();
 	return true;
 }
@@ -136,11 +138,12 @@ void Entity::clearAllKeyvalues() {
 
 void Entity::clearEmptyKeyvalues() {
 	vector<string> newKeyOrder;
-	unordered_map<string, string> newKeyvalues;
+	StringMap newKeyvalues;
 	for (int i = 0; i < keyOrder.size(); i++) {
-		if (!keyvalues[keyOrder[i]].empty()) {
+		const char* val = keyvalues.get(keyOrder[i].c_str());
+		if (val && val[0]) {
 			newKeyOrder.push_back(keyOrder[i]);
-			newKeyvalues[keyOrder[i]] = keyvalues[keyOrder[i]];
+			newKeyvalues.put(keyOrder[i].c_str(), val);
 		}
 	}
 	keyOrder = newKeyOrder;
@@ -150,7 +153,7 @@ void Entity::clearEmptyKeyvalues() {
 
 bool Entity::hasKey(const std::string& key)
 {
-	return keyvalues.find(key) != keyvalues.end();
+	return keyvalues.get(key.c_str());
 }
 
 int Entity::getBspModelIdx() {
@@ -193,38 +196,39 @@ string Entity::getTargetname() {
 		return cachedTargetname;
 	}
 
-	auto kv = keyvalues.find("targetname");
-	if (kv == keyvalues.end()) {
+	const char* kv = keyvalues.get("targetname");
+	if (!kv) {
 		return "";
 	}
 
-	cachedTargetname = kv->second;
+	cachedTargetname = kv;
 	hasCachedTargetname = true;
 
 	return cachedTargetname;
 }
 
-const unordered_set<string_t>& Entity::getAllTargetnames() {
+const StringSet& Entity::getAllTargetnames() {
 	if (hasCachedTargetnames) {
 		return cachedTargetnames;
 	}
 
-	unordered_set<string> tnameKeys = { "targetname" };
+	StringSet tnameKeys = { "targetname" };
 	cachedTargetnames.clear();
 
 	FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(getClassname()) : NULL;
 	if (fgd) {
 		for (KeyvalueDef& def : fgd->keyvalues) {
 			if (def.iType == FGD_KEY_TARGET_SRC) {
-				tnameKeys.insert(def.name);
+				tnameKeys.put(def.name.c_str());
 			}
 		}
 	}
 
-	for (const string& key : tnameKeys) {
-		string val = getKeyvalue(key);
+	StringSet::iterator_t iter;
+	while (tnameKeys.iterate(iter)) {
+		string val = getKeyvalue(iter.key);
 		if (val.size()) {
-			cachedTargetnames.insert(make_string_t(val));
+			cachedTargetnames.put(val.c_str());
 		}
 	}
 
@@ -238,12 +242,12 @@ string Entity::getClassname() {
 		return cachedClassname;
 	}
 
-	auto kv = keyvalues.find("classname");
-	if (kv == keyvalues.end()) {
+	const char* kv = keyvalues.get("classname");
+	if (!kv) {
 		return "";
 	}
 
-	cachedClassname = kv->second;
+	cachedClassname = kv;
 	hasCachedClassname = true;
 
 	return cachedClassname;
@@ -255,7 +259,8 @@ string Entity::getFullKvString() {
 	}
 
 	for (int k = 0; k < keyOrder.size(); k++) {
-		cachedAllKvStr += "\"" + keyOrder[k] + "\" \"" + keyvalues[keyOrder[k]] + "\"\n";
+		const char* val = keyvalues.get(keyOrder[k].c_str());
+		cachedAllKvStr += "\"" + keyOrder[k] + "\" \"" + (val ? val : "") + "\"\n";
 	}
 
 	return cachedAllKvStr;
@@ -266,12 +271,12 @@ vec3 Entity::getOrigin() {
 		return cachedOrigin;
 	}
 
-	auto kv = keyvalues.find("origin");
-	if (kv == keyvalues.end()) {
+	const char* kv = keyvalues.get("origin");
+	if (!kv) {
 		cachedOrigin = vec3();
 	}
 	else {
-		cachedOrigin = parseVector(kv->second);
+		cachedOrigin = parseVector(kv);
 	}
 
 	hasCachedOrigin = true;
@@ -283,12 +288,12 @@ vec3 Entity::getAngles() {
 		return cachedAngles;
 	}
 
-	auto kv = keyvalues.find("angles");
-	cachedAngles = kv != keyvalues.end() ? parseVector(kv->second) : vec3();
+	const char* kv = keyvalues.get("angles");
+	cachedAngles = kv ? parseVector(kv) : vec3();
 
-	kv = keyvalues.find("angle");
-	if (kv != keyvalues.end()) {
-		float angle = atof(kv->second.c_str());
+	kv = keyvalues.get("angle");
+	if (kv) {
+		float angle = atof(kv);
 
 		if (angle >= 0) {
 			cachedAngles.y = angle;
@@ -334,36 +339,36 @@ EntRenderOpts Entity::getRenderOpts() {
 		return cachedRenderOpts;
 	}
 
-	auto kv = keyvalues.find("rendermode");
-	cachedRenderOpts.rendermode = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
+	const char* kv = keyvalues.get("rendermode");
+	cachedRenderOpts.rendermode = !kv ? 0 : atoi(kv);
 
-	kv = keyvalues.find("renderamt");
-	cachedRenderOpts.renderamt = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
+	kv = keyvalues.get("renderamt");
+	cachedRenderOpts.renderamt = !kv ? 0 : atoi(kv);
 
-	kv = keyvalues.find("rendercolor");
-	cachedRenderOpts.rendercolor = kv == keyvalues.end() ? COLOR3(0,0,0) : parseColor(kv->second);
+	kv = keyvalues.get("rendercolor");
+	cachedRenderOpts.rendercolor = !kv ? COLOR3(0,0,0) : parseColor(kv);
 
-	kv = keyvalues.find("framerate");
-	cachedRenderOpts.framerate = kv == keyvalues.end() ? 0.0f : atof(kv->second.c_str());
+	kv = keyvalues.get("framerate");
+	cachedRenderOpts.framerate = !kv ? 0.0f : atof(kv);
 
-	kv = keyvalues.find("scale");
-	cachedRenderOpts.scale = kv == keyvalues.end() ? 1.0f : atof(kv->second.c_str());
+	kv = keyvalues.get("scale");
+	cachedRenderOpts.scale = !kv ? 1.0f : atof(kv);
 
-	kv = keyvalues.find("vp_type");
-	cachedRenderOpts.vp_type = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
+	kv = keyvalues.get("vp_type");
+	cachedRenderOpts.vp_type = !kv ? 0 : atoi(kv);
 
-	kv = keyvalues.find("new_body");
-	cachedRenderOpts.body = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
-	kv = keyvalues.find("body");
-	cachedRenderOpts.body = kv == keyvalues.end() ? cachedRenderOpts.body : atoi(kv->second.c_str());
+	kv = keyvalues.get("new_body");
+	cachedRenderOpts.body = !kv ? 0 : atoi(kv);
+	kv = keyvalues.get("body");
+	cachedRenderOpts.body = !kv ? cachedRenderOpts.body : atoi(kv);
 
-	kv = keyvalues.find("new_skin");
-	cachedRenderOpts.skin = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
-	kv = keyvalues.find("skin");
-	cachedRenderOpts.skin = kv == keyvalues.end() ? cachedRenderOpts.skin : atoi(kv->second.c_str());
+	kv = keyvalues.get("new_skin");
+	cachedRenderOpts.skin = !kv ? 0 : atoi(kv);
+	kv = keyvalues.get("skin");
+	cachedRenderOpts.skin = !kv ? cachedRenderOpts.skin : atoi(kv);
 
-	kv = keyvalues.find("sequence");
-	cachedRenderOpts.sequence = kv == keyvalues.end() ? 0 : atoi(kv->second.c_str());
+	kv = keyvalues.get("sequence");
+	cachedRenderOpts.sequence = !kv ? 0 : atoi(kv);
 
 	hasCachedRenderOpts = true;
 	return cachedRenderOpts;
@@ -720,31 +725,32 @@ const char* potential_targetname_keys[TOTAL_TARGETNAME_KEYS] = {
 
 // This needs to be kept in sync with the FGD
 
-const unordered_set<string_t>& Entity::getTargets() {
+const StringSet& Entity::getTargets() {
 	if (targetsCached) {
 		return cachedTargets;
 	}
 
-	unordered_set<string> targetKeys;
+	StringSet targetKeys;
 	cachedTargets.clear();
 
 	for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
-		targetKeys.insert(potential_targetname_keys[i]);
+		targetKeys.put(potential_targetname_keys[i]);
 	}
 
 	FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(getClassname()) : NULL;
 	if (fgd) {
 		for (KeyvalueDef& def : fgd->keyvalues) {
 			if (def.iType == FGD_KEY_TARGET_DST) {
-				targetKeys.insert(def.name);
+				targetKeys.put(def.name.c_str());
 			}
 		}
 	}
 
-	for (const string& key : targetKeys) {
-		string val = getKeyvalue(key);
+	StringSet::iterator_t iter;
+	while (targetKeys.iterate(iter)) {
+		string val = getKeyvalue(iter.key);
 		if (val.size()) {
-			cachedTargets.insert(make_string_t(val));
+			cachedTargets.put(val.c_str());
 		}
 	}
 
@@ -759,7 +765,7 @@ const unordered_set<string_t>& Entity::getTargets() {
 			if (hashPos != string::npos) {
 				tname = tname.substr(0, hashPos);
 			}
-			cachedTargets.insert(make_string_t(tname));
+			cachedTargets.put(tname.c_str());
 		}
 	}
 
@@ -773,16 +779,17 @@ bool Entity::hasTarget(string checkTarget) {
 		getTargets();
 	}
 
-	return cachedTargets.find(to_string_t(checkTarget)) != cachedTargets.end();
+	return cachedTargets.hasKey(checkTarget.c_str());
 }
 
-bool Entity::hasTarget(const unordered_set<string_t>& checkNames) {
+bool Entity::hasTarget(const StringSet& checkNames) {
 	if (!targetsCached) {
 		getTargets();
 	}
 
-	for (string_t name : checkNames) {
-		if (cachedTargets.find(name) != cachedTargets.end()) {
+	StringSet::iterator_t iter;
+	while (checkNames.iterate(iter)) {
+		if (cachedTargets.hasKey(iter.key)) {
 			return true;
 		}
 	}
@@ -793,9 +800,9 @@ bool Entity::hasTarget(const unordered_set<string_t>& checkNames) {
 void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) {
 	for (int i = 0; i < TOTAL_TARGETNAME_KEYS; i++) {
 		const char* key = potential_targetname_keys[i];
-		auto entkey = keyvalues.find(key);
-		if (entkey != keyvalues.end() && entkey->second == oldTargetname) {
-			keyvalues[key] = newTargetname;
+		const char* entkey = keyvalues.get(key);
+		if (entkey && entkey == oldTargetname) {
+			keyvalues.put(key, newTargetname.c_str());
 		}
 	}
 
@@ -814,8 +821,9 @@ void Entity::renameTargetnameValues(string oldTargetname, string newTargetname) 
 
 			if (tname == oldTargetname) {
 				string newKey = newTargetname + suffix;
-				keyvalues[newKey] = keyvalues[keyOrder[i]];
-				keyvalues.erase(keyOrder[i]);
+				const char* val = keyvalues.get(keyOrder[i].c_str());
+				keyvalues.del(keyOrder[i].c_str());
+				keyvalues.put(newKey.c_str(), val ? val : "");
 				keyOrder[i] = newKey;
 			}
 		}
@@ -832,10 +840,7 @@ int Entity::getMemoryUsage() {
 	for (int i = 0; i < keyOrder.size(); i++) {
 		size += keyOrder[i].size();
 	}
-	for (const auto& entry : keyvalues) {
-		size += entry.first.size() + entry.second.size();
-	}
-
+	size += keyvalues.calcMemUsage();
 	size += cachedAllKvStr.size();
 	size += cachedMdlCname.size();
 	size += cachedClassname.size();

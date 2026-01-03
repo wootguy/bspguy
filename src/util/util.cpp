@@ -8,6 +8,10 @@
 #include <iostream>
 #include <algorithm>
 #include <float.h>
+#include "BspRenderer.h"
+#include "Editor.h"
+#include "Bsp.h"
+#include "globals.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -615,16 +619,53 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 }
 
 vec3 getNormalFromVerts(vector<vec3>& verts) {
-	vector<vec3> triangularVerts = getTriangularVerts(verts);
+	int i0 = 0;
+	int i1 = -1;
+	int i2 = -1;
 
-	if (triangularVerts.empty())
+	int count = 1;
+	for (int i = 1; i < verts.size() && count < 3; i++) {
+		if (verts[i] != verts[i0]) {
+			i1 = i;
+			count++;
+			break;
+		}
+	}
+
+	if (i1 == -1) {
+		//logf("Only 1 unique vert!\n");
 		return vec3();
+	}
 
-	vec3 e1 = (triangularVerts[1] - triangularVerts[0]).normalize();
-	vec3 e2 = (triangularVerts[2] - triangularVerts[0]).normalize();
-	vec3 vertsNormal = crossProduct(e1, e2).normalize();
+	for (int pass = 0; pass < 2 && i2 == -1; pass++) {
+		float colinear = pass == 0 ? 0.99f : 0.999f;
 
-	return vertsNormal;
+		for (int i = 1; i < verts.size(); i++) {
+			if (i == i1)
+				continue;
+
+			if (verts[i] != verts[i0] && verts[i] != verts[i1]) {
+				vec3 ab = (verts[i1] - verts[i0]).normalize();
+				vec3 ac = (verts[i] - verts[i0]).normalize();
+				vec3 bc = (verts[i] - verts[i1]).normalize();
+				if (fabs(dotProduct(ab, ac)) > colinear && fabs(dotProduct(ab, bc)) > colinear) {
+					continue;
+				}
+
+				i2 = i;
+				break;
+			}
+		}
+	}
+
+	if (i2 == -1) {
+		//logf("All verts are colinear!\n");
+		return vec3();
+	}
+
+	vec3 e1 = (verts[i1] - verts[i0]).normalize();
+	vec3 e2 = (verts[i2] - verts[i0]).normalize();
+	return crossProduct(e1, e2).normalize();
 }
 
 vector<vec2> localizeVerts(vector<vec3>& verts) {
@@ -737,14 +778,14 @@ void sortPlanarVerts(vector<vec3>& verts) {
 	}
 }
 
-bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
+bool pointInsidePolygon(vec2* verts, int numVerts, vec2 p) {
 	// https://stackoverflow.com/a/34689268
 	bool inside = true;
 	float lastd = 0;
-	for (int i = 0; i < poly.size(); i++)
+	for (int i = 0; i < numVerts; i++)
 	{
-		vec2& v1 = poly[i];
-		vec2& v2 = poly[(i + 1) % poly.size()];
+		vec2& v1 = verts[i];
+		vec2& v2 = verts[(i + 1) % numVerts];
 
 		if (v1.x == p.x && v1.y == p.y) {
 			break; // on edge = inside
@@ -761,6 +802,28 @@ bool pointInsidePolygon(vector<vec2>& poly, vec2 p) {
 	}
 	return inside;
 }
+
+bool pointInsidePolygon(FaceMath* poly, vec2 p) {
+	if (poly->faceIdx >= 0) {
+		static vec2 localVerts[MAX_FACE_VERTS];
+
+		Bsp* map = g_app->mapRenderer->map;
+		BSPFACE& face = map->faces[poly->faceIdx];
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount - 1));
+			localVerts[e] = poly->worldToLocal.multColMajor(map->verts[vertIdx]).xy();
+		}
+
+		return pointInsidePolygon(localVerts, face.nEdges, p);
+	}
+	else {
+		return pointInsidePolygon(&poly->localVerts[0], poly->localVerts.size(), p);
+	}
+}
+
 
 bool dirExists(const string& dirName_in)
 {
@@ -1138,6 +1201,27 @@ bool isPointInView(vec3 p, const Frustum& frustum, float zMax) {
 	}
 
 	return true;
+}
+
+bool isPolyInView(FaceMath* poly, const Frustum& frustum) {
+	if (poly->faceIdx >= 0) {
+		static vec3 verts[MAX_FACE_VERTS];
+
+		Bsp* map = g_app->mapRenderer->map;
+		BSPFACE& face = map->faces[poly->faceIdx];
+
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount - 1));
+			verts[e] = map->verts[vertIdx];
+		}
+
+		return isPolyInView(Polygon3D(verts, face.nEdges, true), frustum);
+	}
+	else {
+		return isPolyInView(Polygon3D(poly->verts, true), frustum);
+	}
 }
 
 bool isPolyInView(Polygon3D poly, const Frustum& frustum) {

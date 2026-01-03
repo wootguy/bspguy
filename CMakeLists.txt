@@ -63,6 +63,7 @@ set(SOURCE_FILES
 	src/util/tga.h				src/util/tga.cpp
 	src/util/colors.h			src/util/colors.cpp
 	src/util/render_utils.h		src/util/render_utils.cpp
+	src/util/HashMap.h			src/util/HashMap.cpp
 	src/util/studio.h
 	
 	# Navigation meshes

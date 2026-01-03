@@ -658,7 +658,7 @@ int LeafNode::calcMemoryUsage() {
 	bytes += sizeof(LeafLink) * links.size();
 	bytes += sizeof(EntState) * splittingEnts.size();
 	bytes += sizeof(Polygon3D) * leafFaces.size();
-	bytes += face_buffer->calcMemoryUsage();
+	bytes += face_buffer ? face_buffer->calcMemoryUsage() : 0;
 	bytes += clipMesh.calcMemoryUsage();
 
 	for (LeafLink& link : links) {

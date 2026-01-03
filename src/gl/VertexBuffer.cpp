@@ -60,14 +60,10 @@ VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags, const voi
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
 	setData(dat, numVerts);
-	vboId = -1;
 }
 
 VertexBuffer::VertexBuffer(ShaderProgram* shaderProgram, int attFlags)
 {
-	numVerts = 0;
-	data = NULL;
-	vboId = -1;
 	this->shaderProgram = shaderProgram;
 	addAttributes(attFlags);
 }
@@ -97,7 +93,13 @@ void VertexBuffer::addAttributes(int attFlags)
 			else
 				logf("Unused vertex buffer flag bit %d", i);
 
-			attribs.push_back(commonAttr[i]);
+			if (numAttributes >= MAX_VERTEX_ATTRIBUTES) {
+				logf("Too many vertex attributes!\n");
+				break;
+			}
+
+			attributes[numAttributes++] = commonAttr[i];
+
 			elementSize += commonAttr[i].size;
 		}
 	}
@@ -106,19 +108,18 @@ void VertexBuffer::addAttributes(int attFlags)
 void VertexBuffer::addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader) {
 	VertexAttr attribute(numValues, valueType, -1, normalized, varName, inShader);
 
-	attribs.push_back(attribute);
-	elementSize += attribute.size;
+	addAttribute(attribute);
 }
 
 void VertexBuffer::addAttribute(const VertexAttr& attrib) {
-	attribs.push_back(attrib);
 	elementSize += attrib.size;
-}
 
-void VertexBuffer::addAttributes(const vector<VertexAttr>& otherAttr) {
-	for (const VertexAttr& attr : otherAttr) {
-		addAttribute(attr);
+	if (numAttributes >= MAX_VERTEX_ATTRIBUTES) {
+		logf("Too many vertex attributes!\n");
+		return;
 	}
+
+	attributes[numAttributes++] = attrib;
 }
 
 void VertexBuffer::addAttribute(int type, const char* varName, bool inShader) {
@@ -139,17 +140,16 @@ void VertexBuffer::addAttribute(int type, const char* varName, bool inShader) {
 	attribute.varName = varName;
 	attribute.inShader = inShader;
 
-	attribs.push_back(attribute);
-	elementSize += attribute.size;
+	addAttribute(attribute);
 }
 
 void VertexBuffer::setShader(ShaderProgram* program) {
 	shaderProgram = program;
 	attributesBound = false;
-	for (int i = 0; i < attribs.size(); i++)
+	for (int i = 0; i < numAttributes; i++)
 	{
-		if (strlen(attribs[i].varName) > 0) {
-			attribs[i].handle = -1;
+		if (strlen(attributes[i].varName) > 0) {
+			attributes[i].handle = -1;
 		}
 	}
 
@@ -166,16 +166,16 @@ void VertexBuffer::bindAttributes() {
 
 	shaderProgram->bind();
 
-	for (int i = 0; i < attribs.size(); i++)
+	for (int i = 0; i < numAttributes; i++)
 	{
-		if (attribs[i].handle != -1 || !attribs[i].inShader)
+		if (attributes[i].handle != -1 || !attributes[i].inShader)
 			continue;
 
-		attribs[i].handle = glGetAttribLocation(shaderProgram->ID, attribs[i].varName);
+		attributes[i].handle = glGetAttribLocation(shaderProgram->ID, attributes[i].varName);
 
-		if (attribs[i].handle == -1) {
+		if (attributes[i].handle == -1) {
 			logf("Could not find vertex attribute '%s' in shader '%s'\n",
-				attribs[i].varName, shaderProgram->name.c_str());
+				attributes[i].varName, shaderProgram->name.c_str());
 		}
 	}
 
@@ -214,9 +214,9 @@ void VertexBuffer::upload() {
 
 	if (g_use_vao) {
 		int offset = 0;
-		for (int i = 0; i < attribs.size(); i++)
+		for (int i = 0; i < numAttributes; i++)
 		{
-			VertexAttr& a = attribs[i];
+			VertexAttr& a = attributes[i];
 			void* ptr = (char*)NULL + offset;
 			offset += a.size;
 			if (a.handle == -1) {
@@ -264,9 +264,9 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 		glBindBuffer(GL_ARRAY_BUFFER, vboId);
 
 		int offset = 0;
-		for (int i = 0; i < attribs.size(); i++)
+		for (int i = 0; i < numAttributes; i++)
 		{
-			VertexAttr& a = attribs[i];
+			VertexAttr& a = attributes[i];
 			void* ptr = (char*)NULL + offset;
 			offset += a.size;
 			if (a.handle == -1) {
@@ -288,9 +288,9 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 
 	if (vaoId == -1) {
 		// my windows 7 opengl 3.0 netbook needs this or else it crashes
-		for (int i = 0; i < attribs.size(); i++)
+		for (int i = 0; i < numAttributes; i++)
 		{
-			VertexAttr& a = attribs[i];
+			VertexAttr& a = attributes[i];
 			if (a.handle == -1) {
 				continue;
 			}
@@ -306,7 +306,6 @@ void VertexBuffer::draw(int primitive)
 
 int VertexBuffer::calcMemoryUsage() {
 	int bytes = sizeof(VertexBuffer);
-	bytes += sizeof(VertexAttr) * attribs.size();
 	bytes += elementSize * numVerts;
 	return bytes;
 }

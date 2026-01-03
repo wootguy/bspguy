@@ -225,7 +225,6 @@ Editor::Editor() {
 	loadSettings();
 
 	reloading = true;
-	fgdFuture = async(launch::async, &Editor::loadFgds, this);
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
 	memset(&initialLumpState, 0, sizeof(LumpState));
@@ -509,6 +508,8 @@ void Editor::renderLoop() {
 
 	glCheckError("pre render loop");
 
+	fgdFuture = async(launch::async, &Editor::loadFgds, this);
+
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
@@ -596,6 +597,7 @@ void Editor::postLoadFgds()
 	for (int i = 0; i < mapRenderer->map->ents.size(); i++) {
 		Entity* ent = mapRenderer->map->ents[i];
 		ent->clearCache();
+		ent->getTargets(); // cache ent targets so first selection doesn't lag
 	}
 
 	swapPointEntRenderer = NULL;
@@ -3123,7 +3125,7 @@ void Editor::updateEntConnections() {
 		for (int i = 0; i < pickInfo.ents.size(); i++) {
 			int entidx = pickInfo.ents[i];
 			Entity* self = map->ents[entidx];
-			const unordered_set<string_t>& selfNames = self->getAllTargetnames();
+			const StringSet& selfNames = self->getAllTargetnames();
 
 			for (int k = 0; k < map->ents.size(); k++) {
 				Entity* ent = map->ents[k];
@@ -3134,7 +3136,7 @@ void Editor::updateEntConnections() {
 				if (testedTargets.count(k))
 					continue;
 				
-				const unordered_set<string_t>& tnames = ent->getAllTargetnames();
+				const StringSet& tnames = ent->getAllTargetnames();
 				bool isTarget = tnames.size() && self->hasTarget(tnames);
 				bool isCaller = selfNames.size() && ent->hasTarget(selfNames);
 

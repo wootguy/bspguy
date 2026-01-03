@@ -8,6 +8,9 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
+// - face editor moves to top left a lot
+// - reduce vertex attributes in bsp shader (max of 8 for old intel gpu)
+
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

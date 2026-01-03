@@ -734,7 +734,7 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// replace with a squadmaker and spawn when this map section starts
 
 				updated_monsters++;
-				unordered_map<string,string> oldKeys = ent->getAllKeyvalues();
+				StringMap oldKeys = ent->getAllKeyvalues();
 
 				string spawn_name = "bspguy_npcs_" + source_map;
 
@@ -748,46 +748,46 @@ void BspMerger::update_map_series_entity_logic(Bsp* mergedMap, vector<MAPBLOCK>&
 				// - apache/osprey targets, and any other monster-specific keys
 
 				ent->clearAllKeyvalues();
-				ent->setOrAddKeyvalue("origin", oldKeys["origin"]);
-				ent->setOrAddKeyvalue("angles", oldKeys["angles"]);
+				ent->setOrAddKeyvalue("origin", oldKeys.get("origin", ""));
+				ent->setOrAddKeyvalue("angles", oldKeys.get("angles", ""));
 				ent->setOrAddKeyvalue("targetname", spawn_name);
-				ent->setOrAddKeyvalue("netname", oldKeys["targetname"]);
+				ent->setOrAddKeyvalue("netname", oldKeys.get("targetname", ""));
 				//ent->setOrAddKeyvalue("target", "bspguy_npc_spawn_" + toLowerCase(source_map));
-				if (oldKeys["rendermode"] != "0") {
-					ent->setOrAddKeyvalue("renderfx", oldKeys["renderfx"]);
-					ent->setOrAddKeyvalue("rendermode", oldKeys["rendermode"]);
-					ent->setOrAddKeyvalue("renderamt", oldKeys["renderamt"]);
-					ent->setOrAddKeyvalue("rendercolor", oldKeys["rendercolor"]);
+				if (oldKeys.get("rendermode", "") != "0") {
+					ent->setOrAddKeyvalue("renderfx", oldKeys.get("renderfx", ""));
+					ent->setOrAddKeyvalue("rendermode", oldKeys.get("rendermode", ""));
+					ent->setOrAddKeyvalue("renderamt", oldKeys.get("renderamt", ""));
+					ent->setOrAddKeyvalue("rendercolor", oldKeys.get("rendercolor", ""));
 					ent->setOrAddKeyvalue("change_rendermode", "1");
 				}
-				ent->setOrAddKeyvalue("classify", oldKeys["classify"]);
-				ent->setOrAddKeyvalue("is_not_revivable", oldKeys["is_not_revivable"]);
-				ent->setOrAddKeyvalue("bloodcolor", oldKeys["bloodcolor"]);
-				ent->setOrAddKeyvalue("health", oldKeys["health"]);
-				ent->setOrAddKeyvalue("minhullsize", oldKeys["minhullsize"]);
-				ent->setOrAddKeyvalue("maxhullsize", oldKeys["maxhullsize"]);
-				ent->setOrAddKeyvalue("freeroam", oldKeys["freeroam"]);
+				ent->setOrAddKeyvalue("classify", oldKeys.get("classify", ""));
+				ent->setOrAddKeyvalue("is_not_revivable", oldKeys.get("is_not_revivable", ""));
+				ent->setOrAddKeyvalue("bloodcolor", oldKeys.get("bloodcolor", ""));
+				ent->setOrAddKeyvalue("health", oldKeys.get("health", ""));
+				ent->setOrAddKeyvalue("minhullsize", oldKeys.get("minhullsize", ""));
+				ent->setOrAddKeyvalue("maxhullsize", oldKeys.get("maxhullsize", ""));
+				ent->setOrAddKeyvalue("freeroam", oldKeys.get("freeroam", ""));
 				ent->setOrAddKeyvalue("monstercount", "1");
 				ent->setOrAddKeyvalue("delay", "0");
 				ent->setOrAddKeyvalue("m_imaxlivechildren", "1");
 				ent->setOrAddKeyvalue("spawn_mode", "2"); // force spawn, never block
 				ent->setOrAddKeyvalue("dmg", "0"); // telefrag damage
-				ent->setOrAddKeyvalue("trigger_condition", oldKeys["TriggerCondition"]);
-				ent->setOrAddKeyvalue("trigger_target", oldKeys["TriggerTarget"]);
-				ent->setOrAddKeyvalue("trigger_target", oldKeys["TriggerTarget"]);
+				ent->setOrAddKeyvalue("trigger_condition", oldKeys.get("TriggerCondition", ""));
+				ent->setOrAddKeyvalue("trigger_target", oldKeys.get("TriggerTarget", ""));
+				ent->setOrAddKeyvalue("trigger_target", oldKeys.get("TriggerTarget", ""));
 				ent->setOrAddKeyvalue("notsolid", "-1");
 				ent->setOrAddKeyvalue("gag", (spawnflags & 2) ? "1" : "0");
-				ent->setOrAddKeyvalue("weapons", oldKeys["weapons"]);
-				ent->setOrAddKeyvalue("new_body", oldKeys["body"]);
-				ent->setOrAddKeyvalue("respawn_as_playerally", oldKeys["is_player_ally"]);
-				ent->setOrAddKeyvalue("monstertype", oldKeys["classname"]);
-				ent->setOrAddKeyvalue("displayname", oldKeys["displayname"]);
-				ent->setOrAddKeyvalue("squadname", oldKeys["netname"]);
-				ent->setOrAddKeyvalue("new_model", oldKeys["model"]);
-				ent->setOrAddKeyvalue("soundlist", oldKeys["soundlist"]);
-				ent->setOrAddKeyvalue("path_name", oldKeys["path_name"]);
-				ent->setOrAddKeyvalue("guard_ent", oldKeys["guard_ent"]);
-				ent->setOrAddKeyvalue("$s_bspguy_map_source", oldKeys["$s_bspguy_map_source"]);
+				ent->setOrAddKeyvalue("weapons", oldKeys.get("weapons", ""));
+				ent->setOrAddKeyvalue("new_body", oldKeys.get("body", ""));
+				ent->setOrAddKeyvalue("respawn_as_playerally", oldKeys.get("is_player_ally", ""));
+				ent->setOrAddKeyvalue("monstertype", oldKeys.get("classname", ""));
+				ent->setOrAddKeyvalue("displayname", oldKeys.get("displayname", ""));
+				ent->setOrAddKeyvalue("squadname", oldKeys.get("netname", ""));
+				ent->setOrAddKeyvalue("new_model", oldKeys.get("model", ""));
+				ent->setOrAddKeyvalue("soundlist", oldKeys.get("soundlist", ""));
+				ent->setOrAddKeyvalue("path_name", oldKeys.get("path_name", ""));
+				ent->setOrAddKeyvalue("guard_ent", oldKeys.get("guard_ent", ""));
+				ent->setOrAddKeyvalue("$s_bspguy_map_source", oldKeys.get("$s_bspguy_map_source", ""));
 				ent->setOrAddKeyvalue("spawnflags", to_string(newFlags));
 				ent->setOrAddKeyvalue("classname", "squadmaker");
 				ent->clearEmptyKeyvalues(); // things like the model keyvalue will break the monster if it's set but empty
@@ -1316,9 +1316,10 @@ void BspMerger::merge_ents(Bsp& mapA, Bsp& mapB)
 			}
 
 			// include prefixed version of the other maps keyvalues
-			unordered_map<string, string> otherWorldKeys = otherWorldspawn->getAllKeyvalues();
-			for (auto it = otherWorldKeys.begin(); it != otherWorldKeys.end(); it++) {
-				if (it->first == "classname" || it->first == "wad") {
+			StringMap otherWorldKeys = otherWorldspawn->getAllKeyvalues();
+			StringMap::iterator_t iter;
+			while (otherWorldKeys.iterate(iter)) {
+				if (!strcmp(iter.key, "classname") || !strcmp(iter.key, "wad")) {
 					continue;
 				}
 				// TODO: unknown keyvalues crash the game? Try something else.

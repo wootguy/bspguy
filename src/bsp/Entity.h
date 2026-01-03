@@ -6,6 +6,7 @@
 #include <vector>
 #include "mat4x4.h"
 #include "colors.h"
+#include "HashMap.h"
 
 class Bsp;
 class BaseRenderer;
@@ -59,7 +60,7 @@ public:
 	~Entity(void);
 
 	const string getKeyvalue(string key);
-	unordered_map<string, string> getAllKeyvalues();
+	StringMap getAllKeyvalues();
 	void removeKeyvalue(const std::string& key);
 	bool renameKey(string oldName, string newName);
 	void clearAllKeyvalues();
@@ -75,7 +76,7 @@ public:
 	bool isSprite();
 
 	string getTargetname();
-	const unordered_set<string_t>& getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
+	const StringSet& getAllTargetnames(); // includes target_source/target_name_or_class keys in the FGD
 	string getClassname();
 
 	string getFullKvString();
@@ -102,11 +103,11 @@ public:
 
 	bool hasKey(const std::string& key);
 
-	const unordered_set<string_t>& getTargets();
+	const StringSet& getTargets();
 
 	bool hasTarget(string tname);
 
-	bool hasTarget(const unordered_set<string_t>& checkNames);
+	bool hasTarget(const StringSet& checkNames);
 
 	void renameTargetnameValues(string oldTargetname, string newTargetname);
 
@@ -121,11 +122,11 @@ public:
 	void clearCache();
 
 private:
-	unordered_map<string, string> keyvalues;
+	StringMap keyvalues;
 
 	int cachedModelIdx = -2; // -2 = not cached
-	unordered_set<string_t> cachedTargets;
-	unordered_set<string_t> cachedTargetnames;
+	StringSet cachedTargets;
+	StringSet cachedTargetnames;
 	bool targetsCached = false;
 	bool hasCachedTargetname = false;
 	bool hasCachedClassname = false;

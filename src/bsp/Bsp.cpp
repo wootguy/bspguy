@@ -3565,23 +3565,54 @@ vec3 Bsp::get_face_ut_reference(int faceIdx) {
 	return (a - b).normalize();
 }
 
-vector<vec3> Bsp::get_face_verts(int faceIdx) {
-	vector<vec3> faceVerts;
-
+void Bsp::get_face_verts(int faceIdx, vector<vec3>& outVerts) {
 	if (faceIdx < 0 || faceIdx >= faceCount) {
-		return faceVerts;
+		outVerts.clear();
+		return;
 	}
 
 	BSPFACE& face = faces[faceIdx];
+
+	outVerts.resize(face.nEdges);
 
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = edges[abs(edgeIdx)];
 		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-		faceVerts.push_back(verts[vertIdx]);
+		outVerts[e] = verts[vertIdx];
+	}
+}
+
+void Bsp::get_face_bounding_box(int faceIdx, vec3& mins, vec3& maxs) {
+	if (faceIdx < 0 || faceIdx >= faceCount) {
+		return;
 	}
 
-	return faceVerts;
+	BSPFACE& face = faces[faceIdx];
+
+	maxs = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	mins = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+
+	for (int e = 0; e < face.nEdges; e++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+		int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+		expandBoundingBox(verts[vertIdx], mins, maxs);
+	}
+}
+
+void Bsp::get_face_plane(int faceIdx, vec3& v0, vec3& normal) {
+	if (faceIdx < 0 || faceIdx >= faceCount) {
+		return;
+	}
+
+	BSPFACE& face = faces[faceIdx];
+	int32_t edgeIdx = surfedges[face.iFirstEdge];
+	BSPEDGE& edge = edges[abs(edgeIdx)];
+	int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+	
+	v0 = verts[vertIdx];
+	normal = face.nPlaneSide ? planes[face.iPlane].vNormal * -1 : planes[face.iPlane].vNormal;
 }
 
 int Bsp::get_default_texture_idx() {
@@ -9421,10 +9452,12 @@ unordered_map<string, string> Bsp::get_tex_lights() {
 	for (int i = 0; i < ents.size(); i++) {
 		Entity* ent = ents[i];
 		if (ent->getClassname() == "info_texlights") {
-			unordered_map<string, string> keys = ent->getAllKeyvalues();
-			for (auto item : keys) {
-				if (item.first != "classname")
-					texlights[toUpperCase(item.first)] = item.second;
+			StringMap keys = ent->getAllKeyvalues();
+
+			StringMap::iterator_t iter;
+			while (keys.iterate(iter)) {
+				if (strcmp(iter.key, "classname"))
+					texlights[toUpperCase(iter.key)] = iter.value;
 			}
 		}
 	}

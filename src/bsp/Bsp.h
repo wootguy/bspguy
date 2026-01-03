@@ -369,7 +369,11 @@ public:
 	// get reference vectors for texture rotations
 	vec3 get_face_ut_reference(int faceIdx);
 
-	vector<vec3> get_face_verts(int faceIdx);
+	void get_face_verts(int faceIdx, vector<vec3>& verts);
+
+	void get_face_bounding_box(int faceIdx, vec3& mins, vec3& maxs);
+
+	void get_face_plane(int faceIdx, vec3& v0, vec3& normal);
 
 	int get_default_texture_idx();
 

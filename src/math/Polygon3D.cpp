@@ -30,6 +30,13 @@ Polygon3D::Polygon3D(const vector<vec3>& verts, bool fast) {
 	init();
 }
 
+Polygon3D::Polygon3D(vec3* verts, int vertCount, bool fast) {
+	for (int i = 0; i < vertCount; i++)
+		this->verts.push_back(verts[i]);
+	this->fast = ALLOW_FAST_INIT ? fast : false;
+	init();
+}
+
 Polygon3D::Polygon3D(const vector<vec3>& verts, Axes axes, bool fast) {
 	this->verts = verts;
 	this->fast = ALLOW_FAST_INIT ? fast : false;

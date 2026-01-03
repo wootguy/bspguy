@@ -183,11 +183,13 @@ void KeyvalueEditor::draw() {
 
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
-				unordered_map<string, string> allKeys = ent->getAllKeyvalues();
-				allKeys.erase("origin");
-				allKeys.erase("classname");
-				for (auto item : allKeys) {
-					ent->removeKeyvalue(item.first);
+				StringMap allKeys = ent->getAllKeyvalues();
+				allKeys.del("origin");
+				allKeys.del("classname");
+
+				StringMap::iterator_t iter;
+				while (allKeys.iterate(iter)) {
+					ent->removeKeyvalue(iter.key);
 				}
 			}
 
@@ -203,17 +205,18 @@ void KeyvalueEditor::draw() {
 
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
-				unordered_map<string, string> allKeys = ent->getAllKeyvalues();
-				allKeys.erase("origin");
-				allKeys.erase("classname");
-				for (auto item : allKeys) {
-					if (copiedKeyvalues.find(item.first) != copiedKeyvalues.end()) {
-						if (copiedKeyvalues[item.first] != item.second) {
-							conflictedKeys.insert(item.first);
+				StringMap allKeys = ent->getAllKeyvalues();
+				allKeys.del("origin");
+				allKeys.del("classname");
+				StringMap::iterator_t iter;
+				while (allKeys.iterate(iter)) {
+					if (copiedKeyvalues.find(iter.key) != copiedKeyvalues.end()) {
+						if (copiedKeyvalues[iter.key] != iter.value) {
+							conflictedKeys.insert(iter.key);
 						}
 					}
 
-					copiedKeyvalues[item.first] = item.second;
+					copiedKeyvalues[iter.key] = iter.value;
 				}
 			}
 

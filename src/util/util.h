@@ -33,6 +33,8 @@ struct Frustum {
 	vec3 planes[4]; // right, left, top, bottom
 };
 
+struct FaceMath;
+
 void logf(const char* format, ...);
 
 void debugf(const char* format, ...);
@@ -121,7 +123,7 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
 
 void sortPlanarVerts(vector<vec3>& verts);
 
-bool pointInsidePolygon(vector<vec2>& poly, vec2 p);
+bool pointInsidePolygon(FaceMath* poly, vec2 p);
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
@@ -157,6 +159,8 @@ Frustum getViewFrustum(vec3 camOrigin, vec3 camAngles, float aspect, float zNear
 bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax);
 
 bool isPointInView(vec3 p, const Frustum& frustum, float zMax);
+
+bool isPolyInView(FaceMath* poly, const Frustum& frustum);
 
 bool isPolyInView(Polygon3D poly, const Frustum& frustum);
 

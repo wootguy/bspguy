@@ -89,11 +89,6 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 		leavesThreadFinished = true;
 	}	
 
-	// cache ent targets so first selection doesn't lag
-	for (int i = 0; i < map->ents.size(); i++) {
-		map->ents[i]->getTargets();
-	}
-
 	//write_obj_file();
 }
 
@@ -734,16 +729,14 @@ void BspRenderer::preRenderFaces() {
 
 	memset(lightStyleCount, 0, sizeof(lightStyleCount));
 
+	facePolys.resize(map->faceCount);
 	for (int i = 0; i < map->faceCount; i++) {
-		Polygon3D poly = Polygon3D(map->get_face_verts(i), true);
-		PvsPoly pvsPoly;
-		pvsPoly.verts = poly.verts;
-		pvsPoly.maxs = poly.worldMaxs;
-		pvsPoly.mins = poly.worldMins;
-		pvsPoly.normal = poly.plane_z;
-		facePolys.push_back(pvsPoly);
-
 		BSPFACE& face = map->faces[i];
+
+		PvsPoly& pvsPoly = facePolys[i];
+		map->get_face_plane(i, pvsPoly.v0, pvsPoly.normal);
+		map->get_face_bounding_box(i, pvsPoly.mins, pvsPoly.maxs);
+
 		for (int k = 0; k < MAXLIGHTMAPS; k++) {
 			lightStyleCount[k] += face.nStyles[k] != 255 ? 1 : 0;
 		}
@@ -1572,6 +1565,7 @@ void BspRenderer::generateNavMeshBuffer() {
 			faceMath.plane_z = poly.plane_z;
 			faceMath.fdist = poly.fdist;
 			faceMath.worldToLocal = poly.worldToLocal;
+			faceMath.faceIdx = -1;
 			faceMath.verts = poly.verts;
 			faceMath.localVerts = poly.localVerts;
 			faceMaths.push_back(faceMath);
@@ -2097,32 +2091,29 @@ void BspRenderer::refreshFace(int faceIdx) {
 	faceMath.plane_z = planeNormal;
 	faceMath.fdist = fDist;
 	
-	vector<vec3> allVerts(face.nEdges);
 	vec3 v1;
+	vec3 v0;
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
 		int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount-1));
-		allVerts[e] = map->verts[vertIdx];
+		vec3 v = map->verts[vertIdx];
 
 		// 2 verts can share the same position on a face, so need to find one that isn't shared (aomdc_1intro)
-		if (e > 0 && allVerts[e] != allVerts[0]) {
-			v1 = allVerts[e];
+		if (e > 0 && v != v0) {
+			v1 = v;
+		}
+		else if (e == 0) {
+			v0 = v;
 		}
 	}
 
-	vec3 plane_x = faceMath.plane_x = (v1 - allVerts[0]).normalize(1.0f);
+	vec3 plane_x = faceMath.plane_x = (v1 - v0).normalize(1.0f);
 	vec3 plane_y = faceMath.plane_y = crossProduct(planeNormal, plane_x).normalize(1.0f);
 	vec3 plane_z = planeNormal;
 
 	faceMath.worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
-
-	faceMath.verts = vector<vec3>(allVerts.size());
-	faceMath.localVerts = vector<vec2>(allVerts.size());
-	for (int i = 0; i < allVerts.size(); i++) {
-		faceMath.verts[i] = allVerts[i];
-		faceMath.localVerts[i] = (faceMath.worldToLocal * vec4(allVerts[i], 1)).xy();
-	}
+	faceMath.faceIdx = faceIdx;
 }
 
 BspRenderer::~BspRenderer() {
@@ -3047,7 +3038,7 @@ void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frus
 	if (map->texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)
 		return; // special faces not rendered
 
-	float dist = dotProduct((viewOrigin - faceOffset) - poly.verts[0], poly.normal);
+	float dist = dotProduct((viewOrigin - faceOffset) - poly.v0, poly.normal);
 	if (dist > 0) {
 		return; // back face culled
 	}
@@ -3060,7 +3051,8 @@ void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frus
 	if (!makeBuffer)
 		return;
 
-	vector<vec3>& verts = poly.verts;
+	vector<vec3> verts;
+	map->get_face_verts(poly.faceIdx, verts);
 
 	for (int k = 0; k < verts.size(); k++) {
 		allVerts.push_back((faceOffset + verts[k]).flip());
@@ -3195,15 +3187,32 @@ FaceMath rotateFaceMath(const FaceMath& faceMath, mat4x4& rotation) {
 	out.plane_x = (rotation * vec4(faceMath.plane_x, 1)).xyz();
 	out.plane_y = (rotation * vec4(faceMath.plane_y, 1)).xyz();
 	out.plane_z = (rotation * vec4(faceMath.plane_z, 1)).xyz();
-	out.fdist = dotProduct(faceMath.plane_z, pointOnPlane);
-	out.worldToLocal = worldToLocalTransform(faceMath.plane_x, faceMath.plane_y, faceMath.plane_z);
+	out.fdist = dotProduct(out.plane_z, pointOnPlane);
+	out.worldToLocal = worldToLocalTransform(out.plane_x, out.plane_y, out.plane_z);
 
-	out.verts.resize(faceMath.verts.size());
-	out.localVerts = vector<vec2>(faceMath.verts.size());
-	for (int k = 0; k < faceMath.verts.size(); k++) {
-		vec3 rotVert = (rotation * vec4(faceMath.verts[k], 1)).xyz();
-		out.localVerts[k] = (faceMath.worldToLocal * vec4(rotVert, 1)).xy();
-		out.verts[k] = rotVert;
+	if (faceMath.faceIdx >= 0) {
+		Bsp* map = g_app->mapRenderer->map;
+		BSPFACE& face = map->faces[faceMath.faceIdx];
+
+		out.verts.resize(face.nEdges);
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = map->edges[abs(edgeIdx)];
+			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount - 1));
+			out.verts[e] = rotation.multColMajor(map->verts[vertIdx]);
+		}
+	}
+	else {
+		out.verts.resize(faceMath.verts.size());
+		for (int k = 0; k < faceMath.verts.size(); k++) {
+			vec3 rotVert = rotation.multColMajor(faceMath.verts[k]);
+			out.verts[k] = rotVert;
+		}
+	}
+
+	out.localVerts.resize(out.verts.size());
+	for (int k = 0; k < out.verts.size(); k++) {
+		out.localVerts[k] = out.worldToLocal.multColMajor(out.verts[k]).xy();
 	}
 
 	return out;
@@ -3303,12 +3312,12 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 		if (g_app->hiddenFaces.count(model.iFirstFace + k))
 			continue;
 
-		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
+		FaceMath* faceMath = &faceMaths[model.iFirstFace + k];
 
 		if (hasAngles) {
 			static FaceMath temp;
-			temp = rotateFaceMath(faceMath, angleTransform);
-			faceMath = temp;
+			temp = rotateFaceMath(*faceMath, angleTransform);
+			faceMath = &temp;
 		}
 
 		BSPFACE& face = map->faces[model.iFirstFace + k];
@@ -3320,7 +3329,7 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 			}
 		}
 
-		if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+		if (isPolyInView(faceMath, frustum)) {
 			pickFaces.insert(model.iFirstFace + k);
 		}
 	}
@@ -3335,15 +3344,15 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath& faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
+			FaceMath* faceMath = &renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
 				static FaceMath temp;
-				temp = rotateFaceMath(faceMath, angleTransform);
-				faceMath = temp;
+				temp = rotateFaceMath(*faceMath, angleTransform);
+				faceMath = &temp;
 			}
 
-			if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+			if (isPolyInView(faceMath, frustum)) {
 				pickFaces.insert(-1); // face index doesn't matter for ent selection
 			}
 		}
@@ -3363,7 +3372,7 @@ void BspRenderer::pickFrustumLeaves(Frustum frustum, unordered_set<int>& pickLea
 			if (g_app->hiddenLeaves.count(faceMath.index))
 				continue;
 
-			if (isPolyInView(Polygon3D(faceMath.verts, true), frustum)) {
+			if (isPolyInView(&faceMath, frustum)) {
 				pickLeaves.insert(faceMath.index);
 			}
 		}
@@ -3468,22 +3477,32 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 		if (g_app->hiddenFaces.count(model.iFirstFace + k))
 			continue;
 
-		FaceMath& faceMath = faceMaths[model.iFirstFace + k];
+		FaceMath* faceMath = &faceMaths[model.iFirstFace + k];
 
 		if (hasAngles) {
-			static FaceMath temp = faceMath;
-			temp = rotateFaceMath(faceMath, angleTransform);
-			faceMath = temp;
+			static FaceMath temp;
+			temp = rotateFaceMath(*faceMath, angleTransform);
+			faceMath = &temp;
 		}
 
-		/*
 		// debug rotated solid entity picking (not the same transform as rendering for some reason)
-		if (modelIdx == 63) {
+		/*
+		if (modelIdx == 171 && k == 2) {
 			vector<vec3> debugVerts;
-			for (vec3& ogvert : faceMath.verts) {
-				debugVerts.push_back((angleTransform * vec4(ogvert, 1)).xyz());
+			for (vec3& ogvert : faceMath->verts) {
+				//debugVerts.push_back((angleTransform * vec4(ogvert, 1)).xyz());
+				debugVerts.push_back(ogvert);
 			}
 			g_app->debugPoly = Polygon3D(debugVerts);
+			g_app->debugLine0 = faceMath->verts[0];
+			g_app->debugLine1 = faceMath->verts[0] + faceMath->plane_z*10000;
+
+			rotateFaceMath(faceMaths[model.iFirstFace + k], angleTransform);
+
+			float fakeT = FLT_MAX;
+			if (pickFaceMath(start, dir, *faceMath, fakeT)) {
+				logf("Zomg picked it\n");
+			}
 		}
 		*/
 
@@ -3497,7 +3516,7 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 		}
 
 		float t = bestDist;
-		if (pickFaceMath(start, dir, faceMath, t)) {
+		if (pickFaceMath(start, dir, *faceMath, t)) {
 			foundBetterPick = true;
 			bestDist = t;
 			faceIdx = model.iFirstFace + k;
@@ -3514,16 +3533,16 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 
 	if (clipnodesLoaded && (selectWorldClips || selectEntClips) && hullIdx != -1) {
 		for (int i = 0; i < renderClipnodeDat[modelIdx].faceMaths[hullIdx].size(); i++) {
-			FaceMath& faceMath = renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
+			FaceMath* faceMath = &renderClipnodeDat[modelIdx].faceMaths[hullIdx][i];
 
 			if (hasAngles) {
-				static FaceMath temp = faceMath;
-				temp = rotateFaceMath(faceMath, angleTransform);
-				faceMath = temp;
+				static FaceMath temp;
+				temp = rotateFaceMath(*faceMath, angleTransform);
+				faceMath = &temp;
 			}
 
 			float t = bestDist;
-			if (pickFaceMath(start, dir, faceMath, t)) {
+			if (pickFaceMath(start, dir, *faceMath, t)) {
 				foundBetterPick = true;
 				bestDist = t;
 
@@ -3593,7 +3612,7 @@ bool BspRenderer::pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& 
 	vec2 localRayPoint = (faceMath.worldToLocal * vec4(intersection, 1)).xy();
 
 	// check if point is inside the polygon using the plane's 2D coordinate system
-	if (!pointInsidePolygon(faceMath.localVerts, localRayPoint)) {
+	if (!pointInsidePolygon(&faceMath, localRayPoint)) {
 		return false;
 	}
 
@@ -3661,7 +3680,6 @@ int FaceMath::calcMemoryUsage() {
 
 int PvsPoly::calcMemoryUsage() {
 	int bytes = sizeof(FaceMath);
-	bytes += verts.size() + sizeof(vec3);
 	return bytes;
 }
 

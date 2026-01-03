@@ -59,6 +59,7 @@ struct FaceMath {
 	float fdist;
 	vector<vec3> verts;
 	vector<vec2> localVerts;
+	int faceIdx = -1; // 0+ = don't use verts/localverts, reference bsp data instead (less memory/allocs)
 	int index; // used to map a face to an element in some other list (e.g. leaf node mesh -> leaf index)
 
 	int calcMemoryUsage();
@@ -150,9 +151,10 @@ struct MegaRenderClipnodes {
 
 // data needed to check if a face is in the PVS
 struct PvsPoly {
+	vec3 v0;
 	vec3 normal;
 	vec3 mins, maxs;
-	vector<vec3> verts;
+	int faceIdx;
 
 	int calcMemoryUsage();
 };

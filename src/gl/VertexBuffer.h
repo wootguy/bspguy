@@ -30,6 +30,8 @@ class ShaderProgram;
 #define VBUF_COLOR_MASK 0x78 // mask for all color flags
 #define VBUF_NORM_MASK 0x180 // mask for all normal flags
 
+#define MAX_VERTEX_ATTRIBUTES 16 // TODO: limit to 8 for ancient intel gpus
+
 struct VertexAttr
 {
 	int numValues;
@@ -49,9 +51,10 @@ class VertexBuffer
 {
 public:
 	uint8_t* data = NULL;
-	std::vector<VertexAttr> attribs;
-	int elementSize;
-	int numVerts;
+	VertexAttr attributes[MAX_VERTEX_ATTRIBUTES];
+	int numAttributes = 0;
+	int elementSize = 0;
+	int numVerts = 0;
 	bool ownData = false; // set to true if buffer should delete data on destruction
 
 	// Specify which common attributes to use. They will be located in the
@@ -76,7 +79,6 @@ public:
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader=true);
 	void addAttribute(int type, const char* varName, bool inShader=true);
 	void addAttribute(const VertexAttr& attr);
-	void addAttributes(const std::vector<VertexAttr>& otherAttr);
 	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 	int calcMemoryUsage();
 

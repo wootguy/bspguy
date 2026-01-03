@@ -48,6 +48,8 @@ public:
 
 	Polygon3D(const std::vector<vec3>& verts, bool fast=false);
 
+	Polygon3D(vec3* verts, int vertCount, bool fast=false);
+
 	Polygon3D(const std::vector<vec3>& verts, Axes axes, bool fast = false);
 	
 	Polygon3D(const std::vector<vec3>& verts, int idx, bool fast=false);
