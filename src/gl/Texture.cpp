@@ -55,9 +55,10 @@ Texture::~Texture()
 	}
 	if (data)
 		delete[] data;
-	for (MipTexture& mip : mipmaps) {
-		delete[] mip.data;
+	for (int i = 0; i < numMipMaps; i++) {
+		delete[] mipmaps[i].data;
 	}
+	numMipMaps = 0;
 }
 
 vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* dstData,
@@ -117,11 +118,11 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 }
 
 void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
-	for (MipTexture& mip : mipmaps) {
-		delete[] mip.data;
+	for (int i = 0; i < numMipMaps; i++) {
+		delete[] mipmaps[i].data;
 	}
 
-	mipmaps.clear();
+	numMipMaps = 0;
 	COLOR4* texdata = (COLOR4*)data;
 
 	// convert to 24bit for resample lib
@@ -171,7 +172,7 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 		mip.height = mipHeight;
 		mip.data = mipData32;
 		mip.level = m;
-		mipmaps.push_back(mip);
+		mipmaps[numMipMaps++] = mip;
 	}
 
 	delete[] data24;
@@ -249,15 +250,16 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 		uploadedDataSize += width * height * getPixelBytes(format);
 
 		if (!lightmap && width % 16 == 0 && height % 16 == 0 && format == GL_RGBA) {
-			const int mipLevels = mipmaps.size();
+			const int mipLevels = numMipMaps;
 			COLOR4* texdata = (COLOR4*)data;
 
-			for (MipTexture& mip : mipmaps) {
+			for (int i = 0; i < numMipMaps; i++) {
+				MipTexture& mip = mipmaps[i];
 				glTexImage2D(GL_TEXTURE_2D, mip.level, format, mip.width, mip.height, 0, format, GL_UNSIGNED_BYTE, mip.data);
 				uploadedDataSize += width * height * getPixelBytes(format);
 			}
 
-			if (mipmaps.size()) {
+			if (numMipMaps) {
 				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.5f);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels);
 			}
@@ -273,11 +275,11 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 	if (deleteData) {
 		// don't keep duplicate data in cpu mem
 		delete[] data;
-		for (MipTexture& mip : mipmaps) {
-			delete[] mip.data;
-			mip.data = NULL;
+		for (int i = 0; i < numMipMaps; i++) {
+			delete[] mipmaps[i].data;
+			mipmaps[i].data = NULL;
 		}
-		mipmaps.clear();
+		numMipMaps = 0;
 		data = NULL;
 	}
 
@@ -325,7 +327,8 @@ int Texture::calcMemoryUsage() {
 	int bpp = getPixelBytes(format);
 	bytes += data ? width * height * depth * bpp : 0;
 
-	for (MipTexture& mip : mipmaps) {
+	for (int i = 0; i < numMipMaps; i++) {
+		MipTexture& mip = mipmaps[i];
 		bytes += sizeof(MipTexture);
 		bytes += mip.data ? mip.width * mip.height * bpp : 0;
 	}

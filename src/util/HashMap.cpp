@@ -2,6 +2,7 @@
 #include "HashMap.h"
 #include <string.h>
 #include <unordered_set>
+#include <algorithm>
 
 #define HMAP_DEFAULT_STRING_POOL_SZ 64
 #define HMAP_MAX_STRING_POOL_SZ (1024*1024*16)

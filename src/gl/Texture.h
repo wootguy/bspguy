@@ -4,9 +4,9 @@
 #include "colors.h"
 
 struct MipTexture {
-	int width;
-	int height;
-	int level;
+	uint16_t width;
+	uint16_t height;
+	uint16_t level;
 	COLOR4* data;
 };
 
@@ -34,6 +34,8 @@ enum resample_output_modes {
 	RESAMP_RGB
 };
 
+#define MAX_MIP_MAPS 4
+
 class Texture
 {
 public:	
@@ -42,7 +44,8 @@ public:
 	int layer; // layer in the texture array. 0 if not in an array or at layer 0
 	uint32_t height, width, depth;
 	uint8_t * data; // RGB(A) data
-	std::vector<MipTexture> mipmaps; // mipmap data
+	MipTexture mipmaps[MAX_MIP_MAPS]; // mipmap data
+	int numMipMaps = 0;
 	int nearFilter;
 	int farFilter;
 	uint32_t format = 0; // format of the data

@@ -67,7 +67,7 @@ void Polygon3D::init(bool skipAxes) {
 		return;
 
 	if (!skipAxes) {
-		vector<vec3> triangularVerts = getTriangularVerts(this->verts);
+		vector<vec3> triangularVerts = getTriangularVerts(&this->verts[0], this->verts.size());
 
 		if (triangularVerts.empty())
 			return;

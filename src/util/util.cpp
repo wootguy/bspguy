@@ -570,13 +570,13 @@ void push_unique_vec3(vector<vec3>& verts, vec3 a, float epsilon) {
 	verts.push_back(a);
 }
 
-vector<vec3> getTriangularVerts(vector<vec3>& verts) {
+vector<vec3> getTriangularVerts(vec3* verts, int numVerts) {
 	int i0 = 0;
 	int i1 = -1;
 	int i2 = -1;
 
 	int count = 1;
-	for (int i = 1; i < verts.size() && count < 3; i++) {
+	for (int i = 1; i < numVerts && count < 3; i++) {
 		if (verts[i] != verts[i0]) {
 			i1 = i;
 			count++;
@@ -592,7 +592,7 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 	for (int pass = 0; pass < 2 && i2 == -1; pass++) {
 		float colinear = pass == 0 ? 0.99f : 0.999f;
 
-		for (int i = 1; i < verts.size(); i++) {
+		for (int i = 1; i < numVerts; i++) {
 			if (i == i1)
 				continue;
 
@@ -618,13 +618,13 @@ vector<vec3> getTriangularVerts(vector<vec3>& verts) {
 	return { verts[i0], verts[i1], verts[i2] };
 }
 
-vec3 getNormalFromVerts(vector<vec3>& verts) {
+vec3 getNormalFromVerts(vec3* verts, int numVerts) {
 	int i0 = 0;
 	int i1 = -1;
 	int i2 = -1;
 
 	int count = 1;
-	for (int i = 1; i < verts.size() && count < 3; i++) {
+	for (int i = 1; i < numVerts && count < 3; i++) {
 		if (verts[i] != verts[i0]) {
 			i1 = i;
 			count++;
@@ -640,7 +640,7 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 	for (int pass = 0; pass < 2 && i2 == -1; pass++) {
 		float colinear = pass == 0 ? 0.99f : 0.999f;
 
-		for (int i = 1; i < verts.size(); i++) {
+		for (int i = 1; i < numVerts; i++) {
 			if (i == i1)
 				continue;
 
@@ -668,8 +668,8 @@ vec3 getNormalFromVerts(vector<vec3>& verts) {
 	return crossProduct(e1, e2).normalize();
 }
 
-vector<vec2> localizeVerts(vector<vec3>& verts) {
-	vector<vec3> triangularVerts = getTriangularVerts(verts);
+vector<vec2> localizeVerts(vec3* verts, int numVerts) {
+	vector<vec3> triangularVerts = getTriangularVerts(verts, numVerts);
 
 	if (triangularVerts.empty()) {
 		return vector<vec2>();
@@ -684,8 +684,8 @@ vector<vec2> localizeVerts(vector<vec3>& verts) {
 
 	mat4x4 worldToLocal = worldToLocalTransform(plane_x, plane_y, plane_z);
 
-	vector<vec2> localVerts(verts.size());
-	for (int e = 0; e < verts.size(); e++) {
+	vector<vec2> localVerts(numVerts);
+	for (int e = 0; e < numVerts; e++) {
 		localVerts[e] = (worldToLocal * vec4(verts[e], 1)).xy();
 	}
 
@@ -693,7 +693,7 @@ vector<vec2> localizeVerts(vector<vec3>& verts) {
 }
 
 vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
-	vector<vec2> localVerts = localizeVerts(verts);
+	vector<vec2> localVerts = localizeVerts(&verts[0], verts.size());
 	if (localVerts.empty()) {
 		return vector<int>();
 	}
@@ -738,11 +738,10 @@ vector<int> getSortedPlanarVertOrder(vector<vec3>& verts) {
 	return orderedVerts;
 }
 
-void sortPlanarVerts(vector<vec3>& verts) {
-	vector<vec2> localVerts = localizeVerts(verts);
+bool sortPlanarVerts(vec3* verts, int numVerts) {
+	vector<vec2> localVerts = localizeVerts(verts, numVerts);
 	if (localVerts.empty()) {
-		verts.clear();
-		return;
+		return false;
 	}
 
 	// Compute the center point
@@ -756,7 +755,7 @@ void sortPlanarVerts(vector<vec3>& verts) {
 	};
 
 	vector<VertexWithAngle> verticesWithAngles;
-	verticesWithAngles.reserve(verts.size());
+	verticesWithAngles.reserve(numVerts);
 
 	// Precompute polar angles and store both the angle and corresponding vertex
 	for (int i = 0; i < localVerts.size(); i++) {
@@ -773,9 +772,11 @@ void sortPlanarVerts(vector<vec3>& verts) {
 	});
 
 	// Now replace the original verts with the sorted vertices
-	for (int i = 0; i < verts.size(); i++) {
+	for (int i = 0; i < numVerts; i++) {
 		verts[i] = verticesWithAngles[i].vert;
 	}
+
+	return true;
 }
 
 bool pointInsidePolygon(vec2* verts, int numVerts, vec2 p) {
@@ -802,28 +803,6 @@ bool pointInsidePolygon(vec2* verts, int numVerts, vec2 p) {
 	}
 	return inside;
 }
-
-bool pointInsidePolygon(FaceMath* poly, vec2 p) {
-	if (poly->faceIdx >= 0) {
-		static vec2 localVerts[MAX_FACE_VERTS];
-
-		Bsp* map = g_app->mapRenderer->map;
-		BSPFACE& face = map->faces[poly->faceIdx];
-
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount - 1));
-			localVerts[e] = poly->worldToLocal.multColMajor(map->verts[vertIdx]).xy();
-		}
-
-		return pointInsidePolygon(localVerts, face.nEdges, p);
-	}
-	else {
-		return pointInsidePolygon(&poly->localVerts[0], poly->localVerts.size(), p);
-	}
-}
-
 
 bool dirExists(const string& dirName_in)
 {
@@ -1203,25 +1182,8 @@ bool isPointInView(vec3 p, const Frustum& frustum, float zMax) {
 	return true;
 }
 
-bool isPolyInView(FaceMath* poly, const Frustum& frustum) {
-	if (poly->faceIdx >= 0) {
-		static vec3 verts[MAX_FACE_VERTS];
-
-		Bsp* map = g_app->mapRenderer->map;
-		BSPFACE& face = map->faces[poly->faceIdx];
-
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount - 1));
-			verts[e] = map->verts[vertIdx];
-		}
-
-		return isPolyInView(Polygon3D(verts, face.nEdges, true), frustum);
-	}
-	else {
-		return isPolyInView(Polygon3D(poly->verts, true), frustum);
-	}
+bool isPolyInView(FaceMath* poly, const Frustum& frustum, vec3* srcVerts) {
+	return isPolyInView(Polygon3D(srcVerts, poly->numVerts, true), frustum);
 }
 
 bool isPolyInView(Polygon3D poly, const Frustum& frustum) {

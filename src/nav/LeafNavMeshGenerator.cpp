@@ -148,9 +148,9 @@ bool LeafNavMeshGenerator::getHullForClipperMesh(CMesh& mesh, LeafNode& leaf, bo
 			}
 		}
 
-		sortPlanarVerts(faceVerts);
+		sortPlanarVerts(&faceVerts[0], faceVerts.size());
 
-		vector<vec3> triangularVerts = getTriangularVerts(faceVerts);
+		vector<vec3> triangularVerts = getTriangularVerts(&faceVerts[0], faceVerts.size());
 
 		if (faceVerts.size() < 3 || triangularVerts.empty()) {
 			if (!allowDegenerateMeshes) {

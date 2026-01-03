@@ -508,6 +508,8 @@ void Editor::renderLoop() {
 
 	glCheckError("pre render loop");
 
+	int loadState = 0;
+
 	fgdFuture = async(launch::async, &Editor::loadFgds, this);
 
 	float lastFrameTime = glfwGetTime();
@@ -566,9 +568,14 @@ void Editor::renderLoop() {
 			sleepms(50);
 		}
 
-		if (programStartTime >= 0) {
+		if (loadState == 0) {
 			debugf("Startup finished in %.2fs\n", glfwGetTime() - programStartTime);
-			programStartTime = -1;
+			loadState = 1;
+			programStartTime = -programStartTime;
+		}
+		if (loadState == 1 && !isLoading) {
+			debugf("Map loaded in %.2fs\n", glfwGetTime() - programStartTime);
+			loadState = 2;
 		}
 	}
 
@@ -3297,7 +3304,7 @@ bool Editor::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& ou
 		Face face;
 		face.plane = plane;
 
-		vec3 orderedVertsNormal = getNormalFromVerts(tempVerts);
+		vec3 orderedVertsNormal = getNormalFromVerts(&tempVerts[0], tempVerts.size());
 
 		// get plane normal, flipping if it points inside the solid
 		vec3 faceNormal = plane.vNormal;

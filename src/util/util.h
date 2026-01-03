@@ -111,19 +111,19 @@ bool pointInBox(const vec3& p, const vec3& mins, const vec3& maxs);
 bool isBoxContained(const vec3& innerMins, const vec3& innerMaxs, const vec3& outerMins, const vec3& outerMaxs);
 
 // get verts from the given set that form a triangle (no duplicates and not colinear)
-vector<vec3> getTriangularVerts(vector<vec3>& verts);
+vector<vec3> getTriangularVerts(vec3* verts, int numVerts);
 
-vec3 getNormalFromVerts(vector<vec3>& verts);
+vec3 getNormalFromVerts(vec3* verts, int numVerts);
 
 // transforms verts onto a plane (which is defined by the verts themselves)
-vector<vec2> localizeVerts(vector<vec3>& verts);
+vector<vec2> localizeVerts(vec3* verts, int numVerts);
 
 // Returns CCW sorted indexes into the verts, as viewed on the plane the verts define
 vector<int> getSortedPlanarVertOrder(vector<vec3>& verts);
 
-void sortPlanarVerts(vector<vec3>& verts);
+bool sortPlanarVerts(vec3* verts, int numVerts);
 
-bool pointInsidePolygon(FaceMath* poly, vec2 p);
+bool pointInsidePolygon(vec2* verts, int numVerts, vec2 p);
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
@@ -160,7 +160,7 @@ bool isBoxInView(vec3 min, vec3 max, const Frustum& frustum, float zMax);
 
 bool isPointInView(vec3 p, const Frustum& frustum, float zMax);
 
-bool isPolyInView(FaceMath* poly, const Frustum& frustum);
+bool isPolyInView(FaceMath* poly, const Frustum& frustum, vec3* srcVerts);
 
 bool isPolyInView(Polygon3D poly, const Frustum& frustum);
 

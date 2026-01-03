@@ -44,6 +44,9 @@ vector<Polygon3D*> NavMeshGenerator::getHullFaces(Bsp* map, int hull) {
 		solidMeshes.push_back(clipper.clip(solidNodes[k].cuts));
 	}
 
+	vec3 faceVerts[256]; // index into mesh verts
+	bool addedFaceVerts[256]; // true if vert already added
+
 	// GET FACES FROM MESHES
 	for (int m = 0; m < solidMeshes.size(); m++) {
 		CMesh& mesh = solidMeshes[m];
@@ -54,7 +57,8 @@ vector<Polygon3D*> NavMeshGenerator::getHullFaces(Bsp* map, int hull) {
 				continue;
 			}
 
-			set<int> uniqueFaceVerts;
+			memset(addedFaceVerts, 0, sizeof(bool) * mesh.verts.size());
+			int numFaceVerts = 0;
 
 			for (int k = 0; k < face.edges.size(); k++) {
 				for (int v = 0; v < 2; v++) {
@@ -62,26 +66,20 @@ vector<Polygon3D*> NavMeshGenerator::getHullFaces(Bsp* map, int hull) {
 					if (!mesh.verts[vertIdx].visible) {
 						continue;
 					}
-					uniqueFaceVerts.insert(vertIdx);
+					addedFaceVerts[vertIdx] = true;
+					faceVerts[numFaceVerts++] = mesh.verts[vertIdx].pos;
 				}
 			}
 
-			vector<vec3> faceVerts;
-			for (auto vertIdx : uniqueFaceVerts) {
-				faceVerts.push_back(mesh.verts[vertIdx].pos);
-			}
-
-			sortPlanarVerts(faceVerts);
-
-			if (faceVerts.size() < 3) {
-				//logf("Degenerate clipnode face discarded %d\n", faceVerts.size());
+			if (!sortPlanarVerts(faceVerts, numFaceVerts)) {
+				//logf("Degenerate clipnode face discarded\n");
 				continue;
 			}
 
-			vec3 normal = getNormalFromVerts(faceVerts);
+			vec3 normal = getNormalFromVerts(faceVerts, numFaceVerts);
 
 			if (dotProduct(face.normal, normal) < 0) {
-				reverse(faceVerts.begin(), faceVerts.end());
+				reverse(faceVerts, faceVerts + numFaceVerts);
 				normal = normal.invert();
 			}
 

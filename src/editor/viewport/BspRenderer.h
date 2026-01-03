@@ -29,6 +29,7 @@ struct BSPMODEL;
 struct BSPFACE;
 struct BSPLEAF;
 struct NodeVolumeCuts;
+struct CMesh;
 class Wad;
 
 struct LightmapInfo {
@@ -53,13 +54,10 @@ struct SubTexture {
 
 struct FaceMath {
 	mat4x4 worldToLocal; // transforms world coordiantes to this face's plane's coordinate system
-	vec3 plane_x;
-	vec3 plane_y;
 	vec3 plane_z;
 	float fdist;
-	vector<vec3> verts;
-	vector<vec2> localVerts;
-	int faceIdx = -1; // 0+ = don't use verts/localverts, reference bsp data instead (less memory/allocs)
+	int vertIdx = -1; // index into a vert buffer (faceMathVerts or similar)
+	int numVerts;
 	int index; // used to map a face to an element in some other list (e.g. leaf node mesh -> leaf index)
 
 	int calcMemoryUsage();
@@ -105,12 +103,16 @@ struct RenderModel {
 
 struct RenderClipnodes {
 	VertexBuffer* clipnodeBuffer[MAX_MAP_HULLS];
+	vector<vec3> faceMathVerts;
+	vector<vec2> faceMathLocalVerts;
 	vector<FaceMath> faceMaths[MAX_MAP_HULLS];
 };
 
 struct RenderLeaves {
 	VertexBuffer* leafBuffer;
 	vector<FaceMath> faceMaths;
+	vector<vec3> faceMathVerts;
+	vector<vec2> faceMathLocalVerts;
 	vector<COLOR4> originalColors; // original color values for each vertex
 	vector<int> leafRanges[65536]; // maps a leaf index to vertex indexes in the leafBuffer
 };
@@ -193,7 +195,7 @@ public:
 	bool pickPoly(vec3 start, vec3 dir, int hullIdx, int& entIdx, int& faceIdx, int& leafIdx, float& bestDist);
 	bool pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx, int& faceIdx, float& bestDist);
 	bool pickLeaf(vec3 start, vec3 dir, int& leafIdx, float& bestDist);
-	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, float& bestDist);
+	bool pickFaceMath(vec3 start, vec3 dir, FaceMath& faceMath, vec2* localVerts, float& bestDist);
 	void pickFrustum(Frustum& frustum, unordered_set<int>& pickEnts, unordered_set<int>& pickFaces, unordered_set<int>& pickLeaves, int hullIdx);
 	void pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFaces, vec3 offset, vec3 rot, int modelIdx, int hullIdx, int testEntidx);
 	void pickFrustumLeaves(Frustum frustum, unordered_set<int>& pickLeaves);
@@ -266,6 +268,8 @@ private:
 	RenderClipnodes* renderClipnodeDat = NULL;
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
+	vector<vec3> faceMathVerts;
+	vector<vec2> faceMathLocalVerts;
 	VertexBuffer* pointEnts = NULL;
 	VertexBuffer* skyBoxBuffer = NULL;
 	vector<PvsPoly> facePolys; // for wpoly calculations
@@ -330,8 +334,8 @@ private:
 	void loadLeaves();
 	void generateClipnodeBuffer(int modelIdx);
 	void generateLeafBuffer();
-	void generateNodeMesh(NodeVolumeCuts* volume, COLOR4 color, vector<clipnodeVert>& allVerts,
-		vector<FaceMath>& faceMaths, int elementIndex);
+	void generateNodeMesh(CMesh* volume, COLOR4 color, vector<clipnodeVert>& allVerts,
+		vector<vec3>& allFaceMathVerts, vector<vec2>& allFaceMathLocalVerts, vector<FaceMath>& faceMaths, int elementIndex);
 	void generateNavMeshBuffer();
 	void deleteRenderModel(RenderModel* renderModel);
 	void deleteRenderModelClipnodes(RenderClipnodes* renderModel);
