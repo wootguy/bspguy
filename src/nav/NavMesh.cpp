@@ -7,11 +7,11 @@
 
 bool NavNode::addLink(int node, int srcEdge, int dstEdge, int16_t zDist, uint8_t flags) {
 	if (srcEdge < 0 || srcEdge >= MAX_NAV_POLY_VERTS) {
-		logf("Error: add link to invalid src edge %d\n", srcEdge);
+		errorf("Error: add link to invalid src edge %d\n", srcEdge);
 		return false;
 	}
 	if (dstEdge < 0 || dstEdge >= MAX_NAV_POLY_VERTS) {
-		logf("Error: add link to invalid dst edge %d\n", dstEdge);
+		errorf("Error: add link to invalid dst edge %d\n", dstEdge);
 		return false;
 	}
 	
@@ -33,7 +33,7 @@ bool NavNode::addLink(int node, int srcEdge, int dstEdge, int16_t zDist, uint8_t
 		}
 	}
 
-	logf("Error: Max links reached on node %d\n", id);
+	errorf("Error: Max links reached on node %d\n", id);
 	return false;
 }
 
@@ -76,7 +76,7 @@ NavMesh::NavMesh(vector<Polygon3D> faces) {
 	for (int i = 0; i < faces.size(); i++) {
 		polys[i] = Polygon3D(faces[i].verts);
 		if (faces[i].verts.size() > MAX_NAV_POLY_VERTS)
-			logf("Error: Face %d has %d verts (max is %d)\n", i, faces[i].verts.size(), MAX_NAV_POLY_VERTS);
+			errorf("Error: Face %d has %d verts (max is %d)\n", i, faces[i].verts.size(), MAX_NAV_POLY_VERTS);
 	}
 	numPolys = faces.size();
 
@@ -89,7 +89,7 @@ NavMesh::NavMesh(vector<Polygon3D> faces) {
 
 bool NavMesh::addLink(int from, int to, int srcEdge, int dstEdge, int16_t zDist, uint8_t flags) {
 	if (from < 0 || to < 0 || from >= MAX_NAV_POLYS || to >= MAX_NAV_POLYS) {
-		logf("Error: add link from/to invalid node %d %d\n", from, to);
+		errorf("Error: add link from/to invalid node %d %d\n", from, to);
 		return false;
 	}
 

@@ -1,10 +1,9 @@
 #include "Widget.h"
 
 void LogWidget::draw() {
-
 	g_log_mutex.lock();
 	for (int i = 0; i < g_log_buffer.size(); i++) {
-		addLog(g_log_buffer[i].c_str());
+		addLog(g_log_buffer[i]);
 	}
 	g_log_buffer.clear();
 	g_log_mutex.unlock();
@@ -50,7 +49,10 @@ void LogWidget::draw() {
 		{
 			const char* line_start = buf + LineOffsets[line_no];
 			const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+			
+			ImGui::PushStyleColor(ImGuiCol_Text, LineColors[line_no]);
 			ImGui::TextUnformatted(line_start, line_end);
+			ImGui::PopStyleColor();
 		}
 	}
 	clipper.End();
@@ -71,17 +73,43 @@ void LogWidget::clearLog()
 	Buf.clear();
 	LineOffsets.clear();
 	LineOffsets.push_back(0);
+
+	LineColors.clear();
+	LineColors.push_back(ImVec4(1,1,1,1));
 }
 
-void LogWidget::addLog(const char* s)
+void LogWidget::addLog(LogEntry& entry)
 {
+	ImVec4 color = ImVec4(1, 1, 1, 1);
+	switch (entry.type) {
+	case LOG_LEVEL_DEBUG:
+		color = ImVec4(0, 0.5f, 0, 1);
+		break;
+	case LOG_LEVEL_WARN:
+		color = ImVec4(1.0f, 1.05, 0, 1);
+		break;
+	case LOG_LEVEL_ERROR:
+		color = ImVec4(1.0f, 0, 0, 1);
+		break;
+	default:
+		break;
+	}
+
+	if (!LineColors.empty())
+		LineColors.back() = color;
+	
 	int old_size = Buf.size();
-	Buf.append(s);
-	for (int new_size = Buf.size(); old_size < new_size; old_size++)
-		if (Buf[old_size] == '\n')
+	Buf.append(entry.msg.c_str());
+
+	for (int new_size = Buf.size(); old_size < new_size; old_size++) {
+		if (Buf[old_size] == '\n') {
 			LineOffsets.push_back(old_size + 1);
+			LineColors.push_back(color);
+		}
+	}
 }
 
 int LogWidget::calcMemoryUsage() {
-	return sizeof(LogWidget) + Buf.size() + LineOffsets.size()*sizeof(int);
+	return sizeof(LogWidget) + Buf.size()
+		+ LineOffsets.size()*sizeof(int) + LineColors.size()*sizeof(ImVec4);
 }

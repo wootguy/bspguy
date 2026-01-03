@@ -5,7 +5,7 @@
 
 int g_active_shader_program;
 
-ShaderProgram::ShaderProgram(string name)
+ShaderProgram::ShaderProgram(const char* name)
 {
 	this->name = name;
 	compiled = false;
@@ -29,6 +29,12 @@ void ShaderProgram::compile(const char* vshaderSource, const char* fshaderSource
 	link();
 }
 
+void ShaderProgram::clearAttributes() {
+	numAttributes = 0;
+	vertexSize = 0;
+	uniforms.clear();
+}
+
 void ShaderProgram::link()
 {
 	// Create Shader And Program Objects
@@ -46,7 +52,7 @@ void ShaderProgram::link()
 		char* log = new char[1024];
 		int len;
 		glGetProgramInfoLog(ID, 1024, &len, log);
-		logf("Failed to link %s shader program:\n", name.c_str());
+		logf("Failed to link %s shader program:\n", name);
 		logf(log);
 		logf("\n");
 		if (len > 1024)
@@ -122,107 +128,119 @@ void ShaderProgram::setMatrixNames(const char* modelViewMat, const char* modelVi
 	}
 }
 
-void ShaderProgram::setVertexAttributeNames(const char* posAtt, const char* colorAtt, const char* texAtt, const char* normAtt)
-{
-	bind();
+void ShaderProgram::addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader) {
+	VertexAttr attribute(numValues, valueType, -1, normalized, varName);
 
-	if (posAtt != NULL)
-	{
-		vposID = glGetAttribLocation(ID, posAtt);
-		if (vposID == -1) logf("Could not find vposition attribute: %s in %s shader\n", posAtt, name.c_str());
-	}
-	if (colorAtt != NULL)
-	{
-		vcolorID = glGetAttribLocation(ID, colorAtt);
-		if (vcolorID == -1) logf("Could not find vcolor attribute: %s in %s shader\n", colorAtt, name.c_str());
-	}
-	if (texAtt != NULL)
-	{
-		vtexID = glGetAttribLocation(ID, texAtt);
-		if (vtexID == -1) logf("Could not find vtexture attribute: %s in %s shader\n", texAtt, name.c_str());
-	}
-	if (normAtt != NULL)
-	{
-		vnormID = glGetAttribLocation(ID, normAtt);
-		if (vnormID == -1) logf("Could not find vnormal attribute: %s in %s shader\n", normAtt, name.c_str());
+	addAttribute(attribute);
+}
+
+void ShaderProgram::addAttributes(const std::vector<VertexAtrrArg>& attr) {
+	for (const VertexAtrrArg& a : attr) {
+		addAttribute(VertexAttr(a.numValues, a.valueType, -1, a.normalized, a.varName));
 	}
 }
 
-void ShaderProgram::addUniform(string uniformName, uniform_type type) {
-	if (type >= UNIFORM_TYPES) {
-		logf("ERROR: Invalid uniform type %d set in %s shader\n", type, name.c_str());
+void ShaderProgram::addAttribute(const VertexAttr& attrib) {
+	vertexSize += attrib.size;
+	int i = numAttributes;
+
+	if (i >= MAX_VERTEX_ATTRIBUTES) {
+		logf("Too many vertex attributes in shader %s!\n", name);
 		return;
 	}
+
+	attributes[i] = attrib;
+	attributes[i].handle = glGetAttribLocation(g_active_shader_program, attributes[i].varName);
+
+	if (attributes[i].handle == -1) {
+		logf("Could not find vertex attribute '%s' in shader %s\n",
+			attributes[i].varName, name);
+	}
+	
+	numAttributes++;
+}
+
+void ShaderProgram::addUniform(const char* uniformName, uniform_type type) {
+	if (type >= UNIFORM_TYPES) {
+		errorf("ERROR: Invalid uniform type %d set in %s shader\n", type, name);
+		return;
+	}
+
+	ShaderUniform uniform;
+	uniform.type = type;
+	uniform.location = -1;
 
 	bind();
 
-	ShaderUniform uniform;
-	uniform.location = glGetUniformLocation(ID, uniformName.c_str());
-	uniform.type = type;
-	
-	if (uniform.location == -1) {
-		logf("ERROR: Uniform %s not found in %s shader\n", uniformName.c_str(), name.c_str());
-		return;
+	uniform.location = glGetUniformLocation(ID, uniformName);
+
+	if (uniform.location != -1) {		
+		glCheckError("Finding uniform in shadder");
+
+		static float emptyMatrix[16] = { 0.0f };
+
+		// test uniform type and initialize to 0
+		switch (uniform.type) {
+		case UNIFORM_FLOAT:
+			glUniform1f(uniform.location, 0.0f);
+			break;
+		case UNIFORM_VEC2:
+			glUniform2f(uniform.location, 0.0f, 0.0f);
+			break;
+		case UNIFORM_VEC3:
+			glUniform3f(uniform.location, 0.0f, 0.0f, 0.0f);
+			break;
+		case UNIFORM_VEC4:
+			glUniform4f(uniform.location, 0.0f, 0.0f, 0.0f, 0.0f);
+			break;
+		case UNIFORM_MAT2:
+			glUniformMatrix2fv(uniform.location, 1, false, emptyMatrix);
+			break;
+		case UNIFORM_MAT3:
+			glUniformMatrix3fv(uniform.location, 1, false, emptyMatrix);
+			break;
+		case UNIFORM_MAT4:
+			glUniformMatrix4fv(uniform.location, 1, false, emptyMatrix);
+			break;
+		case UNIFORM_INT:
+			glUniform1i(uniform.location, 0);
+			break;
+		case UNIFORM_IVEC2:
+			glUniform2i(uniform.location, 0, 0);
+			break;
+		case UNIFORM_IVEC3:
+			glUniform3i(uniform.location, 0, 0, 0);
+			break;
+		case UNIFORM_IVEC4:
+			glUniform4i(uniform.location, 0, 0, 0, 0);
+			break;
+		default:
+			errorf("ERROR: Unhandled uniform type for %s in shader %s.\n", uniformName, name);
+			break;
+		}
+
+		int uniError = glGetError();
+		if (uniError == 1282) {
+			errorf("ERROR: Wrong uniform type set for %s in shader %s\n", uniformName, name);
+			return;
+		}
+		else if (uniError != 0) {
+			errorf("ERROR: Got OpenGL error %d initializing uniform %s in shader %s\n", uniError,
+				uniformName, name);
+			return;
+		}
 	}
-
-	int clearError = glGetError();
-	if (clearError)
-		logf("Cleared OpenGL error %d\n", clearError);
-
-	static float emptyMatrix[16] = { 0.0f };
-
-	// test uniform type and initialize to 0
-	switch (uniform.type) {
-	case UNIFORM_FLOAT:
-		glUniform1f(uniform.location, 0.0f);
-		break;
-	case UNIFORM_VEC2:
-		glUniform2f(uniform.location, 0.0f, 0.0f);
-		break;
-	case UNIFORM_VEC3:
-		glUniform3f(uniform.location, 0.0f, 0.0f, 0.0f);
-		break;
-	case UNIFORM_VEC4:
-		glUniform4f(uniform.location, 0.0f, 0.0f, 0.0f, 0.0f);
-		break;
-	case UNIFORM_MAT2:
-		glUniformMatrix2fv(uniform.location, 1, false, emptyMatrix);
-		break;
-	case UNIFORM_MAT3:
-		glUniformMatrix3fv(uniform.location, 1, false, emptyMatrix);
-		break;
-	case UNIFORM_MAT4:
-		glUniformMatrix4fv(uniform.location, 1, false, emptyMatrix);
-		break;
-	case UNIFORM_INT:
-		glUniform1i(uniform.location, 0);
-		break;
-	case UNIFORM_IVEC2:
-		glUniform2i(uniform.location, 0, 0);
-		break;
-	case UNIFORM_IVEC3:
-		glUniform3i(uniform.location, 0, 0, 0);
-		break;
-	case UNIFORM_IVEC4:
-		glUniform4i(uniform.location, 0, 0, 0, 0);
-		break;
-	default:
-		logf("ERROR: Unhandled uniform type for %s in shader %s.\n", uniformName.c_str(), name.c_str());
-		break;
-	}
-
-	int uniError = glGetError();
-	if (uniError == 1282) {
-		logf("ERROR: Wrong uniform type set for %s in shader %s\n", uniformName.c_str(), name.c_str());
-		return;
-	}
-	else if (uniError != 0) {
-		logf("ERROR: Got OpenGL error %d initializing uniform %s in shader %s\n", uniError,
-			uniformName.c_str(), name.c_str());
-		return;
+	else {
+		logf("");
 	}
 
 	uniforms[uniformName] = uniform;
+}
+
+void ShaderProgram::addUniforms(const std::vector<UniformArg>& args) {
+	for (const UniformArg& a : args) {
+		addUniform(a.name, a.type);
+	}
 }
 
 void ShaderProgram::setUniform(string uniformName, float value) {
@@ -240,7 +258,7 @@ void ShaderProgram::setUniform(string uniformName, float value) {
 		glUniform1i(uniform.location, value); // for ease of use with operator overloaded funcs
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as a float in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as a float in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -256,7 +274,7 @@ void ShaderProgram::setUniform(string uniformName, vec2 value) {
 		glUniform2f(uniform.location, value.x, value.y);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as a vec2 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as a vec2 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -272,7 +290,7 @@ void ShaderProgram::setUniform(string uniformName, vec3 value) {
 		glUniform3f(uniform.location, value.x, value.y, value.z);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as a vec3 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as a vec3 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -288,7 +306,7 @@ void ShaderProgram::setUniform(string uniformName, vec4 value) {
 		glUniform4f(uniform.location, value.x, value.y, value.z, value.w);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as a vec4 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as a vec4 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -307,7 +325,7 @@ void ShaderProgram::setUniform(string uniformName, int value) {
 		glUniform1f(uniform.location, value); // for ease of use with operator overloaded funcs
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as an int in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as an int in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -323,7 +341,7 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2) {
 		glUniform2i(uniform.location, value, value2);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as an ivec2 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as an ivec2 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -339,7 +357,7 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 		glUniform3i(uniform.location, value, value2, value3);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as an ivec3 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as an ivec3 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -355,7 +373,7 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 		glUniform4i(uniform.location, value, value2, value3, value4);
 	}
 	else {
-		logf("ERROR: Can't set uniform %s as an ivec4 in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as an ivec4 in shader %s.\n", uniformName.c_str(), name);
 	}
 }
 
@@ -390,7 +408,7 @@ void ShaderProgram::setUniform(string uniformName, float* values, int count) {
 		glUniformMatrix4fv(uniform.location, count / 16, false, values);
 		break;
 	default:
-		logf("ERROR: Can't set uniform %s as floats in shader %s.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as floats in shader %s.\n", uniformName.c_str(), name);
 		break;
 	}
 }
@@ -418,7 +436,7 @@ void ShaderProgram::setUniform(string uniformName, int* values, int count) {
 		glUniform4iv(uniform.location, count / 4, values);
 		break;
 	default:
-		logf("ERROR: Can't set uniform %s as ints in %s shader.\n", uniformName.c_str(), name.c_str());
+		errorf("ERROR: Can't set uniform %s as ints in %s shader.\n", uniformName.c_str(), name);
 		break;
 	}
 }
@@ -430,7 +448,7 @@ ShaderUniform ShaderProgram::getUniform(string uniformName) {
 		string error = "ERROR: Uniform " + uniformName + " was not added to " + name + " shader\n";
 
 		if (loggedErrors.count(error) == 0) {
-			logf(error.c_str());
+			errorf(error.c_str());
 			loggedErrors.insert(error);
 		}
 
@@ -473,7 +491,6 @@ void ShaderProgram::popMatrix(int matType)
 
 int ShaderProgram::calcMemoryUsage() {
 	int bytes = sizeof(ShaderProgram);
-	bytes += name.size();
 	bytes += vShader ? sizeof(vShader) : 0;
 	bytes += fShader ? sizeof(fShader) : 0;
 

@@ -10,6 +10,8 @@
 // - update version string
 // - face editor moves to top left a lot
 // - redo paste entities not working, pastes at old origin
+// - confirm exit showing for no changes
+// - remove wireframe buffers from ent cubes
 
 
 // nice to have v6:
@@ -258,7 +260,7 @@ int merge_maps(CommandLine& cli) {
 	vector<string> input_maps = cli.getOptionList("-maps");
 
 	if (input_maps.size() < 2) {
-		logf("ERROR: at least 2 input maps are required\n");
+		errorf("ERROR: at least 2 input maps are required\n");
 		return 1;
 	}
 
@@ -347,7 +349,7 @@ int print_info(CommandLine& cli) {
 			sortMode = SORT_VERTS;
 		}
 		else {
-			logf("ERROR: invalid limit name: %s\n", limitName.c_str());
+			errorf("ERROR: invalid limit name: %s\n", limitName.c_str());
 			return 0;
 		}
 	}
@@ -375,24 +377,24 @@ int noclip(CommandLine& cli) {
 		hull = cli.getOptionInt("-hull");
 
 		if (hull < 0 || hull >= MAX_MAP_HULLS) {
-			logf("ERROR: hull number must be 0-3\n");
+			errorf("ERROR: hull number must be 0-3\n");
 			return 1;
 		}
 	}
 
 	if (cli.hasOption("-redirect")) {
 		if (!cli.hasOption("-hull")) {
-			logf("ERROR: -redirect must be used with -hull\n");
+			errorf("ERROR: -redirect must be used with -hull\n");
 			return 1;
 		}
 		redirect = cli.getOptionInt("-redirect");
 
 		if (redirect < 1 || redirect >= MAX_MAP_HULLS) {
-			logf("ERROR: redirect hull number must be 1-3\n");
+			errorf("ERROR: redirect hull number must be 1-3\n");
 			return 1;
 		}
 		if (redirect == hull) {
-			logf("ERROR: Can't redirect hull to itself\n");
+			errorf("ERROR: Can't redirect hull to itself\n");
 			return 1;
 		}
 	}
@@ -403,20 +405,20 @@ int noclip(CommandLine& cli) {
 		model = cli.getOptionInt("-model");
 
 		if (model < 0 || model >= map->modelCount) {
-			logf("ERROR: model number must be 0 - %d\n", map->modelCount);
+			errorf("ERROR: model number must be 0 - %d\n", map->modelCount);
 			return 1;
 		}
 
 		if (hull != -1) {
 			if (redirect)
-				logf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
+				errorf("Redirecting HULL %d to HULL %d in model %d:\n", hull, redirect, model);
 			else
-				logf("Deleting HULL %d from model %d:\n", hull, model);
+				errorf("Deleting HULL %d from model %d:\n", hull, model);
 			
 			map->delete_hull(hull, model, redirect);
 		}
 		else {
-			logf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
+			errorf("Deleting HULL 1, 2, and 3 from model %d:\n", model);
 			for (int i = 1; i < MAX_MAP_HULLS; i++) {
 				map->delete_hull(i, model, redirect);
 			}
@@ -469,7 +471,7 @@ int simplify(CommandLine& cli) {
 	int hull = 0;
 
 	if (!cli.hasOption("-model")) {
-		logf("ERROR: -model is required\n");
+		errorf("ERROR: -model is required\n");
 		return 1;
 	}
 
@@ -477,7 +479,7 @@ int simplify(CommandLine& cli) {
 		hull = cli.getOptionInt("-hull");
 
 		if (hull < 1 || hull >= MAX_MAP_HULLS) {
-			logf("ERROR: hull number must be 1-3\n");
+			errorf("ERROR: hull number must be 1-3\n");
 			return 1;
 		}
 	}
@@ -489,15 +491,15 @@ int simplify(CommandLine& cli) {
 	STRUCTCOUNT oldCounts(map);
 
 	if (modelIdx < 0 || modelIdx >= map->modelCount) {
-		logf("ERROR: model number must be 0 - %d\n", map->modelCount);
+		errorf("ERROR: model number must be 0 - %d\n", map->modelCount);
 		return 1;
 	}
 
 	if (hull != 0) {
-		logf("Simplifying HULL %d in model %d:\n", hull, modelIdx);
+		errorf("Simplifying HULL %d in model %d:\n", hull, modelIdx);
 	}
 	else {
-		logf("Simplifying collision hulls in model %d:\n", modelIdx);
+		errorf("Simplifying collision hulls in model %d:\n", modelIdx);
 	}
 
 	map->simplify_model_collision(modelIdx, hull);
@@ -570,7 +572,7 @@ int transform(CommandLine& cli) {
 		map->move(move);
 	}
 	else {
-		logf("ERROR: at least one transformation option is required\n");
+		errorf("ERROR: at least one transformation option is required\n");
 		return 1;
 	}
 	
@@ -845,7 +847,7 @@ int main(int argc, char* argv[])
 	else
 	{
 		if (cli.bspfile.empty()) {
-			logf("ERROR: no map specified\n"); 
+			errorf("ERROR: no map specified\n");
 			return 1;
 		}
 

@@ -41,6 +41,22 @@ int glGetErrorDebug() {
 	return glGetError();
 }
 
+const char* glErrorString(GLenum err)
+{
+	switch (err)
+	{
+	case GL_NO_ERROR:          return "GL_NO_ERROR";
+	case GL_INVALID_ENUM:      return "GL_INVALID_ENUM";
+	case GL_INVALID_VALUE:     return "GL_INVALID_VALUE";
+	case GL_INVALID_OPERATION: return "GL_INVALID_OPERATION";
+	case GL_STACK_OVERFLOW:    return "GL_STACK_OVERFLOW";
+	case GL_STACK_UNDERFLOW:   return "GL_STACK_UNDERFLOW";
+	case GL_OUT_OF_MEMORY:     return "GL_OUT_OF_MEMORY";
+	case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+	default: return "Unknown GL error";
+	}
+}
+
 void glCheckError(const char* checkMessage) {
 	// error checking is very expensive
 #ifdef DEBUG_MODE
@@ -48,9 +64,9 @@ void glCheckError(const char* checkMessage) {
 	int glerror = glGetError();
 	if (glerror != GL_NO_ERROR) {
 		if (lastError != glerror)
-			logf("Got OpenGL Error %d after %s\n", glerror, checkMessage);
+			errorf("Got OpenGL Error %d (%s) after %s\n", glerror, glErrorString(glerror), checkMessage);
 		else
-			debugf("Got OpenGL Error %d after %s\n", glerror, checkMessage);
+			debugf("Got OpenGL Error %d (%s) after %s\n", glerror, glErrorString(glerror), checkMessage);
 		lastError = glerror;
 	}
 #endif
@@ -58,7 +74,7 @@ void glCheckError(const char* checkMessage) {
 
 void error_callback(int error, const char* description)
 {
-	logf("GLFW Error: %s\n", description);
+	errorf("GLFW Error: %s\n", description);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -190,8 +206,8 @@ Editor::Editor() {
 	debugf("    Texture Units: %d / 5\n", texImageUnits);
 	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
-	debugf("OpenGL Extensions:\n%s\n", openglExts);
-	logf("\n");
+	debugf("OpenGL Extensions:\n%s\n\n", openglExts);
+	debugf("\n");
 
 	if (varyingFloats < 32 || vertexAttributes < MAX_VERTEX_ATTRIBUTES || texImageUnits < 5) {
 		logf("\nYOUR SYSTEM IS INCOMPATIBLE. EVERYTHING IS BROKEN.\n\n");
@@ -352,54 +368,68 @@ void Editor::compileShaders() {
 	if (g_settings.texture_atlas) {
 		g_opengl_texture_array_support = false;
 		bspFragShader = bsp_atlas_frag_glsl;
-	}	
-	
-
-	if (!g_shaders.bsp) {
-		g_shaders.bsp = new ShaderProgram("BSP");
-		g_shaders.clipnode = new ShaderProgram("Clipnode");
-		g_shaders.color = new ShaderProgram("Color");
-		g_shaders.texture = new ShaderProgram("Texture");
-		g_shaders.mdl = new ShaderProgram("MDL");
-		g_shaders.spr = new ShaderProgram("SPR");
-		g_shaders.vec3 = new ShaderProgram("vec3");
-		g_shaders.sprOutline = new ShaderProgram("SPR outline");
-	}
-	else {
-		logf("Recompiling shaders\n");
 	}
 
-	g_shaders.bsp->compile(bsp_vert_glsl, bspFragShader);
-	g_shaders.bsp->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.bsp->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.bsp->addUniform("sTex", UNIFORM_INT);
-	g_shaders.bsp->addUniform("colorMult", UNIFORM_VEC4);
-	g_shaders.bsp->addUniform("alphaTest", UNIFORM_FLOAT);
-	g_shaders.bsp->addUniform("gamma", UNIFORM_FLOAT);
-	g_shaders.bsp->addUniform("wireframeEnable", UNIFORM_FLOAT);
-	g_shaders.bsp->addUniform("wireframeColorDark", UNIFORM_VEC4);
-	g_shaders.bsp->addUniform("wireframeColorBright", UNIFORM_VEC4);
-	g_shaders.bsp->addUniform("wireframeThickness", UNIFORM_FLOAT);
-	g_shaders.bsp->addUniform("textureAtlasScale", UNIFORM_FLOAT);
-	g_shaders.bsp->addUniform("lightmapAtlasScale", UNIFORM_FLOAT);
-	g_shaders.bsp->setUniform("sTex", 0);
-	g_shaders.bsp->setUniform("wireframeThickness", 0.5f);
-	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		string name = "sLightmapTex" + to_string(s);
-		g_shaders.bsp->addUniform(name, UNIFORM_INT);
-		g_shaders.bsp->setUniform(name, s + 1);
+	debugf("Compiling shaders\n");
+	g_shaders.bsp->clearAttributes();
+	g_shaders.clipnode->clearAttributes();
+	g_shaders.color->clearAttributes();
+	g_shaders.texture->clearAttributes();
+	g_shaders.mdl->clearAttributes();
+	g_shaders.spr->clearAttributes();
+	g_shaders.vec3->clearAttributes();
+	g_shaders.sprOutline->clearAttributes();
+
+	{
+		ShaderProgram* sh = g_shaders.bsp;
+		sh->compile(bsp_vert_glsl, bspFragShader);
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{ 2, GL_FLOAT, 0, "vTex" },
+			{ 4, GL_UNSIGNED_BYTE, 0, "vAtlas" },
+			{ 1, GL_UNSIGNED_SHORT, 0, "vEdges" },
+			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01" },
+			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23" },
+			{ 4, GL_UNSIGNED_BYTE, 1, "vLightmapBright" },
+			{ 4, GL_UNSIGNED_BYTE, 1, "vColor" },
+			{ 3, GL_FLOAT, 0, "vPosition" }
+		});
+		sh->addUniforms({
+			{"sTex", UNIFORM_INT},
+			{"colorMult", UNIFORM_VEC4},
+			{"alphaTest", UNIFORM_FLOAT},
+			{"gamma", UNIFORM_FLOAT},
+			{"wireframeEnable", UNIFORM_FLOAT},
+			{"wireframeColorDark", UNIFORM_VEC4},
+			{"wireframeColorBright", UNIFORM_VEC4},
+			{"wireframeThickness", UNIFORM_FLOAT},
+			{"textureAtlasScale", UNIFORM_FLOAT},
+			{"lightmapAtlasScale", UNIFORM_FLOAT},
+		});
+		sh->setUniform("sTex", 0);
+		sh->setUniform("wireframeThickness", 0.5f);
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			const char* name = cstrf("sLightmapTex%d", s);
+			sh->addUniform(name, UNIFORM_INT);
+			sh->setUniform(name, s + 1);
+		}
 	}
 	
 	g_shaders.color->compile(cvert_vert_glsl, cvert_frag_glsl);
 	g_shaders.color->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.color->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.color->setVertexAttributeNames("vPosition", "vColor", NULL, NULL);
+	g_shaders.color->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+	g_shaders.color->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.color->addUniform("colorMult", UNIFORM_VEC4);
 	g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 	
 	g_shaders.clipnode->compile(clipnode_vert_glsl, clipnode_frag_glsl);
 	g_shaders.clipnode->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.clipnode->setMatrixNames(NULL, "modelViewProjection");
+	g_shaders.clipnode->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
+	g_shaders.clipnode->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
+	g_shaders.clipnode->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.clipnode->addUniform("colorMult", UNIFORM_VEC4);
 	g_shaders.clipnode->addUniform("wireframeThickness", UNIFORM_FLOAT);
 	g_shaders.clipnode->addUniform("opacity", UNIFORM_FLOAT);
@@ -410,12 +440,16 @@ void Editor::compileShaders() {
 	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl);
 	g_shaders.texture->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.texture->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.texture->setVertexAttributeNames("vPosition", "vTex", NULL, NULL);
+	g_shaders.texture->addAttribute(2, GL_FLOAT, 0, "vTex");
+	g_shaders.texture->addAttribute(3, GL_FLOAT, 0, "vPosition");
 
 	g_shaders.mdl->compile(mdl_vert, mdl_frag_glsl);
 	g_shaders.mdl->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.mdl->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.mdl->setVertexAttributeNames("vPosition", NULL, "vTex", "vNormal");
+	g_shaders.mdl->addAttribute(2, GL_FLOAT, 0, "vTex");
+	g_shaders.mdl->addAttribute(3, GL_FLOAT, 1, "vNormal");
+	g_shaders.mdl->addAttribute(3, GL_FLOAT, 0, "vPosition");
+	g_shaders.mdl->addAttribute(1, GL_FLOAT, 0, "vBone");
 	g_shaders.mdl->addUniform("sTex", UNIFORM_INT);
 	g_shaders.mdl->addUniform("elights", UNIFORM_INT);
 	g_shaders.mdl->addUniform("ambient", UNIFORM_VEC3);
@@ -433,20 +467,21 @@ void Editor::compileShaders() {
 	g_shaders.spr->compile(spr_vert_glsl, spr_frag_glsl);
 	g_shaders.spr->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.spr->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.spr->setVertexAttributeNames("vPosition", NULL, "vTex", NULL);
+	g_shaders.spr->addAttribute(2, GL_FLOAT, 0, "vTex");
+	g_shaders.spr->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.spr->addUniform("color", UNIFORM_VEC4);
 
 	g_shaders.vec3->compile(vec3_vert_glsl, vec3_frag_glsl);
 	g_shaders.vec3->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.vec3->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.vec3->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
+	g_shaders.vec3->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.vec3->addUniform("color", UNIFORM_VEC4);
 	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
 
 	g_shaders.sprOutline->compile(vec3_vert_glsl, vec3_depth_frag_glsl);
 	g_shaders.sprOutline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.sprOutline->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.sprOutline->setVertexAttributeNames("vPosition", NULL, NULL, NULL);
+	g_shaders.sprOutline->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.sprOutline->addUniform("color", UNIFORM_VEC4);
 
 	glCheckError("compiling shaders");
@@ -470,7 +505,7 @@ void Editor::setupTransformAxes() {
 
 		// flipped for HL coords
 		moveAxes.model = new cCube[4];
-		moveAxes.buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, moveAxes.model, 6 * 6 * 4);
+		moveAxes.buffer = new VertexBuffer(g_shaders.color, moveAxes.model, 6 * 6 * 4);
 		moveAxes.numAxes = 4;
 	}
 
@@ -493,7 +528,7 @@ void Editor::setupTransformAxes() {
 
 		// flipped for HL coords
 		scaleAxes.model = new cCube[6];
-		scaleAxes.buffer = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, scaleAxes.model, 6 * 6 * 6);
+		scaleAxes.buffer = new VertexBuffer(g_shaders.color, scaleAxes.model, 6 * 6 * 6);
 		scaleAxes.numAxes = 6;
 	}
 
@@ -1025,7 +1060,7 @@ void Editor::drawMapBoundary() {
 	}
 
 	{
-		VertexBuffer buffer(g_shaders.color, COLOR_4B | POS_3F, &cube, 6 * 6);
+		VertexBuffer buffer(g_shaders.color, &cube, 6 * 6);
 		buffer.upload();
 		buffer.draw(GL_TRIANGLES);
 	}
@@ -1435,8 +1470,7 @@ void Editor::updateEntDirectionVectors() {
 		}
 	}
 
-	entDirectionVectors = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, arrows, numPointers * arrowVerts);
-	entDirectionVectors->ownData = true;
+	entDirectionVectors = new VertexBuffer(g_shaders.color, arrows, numPointers * arrowVerts, true);
 	entDirectionVectors->upload();
 }
 
@@ -1522,9 +1556,8 @@ void Editor::updateTextureAxes() {
 	cVert* uploadVerts = new cVert[verts.size()];
 	memcpy(uploadVerts, &verts[0], sizeof(cVert) * verts.size());
 
-	allTextureAxes = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, uploadVerts, verts.size());
+	allTextureAxes = new VertexBuffer(g_shaders.color, uploadVerts, verts.size(), true);
 	allTextureAxes->upload();
-	allTextureAxes->ownData = true;
 }
 
 void Editor::drawTextureAxes() {
@@ -3023,7 +3056,7 @@ void Editor::updateModelVerts() {
 		transformedOrigin = oldOrigin = pickInfo.getOrigin();
 	}
 	
-	modelOriginBuff = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, &modelOriginCube, 6 * 6);
+	modelOriginBuff = new VertexBuffer(g_shaders.color, &modelOriginCube, 6 * 6);
 	modelOriginBuff->upload();
 
 	updateSelectionSize();
@@ -3054,7 +3087,7 @@ void Editor::updateModelVerts() {
 
 	int numCubes = modelVerts.size() + modelEdges.size();
 	modelVertCubes = new cCube[numCubes];
-	modelVertBuff = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, modelVertCubes, 6 * 6 * numCubes);
+	modelVertBuff = new VertexBuffer(g_shaders.color, modelVertCubes, 6 * 6 * numCubes);
 	modelVertBuff->upload();
 	//logf("%d intersection points\n", modelVerts.size());
 }
@@ -3203,10 +3236,8 @@ void Editor::updateEntConnections() {
 			lines[idx++] = cVert(ori, link.color);
 		}
 
-		entConnections = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, lines, numVerts);
-		entConnectionPoints = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, points, numPoints * 6 * 6);
-		entConnections->ownData = true;
-		entConnectionPoints->ownData = true;
+		entConnections = new VertexBuffer(g_shaders.color, lines, numVerts, true);
+		entConnectionPoints = new VertexBuffer(g_shaders.color, points, numPoints * 6 * 6, true);
 		entConnections->upload();
 		entConnectionPoints->upload();
 	}
@@ -3353,7 +3384,7 @@ bool Editor::getModelSolid(vector<TransformVert>& hullVerts, Bsp* map, Solid& ou
 				}
 			}
 			if (planeCount != 2) {
-				logf("ERROR: Edge connected to %d planes!\n", planeCount);
+				errorf("ERROR: Edge connected to %d planes!\n", planeCount);
 				return false;
 			}
 

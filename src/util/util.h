@@ -35,6 +35,10 @@ struct Frustum {
 
 struct FaceMath;
 
+void errorf(const char* format, ...);
+
+void warnf(const char* format, ...);
+
 void logf(const char* format, ...);
 
 void debugf(const char* format, ...);

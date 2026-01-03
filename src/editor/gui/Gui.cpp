@@ -1685,9 +1685,11 @@ int Gui::calcMemUsage() {
 	atlas->GetTexDataAsRGBA32(nullptr, &w, &h);
 	bytes += imguiDrawListBytes + w*h*4 + g_imgui_alloc_bytes;
 
-	bytes += g_log_buffer.size() * sizeof(string);
-	for (const string& s : g_log_buffer)
-		bytes += s.size();
+	bytes += g_log_buffer.size() * sizeof(LogEntry);
+	for (const LogEntry& s : g_log_buffer) {
+		bytes += s.msg.size();
+	}
+		
 
 	bytes += g_shaders.bsp->calcMemoryUsage();
 	bytes += g_shaders.clipnode->calcMemoryUsage();

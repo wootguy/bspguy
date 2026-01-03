@@ -216,7 +216,6 @@ public:
 	void reloadLeaves(bool reloadNow=false);
 	void delayLoadLeaves(); // load leaf data if not already loaded
 	void addClipnodeModel(int modelIdx);
-	void updateModelShaders();
 
 	// calculate vertex positions and uv coordinates once for faster rendering
 	// also combines faces that share similar properties into a single buffer

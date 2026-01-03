@@ -81,17 +81,17 @@ bool StudioMdlRenderer::validate() {
 	}
 
 	if (header->id != 1414743113) {
-		logf("ERROR: Invalid ID in model header\n");
+		errorf("ERROR: Invalid ID in model header\n");
 		return false;
 	}
 
 	if (header->version != 10) {
-		logf("ERROR: Invalid version in model header\n");
+		errorf("ERROR: Invalid version in model header\n");
 		return false;
 	}
 
 	if (header->numseqgroups >= 10000) {
-		logf("ERROR: Too many seqgroups (%d) in model\n", header->numseqgroups);
+		errorf("ERROR: Too many seqgroups (%d) in model\n", header->numseqgroups);
 		return false;
 	}
 
@@ -108,7 +108,7 @@ bool StudioMdlRenderer::validate() {
 			mstudiomodel_t* mod = (mstudiomodel_t*)data.getOffsetBuffer();
 
 			if (data.eom()) {
-				logf("ERROR: Failed to load body %d / %d\n", i, bod->nummodels);
+				errorf("ERROR: Failed to load body %d / %d\n", i, bod->nummodels);
 				return false;
 			}
 
@@ -116,7 +116,7 @@ bool StudioMdlRenderer::validate() {
 				data.seek(mod->meshindex + k * sizeof(mstudiomesh_t));
 
 				if (data.eom()) {
-					logf("ERROR: Failed to load mesh %d in model %d\n", k, i);
+					errorf("ERROR: Failed to load mesh %d in model %d\n", k, i);
 					return false;
 				}
 
@@ -124,13 +124,13 @@ bool StudioMdlRenderer::validate() {
 
 				data.seek(mesh->normindex + (mesh->numnorms * sizeof(vec3)) - 1);
 				if (data.eom()) {
-					logf("ERROR: Failed to load normals for mesh %d in model %d\n", k, i);
+					errorf("ERROR: Failed to load normals for mesh %d in model %d\n", k, i);
 					return false;
 				}
 
 				data.seek(mesh->triindex + (mesh->numtris * sizeof(mstudiotrivert_t) + 2) - 1);
 				if (data.eom()) {
-					logf("ERROR: Failed to load triangles for mesh %d in model %d\n", k, i);
+					errorf("ERROR: Failed to load triangles for mesh %d in model %d\n", k, i);
 					return false;
 				}
 
@@ -161,13 +161,13 @@ bool StudioMdlRenderer::validate() {
 
 				data.seek(mesh->normindex + maxNormIdx*sizeof(vec3));
 				if (data.eom()) {
-					logf("ERROR: Bad tri norm idx in mesh %d in model %d\n", k, i);
+					errorf("ERROR: Bad tri norm idx in mesh %d in model %d\n", k, i);
 					return false;
 				}
 
 				data.seek(mod->vertindex + maxVertIdx * sizeof(vec3));
 				if (data.eom()) {
-					logf("ERROR: Bad tri vert idx in mesh %d in model %d\n", k, i);
+					errorf("ERROR: Bad tri vert idx in mesh %d in model %d\n", k, i);
 					return false;
 				}
 			}
@@ -179,7 +179,7 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numseq; i++) {
 		data.seek(header->seqindex + i * sizeof(mstudioseqdesc_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load sequence %d / %d\n", i, header->numseq);
+			errorf("ERROR: Failed to load sequence %d / %d\n", i, header->numseq);
 			return false;
 		}
 
@@ -189,7 +189,7 @@ bool StudioMdlRenderer::validate() {
 			data.seek(seq->eventindex + k * sizeof(mstudioevent_t));
 
 			if (data.eom()) {
-				logf("ERROR: Failed to load event %d / %d in sequence %d\n", k, seq->numevents, i);
+				errorf("ERROR: Failed to load event %d / %d in sequence %d\n", k, seq->numevents, i);
 				return false;
 			}
 
@@ -198,7 +198,7 @@ bool StudioMdlRenderer::validate() {
 
 		data.seek(seq->animindex + (seq->numblends * header->numbones * sizeof(mstudioanim_t) * 6) - 1);
 		if (data.eom()) {
-			logf("ERROR: Failed to load bone data for sequence %d / %d\n", i, header->numseq);
+			errorf("ERROR: Failed to load bone data for sequence %d / %d\n", i, header->numseq);
 			return false;
 		}
 	}
@@ -206,13 +206,13 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numbones; i++) {
 		data.seek(header->boneindex + i * sizeof(mstudiobone_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load sequence %d / %d\n", i, header->numseq);
+			errorf("ERROR: Failed to load sequence %d / %d\n", i, header->numseq);
 			return false;
 		}
 
 		mstudiobone_t* bone = (mstudiobone_t*)data.getOffsetBuffer();
 		if (bone->parent < -1 || bone->parent >= header->numbones) {
-			logf("ERROR: Bone %d has invalid parent %d\n", i, bone->parent);
+			errorf("ERROR: Bone %d has invalid parent %d\n", i, bone->parent);
 			return false;
 		}
 	}
@@ -220,13 +220,13 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numbonecontrollers; i++) {
 		data.seek(header->bonecontrollerindex + i * sizeof(mstudiobonecontroller_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load bone controller %d / %d\n", i, header->numbonecontrollers);
+			errorf("ERROR: Failed to load bone controller %d / %d\n", i, header->numbonecontrollers);
 			return false;
 		}
 
 		mstudiobonecontroller_t* ctl = (mstudiobonecontroller_t*)data.getOffsetBuffer();
 		if (ctl->bone < -1 || ctl->bone >= header->numbones) {
-			logf("ERROR: Controller %d references invalid bone \n", i, ctl->bone);
+			errorf("ERROR: Controller %d references invalid bone \n", i, ctl->bone);
 			return false;
 		}
 	}
@@ -234,13 +234,13 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numhitboxes; i++) {
 		data.seek(header->hitboxindex + i * sizeof(mstudiobbox_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load bone controller %d / %d\n", i, header->numhitboxes);
+			errorf("ERROR: Failed to load bone controller %d / %d\n", i, header->numhitboxes);
 			return false;
 		}
 
 		mstudiobbox_t* box = (mstudiobbox_t*)data.getOffsetBuffer();
 		if (box->bone < -1 || box->bone >= header->numbones) {
-			logf("ERROR: Hitbox %d references invalid bone %d\n", i, box->bone);
+			errorf("ERROR: Hitbox %d references invalid bone %d\n", i, box->bone);
 			return false;
 		}
 	}
@@ -248,7 +248,7 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numseqgroups; i++) {
 		data.seek(header->seqgroupindex + i * sizeof(mstudioseqgroup_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load sequence group %d/%d\n", i, header->numseqgroups);
+			errorf("ERROR: Failed to load sequence group %d/%d\n", i, header->numseqgroups);
 			return false;
 		}
 
@@ -258,14 +258,14 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numtextures; i++) {
 		data.seek(header->textureindex + i * sizeof(mstudiotexture_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load texture %d/%d\n", i, header->numtextures);
+			errorf("ERROR: Failed to load texture %d/%d\n", i, header->numtextures);
 			return false;
 		}
 
 		mstudiotexture_t* tex = (mstudiotexture_t*)data.getOffsetBuffer();
 		data.seek(tex->index + (tex->width * tex->height + 256 * 3) - 1);
 		if (data.eom()) {
-			logf("ERROR: Failed to load texture data %d/%d\n", i, header->numtextures);
+			errorf("ERROR: Failed to load texture data %d/%d\n", i, header->numtextures);
 			return false;
 		}
 	}
@@ -273,7 +273,7 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numskinfamilies; i++) {
 		data.seek(header->skinindex + i * sizeof(short) * header->numskinref);
 		if (data.eom()) {
-			logf("ERROR: Failed to load skin family %d/%d\n", i, header->numskinfamilies);
+			errorf("ERROR: Failed to load skin family %d/%d\n", i, header->numskinfamilies);
 			return false;
 		}
 	}
@@ -281,13 +281,13 @@ bool StudioMdlRenderer::validate() {
 	for (int i = 0; i < header->numattachments; i++) {
 		data.seek(header->attachmentindex + i * sizeof(mstudioattachment_t));
 		if (data.eom()) {
-			logf("ERROR: Failed to load attachment %d/%d\n", i, header->numattachments);
+			errorf("ERROR: Failed to load attachment %d/%d\n", i, header->numattachments);
 			return false;
 		}
 
 		mstudioattachment_t* att = (mstudioattachment_t*)data.getOffsetBuffer();
 		if (att->bone < -1 || att->bone >= header->numbones) {
-			logf("ERROR: Attachment %d references invalid bone %d\n", i, att->bone);
+			errorf("ERROR: Attachment %d references invalid bone %d\n", i, att->bone);
 			return false;
 		}
 	}
@@ -439,7 +439,7 @@ bool StudioMdlRenderer::loadTextureData() {
 	if (externalTextures) {
 		int lastDot = fpath.find_last_of(".");
 		if (lastDot == -1) {
-			logf("Failed to load external texture model for: %s\n", fpath.c_str());
+			errorf("Failed to load external texture model for: %s\n", fpath.c_str());
 			return false;
 		}
 
@@ -450,7 +450,7 @@ bool StudioMdlRenderer::loadTextureData() {
 		int len;
 		char* buffer = loadFile(tpath, len);
 		if (!buffer) {
-			logf("Failed to load external texture model: %s\n", tpath.c_str());
+			errorf("Failed to load external texture model: %s\n", tpath.c_str());
 			return false;
 		}
 
@@ -466,14 +466,14 @@ bool StudioMdlRenderer::loadTextureData() {
 	for (int i = 0; i < texheader->numtextures; i++) {
 		texdata.seek(texheader->textureindex + i * sizeof(mstudiotexture_t));
 		if (texdata.eom()) {
-			logf("ERROR: Failed to load texture %d/%d\n", i, texheader->numtextures);
+			errorf("ERROR: Failed to load texture %d/%d\n", i, texheader->numtextures);
 			continue;
 		}
 
 		mstudiotexture_t* tex = (mstudiotexture_t*)texdata.getOffsetBuffer();
 		texdata.seek(tex->index + (tex->width * tex->height + 256 * 3) - 1);
 		if (texdata.eom()) {
-			logf("ERROR: Failed to load texture %d/%d\n", i, texheader->numtextures);
+			errorf("ERROR: Failed to load texture %d/%d\n", i, texheader->numtextures);
 			continue;
 		}
 
@@ -581,7 +581,7 @@ bool StudioMdlRenderer::loadMeshes() {
 				data.seek(mod->meshindex + k * sizeof(mstudiomesh_t));
 
 				if (data.eom()) {
-					logf("ERROR: Failed to load mesh %d in model %d\n", k, m);
+					errorf("ERROR: Failed to load mesh %d in model %d\n", k, m);
 					continue;
 				}
 
@@ -589,13 +589,13 @@ bool StudioMdlRenderer::loadMeshes() {
 
 				data.seek(mesh->normindex + (mesh->numnorms * sizeof(vec3)) - 1);
 				if (data.eom()) {
-					logf("ERROR: Failed to load normals for mesh %d in model %d\n", k, m);
+					errorf("ERROR: Failed to load normals for mesh %d in model %d\n", k, m);
 					continue;
 				}
 
 				data.seek(mesh->triindex + (mesh->numtris * sizeof(mstudiotrivert_t) + 2) - 1);
 				if (data.eom()) {
-					logf("ERROR: Failed to load triangles for mesh %d in model %d\n", k, m);
+					errorf("ERROR: Failed to load triangles for mesh %d in model %d\n", k, m);
 					continue;
 				}
 
@@ -604,7 +604,7 @@ bool StudioMdlRenderer::loadMeshes() {
 				int texId = skins[mesh->skinref];
 
 				if (texId < 0 || texId >= numTextures) {
-					logf("ERROR: invalid texture ref %d (max %d)\n", texId, header->numtextures);
+					errorf("ERROR: invalid texture ref %d (max %d)\n", texId, header->numtextures);
 					continue;
 				}
 
@@ -733,8 +733,7 @@ bool StudioMdlRenderer::loadMeshes() {
 				meshBuffers[b][m][k].verts = new boneVert[totalElements];
 				meshBuffers[b][m][k].numVerts = totalElements;
 				memcpy(meshBuffers[b][m][k].verts, &allVerts[0], totalElements * sizeof(boneVert));
-				meshBuffers[b][m][k].buffer = new VertexBuffer(g_shaders.mdl, NORM_3F | TEX_2F | POS_3F, meshBuffers[b][m][k].verts, meshBuffers[b][m][k].numVerts);
-				meshBuffers[b][m][k].buffer->addAttribute(1, GL_FLOAT, GL_FALSE, "vBone");
+				meshBuffers[b][m][k].buffer = new VertexBuffer(g_shaders.mdl, meshBuffers[b][m][k].verts, meshBuffers[b][m][k].numVerts);
 				//meshBuffers[b][m][k].buffer->upload();
 
 				meshBytes += totalElements * (sizeof(uint16_t) + sizeof(uint16_t) + sizeof(boneVert));

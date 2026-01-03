@@ -3,64 +3,32 @@
 
 class ShaderProgram;
 
-// Combinable flags for setting common vertex attributes
-#define TEX_2B   (1 << 0)   // 2D byte texture coordinates
-#define TEX_2S   (1 << 1)   // 2D short texture coordinates
-#define TEX_2F   (1 << 2)   // 2D float texture coordinates
-#define COLOR_3B (1 << 3)   // RGB byte color values
-#define COLOR_3F (1 << 4)   // RGB float color values
-#define COLOR_4B (1 << 5)   // RGBA byte color values
-#define COLOR_4F (1 << 6)   // RGBA float color values
-#define NORM_3B  (1 << 7)   // 3D byte normal coordinates
-#define NORM_3F  (1 << 8)   // 3D float normal coordinates
-#define POS_2B   (1 << 9)   // 2D byte position coordinates
-#define POS_2S   (1 << 10)  // 2D short position coordinates
-#define POS_2I   (1 << 11)  // 2D integer position coordinates
-#define POS_2F   (1 << 12)  // 2D float position coordinates
-#define POS_3S   (1 << 13)  // 3D short position coordinates
-#define POS_3F   (1 << 14)  // 3D float position coordinates
-
-// starting bits for the different types of vertex attributes
-#define VBUF_TEX_START     0 // first bit for texture flags
-#define VBUF_COLOR_START   3 // first bit for color flags
-#define VBUF_NORM_START    7 // first bit for normals flags
-#define VBUF_POS_START     9 // first bit for position flags
-#define VBUF_FLAGBITS     15 // number of settable bits
-#define VBUF_TEX_MASK    0x7 // mask for all texture flags
-#define VBUF_COLOR_MASK 0x78 // mask for all color flags
-#define VBUF_NORM_MASK 0x180 // mask for all normal flags
-
 #define MAX_VERTEX_ATTRIBUTES 8 // keep low for ancient intel igpus
 
 struct VertexAttr
 {
-	int numValues;
-	int valueType;  // Ex: GL_FLOAT
-	int handle;     // location in shader program (-1 indicates invalid attribute)
-	int size;       // size of the attribute in bytes
-	int normalized; // GL_TRUE/GL_FALSE Ex: byte color values are normalized (0-255 = 0.0-1.0)
 	const char* varName;
-	bool inShader;
+	int valueType;		// Ex: GL_FLOAT
+	uint8_t size;		// size of the attribute in bytes
+	uint8_t numValues;	// number of components in the attribute (must be 1, 2, 3, 4)
+	int8_t handle;		// location in shader program (-1 indicates invalid attribute)
+	bool normalized;	// GL_TRUE/GL_FALSE Ex: byte color values are normalized (0-255 = 0.0-1.0)
 
 	VertexAttr() : handle(-1) {}
 
-	VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName, bool inShader=true);
+	VertexAttr(int numValues, int valueType, int handle, int normalized, const char* varName);
 };
 
 class VertexBuffer
 {
 public:
 	uint8_t* data = NULL;
-	VertexAttr attributes[MAX_VERTEX_ATTRIBUTES];
-	int numAttributes = 0;
-	int elementSize = 0;
 	int numVerts = 0;
-	bool ownData = false; // set to true if buffer should delete data on destruction
 
 	// Specify which common attributes to use. They will be located in the
 	// shader program. If passing data, note that data is not copied, but referenced
-	VertexBuffer(ShaderProgram * shaderProgram, int attFlags);
-	VertexBuffer(ShaderProgram * shaderProgram, int attFlags, const void * dat, int numVerts);
+	VertexBuffer(ShaderProgram* shader, bool ownData=false);
+	VertexBuffer(ShaderProgram* shader, const void* dat, int numVerts, bool ownData=false);
 	~VertexBuffer();
 
 	// Note: Data is not copied into the class - don't delete your data.
@@ -70,25 +38,26 @@ public:
 	bool isUploaded();
 	void upload();
 	void deleteBuffer();
-	void setShader(ShaderProgram* program);
 
 	void drawRange(int primitive, int start, int end);
 	void draw(int primitive);
 
-	// inShader = true if the attribute is expected to exist in the shader (not optimized away)
-	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader=true);
-	void addAttribute(int type, const char* varName, bool inShader=true);
-	void addAttribute(const VertexAttr& attr);
-	void bindAttributes(); // find handles for all vertex attributes (call from main thread only)
 	int calcMemoryUsage();
 
 private:
-	ShaderProgram * shaderProgram = NULL; // for getting handles to vertex attributes
 	uint32_t vboId = -1;
 	uint32_t vaoId = -1; // vertex array object (binds attributes to the buffer)
-	bool attributesBound = false;
+
+	// data copied from the shader this buffer was created with
+	VertexAttr attributes[MAX_VERTEX_ATTRIBUTES];
+	int numAttributes = 0;
+	int vertexSize = 0;
+
+	bool ownData = false; // true if buffer should delete data on destruction
 
 	// add attributes according to the attribute flags
-	void addAttributes(int attFlags);
+	void addAttribute(const VertexAttr& attr);
+
+	void bindAttributes();
 };
 

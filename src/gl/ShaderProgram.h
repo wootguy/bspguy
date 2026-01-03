@@ -1,5 +1,6 @@
 #pragma once
 #include "Shader.h"
+#include "VertexBuffer.h"
 #include <vector>
 #include "mat4x4.h"
 #include <unordered_map>
@@ -32,7 +33,19 @@ enum uniform_type {
 };
 
 struct ShaderUniform {
-	uint32_t location;
+	int32_t location; // -1 = not in shader or optimized out
+	uniform_type type;
+};
+
+struct VertexAtrrArg {
+	int16_t numValues;
+	int16_t valueType;
+	int16_t normalized;
+	const char* varName;
+};
+
+struct UniformArg {
+	const char* name;
 	uniform_type type;
 };
 
@@ -41,18 +54,12 @@ extern int g_active_shader_program;
 class ShaderProgram
 {
 public:
-	string name;
+	const char* name;
 	uint ID; // OpenGL program ID
 	bool compiled;
 
 	Shader* vShader; // vertex shader
 	Shader* fShader; // fragment shader
-
-	// commonly used vertex attributes
-	uint vposID = -1;
-	uint vcolorID = -1;
-	uint vtexID = -1;
-	uint vnormID = -1;
 
 	mat4x4* projMat;
 	mat4x4* viewMat;
@@ -61,11 +68,17 @@ public:
 	unordered_map<string, ShaderUniform> uniforms; // custom uniforms
 	unordered_set<string> loggedErrors; // prevent error spam
 
+	VertexAttr attributes[MAX_VERTEX_ATTRIBUTES];
+	int numAttributes = 0;
+	int vertexSize = 0;
+
 	// Creates a shader program to replace the fixed-function pipeline
-	ShaderProgram(string name);
+	ShaderProgram(const char* name);
 	~ShaderProgram(void);
 
 	void compile(const char* vshaderSource, const char* fshaderSource);
+
+	void clearAttributes();
 
 	// use this shader program instead of the fixed function pipeline.
 	// to go back to normal opengl rendering, use this:
@@ -80,11 +93,15 @@ public:
 	// used in the shader code, so that we can update them.
 	void setMatrixNames(const char* modelViewMat, const char* modelViewProjMat);
 
-	// Find the IDs for the common vertex attributes (position, color, texture coords, normals)
-	void setVertexAttributeNames(const char* posAtt, const char* colorAtt, const char* texAtt, const char* normAtt);
-
 	// get the location of a uniform in a linked program
-	void addUniform(string uniformName, uniform_type type);
+	// set inShader to false if the uniform is not part of the current uploaded version
+	void addUniform(const char* uniformName, uniform_type type);
+
+	void addUniforms(const std::vector<UniformArg>& args);
+
+	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader = true);
+	void addAttribute(const VertexAttr& attr);
+	void addAttributes(const std::vector<VertexAtrrArg>& attr);
 
 	void setUniform(string uniformName, float value);
 	void setUniform(string uniformName, vec2 value);

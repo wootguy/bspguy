@@ -85,10 +85,11 @@ class LogWidget : public Widget {
 
 	ImGuiTextBuffer Buf = ImGuiTextBuffer();
 	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
+	ImVector<ImVec4> LineColors;
 	bool AutoScroll = true;  // Keep scrolling if already at the bottom
 
 	void clearLog();
-	void addLog(const char* s);
+	void addLog(LogEntry& entry);
 
 	int calcMemoryUsage();
 };

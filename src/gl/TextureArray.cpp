@@ -131,7 +131,7 @@ void TextureArray::add(Texture* tex) {
 	TextureBucket& bucket = buckets[bucketY * TEXARRAY_BUCKET_DIM + bucketX];
 
 	if (bucket.count >= maxBucketDepth) {
-		logf("ERROR: Texture array buffer overflowed! Incorrect textures will be displayed.\n");
+		errorf("ERROR: Texture array buffer overflowed! Incorrect textures will be displayed.\n");
 		return;
 	}
 
@@ -195,11 +195,10 @@ void TextureArray::upload() {
 			bucketCount++;
 			textureCount += buckets[i].count;
 			//debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
-			
-			int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
 
-			glBindTexture(glParam3d, buckets[i].glArrayId);
-			glTexImage3D(glParam3d, 0, GL_RGBA, sizeX, sizeY, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, buckets[i].glArrayId);
+
+			glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, sizeX, sizeY, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 			g_renderStats.texMem += sizeX * sizeY * buckets[i].count * 4;
 
 			// allocate mipmaps (TODO: enable conditionally and only for texture arrays, 3D can't have mips)
@@ -219,13 +218,13 @@ void TextureArray::upload() {
 					Texture* tex = buckets[i].textures[k];
 					COLOR4* texdata = (COLOR4*)tex->data;
 
-					glTexSubImage3D(glParam3d, 0, 0, 0, k, sizeX, sizeY, 1, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
-					
-					if (g_opengl_texture_array_support) {
-						for (MipTexture& mip : tex->mipmaps) {
-							glTexSubImage3D(GL_TEXTURE_2D_ARRAY, mip.level, 0, 0, k,
-								mip.width, mip.height, 1, GL_RGBA, GL_UNSIGNED_BYTE, mip.data);
-						}
+					glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, k, sizeX, sizeY, 1, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
+
+					for (int i = 0; i < tex->numMipMaps; i++) {
+						MipTexture& mip = tex->mipmaps[i];
+
+						glTexSubImage3D(GL_TEXTURE_2D_ARRAY, mip.level, 0, 0, k,
+							mip.width, mip.height, 1, GL_RGBA, GL_UNSIGNED_BYTE, mip.data);
 					}
 				}
 			}
@@ -236,14 +235,6 @@ void TextureArray::upload() {
 				glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -0.5f);
 				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, buckets[i].textures[0]->numMipMaps);
 			}
-			else {
-				// can't have interpolation for 3D textures or else you see crazy UV problems
-				// or totally incorrect textures, especially with mipmaps.
-				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-				//glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, mipLevels);
-			}
-			
 		}
 	}
 

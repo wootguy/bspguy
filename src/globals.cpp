@@ -5,7 +5,7 @@
 using namespace std;
 
 ProgressMeter g_progress;
-vector<string> g_log_buffer;
+vector<LogEntry> g_log_buffer;
 mutex g_log_mutex;
 std::thread::id g_main_thread_id = std::this_thread::get_id();
 
@@ -18,7 +18,7 @@ std::set<std::string> g_parsed_fgds;
 MapLimits g_limits;
 MapLimits g_engine_limits[ENGINE_TYPES];
 
-GlobalShaders g_shaders;
+GlobalShaders g_shaders = GlobalShaders();
 RenderStats g_renderStats;
 
 int g_max_texture_size = 512;

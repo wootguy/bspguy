@@ -53,7 +53,7 @@ bool CommandLine::hasOptionVector(string optionName) {
 	vector<string> parts = splitString(val, ",");
 
 	if (parts.size() != 3) {
-		logf("ERROR: invalid number of coordinates for option %s\n", optionName.c_str());
+		errorf("ERROR: invalid number of coordinates for option %s\n", optionName.c_str());
 		return false;
 	}
 
@@ -73,7 +73,7 @@ vec3 CommandLine::getOptionVector(string optionName) {
 	vector<string> parts = splitString(optionVals[optionName], ",");
 
 	if (parts.size() != 3) {
-		logf("ERROR: invalid number of coordinates for option %s\n", optionName.c_str());
+		errorf("ERROR: invalid number of coordinates for option %s\n", optionName.c_str());
 		return ret;
 	}
 

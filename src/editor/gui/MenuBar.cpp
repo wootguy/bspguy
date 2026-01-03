@@ -1858,7 +1858,7 @@ void MenuBar::createSeriesWad() {
 				}
 			}
 			if (!didUpdate) {
-				logf("ERROR: %s does not have a worldspawn entity to update.\n", temp->name);
+				errorf("ERROR: %s does not have a worldspawn entity to update.\n", temp->name);
 			}
 			temp->update_ent_lump();
 		}

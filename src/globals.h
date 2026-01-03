@@ -6,9 +6,9 @@
 #include <set>
 #include <thread>
 #include "AppSettings.h"
+#include "ShaderProgram.h"
 
 class Editor;
-class ShaderProgram;
 
 enum engine_types {
 	ENGINE_HALF_LIFE,
@@ -66,14 +66,14 @@ struct MapLimits {
 };
 
 struct GlobalShaders {
-	ShaderProgram* bsp = NULL;
-	ShaderProgram* color = NULL;
-	ShaderProgram* clipnode = NULL;
-	ShaderProgram* texture = NULL;
-	ShaderProgram* mdl = NULL;
-	ShaderProgram* spr = NULL;
-	ShaderProgram* vec3 = NULL;
-	ShaderProgram* sprOutline = NULL;
+	ShaderProgram* bsp = new ShaderProgram("BSP");
+	ShaderProgram* color = new ShaderProgram("Color");
+	ShaderProgram* clipnode = new ShaderProgram("Clipnode");
+	ShaderProgram* texture = new ShaderProgram("Texture");
+	ShaderProgram* mdl = new ShaderProgram("MDL");
+	ShaderProgram* spr = new ShaderProgram("SPR");
+	ShaderProgram* vec3 = new ShaderProgram("vec3");
+	ShaderProgram* sprOutline = new ShaderProgram("SPR outline");
 };
 
 struct RenderStats {
@@ -97,9 +97,21 @@ struct RenderStats {
 	}
 };
 
+enum LogLevel {
+	LOG_LEVEL_DEBUG,
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_WARN,
+	LOG_LEVEL_ERROR,
+};
+
+struct LogEntry {
+	int type;
+	string msg;
+};
+
 extern bool g_verbose;
 extern ProgressMeter g_progress;
-extern std::vector<std::string> g_log_buffer;
+extern std::vector<LogEntry> g_log_buffer;
 extern const char* g_version_string;
 extern std::mutex g_log_mutex;
 

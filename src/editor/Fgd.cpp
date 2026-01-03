@@ -379,7 +379,7 @@ void Fgd::parseClassProp(char*& readPtr, FgdClass& outClass) {
 			outClass.maxs = parseVector(sizeList[1]);
 		}
 		else {
-			logf("ERROR: Expected 2 vectors in size() property (%s.fgd pos %d)\n", name.c_str(), readPtr - startFileData);
+			errorf("ERROR: Expected 2 vectors in size() property (%s.fgd pos %d)\n", name.c_str(), readPtr - startFileData);
 		}
 
 		outClass.sizeSet = true;
@@ -391,7 +391,7 @@ void Fgd::parseClassProp(char*& readPtr, FgdClass& outClass) {
 			outClass.color = { (byte)atoi(nums[0].c_str()), (byte)atoi(nums[1].c_str()), (byte)atoi(nums[2].c_str()) };
 		}
 		else {
-			logf("ERROR: Expected 3 components in color() property (%s.fgd pos %d)\n", name.c_str(), readPtr - startFileData);
+			errorf("ERROR: Expected 3 components in color() property (%s.fgd pos %d)\n", name.c_str(), readPtr - startFileData);
 		}
 
 		outClass.colorSet = true;
@@ -706,7 +706,7 @@ void Fgd::processClassInheritance() {
 void FgdClass::getBaseClasses(Fgd* fgd, vector<FgdClass*>& inheritanceList) {
 	for (int i = baseClasses.size()-1; i >= 0; i--) {
 		if (fgd->classMap.find(baseClasses[i]) == fgd->classMap.end()) {
-			logf("ERROR: Invalid FGD base class '%s' for %s.fgd\n", baseClasses[i].c_str(), fgd->name.c_str());
+			errorf("ERROR: Invalid FGD base class '%s' for %s.fgd\n", baseClasses[i].c_str(), fgd->name.c_str());
 			continue;
 		}
 		inheritanceList.push_back(fgd->classMap[baseClasses[i]]);
@@ -791,7 +791,7 @@ void Fgd::setSpawnflagNames() {
 					KeyvalueChoice& choice = classes[i]->keyvalues[k].choices[c];
 
 					if (!choice.isInteger) {
-						logf("ERROR: Invalid FGD spawnflag value %s (%s.fgd)\n", choice.svalue.c_str(), name.c_str());
+						errorf("ERROR: Invalid FGD spawnflag value %s (%s.fgd)\n", choice.svalue.c_str(), name.c_str());
 						continue;
 					}
 
@@ -802,7 +802,7 @@ void Fgd::setSpawnflagNames() {
 					}
 
 					if (bit > 31) {
-						logf("ERROR: Invalid FGD spawnflag value %s (%s.fgd)\n", choice.svalue.c_str(), name.c_str());
+						errorf("ERROR: Invalid FGD spawnflag value %s (%s.fgd)\n", choice.svalue.c_str(), name.c_str());
 					}
 					else {
 						classes[i]->spawnFlagNames[bit] = choice.name;

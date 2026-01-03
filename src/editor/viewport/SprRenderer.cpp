@@ -192,8 +192,8 @@ void SprRenderer::loadData() {
 		frameOffset += sizeof(FrameHeader) + (frame->width * frame->height);
 	}
 
-	frameBuffer = new VertexBuffer(g_shaders.spr, TEX_2F | POS_3F, frameVerts, framesVertCount);
-	outlineBuffer = new VertexBuffer(g_shaders.sprOutline, POS_3F, outlineVerts, linesVertCount);
+	frameBuffer = new VertexBuffer(g_shaders.spr, frameVerts, framesVertCount);
+	outlineBuffer = new VertexBuffer(g_shaders.sprOutline, outlineVerts, linesVertCount);
 
 	delete[] palette;
 

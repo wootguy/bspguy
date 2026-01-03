@@ -98,12 +98,12 @@ Bsp::Bsp(std::string fpath)
 
 	bool exists = true;
 	if (!fileExists(fpath)) {
-		logf("ERROR: %s not found\n", fpath.c_str());
+		errorf("%s not found\n", fpath.c_str());
 		return;
 	}
 
 	if (!load_lumps(fpath)) {
-		logf("%s is not a valid BSP file\n", fpath.c_str());
+		errorf("%s is not a valid BSP file\n", fpath.c_str());
 		return;
 	}
 
@@ -1044,20 +1044,20 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	// TODO: handle all of these, assuming it's possible these are ever shared
 	for (int i = 1; i < shouldNotMove.count.leaves; i++) { // skip solid leaf - it doesn't matter
 		if (shouldMove.leaves[i] && shouldNotMove.leaves[i]) {
-			logf("\nWarning: leaf shared with multiple models. Something might break.\n");
+			warnf("\nWarning: leaf shared with multiple models. Something might break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.nodes; i++) {
 		if (shouldMove.nodes[i] && shouldNotMove.nodes[i]) {
-			logf("\nError: node shared with multiple models. Something will break.\n");
+			errorf("\nError: node shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.verts; i++) {
 		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
 			// this happens on activist series but doesn't break anything
-			logf("\nError: vertex shared with multiple models. Something will break.\n");
+			errorf("\nError: vertex shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
@@ -1251,7 +1251,7 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 		case LUMP_EDGES: structSize = sizeof(BSPEDGE); break;
 		case LUMP_SURFEDGES: structSize = sizeof(int32_t); break;
 		default:
-			logf("\nERROR: Invalid lump %d passed to remove_unused_structs\n", lumpIdx);
+			errorf("\nERROR: Invalid lump %d passed to remove_unused_structs\n", lumpIdx);
 			return 0;
 	}
 
@@ -1399,7 +1399,7 @@ int Bsp::remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLe
 	memset(newDecompressedVis, 0, newDecompressedVisSize);
 
 	if (newVisRowSize > oldVisRowSize) {
-		logf("ERROR: New vis row size larger than old size. VIS will likely be broken\n");
+		errorf("ERROR: New vis row size larger than old size. VIS will likely be broken\n");
 	}
 
 	int* oldLeafs = new int[newVisLeafCount];
@@ -4345,7 +4345,7 @@ int Bsp::downscale_invalid_textures(vector<Wad*>& wads) {
 
 bool Bsp::rename_texture(const char* oldName, const char* newName) {
 	if (strlen(newName) > 16) {
-		logf("ERROR: New texture name longer than 15 characters (%d)\n", strlen(newName));
+		errorf("ERROR: New texture name longer than 15 characters (%d)\n", strlen(newName));
 		return false;
 	}
 

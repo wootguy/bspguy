@@ -313,7 +313,7 @@ void BspRenderer::loadSkyboxTextures() {
 void BspRenderer::buildTextureAtlases() {
 	if (!g_settings.texture_atlas) {
 		textureAtlasInfos.clear();
-		textureAtlasInfos.reserve(map->textureCount);
+		textureAtlasInfos.resize(map->textureCount);
 		numTextureAtlasesSwap = 0;
 		return;
 	}
@@ -331,8 +331,7 @@ void BspRenderer::buildTextureAtlases() {
 	vector<TextureAtlas*> atlases;
 	atlases.push_back(new TextureAtlas(textureAtlasSz, textureAtlasSz, textureAtlasZoneSz));
 
-	textureAtlasInfos.clear();
-	textureAtlasInfos.reserve(map->textureCount);
+	textureAtlasInfos.resize(map->textureCount);
 	for (int i = 0; i < map->textureCount; i++) {
 		BSPMIPTEX* tex = map->get_texture(i);
 
@@ -343,7 +342,7 @@ void BspRenderer::buildTextureAtlases() {
 		sub.x = sub.y = 0;
 		sub.sz = sub.w * sub.h;
 
-		textureAtlasInfos.push_back(sub);
+		textureAtlasInfos[i] = sub;
 	}
 	sort(textureAtlasInfos.begin(), textureAtlasInfos.end(), [](const SubTexture& a, const SubTexture& b) {
 		return a.sz > b.sz;
@@ -534,7 +533,7 @@ void BspRenderer::reloadClipnodes() {
 void BspRenderer::reloadLeaves(bool reloadNow) {
 	if (!leavesThreadFinished) {
 		if (reloadNow) {
-			logf("ERROR: can't reload leaves yet\n");
+			errorf("ERROR: can't reload leaves yet\n");
 		}
 		return;
 	}
@@ -566,17 +565,6 @@ void BspRenderer::addClipnodeModel(int modelIdx) {
 	renderClipnodeDat = newRenderClipnodes;
 	
 	generateClipnodeBuffer(modelIdx);
-}
-
-void BspRenderer::updateModelShaders() {
-	activeShader = g_shaders.bsp;
-
-	for (int i = 0; i < numRenderModels; i++) {
-		RenderModel& model = renderModels[i];
-		for (int k = 0; k < model.groupCount; k++) {
-			model.renderGroups[k].buffer->setShader(activeShader);
-		}
-	}
 }
 
 void BspRenderer::loadLightmaps() {
@@ -800,7 +788,7 @@ void BspRenderer::deleteRenderClipnodes() {
 
 void BspRenderer::deleteRenderLeaves() {
 	if (!leavesThreadFinished) {
-		logf("ERROR: Attempted leaves data delete during construction\n");
+		errorf("ERROR: Attempted leaves data delete during construction\n");
 		return;
 	}
 
@@ -1116,15 +1104,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderGroups[i].vertCount = renderGroupVerts[i].size();
 		memcpy(renderGroups[i].verts, &renderGroupVerts[i][0], renderGroups[i].vertCount * sizeof(lightmapVert));
 
-		renderGroups[i].buffer = new VertexBuffer(activeShader, 0);
-		renderGroups[i].buffer->addAttribute(2, GL_FLOAT, 0, "vTex");
-		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
-		renderGroups[i].buffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01");
-		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23");
-		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
-		renderGroups[i].buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-		renderGroups[i].buffer->addAttribute(POS_3F, "vPosition");
+		renderGroups[i].buffer = new VertexBuffer(g_shaders.bsp);
 		renderGroups[i].buffer->setData(renderGroups[i].verts, renderGroups[i].vertCount);
 		renderGroups[i].buffer->upload();
 
@@ -1242,16 +1222,7 @@ int BspRenderer::allocMegaBufferData(vector<OrderedEnt>& ents) {
 
 		lightmapVert* verts = new lightmapVert[mega.group.vertCount];
 
-		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.bsp, 0, verts, mega.group.vertCount);
-		megaBuffer->addAttribute(2, GL_FLOAT, 0, "vTex");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 0, "vAtlas");
-		megaBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vLightmapBright");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-		megaBuffer->addAttribute(POS_3F, "vPosition");
-		megaBuffer->ownData = true;
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.bsp, verts, mega.group.vertCount, true);
 		mega.group.buffer = megaBuffer;
 	}
 
@@ -1263,11 +1234,7 @@ int BspRenderer::allocMegaBufferData(vector<OrderedEnt>& ents) {
 
 		clipnodeVert* verts = new clipnodeVert[megaRenderClipnodes.totalVerts[i]];
 
-		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.clipnode, 0, verts, megaRenderClipnodes.totalVerts[i]);
-		megaBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		megaBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-		megaBuffer->addAttribute(3, GL_FLOAT, 0, "vPosition");
-		megaBuffer->ownData = true;
+		VertexBuffer* megaBuffer = new VertexBuffer(g_shaders.clipnode, verts, megaRenderClipnodes.totalVerts[i], true);
 		megaRenderClipnodes.buffer[i] = megaBuffer;
 	}
 
@@ -1288,6 +1255,9 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 	else if (megaGroupUpdateProgress == -1) {
 		return;
 	}
+
+	if (1)
+		return;
 
 	static int createMillis = 0;
 	static int totalModelGroups = 0;
@@ -1630,8 +1600,7 @@ void BspRenderer::generateNavMeshBuffer() {
 		return;
 	}
 
-	renderClip->clipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, output, allVerts.size());
-	renderClip->clipnodeBuffer[hull]->ownData = true;
+	renderClip->clipnodeBuffer[hull] = new VertexBuffer(g_shaders.color, output, allVerts.size(), true);
 
 	renderClip->faceMaths[hull] = faceMaths;
 
@@ -1708,12 +1677,7 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 		delete node->face_buffer;
 	}
 
-	node->face_buffer = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
-	node->face_buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vBary");
-	node->face_buffer->addAttribute(3, GL_UNSIGNED_BYTE, 0, "vEdgeEnable");
-	node->face_buffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-	node->face_buffer->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	node->face_buffer->ownData = true;
+	node->face_buffer = new VertexBuffer(g_shaders.clipnode, output, allVerts.size(), true);
 }
 
 void BspRenderer::generateClipnodeBuffer(int modelIdx) {
@@ -1762,11 +1726,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 		clipnodeVert* output = new clipnodeVert[allVerts.size()];
 		memcpy(output, &allVerts[0], allVerts.size() * sizeof(clipnodeVert));
 
-		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
-		renderClip->clipnodeBuffer[i]->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-		renderClip->clipnodeBuffer[i]->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-		renderClip->clipnodeBuffer[i]->addAttribute(3, GL_FLOAT, 0, "vPosition");
-		renderClip->clipnodeBuffer[i]->ownData = true;
+		renderClip->clipnodeBuffer[i] = new VertexBuffer(g_shaders.clipnode, output, allVerts.size(), true);
 	}
 
 	if (modelIdx == 0) {
@@ -1814,11 +1774,7 @@ void BspRenderer::generateLeafBuffer() {
 	clipnodeVert* output = new clipnodeVert[allVerts.size()];
 	memcpy(output, &allVerts[0], allVerts.size() * sizeof(clipnodeVert));
 
-	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.clipnode, 0, output, allVerts.size());
-	renderLeafDat->leafBuffer->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-	renderLeafDat->leafBuffer->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-	renderLeafDat->leafBuffer->addAttribute(POS_3F, "vPosition");
-	renderLeafDat->leafBuffer->ownData = true;
+	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.clipnode, output, allVerts.size(), true);
 
 	renderLeafDat->faceMaths = faceMaths;
 
@@ -1985,8 +1941,7 @@ void BspRenderer::preRenderEnts() {
 		}
 	}
 
-	pointEnts = new VertexBuffer(g_shaders.color, COLOR_4B | POS_3F, entCubes, numPointEnts * 6 * 6);
-	pointEnts->ownData = true;
+	pointEnts = new VertexBuffer(g_shaders.color, entCubes, numPointEnts * 6 * 6, true);
 	pointEnts->upload();
 
 	glCheckError("BSP pre render ents");
@@ -2133,7 +2088,7 @@ BspRenderer::~BspRenderer() {
 		texturesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready ||
 		clipnodesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready ||
 		(leavesFuture.valid() && leavesFuture.wait_for(chrono::milliseconds(0)) != future_status::ready)) {
-		logf("ERROR: Deleted bsp renderer while it was loading\n");
+		errorf("ERROR: Deleted bsp renderer while it was loading\n");
 	}
 
 	if (lightmaps != NULL) {
@@ -3007,9 +2962,7 @@ void BspRenderer::drawSkybox() {
 	if (!skyBoxBuffer) {
 		tCube cube(vec3(-64, -64, -64), vec3(64, 64, 64));
 
-		skyBoxBuffer = new VertexBuffer(g_shaders.texture, 0, &cube, 6 * 6);
-		skyBoxBuffer->addAttribute(TEX_2F, "vTex");
-		skyBoxBuffer->addAttribute(POS_3F, "vPosition");
+		skyBoxBuffer = new VertexBuffer(g_shaders.texture, &cube, 6 * 6);
 		skyBoxBuffer->upload();
 	}
 
@@ -3185,8 +3138,7 @@ void BspRenderer::updatePvs(vec3 viewOrigin) {
 		vec3* vertDat = new vec3[allVerts.size()];
 		memcpy(vertDat, &allVerts[0], allVerts.size() * sizeof(vec3));
 
-		pvsDat->wireframePvsBuffer = new VertexBuffer(g_shaders.vec3, POS_3F, vertDat, allVerts.size());
-		pvsDat->wireframePvsBuffer->ownData = true;
+		pvsDat->wireframePvsBuffer = new VertexBuffer(g_shaders.vec3, vertDat, allVerts.size(), true);
 		pvsDat->wireframePvsBuffer->upload();
 	}
 }

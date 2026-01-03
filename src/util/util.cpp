@@ -43,6 +43,40 @@ namespace fs = std::experimental::filesystem;
 
 static char log_line[16384];
 
+void errorf(const char* format, ...) {
+	g_log_mutex.lock();
+
+	va_list vl;
+	va_start(vl, format);
+	vsnprintf(log_line, 16384, format, vl);
+	va_end(vl);
+
+	printf("%s", log_line);
+	LogEntry entry;
+	entry.msg = log_line;
+	entry.type = LOG_LEVEL_ERROR;
+	g_log_buffer.push_back(entry);
+
+	g_log_mutex.unlock();
+}
+
+void warnf(const char* format, ...) {
+	g_log_mutex.lock();
+
+	va_list vl;
+	va_start(vl, format);
+	vsnprintf(log_line, 16384, format, vl);
+	va_end(vl);
+
+	printf("%s", log_line);
+	LogEntry entry;
+	entry.msg = log_line;
+	entry.type = LOG_LEVEL_WARN;
+	g_log_buffer.push_back(entry);
+
+	g_log_mutex.unlock();
+}
+
 void logf(const char* format, ...) {
 	g_log_mutex.lock();
 
@@ -52,7 +86,10 @@ void logf(const char* format, ...) {
 	va_end(vl);
 
 	printf("%s", log_line);
-	g_log_buffer.push_back(log_line);
+	LogEntry entry;
+	entry.msg = log_line;
+	entry.type = LOG_LEVEL_INFO;
+	g_log_buffer.push_back(entry);
 
 	g_log_mutex.unlock();
 }
@@ -70,7 +107,10 @@ void debugf(const char* format, ...) {
 	va_end(vl);
 
 	printf("%s", log_line);
-	g_log_buffer.push_back(log_line);
+	LogEntry entry;
+	entry.msg = log_line;
+	entry.type = LOG_LEVEL_DEBUG;
+	g_log_buffer.push_back(entry);
 
 	g_log_mutex.unlock();
 }
@@ -898,7 +938,7 @@ bool createDir(const string& dirName)
 	int ret = SHCreateDirectoryExA(NULL, dirName.c_str(), NULL);
 	if (ret != ERROR_SUCCESS)
 	{
-		logf("Could not create directory: %s. Error: %i", dirName.c_str(), ret);
+		errorf("Could not create directory: %s. Error: %i", dirName.c_str(), ret);
 		return false;
 	}
 	return true;
@@ -909,7 +949,7 @@ bool createDir(const string& dirName)
 	int ret = mkdir_p(dirName.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (ret != 0)
 	{
-		logf("Could not create directory: %s", dirName.c_str());
+		errorf("Could not create directory: %s", dirName.c_str());
 		return false;
 	}
 	return true;
@@ -1234,7 +1274,8 @@ string getAbsolutePath(const string& relpath) {
 		return abspath;
 	}
 	else {
-		return "Error: Unable to get current working directory";
+		errorf("Error: Unable to get current working directory");
+		return "";
 	}
 
 	return relpath;

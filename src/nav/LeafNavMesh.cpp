@@ -126,13 +126,13 @@ LeafNavMesh::LeafNavMesh(vector<LeafNode> inleaves, LeafOctree* octree) {
 
 bool LeafNavMesh::addLink(int from, int to, Polygon3D linkArea) {
 	if (from < 0 || to < 0 || from >= nodes.size() || to >= nodes.size()) {
-		logf("Error: add link from/to invalid node %d %d\n", from, to);
+		errorf("Error: add link from/to invalid node %d %d\n", from, to);
 		return false;
 	}
 
 	if (!nodes[from].addLink(to, linkArea, forHumans)) {
 		vec3& pos = nodes[from].center;
-		logf("Failed to add link at %d %d %d\n", (int)pos.x, (int)pos.y, (int)pos.z);
+		errorf("Failed to add link at %d %d %d\n", (int)pos.x, (int)pos.y, (int)pos.z);
 		return false;
 	}
 
