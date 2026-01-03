@@ -271,7 +271,6 @@ private:
 	vector<Command*> redoHistory;
 	vector<EntityState> undoEntityState;
 	LumpState undoLumpState = LumpState();
-	LumpState initialLumpState = LumpState(); // state when map first loaded
 	vec3 undoEntOrigin;
 
 	bool hasCullbox;
@@ -404,5 +403,4 @@ private:
 	void getWindowSize(int& width, int& height);
 	void updateWindowTitle();
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
-	void setInitialLumpState();
 };

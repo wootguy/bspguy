@@ -594,11 +594,6 @@ void BspRenderer::loadLightmaps() {
 	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
 	memset(atlasTextures[0]->data, 0, lightmapAtlasSz * lightmapAtlasSz * sizeof(COLOR3));
 
-	if (lightmaps) {
-		delete[] lightmaps;
-		lightmaps = NULL;
-	}
-
 	numRenderLightmapInfos = map->faceCount;
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));

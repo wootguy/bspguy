@@ -149,7 +149,6 @@ void MenuBar::drawFileMenu() {
 			//map->write("yabma_move.bsp");
 			//map->write("D:/Steam/steamapps/common/Sven Co-op/svencoop_addon/maps/yabma_move.bsp");
 			map->write(map->path);
-			app->setInitialLumpState();
 		}
 		if (ImGui::MenuItem("Save As...", "Ctrl+Alt+S")) {
 			saveAs();
@@ -1753,7 +1752,6 @@ void MenuBar::saveAs() {
 		map->name = stripExt(basename(fname));
 		map->write(map->path);
 		app->updateWindowTitle();
-		app->setInitialLumpState();
 	}
 }
 

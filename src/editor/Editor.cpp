@@ -227,7 +227,6 @@ Editor::Editor() {
 	reloading = true;
 
 	memset(&undoLumpState, 0, sizeof(LumpState));
-	memset(&initialLumpState, 0, sizeof(LumpState));
 
 	glCheckError("Initializing context");
 
@@ -671,11 +670,9 @@ void Editor::clearMapData() {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		if (undoLumpState.lumps[i]) {
 			delete[] undoLumpState.lumps[i];
-			delete[] initialLumpState.lumps[i];
 		}
 	}
 	memset(&undoLumpState, 0, sizeof(LumpState));
-	memset(&initialLumpState, 0, sizeof(LumpState));
 
 	forceAngleRotation = false; // can cause confusion opening a new map
 }
@@ -2620,7 +2617,6 @@ void Editor::addMap(Bsp* map) {
 	}
 
 	updateCullBox();
-	setInitialLumpState();
 
 	updateWindowTitle();
 
@@ -4405,7 +4401,6 @@ void Editor::calcUndoMemoryUsage() {
 
 	undoMemoryUsage += sizeof(LumpState)*2;
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		undoMemoryUsage += initialLumpState.lumpLen[i];
 		undoMemoryUsage += undoLumpState.lumpLen[i];
 	}
 }
@@ -4537,25 +4532,9 @@ bool Editor::confirmMapExit() {
 
 	if (g_settings.confirm_exit) {
 		Bsp* map = mapRenderer->map;
-		LumpState currentLumps = map->duplicate_lumps(0xffffffff);
 
-		bool lumpsChanged = false;
-		for (int i = 0; i < HEADER_LUMPS; i++) {
-			if (currentLumps.lumpLen[i] != initialLumpState.lumpLen[i]) {
-				lumpsChanged = true;
-				break;
-			}
-			if (memcmp(initialLumpState.lumps[i], currentLumps.lumps[i], currentLumps.lumpLen[i])) {
-				lumpsChanged = true;
-				break;
-			}
-		}
-		for (int i = 0; i < HEADER_LUMPS; i++) {
-			delete[] currentLumps.lumps[i];
-		}
-
-		if (lumpsChanged) {
-			string msg = "Save changes to " + g_app->mapRenderer->map->name + "?";
+		if (map->did_lumps_change()) {
+			string msg = "Save changes to " + map->name + "?";
 			int ret = tinyfd_messageBox(
 				"Save", /* NULL or "" */
 				msg.c_str(), /* NULL or "" may contain \n \t */
@@ -4568,7 +4547,6 @@ bool Editor::confirmMapExit() {
 				return false;
 			}
 			else if (ret == 1) { // yes
-				Bsp* map = g_app->mapRenderer->map;
 				map->update_ent_lump();
 				map->write(map->path);
 				return true;
@@ -4583,23 +4561,6 @@ bool Editor::confirmMapExit() {
 	}
 
 	return true;
-}
-
-void Editor::setInitialLumpState() {
-	Bsp* map = mapRenderer->map;
-
-	for (int i = 0; i < HEADER_LUMPS; i++) {
-		if (undoLumpState.lumps[i]) {
-			delete[] initialLumpState.lumps[i];
-		}
-	}
-	memset(&initialLumpState, 0, sizeof(LumpState));
-
-	saveLumpState(map, 0xffffffff, true);
-	initialLumpState = undoLumpState;
-	saveLumpState(map, 0xffffffff, false);
-
-	calcUndoMemoryUsage();
 }
 
 vec3 Editor::worldToScreen(const vec3& P) {

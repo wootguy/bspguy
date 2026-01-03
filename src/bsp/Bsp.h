@@ -553,6 +553,8 @@ public:
 
 	void update_lump_pointers();
 
+	bool did_lumps_change();
+
 	int calcMemoryUsage();
 
 private:

@@ -5173,6 +5173,67 @@ bool Bsp::load_lumps(string fpath)
 	return valid;
 }
 
+bool Bsp::did_lumps_change() {
+	LumpState currentLumps = duplicate_lumps(0xffffffff);
+
+	// Read all BSP Data
+	ifstream fin(path, ios::binary | ios::ate);
+	int size = fin.tellg();
+	fin.seekg(0, fin.beg);
+
+	bool lumpsChanged = true;
+
+	if (size < sizeof(BSPHEADER) + sizeof(BSPLUMP) * HEADER_LUMPS)
+		goto cleanup;
+
+	fin.read((char*)&header.nVersion, sizeof(int));
+
+	BSPHEADER head;
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		fin.read((char*)&head.lump[i], sizeof(BSPLUMP));
+
+		if (currentLumps.lumpLen[i] != head.lump[i].nLength) {
+			goto cleanup;
+		}
+	}
+
+	for (int i = 0; i < HEADER_LUMPS; i++)
+	{
+		if (head.lump[i].nLength == 0) {
+			continue;
+		}
+
+		fin.seekg(head.lump[i].nOffset);
+		if (fin.eof()) {
+			logf("FAILED TO READ BSP LUMP %d\n", i);
+			goto cleanup;
+		}
+		else
+		{
+			byte* oldLump = new byte[head.lump[i].nLength];
+			fin.read((char*)oldLump, head.lump[i].nLength);
+
+			bool lumpChanged = memcmp(oldLump, currentLumps.lumps[i], head.lump[i].nLength);
+
+			delete[] oldLump;
+
+			if (lumpChanged) {
+				goto cleanup;
+			}
+		}
+	}
+
+	lumpsChanged = false;
+
+cleanup:
+	fin.close();
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		delete[] currentLumps.lumps[i];
+	}
+
+	return lumpsChanged;
+}
+
 void Bsp::load_ents()
 {
 	for (int i = 0; i < ents.size(); i++)

@@ -333,7 +333,6 @@ void RadWidget::draw() {
 
 		map->update_ent_lump();
 		map->write(map->path);
-		app->setInitialLumpState();
 
 		close();
 	}
