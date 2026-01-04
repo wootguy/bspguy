@@ -174,8 +174,8 @@ void BspRenderer::loadTextures() {
 		if (!tex) {
 			Texture* missingCopy = generateMissingTexture(16, 16);
 			glTexturesSwap[i] = missingCopy;
-			glTextureArray->add(missingCopy);
 			glTexturesSwap[i]->generateMipMaps(numMips, COLOR3());
+			glTextureArray->add(missingCopy);
 			continue;
 		}
 
@@ -235,11 +235,16 @@ void BspRenderer::loadTextures() {
 				imageData[k].a = 0;
 		}
 
-		// map->textures + texOffset + tex.nOffsets[0]
-
 		glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
+		
+		// looks much nicer in some cased but slow to generate
+		//glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
+
+		for (int k = 1; k <= numMips; k++) {
+			glTexturesSwap[i]->addMipMap(k, map->textures + texOffset + tex->nOffsets[k], palette);
+		}
+		
 		glTextureArray->add(glTexturesSwap[i]);
-		glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
 
 		if (wadTex) {
 			delete[] wadTex->data;

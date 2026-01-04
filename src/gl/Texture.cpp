@@ -4,9 +4,10 @@
 #include "globals.h"
 #include <string.h>
 #include <cmath>
-#include <base_resample.h>
+#include "resample.h"
 #include "quant.h"
 #include <unordered_set>
+#include "util.h"
 
 Texture::Texture(int width, int height) {
 	this->width = width;
@@ -76,7 +77,7 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 				maskedData[i] = COLOR3(0, 0, 0);
 			}
 		}
-		base::ResampleImage24((byte*)maskedData, srcW, srcH, (byte*)dstData, dstW, dstH, (base::KernelType)mode);
+		resample24((byte*)maskedData, srcW, srcH, (byte*)dstData, dstW, dstH, mode);
 		delete[] maskedData;
 
 		// quantize the image, saving one palette entry for the mask color
@@ -84,7 +85,7 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 
 		// apply the mask color using nearest neighbor sampling
 		COLOR3* nearestResamp = new COLOR3[dstW * dstH];
-		base::ResampleImage24((byte*)srcData, srcW, srcH, (byte*)nearestResamp, dstW, dstH, base::KernelType::KernelTypeNearest);
+		resample24((byte*)srcData, srcW, srcH, (byte*)nearestResamp, dstW, dstH, KernelTypeNearest);
 		for (int i = 0; i < dstW * dstH; i++) {
 			if (nearestResamp[i] == maskColor) {
 				dstData[i] = maskColor;
@@ -98,7 +99,7 @@ vector<COLOR3> Texture::resample(COLOR3* srcData, int srcW, int srcH, COLOR3* ds
 		palette.push_back(maskColor);
 	}
 	else {
-		base::ResampleImage24((byte*)srcData, srcW, srcH, (byte*)dstData, dstW, dstH, (base::KernelType)mode);
+		resample24((byte*)srcData, srcW, srcH, (byte*)dstData, dstW, dstH, mode);
 		
 		if (outputMode == RESAMP_PAL) {
 			if (mode != KernelTypeNearest) {
@@ -149,11 +150,11 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 		int scale = 1 << m;
 
 		COLOR3* mipData24 = new COLOR3[mipWidth * mipHeight];
-		base::ResampleImage24((byte*)data24, width, height, (byte*)mipData24, mipWidth, mipHeight,
-			//base::KernelType::KernelTypeNearest); // for masked textures
-			base::KernelType::KernelTypeAverage); // checkerboards look less flickery with this
-			//base::KernelType::KernelTypeBilinear);
-			//base::KernelType::KernelTypeLanczos3);
+		resample24((byte*)data24, width, height, (byte*)mipData24, mipWidth, mipHeight,
+			//KernelTypeNearest); // for masked textures
+			KernelTypeAverage); // checkerboards look less flickery with this
+			//KernelTypeBilinear);
+			//KernelTypeLanczos3);
 
 		// use nearest sampling to fill the alpha channel
 		COLOR4* mipData32 = new COLOR4[mipWidth * mipHeight];
@@ -179,6 +180,35 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 	}
 
 	delete[] data24;
+}
+
+void Texture::addMipMap(int mipLevel, uint8_t* srcData, COLOR3* pal) {
+	if (mipLevel == 0) {
+		errorf("Can't replace base mip");
+		return;
+	}
+	if (mipLevel > numMipMaps + 1) {
+		errorf("Load mip maps in order!\n");
+		return;
+	}
+
+	int w = width >> mipLevel;
+	int h = height >> mipLevel;
+	MipTexture& tex = mipmaps[mipLevel - 1];
+	tex.width = w;
+	tex.height = h;
+	tex.level = mipLevel;
+	tex.data = new COLOR4[w*h];
+	int idx = 0;
+
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			uint8_t palIdx = srcData[y * w + x];
+			tex.data[idx++] = COLOR4(pal[palIdx], palIdx == 255 ? 0 : 255);
+		}
+	}
+
+	numMipMaps++;
 }
 
 int Texture::getPixelBytes(int format) {

@@ -13,6 +13,7 @@
 // - confirm exit showing for no changes
 // - remove wireframe buffers from ent cubes
 // - load mipmaps from wad. They take 20s to generate on lappy
+// - fix bad extents in resize tool for 256x64 bts_rc made it bigger
 
 
 // nice to have v6:

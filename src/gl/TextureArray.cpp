@@ -158,6 +158,30 @@ void TextureArray::add(Texture* tex) {
 		delete[] tex->data;
 		tex->data = (uint8_t*)newData;
 
+		for (int i = 1; i <= tex->numMipMaps; i++) {
+			int w = width >> i;
+			int h = height >> i;
+			MipTexture& mip = tex->mipmaps[i - 1];
+			COLOR4* newData = new COLOR4[w * h];
+			COLOR4* oldData = mip.data;
+
+			float xScale = w / (float)mip.width;
+			float yScale = h / (float)mip.height;
+
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					int srcX = x / xScale;
+					int srcY = y / yScale;
+					newData[y * w + x] = oldData[srcY * mip.width + srcX];
+				}
+			}
+
+			mip.width = w;
+			mip.height = h;
+			delete[] mip.data;
+			mip.data = newData;
+		}
+
 		numResize++;
 	}	
 

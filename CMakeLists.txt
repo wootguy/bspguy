@@ -64,6 +64,7 @@ set(SOURCE_FILES
 	src/util/colors.h			src/util/colors.cpp
 	src/util/render_utils.h		src/util/render_utils.cpp
 	src/util/HashMap.h			src/util/HashMap.cpp
+	src/util/resample.h			src/util/resample.cpp
 	src/util/studio.h
 	
 	# Navigation meshes
@@ -362,6 +363,7 @@ if(MSVC)
 												src/util/tga.h
 												src/util/quant.h
 												src/util/colors.h
+												src/util/resample.h
 												src/util/render_utils.h
 												)
 												
@@ -372,6 +374,7 @@ if(MSVC)
 												src/util/tga.cpp
 												src/util/quant.cpp
 												src/util/colors.cpp
+												src/util/resample.cpp
 												src/util/render_utils.cpp
 												)
 												

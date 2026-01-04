@@ -2,30 +2,13 @@
 #include <stdint.h>
 #include <vector>
 #include "colors.h"
+#include "resample.h"
 
 struct MipTexture {
 	uint16_t width;
 	uint16_t height;
 	uint16_t level;
 	COLOR4* data;
-};
-
-enum resample_modes {
-	KernelTypeUnknown,
-	KernelTypeNearest,
-	KernelTypeAverage,
-	KernelTypeBilinear,
-	KernelTypeBicubic,
-	KernelTypeMitchell,
-	KernelTypeCardinal,
-	KernelTypeBSpline,
-	KernelTypeLanczos,
-	KernelTypeLanczos2,
-	KernelTypeLanczos3,
-	KernelTypeLanczos4,
-	KernelTypeLanczos5,
-	KernelTypeCatmull,
-	KernelTypeGaussian,
 };
 
 enum resample_output_modes {
@@ -64,6 +47,8 @@ public:
 		int dstW, int dstH, int mode, int outputMode=RESAMP_RGB, COLOR3 maskColor=COLOR3(0,0,255));
 
 	void generateMipMaps(int mipLevels, COLOR3 maskColor);
+
+	void addMipMap(int mipLevel, uint8_t* data, COLOR3* pal);
 
 	// upload the texture with the specified settings
 	void upload(int format, bool lighmap=false, bool deleteData=true);
