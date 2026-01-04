@@ -931,7 +931,8 @@ void MenuBar::drawViewMenu() {
 			}
 			tooltip("Models, sprites, and brushes render as they would in-game. "
 				"Entity rendermode, renderamt, and rendercolor keys are respected.\n\n"
-				"In some cases this makes entities completely invisible and difficult to select."
+				"In some cases this makes entities completely invisible and difficult to select. "
+				"This can also reduce FPS a good amount."
 			);
 
 			ImGui::Separator();

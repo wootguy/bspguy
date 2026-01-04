@@ -125,6 +125,9 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 	numMipMaps = 0;
 	COLOR4* texdata = (COLOR4*)data;
 
+	if (mipLevels == 0)
+		return;
+
 	// convert to 24bit for resample lib
 	COLOR3* data24 = new COLOR3[width * height];
 	for (int y = 0; y < height; y++) {
@@ -222,6 +225,7 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 		}
 
 		glTexImage3D(glParam3d, 0, format, width, height, depth, 0, format, GL_UNSIGNED_BYTE, data);
+		uploadedDataSize += width * height * depth * getPixelBytes(format);
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, id); // Binds this texture handle so we can load the data into it
@@ -256,7 +260,7 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 			for (int i = 0; i < numMipMaps; i++) {
 				MipTexture& mip = mipmaps[i];
 				glTexImage2D(GL_TEXTURE_2D, mip.level, format, mip.width, mip.height, 0, format, GL_UNSIGNED_BYTE, mip.data);
-				uploadedDataSize += width * height * getPixelBytes(format);
+				uploadedDataSize += mip.width * mip.height * getPixelBytes(format);
 			}
 
 			if (numMipMaps) {

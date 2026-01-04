@@ -22,6 +22,7 @@ public:
 	TextureBucket buckets[TEXARRAY_BUCKET_COUNT];
 	int numResize = 0;
 	int maxBucketDepth;
+	int uploadedDataSize = 0;
 
 	TextureArray();
 	~TextureArray();

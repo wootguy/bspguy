@@ -89,7 +89,7 @@ void LogWidget::addLog(LogEntry& entry)
 	ImVec4 color = ImVec4(1, 1, 1, 1);
 	switch (entry.type) {
 	case LOG_LEVEL_DEBUG:
-		color = ImVec4(0, 0.5f, 0, 1);
+		color = ImVec4(0, 0.6f, 0, 1);
 		break;
 	case LOG_LEVEL_WARN:
 		color = ImVec4(1.0f, 1.05, 0, 1);

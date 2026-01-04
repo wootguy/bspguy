@@ -226,7 +226,7 @@ void DebugWidget::draw() {
 			ImGui::TreePop();
 		}
 
-		if (ImGui::TreeNodeEx("RAM", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::TreeNodeEx("RAM (FPS killer)", 0))
 		{
 			ImGui::Indent();
 

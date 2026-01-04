@@ -145,6 +145,8 @@ void BspRenderer::loadTextures() {
 	vector<string> wadNames = map->get_wad_names();
 	vector<string> tryPaths = getAssetPaths();
 
+	int numMips = g_settings.texture_atlas ? 0 : 3;
+
 	for (int i = 0; i < wadNames.size(); i++) {
 		string path = findAsset(wadNames[i]);
 
@@ -173,7 +175,7 @@ void BspRenderer::loadTextures() {
 			Texture* missingCopy = generateMissingTexture(16, 16);
 			glTexturesSwap[i] = missingCopy;
 			glTextureArray->add(missingCopy);
-			glTexturesSwap[i]->generateMipMaps(3, COLOR3());
+			glTexturesSwap[i]->generateMipMaps(numMips, COLOR3());
 			continue;
 		}
 
@@ -211,7 +213,7 @@ void BspRenderer::loadTextures() {
 				Texture* missingCopy = generateMissingTexture(tex->nWidth, tex->nHeight);
 				glTexturesSwap[i] = missingCopy;
 				glTextureArray->add(missingCopy);
-				glTexturesSwap[i]->generateMipMaps(3, COLOR3());
+				glTexturesSwap[i]->generateMipMaps(numMips, COLOR3());
 				continue;
 			}
 		}
@@ -237,7 +239,7 @@ void BspRenderer::loadTextures() {
 
 		glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
 		glTextureArray->add(glTexturesSwap[i]);
-		glTexturesSwap[i]->generateMipMaps(3, palette[255]);
+		glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
 
 		if (wadTex) {
 			delete[] wadTex->data;

@@ -12,6 +12,7 @@
 // - redo paste entities not working, pastes at old origin
 // - confirm exit showing for no changes
 // - remove wireframe buffers from ent cubes
+// - load mipmaps from wad. They take 20s to generate on lappy
 
 
 // nice to have v6:
