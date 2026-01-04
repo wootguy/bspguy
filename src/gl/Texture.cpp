@@ -8,6 +8,7 @@
 #include "quant.h"
 #include <unordered_set>
 #include "util.h"
+#include "Editor.h"
 
 Texture::Texture(int width, int height) {
 	this->width = width;
@@ -211,10 +212,35 @@ void Texture::addMipMap(int mipLevel, uint8_t* srcData, COLOR3* pal) {
 	numMipMaps++;
 }
 
+void Texture::addMipMap(int mipLevel, uint8_t* srcData) {
+	if (mipLevel == 0) {
+		errorf("Can't replace base mip");
+		return;
+	}
+	if (mipLevel > numMipMaps + 1) {
+		errorf("Load mip maps in order!\n");
+		return;
+	}
+
+	int w = width >> mipLevel;
+	int h = height >> mipLevel;
+	MipTexture& tex = mipmaps[mipLevel - 1];
+	tex.width = w;
+	tex.height = h;
+	tex.level = mipLevel;
+	tex.data = (COLOR4*)(new uint8_t[w * h]);
+
+	memcpy(tex.data, srcData, w * h);
+
+	numMipMaps++;
+}
+
 int Texture::getPixelBytes(int format) {
 	switch (format) {
 	default:
 		return 4;
+	case GL_LUMINANCE8: return 1;
+	case GL_RED: return 1;
 	case GL_RGB: return 3;
 	case GL_RGBA: return 4;
 	case GL_RGBA32F: return 16;
@@ -294,7 +320,7 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 			}
 
 			if (numMipMaps) {
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -0.5f);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, g_app->tex_lod_bias);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels);
 			}
 			else {
@@ -324,34 +350,35 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 void Texture::bind()
 {	
 	g_renderStats.numTextureBinds++;
-	int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
-	int glFilter3d = g_opengl_texture_array_support ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST;
+	int filterMin = g_settings.texture_filtering ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR;
+	int filterMax = g_settings.texture_filtering ? GL_LINEAR : GL_NEAREST;
 
 	if (arrayId != -1) {
-		// 3D textures break when using any interpolation or mip-mapping.
-		// A new shader is needed for bilinear filtering without blending the Z axis.
-		glBindTexture(glParam3d, arrayId);
-		glTexParameteri(glParam3d, GL_TEXTURE_MIN_FILTER, glFilter3d);
-		glTexParameteri(glParam3d, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, arrayId);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, filterMin);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, filterMax);
 		return;
 	}
 
 	if (is3d) {
-		glBindTexture(glParam3d, id);
-		glTexParameteri(glParam3d, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(glParam3d, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		// 3D textures break when using any interpolation or mip-mapping.
+		// A new shader is needed for bilinear filtering without blending the Z axis.
+		glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		return;
 	}
 
 	glBindTexture(GL_TEXTURE_2D, id);
 
 	if (isLightmap) {
+		// always linear for smooth lighting
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
 	else {
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMin);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMax);
 	}
 }
 

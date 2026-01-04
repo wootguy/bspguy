@@ -67,8 +67,9 @@ struct MapLimits {
 
 // bits for enabling different shader program features
 #define SH_BSP_WIREFRAME 1
-#define SH_BSP_TEX_ATLAS 2 // vert UVs are 2D offsets into a texture atlas
-#define SH_BSP_TEX_ARRAY 4 // vert UVs are 3D offsets into a texture array
+#define SH_BSP_TEX_ATLAS 2	// vert UVs are 2D offsets into a texture atlas
+#define SH_BSP_TEX_ARRAY 4	// vert UVs are 3D offsets into a texture array
+#define SH_BSP_TEX_PAL 8	// use paletted textures
 
 #define SH_MDL_BONE_TEXTURE 1 // use a texture to load model bone transforms
 

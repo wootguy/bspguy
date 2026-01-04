@@ -40,7 +40,10 @@ void AppSettings::loadDefault()
 	mapsize_auto = true;
 	texture_filtering = false;
 	animate_models = true;
-	freetype_font = true;
+	freetype_font = false;
+	texture_atlas = true;
+	pal_textures = true;
+	g_settings.max_texture_size = 0;
 	settings_tab = 0;
 	engine = ENGINE_SVEN_COOP;
 	renderer = RENDERER_OPENGL_21;
@@ -104,6 +107,8 @@ void AppSettings::load() {
 			else if (key == "animate_models") { g_settings.animate_models = atoi(val.c_str()) != 0; }
 			else if (key == "freetype_font") { g_settings.freetype_font = atoi(val.c_str()) != 0; }
 			else if (key == "texture_atlas") { g_settings.texture_atlas = atoi(val.c_str()) != 0; }
+			else if (key == "pal_textures") { g_settings.pal_textures = atoi(val.c_str()) != 0; }
+			else if (key == "max_texture_size") { g_settings.max_texture_size = atoi(val.c_str()); }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -238,6 +243,8 @@ void AppSettings::save() {
 	file << "animate_models=" << g_settings.animate_models << endl;
 	file << "freetype_font=" << g_settings.freetype_font << endl;
 	file << "texture_atlas=" << g_settings.texture_atlas << endl;
+	file << "pal_textures=" << g_settings.pal_textures << endl;
+	file << "max_texture_size=" << g_settings.max_texture_size << endl;
 }
 
 void AppSettings::addRecentFile(string map) {

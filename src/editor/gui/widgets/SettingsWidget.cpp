@@ -138,33 +138,57 @@ void SettingsWidget::draw() {
 		}
 
 		static const char* texture_qualities[2] = {
+			"Maximum",
 			"High",
-			"Low",
+			//"Medium",
 		};
-		if (ImGui::BeginCombo("Texture Quality", texture_qualities[g_settings.texture_atlas]))
-		{
-			if (ImGui::Selectable(texture_qualities[0], !g_settings.texture_atlas)) {
-				g_settings.texture_atlas = false;
-				app->deselectObject();
-				g_app->updateGpuSupportFlags();
-				g_app->mapRenderer->reload();
-			}
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Render textures as they would appear in-game.\n");
-			}
+		int selectedTexQuality = 0;
+		if (g_settings.texture_atlas) {
+			selectedTexQuality = 1;
+			//if (g_settings.max_texture_size == 128)
+			//	selectedLevel = 2;
+		}
 
-			if (ImGui::Selectable(texture_qualities[1], g_settings.texture_atlas)) {
-				g_settings.texture_atlas = true;
+		if (ImGui::BeginCombo("Texture Quality", texture_qualities[selectedTexQuality]))
+		{
+			if (ImGui::Selectable(texture_qualities[0], selectedTexQuality == 0)) {
+				g_settings.texture_atlas = false;
+				g_settings.texture_filtering = true;
+				g_settings.pal_textures = false;
+				g_settings.max_texture_size = 0;
 				app->deselectObject();
 				g_app->updateGpuSupportFlags();
 				g_app->mapRenderer->reload();
 			}
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Boosts FPS when rendering the world and solid entities.\n"
-					"Textures will shimmer in the distance because of disabled mipmaps.\n");
+			tooltip("Full resolution textures WITH filtering and mipmap support. "
+					"This may greatly reduce FPS due to the slower rendering techniques required.\n", 0);
+
+			if (ImGui::Selectable(texture_qualities[1], selectedTexQuality == 1)) {
+				g_settings.texture_atlas = true;
+				g_settings.texture_filtering = false;
+				g_settings.pal_textures = true;
+				g_settings.max_texture_size = 0;
+				app->deselectObject();
+				g_app->updateGpuSupportFlags();
+				g_app->mapRenderer->reload();
 			}
+			tooltip("Full resolution textures without filtering and mipmap support.", 0);
+			/*
+			if (ImGui::Selectable(texture_qualities[2], selectedLevel == 2)) {
+				g_settings.texture_atlas = true;
+				g_settings.texture_filtering = false;
+				g_settings.max_texture_size = 128;
+				app->deselectObject();
+				g_app->updateGpuSupportFlags();
+				g_app->mapRenderer->reload();
+			}
+			tooltip("Full resolution textures without filtering and mipmap support.", 0);
+			*/
 			ImGui::EndCombo();
 		}
+
+		ImGui::DragFloat("Mipmap Bias", &g_app->tex_lod_bias, 0.02f, -4.0f, 4.0f, "%.1f");
+		tooltip("Controls how quickly texture detail decreases with distance. Higher = lower detail sooner.");
 
 		if (isLoading)
 			ImGui::EndDisabled();
@@ -175,10 +199,31 @@ void SettingsWidget::draw() {
 		ImGui::PopItemWidth();
 
 		ImGui::Columns(2);
-		ImGui::Checkbox("Animate Models", &g_settings.animate_models);
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Animations have a big impact on FPS with the legacy renderer.\n");
+
+		bool canUsePalettedTextures = selectedTexQuality > 0;
+		if (isLoading || !canUsePalettedTextures)
+			ImGui::BeginDisabled();
+		if (ImGui::Checkbox("Paletted GPU Textures", &g_settings.pal_textures)) {
+			app->deselectObject();
+			g_app->mapRenderer->reloadTextures();
 		}
+		tooltip("Greatly reduces VRAM usage, which can improve your FPS and allow big maps to load. "
+			"If you aren't starved for VRAM then this may slightly lower FPS instead. "
+			"Selectable at high texture quality or lower.\n", 0);
+		if (isLoading || !canUsePalettedTextures)
+			ImGui::EndDisabled();
+
+		bool canUseFiltering = !g_settings.texture_atlas && !g_settings.pal_textures;
+		if (isLoading || !canUseFiltering)
+			ImGui::BeginDisabled();
+		ImGui::Checkbox("Texture Filtering", &g_settings.texture_filtering);
+		tooltip("Smooth textures. Requires maximum texture quality.\n", 0);
+		if (isLoading || !canUseFiltering)
+			ImGui::EndDisabled();
+
+		ImGui::Checkbox("Animate Models", &g_settings.animate_models);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Animations have a big impact on FPS with the legacy renderer.\n");
 
 		ImGui::NextColumn();
 
@@ -189,15 +234,6 @@ void SettingsWidget::draw() {
 		tooltip("Display the number of polygons that would be rendered in-game. Enabling this reduces FPS when wpoly counts are high.");
 
 		ImGui::NextColumn();
-
-		/*
-					ImGui::Checkbox("Texture Filtering", &g_settings.texture_filtering);
-					if (ImGui::IsItemHovered()) {
-						ImGui::SetTooltip("Smooths far-away textures.\n");
-					}
-
-					ImGui::NextColumn();
-		*/
 	}
 	else if (gui->settingsTab == 2) {
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 150 * uiScale);

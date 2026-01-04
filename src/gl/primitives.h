@@ -27,7 +27,11 @@ struct lightmapVert {
 	// aw=0, ah=0, ax=array layer (low byte), ay=array layer (high byte)
 	uint8_t ax, ay, aw, ah; 
 
-	uint16_t edges; // lower 3-bits: which edges to draw. upper 3 bits: x,y,z baycentric coords (0/1). 1 byte padding
+	// all 4 bytes are packed into one attribute
+	// edges = lower 3-bits: which edges to draw. upper 3 bits: x,y,z baycentric coords (0/1). 1 byte padding
+	// palX = x coordinate in palette atlas (steps of 256 pixels)
+	// palY_hi/lo = hi and lo bytes for Y offset into palette atlas
+	uint8_t edges, palX, palY_hi, palY_lo;
 
 	// lightmap texture coordinates (coords are 1/16 scale, so max atlas size is 4096)
 	uint16_t luv[MAXLIGHTMAPS][2];

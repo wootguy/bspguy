@@ -105,7 +105,8 @@ void BspRenderer::preloadTextures() {
 	}
 	miptexToTexArray = new TexArrayOffset[map->textureCount];
 
-	glTextureArray->clear();
+	delete glTextureArray;
+	glTextureArray = new TextureArray();
 	for (int i = 0; i < map->textureCount; i++) {
 		BSPMIPTEX* tex = map->get_texture(i);
 		if (!tex) {
@@ -119,21 +120,48 @@ void BspRenderer::preloadTextures() {
 	buildTextureAtlases();
 }
 
-Texture* BspRenderer::generateMissingTexture(int width, int height) {
-	Texture* tex = new Texture(width, height);
-
+Texture* BspRenderer::generateMissingTexture(int width, int height, int mips, COLOR3* pal) {
 	static const COLOR4 pink = COLOR4(255, 0, 255, 255);
 	static const COLOR4 black = COLOR4(0, 0, 0, 255);
-	COLOR4* dat = (COLOR4*)tex->data;
 
-	for (int y = 0; y < height; y++) {
-		for (int x = 0; x < width; x++) {
-			bool isPink = ((x / 8) + ((y / 8) & 1)) & 1;
-			dat[y * width + x] = isPink ? pink : black;
+	uint8_t* dat = NULL;
+
+	if (g_settings.pal_textures) {
+		dat = new uint8_t[width*height];
+
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				bool isPink = ((x / 8) + ((y / 8) & 1)) & 1;
+				dat[y * width + x] = isPink;
+			}
+		}
+
+		memset(pal, 0, 256 * sizeof(COLOR3));
+		pal[0] = black.rgb();
+		pal[1] = pink.rgb();
+	}
+	else {
+		dat = new uint8_t[width * height * sizeof(COLOR4)];
+
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				bool isPink = ((x / 8) + ((y / 8) & 1)) & 1;
+				((COLOR4*)dat)[y * width + x] = isPink ? pink : black;
+			}
 		}
 	}
 
+	Texture* tex = new Texture(width, height, dat);
+
+	if (!g_settings.texture_atlas && !g_settings.pal_textures)
+		tex->generateMipMaps(mips, COLOR3());
+
 	return tex;
+}
+
+void BspRenderer::palAtlasCoords(int textureIdx, uint16_t& x, uint16_t& y) {
+	x = (textureIdx % 4) * 256;
+	y = textureIdx / 4;
 }
 
 void BspRenderer::loadTextures() {
@@ -166,15 +194,34 @@ void BspRenderer::loadTextures() {
 	int missingCount = 0;
 	int embedCount = 0;
 
+	COLOR3* palAtlas = NULL;
+	glPaletteSwap = NULL;
+	if (g_settings.pal_textures) {
+		palAtlasHeight = 16;
+		while (palAtlasHeight < map->textureCount / 4) {
+			palAtlasHeight *= 2;
+		}
+
+		palAtlas = new COLOR3[palAtlasWidth * palAtlasHeight];
+		memset(palAtlas, 0, sizeof(COLOR3) * palAtlasWidth * palAtlasHeight);
+		glPaletteSwap = new Texture(palAtlasWidth, palAtlasHeight, palAtlas);
+		if (map->textureCount > (palAtlasWidth * palAtlasHeight) / 256) {
+			errorf("Too many textures for palette atlas!\n");
+		}
+	}
+
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
 		BSPMIPTEX* tex = map->get_texture(i);
 
+		uint16_t palX, palY;
+		palAtlasCoords(i, palX, palY);
+		COLOR3* atlasPal = palAtlas + palY*palAtlasWidth + palX;
+
 		if (!tex) {
-			Texture* missingCopy = generateMissingTexture(16, 16);
+			Texture* missingCopy = generateMissingTexture(16, 16, numMips, atlasPal);
 			glTexturesSwap[i] = missingCopy;
-			glTexturesSwap[i]->generateMipMaps(numMips, COLOR3());
 			glTextureArray->add(missingCopy);
 			continue;
 		}
@@ -210,10 +257,9 @@ void BspRenderer::loadTextures() {
 			}
 
 			if (!foundInWad) {
-				Texture* missingCopy = generateMissingTexture(tex->nWidth, tex->nHeight);
+				Texture* missingCopy = generateMissingTexture(tex->nWidth, tex->nHeight, numMips, atlasPal);
 				glTexturesSwap[i] = missingCopy;
 				glTextureArray->add(missingCopy);
-				glTexturesSwap[i]->generateMipMaps(numMips, COLOR3());
 				continue;
 			}
 		}
@@ -223,25 +269,37 @@ void BspRenderer::loadTextures() {
 			embedCount++;
 		}
 
-		COLOR4* imageData = new COLOR4[tex->nWidth * tex->nHeight];
-
 		int sz = tex->nWidth * tex->nHeight;
 		bool hasAlpha = tex->szName[0] == '{';
 
-		for (int k = 0; k < sz; k++) {
-			imageData[k] = COLOR4(palette[src[k]], 255);
+		if (g_settings.pal_textures) {
+			memcpy(atlasPal, palette, sizeof(COLOR3) * 256);
 
-			if (hasAlpha && src[k] == 255)
-				imageData[k].a = 0;
+			uint8_t* imageData = new uint8_t[sz];
+			memcpy(imageData, src, sz);
+			glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
+
+			// no mipmaps because filtering between levels is unavoidable and
+			// turns the texture into a garbled mess
 		}
+		else {
+			COLOR4* imageData = new COLOR4[tex->nWidth * tex->nHeight];
 
-		glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
-		
-		// looks much nicer in some cased but slow to generate
-		//glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
+			for (int k = 0; k < sz; k++) {
+				imageData[k] = COLOR4(palette[src[k]], 255);
 
-		for (int k = 1; k <= numMips; k++) {
-			glTexturesSwap[i]->addMipMap(k, map->textures + texOffset + tex->nOffsets[k], palette);
+				if (hasAlpha && src[k] == 255)
+					imageData[k].a = 0;
+			}
+
+			glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
+
+			// looks much nicer in some cased but slow to generate
+			//glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
+
+			for (int k = 1; k <= numMips; k++) {
+				glTexturesSwap[i]->addMipMap(k, map->textures + texOffset + tex->nOffsets[k], palette);
+			}
 		}
 		
 		glTextureArray->add(glTexturesSwap[i]);
@@ -335,6 +393,18 @@ void BspRenderer::buildTextureAtlases() {
 		textureAtlasZoneSz = 2048;
 	}
 
+	int totalPixels = 0;
+	for (int i = 0; i < map->textureCount; i++) {
+		BSPMIPTEX* tex = map->get_texture(i);
+		totalPixels += tex->nWidth * tex->nHeight;
+	}
+
+	// shrink atlas size to save VRAM on small maps
+	while (totalPixels < textureAtlasSz * textureAtlasSz * 0.75f && textureAtlasSz > 512) {
+		textureAtlasSz /= 2;
+		textureAtlasZoneSz = min(textureAtlasSz, textureAtlasZoneSz);
+	}
+
 	vector<TextureAtlas*> atlases;
 	atlases.push_back(new TextureAtlas(textureAtlasSz, textureAtlasSz, textureAtlasZoneSz));
 
@@ -400,10 +470,19 @@ void BspRenderer::fillTextureAtlases() {
 	int mipLevels = 0; // mip-map seams aren't fixable without a large perf/memory impact
 
 	for (int i = 0; i < numTextureAtlasesSwap; i++) {
-		glTextureAtlasesSwap[i] = new Texture(textureAtlasSz, textureAtlasSz);
-		memset(glTextureAtlasesSwap[i]->data, 0, textureAtlasSz * textureAtlasSz * sizeof(COLOR4));
+
+		if (g_settings.pal_textures) {
+			uint8_t* dat = new uint8_t[textureAtlasSz * textureAtlasSz];
+			glTextureAtlasesSwap[i] = new Texture(textureAtlasSz, textureAtlasSz, dat);
+			memset(glTextureAtlasesSwap[i]->data, 0, textureAtlasSz * textureAtlasSz);
+		}
+		else {
+			glTextureAtlasesSwap[i] = new Texture(textureAtlasSz, textureAtlasSz);
+			memset(glTextureAtlasesSwap[i]->data, 0, textureAtlasSz * textureAtlasSz * sizeof(COLOR4));
+		}
 
 		// mip map generation for the atlas must be manual so textures don't average each other
+		/*
 		for (int m = 1; m <= mipLevels; m++) {
 			int mipSz = textureAtlasSz >> m;
 
@@ -415,6 +494,7 @@ void BspRenderer::fillTextureAtlases() {
 
 			glTextureAtlasesSwap[i]->mipmaps[glTextureAtlasesSwap[i]->numMipMaps++] = mip;
 		}
+		*/
 	}
 
 	for (int i = 0; i < textureAtlasInfos.size(); i++) {
@@ -429,15 +509,21 @@ void BspRenderer::fillTextureAtlases() {
 			continue;
 		}
 
-		// copy lightmap data into atlas
-		COLOR4* lightSrc = (COLOR4*)(glTexturesSwap[info.idx]->data);
-		COLOR4* lightDst = (COLOR4*)(glTextureAtlasesSwap[info.atlasId]->data);
+		// copy texture data into atlas
+		COLOR4* pSrc = (COLOR4*)(glTexturesSwap[info.idx]->data);
+		COLOR4* pDst = (COLOR4*)(glTextureAtlasesSwap[info.atlasId]->data);
 
 		for (int y = 0; y < info.h; y++) {
 			for (int x = 0; x < info.w; x++) {
 				int src = y * info.w + x;
 				int dst = (info.y + y) * textureAtlasSz + info.x + x;
-				lightDst[dst] = lightSrc[src];
+
+				if (g_settings.pal_textures) {
+					((uint8_t*)pDst)[dst] = ((uint8_t*)pSrc)[src];
+				}
+				else {
+					pDst[dst] = pSrc[src];
+				}
 			}
 		}
 
@@ -455,13 +541,19 @@ void BspRenderer::fillTextureAtlases() {
 			int iy = info.y >> m;
 			int iw = info.w >> m;
 			int ih = info.h >> m;
-			lightSrc = (COLOR4*)(glTexturesSwap[info.idx]->mipmaps[m-1].data);
+			pSrc = (COLOR4*)(glTexturesSwap[info.idx]->mipmaps[m-1].data);
 
 			for (int y = 0; y < ih; y++) {
 				for (int x = 0; x < iw; x++) {
 					int src = y * iw + x;
 					int dst = (iy + y) * mipSz + ix + x;
-					mip.data[dst] = lightSrc[src];
+
+					if (g_settings.pal_textures) {
+						((uint8_t*)mip.data)[dst] = ((uint8_t*)pSrc)[src];
+					}
+					else {
+						mip.data[dst] = pSrc[src];
+					}
 				}
 			}
 		}
@@ -577,16 +669,6 @@ void BspRenderer::addClipnodeModel(int modelIdx) {
 void BspRenderer::loadLightmaps() {
 	double startTime = glfwGetTime();
 
-	int maxSize = g_settings.renderer == RENDERER_OPENGL_21_LEGACY ? 1024 : 2048; // old gpu lied about max texture size
-	lightmapAtlasSz = clamp(g_max_texture_size, 512, maxSize);
-	lightmapAtlasZoneSz = 128; // 64 is too small for maps like snd, 256 or greater is slower
-
-	vector<TextureAtlas*> atlases;
-	vector<Texture*> atlasTextures;
-	atlases.push_back(new TextureAtlas(lightmapAtlasSz, lightmapAtlasSz, lightmapAtlasZoneSz));
-	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
-	memset(atlasTextures[0]->data, 0, lightmapAtlasSz * lightmapAtlasSz * sizeof(COLOR3));
-
 	numRenderLightmapInfos = map->faceCount;
 	lightmaps = new LightmapInfo[map->faceCount];
 	memset(lightmaps, 0, map->faceCount * sizeof(LightmapInfo));
@@ -619,7 +701,27 @@ void BspRenderer::loadLightmaps() {
 		return a.lightmapSz > b.lightmapSz;
 	});
 
-	debugf("Calculating lightmaps\n");
+	int maxSize = g_settings.renderer == RENDERER_OPENGL_21_LEGACY ? 1024 : 2048; // 1024 because old gpu lied about max texture size
+	lightmapAtlasSz = clamp(g_max_texture_size, 512, maxSize);
+	lightmapAtlasZoneSz = 128; // 64 is too small for maps like snd, 256 or greater is slower
+
+	int totalPixels = 0;
+	for (int i = 0; i < sortedFaces.size(); i++) {
+		FaceLightmap& fmap = sortedFaces[i];
+		totalPixels += fmap.lightmapSz;
+	}
+
+	// shrink atlas for small maps
+	while (totalPixels > lightmapAtlasSz * lightmapAtlasSz * 0.75f && lightmapAtlasSz > 512) {
+		lightmapAtlasSz /= 2;
+		lightmapAtlasZoneSz = min(lightmapAtlasZoneSz, lightmapAtlasSz);
+	}
+
+	vector<TextureAtlas*> atlases;
+	vector<Texture*> atlasTextures;
+	atlases.push_back(new TextureAtlas(lightmapAtlasSz, lightmapAtlasSz, lightmapAtlasZoneSz));
+	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
+	memset(atlasTextures[0]->data, 0, lightmapAtlasSz* lightmapAtlasSz * sizeof(COLOR3));
 
 	int lightmapCount = 0;
 	int atlasId = 0;
@@ -860,6 +962,10 @@ void BspRenderer::deleteTextures() {
 		delete[] glTextureAtlases;
 		glTextureAtlases = NULL;
 	}
+	if (glPalette) {
+		delete glPalette;
+		glPalette = NULL;
+	}
 }
 
 void BspRenderer::deleteLightmapTextures() {
@@ -921,6 +1027,9 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 			texHeight = 16;
 		}
 		
+		uint16_t palX, palY;
+		palAtlasCoords(texinfo.iMiptex, palX, palY);
+		palX /= 256;
 
 		LightmapInfo* lmap = lightmapsGenerated ? &lightmaps[faceIdx] : NULL;
 
@@ -979,6 +1088,10 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 				verts[e].aw = 0;
 				verts[e].ah = 0;
 			}
+			
+			verts[e].palX = palX;
+			verts[e].palY_hi = palY >> 8;
+			verts[e].palY_lo = palY & 0xff;
 
 			// lightmap texture coords
 			if (hasLighting && lightmapsGenerated) {
@@ -1794,15 +1907,15 @@ void BspRenderer::generateNodeMesh(CMesh* mesh, COLOR4 color, vector<clipnodeVer
 	vector<vec3>& allFaceMathVerts, vector<vec2>& allFaceMathLocalVerts, vector<FaceMath>& faceMaths, int elementIndex) {
 	clipnodeLeafCount++;
 
-	vec3 faceVerts[256]; // index into mesh verts
-	bool addedFaceVerts[256]; // true if vert already added
+	vec3 faceVerts[512]; // index into mesh verts
+	bool addedFaceVerts[512]; // true if vert already added
 
 	for (int i = 0; i < mesh->faces.size(); i++) {
 
 		if (!mesh->faces[i].visible) {
 			continue;
 		}
-		if (mesh->verts.size() > 256) {
+		if (mesh->verts.size() > 512) {
 			logf("Too many verts in clipnode face\n");
 			continue;
 		}
@@ -2162,17 +2275,22 @@ void BspRenderer::delayLoadData() {
 		glTextures = glTexturesSwap;
 		glTextureAtlases = glTextureAtlasesSwap;
 		numTextureAtlases = numTextureAtlasesSwap;
+		glPalette = glPaletteSwap;
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
+
+		int texFormat = g_settings.pal_textures ? GL_RED : GL_RGBA;
 
 		g_shaders.bsp->bind();
 		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
 
 		glTextureArray->upload();
 
-		// non-3D version of textures needed for GUI
-		for (int i = 0; i < map->textureCount; i++) {
-			if (glTextures[i] && !glTextures[i]->uploaded) {
-				glTextures[i]->upload(GL_RGBA);
+		// legacy renderer at max quality is the only mode that binds each individual texture
+		if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY && !g_settings.texture_atlas) {
+			for (int i = 0; i < map->textureCount; i++) {
+				if (glTextures[i] && !glTextures[i]->uploaded) {
+					glTextures[i]->upload(texFormat);
+				}
 			}
 		}
 		for (int i = 0; i < 6; i++) {
@@ -2186,11 +2304,18 @@ void BspRenderer::delayLoadData() {
 			//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
 			//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
 			//lodepng_encode32_file(cstrf("atlas_%d.png", i), glTextureAtlasesSwap[i]->data, textureAtlasSz, textureAtlasSz);
-			glTextureAtlases[i]->upload(GL_RGBA);
+			glTextureAtlases[i]->upload(texFormat);
 
 			// disable mip-maps because they show seams which can't be fixed without 4x texture memory
 			// and atlas size. https://0fps.net/2013/07/09/texture-atlases-wrapping-and-mip-mapping/
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		}
+
+		if (glPalette) {
+			// keep palette in memory for GUI
+			lodepng_encode24_file("atlas_pal.png", glPalette->data, palAtlasWidth, palAtlasHeight);
+			g_shaders.bsp->setUniform("paletteAtlasScale", vec2(1.0f / palAtlasWidth, 1.0f / palAtlasHeight), true);
+			glPalette->upload(GL_RGB, false, false);
 		}
 
 		numLoadedTextures = map->textureCount;
@@ -2407,16 +2532,6 @@ bool BspRenderer::getRenderPointers(int faceIdx, RenderFace** renderFace, Render
 	return true;
 }
 
-uint BspRenderer::getFaceTextureId(int faceIdx) {
-	BSPFACE& face = map->faces[faceIdx];
-	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-
-	if (texinfo.iMiptex >= 0 && texinfo.iMiptex < numLoadedTextures)
-		return glTextures[texinfo.iMiptex]->id;
-	else
-		return 0;
-}
-
 Texture* BspRenderer::uploadTexture(WADTEX* tex) {
 	int lastMipSize = (tex->nWidth / 8) * (tex->nHeight / 8);
 	COLOR3* palette = (COLOR3*)(tex->data + tex->nOffsets[3] + lastMipSize + 2 - 40);
@@ -2502,7 +2617,8 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	BSPMODEL& world = map->models[0];
 
 	int shaderbits = (g_settings.render_flags & RENDER_WIREFRAME) ? SH_BSP_WIREFRAME : 0;
-	
+	shaderbits |= g_settings.pal_textures ? SH_BSP_TEX_PAL : 0;
+
 	if (g_opengl_texture_array_support) {
 		shaderbits |= SH_BSP_TEX_ARRAY;
 	}
@@ -2515,6 +2631,13 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	activeShader->modelMat->loadIdentity();
 	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	activeShader->updateMatrixes();
+
+	if (g_settings.pal_textures && glPalette) {
+		glActiveTexture(GL_TEXTURE5);
+		glPalette->bind();
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
 
 	//glDisable(GL_CULL_FACE); // too expensive on fill-rate limited hardware
 	glEnable(GL_BLEND);
@@ -3710,4 +3833,56 @@ int BspRenderer::calcMemoryUsage() {
 	bytes += blackTex ? blackTex->calcMemoryUsage() : 0;
 
 	return bytes;
+}
+
+Texture* BspRenderer::getRgbTexture(int iMiptex) {
+	if (!glTextures)
+		return 0;
+
+	Texture* tex = glTextures[iMiptex];
+	int w = tex->width;
+	int h = tex->height;
+
+	COLOR3* dat = new COLOR3[w * h];
+	uint8_t* tempDat = NULL;
+	
+	if (g_settings.pal_textures) {
+		uint8_t* srcDat = (uint8_t*)tex->data;
+
+		if (!tex->data) {
+			tex->bind();
+			tempDat = new uint8_t[w * h];
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, tempDat);
+			srcDat = tempDat;
+		}
+
+		uint16_t px, py;
+		palAtlasCoords(iMiptex, px, py);
+		COLOR3* pal = (COLOR3*)&glPalette->data[(py*1024 + px) * sizeof(COLOR3)];
+
+		for (int i = 0; i < w * h; i++) {
+			dat[i] = pal[srcDat[i]];
+		}
+	}
+	else {
+		COLOR4* srcDat = (COLOR4*)tex->data;
+
+		if (!tex->data) {
+			tex->bind();
+			tempDat = new uint8_t[w * h * 4];
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, tempDat);
+			srcDat = (COLOR4*)tempDat;
+		}
+
+		for (int i = 0; i < w * h; i++) {
+			dat[i] = srcDat[i].rgb();
+		}
+	}
+
+	delete[] tempDat;
+
+	Texture* newTex = new Texture(w, h, dat);
+	newTex->upload(GL_RGB);
+	
+	return newTex;
 }

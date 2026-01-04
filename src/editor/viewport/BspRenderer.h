@@ -223,6 +223,8 @@ public:
 	void preRenderEnts();
 	void calcFaceMaths();
 
+	void palAtlasCoords(int textureIdx, uint16_t& x, uint16_t& y); // get coordinates in palette atlas for a texture index
+	COLOR3* getPal(int textureIdx); // get palette offset in atlas
 	void preloadTextures(); // sets texture array positions for textures so geometry loader can set uvs
 	void loadTextures(); // will reload them if already loaded
 	void loadSkyboxTextures();
@@ -236,7 +238,6 @@ public:
 	void hideLeaves(bool hideNotUnhide);
 	void hideFaces(bool hideNotUnhide); // must have hiddenFaces populated in app class
 	void updateFaceUVs(int faceIdx);
-	uint getFaceTextureId(int faceIdx);
 	int addTextureToMap(string textureName); // adds a texture reference if found in a loaded WAD
 	Texture* uploadTexture(WADTEX* tex);
 
@@ -248,6 +249,8 @@ public:
 	void reloadMegaBuffers();
 
 	int calcMemoryUsage();
+
+	Texture* getRgbTexture(int iMiptex); // upload and return an RGB texture from whatever is stored internally
 
 private:
 	ShaderProgram* activeShader;
@@ -274,6 +277,7 @@ private:
 	vector<PvsPoly> facePolys; // for wpoly calculations
 
 	// textures loaded in a separate thread
+	Texture* glPaletteSwap = NULL;
 	Texture** glTexturesSwap = NULL;
 	Texture* skyboxTexturesSwap[6];
 	TextureArray* glTextureArray = NULL;
@@ -292,6 +296,8 @@ private:
 	int lightmapAtlasZoneSz;
 	int textureAtlasSz;
 	int textureAtlasZoneSz;
+	int palAtlasWidth = 1024;
+	int palAtlasHeight = 1024;
 
 	vector<Polygon3D> debugFaces;
 	NavMesh* debugNavMesh = NULL;
@@ -299,6 +305,7 @@ private:
 
 	Texture* skyboxTextures[6];
 	Texture** glTextures = NULL;
+	Texture* glPalette = NULL;
 	Texture** glLightmapTextures = NULL;
 	Texture** glTextureAtlases = NULL;
 	Texture** glTextureAtlasesSwap = NULL;
@@ -346,5 +353,5 @@ private:
 	void deleteFaceMaths();
 	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
-	Texture* generateMissingTexture(int width, int height);
+	Texture* generateMissingTexture(int width, int height, int mips, COLOR3* pal);
 };

@@ -36,8 +36,5 @@ public:
 
 	void upload();
 
-	// removes textures from bucket arrays but does not delete the array textures
-	void clear();
-
 	int calcMemoryUsage();
 };

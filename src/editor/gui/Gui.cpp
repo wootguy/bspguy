@@ -62,7 +62,7 @@ const char* g_optimize_tip =
 "delete hulls yourself if you run into problems.";
 
 void tooltip(const char* text, float hoverDelay) {
-	if (ImGui::IsItemHovered() && GImGui->HoveredIdTimer > hoverDelay) {
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && GImGui->HoveredIdTimer > hoverDelay) {
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(min(ImGui::GetFontSize() * 35.0f, (float)g_app->windowWidth));
 		ImGui::TextUnformatted(text);

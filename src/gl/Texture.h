@@ -48,7 +48,11 @@ public:
 
 	void generateMipMaps(int mipLevels, COLOR3 maskColor);
 
-	void addMipMap(int mipLevel, uint8_t* data, COLOR3* pal);
+	// add a mip map as RGB data
+	void addMipMap(int mipLevel, uint8_t* srcData, COLOR3* pal);
+
+	// add a mip map as indexed palette
+	void addMipMap(int mipLevel, uint8_t* srcData);
 
 	// upload the texture with the specified settings
 	void upload(int format, bool lighmap=false, bool deleteData=true);

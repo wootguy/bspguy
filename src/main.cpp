@@ -14,7 +14,7 @@
 // - remove wireframe buffers from ent cubes
 // - load mipmaps from wad. They take 20s to generate on lappy
 // - fix bad extents in resize tool for 256x64 bts_rc made it bigger
-
+// - try freetype font at lower brightness
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

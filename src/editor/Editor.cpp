@@ -203,7 +203,7 @@ Editor::Editor() {
 	debugf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
 	debugf("    Max Vertex Attributes: %d / %d\n", vertexAttributes, MAX_VERTEX_ATTRIBUTES);
 	debugf("    Max Varying Floats: %d / 32\n", varyingFloats);
-	debugf("    Texture Units: %d / 5\n", texImageUnits);
+	debugf("    Texture Units: %d / 6\n", texImageUnits);
 	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
 	debugf("OpenGL Extensions:\n%s\n\n", openglExts);
@@ -383,13 +383,14 @@ void Editor::compileShaderPrograms() {
 		sh->addCompileFlag(SH_BSP_WIREFRAME, "WIREFRAME");
 		sh->addCompileFlag(SH_BSP_TEX_ATLAS, "TEXTURE_ATLAS");
 		sh->addCompileFlag(SH_BSP_TEX_ARRAY, "TEXTURE_ARRAY");
+		sh->addCompileFlag(SH_BSP_TEX_PAL, "TEXTURE_PAL");
 		sh->compile(bsp_vert_glsl, bsp_frag_glsl, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 		sh->setMatrixNames(NULL, "modelViewProjection");
 		sh->addAttributes({
 			{ 2, GL_FLOAT, 0, "vTex" },
 			{ 4, GL_UNSIGNED_BYTE, 0, "vAtlas" },
-			{ 1, GL_UNSIGNED_SHORT, 0, "vEdges" },
+			{ 4, GL_UNSIGNED_BYTE, 0, "vCustom" },
 			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01" },
 			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23" },
 			{ 4, GL_UNSIGNED_BYTE, 1, "vLightmapBright" },
@@ -398,6 +399,7 @@ void Editor::compileShaderPrograms() {
 		});
 		sh->addUniforms({
 			{"sTex", UNIFORM_INT},
+			{"pTex", UNIFORM_INT},
 			{"colorMult", UNIFORM_VEC4},
 			{"alphaTest", UNIFORM_FLOAT},
 			{"gamma", UNIFORM_FLOAT},
@@ -406,6 +408,7 @@ void Editor::compileShaderPrograms() {
 			{"wireframeThickness", UNIFORM_FLOAT},
 			{"textureAtlasScale", UNIFORM_FLOAT},
 			{"lightmapAtlasScale", UNIFORM_FLOAT},
+			{"paletteAtlasScale", UNIFORM_VEC2},
 		});
 		sh->setUniform("sTex", 0, true);
 		sh->setUniform("wireframeThickness", 0.5f, true);
@@ -414,6 +417,7 @@ void Editor::compileShaderPrograms() {
 			sh->addUniform(name, UNIFORM_INT);
 			sh->setUniform(name, s + 1, true);
 		}
+		sh->setUniform("pTex", 5, true);
 	}
 
 	{
@@ -424,7 +428,7 @@ void Editor::compileShaderPrograms() {
 		sh->addAttributes({
 			{4, GL_UNSIGNED_BYTE, 1, "vColor"},
 			{3, GL_FLOAT, 0, "vPosition"},
-			});
+		});
 		sh->addUniforms({
 			{ "colorMult", UNIFORM_VEC4 },
 		});

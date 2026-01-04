@@ -4,6 +4,7 @@
 #include "util.h"
 #include "globals.h"
 #include "colors.h"
+#include "Editor.h"
 
 TextureArray::TextureArray() {
 	memset(buckets, 0, sizeof(TextureBucket) * TEXARRAY_BUCKET_COUNT);
@@ -30,22 +31,6 @@ TextureArray::~TextureArray() {
 			delete[] buckets[i].textures;
 		}
 	}
-	g_renderStats.texMem -= uploadedDataSize;
-	uploadedDataSize = 0;
-}
-
-void TextureArray::clear() {
-	bool deletedAny = false;
-	for (int i = 0; i < TEXARRAY_BUCKET_COUNT; i++) {
-		if (buckets[i].textures) {
-			deletedAny = true;
-			glDeleteTextures(1, &buckets[i].glArrayId);
-			delete[] buckets[i].textures;
-			buckets[i].textures = NULL;
-		}
-		buckets[i].count = 0;
-	}
-	numResize = 0;
 	g_renderStats.texMem -= uploadedDataSize;
 	uploadedDataSize = 0;
 }
@@ -226,18 +211,21 @@ void TextureArray::upload() {
 			textureCount += buckets[i].count;
 			//debugf("%d textures in bucket %dx%d\n", buckets[i].count, sizeX, sizeY);
 
+			int format = g_settings.pal_textures ? GL_RED : GL_RGBA;
+			int bpp = g_settings.pal_textures ? 1 : 4;
+
 			glBindTexture(GL_TEXTURE_2D_ARRAY, buckets[i].glArrayId);
 
-			glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, sizeX, sizeY, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-			uploadedDataSize += sizeX * sizeY * buckets[i].count * 4;
+			glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, format, sizeX, sizeY, buckets[i].count, 0, format, GL_UNSIGNED_BYTE, NULL);
+			uploadedDataSize += sizeX * sizeY * buckets[i].count * bpp;
 
 			// allocate mipmaps
-			glTexImage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA, sizeX >> 1, sizeY >> 1, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-			glTexImage3D(GL_TEXTURE_2D_ARRAY, 2, GL_RGBA, sizeX >> 2, sizeY >> 2, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-			glTexImage3D(GL_TEXTURE_2D_ARRAY, 3, GL_RGBA, sizeX >> 3, sizeY >> 3, buckets[i].count, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-			uploadedDataSize += (sizeX >> 1) * (sizeY >> 1) * buckets[i].count * 4;
-			uploadedDataSize += (sizeX >> 2) * (sizeY >> 2) * buckets[i].count * 4;
-			uploadedDataSize += (sizeX >> 3) * (sizeY >> 3) * buckets[i].count * 4;
+			glTexImage3D(GL_TEXTURE_2D_ARRAY, 1, format, sizeX >> 1, sizeY >> 1, buckets[i].count, 0, format, GL_UNSIGNED_BYTE, NULL);
+			glTexImage3D(GL_TEXTURE_2D_ARRAY, 2, format, sizeX >> 2, sizeY >> 2, buckets[i].count, 0, format, GL_UNSIGNED_BYTE, NULL);
+			glTexImage3D(GL_TEXTURE_2D_ARRAY, 3, format, sizeX >> 3, sizeY >> 3, buckets[i].count, 0, format, GL_UNSIGNED_BYTE, NULL);
+			uploadedDataSize += (sizeX >> 1) * (sizeY >> 1) * buckets[i].count * bpp;
+			uploadedDataSize += (sizeX >> 2) * (sizeY >> 2) * buckets[i].count * bpp;
+			uploadedDataSize += (sizeX >> 3) * (sizeY >> 3) * buckets[i].count * bpp;
 
 			texDataSz += buckets[i].count * sizeX * sizeY * 3;
 
@@ -246,23 +234,26 @@ void TextureArray::upload() {
 					Texture* tex = buckets[i].textures[k];
 					COLOR4* texdata = (COLOR4*)tex->data;
 
-					glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, k, sizeX, sizeY, 1, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
+					glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, k, sizeX, sizeY, 1, format, GL_UNSIGNED_BYTE, texdata);
 
 					for (int i = 0; i < tex->numMipMaps; i++) {
 						MipTexture& mip = tex->mipmaps[i];
 
 						glTexSubImage3D(GL_TEXTURE_2D_ARRAY, mip.level, 0, 0, k,
-							mip.width, mip.height, 1, GL_RGBA, GL_UNSIGNED_BYTE, mip.data);
+							mip.width, mip.height, 1, format, GL_UNSIGNED_BYTE, mip.data);
 					}
 				}
 			}
 
-			if (g_opengl_texture_array_support) {
-				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-				glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, -0.5f);
-				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, buckets[i].textures[0]->numMipMaps);
+			if (g_settings.pal_textures) {
+				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 			}
+			else {
+				glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+			}
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_LOD_BIAS, g_app->tex_lod_bias);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, buckets[i].textures[0]->numMipMaps);
 		}
 	}
 

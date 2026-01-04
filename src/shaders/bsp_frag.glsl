@@ -4,6 +4,7 @@ uniform vec4 wireframeColorDark;
 uniform vec4 wireframeColorBright;
 uniform float wireframeThickness;
 uniform float textureAtlasScale;
+uniform vec2 paletteAtlasScale;
 
 varying vec4 fAtlas;
 varying vec4 fLightmapTex01;
@@ -12,6 +13,7 @@ varying vec4 fLightmapBright;
 varying vec4 fColor;
 varying vec3 fBary;
 varying vec3 fEdgeEnable;
+varying vec2 fPal;
 
 #ifdef TEXTURE_ARRAY
 	varying vec3 fTex;
@@ -23,6 +25,7 @@ uniform sampler2D sLightmapTex0;
 uniform sampler2D sLightmapTex1;
 uniform sampler2D sLightmapTex2;
 uniform sampler2D sLightmapTex3;
+uniform sampler2D pTex;
 
 #if defined(TEXTURE_ARRAY) && !defined(TEXTURE_ATLAS)
 	#extension GL_EXT_texture_array : enable
@@ -46,10 +49,21 @@ void main()
 		texel = texture2D(sTex, fTex.xy);
 	#endif
 	
+	#if defined(TEXTURE_PAL)
+		float palIdx = texel.r;
+		texel = texture2D(pTex, vec2((fPal.x + palIdx*255) * paletteAtlasScale.x, fPal.y));
+	#endif
+	
 	if (alphaTest != 0.0) {
-		if (texel.a == 0.0) {
-			discard;
-		}
+		#if defined(TEXTURE_PAL)
+			if (palIdx == 1.0) {
+				discard;
+			}
+		#else
+			if (texel.a == 0.0) {
+				discard;
+			}
+		#endif
 	}
 	else {
 		texel.a = 1.0;

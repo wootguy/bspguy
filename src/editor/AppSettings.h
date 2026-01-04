@@ -34,6 +34,8 @@ struct AppSettings {
 	bool animate_models;
 	bool freetype_font;
 	bool texture_atlas;
+	bool pal_textures;
+	int max_texture_size;
 
 	bool debug_open;
 	bool keyvalue_open;

@@ -123,6 +123,8 @@ void FaceEditor::drawTextureEditor() {
 	static bool isSpecial;
 	static int width, height;
 	static ImTextureID textureId = NULL; // OpenGL ID
+	static Texture* buttonTexture;
+	static int lastTextureIdx;
 	static char textureName[16];
 	static int lastPickCount = -1;
 	static bool validTexture = true;
@@ -184,7 +186,13 @@ void FaceEditor::drawTextureEditor() {
 				rotate = signedAngle(texinfo.vS, ref, utNorm);
 			}
 
-			textureId = (ImTextureID)mapRenderer->getFaceTextureId(faceIdx);
+			if (lastTextureIdx != texinfo.iMiptex) {
+				lastTextureIdx = texinfo.iMiptex;
+				delete buttonTexture;
+				buttonTexture = mapRenderer->getRgbTexture(texinfo.iMiptex);
+				textureId = buttonTexture->id;
+			}
+
 			validTexture = true;
 
 			// show default values if not all faces share the same values
@@ -526,7 +534,10 @@ void FaceEditor::drawTextureEditor() {
 			mapRenderer->updateFaceUVs(faceIdx);
 		}
 		if (textureChanged || toggledFlags) {
-			textureId = (ImTextureID)mapRenderer->getFaceTextureId(app->pickInfo.faces[0]);
+			delete buttonTexture;
+			buttonTexture = mapRenderer->getRgbTexture(lastTextureIdx);
+			textureId = buttonTexture->id;
+
 			for (auto it = modelRefreshes.begin(); it != modelRefreshes.end(); it++) {
 				mapRenderer->refreshModel(*it, false);
 			}

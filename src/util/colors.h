@@ -19,8 +19,8 @@ struct COLOR4
 	COLOR4() : r(0), g(0), b(0), a(0) {}
 	COLOR4(uint8_t r, uint8_t g, uint8_t b, uint8_t a) : r(r), g(g), b(b), a(a) {}
 	COLOR4(COLOR3 c, uint8_t a) : r(c.r), g(c.g), b(c.b), a(a) {}
-	vec4 toVec() { return vec4(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f); }
-	COLOR3 rgb() { return COLOR3(r, g, b); }
+	vec4 toVec() const { return vec4(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f); }
+	COLOR3 rgb() const { return COLOR3(r, g, b); }
 };
 
 COLOR3 operator*(COLOR3 v, float f);
