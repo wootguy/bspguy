@@ -70,6 +70,10 @@ struct MapLimits {
 #define SH_BSP_TEX_ATLAS 2 // vert UVs are 2D offsets into a texture atlas
 #define SH_BSP_TEX_ARRAY 4 // vert UVs are 3D offsets into a texture array
 
+#define SH_MDL_BONE_TEXTURE 1 // use a texture to load model bone transforms
+
+#define SH_VEC3_DEPTH_HACK 1 // draw at slightly less depth to prevent z fighting
+
 struct GlobalShaders {
 	ShaderProgram* bsp = new ShaderProgram("BSP");
 	ShaderProgram* color = new ShaderProgram("Color");
@@ -78,7 +82,6 @@ struct GlobalShaders {
 	ShaderProgram* mdl = new ShaderProgram("MDL");
 	ShaderProgram* spr = new ShaderProgram("SPR");
 	ShaderProgram* vec3 = new ShaderProgram("vec3");
-	ShaderProgram* sprOutline = new ShaderProgram("SPR outline");
 };
 
 struct RenderStats {

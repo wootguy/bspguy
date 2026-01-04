@@ -298,7 +298,8 @@ private:
 	bool lightStylesEnabled[MAXLIGHTMAPS];
 
 	bool createWindow();
-	void compileShaders();
+	void updateGpuSupportFlags();
+	void compileShaderPrograms();
 	vec3 getMoveDir();
 	void controlsBegin(); // get key state
 	void controlsEnd(); // save old key states

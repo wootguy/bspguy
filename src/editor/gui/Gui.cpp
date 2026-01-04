@@ -1696,7 +1696,6 @@ int Gui::calcMemUsage() {
 	bytes += g_shaders.color->calcMemoryUsage();
 	bytes += g_shaders.mdl->calcMemoryUsage();
 	bytes += g_shaders.spr->calcMemoryUsage();
-	bytes += g_shaders.sprOutline->calcMemoryUsage();
 	bytes += g_shaders.texture->calcMemoryUsage();
 	bytes += g_shaders.vec3->calcMemoryUsage();
 

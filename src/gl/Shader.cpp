@@ -34,11 +34,11 @@ Shader::Shader( const char * sourceCode, const char* header, int shaderType )
 		int len;
 		glGetShaderInfoLog(ID, 1024, &len, log);
 		log[1023] = 0;
-		logf("Failed to compile %s shader\n", shaderTypeName);
-		logf(log);
-		logf("\n");
+		errorf("Failed to compile %s shader\n", shaderTypeName);
+		errorf(log);
+		errorf("\n");
 		if (len > 1024)
-			logf("Log too big to fit!");
+			errorf("Log too big to fit!");
 	}
 
 	compiled = success;

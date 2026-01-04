@@ -237,7 +237,8 @@ Editor::Editor() {
 
 	glCheckError("GUI init");
 
-	compileShaders();
+	updateGpuSupportFlags();
+	compileShaderPrograms();
 
 	oldLeftMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	oldRightMouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
@@ -345,16 +346,16 @@ bool Editor::createWindow() {
 	return true;
 }
 
-void Editor::compileShaders() {
+void Editor::updateGpuSupportFlags() {
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
-
-	const char* mdl_vert = mdl_vert_glsl;
 
 	g_opengl_texture_array_support = false;
 
-	if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY) {
+	if (g_settings.texture_atlas) {
+		g_opengl_texture_array_support = false; // prefer to use simple texture mode
+	}
+	else if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY) {
 		logf("Legacy renderer selected. Not checking extension support.\n");
-		mdl_vert = mdl_legacy_vert_glsl;
 	}
 	else if (strstr(openglExts, "GL_EXT_texture_array")) {
 		g_opengl_texture_array_support = true;
@@ -362,10 +363,10 @@ void Editor::compileShaders() {
 	else {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
 	}
+}
 
-	if (g_settings.texture_atlas) {
-		g_opengl_texture_array_support = false;
-	}
+void Editor::compileShaderPrograms() {
+	float startTime = glfwGetTime();
 
 	g_renderStats.numShaders = 0;
 	g_renderStats.numShadersFailed = 0;
@@ -376,7 +377,6 @@ void Editor::compileShaders() {
 	g_shaders.mdl->clearAttributes();
 	g_shaders.spr->clearAttributes();
 	g_shaders.vec3->clearAttributes();
-	g_shaders.sprOutline->clearAttributes();
 
 	{
 		ShaderProgram* sh = g_shaders.bsp;
@@ -415,76 +415,110 @@ void Editor::compileShaders() {
 			sh->setUniform(name, s + 1, true);
 		}
 	}
-	
-	g_shaders.color->compile(cvert_vert_glsl, cvert_frag_glsl, "120");
-	g_shaders.color->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.color->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.color->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-	g_shaders.color->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.color->addUniform("colorMult", UNIFORM_VEC4);
-	g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
-	
-	g_shaders.clipnode->compile(clipnode_vert_glsl, clipnode_frag_glsl, "120");
-	g_shaders.clipnode->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.clipnode->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.clipnode->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
-	g_shaders.clipnode->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
-	g_shaders.clipnode->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.clipnode->addUniform("colorMult", UNIFORM_VEC4);
-	g_shaders.clipnode->addUniform("wireframeThickness", UNIFORM_FLOAT);
-	g_shaders.clipnode->addUniform("opacity", UNIFORM_FLOAT);
-	g_shaders.clipnode->setUniform("colorMult", vec4(1, 1, 1, 1));
-	g_shaders.clipnode->setUniform("wireframeThickness", 0.5f);
-	g_shaders.clipnode->setUniform("opacity", 0.5f);
 
-	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl, "120");
-	g_shaders.texture->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.texture->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.texture->addAttribute(2, GL_FLOAT, 0, "vTex");
-	g_shaders.texture->addAttribute(3, GL_FLOAT, 0, "vPosition");
-
-	g_shaders.mdl->compile(mdl_vert, mdl_frag_glsl, "120");
-	g_shaders.mdl->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.mdl->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.mdl->addAttribute(2, GL_FLOAT, 0, "vTex");
-	g_shaders.mdl->addAttribute(3, GL_FLOAT, 1, "vNormal");
-	g_shaders.mdl->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.mdl->addAttribute(1, GL_FLOAT, 0, "vBone");
-	g_shaders.mdl->addUniform("sTex", UNIFORM_INT);
-	g_shaders.mdl->addUniform("elights", UNIFORM_INT);
-	g_shaders.mdl->addUniform("ambient", UNIFORM_VEC3);
-	g_shaders.mdl->addUniform("lights", UNIFORM_MAT3);
-	g_shaders.mdl->addUniform("additiveEnable", UNIFORM_INT);
-	g_shaders.mdl->addUniform("chromeEnable", UNIFORM_INT);
-	g_shaders.mdl->addUniform("flatshadeEnable", UNIFORM_INT);
-	g_shaders.mdl->addUniform("colorMult", UNIFORM_VEC4);
-	g_shaders.mdl->addUniform("viewerOrigin", UNIFORM_VEC3);
-	g_shaders.mdl->addUniform("viewerRight", UNIFORM_VEC3);
-	if (g_settings.renderer != RENDERER_OPENGL_21_LEGACY) {
-		g_shaders.mdl->addUniform("boneMatrixTexture", UNIFORM_INT);
+	{
+		ShaderProgram* sh = g_shaders.color;
+		sh->compile(cvert_vert_glsl, cvert_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{4, GL_UNSIGNED_BYTE, 1, "vColor"},
+			{3, GL_FLOAT, 0, "vPosition"},
+			});
+		sh->addUniforms({
+			{ "colorMult", UNIFORM_VEC4 },
+		});
+		sh->setUniform("colorMult", vec4(1, 1, 1, 1), true);
 	}
 
-	g_shaders.spr->compile(spr_vert_glsl, spr_frag_glsl, "120");
-	g_shaders.spr->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.spr->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.spr->addAttribute(2, GL_FLOAT, 0, "vTex");
-	g_shaders.spr->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.spr->addUniform("color", UNIFORM_VEC4);
+	{
+		ShaderProgram* sh = g_shaders.clipnode;
+		sh->compile(clipnode_vert_glsl, clipnode_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{1, GL_UNSIGNED_SHORT, 0, "vEdges"},
+			{4, GL_UNSIGNED_BYTE, 1, "vColor"},
+			{3, GL_FLOAT, 0, "vPosition"},
+		});
+		sh->addUniforms({
+			{"colorMult", UNIFORM_VEC4},
+			{"wireframeThickness", UNIFORM_FLOAT},
+			{"opacity", UNIFORM_FLOAT},
+		});
+		sh->setUniform("colorMult", vec4(1, 1, 1, 1), true);
+		sh->setUniform("wireframeThickness", 0.5f, true);
+		sh->setUniform("opacity", 0.5f, true);
+	}
 
-	g_shaders.vec3->compile(vec3_vert_glsl, vec3_frag_glsl, "120");
-	g_shaders.vec3->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.vec3->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.vec3->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.vec3->addUniform("color", UNIFORM_VEC4);
-	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
+	{
+		ShaderProgram* sh = g_shaders.texture;
+		sh->compile(tvert_vert_glsl, tvert_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{2, GL_FLOAT, 0, "vTex"},
+			{3, GL_FLOAT, 0, "vPosition"},
+		});
+	}
 
-	g_shaders.sprOutline->compile(vec3_vert_glsl, vec3_depth_frag_glsl, "120");
-	g_shaders.sprOutline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
-	g_shaders.sprOutline->setMatrixNames(NULL, "modelViewProjection");
-	g_shaders.sprOutline->addAttribute(3, GL_FLOAT, 0, "vPosition");
-	g_shaders.sprOutline->addUniform("color", UNIFORM_VEC4);
+	{
+		ShaderProgram* sh = g_shaders.mdl;
+		sh->addCompileFlag(SH_MDL_BONE_TEXTURE, "BONE_TEXTURE");
+		sh->compile(mdl_vert_glsl, mdl_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{2, GL_FLOAT, 0, "vTex"},
+			{3, GL_FLOAT, 1, "vNormal"},
+			{3, GL_FLOAT, 0, "vPosition"},
+			{1, GL_FLOAT, 0, "vBone"},
+		});
+		sh->addUniforms({
+			{"sTex", UNIFORM_INT},
+			{"elights", UNIFORM_INT},
+			{"ambient", UNIFORM_VEC3},
+			{"lights", UNIFORM_MAT3},
+			{"additiveEnable", UNIFORM_INT},
+			{"chromeEnable", UNIFORM_INT},
+			{"flatshadeEnable", UNIFORM_INT},
+			{"colorMult", UNIFORM_VEC4},
+			{"viewerOrigin", UNIFORM_VEC3},
+			{"viewerRight", UNIFORM_VEC3},
+			{"boneMatrixTexture", UNIFORM_INT},
+		});
+	}
 
-	debugf("Compiled %d / %d shaders\n", g_renderStats.numShaders - g_renderStats.numShadersFailed, g_renderStats.numShaders);
+	{
+		ShaderProgram* sh = g_shaders.spr;
+		sh->compile(spr_vert_glsl, spr_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{2, GL_FLOAT, 0, "vTex"},
+			{3, GL_FLOAT, 0, "vPosition"},
+		});
+		sh->addUniform("color", UNIFORM_VEC4);
+	}
+	
+	{
+		ShaderProgram* sh = g_shaders.vec3;
+		sh->addCompileFlag(SH_VEC3_DEPTH_HACK, "DEPTH_HACK");
+		sh->compile(vec3_vert_glsl, vec3_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{3, GL_FLOAT, 0, "vPosition"}
+		});
+		sh->addUniforms({
+			{"color", UNIFORM_VEC4}
+		});
+		sh->setUniform("color", vec4(1, 1, 1, 1), true);
+	}
+
+	debugf("Compiled %d / %d shaders in %.2f\n",
+		(int)(g_renderStats.numShaders - g_renderStats.numShadersFailed), (int)g_renderStats.numShaders,
+		glfwGetTime() - startTime);
 	glCheckError("compiling shaders");
 }
 

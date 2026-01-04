@@ -1432,7 +1432,8 @@ void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerO
 	}
 
 	glEnable(GL_BLEND);
-	shader->bind();
+	int shaderBits = g_settings.renderer != RENDERER_OPENGL_21_LEGACY ? SH_MDL_BONE_TEXTURE : 0;
+	shader->bind(shaderBits);
 	int defaultBlendFunc = GL_ONE_MINUS_SRC_ALPHA;
 
 	if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {

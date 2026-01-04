@@ -39,7 +39,11 @@ void LogWidget::draw() {
 	const char* buf = Buf.begin();
 	const char* buf_end = Buf.end();
 
-	if (copy) ImGui::LogBegin(ImGuiLogFlags_OutputClipboard, 0);
+	if (copy) {
+		ImGui::LogBegin(ImGuiLogFlags_OutputClipboard, 0);
+		ImGui::LogText("%s", Buf.begin());
+		ImGui::LogFinish();
+	}
 
 	ImGuiListClipper clipper;
 	clipper.Begin(LineOffsets.Size);
@@ -56,8 +60,6 @@ void LogWidget::draw() {
 		}
 	}
 	clipper.End();
-
-	if (copy) ImGui::LogFinish();
 
 	ImGui::PopFont();
 	ImGui::PopStyleVar();
@@ -76,6 +78,10 @@ void LogWidget::clearLog()
 
 	LineColors.clear();
 	LineColors.push_back(ImVec4(1,1,1,1));
+
+	g_log_mutex.lock();
+	g_log_buffer.clear();
+	g_log_mutex.unlock();
 }
 
 void LogWidget::addLog(LogEntry& entry)

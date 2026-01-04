@@ -193,7 +193,7 @@ void SprRenderer::loadData() {
 	}
 
 	frameBuffer = new VertexBuffer(g_shaders.spr, frameVerts, framesVertCount);
-	outlineBuffer = new VertexBuffer(g_shaders.sprOutline, outlineVerts, linesVertCount);
+	outlineBuffer = new VertexBuffer(g_shaders.vec3, outlineVerts, linesVertCount);
 
 	delete[] palette;
 
@@ -463,13 +463,13 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	}
 
 	if ((g_settings.render_flags & RENDER_WIREFRAME) && !noOutline) {
-		g_shaders.sprOutline->bind();
-		*g_shaders.sprOutline->modelMat = *g_shaders.spr->modelMat;
-		g_shaders.sprOutline->updateMatrixes();
-		g_shaders.sprOutline->setUniform("color", vec4(outlineColor.toVec(), 1));
+		g_shaders.vec3->bind(SH_VEC3_DEPTH_HACK);
+		*g_shaders.vec3->modelMat = *g_shaders.spr->modelMat;
+		g_shaders.vec3->updateMatrixes();
+		g_shaders.vec3->setUniform("color", vec4(outlineColor.toVec(), 1));
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		outlineBuffer->drawRange(g_shaders.sprOutline, GL_LINE_STRIP, frame * 5, frame * 5 + 5);
+		outlineBuffer->drawRange(g_shaders.vec3, GL_LINE_STRIP, frame * 5, frame * 5 + 5);
 	}
 
 	g_shaders.spr->popMatrix(MAT_MODEL);

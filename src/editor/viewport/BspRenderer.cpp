@@ -2986,7 +2986,7 @@ void BspRenderer::drawPvs() {
 
 	glDisable(GL_DEPTH_TEST);
 
-	g_shaders.vec3->bind();
+	g_shaders.vec3->bind(0);
 	g_shaders.vec3->modelMat->loadIdentity();
 	g_shaders.vec3->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	g_shaders.vec3->updateMatrixes();

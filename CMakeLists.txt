@@ -146,7 +146,6 @@ set(SOURCE_FILES
 set(SHADER_FILES
 	src/shaders/vec3_vert.glsl
 	src/shaders/vec3_frag.glsl
-	src/shaders/vec3_depth_frag.glsl
 	
 	src/shaders/cvert_vert.glsl
 	src/shaders/cvert_frag.glsl
@@ -158,16 +157,13 @@ set(SHADER_FILES
 	src/shaders/tvert_frag.glsl
 	
 	src/shaders/bsp_vert.glsl
-	src/shaders/bsp_legacy_frag.glsl
-	src/shaders/bsp_arraytex_frag.glsl
-	src/shaders/bsp_atlas_frag.glsl
+	src/shaders/bsp_frag.glsl
 	
 	src/shaders/spr_vert.glsl
 	src/shaders/spr_frag.glsl
 	
 	src/shaders/mdl_vert.glsl
 	src/shaders/mdl_frag.glsl
-	src/shaders/mdl_legacy_vert.glsl
 )
 
 # Custom command that always runs because cmake doesn't care if .glsl contents change.

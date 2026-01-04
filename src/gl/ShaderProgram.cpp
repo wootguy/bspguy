@@ -70,11 +70,11 @@ void ShaderProgram::link(int programIdx)
 		static char log[1024];
 		int len;
 		glGetProgramInfoLog(ID, 1024, &len, log);
-		logf("Failed to link %s shader program:\n", name);
-		logf(log);
-		logf("\n");
+		errorf("Failed to link %s shader program:\n", name);
+		errorf(log);
+		errorf("\n");
 		if (len > 1024)
-			logf("Log too big to fit!\n");
+			errorf("Log too big to fit!\n");
 		g_renderStats.numShadersFailed++;
 	}
 	else {

@@ -118,7 +118,7 @@ void SettingsWidget::draw() {
 			if (ImGui::Selectable(renderers[0], g_settings.renderer == RENDERER_OPENGL_21)) {
 				g_settings.renderer = RENDERER_OPENGL_21;
 				app->deselectObject();
-				g_app->compileShaders();
+				g_app->updateGpuSupportFlags();
 				g_app->mapRenderer->reload();
 			}
 			if (ImGui::IsItemHovered()) {
@@ -128,7 +128,7 @@ void SettingsWidget::draw() {
 			if (ImGui::Selectable(renderers[1], g_settings.renderer == RENDERER_OPENGL_21_LEGACY)) {
 				g_settings.renderer = RENDERER_OPENGL_21_LEGACY;
 				app->deselectObject();
-				g_app->compileShaders();
+				g_app->updateGpuSupportFlags();
 				g_app->mapRenderer->reload();
 			}
 			if (ImGui::IsItemHovered()) {
@@ -146,7 +146,7 @@ void SettingsWidget::draw() {
 			if (ImGui::Selectable(texture_qualities[0], !g_settings.texture_atlas)) {
 				g_settings.texture_atlas = false;
 				app->deselectObject();
-				g_app->compileShaders();
+				g_app->updateGpuSupportFlags();
 				g_app->mapRenderer->reload();
 			}
 			if (ImGui::IsItemHovered()) {
@@ -156,7 +156,7 @@ void SettingsWidget::draw() {
 			if (ImGui::Selectable(texture_qualities[1], g_settings.texture_atlas)) {
 				g_settings.texture_atlas = true;
 				app->deselectObject();
-				g_app->compileShaders();
+				g_app->updateGpuSupportFlags();
 				g_app->mapRenderer->reload();
 			}
 			if (ImGui::IsItemHovered()) {
