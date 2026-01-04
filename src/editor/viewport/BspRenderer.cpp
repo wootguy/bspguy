@@ -2495,6 +2495,14 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	BSPMODEL& world = map->models[0];
 
 	int shaderbits = (g_settings.render_flags & RENDER_WIREFRAME) ? SH_BSP_WIREFRAME : 0;
+	
+	if (g_opengl_texture_array_support) {
+		shaderbits |= SH_BSP_TEX_ARRAY;
+	}
+	else {
+		shaderbits |= g_settings.texture_atlas ? SH_BSP_TEX_ATLAS : 0;
+	}
+	
 	activeShader = g_shaders.bsp;
 	activeShader->bind(shaderbits);
 	activeShader->modelMat->loadIdentity();

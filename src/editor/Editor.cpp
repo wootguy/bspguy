@@ -348,7 +348,6 @@ bool Editor::createWindow() {
 void Editor::compileShaders() {
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
 
-	const char* bspFragShader = bsp_legacy_frag_glsl;
 	const char* mdl_vert = mdl_vert_glsl;
 
 	g_opengl_texture_array_support = false;
@@ -359,7 +358,6 @@ void Editor::compileShaders() {
 	}
 	else if (strstr(openglExts, "GL_EXT_texture_array")) {
 		g_opengl_texture_array_support = true;
-		bspFragShader = bsp_arraytex_frag_glsl;
 	}
 	else {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
@@ -367,7 +365,6 @@ void Editor::compileShaders() {
 
 	if (g_settings.texture_atlas) {
 		g_opengl_texture_array_support = false;
-		bspFragShader = bsp_atlas_frag_glsl;
 	}
 
 	g_renderStats.numShaders = 0;
@@ -384,7 +381,9 @@ void Editor::compileShaders() {
 	{
 		ShaderProgram* sh = g_shaders.bsp;
 		sh->addCompileFlag(SH_BSP_WIREFRAME, "WIREFRAME");
-		sh->compile(bsp_vert_glsl, bspFragShader, "120");
+		sh->addCompileFlag(SH_BSP_TEX_ATLAS, "TEXTURE_ATLAS");
+		sh->addCompileFlag(SH_BSP_TEX_ARRAY, "TEXTURE_ARRAY");
+		sh->compile(bsp_vert_glsl, bsp_frag_glsl, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 		sh->setMatrixNames(NULL, "modelViewProjection");
 		sh->addAttributes({

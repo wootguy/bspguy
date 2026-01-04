@@ -199,7 +199,8 @@ void ShaderProgram::addAttribute(const VertexAttr& attrib) {
 		a.handle = glGetAttribLocation(g_active_shader_program, a.varName);
 
 		if (a.handle == -1) {
-			logf("Could not find vertex attribute '%s' in shader %s\n", a.varName, name);
+			// don't care about missing attritubes that are optimized out depending on compile flags
+			//logf("Could not find vertex attribute '%s' in shader %s\n", a.varName, name);
 		}
 	}
 	

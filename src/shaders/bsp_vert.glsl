@@ -14,28 +14,37 @@ attribute vec4 vLightmapBright;
 attribute vec4 vColor;
 
 // fragment variables (no more than 32 floats for max compatibility)
-varying vec3 fTex;
 varying vec4 fAtlas;
-varying vec2 fLightmapTex0;
-varying vec2 fLightmapTex1;
-varying vec2 fLightmapTex2;
-varying vec2 fLightmapTex3;
+varying vec4 fLightmapTex01;
+varying vec4 fLightmapTex23;
 varying vec4 fLightmapBright;
 varying vec4 fColor;
 varying vec3 fBary;
 varying vec3 fEdgeEnable;
 
+#ifdef TEXTURE_ARRAY
+	varying vec3 fTex;
+#else
+	varying vec2 fTex;
+#endif
+
 void main()
 {
 	gl_Position = modelViewProjection * vec4(vPosition, 1);
-	fTex = vec3(vTex, vAtlas.x + vAtlas.y*256);
-	fLightmapTex0 = vLightmapTex01.xy*lightmapAtlasScale;
-	fLightmapTex1 = vLightmapTex01.zw*lightmapAtlasScale;
-	fLightmapTex2 = vLightmapTex23.xy*lightmapAtlasScale;
-	fLightmapTex3 = vLightmapTex23.zw*lightmapAtlasScale;
+	fLightmapTex01 = vLightmapTex01*lightmapAtlasScale;
+	fLightmapTex23 = vLightmapTex23*lightmapAtlasScale;
 	fLightmapBright = vLightmapBright;
 	fColor = vColor * colorMult;
-	fAtlas = vec4(vAtlas.x*16, vAtlas.y*16, vAtlas.z*16, vAtlas.w*16);
+	
+	#ifdef TEXTURE_ARRAY
+		fTex = vec3(vTex, vAtlas.x + vAtlas.y*256);
+	#else
+		fTex = vTex;
+	#endif
+	
+	#ifdef TEXTURE_ATLAS
+		fAtlas = vec4(vAtlas.x*16, vAtlas.y*16, vAtlas.z*16, vAtlas.w*16);
+	#endif
 
 	#ifdef WIREFRAME
 		float v = vEdges;
