@@ -36,9 +36,7 @@ VertexAttr::VertexAttr(int numValues, int valueType, int handle, int normalized,
 
 VertexBuffer::VertexBuffer(ShaderProgram* shader, bool ownData) {
 	this->ownData = ownData;
-	memcpy(attributes, shader->attributes, sizeof(VertexAttr) * shader->numAttributes);
-	numAttributes = shader->numAttributes;
-	vertexSize = shader->vertexSize;
+	this->vertexSize = shader->vertexSize;
 }
 
 VertexBuffer::VertexBuffer(ShaderProgram* shader, const void* dat, int numVerts, bool ownData)
@@ -63,7 +61,8 @@ bool VertexBuffer::isUploaded() {
 	return vboId != -1;
 }
 
-void VertexBuffer::upload() {
+void VertexBuffer::upload(ShaderProgram* shader) {
+
 	if (vboId != -1) {
 		// already uploaded, just replace the data
 		glBindBuffer(GL_ARRAY_BUFFER, vboId);
@@ -80,8 +79,8 @@ void VertexBuffer::upload() {
 	glBindBuffer(GL_ARRAY_BUFFER, vboId);
 	glBufferData(GL_ARRAY_BUFFER, vertexSize * numVerts, data, GL_STATIC_DRAW);
 
-	if (g_use_vao) {
-		bindAttributes();
+	if (g_use_vao && shader) {
+		bindAttributes(shader);
 	}
 
 	if (g_use_vao)
@@ -101,11 +100,12 @@ void VertexBuffer::deleteBuffer() {
 	vaoId = -1;
 }
 
-void VertexBuffer::bindAttributes() {
+void VertexBuffer::bindAttributes(ShaderProgram* shader) {
 	int offset = 0;
-	for (int i = 0; i < numAttributes; i++)
+	int idx = shader->getActiveProgramIndex();
+	for (int i = 0; i < shader->numAttributes; i++)
 	{
-		VertexAttr& a = attributes[i];
+		VertexAttr& a = shader->attributes[idx][i];
 		void* ptr = (char*)NULL + offset;
 		offset += a.size;
 		if (a.handle == -1) {
@@ -116,7 +116,7 @@ void VertexBuffer::bindAttributes() {
 	}
 }
 
-void VertexBuffer::drawRange(int primitive, int start, int end)
+void VertexBuffer::drawRange(ShaderProgram* shader, int primitive, int start, int end)
 {
 	if (vboId == -1) {
 		logf("Attempted to draw VBO before upload\n");
@@ -131,7 +131,7 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 		glBindVertexArray(vaoId);
 	else {
 		glBindBuffer(GL_ARRAY_BUFFER, vboId);
-		bindAttributes();
+		bindAttributes(shader);
 	}
 
 	if (start < 0 || start > numVerts)
@@ -145,9 +145,10 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 
 	if (vaoId == -1) {
 		// my windows 7 opengl 3.0 netbook needs this or else it crashes
-		for (int i = 0; i < numAttributes; i++)
+		int idx = shader->getActiveProgramIndex();
+		for (int i = 0; i < shader->numAttributes; i++)
 		{
-			VertexAttr& a = attributes[i];
+			VertexAttr& a = shader->attributes[idx][i];
 			if (a.handle == -1) {
 				continue;
 			}
@@ -156,9 +157,9 @@ void VertexBuffer::drawRange(int primitive, int start, int end)
 	}
 }
 
-void VertexBuffer::draw(int primitive)
+void VertexBuffer::draw(ShaderProgram* shader, int primitive)
 {
-	drawRange(primitive, 0, numVerts);
+	drawRange(shader, primitive, 0, numVerts);
 }
 
 int VertexBuffer::calcMemoryUsage() {

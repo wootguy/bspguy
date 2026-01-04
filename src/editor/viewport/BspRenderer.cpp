@@ -1256,9 +1256,6 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		return;
 	}
 
-	if (1)
-		return;
-
 	static int createMillis = 0;
 	static int totalModelGroups = 0;
 
@@ -2148,7 +2145,7 @@ void BspRenderer::delayLoadData() {
 		}
 
 		g_shaders.bsp->bind();
-		g_shaders.bsp->setUniform("lightmapAtlasScale", (1.0f / lightmapAtlasSz) * (1.0f / 16.0f));
+		g_shaders.bsp->setUniform("lightmapAtlasScale", (1.0f / lightmapAtlasSz) * (1.0f / 16.0f), true);
 
 		lightmapsUploaded = true;
 	}
@@ -2161,7 +2158,7 @@ void BspRenderer::delayLoadData() {
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
 		g_shaders.bsp->bind();
-		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz);
+		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
 
 		glTextureArray->upload();
 
@@ -2497,14 +2494,12 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	
 	BSPMODEL& world = map->models[0];
 
+	int shaderbits = (g_settings.render_flags & RENDER_WIREFRAME) ? SH_BSP_WIREFRAME : 0;
 	activeShader = g_shaders.bsp;
-	activeShader->bind();
+	activeShader->bind(shaderbits);
 	activeShader->modelMat->loadIdentity();
 	activeShader->modelMat->translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	activeShader->updateMatrixes();
-
-	bool allWireframes = (g_settings.render_flags & RENDER_WIREFRAME);
-	activeShader->setUniform("wireframeEnable", allWireframes);
 
 	//glDisable(GL_CULL_FACE); // too expensive on fill-rate limited hardware
 	glEnable(GL_BLEND);
@@ -2571,12 +2566,10 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 			if (ent->highlighted) {
 				activeShader->setUniform("wireframeColorDark", vec4(1, 1, 0, 1));
 				activeShader->setUniform("wireframeColorBright", vec4(1, 1, 0, 1));
-				activeShader->setUniform("wireframeEnable", 1);
 			}
 			else {
 				activeShader->setUniform("wireframeColorDark", vec4(0.2f, 0.2f, 1, 1));
 				activeShader->setUniform("wireframeColorBright", vec4(0, 0, 0.8f, 1));
-				activeShader->setUniform("wireframeEnable", allWireframes);
 			}
 			
 			drawModel(ent, modelIdx, transparencyPass, ent->highlighted);
@@ -2626,7 +2619,7 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 			groupHull = MAX_MAP_HULLS;
 		VertexBuffer* buffer = megaRenderClipnodes.buffer[groupHull];
 		if (buffer)
-			buffer->draw(GL_TRIANGLES);
+			buffer->draw(g_shaders.clipnode, GL_TRIANGLES);
 	}	
 
 	g_shaders.clipnode->pushMatrix(MAT_MODEL);
@@ -2681,7 +2674,7 @@ void BspRenderer::renderLeaves() {
 		g_shaders.clipnode->updateMatrixes();
 
 		if (renderLeafDat->leafBuffer) {
-			renderLeafDat->leafBuffer->draw(GL_TRIANGLES);
+			renderLeafDat->leafBuffer->draw(g_shaders.clipnode, GL_TRIANGLES);
 		}
 	}
 
@@ -2873,7 +2866,7 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		}
 	}
 
-	rgroup.buffer->draw(GL_TRIANGLES);
+	rgroup.buffer->draw(g_shaders.bsp, GL_TRIANGLES);
 }
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
@@ -2887,7 +2880,7 @@ void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) 
 	}
 	
 	if (clip.clipnodeBuffer[hullIdx]) {
-		clip.clipnodeBuffer[hullIdx]->draw(GL_TRIANGLES);
+		clip.clipnodeBuffer[hullIdx]->draw(g_shaders.clipnode, GL_TRIANGLES);
 	}
 }
 
@@ -2901,7 +2894,7 @@ void BspRenderer::drawPointEntities() {
 
 	if (g_app->pickInfo.ents.empty() && !(g_settings.render_flags & (RENDER_STUDIO_MDL | RENDER_SPRITES))) {
 		if (pointEnts->numVerts > 0)
-			pointEnts->draw(GL_TRIANGLES);
+			pointEnts->draw(g_shaders.color, GL_TRIANGLES);
 		return;
 	}
 
@@ -2918,7 +2911,7 @@ void BspRenderer::drawPointEntities() {
 
 		if (ent->highlighted || map->ents[i]->didStudioDraw) {
 			if (pointEntIdx - nextRangeDrawIdx > 0) {
-				pointEnts->drawRange(GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
+				pointEnts->drawRange(g_shaders.color, GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
 			}
 			nextRangeDrawIdx = pointEntIdx+1;
 
@@ -2929,10 +2922,10 @@ void BspRenderer::drawPointEntities() {
 				g_shaders.color->updateMatrixes();
 
 				if (ent->highlighted)
-					renderEnts[i].pointEntCube->selectBuffer->draw(GL_TRIANGLES);
+					renderEnts[i].pointEntCube->selectBuffer->draw(g_shaders.color, GL_TRIANGLES);
 				else
-					renderEnts[i].pointEntCube->buffer->draw(GL_TRIANGLES);
-				renderEnts[i].pointEntCube->wireframeBuffer->draw(GL_LINES);
+					renderEnts[i].pointEntCube->buffer->draw(g_shaders.color, GL_TRIANGLES);
+				renderEnts[i].pointEntCube->wireframeBuffer->draw(g_shaders.color, GL_LINES);
 
 				g_shaders.color->popMatrix(MAT_MODEL);
 			}
@@ -2942,7 +2935,7 @@ void BspRenderer::drawPointEntities() {
 	}
 
 	if (pointEntIdx - nextRangeDrawIdx > 0) {
-		pointEnts->drawRange(GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
+		pointEnts->drawRange(g_shaders.color, GL_TRIANGLES, cubeVerts * nextRangeDrawIdx, cubeVerts * pointEntIdx);
 	}
 }
 
@@ -2971,7 +2964,7 @@ void BspRenderer::drawSkybox() {
 			continue;
 
 		skyboxTextures[i]->bind();
-		skyBoxBuffer->drawRange(GL_TRIANGLES, i*6, i*6 + 6);
+		skyBoxBuffer->drawRange(g_shaders.texture, GL_TRIANGLES, i*6, i*6 + 6);
 	}
 
 	glDepthMask(GL_TRUE);
@@ -2991,7 +2984,7 @@ void BspRenderer::drawPvs() {
 	g_shaders.vec3->updateMatrixes();
 	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
 
-	pvsDat->wireframePvsBuffer->draw(GL_LINES);
+	pvsDat->wireframePvsBuffer->draw(g_shaders.vec3, GL_LINES);
 
 	glEnable(GL_DEPTH_TEST);
 }

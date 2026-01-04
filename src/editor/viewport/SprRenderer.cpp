@@ -449,7 +449,7 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 	}
 
 	g_shaders.spr->updateMatrixes();
-	frameBuffer->drawRange(GL_TRIANGLE_FAN, frame * 4, frame * 4 + 4);
+	frameBuffer->drawRange(g_shaders.spr, GL_TRIANGLE_FAN, frame * 4, frame * 4 + 4);
 
 	if (header->format == SPR_ALPHATEST) {
 		glDisable(GL_ALPHA_TEST);
@@ -469,7 +469,7 @@ void SprRenderer::draw(vec3 ori, vec3 angles, Entity* ent, EntRenderOpts opts, C
 		g_shaders.sprOutline->setUniform("color", vec4(outlineColor.toVec(), 1));
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		outlineBuffer->drawRange(GL_LINE_STRIP, frame * 5, frame * 5 + 5);
+		outlineBuffer->drawRange(g_shaders.sprOutline, GL_LINE_STRIP, frame * 5, frame * 5 + 5);
 	}
 
 	g_shaders.spr->popMatrix(MAT_MODEL);

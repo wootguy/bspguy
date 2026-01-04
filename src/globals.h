@@ -65,6 +65,9 @@ struct MapLimits {
 	int max_texturepixels;
 };
 
+// bits for enabling different shader program features
+#define SH_BSP_WIREFRAME 1
+
 struct GlobalShaders {
 	ShaderProgram* bsp = new ShaderProgram("BSP");
 	ShaderProgram* color = new ShaderProgram("Color");
@@ -86,6 +89,8 @@ struct RenderStats {
 
 	int64_t vertMem = 0;
 	int64_t texMem = 0;
+	int64_t numShaders = 0;
+	int64_t numShadersFailed = 0;
 
 	void clear() {
 		numVerts = 0;

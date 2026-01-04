@@ -23,7 +23,7 @@ void drawLine(vec3 start, vec3 end, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &verts[0], 2);
 	buffer.upload();
-	buffer.draw(GL_LINES);
+	buffer.draw(g_shaders.color, GL_LINES);
 }
 
 void drawArrow(vec3 start, vec3 end, COLOR4 color) {
@@ -52,7 +52,7 @@ void drawArrow(vec3 start, vec3 end, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &arrow, arrowVerts);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawLine2D(vec2 start, vec2 end, COLOR4 color) {
@@ -70,7 +70,7 @@ void drawLine2D(vec2 start, vec2 end, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &verts[0], 2);
 	buffer.upload();
-	buffer.draw(GL_LINES);
+	buffer.draw(g_shaders.color, GL_LINES);
 }
 
 void drawBox(vec3 center, float width, COLOR4 color) {
@@ -81,7 +81,7 @@ void drawBox(vec3 center, float width, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &cube, 6 * 6);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawBoxOutline(vec3 center, float width, COLOR4 color) {
@@ -119,7 +119,7 @@ void drawBoxOutline(vec3 center, float width, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &edges, 24);
 	buffer.upload();
-	buffer.draw(GL_LINES);
+	buffer.draw(g_shaders.color, GL_LINES);
 }
 
 void drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
@@ -130,7 +130,7 @@ void drawBox(vec3 mins, vec3 maxs, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &cube, 6 * 6);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawPolygon3D(Polygon3D& poly, COLOR4 color) {
@@ -151,7 +151,7 @@ void drawPolygon3D(Polygon3D& poly, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, verts, poly.verts.size());
 	buffer.upload();
-	buffer.draw(GL_TRIANGLE_FAN);
+	buffer.draw(g_shaders.color, GL_TRIANGLE_FAN);
 }
 
 void drawPolygon2D(vector<vec2>& poly, vec2 pos, float scale, COLOR4 color) {
@@ -171,14 +171,14 @@ void drawBox2D(vec2 center, float width, COLOR4 color) {
 
 	VertexBuffer buffer(g_shaders.color, &cube, 6);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawRect2D(vec2 pos, vec2 size, COLOR4 color) {
 	cQuad cube(pos.x, pos.y, size.x, size.y, color);
 	VertexBuffer buffer(g_shaders.color, &cube, 6);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
@@ -201,7 +201,7 @@ void drawPlane(BSPPLANE& plane, COLOR4 color, float sz) {
 
 	VertexBuffer buffer(g_shaders.color, &quad, 6);
 	buffer.upload();
-	buffer.draw(GL_TRIANGLES);
+	buffer.draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void drawClipnodes(Bsp* map, int iNode, int& currentPlane, int activePlane) {

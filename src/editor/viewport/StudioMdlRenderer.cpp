@@ -1596,7 +1596,7 @@ void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerO
 				shader->setUniform("flatshadeEnable", flatShade);
 				shader->setUniform("chromeEnable", (render.flags & STUDIO_NF_CHROME) ? 1 : 0);
 
-				render.buffer->draw(GL_TRIANGLES);
+				render.buffer->draw(shader, GL_TRIANGLES);
 			}
 		}
 	}

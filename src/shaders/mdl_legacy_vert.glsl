@@ -1,4 +1,3 @@
-#version 120
 #define STUDIO_NF_CHROME 0x02
 #define STUDIO_NF_ADDITIVE 0x20
 

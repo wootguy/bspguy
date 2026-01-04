@@ -184,7 +184,7 @@ void NavRenderer::renderNavMesh(Bsp* map, vec3 cameraOrigin) {
 				}
 			}
 
-			node.face_buffer->draw(GL_TRIANGLES);
+			node.face_buffer->draw(g_shaders.clipnode, GL_TRIANGLES);
 		}
 
 		glDisable(GL_CULL_FACE);

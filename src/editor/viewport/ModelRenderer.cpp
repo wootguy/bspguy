@@ -314,22 +314,22 @@ bool ModelRenderer::drawModelsAndSprites(vec3 renderOffset, vec3 cameraOrigin, v
 			if (isSelected) {
 				//glDepthFunc(GL_ALWAYS); // ignore depth testing for the world but not for the model
 				g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
-				entcube->wireframeBuffer->draw(GL_LINES);
+				entcube->wireframeBuffer->draw(g_shaders.color, GL_LINES);
 				//glDepthFunc(GL_LESS);
 
 				glDepthMask(GL_FALSE); // let model draw over this
 				g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 0.5f));
-				entcube->selectBuffer->draw(GL_TRIANGLES);
+				entcube->selectBuffer->draw(g_shaders.color, GL_TRIANGLES);
 				glDepthMask(GL_TRUE);
 			}
 			else {
 				glDepthMask(GL_FALSE);
 				g_shaders.color->setUniform("colorMult", vec4(1.0f, 1.0f, 1.0f, 0.5f));
-				entcube->buffer->draw(GL_TRIANGLES);
+				entcube->buffer->draw(g_shaders.color, GL_TRIANGLES);
 				glDepthMask(GL_TRUE);
 
 				g_shaders.color->setUniform("colorMult", vec4(0.0f, 0.0f, 0.0f, 1.0f));
-				entcube->wireframeBuffer->draw(GL_LINES);
+				entcube->wireframeBuffer->draw(g_shaders.color, GL_LINES);
 			}
 
 			g_shaders.color->popMatrix(MAT_MODEL);

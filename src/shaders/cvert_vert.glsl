@@ -1,4 +1,3 @@
-#version 120
 // object variables
 uniform mat4 modelViewProjection;
 uniform vec4 colorMult;

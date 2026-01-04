@@ -1,10 +1,7 @@
-#version 120
-#line 1
 // object variables
 uniform mat4 modelViewProjection;
 uniform vec4 colorMult;
 uniform float lightmapAtlasScale;
-uniform float wireframeEnable;
 
 // vertex variables
 attribute vec3 vPosition;
@@ -40,7 +37,7 @@ void main()
 	fColor = vColor * colorMult;
 	fAtlas = vec4(vAtlas.x*16, vAtlas.y*16, vAtlas.z*16, vAtlas.w*16);
 
-	if (wireframeEnable != 0) {
+	#ifdef WIREFRAME
 		float v = vEdges;
 		float bit0 = mod(v, 2.0);
 		float bit1 = mod(floor(v * 0.5), 2.0);
@@ -50,5 +47,5 @@ void main()
 		float bit5 = mod(floor(v * 0.03125), 2.0);
 		fEdgeEnable = vec3(bit0, bit1, bit2);
 		fBary = vec3(bit3, bit4, bit5);
-	}
+	#endif
 }

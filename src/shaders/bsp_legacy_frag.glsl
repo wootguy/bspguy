@@ -1,4 +1,3 @@
-#version 120
 uniform float alphaTest;
 uniform float gamma;
 uniform float wireframeEnable;

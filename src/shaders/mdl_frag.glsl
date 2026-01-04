@@ -1,4 +1,3 @@
-#version 120
 varying vec2 fTex;
 varying vec4 fColor;
 

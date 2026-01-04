@@ -370,7 +370,8 @@ void Editor::compileShaders() {
 		bspFragShader = bsp_atlas_frag_glsl;
 	}
 
-	debugf("Compiling shaders\n");
+	g_renderStats.numShaders = 0;
+	g_renderStats.numShadersFailed = 0;
 	g_shaders.bsp->clearAttributes();
 	g_shaders.clipnode->clearAttributes();
 	g_shaders.color->clearAttributes();
@@ -382,7 +383,8 @@ void Editor::compileShaders() {
 
 	{
 		ShaderProgram* sh = g_shaders.bsp;
-		sh->compile(bsp_vert_glsl, bspFragShader);
+		sh->addCompileFlag(SH_BSP_WIREFRAME, "WIREFRAME");
+		sh->compile(bsp_vert_glsl, bspFragShader, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 		sh->setMatrixNames(NULL, "modelViewProjection");
 		sh->addAttributes({
@@ -400,23 +402,22 @@ void Editor::compileShaders() {
 			{"colorMult", UNIFORM_VEC4},
 			{"alphaTest", UNIFORM_FLOAT},
 			{"gamma", UNIFORM_FLOAT},
-			{"wireframeEnable", UNIFORM_FLOAT},
 			{"wireframeColorDark", UNIFORM_VEC4},
 			{"wireframeColorBright", UNIFORM_VEC4},
 			{"wireframeThickness", UNIFORM_FLOAT},
 			{"textureAtlasScale", UNIFORM_FLOAT},
 			{"lightmapAtlasScale", UNIFORM_FLOAT},
 		});
-		sh->setUniform("sTex", 0);
-		sh->setUniform("wireframeThickness", 0.5f);
+		sh->setUniform("sTex", 0, true);
+		sh->setUniform("wireframeThickness", 0.5f, true);
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			const char* name = cstrf("sLightmapTex%d", s);
 			sh->addUniform(name, UNIFORM_INT);
-			sh->setUniform(name, s + 1);
+			sh->setUniform(name, s + 1, true);
 		}
 	}
 	
-	g_shaders.color->compile(cvert_vert_glsl, cvert_frag_glsl);
+	g_shaders.color->compile(cvert_vert_glsl, cvert_frag_glsl, "120");
 	g_shaders.color->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.color->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.color->addAttribute(4, GL_UNSIGNED_BYTE, 1, "vColor");
@@ -424,7 +425,7 @@ void Editor::compileShaders() {
 	g_shaders.color->addUniform("colorMult", UNIFORM_VEC4);
 	g_shaders.color->setUniform("colorMult", vec4(1, 1, 1, 1));
 	
-	g_shaders.clipnode->compile(clipnode_vert_glsl, clipnode_frag_glsl);
+	g_shaders.clipnode->compile(clipnode_vert_glsl, clipnode_frag_glsl, "120");
 	g_shaders.clipnode->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.clipnode->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.clipnode->addAttribute(1, GL_UNSIGNED_SHORT, 0, "vEdges");
@@ -437,13 +438,13 @@ void Editor::compileShaders() {
 	g_shaders.clipnode->setUniform("wireframeThickness", 0.5f);
 	g_shaders.clipnode->setUniform("opacity", 0.5f);
 
-	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl);
+	g_shaders.texture->compile(tvert_vert_glsl, tvert_frag_glsl, "120");
 	g_shaders.texture->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.texture->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.texture->addAttribute(2, GL_FLOAT, 0, "vTex");
 	g_shaders.texture->addAttribute(3, GL_FLOAT, 0, "vPosition");
 
-	g_shaders.mdl->compile(mdl_vert, mdl_frag_glsl);
+	g_shaders.mdl->compile(mdl_vert, mdl_frag_glsl, "120");
 	g_shaders.mdl->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.mdl->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.mdl->addAttribute(2, GL_FLOAT, 0, "vTex");
@@ -464,26 +465,27 @@ void Editor::compileShaders() {
 		g_shaders.mdl->addUniform("boneMatrixTexture", UNIFORM_INT);
 	}
 
-	g_shaders.spr->compile(spr_vert_glsl, spr_frag_glsl);
+	g_shaders.spr->compile(spr_vert_glsl, spr_frag_glsl, "120");
 	g_shaders.spr->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.spr->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.spr->addAttribute(2, GL_FLOAT, 0, "vTex");
 	g_shaders.spr->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.spr->addUniform("color", UNIFORM_VEC4);
 
-	g_shaders.vec3->compile(vec3_vert_glsl, vec3_frag_glsl);
+	g_shaders.vec3->compile(vec3_vert_glsl, vec3_frag_glsl, "120");
 	g_shaders.vec3->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.vec3->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.vec3->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.vec3->addUniform("color", UNIFORM_VEC4);
 	g_shaders.vec3->setUniform("color", vec4(1, 1, 1, 1));
 
-	g_shaders.sprOutline->compile(vec3_vert_glsl, vec3_depth_frag_glsl);
+	g_shaders.sprOutline->compile(vec3_vert_glsl, vec3_depth_frag_glsl, "120");
 	g_shaders.sprOutline->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 	g_shaders.sprOutline->setMatrixNames(NULL, "modelViewProjection");
 	g_shaders.sprOutline->addAttribute(3, GL_FLOAT, 0, "vPosition");
 	g_shaders.sprOutline->addUniform("color", UNIFORM_VEC4);
 
+	debugf("Compiled %d / %d shaders\n", g_renderStats.numShaders - g_renderStats.numShadersFailed, g_renderStats.numShaders);
 	glCheckError("compiling shaders");
 }
 
@@ -1062,7 +1064,7 @@ void Editor::drawMapBoundary() {
 	{
 		VertexBuffer buffer(g_shaders.color, &cube, 6 * 6);
 		buffer.upload();
-		buffer.draw(GL_TRIANGLES);
+		buffer.draw(g_shaders.color, GL_TRIANGLES);
 	}
 	glDepthFunc(GL_LEQUAL);
 
@@ -1312,7 +1314,7 @@ void Editor::drawModelVerts() {
 	model.loadIdentity();
 	model.translate(renderOffset.x, renderOffset.y, renderOffset.z);
 	g_shaders.color->updateMatrixes();
-	modelVertBuff->draw(GL_TRIANGLES);
+	modelVertBuff->draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void Editor::drawModelOrigin() {
@@ -1352,7 +1354,7 @@ void Editor::drawModelOrigin() {
 
 	model.loadIdentity();
 	g_shaders.color->updateMatrixes();
-	modelOriginBuff->draw(GL_TRIANGLES);
+	modelOriginBuff->draw(g_shaders.color, GL_TRIANGLES);
 }
 
 void Editor::drawTransformAxes() {
@@ -1371,7 +1373,7 @@ void Editor::drawTransformAxes() {
 		model.translate(ori.x, ori.z, -ori.y);
 		g_shaders.color->updateMatrixes();
 		scaleAxes.buffer->upload();
-		scaleAxes.buffer->draw(GL_TRIANGLES);
+		scaleAxes.buffer->draw(g_shaders.color, GL_TRIANGLES);
 	}
 	if (transformMode == TRANSFORM_MOVE) {
 		vec3 ori = moveAxes.origin;
@@ -1386,7 +1388,7 @@ void Editor::drawTransformAxes() {
 		model.translate(ori.x, ori.z + offset, -ori.y);
 		g_shaders.color->updateMatrixes();
 		moveAxes.buffer->upload();
-		moveAxes.buffer->draw(GL_TRIANGLES);
+		moveAxes.buffer->draw(g_shaders.color, GL_TRIANGLES);
 	}
 }
 
@@ -1397,12 +1399,12 @@ void Editor::drawEntConnections() {
 		g_shaders.color->updateMatrixes();
 
 		if (entConnections) {
-			entConnections->draw(GL_LINES);
+			entConnections->draw(g_shaders.color, GL_LINES);
 		}
 
 		if (entConnectionPoints) {
 			glDisable(GL_DEPTH_TEST);
-			entConnectionPoints->draw(GL_TRIANGLES);
+			entConnectionPoints->draw(g_shaders.color, GL_TRIANGLES);
 			glEnable(GL_DEPTH_TEST);
 		}
 	}
@@ -1487,7 +1489,7 @@ void Editor::drawEntDirectionVectors() {
 	model.loadIdentity();
 	model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
 	g_shaders.color->updateMatrixes();
-	entDirectionVectors->draw(GL_TRIANGLES);
+	entDirectionVectors->draw(g_shaders.color, GL_TRIANGLES);
 
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
@@ -1572,7 +1574,7 @@ void Editor::drawTextureAxes() {
 	model.loadIdentity();
 	model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
 	g_shaders.color->updateMatrixes();
-	allTextureAxes->draw(GL_LINES);
+	allTextureAxes->draw(g_shaders.color, GL_LINES);
 
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);

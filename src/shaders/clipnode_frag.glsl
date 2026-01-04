@@ -1,4 +1,3 @@
-#version 120
 uniform float wireframeThickness;
 uniform float opacity;
 

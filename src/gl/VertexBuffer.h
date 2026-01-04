@@ -36,11 +36,11 @@ public:
 	void setData(const void * data, int numVerts);
 
 	bool isUploaded();
-	void upload();
+	void upload(ShaderProgram* shader=NULL); // pass a shader to use VAO
 	void deleteBuffer();
 
-	void drawRange(int primitive, int start, int end);
-	void draw(int primitive);
+	void drawRange(ShaderProgram* shader, int primitive, int start, int end);
+	void draw(ShaderProgram* shader, int primitive);
 
 	int calcMemoryUsage();
 
@@ -48,16 +48,12 @@ private:
 	uint32_t vboId = -1;
 	uint32_t vaoId = -1; // vertex array object (binds attributes to the buffer)
 
-	// data copied from the shader this buffer was created with
-	VertexAttr attributes[MAX_VERTEX_ATTRIBUTES];
-	int numAttributes = 0;
-	int vertexSize = 0;
-
 	bool ownData = false; // true if buffer should delete data on destruction
+	int vertexSize;
 
 	// add attributes according to the attribute flags
 	void addAttribute(const VertexAttr& attr);
 
-	void bindAttributes();
+	void bindAttributes(ShaderProgram* shader);
 };
 

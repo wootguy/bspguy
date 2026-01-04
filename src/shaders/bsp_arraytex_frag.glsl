@@ -1,4 +1,3 @@
-#version 120
 #extension GL_EXT_texture_array : enable
 uniform float alphaTest;
 uniform float gamma;

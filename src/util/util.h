@@ -43,6 +43,10 @@ void logf(const char* format, ...);
 
 void debugf(const char* format, ...);
 
+char* strcpy_safe(char* dest, const char* src, size_t size);
+
+char* strcat_safe(char* dest, const char* src, size_t size);
+
 bool fileExists(const string& fileName);
 
 char* loadFile(const string& fileName, int& length);

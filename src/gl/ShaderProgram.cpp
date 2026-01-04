@@ -9,39 +9,57 @@ ShaderProgram::ShaderProgram(const char* name)
 {
 	this->name = name;
 	compiled = false;
-	modelViewID = modelViewProjID = -1;
-	vShader = fShader = NULL;
+	memset(programIds, -1, sizeof(programIds));
+	memset(vShader, NULL, sizeof(vShader));
+	memset(fShader, NULL, sizeof(fShader));
+	memset(modelViewID, -1, sizeof(modelViewID));
+	memset(modelViewProjID, -1, sizeof(modelViewProjID));
 }
 
-void ShaderProgram::compile(const char* vshaderSource, const char* fshaderSource) {
-	if (vShader) {
-		removeShader(vShader->ID);
-		delete vShader;
-		vShader = NULL;
+void ShaderProgram::compile(const char* vshaderSource, const char* fshaderSource, const char* glslVersion) {
+	for (int i = 0; i < MAX_SHADER_COMPILES; i++) {
+		int programId = programIds[i];
+
+		if (vShader[i]) {
+			glDetachShader(programId, vShader[i]->ID);
+			delete vShader[i];
+			vShader[i] = NULL;
+		}
+		if (fShader[i]) {
+			glDetachShader(programId, fShader[i]->ID);
+			delete fShader[i];
+			fShader[i] = NULL;
+		}
 	}
-	if (fShader) {
-		removeShader(fShader->ID);
-		delete fShader;
-		fShader = NULL;
+	
+	for (int i = 0; i < numPrograms; i++) {
+		const char* header = getShaderCodeHeader(i, glslVersion);
+		vShader[i] = new Shader(vshaderSource, header, GL_VERTEX_SHADER);
+		fShader[i] = new Shader(fshaderSource, header, GL_FRAGMENT_SHADER);
+		link(i);
+		g_renderStats.numShaders++;
 	}
-	vShader = new Shader(vshaderSource, GL_VERTEX_SHADER);
-	fShader = new Shader(fshaderSource, GL_FRAGMENT_SHADER);
-	link();
 }
 
 void ShaderProgram::clearAttributes() {
 	numAttributes = 0;
 	vertexSize = 0;
-	uniforms.clear();
+	numCompileFlags = 0;
+	numPrograms = 1;
+
+	for (int i = 0; i < MAX_SHADER_COMPILES; i++)
+		uniforms[i].clear();
 }
 
-void ShaderProgram::link()
+void ShaderProgram::link(int programIdx)
 {
+	uint& ID = programIds[programIdx];
+
 	// Create Shader And Program Objects
 	ID = glCreateProgram();
 	// Attach The Shader Objects To The Program Object
-	glAttachShader(ID, vShader->ID);
-	glAttachShader(ID, fShader->ID);
+	glAttachShader(ID, vShader[programIdx]->ID);
+	glAttachShader(ID, fShader[programIdx]->ID);
 
 	glLinkProgram(ID);
 
@@ -49,7 +67,7 @@ void ShaderProgram::link()
 	glGetProgramiv(ID, GL_LINK_STATUS, &success);
 	if (success != GL_TRUE)
 	{
-		char* log = new char[1024];
+		static char log[1024];
 		int len;
 		glGetProgramInfoLog(ID, 1024, &len, log);
 		logf("Failed to link %s shader program:\n", name);
@@ -57,7 +75,7 @@ void ShaderProgram::link()
 		logf("\n");
 		if (len > 1024)
 			logf("Log too big to fit!\n");
-		delete[] log;
+		g_renderStats.numShadersFailed++;
 	}
 	else {
 		compiled = true;
@@ -67,24 +85,27 @@ void ShaderProgram::link()
 
 ShaderProgram::~ShaderProgram(void)
 {
-	glDeleteProgram(ID);
+	for (int i = 0; i < numPrograms; i++)
+		glDeleteProgram(programIds[i]);
 	delete vShader;
 	delete fShader;
 }
 
-void ShaderProgram::bind()
-{
-	if (g_active_shader_program != ID)
-	{
-		g_renderStats.numShaderBinds++;
-		g_active_shader_program = ID;
-		glUseProgram(ID);
-	}
+void ShaderProgram::bind(int enableBits) {
+	activeCompileFlags = enableBits & SHADER_COMPILE_FLAGS_MASK;
+	bind();
 }
 
-void ShaderProgram::removeShader(int shaderID)
+void ShaderProgram::bind()
 {
-	glDetachShader(ID, shaderID);
+	int id = getActiveProgramId();
+
+	if (g_active_shader_program != id)
+	{
+		g_renderStats.numShaderBinds++;
+		g_active_shader_program = id;
+		glUseProgram(id);
+	}
 }
 
 void ShaderProgram::setMatrixes(mat4x4* model, mat4x4* view, mat4x4* proj, mat4x4* modelView, mat4x4* modelViewProj)
@@ -98,34 +119,56 @@ void ShaderProgram::setMatrixes(mat4x4* model, mat4x4* view, mat4x4* proj, mat4x
 
 void ShaderProgram::updateMatrixes()
 {
+	int idx = getActiveProgramIndex();
+
 	*modelViewMat = *viewMat * *modelMat;
 	*modelViewProjMat = *projMat * *modelViewMat;
 	*modelViewMat = modelViewMat->transpose();
 	*modelViewProjMat = modelViewProjMat->transpose();
 	g_renderStats.numMatrixUploads += 2;
 
-	if (modelViewID != -1)
-		glUniformMatrix4fv(modelViewID, 1, false, (float*)modelViewMat);
-	if (modelViewProjID != -1)
-		glUniformMatrix4fv(modelViewProjID, 1, false, (float*)modelViewProjMat);
+	if (modelViewID[idx] != -1)
+		glUniformMatrix4fv(modelViewID[idx], 1, false, (float*)modelViewMat);
+	if (modelViewProjID[idx] != -1)
+		glUniformMatrix4fv(modelViewProjID[idx], 1, false, (float*)modelViewProjMat);
 }
 
-void ShaderProgram::setMatrixNames(const char* modelViewMat, const char* modelViewProjMat)
-{
-	bind();
+void ShaderProgram::setMatrixNames(const char* modelViewMat, const char* modelViewProjMat) {
+	for (int i = 0; i < numPrograms; i++) {
+		bind(i);
+		int id = getActiveProgramId();
 
-	if (modelViewMat != NULL)
-	{
-		modelViewID = glGetUniformLocation(ID, modelViewMat);
-		if (modelViewID == -1)
-			logf("Could not find modelView uniform: %s\n", modelViewMat);
+		if (modelViewMat != NULL)
+		{
+			modelViewID[i] = glGetUniformLocation(id, modelViewMat);
+			if (modelViewID[i] == -1)
+				logf("Could not find %d matrix in shader %s (idx %d)\n", modelViewMat, name, i);
+		}
+		if (modelViewProjMat != NULL)
+		{
+			modelViewProjID[i] = glGetUniformLocation(id, modelViewProjMat);
+			if (modelViewProjID[i] == -1)
+				logf("Could not find %d matrix in shader %s (idx %d)\n", modelViewProjMat, name, i);
+		}
 	}
-	if (modelViewProjMat != NULL)
-	{
-		modelViewProjID = glGetUniformLocation(ID, modelViewProjMat);
-		if (modelViewProjID == -1)
-			logf("Could not find modelViewProjection uniform: %s\n", modelViewProjMat);
+}
+
+void ShaderProgram::addCompileFlag(int enableBit, const char* varName) {
+	if (numCompileFlags >= MAX_SHADER_COMPILE_FLAGS) {
+		errorf("Max compiler flags exceeded for shader %s\n", name);
+		return;
 	}
+
+	if (enableBit == 0 || enableBit > (1 << (MAX_SHADER_COMPILE_FLAGS-1))) {
+		errorf("Invalid enable bit for shader flag %s in shader %s\n", varName, name);
+		return;
+	}
+
+	ShaderCompileFlag& flag = compileFlags[numCompileFlags++];
+	flag.enableBit = enableBit;
+	flag.varName = varName;
+
+	numPrograms *= 2;
 }
 
 void ShaderProgram::addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader) {
@@ -149,32 +192,27 @@ void ShaderProgram::addAttribute(const VertexAttr& attrib) {
 		return;
 	}
 
-	attributes[i] = attrib;
-	attributes[i].handle = glGetAttribLocation(g_active_shader_program, attributes[i].varName);
+	for (int k = 0; k < numPrograms; k++) {
+		bind(k);
+		VertexAttr& a = attributes[k][i];
+		a = attrib;
+		a.handle = glGetAttribLocation(g_active_shader_program, a.varName);
 
-	if (attributes[i].handle == -1) {
-		logf("Could not find vertex attribute '%s' in shader %s\n",
-			attributes[i].varName, name);
+		if (a.handle == -1) {
+			logf("Could not find vertex attribute '%s' in shader %s\n", a.varName, name);
+		}
 	}
 	
 	numAttributes++;
 }
 
-void ShaderProgram::addUniform(const char* uniformName, uniform_type type) {
-	if (type >= UNIFORM_TYPES) {
-		errorf("ERROR: Invalid uniform type %d set in %s shader\n", type, name);
-		return;
-	}
+void ShaderProgram::initUniform(ShaderUniform& uniform) {
 
-	ShaderUniform uniform;
-	uniform.type = type;
-	uniform.location = -1;
+	for (int i = 0; i < numPrograms; i++) {
+		bind(i);
 
-	bind();
+		uniform.location = glGetUniformLocation(programIds[i], uniform.name);
 
-	uniform.location = glGetUniformLocation(ID, uniformName);
-
-	if (uniform.location != -1) {		
 		glCheckError("Finding uniform in shadder");
 
 		static float emptyMatrix[16] = { 0.0f };
@@ -215,26 +253,36 @@ void ShaderProgram::addUniform(const char* uniformName, uniform_type type) {
 			glUniform4i(uniform.location, 0, 0, 0, 0);
 			break;
 		default:
-			errorf("ERROR: Unhandled uniform type for %s in shader %s.\n", uniformName, name);
+			errorf("ERROR: Unhandled uniform type for %s in shader %s.\n", uniform.name, name);
 			break;
 		}
 
 		int uniError = glGetError();
 		if (uniError == 1282) {
-			errorf("ERROR: Wrong uniform type set for %s in shader %s\n", uniformName, name);
+			errorf("ERROR: Wrong uniform type set for %s in shader %s\n", uniform.name, name);
 			return;
 		}
 		else if (uniError != 0) {
 			errorf("ERROR: Got OpenGL error %d initializing uniform %s in shader %s\n", uniError,
-				uniformName, name);
+				uniform.name, name);
 			return;
 		}
+
+		uniforms[i][uniform.name] = uniform;
 	}
-	else {
-		logf("");
+}
+
+void ShaderProgram::addUniform(const char* uniformName, uniform_type type) {
+	if (type >= UNIFORM_TYPES) {
+		errorf("ERROR: Invalid uniform type %d set in %s shader\n", type, name);
+		return;
 	}
 
-	uniforms[uniformName] = uniform;
+	ShaderUniform uniform;
+	uniform.type = type;
+	uniform.location = -1;
+	uniform.name = uniformName;
+	initUniform(uniform);
 }
 
 void ShaderProgram::addUniforms(const std::vector<UniformArg>& args) {
@@ -243,7 +291,17 @@ void ShaderProgram::addUniforms(const std::vector<UniformArg>& args) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, float value) {
+void ShaderProgram::setUniform(string uniformName, float value, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, false);
+		}
+		bind(oldEnableBits);
+		return;
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -262,7 +320,16 @@ void ShaderProgram::setUniform(string uniformName, float value) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, vec2 value) {
+void ShaderProgram::setUniform(string uniformName, vec2 value, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -278,7 +345,16 @@ void ShaderProgram::setUniform(string uniformName, vec2 value) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, vec3 value) {
+void ShaderProgram::setUniform(string uniformName, vec3 value, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -294,7 +370,16 @@ void ShaderProgram::setUniform(string uniformName, vec3 value) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, vec4 value) {
+void ShaderProgram::setUniform(string uniformName, vec4 value, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -310,7 +395,16 @@ void ShaderProgram::setUniform(string uniformName, vec4 value) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, int value) {
+void ShaderProgram::setUniform(string uniformName, int value, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -329,7 +423,16 @@ void ShaderProgram::setUniform(string uniformName, int value) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, int value, int value2) {
+void ShaderProgram::setUniform(string uniformName, int value, int value2, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, value2, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -345,7 +448,16 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2) {
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, int value, int value2, int value3) {
+void ShaderProgram::setUniform(string uniformName, int value, int value2, int value3, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, value2, value3, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -361,7 +473,16 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, int value, int value2, int value3, int value4) {
+void ShaderProgram::setUniform(string uniformName, int value, int value2, int value3, int value4, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, value, value2, value3, value4, false);
+		}
+		bind(oldEnableBits);
+	}
+
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -377,7 +498,16 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 	}
 }
 
-void ShaderProgram::setUniform(string uniformName, float* values, int count) {
+void ShaderProgram::setUniform(string uniformName, float* values, int count, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, values, count, false);
+		}
+		bind(oldEnableBits);
+	}
+	
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -414,7 +544,16 @@ void ShaderProgram::setUniform(string uniformName, float* values, int count) {
 }
 
 
-void ShaderProgram::setUniform(string uniformName, int* values, int count) {
+void ShaderProgram::setUniform(string uniformName, int* values, int count, bool allPrograms) {
+	if (allPrograms) {
+		int oldEnableBits = activeCompileFlags;
+		for (int i = 0; i < numPrograms; i++) {
+			bind(i);
+			setUniform(uniformName, values, count, false);
+		}
+		bind(oldEnableBits);
+	}
+	
 	ShaderUniform uniform = getUniform(uniformName);
 
 	if (uniform.location == -1)
@@ -442,10 +581,13 @@ void ShaderProgram::setUniform(string uniformName, int* values, int count) {
 }
 
 ShaderUniform ShaderProgram::getUniform(string uniformName) {
-	auto uni = uniforms.find(uniformName);
+	int idx = getActiveProgramIndex();
 
-	if (uni == uniforms.end()) {
-		string error = "ERROR: Uniform " + uniformName + " was not added to " + name + " shader\n";
+	auto uni = uniforms[idx].find(uniformName);
+
+	if (uni == uniforms[idx].end()) {
+		string error = cstrf("ERROR: Uniform %s was not added to shader %s (idx %d)\n",
+			uniformName.c_str(), name, idx);
 
 		if (loggedErrors.count(error) == 0) {
 			errorf(error.c_str());
@@ -491,11 +633,14 @@ void ShaderProgram::popMatrix(int matType)
 
 int ShaderProgram::calcMemoryUsage() {
 	int bytes = sizeof(ShaderProgram);
-	bytes += vShader ? sizeof(vShader) : 0;
-	bytes += fShader ? sizeof(fShader) : 0;
 
-	for (auto item : uniforms) {
-		bytes += item.first.size() + sizeof(string) + sizeof(ShaderUniform);
+	for (int i = 0; i < MAX_SHADER_COMPILES; i++) {
+		for (auto item : uniforms[i]) {
+			bytes += item.first.size() + sizeof(string) + sizeof(ShaderUniform);
+		}
+
+		bytes += vShader[i] ? sizeof(Shader) : 0;
+		bytes += fShader[i] ? sizeof(Shader) : 0;
 	}
 
 	for (const string& item : loggedErrors) {
@@ -507,4 +652,20 @@ int ShaderProgram::calcMemoryUsage() {
 	}
 
 	return bytes;
+}
+
+const char* ShaderProgram::getShaderCodeHeader(int enableBits, const char* glslVersion) {
+	static char buf[512];
+
+	strcpy_safe(buf, cstrf("#version %s\n", glslVersion), sizeof(buf));
+
+	for (int i = 0; i < numCompileFlags; i++) {
+		if (enableBits & (1 << i)) {
+			strcat_safe(buf, cstrf("#define %s\n", compileFlags[i].varName), sizeof(buf));
+		}
+	}
+
+	strcat_safe(buf, "#line 1\n", sizeof(buf));
+
+	return buf;
 }
