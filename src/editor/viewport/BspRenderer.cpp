@@ -400,7 +400,7 @@ void BspRenderer::buildTextureAtlases() {
 	}
 
 	// shrink atlas size to save VRAM on small maps
-	while (totalPixels < textureAtlasSz * textureAtlasSz * 0.75f && textureAtlasSz > 512) {
+	while (totalPixels < textureAtlasSz * textureAtlasSz * 0.3f && textureAtlasSz > 512) {
 		textureAtlasSz /= 2;
 		textureAtlasZoneSz = min(textureAtlasSz, textureAtlasZoneSz);
 	}
@@ -705,14 +705,19 @@ void BspRenderer::loadLightmaps() {
 	lightmapAtlasSz = clamp(g_max_texture_size, 512, maxSize);
 	lightmapAtlasZoneSz = 128; // 64 is too small for maps like snd, 256 or greater is slower
 
-	int totalPixels = 0;
+	uint64_t totalPixels = 0;
 	for (int i = 0; i < sortedFaces.size(); i++) {
+		BSPFACE& face = map->faces[sortedFaces[i].idx];
 		FaceLightmap& fmap = sortedFaces[i];
-		totalPixels += fmap.lightmapSz;
+		
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			if (face.nStyles[s] != 255)
+				totalPixels += fmap.lightmapSz;
+		}
 	}
 
 	// shrink atlas for small maps
-	while (totalPixels > lightmapAtlasSz * lightmapAtlasSz * 0.75f && lightmapAtlasSz > 512) {
+	while (totalPixels < lightmapAtlasSz * lightmapAtlasSz * 0.4f && lightmapAtlasSz > 512) {
 		lightmapAtlasSz /= 2;
 		lightmapAtlasZoneSz = min(lightmapAtlasZoneSz, lightmapAtlasSz);
 	}
@@ -740,26 +745,32 @@ void BspRenderer::loadLightmaps() {
 		info.midPolyU = (fmap.imins[0] + fmap.imaxs[0]) * 16 / 2.0f;
 		info.midPolyV = (fmap.imins[1] + fmap.imaxs[1]) * 16 / 2.0f;
 
+		bool overflowed = false;
 		for (int s = 0; s < MAXLIGHTMAPS; s++) {
 			if (face.nStyles[s] == 255)
 				continue;
 
 			// TODO: Try fitting in earlier atlases before using the latest one
 			if (!atlases[atlasId]->insert(i, info.w, info.h, info.x[s], info.y[s])) {
+				if (overflowed) {
+					logf("Lightmap too big for atlas size!\n");
+					break;
+				}
+
 				atlases.push_back(new TextureAtlas(lightmapAtlasSz, lightmapAtlasSz, lightmapAtlasZoneSz));
 				atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
 				atlasId++;
 				memset(atlasTextures[atlasId]->data, 0, lightmapAtlasSz * lightmapAtlasSz * sizeof(COLOR3));
 
-				if (!atlases[atlasId]->insert(i, info.w, info.h, info.x[s], info.y[s])) {
-					logf("Lightmap too big for atlas size!\n");
-					continue;
-				}
+				// start over to make sure all this face's lightmaps are in the same atlas
+				s = -1;
+				overflowed = true;
+				continue;
 			}
 
 			lightmapCount++;
 
-			info.atlasId[s] = atlasId;
+			info.atlasId = atlasId;
 
 			// copy lightmap data into atlas
 			int lightmapSz = info.w * info.h * sizeof(COLOR3);
@@ -787,8 +798,14 @@ void BspRenderer::loadLightmaps() {
 	}
 
 	numLightmapAtlases = atlasTextures.size();
+	lightmapAtlasBlackArea = new AtlasCoord[numLightmapAtlases];
 	glLightmapTextures = new Texture * [numLightmapAtlases];
 	for (int i = 0; i < numLightmapAtlases; i++) {
+
+		if (!atlases[atlasId]->insert(0, 1, 1, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y)) {
+			errorf("Failed to insert black area for lightmap atlas! Some lightmaps will be broken.\n");
+		}
+
 		delete atlases[i];
 		glLightmapTextures[i] = atlasTextures[i];
 	}
@@ -977,6 +994,9 @@ void BspRenderer::deleteLightmapTextures() {
 		delete[] glLightmapTextures;
 	}
 
+	delete[] lightmapAtlasBlackArea;
+	lightmapAtlasBlackArea = NULL;
+
 	glLightmapTextures = NULL;
 }
 
@@ -1035,7 +1055,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 		lightmapVert* verts = new lightmapVert[face.nEdges];
 		int vertCount = face.nEdges;
-		Texture* lightmapAtlas[MAXLIGHTMAPS];
+		Texture* lightmapAtlas;
 
 		float lw = 0;
 		float lh = 0;
@@ -1046,12 +1066,17 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 		bool isSpecial = texinfo.nFlags & TEX_SPECIAL;
 		bool hasLighting = face.nStyles[0] != 255 && face.nLightmapOffset >= 0 && !isSpecial;
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			lightmapAtlas[s] = lightmapsGenerated ? glLightmapTextures[lmap->atlasId[s]] : NULL;
+		lightmapAtlas = lightmapsGenerated ? glLightmapTextures[lmap->atlasId] : NULL;
+
+		AtlasCoord blackLightmap = {0, 0};
+		if (lightmapsGenerated) {
+			// center of the black pixel in the atlas
+			blackLightmap.x = lightmapAtlasBlackArea[lmap->atlasId].x * 16 + 8;
+			blackLightmap.y = lightmapAtlasBlackArea[lmap->atlasId].y * 16 + 8;
 		}
 
 		if (isSpecial) {
-			lightmapAtlas[0] = whiteTex;
+			lightmapAtlas = whiteTex;
 		}
 
 		float opacity = isSpecial ? 0.5f : 1.0f;
@@ -1109,11 +1134,12 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 					verts[e].luv[s][1] = 0;
 				}
 			}
-			// set lightmap scales
+
+			// redirect unused lightmaps to black section.
 			for (int s = 0; s < MAXLIGHTMAPS; s++) {
-				verts[e].lb[s] = (hasLighting && face.nStyles[s] != 255) ? 255 : 0.0f;
-				if (isSpecial && s == 0) {
-					verts[e].lb[s] = 255;
+				if (!hasLighting || face.nStyles[s] == 255) {
+					verts[e].luv[s][0] = blackLightmap.x;
+					verts[e].luv[s][1] = blackLightmap.y;
 				}
 			}
 		}
@@ -1152,47 +1178,24 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		// add face to a render group (faces that share that same texture array, lightmaps, and opacity flag)
 		bool isTransparent = opacity < 1.0f;
 		int groupIdx = -1;
-		for (int k = 0; k < renderGroups.size(); k++) {
-			// split groups on unique texture IDs
-			bool textureMatch = !texturesLoaded || 
-				renderGroups[k].arrayTextureIdx == miptexToTexArray[texinfo.iMiptex].arrayIdx;
-			if (g_settings.texture_atlas) {
-				// using texture atlases instead of arrays
-				textureMatch = !texturesLoaded ||
-					renderGroups[k].atlasTextureIdx == textureAtlasInfos[texinfo.iMiptex].atlasId;
-			}
-			else if (!g_opengl_texture_array_support) {
-				// no batching possible, fall back to one texture ID per texture (ultra slow)
-				textureMatch = !texturesLoaded || renderGroups[k].texture == gltex;
-			}
+		RenderGroup newGroup = RenderGroup();
+		newGroup.vertCount = 0;
+		newGroup.verts = NULL;
+		newGroup.transparent = isTransparent;
+		newGroup.arrayTextureIdx = miptexToTexArray[texinfo.iMiptex].arrayIdx;
+		newGroup.atlasTextureIdx = textureAtlasInfos[texinfo.iMiptex].atlasId;
+		newGroup.texture = texturesLoaded ? gltex : greyTex;
+		newGroup.lightmapAtlas = lightmapAtlas;
 
-			if (textureMatch && renderGroups[k].transparent == isTransparent) {
-				bool allMatch = true;
-				for (int s = 0; s < MAXLIGHTMAPS; s++) {
-					if (renderGroups[k].lightmapAtlas[s] != lightmapAtlas[s]) {
-						allMatch = false;
-						break;
-					}
-				}
-				if (allMatch) {
-					groupIdx = k;
-					break;
-				}
+		for (int k = 0; k < renderGroups.size(); k++) {
+			if (RenderGroupsAreCombinable(newGroup, renderGroups[k])) {
+				groupIdx = k;
+				break;
 			}
 		}
 
 		// add the verts to a new group if no existing one share the same properties
 		if (groupIdx == -1) {
-			RenderGroup newGroup = RenderGroup();
-			newGroup.vertCount = 0;
-			newGroup.verts = NULL;
-			newGroup.transparent = isTransparent;
-			newGroup.arrayTextureIdx = miptexToTexArray[texinfo.iMiptex].arrayIdx;
-			newGroup.atlasTextureIdx = textureAtlasInfos[texinfo.iMiptex].atlasId;
-			newGroup.texture = texturesLoaded ? gltex : greyTex;
-			for (int s = 0; s < MAXLIGHTMAPS; s++) {
-				newGroup.lightmapAtlas[s] = lightmapAtlas[s];
-			}
 			renderGroups.push_back(newGroup);
 			renderGroupVerts.push_back(vector<lightmapVert>());
 			groupIdx = renderGroups.size() - 1;
@@ -1258,9 +1261,8 @@ bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& gr
 	if (groupa.transparent != groupb.transparent)
 		return false;
 
-	for (int s = 0; s < MAXLIGHTMAPS; s++) 
-		if (groupa.lightmapAtlas[s] != groupb.lightmapAtlas[s])
-			return false;
+	if (groupa.lightmapAtlas != groupb.lightmapAtlas)
+		return false;
 	
 	return true;
 }
@@ -2617,7 +2619,10 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	BSPMODEL& world = map->models[0];
 
 	int shaderbits = (g_settings.render_flags & RENDER_WIREFRAME) ? SH_BSP_WIREFRAME : 0;
-	shaderbits |= g_settings.pal_textures ? SH_BSP_TEX_PAL : 0;
+	
+	if (g_settings.pal_textures && (g_settings.render_flags & RENDER_TEXTURES)) {
+		shaderbits |= SH_BSP_TEX_PAL;
+	}
 
 	if (g_opengl_texture_array_support) {
 		shaderbits |= SH_BSP_TEX_ARRAY;
@@ -2633,7 +2638,7 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	activeShader->updateMatrixes();
 
 	if (g_settings.pal_textures && glPalette) {
-		glActiveTexture(GL_TEXTURE5);
+		glActiveTexture(GL_TEXTURE2);
 		glPalette->bind();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2973,36 +2978,27 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		}
 	}
 
-	// bind lightmaps for each style
-	for (int s = 0; s < MAXLIGHTMAPS; s++) {
-		glActiveTexture(GL_TEXTURE1 + s);
+	// toggle lightmaps for each style
+	vec4 lightmapMult;
 
-		if (highlight) {
-			redTex->bind();
-		}
-		else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps) {
-			if (s == 0) {
-				whiteTex->bind();
-			}
-			else {
-				blackTex->bind();
-			}
-		}
-		else if (lightmapsUploaded) {
-			if (!g_app->lightStylesEnabled[s]) {
-				blackTex->bind();
-				continue;
-			}
+	glActiveTexture(GL_TEXTURE1);
+	if (highlight) {
+		redTex->bind();
+		lightmapMult = vec4(1, 0, 0, 0);
+	}
+	else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps || !lightmapsUploaded) {
+		whiteTex->bind();
+		lightmapMult = vec4(1, 0, 0, 0);
+	}
+	else if (lightmapsUploaded) {
+		rgroup.lightmapAtlas->bind();
 
-			rgroup.lightmapAtlas[s]->bind();
-		}
-		else {
-			if (s == 0)
-				greyTex->bind();
-			else
-				blackTex->bind();
+		for (int s = 0; s < MAXLIGHTMAPS; s++) {
+			((float*)&lightmapMult.x)[s] = g_app->lightStylesEnabled[s] ? 1 : 0;
 		}
 	}
+
+	g_shaders.bsp->setUniform("lightmapMult", lightmapMult);
 
 	rgroup.buffer->draw(g_shaders.bsp, GL_TRIANGLES);
 }

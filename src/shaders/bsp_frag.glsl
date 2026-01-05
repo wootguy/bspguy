@@ -5,11 +5,11 @@ uniform vec4 wireframeColorBright;
 uniform float wireframeThickness;
 uniform float textureAtlasScale;
 uniform vec2 paletteAtlasScale;
+uniform vec4 lightmapMult;
 
 varying vec4 fAtlas;
 varying vec4 fLightmapTex01;
 varying vec4 fLightmapTex23;
-varying vec4 fLightmapBright;
 varying vec4 fColor;
 varying vec3 fBary;
 varying vec3 fEdgeEnable;
@@ -21,10 +21,7 @@ varying vec2 fPal;
 	varying vec2 fTex;
 #endif
 
-uniform sampler2D sLightmapTex0;
-uniform sampler2D sLightmapTex1;
-uniform sampler2D sLightmapTex2;
-uniform sampler2D sLightmapTex3;
+uniform sampler2D sLightmapTex;
 uniform sampler2D pTex;
 
 #if defined(TEXTURE_ARRAY) && !defined(TEXTURE_ATLAS)
@@ -71,12 +68,16 @@ void main()
 	if (fColor.a == 0.0)
 		discard;
 
-	vec3 lightmap = texture2D(sLightmapTex0, fLightmapTex01.xy).rgb * fLightmapBright.x;
-	lightmap += texture2D(sLightmapTex1, fLightmapTex01.zw).rgb * fLightmapBright.y;
-	lightmap += texture2D(sLightmapTex2, fLightmapTex23.xy).rgb * fLightmapBright.z;
-	lightmap += texture2D(sLightmapTex3, fLightmapTex23.zw).rgb * fLightmapBright.w;
-	vec3 color = texel.rgb * lightmap * fColor.rgb;
-
+	vec3 color = texel.rgb * fColor.rgb;
+	
+	if (fColor.a >= 0.9f) { // transparent faces are "special" and have no lighting
+		vec3 lightmap = texture2D(sLightmapTex, fLightmapTex01.xy).rgb * lightmapMult.x;
+		lightmap += texture2D(sLightmapTex, fLightmapTex01.zw).rgb * lightmapMult.y;
+		lightmap += texture2D(sLightmapTex, fLightmapTex23.xy).rgb * lightmapMult.z;
+		lightmap += texture2D(sLightmapTex, fLightmapTex23.zw).rgb * lightmapMult.w;
+		color = color * lightmap;
+	}
+	
 	vec4 texColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);
 	
 	#if defined(WIREFRAME)

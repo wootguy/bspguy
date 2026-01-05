@@ -11,14 +11,12 @@ attribute vec4 vAtlas;
 attribute vec4 vCustom;
 attribute vec4 vLightmapTex01;
 attribute vec4 vLightmapTex23;
-attribute vec4 vLightmapBright;
 attribute vec4 vColor;
 
 // fragment variables (no more than 32 floats for max compatibility)
 varying vec4 fAtlas;
 varying vec4 fLightmapTex01;
 varying vec4 fLightmapTex23;
-varying vec4 fLightmapBright;
 varying vec4 fColor;
 varying vec3 fBary;
 varying vec3 fEdgeEnable;
@@ -35,7 +33,6 @@ void main()
 	gl_Position = modelViewProjection * vec4(vPosition, 1);
 	fLightmapTex01 = vLightmapTex01*lightmapAtlasScale;
 	fLightmapTex23 = vLightmapTex23*lightmapAtlasScale;
-	fLightmapBright = vLightmapBright;
 	fColor = vColor * colorMult;
 	
 	#ifdef TEXTURE_ARRAY

@@ -36,9 +36,6 @@ struct lightmapVert {
 	// lightmap texture coordinates (coords are 1/16 scale, so max atlas size is 4096)
 	uint16_t luv[MAXLIGHTMAPS][2];
 
-	// lightmap brightness
-	uint8_t lb[MAXLIGHTMAPS];
-
 	COLOR4 c;
 	float x, y, z;
 

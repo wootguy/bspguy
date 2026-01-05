@@ -34,7 +34,7 @@ class Wad;
 
 struct LightmapInfo {
 	// each face can have 4 lightmaps, and those may be split across multiple atlases
-	uint16_t atlasId[MAXLIGHTMAPS];
+	uint16_t atlasId;
 	uint16_t x[MAXLIGHTMAPS];
 	uint16_t y[MAXLIGHTMAPS];
 
@@ -79,7 +79,7 @@ struct RenderGroup {
 	int arrayTextureIdx;
 	int atlasTextureIdx;
 	Texture* texture;
-	Texture* lightmapAtlas[MAXLIGHTMAPS];
+	Texture* lightmapAtlas;
 	VertexBuffer* buffer;
 	bool transparent;
 
@@ -159,6 +159,10 @@ struct PvsPoly {
 	int faceIdx;
 
 	int calcMemoryUsage();
+};
+
+struct AtlasCoord {
+	uint16_t x, y;
 };
 
 class BspRenderer {
@@ -309,6 +313,7 @@ private:
 	Texture** glLightmapTextures = NULL;
 	Texture** glTextureAtlases = NULL;
 	Texture** glTextureAtlasesSwap = NULL;
+	AtlasCoord* lightmapAtlasBlackArea = NULL; // pixel coords in each atlas that can be used for black/missing lightmaps
 	vector<SubTexture> textureAtlasInfos;
 	Texture* whiteTex = NULL;
 	Texture* whiteTex3D = NULL;

@@ -203,13 +203,13 @@ Editor::Editor() {
 	debugf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
 	debugf("    Max Vertex Attributes: %d / %d\n", vertexAttributes, MAX_VERTEX_ATTRIBUTES);
 	debugf("    Max Varying Floats: %d / 32\n", varyingFloats);
-	debugf("    Texture Units: %d / 6\n", texImageUnits);
+	debugf("    Texture Units: %d / 3\n", texImageUnits);
 	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
 	debugf("OpenGL Extensions:\n%s\n\n", openglExts);
 	debugf("\n");
 
-	if (varyingFloats < 32 || vertexAttributes < MAX_VERTEX_ATTRIBUTES || texImageUnits < 5) {
+	if (varyingFloats < 32 || vertexAttributes < MAX_VERTEX_ATTRIBUTES || texImageUnits < 2) {
 		logf("\nYOUR SYSTEM IS INCOMPATIBLE. EVERYTHING IS BROKEN.\n\n");
 	}
 
@@ -393,12 +393,12 @@ void Editor::compileShaderPrograms() {
 			{ 4, GL_UNSIGNED_BYTE, 0, "vCustom" },
 			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex01" },
 			{ 4, GL_UNSIGNED_SHORT, 0, "vLightmapTex23" },
-			{ 4, GL_UNSIGNED_BYTE, 1, "vLightmapBright" },
 			{ 4, GL_UNSIGNED_BYTE, 1, "vColor" },
 			{ 3, GL_FLOAT, 0, "vPosition" }
 		});
 		sh->addUniforms({
 			{"sTex", UNIFORM_INT},
+			{"sLightmapTex", UNIFORM_INT},
 			{"pTex", UNIFORM_INT},
 			{"colorMult", UNIFORM_VEC4},
 			{"alphaTest", UNIFORM_FLOAT},
@@ -409,15 +409,12 @@ void Editor::compileShaderPrograms() {
 			{"textureAtlasScale", UNIFORM_FLOAT},
 			{"lightmapAtlasScale", UNIFORM_FLOAT},
 			{"paletteAtlasScale", UNIFORM_VEC2},
+			{"lightmapMult", UNIFORM_VEC4},
 		});
 		sh->setUniform("sTex", 0, true);
 		sh->setUniform("wireframeThickness", 0.5f, true);
-		for (int s = 0; s < MAXLIGHTMAPS; s++) {
-			const char* name = cstrf("sLightmapTex%d", s);
-			sh->addUniform(name, UNIFORM_INT);
-			sh->setUniform(name, s + 1, true);
-		}
-		sh->setUniform("pTex", 5, true);
+		sh->setUniform("sLightmapTex", 1, true);
+		sh->setUniform("pTex", 2, true);
 	}
 
 	{

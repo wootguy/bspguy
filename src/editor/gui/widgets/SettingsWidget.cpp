@@ -187,8 +187,8 @@ void SettingsWidget::draw() {
 			ImGui::EndCombo();
 		}
 
-		ImGui::DragFloat("Mipmap Bias", &g_app->tex_lod_bias, 0.02f, -4.0f, 4.0f, "%.1f");
-		tooltip("Controls how quickly texture detail decreases with distance. Higher = lower detail sooner.");
+		//ImGui::DragFloat("Mipmap Bias", &g_app->tex_lod_bias, 0.02f, -4.0f, 4.0f, "%.1f");
+		//tooltip("Controls how quickly texture detail decreases with distance. Higher = lower detail sooner.");
 
 		if (isLoading)
 			ImGui::EndDisabled();
