@@ -38,6 +38,7 @@ struct AppSettings {
 	bool texture_atlas;
 	bool pal_textures;
 	int max_texture_size;
+	bool ripent_safe_mode;
 
 	bool debug_open;
 	bool keyvalue_open;

@@ -199,6 +199,7 @@ void EntityReport::draw() {
 				if (app->pickMode == PICK_FACE) {
 					g_app->mapRenderer->highlightPickedFaces(false);
 					app->pickInfo.deselect();
+					app->hiddenLeaves.clear();
 					app->pickMode = PICK_OBJECT;
 				}
 

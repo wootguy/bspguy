@@ -112,6 +112,7 @@ void AppSettings::load() {
 			else if (key == "texture_atlas") { g_settings.texture_atlas = atoi(val.c_str()) != 0; }
 			else if (key == "pal_textures") { g_settings.pal_textures = atoi(val.c_str()) != 0; }
 			else if (key == "max_texture_size") { g_settings.max_texture_size = atoi(val.c_str()); }
+			else if (key == "ripent_safe_mode") { g_settings.ripent_safe_mode = atoi(val.c_str()); }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -251,6 +252,7 @@ void AppSettings::save() {
 	file << "texture_atlas=" << g_settings.texture_atlas << endl;
 	file << "pal_textures=" << g_settings.pal_textures << endl;
 	file << "max_texture_size=" << g_settings.max_texture_size << endl;
+	file << "ripent_safe_mode=" << g_settings.ripent_safe_mode << endl;
 }
 
 void AppSettings::addRecentFile(string map) {

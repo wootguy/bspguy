@@ -186,7 +186,9 @@ void KeyvalueEditor::draw() {
 				StringMap allKeys = ent->getAllKeyvalues();
 				allKeys.del("origin");
 				allKeys.del("classname");
-
+				if (g_settings.ripent_safe_mode && ent->getClassname() == "worldspawn")
+					allKeys.del("wad");
+					
 				StringMap::iterator_t iter;
 				while (allKeys.iterate(iter)) {
 					ent->removeKeyvalue(iter.key);
@@ -237,6 +239,8 @@ void KeyvalueEditor::draw() {
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
 				for (auto item : copiedKeyvalues) {
+					if (g_settings.ripent_safe_mode && item.first == "wad" && ent->getClassname() == "worldspawn")
+						continue;
 					ent->setOrAddKeyvalue(item.first, item.second);
 				}
 			}
@@ -782,10 +786,14 @@ void KeyvalueEditor::drawRawEditTab() {
 	bool multiedit = pickEnts.size() > 1;
 	Bsp* map = app->pickInfo.getMap();
 	bool fullRefreshNeeded = false;
+	bool worldSpawnSelected = false;
 
 	if (multiedit) {
 		for (int i = 0; i < app->pickInfo.ents.size(); i++) {
 			Entity* ent = map->ents[app->pickInfo.ents[i]];
+
+			if (ent->getClassname() == "worldspawn")
+				worldSpawnSelected = true;
 
 			for (int k = 0; k < ent->keyOrder.size(); k++) {
 				string key = ent->keyOrder[k];
@@ -805,7 +813,9 @@ void KeyvalueEditor::drawRawEditTab() {
 		fullRefreshNeeded = keysMoved;
 	}
 	else {
-		combinedKeys = app->pickInfo.getEnt()->keyOrder;
+		Entity* ent = app->pickInfo.getEnt();
+		combinedKeys = ent->keyOrder;
+		worldSpawnSelected = ent->getClassname() == "worldspawn";
 	}
 
 	struct InputData {
@@ -1052,6 +1062,7 @@ void KeyvalueEditor::drawRawEditTab() {
 		}
 
 		string value = matchingValues ? matchValue : "(no change)";
+		bool ripentUnsafe = worldSpawnSelected && !strcmp(keyNames[i], "wad");
 
 		// key column
 		{
@@ -1073,24 +1084,37 @@ void KeyvalueEditor::drawRawEditTab() {
 			else if (!sharedKey) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImVec4(1.0f, 0.5f, 0.0f, 0.5f));
 			}
+			else if (ripentUnsafe) {
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImVec4(0.5f, 0.5f, 0.0f, 0.5f));
+			}
 			else if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
 			}
 			else {
 				coloredKey = false;
 			}
-
+			int flags = ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways;
+			if (ripentUnsafe)
+				flags = ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap;
 			ImGui::InputTextMultiline(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(),
 				keyNames[i], MAX_KEY_LEN, ImVec2(keyColWidth - style.ScrollbarSize, fieldHeight),
-				ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
+				flags,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
 
 			if (ImGui::IsItemHovered()) {
 				if (invalidKey) {
-					ImGui::SetTooltip("Key already exists");
+					tooltip("Key already exists", 0);
 				}
 				else if (!sharedKey) {
-					ImGui::SetTooltip("This key does not exist in all selected entities");
+					tooltip("This key does not exist in all selected entities", 0);
+				}
+				else if (ripentUnsafe) {
+					tooltip("This key cannot be meaningfully be changed server-side. Editing doesn't "
+						"trigger a map-differs error, but clients will not receive the updated value. "
+						"Clients use whatever worldspawn keyvalues are stored in their local copy of "
+						"the BSP."
+						"\n\nOther worldspawn keyvalues are safe to edit because they are only "
+						"used server-side, or they are sent to clients as CVars (sv_skyname, sv_zmax, etc.)", 0);
 				}
 				else if (wrappingNeededKey) {
 					tooltip(keyNames[i], 0);
@@ -1126,17 +1150,23 @@ void KeyvalueEditor::drawRawEditTab() {
 			else if (hoveredDrag[i]) {
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, dragColor);
 			}
+			else if (ripentUnsafe) {
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.5f, 0.5f, 0.0f, 0.5f));
+			}
 			else {
 				colorChanged = false;
 			}
 
+			int flags = ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways;
+			if (ripentUnsafe)
+				flags = ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap;
 			ImGui::InputTextMultiline(("##val" + to_string(i) + to_string(app->pickCount)).c_str(),
 				keyValues[i], MAX_VAL_LEN, ImVec2(valColWidth - style.ScrollbarSize, fieldHeight),
-				ImGuiInputTextFlags_WordWrap | ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CallbackAlways,
+				flags,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
-			if (ImGui::IsItemHovered()) {
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 				if (!matchingValues) {
-					ImGui::SetTooltip("This value differs between the selected entities");
+					tooltip("This value differs between the selected entities", 0);
 				}
 				else if (wrappingNeededVal) {
 					tooltip(keyValues[i], 0);
@@ -1152,7 +1182,7 @@ void KeyvalueEditor::drawRawEditTab() {
 
 			ImGui::NextColumn();
 		}
-		{
+		if (!ripentUnsafe) {
 
 			ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0, 0.6f, 0.6f));
 			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0, 0.7f, 0.7f));
@@ -1172,8 +1202,8 @@ void KeyvalueEditor::drawRawEditTab() {
 				g_app->pushEntityUndoState("Delete Keyvalue");
 			}
 			ImGui::PopStyleColor(3);
-			ImGui::NextColumn();
 		}
+		ImGui::NextColumn();
 	}
 
 	if (!keyDragging && wasKeyDragging) {

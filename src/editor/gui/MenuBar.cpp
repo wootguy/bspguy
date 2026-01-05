@@ -302,21 +302,23 @@ void MenuBar::drawFileMenu() {
 
 		ImGui::Separator();
 
-		if (ImGui::MenuItem("Merge", NULL, false, !app->isLoading)) {
-			char* fname = tinyfd_openFileDialog("Merge Map", "",
-				1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
+		if (!g_settings.ripent_safe_mode) {
+			if (ImGui::MenuItem("Merge", NULL, false, !app->isLoading)) {
+				char* fname = tinyfd_openFileDialog("Merge Map", "",
+					1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
 
-			if (fname)
-				g_app->merge(fname);
-		}
-		tooltip(("Merge one other BSP into the current file.\n\n"
-			"Equivalent CLI command:\nbspguy merge " + map->name + " -noripent -maps \""
-			+ map->name + ",other_map\"").c_str());
+				if (fname)
+					g_app->merge(fname);
+			}
+			tooltip(("Merge one other BSP into the current file.\n\n"
+				"Equivalent CLI command:\nbspguy merge " + map->name + " -noripent -maps \""
+				+ map->name + ",other_map\"").c_str());
 
-		if (ImGui::MenuItem("Merge Multiple", NULL, false, !app->isLoading) && g_app->confirmMapExit()) {
-			gui->showWidget(WIDGET_MERGE_MULTI, true);
+			if (ImGui::MenuItem("Merge Multiple", NULL, false, !app->isLoading) && g_app->confirmMapExit()) {
+				gui->showWidget(WIDGET_MERGE_MULTI, true);
+			}
+			tooltip("Merge multiple BSPs into a new file.");
 		}
-		tooltip("Merge multiple BSPs into a new file.");
 
 		if (ImGui::MenuItem("Reload", 0, false, !app->isLoading)) {
 			app->reloadMaps();
@@ -431,11 +433,13 @@ void MenuBar::drawEditOptions(bool isMainMenu) {
 
 		bool plural = numSolidsSelected > 1;
 		if (ImGui::BeginMenu(plural ? "BSP Models" : "BSP Model")) {
-			if (ImGui::MenuItem("Copy", 0, false, !app->isLoading && anySolidSelected)) {
-				app->copyEnts(true);
+			if (!g_settings.ripent_safe_mode) {
+				if (ImGui::MenuItem("Copy", 0, false, !app->isLoading && anySolidSelected)) {
+					app->copyEnts(true);
+				}
+				tooltip("Stores the entity and BSP model to the clipboard. Used to transfer BSP models between maps.\n\n"
+					"Textures are included and embedded after pasting, except for textures that already exist in the map. ");
 			}
-			tooltip("Stores the entity and BSP model to the clipboard. Used to transfer BSP models between maps.\n\n"
-				"Textures are included and embedded after pasting, except for textures that already exist in the map. ");
 
 			if (ImGui::MenuItem("Deduplicate", 0, false, !app->isLoading && anySolidSelected && app->pickInfo.ents.size() > 1)) {
 				app->updateEntityLumpUndoState(map);
@@ -465,39 +469,41 @@ void MenuBar::drawEditOptions(bool isMainMenu) {
 				"The model used by the first entity you selected will be applied to all other selected entities."
 			);
 
-			if (ImGui::MenuItem("Duplicate", 0, false, !app->isLoading && anySolidSelected)) {
-				LumpReplaceCommand* command = new LumpReplaceCommand("Duplicate BSP Model");
+			if (!g_settings.ripent_safe_mode) {
+				if (ImGui::MenuItem("Duplicate", 0, false, !app->isLoading && anySolidSelected)) {
+					LumpReplaceCommand* command = new LumpReplaceCommand("Duplicate BSP Model");
 
-				for (Entity* ent : pickEnts) {
-					int oldModelIdx = ent->getBspModelIdx();
-					int newModelIdx = map->duplicate_model(oldModelIdx);
-					ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));
-				}
+					for (Entity* ent : pickEnts) {
+						int oldModelIdx = ent->getBspModelIdx();
+						int newModelIdx = map->duplicate_model(oldModelIdx);
+						ent->setOrAddKeyvalue("model", "*" + to_string(newModelIdx));
+					}
 
-				command->pushUndoState();
-			}
-			tooltip("Create a copy of this BSP model and assign it to this entity.\n\n"
-				"In most cases you need to do this before you can use the scale/vertex/origin features in the Transformation widget. "
-				"This also prevents model edits from affecting multiple entities at once.");
-
-			if (ImGui::MenuItem("Merge", "", false, !app->isLoading && app->pickInfo.ents.size() > 1)) {
-				LumpReplaceCommand* command = new LumpReplaceCommand("Merge Models");
-
-				// remove origins from models so that they merge at offsets seen in the editor
-				int newIndex = map->merge_models(app->pickInfo.getEnts(), false);
-
-				if (newIndex >= 0 || newIndex == -3) {
 					command->pushUndoState();
 				}
-				else {
-					delete command;
+				tooltip("Create a copy of this BSP model and assign it to this entity.\n\n"
+					"In most cases you need to do this before you can use the scale/vertex/origin features in the Transformation widget. "
+					"This also prevents model edits from affecting multiple entities at once.");
 
-					if (newIndex == -2) {
-						gui->showWidget(WIDGET_MODEL_MERGE_CONFIRM, true);
+				if (ImGui::MenuItem("Merge", "", false, !app->isLoading && app->pickInfo.ents.size() > 1)) {
+					LumpReplaceCommand* command = new LumpReplaceCommand("Merge Models");
+
+					// remove origins from models so that they merge at offsets seen in the editor
+					int newIndex = map->merge_models(app->pickInfo.getEnts(), false);
+
+					if (newIndex >= 0 || newIndex == -3) {
+						command->pushUndoState();
+					}
+					else {
+						delete command;
+
+						if (newIndex == -2) {
+							gui->showWidget(WIDGET_MODEL_MERGE_CONFIRM, true);
+						}
 					}
 				}
+				tooltip("Merge solid entity models together.");
 			}
-			tooltip("Merge solid entity models together.");
 
 			if (ImGui::MenuItem("Select Shared")) {
 				int oldSelection = app->pickInfo.ents.size();
@@ -526,7 +532,7 @@ void MenuBar::drawEditOptions(bool isMainMenu) {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Edit BSP Hulls", !app->isLoading)) {
+		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Edit BSP Hulls", !app->isLoading)) {
 			if (ImGui::BeginMenu("Create", !app->invalidSolid && app->isTransformableSolid && anyValidHeadnode[0])) {
 				if (ImGui::MenuItem("Clipnodes")) {
 					ModelEditCommand* command = new ModelEditCommand("Create Model Clipnodes", modelIndexes);
@@ -1194,46 +1200,48 @@ void MenuBar::drawCreateMenu() {
 		}
 		tooltip("Create a point entity. This is a ripent-only operation which does not affect BSP structures.\n");
 
-		if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
-			LumpReplaceCommand* command = new LumpReplaceCommand("Create Model");
+		if (!g_settings.ripent_safe_mode) {
+			if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("Create Model");
 
-			vec3 origin = app->cameraOrigin + app->cameraForward * 100;
-			if (app->gridSnappingEnabled)
-				origin = app->snapToGrid(origin);
+				vec3 origin = app->cameraOrigin + app->cameraForward * 100;
+				if (app->gridSnappingEnabled)
+					origin = app->snapToGrid(origin);
 
-			Entity* newEnt = new Entity();
-			newEnt->setOrAddKeyvalue("origin", origin.toKeyvalueString());
-			newEnt->setOrAddKeyvalue("classname", "func_wall");
+				Entity* newEnt = new Entity();
+				newEnt->setOrAddKeyvalue("origin", origin.toKeyvalueString());
+				newEnt->setOrAddKeyvalue("classname", "func_wall");
 
-			float size = pow(2.0, g_app->gridSnapLevel);
-			if (size < 16) {
-				size = 16;
+				float size = pow(2.0, g_app->gridSnapLevel);
+				if (size < 16) {
+					size = 16;
+				}
+
+				int aaatriggerIdx = map->get_default_texture_idx();
+				vec3 mins = vec3(-size, -size, -size);
+				vec3 maxs = vec3(size, size, size);
+				int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
+				newEnt->setOrAddKeyvalue("model", "*" + to_string(modelIdx));
+				map->ents.push_back(newEnt);
+
+				command->pushUndoState();
 			}
+			tooltip("Create a BSP model and attach it to a new entity. This is not a ripent-only operation and will create new BSP structures.\n");
 
-			int aaatriggerIdx = map->get_default_texture_idx();
-			vec3 mins = vec3(-size, -size, -size);
-			vec3 maxs = vec3(size, size, size);
-			int modelIdx = map->create_solid(mins, maxs, aaatriggerIdx);
-			newEnt->setOrAddKeyvalue("model", "*" + to_string(modelIdx));
-			map->ents.push_back(newEnt);
+			if (ImGui::MenuItem("Cull Entity", 0, false, true)) {
+				Entity* newEnt = new Entity();
+				vec3 origin = (app->cameraOrigin + app->cameraForward * 100) - app->mapRenderer->mapOffset;
+				if (app->gridSnappingEnabled)
+					origin = app->snapToGrid(origin);
+				newEnt->setOrAddKeyvalue("origin", origin.toKeyvalueString());
+				newEnt->setOrAddKeyvalue("classname", "cull");
+				vector<Entity*> newEnts = { newEnt };
 
-			command->pushUndoState();
-		}
-		tooltip("Create a BSP model and attach it to a new entity. This is not a ripent-only operation and will create new BSP structures.\n");
-
-		if (ImGui::MenuItem("Cull Entity", 0, false, true)) {
-			Entity* newEnt = new Entity();
-			vec3 origin = (app->cameraOrigin + app->cameraForward * 100) - app->mapRenderer->mapOffset;
-			if (app->gridSnappingEnabled)
-				origin = app->snapToGrid(origin);
-			newEnt->setOrAddKeyvalue("origin", origin.toKeyvalueString());
-			newEnt->setOrAddKeyvalue("classname", "cull");
-			vector<Entity*> newEnts = { newEnt };
-
-			CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Create Entity", newEnts);
-			delete newEnt;
-			createCommand->execute();
-			app->pushUndoCommand(createCommand);
+				CreateEntitiesCommand* createCommand = new CreateEntitiesCommand("Create Entity", newEnts);
+				delete newEnt;
+				createCommand->execute();
+				app->pushUndoCommand(createCommand);
+			}
 		}
 		tooltip("Create a point entity for use with the culling tool. 2 of these define the bounding box for the Cull Box deletion tool.\n");
 
@@ -1255,7 +1263,7 @@ void MenuBar::drawToolsMenu() {
 
 		bool hasAnyCollision = gui->anyHullValid[1] || gui->anyHullValid[2] || gui->anyHullValid[3];
 
-		if (ImGui::BeginMenu("Delete BSP Data", !app->isLoading)) {
+		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Delete BSP Data", !app->isLoading)) {
 			if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("Clean " + map->name);
 
@@ -1403,7 +1411,7 @@ void MenuBar::drawToolsMenu() {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Faces")) {
+		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Faces")) {
 			if (ImGui::MenuItem("Fix Bad Surface Extents", 0, false, !app->isLoading)) {
 				gui->showWidget(WIDGET_FIX_EXTENTS, true);
 			}
@@ -1489,32 +1497,34 @@ void MenuBar::drawToolsMenu() {
 			}
 			tooltip("Create entities for all BSP models that no longer have an entity assigned to them.");
 
-			if (ImGui::MenuItem("Zero Model Origins", 0, false, !app->isLoading)) {
-				LumpReplaceCommand* command = new LumpReplaceCommand("Zero Model Origins");
+			if (!g_settings.ripent_safe_mode) {
+				if (ImGui::MenuItem("Zero Model Origins", 0, false, !app->isLoading)) {
+					LumpReplaceCommand* command = new LumpReplaceCommand("Zero Model Origins");
 
-				int moveCount = 0;
-				moveCount += map->zero_entity_origins("func_ladder");
-				moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-				moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+					int moveCount = 0;
+					moveCount += map->zero_entity_origins("func_ladder");
+					moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
+					moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
 
-				BspRenderer* renderer = app->mapRenderer;
+					BspRenderer* renderer = app->mapRenderer;
 
-				if (moveCount) {
-					command->pushUndoState();
+					if (moveCount) {
+						command->pushUndoState();
+					}
+					else {
+						delete command;
+						logf("No entity origins need moving\n");
+					}
 				}
-				else {
-					delete command;
-					logf("No entity origins need moving\n");
-				}
+				tooltip("Some BSP models break when used in an entity with a non-zero origin (ladders, "
+					"water, mortar fields). This will move affected entity origins to (0,0,0) while keeping "
+					"models in the same place, duplicating them if necessary.\n");
 			}
-			tooltip("Some BSP models break when used in an entity with a non-zero origin (ladders, "
-				"water, mortar fields). This will move affected entity origins to (0,0,0) while keeping "
-				"models in the same place, duplicating them if necessary.\n");
 
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Textures")) {
+		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Textures")) {
 			if (ImGui::MenuItem("Create Series WAD", "")) {
 				createSeriesWad();
 			}
@@ -1599,12 +1609,15 @@ void MenuBar::drawToolsMenu() {
 				map->remove_unused_wads(wads);
 				command->pushUndoState();
 			}
-			tooltip("Removes unused WADs from the worldspawn 'wad' keyvalue and strips folder paths.");
+			tooltip("Removes unused WADs from the worldspawn 'wad' keyvalue and strips folder paths."
+				"\n\nDespite being a keyvalue edit, this is not a ripent-safe operation. Clients "
+				"don't load wad paths from the server, they use whatever is stored in their local "
+				"copy of the BSP.");
 
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::MenuItem("RAD Preparation", 0, false, !app->isLoading)) {
+		if (!g_settings.ripent_safe_mode && ImGui::MenuItem("RAD Preparation", 0, false, !app->isLoading)) {
 			gui->showWidget(WIDGET_RAD_PREP, true);
 		}
 		tooltip("Prepare the map for light recompilation with VHLT.");
@@ -1634,12 +1647,14 @@ void MenuBar::drawWidgetsMenu() {
 		}
 		tooltip("Search for entities by name, class, and/or other properties.");
 
-		if (ImGui::MenuItem("Face Editor", "", gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible)) {
-			gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible = !gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible;
-			if (gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible)
-				ImGui::SetWindowCollapsed("Face Editor", false);
+		if (!g_settings.ripent_safe_mode) {
+			if (ImGui::MenuItem("Face Editor", "", gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible)) {
+				gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible = !gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible;
+				if (gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible)
+					ImGui::SetWindowCollapsed("Face Editor", false);
+			}
+			tooltip("Edit faces and textures.");
 		}
-		tooltip("Edit faces and textures.");
 
 		if (ImGui::MenuItem("Keyvalue Editor", "Alt+Enter", gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible)) {
 			gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible = !gui->widgets[WIDGET_KEYVALUE_EDITOR]->widgetVisible;

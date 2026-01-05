@@ -226,33 +226,35 @@ void TransformWidget::draw() {
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();
 
-		ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT || app->pickInfo.ents.empty());
-		ImGui::Text("Scale");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (!g_settings.ripent_safe_mode) {
+			ImGui::BeginDisabled(!canEditBspModel || app->transformTarget != TRANSFORM_OBJECT || app->pickInfo.ents.empty());
+			ImGui::Text("Scale");
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-		if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			gui->guiHoverAxis = 0;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::TableNextColumn();
+			if (ImGui::DragFloat("##xscale", &sx, 0.002f, 0, 0, "X: %.3f")) { scaled = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				gui->guiHoverAxis = 0;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::TableNextColumn();
 
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			gui->guiHoverAxis = 1;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##yscale", &sy, 0.002f, 0, 0, "Y: %.3f")) { scaled = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				gui->guiHoverAxis = 1;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::TableNextColumn();
 
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
-		if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-			gui->guiHoverAxis = 2;
-		if (ImGui::IsItemActive())
-			inputsAreDragging = true;
-		ImGui::EndDisabled();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat("##zscale", &sz, 0.002f, 0, 0, "Z: %.3f")) { scaled = true; }
+			if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+				gui->guiHoverAxis = 2;
+			if (ImGui::IsItemActive())
+				inputsAreDragging = true;
+			ImGui::EndDisabled();
+		}
 
 		ImGui::EndTable();
 	}
@@ -308,23 +310,26 @@ void TransformWidget::draw() {
 	ImGui::SetColumnWidth(2, inputWidth4);
 	ImGui::SetColumnWidth(3, inputWidth4);
 	ImGui::AlignTextToFramePadding();
-	ImGui::Text("Target: "); ImGui::NextColumn();
 
-	ImGui::RadioButton("Entity", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Apply transformation to an entity origin and angles keyvalues.");
-	}
+	if (!g_settings.ripent_safe_mode) {
+		ImGui::Text("Target: "); ImGui::NextColumn();
 
-	ImGui::BeginDisabled(!canEditBspModel);
-	ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Apply transformation to BSP model vertices.");
-	}
+		ImGui::RadioButton("Entity", &app->transformTarget, TRANSFORM_OBJECT); ImGui::NextColumn();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to an entity origin and angles keyvalues.");
+		}
 
-	ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
-	ImGui::EndDisabled();
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Apply transformation to a BSP model's origin (not the origin keyvalue).\nOrigins are used as a point of reference for rotation.");
+		ImGui::BeginDisabled(!canEditBspModel);
+		ImGui::RadioButton("Vertex", &app->transformTarget, TRANSFORM_VERTEX); ImGui::NextColumn();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to BSP model vertices.");
+		}
+
+		ImGui::RadioButton("Origin", &app->transformTarget, TRANSFORM_ORIGIN); ImGui::NextColumn();
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Apply transformation to a BSP model's origin (not the origin keyvalue).\nOrigins are used as a point of reference for rotation.");
+		}
 	}
 
 	ImGui::Text("3D Axes: "); ImGui::NextColumn();
@@ -360,11 +365,14 @@ void TransformWidget::draw() {
 	}
 
 	ImGui::PushItemWidth(inputWidth);
-	ImGui::BeginDisabled(!canEditBspModel);
-	ImGui::Checkbox("Texture lock", &app->textureLock);
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::TextDisabled("(WIP)");
+	if (!g_settings.ripent_safe_mode) {
+		ImGui::BeginDisabled(!canEditBspModel);
+		ImGui::Checkbox("Texture lock", &app->textureLock);
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		ImGui::TextDisabled("(WIP)");
+	}
+	
 	if (ImGui::IsItemHovered())
 	{
 		ImGui::BeginTooltip();

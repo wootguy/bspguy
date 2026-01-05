@@ -88,6 +88,29 @@ void SettingsWidget::draw() {
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Invert Y axis camera rotation.\n");
 		}
+		if (ImGui::Checkbox("Ripent Safe Mode", &g_settings.ripent_safe_mode)) {
+			if (g_settings.ripent_safe_mode) {
+				g_app->deselectObject();
+				g_app->pickMode = PICK_OBJECT;
+				app->transformTarget = TRANSFORM_OBJECT;
+
+				if (map->did_lumps_change(true)) {
+					const char* msg = "You have made edits that are not ripent safe. "
+						"You can continue to make edits but you should probably save the map and reload "
+						"it to discard the unsafe changes.";
+					int ret = tinyfd_messageBox(
+						"Unsafe Changes Detected", /* NULL or "" */
+						msg, /* NULL or "" may contain \n \t */
+						"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
+						"warning", /* "info" "warning" "error" "question" */
+						0);
+				}
+			}
+		}
+		tooltip("Hides all tools that modify BSP structures. Only edits to entity text will be allowed. "
+			"Enable this then do whatever you want without fear of triggering "
+			"the \"Your map differs from the server's\" error."
+			"\n\nYou can also enable this before saving the map to discard any unsafe edits.", 0);
 		ImGui::NextColumn();
 
 		ImGui::Checkbox("Confirm Close", &g_settings.confirm_exit);

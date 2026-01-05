@@ -155,7 +155,7 @@ void Gui::init() {
 		ImVec2(610, 610), ImVec2(470, 250), 0);
 
 	widgets[WIDGET_TRANSFORM] = new TransformWidget(this, "Transformation",
-		ImVec2(400, 320), ImVec2(340, 140), 0);
+		ImVec2(400, 320), ImVec2(350, 140), 0);
 	widgets[WIDGET_TRANSFORM]->allowInMapArrangeMode = true;
 
 	widgets[WIDGET_MESSAGES] = new LogWidget(this, "Messages", ImVec2(750, 300), ImVec2(200, 100), 0);
@@ -222,7 +222,7 @@ void Gui::draw() {
 
 	menuBar->draw();
 
-	if (!app->mapArrangeMode)
+	if (!app->mapArrangeMode && !g_settings.ripent_safe_mode)
 		drawToolbar();
 
 	drawStatusMessage();

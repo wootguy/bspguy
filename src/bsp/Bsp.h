@@ -556,7 +556,7 @@ public:
 
 	void update_lump_pointers();
 
-	bool did_lumps_change();
+	bool did_lumps_change(bool ignoreEntLump);
 
 	int calcMemoryUsage();
 
@@ -571,7 +571,7 @@ private:
 
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
-	bool load_lumps(string fname);
+	bool load_lumps(string fname, BSPHEADER& head, LumpState& state);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
 	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according

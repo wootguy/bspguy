@@ -27,7 +27,6 @@
 // check for problems widget
 // folder picker for settings paths (tinyfd uses the annoying picker)
 // rad textures darker than they should be due to lightmaps
-// ripent saftey warning
 // hold click to select behind
 // orient turrets based on key
 // dialogs for errors / warnings

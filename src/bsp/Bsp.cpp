@@ -102,9 +102,16 @@ Bsp::Bsp(std::string fpath)
 		return;
 	}
 
-	if (!load_lumps(fpath)) {
+	LumpState state;
+	if (!load_lumps(fpath, header, state)) {
 		errorf("%s is not a valid BSP file\n", fpath.c_str());
 		return;
+	}
+
+	lumps = new byte*[HEADER_LUMPS];
+	for (int i = 0; i < HEADER_LUMPS; i++) {
+		lumps[i] = state.lumps[i];
+		header.lump[i].nLength = state.lumpLen[i];
 	}
 
 	load_ents(lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength, ents);
@@ -5112,6 +5119,30 @@ void Bsp::write(string path) {
 		path = path + ".bsp";
 	}
 
+	if (g_settings.ripent_safe_mode) {
+		LumpState state;
+		BSPHEADER head;
+		if (!load_lumps(path, head, state)) {
+			errorf("Save aborted because the original BSP can no longer be read, and ripent safe mode is on. "
+				"Lumps cannot be compared for differences.\n", path.c_str());
+			return;
+		}
+		int numDiscard = 0;
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			if (i == LUMP_ENTITIES) {
+				delete[] state.lumps[i];
+				continue;
+			}
+			if (state.lumpLen[i] == header.lump[i].nLength && !memcmp(state.lumps[i], lumps[i], state.lumpLen[i]))
+				continue;
+			replace_lump(i, state.lumps[i], state.lumpLen[i]);
+			numDiscard++;
+			debugf("Ripent safety: Discarded changes in %s lump\n", g_lump_names[i]);
+		}
+		if (numDiscard)
+			warnf("Ripent safety: Discarded changes in %d lumps during save\n", numDiscard);
+	}
+
 	// calculate lump offsets
 	int offset = sizeof(BSPHEADER);
 	for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -5136,7 +5167,7 @@ void Bsp::write(string path) {
 	}
 }
 
-bool Bsp::load_lumps(string fpath)
+bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
 {
 	bool valid = true;
 
@@ -5145,37 +5176,36 @@ bool Bsp::load_lumps(string fpath)
 	int size = fin.tellg();
 	fin.seekg(0, fin.beg);
 
+	memset(&state, 0, sizeof(LumpState));
+
 	if (size < sizeof(BSPHEADER) + sizeof(BSPLUMP)*HEADER_LUMPS)
 		return false;
 
-	fin.read((char*)&header.nVersion, sizeof(int));
-	debugf("Bsp version: %d\n", header.nVersion);
+	fin.read((char*)&head.nVersion, sizeof(int));
+	debugf("Bsp version: %d\n", head.nVersion);
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
-		fin.read((char*)&header.lump[i], sizeof(BSPLUMP));
-		debugf("Read lump id: %d. Len: %d. Offset %d.\n", i,header.lump[i].nLength,header.lump[i].nOffset);
+		fin.read((char*)&head.lump[i], sizeof(BSPLUMP));
+		state.lumpLen[i] = head.lump[i].nLength;
+		debugf("Read lump id: %d. Len: %d. Offset %d.\n", i, state.lumpLen[i], head.lump[i].nOffset);
 	}
-
-	lumps = new byte*[HEADER_LUMPS];
-	memset(lumps, 0, sizeof(byte*)*HEADER_LUMPS);
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
-		if (header.lump[i].nLength == 0) {
-			lumps[i] = NULL;
+		if (state.lumpLen[i] == 0) {
 			continue;
 		}
 
-		fin.seekg(header.lump[i].nOffset);
+		fin.seekg(head.lump[i].nOffset);
 		if (fin.eof()) {
-			logf("FAILED TO READ BSP LUMP %d\n", i);
+			errorf("FAILED TO READ BSP LUMP %d\n", i);
 			valid = false;
 		}
 		else
 		{
-			lumps[i] = new byte[header.lump[i].nLength];
-			fin.read((char*)lumps[i], header.lump[i].nLength);
+			state.lumps[i] = new byte[state.lumpLen[i]];
+			fin.read((char*)state.lumps[i], state.lumpLen[i]);
 		}
 	}	
 	
@@ -5184,7 +5214,7 @@ bool Bsp::load_lumps(string fpath)
 	return valid;
 }
 
-bool Bsp::did_lumps_change() {
+bool Bsp::did_lumps_change(bool ignoreEntLump) {
 	LumpState currentLumps = duplicate_lumps(0xffffffff);
 
 	// Read all BSP Data
@@ -5216,6 +5246,8 @@ bool Bsp::did_lumps_change() {
 		if (head.lump[i].nLength == 0) {
 			continue;
 		}
+		if (i == LUMP_ENTITIES && ignoreEntLump)
+			continue;
 
 		fin.seekg(head.lump[i].nOffset);
 		if (fin.eof()) {

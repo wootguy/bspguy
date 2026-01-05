@@ -4705,7 +4705,7 @@ bool Editor::confirmMapExit() {
 	if (g_settings.confirm_exit) {
 		Bsp* map = mapRenderer->map;
 
-		if (map->did_lumps_change()) {
+		if (map->did_lumps_change(false)) {
 			string msg = "Save changes to " + map->name + "?";
 			int ret = tinyfd_messageBox(
 				"Save", /* NULL or "" */

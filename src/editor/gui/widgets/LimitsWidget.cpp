@@ -354,7 +354,7 @@ void LimitsWidget::drawAllocBlockLimitTab(Bsp* map) {
 
 		string texname = limitAllocs[i].texname + "##" + "select" + to_string(i);
 		int flags = ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns;
-		if (ImGui::Selectable(texname.c_str(), false, flags)) {
+		if (ImGui::Selectable(texname.c_str(), false, flags) && !g_settings.ripent_safe_mode) {
 			selected = i;
 
 			int faceIdx = limitAllocs[i].faceIdx;
@@ -484,7 +484,7 @@ void LimitsWidget::drawFaceExtentsLimitTab() {
 	for (int i = 0; i < limitExtents.size(); i++) {
 		string texname = limitExtents[i].texname + "##" + "select" + to_string(i);
 		int flags = ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_SpanAllColumns;
-		if (ImGui::Selectable(texname.c_str(), false, flags)) {
+		if (ImGui::Selectable(texname.c_str(), false, flags) && !g_settings.ripent_safe_mode) {
 			selected = i;
 
 			app->deselectFaces();
