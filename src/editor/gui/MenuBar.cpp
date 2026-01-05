@@ -1705,15 +1705,7 @@ void MenuBar::drawWidgetsMenu() {
 			" resolution you saved at.\n");
 
 		if (ImGui::MenuItem("Reset Widget Sizes")) {
-			ImGui::ClearWindowSettings("###limits");
-			ImGui::ClearWindowSettings("###entreport");
-			ImGui::ClearWindowSettings("Messages");
-			ImGui::ClearWindowSettings("Transformation");
-			ImGui::ClearWindowSettings("Keyvalue Editor");
-			ImGui::ClearWindowSettings("Editor Setup");
-			ImGui::ClearWindowSettings("Face Editor");
-			ImGui::ClearWindowSettings("Help");
-			ImGui::ClearWindowSettings("About");
+			gui->resetWidgetSizes();
 		}
 		tooltip("Reset widget sizes to their defaults.\n");
 

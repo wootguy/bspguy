@@ -123,10 +123,6 @@ void Gui::init() {
 
 	glCheckError("ImGui init");
 
-	loadFonts();
-
-	glCheckError("ImGui font load");
-
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 
 	// load icons
@@ -159,7 +155,7 @@ void Gui::init() {
 		ImVec2(610, 610), ImVec2(470, 250), 0);
 
 	widgets[WIDGET_TRANSFORM] = new TransformWidget(this, "Transformation",
-		ImVec2(430, 380), ImVec2(340, 140), 0);
+		ImVec2(400, 320), ImVec2(340, 140), 0);
 	widgets[WIDGET_TRANSFORM]->allowInMapArrangeMode = true;
 
 	widgets[WIDGET_MESSAGES] = new LogWidget(this, "Messages", ImVec2(750, 300), ImVec2(200, 100), 0);
@@ -174,13 +170,13 @@ void Gui::init() {
 	widgets[WIDGET_ABOUT]->allowInMapArrangeMode = true;
 
 	widgets[WIDGET_LIMITS] = new LimitsWidget(this, "Map Limits###limits",
-		ImVec2(550, 630), ImVec2(450, 200), 0);
+		ImVec2(460, 520), ImVec2(460, 200), 0);
 
 	widgets[WIDGET_ENT_REPORT] = new EntityReport(this, "###entreport",
 		ImVec2(400, 600), ImVec2(300, 350), 0);
 
 	widgets[WIDGET_FACE_EDITOR] = new FaceEditor(this, "Face Editor",
-		ImVec2(300, 570), ImVec2(260, 510), ImGuiWindowFlags_NoScrollbar);
+		ImVec2(260, 530), ImVec2(260, 510), ImGuiWindowFlags_NoScrollbar);
 
 	widgets[WIDGET_RAD_PREP] = new RadWidget(this, "Configure Texlights",
 		ImVec2(350, 300), ImVec2(350, 300), 0);
@@ -202,6 +198,10 @@ void Gui::init() {
 
 	widgets[WIDGET_MODEL_MERGE_CONFIRM] = new ModelMergeWidget(this, "Confirm Merge",
 		ImVec2(400, 0), ImVec2(0, 0), ImGuiWindowFlags_AlwaysAutoResize);
+
+	loadFonts();
+
+	glCheckError("ImGui font load");
 }
 
 void Gui::draw() {
@@ -306,7 +306,14 @@ void Gui::drawWidgets() {
 		widget->uiScale = uiScale;
 		widget->map = g_app->mapRenderer->map;
 		widget->setup();
+
+		if (widget->shouldResetPosition) {
+			ImGui::SetNextWindowPos(widget->lastPosition, ImGuiCond_Always);
+			widget->shouldResetPosition = false;
+		}
+
 		if (ImGui::Begin(widget->widgetName, &widget->widgetVisible, widget->widgetFlags)) {
+			widget->lastPosition = ImGui::GetWindowPos();
 			widget->draw();
 		}
 		ImGui::End();
@@ -1702,4 +1709,11 @@ int Gui::calcMemUsage() {
 	bytes += fontBytes;
 
 	return bytes;
+}
+
+void Gui::resetWidgetSizes() {
+	for (Widget* widget : widgets) {
+		ImGui::ClearWindowSettings(widget->widgetName);
+		widget->shouldResetPosition = true;
+	}
 }

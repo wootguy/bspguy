@@ -79,7 +79,7 @@ Bsp::Bsp(const Bsp& other) {
 		memcpy(lumps[i], other.lumps[i], header.lump[i].nLength);
 	}
 
-	load_ents();
+	load_ents(lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength, ents);
 	update_lump_pointers();
 
 	valid = true;
@@ -107,7 +107,7 @@ Bsp::Bsp(std::string fpath)
 		return;
 	}
 
-	load_ents();
+	load_ents(lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength, ents);
 	update_lump_pointers();
 
 	valid = true;
@@ -1229,7 +1229,7 @@ void Bsp::replace_lumps(LumpState& state) {
 		header.lump[i].nLength = state.lumpLen[i];
 
 		if (i == LUMP_ENTITIES) {
-			load_ents();
+			load_ents(lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength, ents);
 		}
 	}
 
@@ -2918,6 +2918,7 @@ bool Bsp::has_bad_extents(int textureIdx, float scale) {
 float Bsp::get_scale_to_fix_bad_extents(int textureIdx) {
 	float bestScale = 1.0f;
 	float lastWorkingScale = 1.0f;
+	bool hadBadExtents = false;
 
 	while (has_bad_extents(textureIdx, bestScale)) {
 		bestScale -= bestScale > 0.1f ? 0.1f : 0.01f; // coarse adjust
@@ -2925,12 +2926,15 @@ float Bsp::get_scale_to_fix_bad_extents(int textureIdx) {
 			bestScale = FLT_MIN;
 			break;
 		}
+		hadBadExtents = true;
 	}
-	while (!has_bad_extents(textureIdx, bestScale)) {
-		lastWorkingScale = bestScale;
-		bestScale += 0.01f; // fine tuning
+	if (hadBadExtents) {
+		while (!has_bad_extents(textureIdx, bestScale)) {
+			lastWorkingScale = bestScale;
+			bestScale += 0.01f; // fine tuning
+		}
+		bestScale = lastWorkingScale - 0.02f; // undo last bad step and add epsilon
 	}
-	bestScale = lastWorkingScale - 0.02f; // undo last bad step and add epsilon
 
 	return bestScale;
 }
@@ -4625,11 +4629,17 @@ void Bsp::get_lightmap_shift(const LIGHTMAP& oldLightmap, const LIGHTMAP& newLig
 }
 
 void Bsp::update_ent_lump(bool stripNodes) {
+	int len;
+	byte* dat = create_ent_lump(ents, len, stripNodes);
+	replace_lump(LUMP_ENTITIES, dat, len);
+}
+
+byte* Bsp::create_ent_lump(vector<Entity*>& entList, int& len, bool stripNodes) {
 	stringstream ent_data;
 
-	for (int i = 0; i < ents.size(); i++) {
+	for (int i = 0; i < entList.size(); i++) {
 		if (stripNodes) {
-			string cname = ents[i]->getClassname();
+			string cname = entList[i]->getClassname();
 			if (cname == "info_node" || cname == "info_node_air") {
 				continue;
 			}
@@ -4637,10 +4647,10 @@ void Bsp::update_ent_lump(bool stripNodes) {
 
 		ent_data << "{\n";
 
-		ent_data << ents[i]->getFullKvString();
+		ent_data << entList[i]->getFullKvString();
 
 		ent_data << "}";
-		if (i < ents.size() - 1) {
+		if (i < entList.size() - 1) {
 			ent_data << "\n"; // trailing newline crashes sven, and only sven, and only sometimes
 		}
 	}
@@ -4651,7 +4661,8 @@ void Bsp::update_ent_lump(bool stripNodes) {
 	memcpy(newEntData, str_data.c_str(), str_data.size());
 	newEntData[str_data.size()] = 0; // null terminator required too(?)
 
-	replace_lump(LUMP_ENTITIES, newEntData, str_data.size()+1);	
+	len = str_data.size() + 1;
+	return newEntData;
 }
 
 vec3 Bsp::get_model_center(int modelIdx) {
@@ -5192,6 +5203,9 @@ bool Bsp::did_lumps_change() {
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		fin.read((char*)&head.lump[i], sizeof(BSPLUMP));
 
+		if (i == LUMP_ENTITIES)
+			continue; // special comparison later
+
 		if (currentLumps.lumpLen[i] != head.lump[i].nLength) {
 			goto cleanup;
 		}
@@ -5213,7 +5227,16 @@ bool Bsp::did_lumps_change() {
 			byte* oldLump = new byte[head.lump[i].nLength];
 			fin.read((char*)oldLump, head.lump[i].nLength);
 
-			bool lumpChanged = memcmp(oldLump, currentLumps.lumps[i], head.lump[i].nLength);
+			if (i == LUMP_ENTITIES) {
+				// re-create file lump in case there are differences in spacing or something when saving
+				vector<Entity*> fileEnts;
+				load_ents(oldLump, head.lump[i].nLength, fileEnts);
+				delete[] oldLump;
+				oldLump = create_ent_lump(fileEnts, head.lump[i].nLength);
+			}
+
+			bool lumpChanged = head.lump[i].nLength != head.lump[i].nLength || 
+				memcmp(oldLump, currentLumps.lumps[i], head.lump[i].nLength);
 
 			delete[] oldLump;
 
@@ -5234,14 +5257,14 @@ cleanup:
 	return lumpsChanged;
 }
 
-void Bsp::load_ents()
+void Bsp::load_ents(byte* lump, int lumpLen, vector<Entity*>& entList)
 {
-	for (int i = 0; i < ents.size(); i++)
-		delete ents[i];
-	ents.clear();
+	for (int i = 0; i < entList.size(); i++)
+		delete entList[i];
+	entList.clear();
 
 	bool verbose = true;
-	membuf sbuf((char*)lumps[LUMP_ENTITIES], header.lump[LUMP_ENTITIES].nLength);
+	membuf sbuf((char*)lump, lumpLen);
 	istream in(&sbuf);
 
 	int lineNum = 0;
@@ -5278,7 +5301,7 @@ void Bsp::load_ents()
 				continue;
 
 			if (ent->hasKey("classname"))
-				ents.push_back(ent);
+				entList.push_back(ent);
 			else
 				logf("Found unknown classname entity. Skip it.\n");
 			ent = NULL;
@@ -5298,16 +5321,17 @@ void Bsp::load_ents()
 		}
 	}
 
-	if (ents.size() > 1)
+	if (entList.size() > 1)
 	{
 		if (ents[0]->getClassname() != "worldspawn")
 		{
-			logf("First entity has classname different from 'woldspawn', we do fixup it\n");
-			for (int i = 1; i < ents.size(); i++)
+			for (int i = 1; i < entList.size(); i++)
 			{
-				if (ents[i]->getClassname() == "worldspawn")
+				if (entList[i]->getClassname() == "worldspawn")
 				{
-					std::swap(ents[0], ents[i]);
+					warnf("'%s' and 'woldspawn' entities were swapped so that 'worldspawn' comes first "
+						"in the entity list.\n", entList[0]->getClassname().c_str());
+					std::swap(entList[0], entList[i]);
 					break;
 				}
 			}

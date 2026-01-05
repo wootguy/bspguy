@@ -13,12 +13,14 @@ public:
 	const char* widgetName; // imgui child id
 	ImVec2 widgetSizeDefault; // default size for the widget (for first use)
 	ImVec2 widgetSizeMin; // minimum size for the widget
+	ImVec2 lastPosition; // last position the window drew at
 	int widgetFlags;
 
 	// popup state, do not touch
 	bool isPopup = false;
 	bool shouldReturnToThisPopup = false;
 	bool popupWasOpen = false; // true if the popup was open last frame
+	bool shouldResetPosition = false;
 
 	// for convenience
 	Editor* app = NULL;

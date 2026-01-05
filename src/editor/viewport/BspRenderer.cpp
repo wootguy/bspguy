@@ -2070,6 +2070,8 @@ void BspRenderer::preRenderEnts() {
 	pointEnts = new VertexBuffer(g_shaders.color, entCubes, numPointEnts * 6 * 6, true);
 	pointEnts->upload();
 
+	reloadMegaBuffers();
+
 	glCheckError("BSP pre render ents");
 }
 

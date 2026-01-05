@@ -71,16 +71,16 @@ void main()
 	}
 
 	vec3 color = texel.rgb * fColor.rgb;
+	vec3 lightmap = texture2D(sLightmapTex, fLightmapTex01.xy).rgb * lightmapMult.x;
 	
-	if (fColor.a >= 0.9f) { // transparent faces are "special" and have no lighting
-		vec3 lightmap = texture2D(sLightmapTex, fLightmapTex01.xy).rgb * lightmapMult.x;
+	// "special" faces have no light styles other than a base style which is bound to a solid color in the editor (white/red)
+	if (fColor.a >= 0.9f) {
 		lightmap += texture2D(sLightmapTex, fLightmapTex01.zw).rgb * lightmapMult.y;
 		lightmap += texture2D(sLightmapTex, fLightmapTex23.xy).rgb * lightmapMult.z;
 		lightmap += texture2D(sLightmapTex, fLightmapTex23.zw).rgb * lightmapMult.w;
-		color = color * lightmap;
 	}
 	
-	vec4 texColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);
+	vec4 texColor = vec4(pow(color * lightmap, vec3(1.0/gamma)), fColor.a*texel.a);
 	
 	#if defined(WIREFRAME)
 		vec3 d = fwidth(fBary);

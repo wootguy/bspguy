@@ -65,6 +65,7 @@ void SettingsWidget::draw() {
 
 		if (ImGui::DragInt("UI Scale", &g_settings.ui_scale, 0.1f, 50, 200, "%d%%")) {
 			gui->updateUiScale();
+			gui->resetWidgetSizes();
 		}
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Recommended scales per screen resolution:\n"

@@ -233,9 +233,12 @@ public:
 	// TODO: split any planes shared with other models
 	bool vertex_manipulation_sync(int modelIdx, vector<TransformVert>& hullVerts, bool convexCheckOnly, bool regenClipnodes);
 
-	void load_ents();
+	void load_ents(byte* lump, int lumpLen, vector<Entity*>& entList);
 
 	// call this after editing ents
+	byte* create_ent_lump(vector<Entity*>& entList, int& len, bool stripNodes=false);
+
+	// updates using current entity list
 	void update_ent_lump(bool stripNodes=false);
 
 	vec3 get_model_center(int modelIdx);

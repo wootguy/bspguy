@@ -120,6 +120,7 @@ public:
 	void windowResized(int width, int height);
 	void showWidget(int id, bool showNotHide);
 	void addText(Text2D text);
+	void resetWidgetSizes();
 
 	int calcMemUsage();
 

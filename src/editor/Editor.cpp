@@ -4103,6 +4103,8 @@ void Editor::copyEnts(bool stringifyBspModels) {
 		serialized += copy->serialize(stringifyBspModels);
 	}
 
+	lastCopyStringifiedModels = stringifyBspModels;
+
 	ImGui::SetClipboardText(serialized.c_str());
 }
 
@@ -4153,6 +4155,8 @@ void Editor::pasteEnts(bool noModifyOrigin) {
 
 	pickInfo.deselect();
 
+	string reserialized;
+
 	for (int i = 0; i < createCommand->createdEnts; i++) {
 		if (!noModifyOrigin) {
 			Entity* ent = map->ents[map->ents.size() - (1 + i)];
@@ -4165,8 +4169,15 @@ void Editor::pasteEnts(bool noModifyOrigin) {
 			vec3 newOri = (oldOrigin + moveDist + centroidOffset) - (modelOffset + mapOffset);
 			vec3 rounded = gridSnappingEnabled ? snapToGrid(newOri) : newOri;
 			ent->setOrAddKeyvalue("origin", rounded.toKeyvalueString(!gridSnappingEnabled));
+
+			// serialize again so that redoing this command will have the offset applied
+			reserialized += ent->serialize(lastCopyStringifiedModels);
 		}
 		pickInfo.selectEnt(map->ents.size() - (1 + i));
+	}
+
+	if (!noModifyOrigin) {
+		createCommand->textData = reserialized;
 	}
 
 	if (shouldReload) {

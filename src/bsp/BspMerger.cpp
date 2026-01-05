@@ -1164,7 +1164,7 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 			// process the lump here (TODO: faster to just copy wtv needs copying)
 			switch (i) {
 			case LUMP_ENTITIES:
-				mapA.load_ents(); break;
+				mapA.load_ents(mapA.lumps[LUMP_ENTITIES], mapA.header.lump[LUMP_ENTITIES].nLength, mapA.ents); break;
 			}
 		}
 		else if (!mapB.lumps[i]) {

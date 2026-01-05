@@ -278,6 +278,7 @@ private:
 	vector<EntityState> undoEntityState;
 	LumpState undoLumpState = LumpState();
 	vec3 undoEntOrigin;
+	bool lastCopyStringifiedModels; // true if last copy command wanted stringified models
 
 	bool hasCullbox;
 	vec3 cullMins;

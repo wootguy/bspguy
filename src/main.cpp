@@ -9,13 +9,8 @@
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
 // - face editor moves to top left a lot
-// - redo paste entities not working, pastes at old origin
-// - confirm exit showing for no changes (probably the ent lump)
 // - remove wireframe buffers from ent cubes
-// - fix bad extents in resize tool for 256x64 bts_rc made it bigger
 // - try freetype font at lower brightness
-// - having a single ent, even worlspawn selected, is an fps dip
-// - keep widgets in same position afer "reset"
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
