@@ -1016,7 +1016,7 @@ void MenuBar::drawViewMenu() {
 		if (ImGui::MenuItem("Wireframe", 0, g_settings.render_flags & RENDER_WIREFRAME)) {
 			g_settings.render_flags ^= RENDER_WIREFRAME;
 		}
-		tooltip("Outline all faces.");
+		tooltip("Outline all faces. Greatly reduces FPS on fill-rate limited hardware (old iGPUs)");
 
 		ImGui::Separator();
 

@@ -156,7 +156,6 @@ struct PvsPoly {
 	vec3 v0;
 	vec3 normal;
 	vec3 mins, maxs;
-	int faceIdx;
 
 	int calcMemoryUsage();
 };

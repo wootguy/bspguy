@@ -2642,18 +2642,26 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 		glPalette->bind();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}	
+	bool wireframeOnly = false;
+	if (!(g_settings.render_flags & (RENDER_LIGHTMAPS | RENDER_TEXTURES))) {
+		if (g_settings.render_flags & RENDER_WIREFRAME) {
+			wireframeOnly = true;
+		}
 	}
-
-	//glDisable(GL_CULL_FACE); // too expensive on fill-rate limited hardware
+	if (g_settings.backface_wireframe && (g_settings.render_flags & RENDER_WIREFRAME))
+		glDisable(GL_CULL_FACE); // expensive on fill-rate limited hardware, so only for this special case
+	activeShader->setUniform("wireframeOnly", wireframeOnly ? 1.0f : 0.0f);
+	
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
 
 	if ((g_settings.render_flags & RENDER_LIGHTMAPS) && (g_settings.render_flags & RENDER_TEXTURES)) {
-		activeShader->setUniform("gamma", 1.5f);
+		activeShader->setUniform("gamma", 1.5f); // for brighter lighting
 	}
 	else {
-		activeShader->setUniform("gamma", 1.0f);
+		activeShader->setUniform("gamma", 1.0f); // for accurate lightmap colors
 	}
 
 	if (!map->ents[0]->hidden && map->modelCount > 0) {
@@ -2827,7 +2835,7 @@ void BspRenderer::renderLeaves() {
 }
 
 bool BspRenderer::willDrawModel(Entity* ent, int modelIdx, bool transparent) {
-	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS))) {
+	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME))) {
 		return false;
 	}
 	if (modelIdx >= numRenderModels) {
@@ -2882,7 +2890,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 	bool isTransparent = false;
 	bool useLightmaps = true;
 
-	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS))) {
+	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME))) {
 		return;
 	}
 
@@ -2958,7 +2966,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 	}
 }
 
-void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool useLightmaps) {
+void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool useLightmaps) {	
 	// bind the texture
 	glActiveTexture(GL_TEXTURE0);
 	if (texturesLoaded && (g_settings.render_flags & RENDER_TEXTURES)) {
@@ -2998,9 +3006,9 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		}
 	}
 
-	g_shaders.bsp->setUniform("lightmapMult", lightmapMult);
+	activeShader->setUniform("lightmapMult", lightmapMult);
 
-	rgroup.buffer->draw(g_shaders.bsp, GL_TRIANGLES);
+	rgroup.buffer->draw(activeShader, GL_TRIANGLES);
 }
 
 void BspRenderer::drawModelClipnodes(int modelIdx, bool highlight, int hullIdx) {
@@ -3131,7 +3139,7 @@ void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frus
 		return; // special faces not rendered
 
 	float dist = dotProduct((viewOrigin - faceOffset) - poly.v0, poly.normal);
-	if (dist > 0) {
+	if (dist < 0) {
 		return; // back face culled
 	}
 
@@ -3144,7 +3152,7 @@ void BspRenderer::addPvsPoly(int faceIdx, vec3 faceOffset, vec3 viewOrigin, Frus
 		return;
 
 	vector<vec3> verts;
-	map->get_face_verts(poly.faceIdx, verts);
+	map->get_face_verts(faceIdx, verts);
 
 	for (int k = 0; k < verts.size(); k++) {
 		allVerts.push_back((faceOffset + verts[k]).flip());
@@ -3346,7 +3354,7 @@ void BspRenderer::pickFrustumFaces(Frustum frustum, unordered_set<int>& pickFace
 	vec3 rot, int modelIdx, int hullIdx, int testEntidx) {
 	BSPMODEL& model = map->models[modelIdx];
 
-	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS))) {
+	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME))) {
 		return;
 	}
 	if (map->modelCount == 0)
@@ -3513,7 +3521,7 @@ bool BspRenderer::pickModelPoly(vec3 start, vec3 dir, vec3 offset, vec3 rot, int
 	int testEntidx, int& faceIdx, float& bestDist) {
 	BSPMODEL& model = map->models[modelIdx];
 
-	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS))) {
+	if (!(g_settings.render_flags & (RENDER_TEXTURES | RENDER_LIGHTMAPS | RENDER_WIREFRAME))) {
 		return false;
 	}
 	if (map->modelCount == 0)

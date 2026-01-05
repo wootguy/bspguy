@@ -30,6 +30,7 @@ struct AppSettings {
 	int mapsize_max;
 	bool mapsize_auto;
 	bool texture_filtering;
+	bool backface_wireframe;
 	int renderer;
 	bool animate_models;
 	bool freetype_font;

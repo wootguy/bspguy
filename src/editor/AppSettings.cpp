@@ -39,6 +39,7 @@ void AppSettings::loadDefault()
 	mapsize_max = 32768;
 	mapsize_auto = true;
 	texture_filtering = false;
+	backface_wireframe = true;
 	animate_models = true;
 	freetype_font = false;
 	texture_atlas = true;
@@ -104,6 +105,7 @@ void AppSettings::load() {
 			else if (key == "first_load") { g_settings.first_load = atoi(val.c_str()) != 0; }
 			else if (key == "mapsize_auto") { g_settings.mapsize_auto = atoi(val.c_str()) != 0; }
 			else if (key == "texture_filtering") { g_settings.texture_filtering = atoi(val.c_str()) != 0; }
+			else if (key == "backface_wireframe") { g_settings.backface_wireframe = atoi(val.c_str()) != 0; }
 			else if (key == "animate_models") { g_settings.animate_models = atoi(val.c_str()) != 0; }
 			else if (key == "freetype_font") { g_settings.freetype_font = atoi(val.c_str()) != 0; }
 			else if (key == "texture_atlas") { g_settings.texture_atlas = atoi(val.c_str()) != 0; }
@@ -223,6 +225,7 @@ void AppSettings::save() {
 	file << "invert_y_axis=" << g_settings.invert_y_axis << endl;
 	file << "first_load=" << g_settings.first_load << endl;
 	file << "texture_filtering=" << g_settings.texture_filtering << endl;
+	file << "backface_wireframe=" << g_settings.backface_wireframe << endl;
 	file << "fov=" << g_settings.fov << endl;
 	file << "zfar=" << g_settings.zfar << endl;
 	file << "zfarmdl=" << g_settings.zFarMdl << endl;

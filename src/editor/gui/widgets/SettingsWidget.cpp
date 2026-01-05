@@ -221,6 +221,9 @@ void SettingsWidget::draw() {
 		if (isLoading || !canUseFiltering)
 			ImGui::EndDisabled();
 
+		ImGui::Checkbox("Backface Wireframes", &g_settings.backface_wireframe);
+		tooltip("Draw wireframes on the backside of faces as well of the front. Very expensive on fill-rate-limited hardware (old iGPUs).\n", 0);
+
 		ImGui::Checkbox("Animate Models", &g_settings.animate_models);
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Animations have a big impact on FPS with the legacy renderer.\n");

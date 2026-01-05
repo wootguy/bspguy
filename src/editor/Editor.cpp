@@ -406,6 +406,7 @@ void Editor::compileShaderPrograms() {
 			{"wireframeColorDark", UNIFORM_VEC4},
 			{"wireframeColorBright", UNIFORM_VEC4},
 			{"wireframeThickness", UNIFORM_FLOAT},
+			{"wireframeOnly", UNIFORM_FLOAT},
 			{"textureAtlasScale", UNIFORM_FLOAT},
 			{"lightmapAtlasScale", UNIFORM_FLOAT},
 			{"paletteAtlasScale", UNIFORM_VEC2},
@@ -615,6 +616,7 @@ void Editor::renderLoop() {
 
 		mapRenderer->delayLoadData();
 		drawViewport();
+		glActiveTexture(GL_TEXTURE0); // needed even if gui isn't drawn(???)
 
 		// updated here so imgui can use control logic from this class
 		controlsBegin();
@@ -685,6 +687,7 @@ void Editor::postLoadFgds()
 		Entity* ent = mapRenderer->map->ents[i];
 		ent->clearCache();
 		ent->getTargets(); // cache ent targets so first selection doesn't lag
+		ent->getAllTargetnames(); // cache ent targets so first selection doesn't lag
 	}
 
 	swapPointEntRenderer = NULL;
@@ -930,8 +933,12 @@ void Editor::drawViewport() {
 	glCheckError("Setting up view");
 
 	if (previewMode || (g_settings.render_flags & RENDER_SKYBOX)) {
-		mapRenderer->drawSkybox();
-		glCheckError("Rendering skybox");
+		bool wireframeOnly = !(g_settings.render_flags & (RENDER_LIGHTMAPS | RENDER_TEXTURES))
+			&& (g_settings.render_flags & RENDER_WIREFRAME);
+		if (!wireframeOnly) { // skybox can make lines hard to see in this mode
+			mapRenderer->drawSkybox();
+			glCheckError("Rendering skybox");
+		}
 	}
 
 	vector<OrderedEnt> orderedEnts;
@@ -2732,8 +2739,13 @@ void Editor::addNameTags() {
 	vector<TagEnt> tags;
 	vec3 worldOffset = map->ents[0]->getOrigin();
 
-	for (int i = 0; i < map->ents.size(); i++) {
-		Entity* ent = map->ents[i];
+	vector<Entity*> ents = map->ents;
+	if (!renderAllTags) {
+		ents = pickInfo.getEnts();
+	}
+
+	for (int i = 0; i < ents.size(); i++) {
+		Entity* ent = ents[i];
 		if (ent->hidden)
 			continue;
 

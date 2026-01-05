@@ -12,10 +12,8 @@
 // - redo paste entities not working, pastes at old origin
 // - confirm exit showing for no changes (probably the ent lump)
 // - remove wireframe buffers from ent cubes
-// - load mipmaps from wad. They take 20s to generate on lappy
 // - fix bad extents in resize tool for 256x64 bts_rc made it bigger
 // - try freetype font at lower brightness
-// - big lag on first click
 // - having a single ent, even worlspawn selected, is an fps dip
 
 // nice to have v6:
@@ -26,6 +24,7 @@
 // - name tag render distance
 
 // todo:
+// show texture mipmaps (only used in software mode?)
 // model render mode scale
 // auto scale lightmaps when editing faces
 // show error dialog when limits exceeded

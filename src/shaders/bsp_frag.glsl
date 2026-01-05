@@ -6,6 +6,7 @@ uniform float wireframeThickness;
 uniform float textureAtlasScale;
 uniform vec2 paletteAtlasScale;
 uniform vec4 lightmapMult;
+uniform float wireframeOnly;
 
 varying vec4 fAtlas;
 varying vec4 fLightmapTex01;
@@ -32,7 +33,10 @@ uniform sampler2D pTex;
 #endif
 
 void main()
-{
+{	
+	if (fColor.a == 0.0) // faces marked hidden
+		discard;
+		
 	vec4 texel;
 	
 	#if defined(TEXTURE_ATLAS)
@@ -51,7 +55,7 @@ void main()
 		texel = texture2D(pTex, vec2((fPal.x + palIdx*255) * paletteAtlasScale.x, fPal.y));
 	#endif
 	
-	if (alphaTest != 0.0) {
+	if (alphaTest != 0.0) { // solid texture mode
 		#if defined(TEXTURE_PAL)
 			if (palIdx == 1.0) {
 				discard;
@@ -65,8 +69,6 @@ void main()
 	else {
 		texel.a = 1.0;
 	}
-	if (fColor.a == 0.0)
-		discard;
 
 	vec3 color = texel.rgb * fColor.rgb;
 	
@@ -81,17 +83,22 @@ void main()
 	vec4 texColor = vec4(pow(color, vec3(1.0/gamma)), fColor.a*texel.a);
 	
 	#if defined(WIREFRAME)
-		vec3 a = smoothstep(vec3(0.0), fwidth(fBary) * wireframeThickness, fBary);
-		a = mix(vec3(1.0), a, fEdgeEnable);
-		float dist = min(min(a.x, a.y), a.z);
+		vec3 d = fwidth(fBary);
 		
-		if (dist < 1.0) {
+		// disable edges
+		vec3 edgeDistPx = fBary / d;
+		edgeDistPx = mix(vec3(1e6), edgeDistPx, fEdgeEnable); 
+		
+		float edge = min(min(edgeDistPx.x, edgeDistPx.y), edgeDistPx.z); // distance from edge
+		float mask = smoothstep(0.0, wireframeThickness, edge); // constant thickness in pixels
+
+		if (mask < 1.0) {
 			float lum = dot(texColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-			gl_FragColor = (lum > 0.25) ? wireframeColorBright : wireframeColorDark;
+			gl_FragColor = (lum > 0.25) && wireframeOnly < 1.0f ? wireframeColorBright : wireframeColorDark;
 			return;
 		}
 	
-		if (!gl_FrontFacing) {
+		if (wireframeOnly > 0 || !gl_FrontFacing) {
 			discard;
 		}
 	#endif
