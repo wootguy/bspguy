@@ -179,9 +179,9 @@ public:
 	BspRenderer(Bsp* map, PointEntRenderer* fgd);
 	~BspRenderer();
 
-	void getRenderEnts(vector<OrderedEnt>& ents); // calc ent data for multipass rendering
-	void renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass);
-	void renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull);
+	void updateOrderEnts(); // calc ent data for multipass rendering
+	void renderSolids(bool highlightAlwaysOnTop, bool transparencyPass);
+	void renderClipnodes(int clipnodeHull);
 	void renderLeaves();
 
 	bool willDrawModel(Entity* ent, int modelIdx, bool transparent);
@@ -206,8 +206,8 @@ public:
 	void refreshEnt(int entIdx);
 	int refreshModel(int modelIdx, bool refreshClipnodes=true);
 	bool RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& groupb);
-	int allocMegaBufferData(vector<OrderedEnt>& ents);
-	void refreshMegaBuffers(vector<OrderedEnt>& ents); // update combined render groups for batching solid entity rendering
+	int allocMegaBufferData();
+	void refreshMegaBuffers(); // update combined render groups for batching solid entity rendering
 	bool refreshModelClipnodes(int modelIdx);
 	void refreshFace(int faceIdx);
 	void refreshPointEnt(int entIdx, bool uploadBuffer=true);
@@ -261,6 +261,9 @@ private:
 	LightmapInfo* lightmaps = NULL;
 	RenderEnt* renderEnts = NULL;
 	RenderModel* renderModels = NULL;
+	int lastOrderEntFullUpdatePickCount; // pick count for the last full render ent update
+	vector<OrderedEnt> orderEnts;
+	vector<int> orderEntIndexes; // maps a bsp index to an order ent index
 	vector<MegaRenderGroup> megaRenderGroups; // a combination of many bsp models that all share the same
 										 // properties. There may be duplicates as a single model can be 
 										 // used in many entities.
@@ -269,7 +272,6 @@ private:
 	int megaGroupUpdateLastPickCount;
 	int megaGroupUpdateProgress; // used to limit buffers updated per frame to prevent lag on every click
 	float megaGroupUpdateStartTime;
-	unordered_set<int> megaGroupEnts; // ent indexes that are part of a mega group
 	RenderClipnodes* renderClipnodeDat = NULL;
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
@@ -358,4 +360,5 @@ private:
 	bool getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup);
 	int getBestClipnodeHull(int modelIdx);
 	Texture* generateMissingTexture(int width, int height, int mips, COLOR3* pal);
+	bool updateOrderEnt(OrderedEnt& orderEnt, int idx);
 };

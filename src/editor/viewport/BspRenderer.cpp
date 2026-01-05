@@ -1267,22 +1267,26 @@ bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& gr
 	return true;
 }
 
-int BspRenderer::allocMegaBufferData(vector<OrderedEnt>& ents) {
+int BspRenderer::allocMegaBufferData() {
 	int totalMegaModelGroups = 0;
 
 	// find which entities can be included in the mega buffer and tally vertex counts
-	for (int i = 0; i < ents.size(); i++) {
-		OrderedEnt& ent = ents[i];
+	for (int i = 0; i < orderEnts.size(); i++) {
+		OrderedEnt& ent = orderEnts[i];
 		EntRenderOpts& opts = ent.ent->getRenderOpts();
 
 		// don't combine models for entities that have special rendering properties applied
-		if (ent.modelIdx == -1 || ent.ent->highlighted || ent.ent->hidden)
+		if (ent.modelIdx == -1 || ent.ent->highlighted || ent.ent->hidden) {
+			ent.isInMegaRenderGroup = false;
 			continue;
-		if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
-			if (opts.rendermode != RENDER_MODE_NORMAL)
-				continue;
 		}
-		megaGroupEnts.insert(ent.entIdx);
+		if ((g_settings.render_flags & RENDER_RENDER_MODES) || g_app->previewMode) {
+			if (opts.rendermode != RENDER_MODE_NORMAL) {
+				ent.isInMegaRenderGroup = false;
+				continue;
+			}
+		}
+		ent.isInMegaRenderGroup = true;
 
 		RenderModel& model = renderModels[ent.modelIdx];
 		totalMegaModelGroups += model.groupCount;
@@ -1367,11 +1371,13 @@ void BspRenderer::reloadMegaBuffers() {
 	megaGroupUpdateIdx = -1;
 	megaGroupUpdateProgress = -1;
 	megaGroupUpdateLastPickCount = -1;
+	lastOrderEntFullUpdatePickCount = -1;
 }
 
-void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
+void BspRenderer::refreshMegaBuffers() {
 	if (g_app->pickCount != megaGroupUpdateLastPickCount) {
-		reloadMegaBuffers();
+		megaGroupUpdateIdx = -1;
+		megaGroupUpdateProgress = -1;
 		megaGroupUpdateLastPickCount = g_app->pickCount;
 	}
 	else if (megaGroupUpdateProgress == -1) {
@@ -1395,9 +1401,8 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		megaRenderClipnodes.refs.clear();
 
 		megaRenderGroups.clear();
-		megaGroupEnts.clear();
 
-		totalModelGroups = allocMegaBufferData(ents);
+		totalModelGroups = allocMegaBufferData();
 
 		megaGroupUpdateProgress = 0;
 
@@ -1423,7 +1428,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 
 		int vertIdx = 0;
 		for (EntModelGroupIdx& ref : mega.refs) {
-			OrderedEnt& ent = ents[ref.entIdx];
+			OrderedEnt& ent = orderEnts[ref.entIdx];
 			RenderGroup& refGroup = renderModels[ent.modelIdx].renderGroups[ref.groupIdx];
 
 			if (megaGroupUpdateProgress < oldProgress) {
@@ -1464,7 +1469,7 @@ void BspRenderer::refreshMegaBuffers(vector<OrderedEnt>& ents) {
 		int vertIdx = 0;
 		VertexBuffer* sampleBuf = NULL;
 		for (int idx : megaRenderClipnodes.refs) {
-			OrderedEnt& ent = ents[idx];
+			OrderedEnt& ent = orderEnts[idx];
 
 			int hull = i;
 
@@ -2576,43 +2581,77 @@ int BspRenderer::addTextureToMap(string textureName) {
 	return newMiptex;
 }
 
-void BspRenderer::getRenderEnts(vector<OrderedEnt>& ents) {
-	ents.reserve(map->ents.size());
+bool BspRenderer::updateOrderEnt(OrderedEnt& orderEnt, int i) {
+	Entity* ent = map->ents[i];
+	orderEnt.modelIdx = ent->getBspModelIdx();
+	if (orderEnt.modelIdx >= map->modelCount || orderEnt.modelIdx < 0) { // TODO: and -1?
+		return false;
+	}
+	orderEnt.ent = ent;
+	const mat4x4& rotMat = ent->getRotationMatrix(false);
+	orderEnt.transform = renderEnts[i].modelMat * rotMat;
+
+	orderEnt.transformWorld = renderEnts[i].modelMat;
+	orderEnt.transformWorld.translate(renderOffset.x, renderOffset.y, renderOffset.z);
+	orderEnt.transformWorld = orderEnt.transformWorld * rotMat;
+	return true;
+}
+
+void BspRenderer::updateOrderEnts() {
 	mapOffset = map->ents.size() ? map->ents[0]->getOrigin() : vec3();
 	renderOffset = vec3(mapOffset.x, mapOffset.z, -mapOffset.y);
 
-	for (int i = 0; i < map->ents.size(); i++) {
-		map->ents[i]->highlighted = false;
-		OrderedEnt ent;
-		ent.isInMegaRenderGroup = megaGroupEnts.count(i);
-		ent.ent = map->ents[i];
-		ent.entIdx = i;
-		ent.modelIdx = map->ents[i]->getBspModelIdx();
-		if (ent.modelIdx >= map->modelCount) {
-			continue;
+	bool shouldDoFullUpdate = lastOrderEntFullUpdatePickCount != g_app->pickCount;
+	lastOrderEntFullUpdatePickCount = g_app->pickCount;
+
+	if (shouldDoFullUpdate) {
+		orderEnts.clear();
+		orderEnts.reserve(map->ents.size());
+		orderEntIndexes.resize(map->ents.size());
+
+		for (int i = 0; i < map->ents.size(); i++) {
+			map->ents[i]->highlighted = false;
+
+			if (i == 251)
+				logf("");
+
+			OrderedEnt newEnt;
+			if (updateOrderEnt(newEnt, i)) {
+				newEnt.entIdx = i;
+				orderEnts.push_back(newEnt);
+			}
+			orderEntIndexes[i] = -1;
 		}
-		const mat4x4& rotMat = map->ents[i]->getRotationMatrix(false);
-		ent.transform = renderEnts[i].modelMat * rotMat;
+		for (Entity* ent : g_app->pickInfo.getEnts()) {
+			ent->highlighted = true;
+		}
 
-		ent.transformWorld = renderEnts[i].modelMat;
-		ent.transformWorld.translate(renderOffset.x, renderOffset.y, renderOffset.z);
-		ent.transformWorld = ent.transformWorld * rotMat;
+		// draw highlighted ents last, or else overlapping models don't appear selected
+		sort(orderEnts.begin(), orderEnts.end(), [](const OrderedEnt& a, const OrderedEnt& b) {
+			return a.ent->highlighted < b.ent->highlighted;
+		});
 
-		ents.push_back(ent);
+		for (int i = 0; i < orderEnts.size(); i++) {
+			orderEntIndexes[orderEnts[i].entIdx] = i;
+		}
 	}
-	for (Entity* ent : g_app->pickInfo.getEnts()) {
-		ent->highlighted = true;
+	else {
+		// just update the selected ones that may be moving around
+		for (int idx : g_app->pickInfo.ents) {
+			int orderIdx = orderEntIndexes[idx];
+			if (orderIdx >= 0) {
+				OrderedEnt& orderEnt = orderEnts[orderIdx];
+				if (idx == 251)
+					logf("");
+				updateOrderEnt(orderEnt, idx);
+			}
+		}
 	}
 
-	// draw highlighted ents last
-	sort(ents.begin(), ents.end(), [](const OrderedEnt& a, const OrderedEnt& b) {
-		return a.ent->highlighted < b.ent->highlighted;
-	});
-
-	refreshMegaBuffers(ents);
+	refreshMegaBuffers();
 }
 
-void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highlightAlwaysOnTop, bool transparencyPass) {
+void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass) {
 	if (map->ents.empty())
 		return;
 	
@@ -2696,8 +2735,8 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 
 	int renderEnts = 0;
 	activeShader->pushMatrix(MAT_MODEL);
-	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
-		const OrderedEnt& orderEnt = orderedEnts[i];
+	for (int i = 0, sz = orderEnts.size(); i < sz; i++) {
+		const OrderedEnt& orderEnt = orderEnts[i];
 		int modelIdx = orderEnt.modelIdx;
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
@@ -2736,7 +2775,7 @@ void BspRenderer::renderSolids(const vector<OrderedEnt>& orderedEnts, bool highl
 	glEnable(GL_CULL_FACE);
 }
 
-void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int clipnodeHull) {
+void BspRenderer::renderClipnodes(int clipnodeHull) {
 	if (map->ents.empty() || !clipnodesLoaded || g_app->previewMode)
 		return;
 
@@ -2774,8 +2813,8 @@ void BspRenderer::renderClipnodes(const vector<OrderedEnt>& orderedEnts, int cli
 	}	
 
 	g_shaders.clipnode->pushMatrix(MAT_MODEL);
-	for (int i = 0, sz = orderedEnts.size(); i < sz; i++) {
-		const OrderedEnt& orderEnt = orderedEnts[i];
+	for (int i = 0, sz = orderEnts.size(); i < sz; i++) {
+		const OrderedEnt& orderEnt = orderEnts[i];
 		int modelIdx = orderEnt.modelIdx;
 
 		if (modelIdx >= 0 && modelIdx < map->modelCount) {
@@ -3755,7 +3794,6 @@ int BspRenderer::calcMemoryUsage() {
 		bytes += megaRenderClipnodes.buffer[i] ? megaRenderClipnodes.buffer[i]->calcMemoryUsage() : 0;
 	}
 	bytes += megaRenderClipnodes.refs.size() * sizeof(int);
-	bytes += megaGroupEnts.size() * sizeof(int);
 
 	if (renderClipnodeDat) {
 		bytes += sizeof(RenderClipnodes)*numRenderClipnodes;

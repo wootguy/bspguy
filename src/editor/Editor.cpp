@@ -941,11 +941,10 @@ void Editor::drawViewport() {
 		}
 	}
 
-	vector<OrderedEnt> orderedEnts;
-	mapRenderer->getRenderEnts(orderedEnts);
+	mapRenderer->updateOrderEnts();
 
 	// draw opaque world/entity faces
-	mapRenderer->renderSolids(orderedEnts, transformTarget == TRANSFORM_VERTEX, false);
+	mapRenderer->renderSolids(transformTarget == TRANSFORM_VERTEX, false);
 	mapRenderer->drawPointEntities();
 
 	glCheckError("Rendering BSP (opaque pass)");
@@ -958,11 +957,11 @@ void Editor::drawViewport() {
 	glCheckError("Rendering models and sprites");
 
 	// draw transparent entity faces
-	mapRenderer->renderSolids(orderedEnts, transformTarget == TRANSFORM_VERTEX, true);
+	mapRenderer->renderSolids(transformTarget == TRANSFORM_VERTEX, true);
 
 	// don't draw clipnodes in leaf mode because they're the same color/style and confuse picking
 	if (pickMode != PICK_LEAF)
-		mapRenderer->renderClipnodes(orderedEnts, clipnodeRenderHull);
+		mapRenderer->renderClipnodes(clipnodeRenderHull);
 
 	glCheckError("Rendering BSP (transparency pass)");
 
@@ -1216,7 +1215,6 @@ void Editor::drawArrangeMaps() {
 	struct RenderMap {
 		BspRenderer* renderer;
 		Entity* controlEnt;
-		vector<OrderedEnt> orderedEnts;
 		vec3 mins, maxs;
 	};
 	vector<RenderMap> renderMaps;
@@ -1226,13 +1224,11 @@ void Editor::drawArrangeMaps() {
 		Entity* controlEnt = mapRenderer->map->ents[idx++];
 		arrangeBsp->map->ents[0]->setOrAddKeyvalue("origin", controlEnt->getOrigin().toKeyvalueString());
 
-		vector<OrderedEnt> orderedEnts;
-		arrangeBsp->getRenderEnts(orderedEnts);
+		arrangeBsp->updateOrderEnts();
 
 		RenderMap rmap;
 		rmap.controlEnt = controlEnt;
 		rmap.renderer = arrangeBsp;
-		rmap.orderedEnts = orderedEnts;
 		arrangeBsp->map->get_bounding_box(rmap.mins, rmap.maxs);
 
 		renderMaps.push_back(rmap);
@@ -1240,14 +1236,14 @@ void Editor::drawArrangeMaps() {
 
 	for (RenderMap& arrangeBsp : renderMaps) {
 		// opaque pass
-		arrangeBsp.renderer->renderSolids(arrangeBsp.orderedEnts, false, false);
+		arrangeBsp.renderer->renderSolids(false, false);
 		arrangeBsp.renderer->drawPointEntities();
 	}
 
 	for (RenderMap& arrangeBsp : renderMaps) {
 		// transparency pass
-		arrangeBsp.renderer->renderSolids(arrangeBsp.orderedEnts, false, true);
-		arrangeBsp.renderer->renderClipnodes(arrangeBsp.orderedEnts, clipnodeRenderHull);
+		arrangeBsp.renderer->renderSolids(false, true);
+		arrangeBsp.renderer->renderClipnodes(clipnodeRenderHull);
 	}
 
 	g_shaders.color->bind();
