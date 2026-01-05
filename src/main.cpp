@@ -15,6 +15,7 @@
 // - fix bad extents in resize tool for 256x64 bts_rc made it bigger
 // - try freetype font at lower brightness
 // - having a single ent, even worlspawn selected, is an fps dip
+// - keep widgets in same position afer "reset"
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

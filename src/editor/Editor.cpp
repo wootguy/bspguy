@@ -28,6 +28,7 @@
 #include "render_utils.h"
 #include "ModelRenderer.h"
 #include "NavRenderer.h"
+#include "FrameBuffer.h"
 
 #include "icons/app.h"
 #include "icons/app2.h"
@@ -206,7 +207,7 @@ Editor::Editor() {
 	debugf("    Texture Units: %d / 3\n", texImageUnits);
 	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
-	debugf("OpenGL Extensions:\n%s\n\n", openglExts);
+	//debugf("OpenGL Extensions:\n%s\n\n", openglExts);
 	debugf("\n");
 
 	if (varyingFloats < 32 || vertexAttributes < MAX_VERTEX_ATTRIBUTES || texImageUnits < 2) {
@@ -629,6 +630,13 @@ void Editor::renderLoop() {
 
 	fgdFuture = async(launch::async, &Editor::loadFgds, this);
 
+	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+
+	if (g_settings.render_scale != 100) {
+		viewportScale = g_settings.render_scale * 0.01f;
+		viewportFbo = new FrameBuffer(windowWidth, windowHeight, viewportScale);
+	}
+
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
@@ -651,7 +659,19 @@ void Editor::renderLoop() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		mapRenderer->delayLoadData();
-		drawViewport();
+
+		if (viewportFbo) {
+			viewportFbo->bind();
+			drawViewport();
+			viewportFbo->unbind();
+			viewportFbo->draw();
+		}
+		else {
+			glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+			glViewport(0, 0, windowWidth, windowHeight);
+			drawViewport();
+		}
+		
 		glActiveTexture(GL_TEXTURE0); // needed even if gui isn't drawn(???)
 
 		// updated here so imgui can use control logic from this class
@@ -1206,22 +1226,25 @@ void Editor::drawDebugObjects() {
 }
 
 void Editor::drawMouseObjects() {
+	int w = viewportFbo ? viewportFbo->width : windowWidth;
+	int h = viewportFbo ? viewportFbo->height : windowHeight;
+
 	if (cameraMouseCapture || isBoxSelecting) {
 		g_shaders.color->bind();
 		g_shaders.color->pushMatrix(MAT_PROJECTION);
 		g_shaders.color->pushMatrix(MAT_VIEW);
 		g_shaders.color->pushMatrix(MAT_MODEL);
-		projection.ortho(0, windowWidth, windowHeight, 0, -1.0f, 1.0f);
+		projection.ortho(0, w, h, 0, -1.0f, 1.0f);
 		view.loadIdentity();
 		model.loadIdentity();
 		g_shaders.color->updateMatrixes();
 		glDisable(GL_DEPTH_TEST);
 
 		if (cameraMouseCapture) {
-			int border = 1;
-			int thick = 2;
-			int len = 12;
-			vec2 center(windowWidth / 2, windowHeight / 2);
+			float border = 1;
+			float thick = w > 1024 ? 2 : 1.5f;
+			float len = w > 1024 ? 12.5f : 8.5f;
+			vec2 center(w / 2 + 0.5f, h / 2 + 0.5f);
 
 			drawRect2D(center - vec2(len + border, thick / 2 + border), vec2(len * 2 + border * 2, thick + border * 2), COLOR4(0, 0, 0, 255));
 			drawRect2D(center - vec2(thick / 2 + border, len + border), vec2(thick + border * 2, len * 2 + border * 2), COLOR4(0, 0, 0, 255));
@@ -1693,7 +1716,11 @@ void Editor::viewportControls() {
 
 	if (!io.WantTextInput && !io.WantCaptureMouse && !guiWasFocused) {
 		globalShortcutControls();
+		captureMouseControls();
 		shortcutControls();
+	}
+	else if (cameraMouseCapture) {
+		captureMouseControls(); // should always be able to disable mouse capture
 	}
 
 	if (io.WantTextInput) {
@@ -1701,13 +1728,9 @@ void Editor::viewportControls() {
 	}
 
 	if (!io.WantCaptureMouse) {
-		double xpos, ypos;
-		glfwGetCursorPos(window, &xpos, &ypos);
-		vec2 mousePos(xpos, ypos);
-
 		cameraContextMenus();
 
-		cameraRotationControls(mousePos);
+		cameraRotationControls();
 
 		makeVectors(cameraAngles, cameraForward, cameraRight, cameraUp);
 
@@ -1723,6 +1746,9 @@ void Editor::viewportControls() {
 		}
 
 		cameraPickingControls();
+	}
+	else if (cameraMouseCapture) {
+		cameraRotationControls(); // in case capture point overlaps a gui window
 	}
 }
 
@@ -1775,8 +1801,8 @@ void Editor::cameraPickingControls() {
 
 		transforming = clickedOnAxes ? transformAxisControls() : false;
 
-		double xpos, ypos;
-		glfwGetCursorPos(window, &xpos, &ypos);
+		int xpos, ypos;
+		getMousePos(xpos, ypos);
 
 		if (!isBoxSelecting) {
 			isBoxSelecting = true;
@@ -1953,12 +1979,20 @@ void Editor::applyTransform(bool forceUpdate) {
 	}
 }
 
-void Editor::cameraRotationControls(vec2 mousePos) {
+void Editor::cameraRotationControls() {
 	static double lastTime = 0;
 	double now = glfwGetTime();
 	double deltaTime = now - lastTime;
 	lastTime = now;
 	float ymult = g_settings.invert_y_axis ? -1 : 1;
+
+	vec2 mousePos;
+	{
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
+		mousePos.x = xpos;
+		mousePos.y = ypos;
+	}
 
 	if (pressed[GLFW_KEY_DOWN]) {
 		cameraAngles.x += rotationSpeed * deltaTime * 50 * ymult;
@@ -2263,9 +2297,10 @@ void Editor::globalShortcutControls() {
 				ent->didStudioDraw = false; // fix ents disappearing when models are disabled
 		}
 	}
-	oldPreview = previewMode;
+	oldPreview = previewMode;	
+}
 
-
+void Editor::captureMouseControls() {
 	if (!anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		cameraMouseCapture = !cameraMouseCapture;
 
@@ -2621,18 +2656,20 @@ vec3 Editor::getMoveDir()
 }
 
 void Editor::getPickRay(vec3& start, vec3& pickDir) {
-	double xpos, ypos;
-	glfwGetCursorPos(window, &xpos, &ypos);
+	int xpos, ypos;
+	getMousePos(xpos, ypos);
 	return getPickRay(vec2(xpos, ypos), start, pickDir);
 }
 
 void Editor::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
 	// invert ypos
-	mousePos.y = windowHeight - mousePos.y;
+	int wWidth = viewportFbo ? viewportFbo->width : windowWidth;
+	int wHeight = viewportFbo ? viewportFbo->height : windowHeight;
+	mousePos.y = wHeight - mousePos.y;
 
 	// translate mouse coordinates so that the origin lies in the center and is a scaler from +/-1.0
-	float mouseX = ((mousePos.x / (double)windowWidth) * 2.0f) - 1.0f;
-	float mouseY = ((mousePos.y / (double)windowHeight) * 2.0f) - 1.0f;
+	float mouseX = ((mousePos.x / (double)wWidth) * 2.0f) - 1.0f;
+	float mouseY = ((mousePos.y / (double)wHeight) * 2.0f) - 1.0f;
 
 	// http://schabby.de/picking-opengl-ray-tracing/
 	vec3 forward, right, up;
@@ -2645,7 +2682,7 @@ void Editor::getPickRay(vec2 mousePos, vec3& start, vec3& pickDir) {
 	// convert fovy to radians 
 	float rad = fov * PI / 180.0f;
 	float vLength = tan(rad / 2.0f) * zNear;
-	float hLength = vLength * (windowWidth / (float)windowHeight);
+	float hLength = vLength * (wWidth / (float)wHeight);
 
 	v *= vLength;
 	h *= hLength;
@@ -2687,10 +2724,6 @@ Frustum Editor::getPickFrustum() {
 }
 
 void Editor::setupView() {
-	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
-
-	glViewport(0, 0, windowWidth, windowHeight);
-
 	projection.perspective(fov, (float)windowWidth / (float)windowHeight, zNear, zFar);
 
 	view.loadIdentity();
@@ -4641,6 +4674,13 @@ void Editor::getWindowSize(int& width, int& height) {
 
 void Editor::handleResize(int width, int height) {
 	gui->windowResized(width, height);
+	windowWidth = width;
+	windowHeight = height;
+
+	if (viewportFbo) {
+		delete viewportFbo;
+		viewportFbo = new FrameBuffer(windowWidth, windowHeight, viewportScale);
+	}
 }
 
 bool Editor::entityHasFgd(string cname) {
@@ -4716,4 +4756,18 @@ Frustum Editor::getCameraFrustum() {
 vector<Entity*>& Editor::ents() {
 	static vector<Entity*> dummyList;
 	return (mapRenderer && mapRenderer->map) ? mapRenderer->map->ents : dummyList;
+}
+
+void Editor::getMousePos(int& x, int& y) {
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+
+	if (viewportFbo) {
+		x = xpos * viewportScale;
+		y = ypos * viewportScale;
+	}
+	else {
+		x = xpos;
+		y = ypos;
+	}
 }

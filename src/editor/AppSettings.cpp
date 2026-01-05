@@ -46,6 +46,7 @@ void AppSettings::loadDefault()
 	pal_textures = true;
 	g_settings.max_texture_size = 0;
 	settings_tab = 0;
+	render_scale = 100;
 	engine = ENGINE_SVEN_COOP;
 	renderer = RENDERER_OPENGL_21;
 
@@ -117,6 +118,7 @@ void AppSettings::load() {
 			else if (key == "move_speed") { g_settings.moveSpeed = atof(val.c_str()); }
 			else if (key == "rot_speed") { g_settings.rotSpeed = atof(val.c_str()); }
 			else if (key == "render_flags") { g_settings.render_flags = atoi(val.c_str()); }
+			else if (key == "render_scale") { g_settings.render_scale = atoi(val.c_str()); }
 			else if (key == "ui_scale") { g_settings.ui_scale = atoi(val.c_str()); }
 			else if (key == "font_size") {
 				g_settings.ui_scale = (atoi(val.c_str()) / 22.0f) * 110; 
@@ -234,6 +236,7 @@ void AppSettings::save() {
 	file << "render_flags=" << g_settings.render_flags << endl;
 	file << "font_size=" << (int)((g_settings.ui_scale * 0.01f * 0.91f) * 22) << endl; // legacy setting
 	file << "ui_scale=" << g_settings.ui_scale << endl;
+	file << "render_scale=" << g_settings.render_scale << endl;
 	file << "undo_levels=" << g_settings.undoLevels << endl;
 	file << "autoload_layout=" << g_settings.autoload_layout << endl;
 	file << "autoload_layout_width=" << g_settings.autoload_layout_width << endl;

@@ -1,5 +1,6 @@
 #include "Widget.h"
 #include "ModelRenderer.h"
+#include "FrameBuffer.h"
 
 void SettingsWidget::setup() {
 	ImGui::SetNextWindowPos(ImVec2(5 * uiScale, 50 * uiScale), ImGuiCond_FirstUseEver);
@@ -186,12 +187,26 @@ void SettingsWidget::draw() {
 			*/
 			ImGui::EndCombo();
 		}
+		tooltip("Lowering texture quality boosts FPS in maps with lots of solid entities", 0);
 
 		//ImGui::DragFloat("Mipmap Bias", &g_app->tex_lod_bias, 0.02f, -4.0f, 4.0f, "%.1f");
 		//tooltip("Controls how quickly texture detail decreases with distance. Higher = lower detail sooner.");
 
 		if (isLoading)
 			ImGui::EndDisabled();
+
+		if (ImGui::DragInt("Viewport Resolution", &g_settings.render_scale, 0.1f, 1, 100, "%d%%")) {
+			app->viewportScale = g_settings.render_scale * 0.01f;
+
+			delete app->viewportFbo;
+			app->viewportFbo = NULL;
+
+			if (g_settings.render_scale != 100) {
+				app->viewportFbo = new FrameBuffer(app->windowWidth, app->windowHeight, app->viewportScale);
+			}
+		}
+		tooltip("Lower this to increase FPS on fill-rate-limited hardware (old iGPUs).\n\n"
+			"You know you're fill rate limited if your FPS increases when you look away from the map.", 0);
 
 		ImGui::DragFloat("Field of View", &app->fov, 0.1f, 1.0f, 150.0f, "%.1f degrees");
 		ImGui::DragFloat("Back Clipping Plane", &app->zFar, 10.0f, -99999.f, 99999.f, "%.0f", ImGuiSliderFlags_Logarithmic);
@@ -208,7 +223,6 @@ void SettingsWidget::draw() {
 			g_app->mapRenderer->reloadTextures();
 		}
 		tooltip("Greatly reduces VRAM usage, which can improve your FPS and allow big maps to load. "
-			"If you aren't starved for VRAM then this may slightly lower FPS instead. "
 			"Selectable at high texture quality or lower.\n", 0);
 		if (isLoading || !canUsePalettedTextures)
 			ImGui::EndDisabled();

@@ -4,13 +4,13 @@
 
 tQuad::tQuad(float x, float y, float w, float h)
 {
-	v1 = tVert(x,   y,   0, 0, 0);
-	v2 = tVert(x,   y+h, 0, 0, 1);
-	v3 = tVert(x+w, y+h, 0, 1, 1);
+	v1 = tVert(x,   y,   0, 0, 1);
+	v2 = tVert(x,   y+h, 0, 0, 0);
+	v3 = tVert(x+w, y+h, 0, 1, 0);
 
-	v4 = tVert(x,   y,   0, 0, 0);
-	v5 = tVert(x+w, y+h, 0, 1, 1);
-	v6 = tVert(x+w, y,   0, 1, 0);
+	v4 = tVert(x,   y,   0, 0, 1);
+	v5 = tVert(x+w, y+h, 0, 1, 0);
+	v6 = tVert(x+w, y,   0, 1, 1);
 }
 
 tQuad::tQuad(float x, float y, float w, float h, float uu1, float vv1, float uu2, float vv2)

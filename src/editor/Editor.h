@@ -23,6 +23,7 @@ class LeafNavMesh;
 class BaseRenderer;
 class NavRenderer;
 class NavMesh;
+class FrameBuffer;
 
 enum transform_modes {
 	TRANSFORM_NONE = -1,
@@ -182,6 +183,8 @@ public:
 
 private:
 	GLFWwindow* window;
+	FrameBuffer* viewportFbo = NULL; // for viewport scaling
+	float viewportScale = 1.0f; // for viewport scaling
 
 	PointEntRenderer* pointEntRenderer;
 	PointEntRenderer* swapPointEntRenderer = NULL;
@@ -308,12 +311,13 @@ private:
 	void viewportControls();
 	void cameraPickingControls();
 	void vertexEditControls();
-	void cameraRotationControls(vec2 mousePos);
+	void cameraRotationControls();
 	void cameraObjectHovering();
 	void cameraContextMenus(); // right clicking on ents and things
 	void moveGrabbedEnts(); // translates the grabbed ent
 	void shortcutControls(); // hotkeys for menus and things
 	void globalShortcutControls(); // these work even with the UI selected
+	void captureMouseControls();
 	void pickObject(bool boxSelect); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes
 	void applyTransform(bool forceUpdate=false);
@@ -407,4 +411,5 @@ private:
 	void getWindowSize(int& width, int& height);
 	void updateWindowTitle();
 	bool entityHasFgd(string cname); // entity class has a definition for it in an FGD
+	void getMousePos(int& x, int& y);
 };

@@ -227,7 +227,7 @@ void BspRenderer::loadTextures() {
 		}
 
 		COLOR3* palette = NULL;
-		byte* src = NULL;
+		byte* mipdat[4] = {NULL, NULL, NULL, NULL};
 		WADTEX* wadTex = NULL;
 
 		int lastMipSize = (tex->nWidth / 8) * (tex->nHeight / 8);
@@ -249,7 +249,8 @@ void BspRenderer::loadTextures() {
 
 					foundInWad = true;
 					palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
-					src = wadTex->data;
+					for (int i = 0; i < 4; i++)
+						mipdat[i] = wadTex->data + wadTex->nOffsets[i];
 
 					wadTexCount++;
 					break;
@@ -265,7 +266,8 @@ void BspRenderer::loadTextures() {
 		}
 		else {
 			palette = (COLOR3*)(map->textures + texOffset + tex->nOffsets[3] + lastMipSize + 2);
-			src = map->textures + texOffset + tex->nOffsets[0];
+			for (int i = 0; i < 4; i++)
+				mipdat[i] = map->textures + texOffset + tex->nOffsets[i];
 			embedCount++;
 		}
 
@@ -276,7 +278,7 @@ void BspRenderer::loadTextures() {
 			memcpy(atlasPal, palette, sizeof(COLOR3) * 256);
 
 			uint8_t* imageData = new uint8_t[sz];
-			memcpy(imageData, src, sz);
+			memcpy(imageData, mipdat[0], sz);
 			glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
 
 			// no mipmaps because filtering between levels is unavoidable and
@@ -286,9 +288,9 @@ void BspRenderer::loadTextures() {
 			COLOR4* imageData = new COLOR4[tex->nWidth * tex->nHeight];
 
 			for (int k = 0; k < sz; k++) {
-				imageData[k] = COLOR4(palette[src[k]], 255);
+				imageData[k] = COLOR4(palette[mipdat[0][k]], 255);
 
-				if (hasAlpha && src[k] == 255)
+				if (hasAlpha && mipdat[0][k] == 255)
 					imageData[k].a = 0;
 			}
 
@@ -298,7 +300,7 @@ void BspRenderer::loadTextures() {
 			//glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
 
 			for (int k = 1; k <= numMips; k++) {
-				glTexturesSwap[i]->addMipMap(k, map->textures + texOffset + tex->nOffsets[k], palette);
+				glTexturesSwap[i]->addMipMap(k, mipdat[k], palette);
 			}
 		}
 		

@@ -77,6 +77,7 @@ set(SOURCE_FILES
 	
 	# OpenGL rendering
 	src/gl/primitives.h			src/gl/primitives.cpp
+	src/gl/FrameBuffer.h		src/gl/FrameBuffer.cpp
 	src/gl/Shader.h				src/gl/Shader.cpp
 	src/gl/ShaderProgram.h		src/gl/ShaderProgram.cpp
 	src/gl/VertexBuffer.h		src/gl/VertexBuffer.cpp
@@ -270,6 +271,7 @@ if(MSVC)
 	
 	source_group("Header Files\\gl" FILES	src/gl/Shader.h
 											src/gl/ShaderProgram.h
+											src/gl/FrameBuffer.h
 											src/gl/VertexBuffer.h
 											src/gl/Texture.h
 											src/gl/TextureArray.h
@@ -280,6 +282,7 @@ if(MSVC)
 											
 	source_group("Source Files\\gl" FILES	src/gl/Shader.cpp
 											src/gl/ShaderProgram.cpp
+											src/gl/FrameBuffer.cpp
 											src/gl/VertexBuffer.cpp
 											src/gl/Texture.cpp
 											src/gl/TextureArray.cpp
@@ -364,6 +367,7 @@ if(MSVC)
 												src/util/quant.h
 												src/util/colors.h
 												src/util/resample.h
+												src/util/HashMap.h
 												src/util/render_utils.h
 												)
 												
@@ -375,6 +379,7 @@ if(MSVC)
 												src/util/quant.cpp
 												src/util/colors.cpp
 												src/util/resample.cpp
+												src/util/HashMap.cpp
 												src/util/render_utils.cpp
 												)
 												
