@@ -218,6 +218,7 @@ private:
 
 	TransformAxes moveAxes = TransformAxes();
 	TransformAxes scaleAxes = TransformAxes();
+	VertexBuffer* originBuffer;
 	int hoverAxis; // axis being hovered
 	int draggingAxis = -1; // axis currently being dragged by the mouse
 	bool gridSnappingEnabled = true;

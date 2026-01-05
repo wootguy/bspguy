@@ -569,6 +569,42 @@ void Editor::setupTransformAxes() {
 		scaleAxes.numAxes = 6;
 	}
 
+	{
+		vec3 ori = vec3();
+		
+		vec3 dirs[3] = {
+			vec3(128, 0, 0),
+			vec3(0, 128, 0),
+			vec3(0, 0, 128),
+		};
+
+		COLOR4 colors[3]{
+			{ 255, 0, 0, 255 },
+			{ 0, 255, 0, 255 },
+			{ 0, 0, 255, 255 },
+		};
+		
+		cVert* verts = new cVert[3*2];
+		int idx = 0;
+
+		for (int i = 0; i < 3; i++) {
+			verts[idx].x = ori.x;
+			verts[idx].y = ori.z;
+			verts[idx].z = -ori.y;
+			verts[idx].c = colors[i];
+			idx++;
+
+			vec3 end = ori + dirs[i];
+			verts[idx].x = end.x;
+			verts[idx].y = end.z;
+			verts[idx].z = -end.y;
+			verts[idx].c = colors[i];
+			idx++;
+		}
+
+		originBuffer = new VertexBuffer(g_shaders.color, verts, 3*2, true);
+	}
+
 	glCheckError("creating transform axes");
 
 	updateDragAxes();
@@ -1017,9 +1053,7 @@ void Editor::drawViewport() {
 			}
 
 			if (g_settings.render_flags & RENDER_ORIGIN) {
-				drawLine(debugPoint - vec3(32, 0, 0), debugPoint + vec3(32, 0, 0), { 128, 128, 255, 255 });
-				drawLine(debugPoint - vec3(0, 32, 0), debugPoint + vec3(0, 32, 0), { 0, 255, 0, 255 });
-				drawLine(debugPoint - vec3(0, 0, 32), debugPoint + vec3(0, 0, 32), { 0, 0, 255, 255 });
+				originBuffer->draw(g_shaders.color, GL_LINES);
 			}
 
 			glEnable(GL_CULL_FACE);
