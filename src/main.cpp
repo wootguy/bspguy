@@ -8,9 +8,6 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - face editor moves to top left a lot
-// - remove wireframe buffers from ent cubes
-// - try freetype font at lower brightness
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

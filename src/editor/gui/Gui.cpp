@@ -1461,6 +1461,14 @@ void Gui::updateUiScale() {
 	style.IndentSpacing = roundf(21.0f * uiScale);
 	style.GrabMinSize = roundf(12.0f * uiScale);
 	style.ScrollbarSize = roundf(12.0f * uiScale);
+
+	if (g_settings.freetype_font) {
+		// less blurry pixels means overall brighter text than I'm used to. Compensate for that.
+		style.Colors[ImGuiCol_Text] = ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+	}
+	else {
+		style.Colors[ImGuiCol_Text] = ImVec4(1,1,1,1);
+	}
 }
 
 void Gui::drawWelcomePopup() {

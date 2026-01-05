@@ -543,7 +543,7 @@ StatInfo LimitsWidget::calcStat(string name, uint val, uint max, bool isMem) {
 		color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
 	}
 	else {
-		color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+		color = style.Colors[ImGuiCol_Text];
 	}
 
 	static char tmp[256];

@@ -90,9 +90,11 @@ void SettingsWidget::draw() {
 		}
 		if (ImGui::Checkbox("Ripent Safe Mode", &g_settings.ripent_safe_mode)) {
 			if (g_settings.ripent_safe_mode) {
+				g_app->deselectFaces();
 				g_app->deselectObject();
 				g_app->pickMode = PICK_OBJECT;
 				app->transformTarget = TRANSFORM_OBJECT;
+				gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible = false;
 
 				if (map->did_lumps_change(true)) {
 					const char* msg = "You have made edits that are not ripent safe. "
