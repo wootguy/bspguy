@@ -97,11 +97,11 @@ void main()
 
 		if (mask < 1.0) {
 			float lum = dot(texColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-			gl_FragColor = (lum > 0.25) && wireframeOnly < 1.0f ? wireframeColorBright : wireframeColorDark;
+			gl_FragColor = (lum > 0.25) && wireframeOnly < 0.5f ? wireframeColorBright : wireframeColorDark;
 			return;
 		}
 	
-		if (wireframeOnly > 0 || !gl_FrontFacing) {
+		if (wireframeOnly > 0.0f || !gl_FrontFacing) {
 			discard;
 		}
 	#endif

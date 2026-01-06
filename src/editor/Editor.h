@@ -120,6 +120,7 @@ public:
 
 	int windowWidth;
 	int windowHeight;
+	int oldWindowX, oldWindowY, oldWindowW, oldWindowH; // restored when toggling full screen
 
 	// button states
 	bool pressed[GLFW_KEY_LAST];
@@ -180,6 +181,7 @@ public:
 	vector<Entity*>& ents();
 	Frustum getCameraFrustum();
 	vec3 worldToScreen(const vec3& P);
+	void exit();
 
 private:
 	GLFWwindow* window;
@@ -317,7 +319,9 @@ private:
 	void cameraContextMenus(); // right clicking on ents and things
 	void moveGrabbedEnts(); // translates the grabbed ent
 	void shortcutControls(); // hotkeys for menus and things
+	void toggleFullscreen();
 	void globalShortcutControls(); // these work even with the UI selected
+	void viewportShortcutControls(); // these work even with the UI selected
 	void captureMouseControls();
 	void pickObject(bool boxSelect); // select stuff with the mouse
 	bool transformAxisControls(); // true if grabbing axes

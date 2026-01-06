@@ -114,12 +114,7 @@ void window_maximize_callback(GLFWwindow* window, int maximized)
 
 void window_close_callback(GLFWwindow* window)
 {
-	if (!g_app->confirmMapExit()) {
-		return;
-	}
-
-	g_settings.save();
-	logf("adios\n");
+	g_app->exit();
 }
 
 int g_scroll = 0;
@@ -336,6 +331,12 @@ bool Editor::createWindow() {
 				g_settings.windowY = max(g_settings.windowY, monY + top);
 				glfwSetWindowPos(window, g_settings.windowX, g_settings.windowY);
 			}
+		}
+
+		if (g_settings.fullscreen) {
+			toggleFullscreen();
+			oldWindowW = g_settings.windowWidth;
+			oldWindowH = g_settings.windowHeight;
 		}
 	}
 
@@ -650,6 +651,8 @@ void Editor::renderLoop() {
 		viewportFbo = new FrameBuffer(windowWidth, windowHeight, viewportScale);
 	}
 
+	int lastRenderScale = g_settings.render_scale;
+
 	float lastFrameTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
@@ -668,6 +671,17 @@ void Editor::renderLoop() {
 		frameTimeScale = 144.0f / fps;
 		lastFrameTime = glfwGetTime();
 		isLoading = reloading;
+
+		
+		if (lastRenderScale != g_settings.render_scale) {
+			lastRenderScale = g_settings.render_scale;
+			delete viewportFbo;
+			viewportFbo = NULL;
+
+			if (g_settings.render_scale != 100) {
+				viewportFbo = new FrameBuffer(windowWidth, windowHeight, viewportScale);
+			}
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1727,8 +1741,10 @@ void Editor::viewportControls() {
 
 	oldWantTextInput = io.WantTextInput;
 
+	globalShortcutControls();
+
 	if (!io.WantTextInput && !io.WantCaptureMouse && !guiWasFocused) {
-		globalShortcutControls();
+		viewportShortcutControls();
 		captureMouseControls();
 		shortcutControls();
 	}
@@ -2292,7 +2308,34 @@ void Editor::shortcutControls() {
 	}
 }
 
+void Editor::toggleFullscreen() {
+	if (g_settings.fullscreen) {
+		glfwGetWindowPos(window, &oldWindowX, &oldWindowY);
+		oldWindowW = windowWidth;
+		oldWindowH = windowHeight;
+
+		GLFWmonitor* bestMonitor = GetMonitorForWindow(window);
+		const GLFWvidmode* mode = glfwGetVideoMode(bestMonitor);
+
+		glfwSetWindowMonitor(window, bestMonitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+
+		handleResize(mode->width, mode->height);
+	}
+	else {
+		glfwSetWindowMonitor(window, NULL, oldWindowX, oldWindowY, oldWindowW, oldWindowH, 0);
+		glfwSetWindowSize(window, oldWindowW, oldWindowH);
+		handleResize(oldWindowW, oldWindowH);
+	}
+}
+
 void Editor::globalShortcutControls() {
+	if (pressed[GLFW_KEY_F10] && !oldPressed[GLFW_KEY_F10]) {
+		g_settings.fullscreen = !g_settings.fullscreen;
+		toggleFullscreen();
+	}
+}
+
+void Editor::viewportShortcutControls() {
 	if (anyCtrlPressed && pressed[GLFW_KEY_Z] && !oldPressed[GLFW_KEY_Z]) {
 		undo();
 	}
@@ -4795,4 +4838,20 @@ void Editor::getMousePos(int& x, int& y) {
 		x = xpos;
 		y = ypos;
 	}
+}
+
+void Editor::exit() {
+	if (!confirmMapExit()) {
+		return;
+	}
+
+	if (g_settings.fullscreen) {
+		g_settings.windowWidth = oldWindowW;
+		g_settings.windowHeight = oldWindowH;
+		g_settings.windowX = oldWindowX;
+		g_settings.windowY = oldWindowY;
+	}
+
+	g_settings.save();
+	logf("adios\n");
 }

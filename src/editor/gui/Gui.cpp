@@ -960,7 +960,7 @@ void Gui::drawStatusBar() {
 		
 		static char cam_origin[32];
 		static char cam_angles[32];
-		int fontSize = g_font_scale_base;
+		int fontSize = g_font_scale_base*uiScale;
 		static vec3 last_cam_origin = vec3(0.1f, 0, 0);
 		static vec3 last_cam_angles = vec3(0.1f, 0, 0);
 		float originWidth = defaultFont->CalcTextSizeA(fontSize, FLT_MAX, FLT_MAX, cam_origin).x;
@@ -982,7 +982,7 @@ void Gui::drawStatusBar() {
 		}
 
 		ImGui::SameLine();
-		ImGui::Dummy(ImVec2(5, 0));
+		ImGui::Dummy(ImVec2(5* uiScale, 0));
 		ImGui::SameLine();
 		ImGui::Text("Angles:");
 		ImGui::SameLine();
@@ -1497,7 +1497,7 @@ void Gui::updateUiScale() {
 
 	if (g_settings.freetype_font) {
 		// less blurry pixels means overall brighter text than I'm used to. Compensate for that.
-		style.Colors[ImGuiCol_Text] = ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+		style.Colors[ImGuiCol_Text] = ImVec4(0.95f, 0.95f, 0.95f, 1.0f);
 	}
 	else {
 		style.Colors[ImGuiCol_Text] = ImVec4(1,1,1,1);

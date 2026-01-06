@@ -16,6 +16,7 @@ void AppSettings::loadDefault()
 	windowY = 0;
 #endif
 	maximized = 0;
+	fullscreen = false;
 	ui_scale = 100;
 	gamedir = std::string();
 	valid = false;
@@ -89,6 +90,7 @@ void AppSettings::load() {
 			else if (key == "window_x") { g_settings.windowX = atoi(val.c_str()); }
 			else if (key == "window_y") { g_settings.windowY = atoi(val.c_str()); }
 			else if (key == "window_maximized") { g_settings.maximized = atoi(val.c_str()); }
+			else if (key == "fullscreen") { g_settings.fullscreen = atoi(val.c_str()); }
 			else if (key == "debug_open") { g_settings.debug_open = atoi(val.c_str()) != 0; }
 			else if (key == "keyvalue_open") { g_settings.keyvalue_open = atoi(val.c_str()) != 0; }
 			else if (key == "transform_open") { g_settings.transform_open = atoi(val.c_str()) != 0; }
@@ -196,6 +198,7 @@ void AppSettings::save() {
 	file << "window_x=" << g_settings.windowX << endl;
 	file << "window_y=" << g_settings.windowY << endl;
 	file << "window_maximized=" << g_settings.maximized << endl;
+	file << "fullscreen=" << g_settings.fullscreen << endl;
 
 	file << "debug_open=" << g_settings.debug_open << endl;
 	file << "keyvalue_open=" << g_settings.keyvalue_open << endl;

@@ -14,6 +14,7 @@ struct AppSettings {
 	int windowX;
 	int windowY;
 	int maximized;
+	bool fullscreen;
 	int ui_scale;
 	int render_scale;
 	int engine;

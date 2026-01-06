@@ -124,10 +124,8 @@ void SettingsWidget::draw() {
 		if (ImGui::Checkbox("FreeType Font", &g_settings.freetype_font)) {
 			gui->shouldReloadFonts = true;
 		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Enable the FreeType font renderer. This makes text less blurry. "
-				"Quality improvement is subjective.\n");
-		}
+		tooltip("Enable the FreeType font renderer. This makes text less blurry and "
+				"more readable at low resolutions. At high resolutions you might prefer the blur.\n");
 	}
 	else if (gui->settingsTab == 1) {
 		static const char* renderers[RENDERER_COUNT] = {
@@ -224,13 +222,6 @@ void SettingsWidget::draw() {
 
 		if (ImGui::DragInt("Viewport Resolution", &g_settings.render_scale, 0.1f, 1, 100, "%d%%")) {
 			app->viewportScale = g_settings.render_scale * 0.01f;
-
-			delete app->viewportFbo;
-			app->viewportFbo = NULL;
-
-			if (g_settings.render_scale != 100) {
-				app->viewportFbo = new FrameBuffer(app->windowWidth, app->windowHeight, app->viewportScale);
-			}
 		}
 		tooltip("Lower this to increase FPS on fill-rate-limited hardware (old iGPUs).\n\n"
 			"You know you're fill rate limited if your FPS increases when you look away from the map.", 0);
@@ -274,6 +265,16 @@ void SettingsWidget::draw() {
 		if (ImGui::Checkbox("VSync", &gui->vsync)) {
 			glfwSwapInterval(gui->vsync ? 1 : 0);
 		}
+		tooltip("Wait for vertical sync. Disable for uncapped FPS.");
+
+		if (ImGui::Checkbox("Fullscreen", &g_settings.fullscreen)) {
+			app->toggleFullscreen();
+		}
+		ImGui::SameLine();
+		ImGui::BeginDisabled();
+		ImGui::Text("(F10)");
+		ImGui::EndDisabled();
+
 		ImGui::Checkbox("wpoly", &g_settings.show_wpoly);
 		tooltip("Display the number of polygons that would be rendered in-game. Enabling this reduces FPS when wpoly counts are high.");
 

@@ -1062,7 +1062,7 @@ void KeyvalueEditor::drawRawEditTab() {
 		}
 
 		string value = matchingValues ? matchValue : "(no change)";
-		bool ripentUnsafe = worldSpawnSelected && !strcmp(keyNames[i], "wad");
+		bool ripentUnsafe = g_settings.ripent_safe_mode && worldSpawnSelected && !strcmp(keyNames[i], "wad");
 
 		// key column
 		{
@@ -1110,11 +1110,11 @@ void KeyvalueEditor::drawRawEditTab() {
 				}
 				else if (ripentUnsafe) {
 					tooltip("This key cannot be meaningfully be changed server-side. Editing doesn't "
-						"trigger a map-differs error, but clients will not receive the updated value. "
+						"trigger a map-differs error, but clients won't receive the updated value. "
 						"Clients use whatever worldspawn keyvalues are stored in their local copy of "
 						"the BSP."
-						"\n\nOther worldspawn keyvalues are safe to edit because they are only "
-						"used server-side, or they are sent to clients as CVars (sv_skyname, sv_zmax, etc.)", 0);
+						"\n\nOther worldspawn keyvalues are safe to edit because they're only "
+						"used server-side, or sent to clients as CVars (sv_skyname, sv_zmax, etc.)", 0);
 				}
 				else if (wrappingNeededKey) {
 					tooltip(keyNames[i], 0);

@@ -338,8 +338,7 @@ void MenuBar::drawFileMenu() {
 
 		ImGui::Separator();
 		if (ImGui::MenuItem("Exit", NULL)) {
-			g_settings.save();
-			glfwTerminate();
+			app->exit();
 			std::exit(0);
 		}
 		ImGui::EndMenu();
