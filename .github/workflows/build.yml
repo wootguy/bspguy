@@ -35,7 +35,7 @@ jobs:
     
     - name: Download and install dependencies
       run: |
-        sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libglew-dev libxxf86vm-dev
+        sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglfw3-dev libglew-dev libxxf86vm-dev libfreetype6-dev
 
     - name: Build release
       run: |

@@ -10,7 +10,8 @@
 // - update version string
 // - crash selecting leaf mode with empty map
 // - linux detects program not responding and cant click confirm changed dialog
-// - green lightmaps bts_rc
+// - disable filtering on face editor
+// - name tags not showing
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

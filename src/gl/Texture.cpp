@@ -264,7 +264,7 @@ void Texture::upload(int format, bool lightmap, bool deleteData)
 	uploadedDataSize = 0;
 
 	if (is3d) {
-		int glParam3d = g_opengl_texture_array_support ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
+		int glParam3d = g_use_texture_arrays ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_3D;
 
 		glBindTexture(glParam3d, id); // Binds this texture handle so we can load the data into it
 

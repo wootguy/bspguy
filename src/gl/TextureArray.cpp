@@ -8,6 +8,10 @@
 
 TextureArray::TextureArray() {
 	memset(buckets, 0, sizeof(TextureBucket) * TEXARRAY_BUCKET_COUNT);
+	maxBucketDepth = 0;
+
+	if (!g_use_texture_arrays)
+		return;
 
 	uint32_t* ids = new uint32_t[TEXARRAY_BUCKET_COUNT];
 	glGenTextures(TEXARRAY_BUCKET_COUNT, ids);
@@ -19,9 +23,6 @@ TextureArray::TextureArray() {
 	delete[] ids;
 
 	maxBucketDepth = g_max_texture_array_layers;
-	if (!g_opengl_texture_array_support) {
-		maxBucketDepth = 4096; // virtually no limit besides memory
-	}
 }
 
 TextureArray::~TextureArray() {
@@ -75,7 +76,7 @@ TexArrayOffset TextureArray::tally(int width, int height) {
 		logf("Texture array got invalid texture size\n");
 		return offset;
 	}
-	if (!g_opengl_texture_array_support) {
+	if (!g_use_texture_arrays) {
 		return offset;
 	}
 
@@ -106,7 +107,7 @@ void TextureArray::add(Texture* tex) {
 		logf("Texture array got invalid texture size\n");
 		return;
 	}
-	if (!g_opengl_texture_array_support) {
+	if (!g_use_texture_arrays) {
 		return;
 	}
 
@@ -183,7 +184,7 @@ void TextureArray::add(Texture* tex) {
 
 	bucket.textures[bucket.count] = tex;
 
-	if (g_opengl_texture_array_support) {
+	if (g_use_texture_arrays) {
 		tex->arrayId = bucket.glArrayId;
 		tex->layer = bucket.count;
 	}
@@ -196,7 +197,7 @@ void TextureArray::upload() {
 	int textureCount = 0;
 	int texDataSz = 0;
 
-	if (!g_opengl_texture_array_support) {
+	if (!g_use_texture_arrays) {
 		return;
 	}
 

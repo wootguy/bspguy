@@ -69,8 +69,8 @@ Run 'bspguy <command> help' to read about a specific command.
 To build an x86 version for Windows XP, replace the `cmake ..` command with `cmake -A win32 -T v141_xp ..`. You will need the  `v141_xp` toolset downloaded. It's available in the Visual Studio Installer for VS 2017.
 
 ### Linux users:
-1. Install Git, CMake, X11, GLFW, GLEW, and a compiler.
-    * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev libxxf86vm-dev`
+1. Install Git, CMake, X11, GLFW, GLEW, FreeType, and a compiler.
+    * Debian: `sudo apt install build-essential git cmake libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev xorg-dev libglfw3-dev libglew-dev libxxf86vm-dev libfreetype6-dev`
 1. Open a terminal somewhere and run these commands:
     ```
     git clone --recurse-submodules --shallow-submodules https://github.com/wootguy/bspguy

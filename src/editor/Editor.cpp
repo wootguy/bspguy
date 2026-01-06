@@ -60,7 +60,7 @@ const char* glErrorString(GLenum err)
 
 void glCheckError(const char* checkMessage) {
 	// error checking is very expensive
-#ifdef DEBUG_MODE
+//#ifdef DEBUG_MODE
 	static int lastError = 0;
 	int glerror = glGetError();
 	if (glerror != GL_NO_ERROR) {
@@ -70,7 +70,7 @@ void glCheckError(const char* checkMessage) {
 			debugf("Got OpenGL Error %d (%s) after %s\n", glerror, glErrorString(glerror), checkMessage);
 		lastError = glerror;
 	}
-#endif
+//#endif
 }
 
 void error_callback(int error, const char* description)
@@ -191,22 +191,29 @@ Editor::Editor() {
 
 	glCheckError("window creation");
 
+	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
+	g_opengl_texture_array_support = strstr(openglExts, "GL_EXT_texture_array");
+
 	GLint texImageUnits, vertexAttributes, varyingFloats;
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &g_max_texture_size);
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texImageUnits);
-	glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &g_max_texture_array_layers);
 	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &g_max_vtf_units);
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertexAttributes);
 	glGetIntegerv(GL_MAX_VARYING_FLOATS, &varyingFloats);
-	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
+
+	if (g_opengl_texture_array_support)
+		glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &g_max_texture_array_layers);
+	else
+		g_max_texture_array_layers = 0;
 
 	logf("\nOpenGL Version: %s\n", (char*)glGetString(GL_VERSION));
 	debugf("    Max Texture size: %dx%d\n", g_max_texture_size, g_max_texture_size);
 	debugf("    Max Vertex Attributes: %d / %d\n", vertexAttributes, MAX_VERTEX_ATTRIBUTES);
 	debugf("    Max Varying Floats: %d / 32\n", varyingFloats);
 	debugf("    Texture Units: %d / 3\n", texImageUnits);
-	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
 	debugf("    Vertex Texture Fetch Units: %d\n", g_max_vtf_units);
+	debugf("    Texture Array Layers: %d\n", g_max_texture_array_layers);
+
 	//debugf("OpenGL Extensions:\n%s\n\n", openglExts);
 	debugf("\n");
 
@@ -350,16 +357,16 @@ bool Editor::createWindow() {
 void Editor::updateGpuSupportFlags() {
 	const char* openglExts = (const char*)glGetString(GL_EXTENSIONS);
 
-	g_opengl_texture_array_support = false;
+	g_use_texture_arrays = false;
 
 	if (g_settings.texture_atlas) {
-		g_opengl_texture_array_support = false; // prefer to use simple texture mode
+		g_use_texture_arrays = false; // prefer to use simple texture mode
 	}
 	else if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY) {
 		logf("Legacy renderer selected. Not checking extension support.\n");
 	}
-	else if (strstr(openglExts, "GL_EXT_texture_array")) {
-		g_opengl_texture_array_support = true;
+	else if (g_opengl_texture_array_support) {
+		g_use_texture_arrays = true;
 	}
 	else {
 		logf("Neither texture arrays nor 3D textures are supported. Map rendering will be slow.\n");
@@ -387,6 +394,9 @@ void Editor::compileShaderPrograms() {
 		sh->addCompileFlag(SH_BSP_TEX_PAL, "TEX_PAL");
 		sh->skipCompileBits(SH_BSP_TEX_ARRAY | SH_BSP_TEX_ATLAS, true);
 		sh->skipCompileBits(SH_BSP_TEX_ARRAY | SH_BSP_TEX_PAL, true);
+		if (!g_opengl_texture_array_support) {
+			sh->skipCompileBits(SH_BSP_TEX_ARRAY, true);
+		}
 		sh->compile(bsp_vert_glsl, bsp_frag_glsl, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 		sh->setMatrixNames(NULL, "modelViewProjection");

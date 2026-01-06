@@ -145,6 +145,7 @@ extern std::thread::id g_main_thread_id;
 extern int g_max_texture_size;
 extern int g_max_texture_array_layers;
 extern int g_max_vtf_units;
-extern bool g_opengl_texture_array_support;
+extern bool g_use_texture_arrays; // true if the user wants to use texture arrays
+extern bool g_opengl_texture_array_support; // true if the driver supports texture arrays
 
 void glCheckError(const char* checkMessage);

@@ -1,3 +1,7 @@
+#if defined(TEX_ARRAY) && !defined(TEX_ATLAS)
+	#extension GL_EXT_texture_array : enable
+#endif
+
 uniform float alphaTest;
 uniform float gamma;
 uniform vec4 wireframeColorDark;
@@ -26,7 +30,6 @@ uniform sampler2D sLightmapTex;
 uniform sampler2D pTex;
 
 #if defined(TEX_ARRAY) && !defined(TEX_ATLAS)
-	#extension GL_EXT_texture_array : enable
 	uniform sampler2DArray sTex;
 #else
 	uniform sampler2D sTex;

@@ -64,7 +64,7 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 	greyTex->upload(GL_RGB);
 	blackTex->upload(GL_RGB);
 
-	if (g_opengl_texture_array_support)
+	if (g_use_texture_arrays)
 		whiteTex3D->upload(GL_RGB); // only needed if texture arrays/3d textures are supported
 
 	glCheckError("creating plain textures in BSP renderer");
@@ -984,6 +984,7 @@ void BspRenderer::deleteTextures() {
 		delete glPalette;
 		glPalette = NULL;
 	}
+	glCheckError("deleting textures");
 }
 
 void BspRenderer::deleteLightmapTextures() {
@@ -1235,6 +1236,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		renderModel->renderGroups[i] = renderGroups[i];
 	}
 
+	glCheckError("Upload render group");
+
 	for (int i = 0; i < model.nFaces; i++) {
 		refreshFace(model.iFirstFace + i);
 	}
@@ -1242,6 +1245,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 	if (refreshClipnodes) {
 		refreshModelClipnodes(modelIdx);
 	}
+
+	glCheckError("Upload render clipnodes");
 
 	return renderModel->groupCount;
 }
@@ -1251,7 +1256,7 @@ bool BspRenderer::RenderGroupsAreCombinable(RenderGroup& groupa, RenderGroup& gr
 		if (groupa.atlasTextureIdx != groupb.atlasTextureIdx)
 			return false;
 	}
-	else if (g_opengl_texture_array_support) {
+	else if (g_use_texture_arrays) {
 		if (groupa.arrayTextureIdx != groupb.arrayTextureIdx)
 			return false;
 	}
@@ -2288,20 +2293,21 @@ void BspRenderer::delayLoadData() {
 		glPalette = glPaletteSwap;
 		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
 
-		int texFormat = g_settings.pal_textures ? GL_RED : GL_RGBA;
+		int texFormat = g_settings.pal_textures ? GL_LUMINANCE : GL_RGBA;
 
 		g_shaders.bsp->bind();
 		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
 
 		glTextureArray->upload();
+		glCheckError("uploading texture array");
 
-		// legacy renderer at max quality is the only mode that binds each individual texture
-		if (g_settings.renderer == RENDERER_OPENGL_21_LEGACY && !g_settings.texture_atlas) {
+		if (!g_use_texture_arrays && !g_settings.texture_atlas) {
 			for (int i = 0; i < map->textureCount; i++) {
 				if (glTextures[i] && !glTextures[i]->uploaded) {
 					glTextures[i]->upload(texFormat);
 				}
 			}
+			glCheckError("uploading individual textures");
 		}
 		for (int i = 0; i < 6; i++) {
 			if (skyboxTextures[i]) {
@@ -2310,6 +2316,8 @@ void BspRenderer::delayLoadData() {
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			}
 		}
+		glCheckError("uploading skybox textures");
+
 		for (int i = 0; i < numTextureAtlases; i++) {
 			//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
 			//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
@@ -2320,17 +2328,20 @@ void BspRenderer::delayLoadData() {
 			// and atlas size. https://0fps.net/2013/07/09/texture-atlases-wrapping-and-mip-mapping/
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 		}
+		glCheckError("uploading texture atlases");
 
 		if (glPalette) {
 			// keep palette in memory for GUI
-			lodepng_encode24_file("atlas_pal.png", glPalette->data, palAtlasWidth, palAtlasHeight);
+			//lodepng_encode24_file("atlas_pal.png", glPalette->data, palAtlasWidth, palAtlasHeight);
 			g_shaders.bsp->setUniform("paletteAtlasScale", vec2(1.0f / palAtlasWidth, 1.0f / palAtlasHeight), true);
 			glPalette->upload(GL_RGB, false, false);
+			glCheckError("uploading palette");
 		}
 
 		numLoadedTextures = map->textureCount;
 
 		texturesLoaded = true;
+		glCheckError("uploading textures");
 
 		preRenderFaces();
 
@@ -2666,7 +2677,7 @@ void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass)
 		shaderbits |= SH_BSP_TEX_PAL;
 	}
 
-	if (g_opengl_texture_array_support) {
+	if (g_use_texture_arrays) {
 		shaderbits |= SH_BSP_TEX_ARRAY;
 	}
 	else {
@@ -3020,7 +3031,7 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		}
 	}
 	else {
-		if (g_opengl_texture_array_support) {
+		if (g_use_texture_arrays) {
 			whiteTex3D->bind();
 		}
 		else {

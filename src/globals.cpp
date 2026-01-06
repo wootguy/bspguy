@@ -24,4 +24,5 @@ RenderStats g_renderStats;
 int g_max_texture_size = 512;
 int g_max_texture_array_layers = 512;
 int g_max_vtf_units = 0;
+bool g_use_texture_arrays = false;
 bool g_opengl_texture_array_support = false;
