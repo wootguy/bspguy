@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <cstring>
 
 char* strcat_safe(char* dest, const char* src, size_t size);
 

@@ -16,7 +16,7 @@ varying vec3 fBary;
 varying vec3 fEdgeEnable;
 varying vec2 fPal;
 
-#ifdef TEXTURE_ARRAY
+#ifdef TEX_ARRAY
 	varying vec3 fTex;
 #else
 	varying vec2 fTex;
@@ -25,7 +25,7 @@ varying vec2 fPal;
 uniform sampler2D sLightmapTex;
 uniform sampler2D pTex;
 
-#if defined(TEXTURE_ARRAY) && !defined(TEXTURE_ATLAS)
+#if defined(TEX_ARRAY) && !defined(TEX_ATLAS)
 	#extension GL_EXT_texture_array : enable
 	uniform sampler2DArray sTex;
 #else
@@ -39,24 +39,24 @@ void main()
 		
 	vec4 texel;
 	
-	#if defined(TEXTURE_ATLAS)
+	#if defined(TEX_ATLAS)
 		vec2 texCoord = fTex.xy;
 		texCoord.x = fract(texCoord.x) * fAtlas.z*textureAtlasScale + fAtlas.x*textureAtlasScale;
 		texCoord.y = fract(texCoord.y) * fAtlas.w*textureAtlasScale + fAtlas.y*textureAtlasScale;
 		texel = texture2D(sTex, texCoord);
-	#elif defined(TEXTURE_ARRAY)
+	#elif defined(TEX_ARRAY)
 		texel = texture2DArray(sTex, fTex);
 	#else
 		texel = texture2D(sTex, fTex.xy);
 	#endif
 	
-	#if defined(TEXTURE_PAL)
+	#if defined(TEX_PAL)
 		float palIdx = texel.r;
 		texel = texture2D(pTex, vec2((fPal.x + palIdx*255) * paletteAtlasScale.x, fPal.y));
 	#endif
 	
 	if (alphaTest != 0.0) { // solid texture mode
-		#if defined(TEXTURE_PAL)
+		#if defined(TEX_PAL)
 			if (palIdx == 1.0) {
 				discard;
 			}

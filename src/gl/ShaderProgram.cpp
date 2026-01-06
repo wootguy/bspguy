@@ -10,6 +10,7 @@ ShaderProgram::ShaderProgram(const char* name)
 	this->name = name;
 	compiled = false;
 	memset(programIds, -1, sizeof(programIds));
+	memset(compileSkipFlags, false, sizeof(compileSkipFlags));
 	memset(vShader, NULL, sizeof(vShader));
 	memset(fShader, NULL, sizeof(fShader));
 	memset(modelViewID, -1, sizeof(modelViewID));
@@ -33,6 +34,11 @@ void ShaderProgram::compile(const char* vshaderSource, const char* fshaderSource
 	}
 	
 	for (int i = 0; i < numPrograms; i++) {
+		if (compileSkipFlags[i]) {
+			programIds[i] = 0;
+			continue;
+		}
+
 		const char* header = getShaderCodeHeader(i, glslVersion);
 		vShader[i] = new Shader(vshaderSource, header, GL_VERTEX_SHADER);
 		fShader[i] = new Shader(fshaderSource, header, GL_FRAGMENT_SHADER);
@@ -92,6 +98,10 @@ ShaderProgram::~ShaderProgram(void)
 }
 
 void ShaderProgram::bind(int enableBits) {
+	if (compileSkipFlags[enableBits]) {
+		errorf("Shader %s skipped compilation for bits %d. Cannot bind.\n", name, enableBits);
+		return;
+	}
 	activeCompileFlags = enableBits & SHADER_COMPILE_FLAGS_MASK;
 	bind();
 }
@@ -135,6 +145,8 @@ void ShaderProgram::updateMatrixes()
 
 void ShaderProgram::setMatrixNames(const char* modelViewMat, const char* modelViewProjMat) {
 	for (int i = 0; i < numPrograms; i++) {
+		if (compileSkipFlags[i])
+			continue;
 		bind(i);
 		int id = getActiveProgramId();
 
@@ -171,6 +183,20 @@ void ShaderProgram::addCompileFlag(int enableBit, const char* varName) {
 	numPrograms *= 2;
 }
 
+void ShaderProgram::skipCompileBits(int skipBits, bool mutuallyExclusive) {
+	if (mutuallyExclusive) {
+		for (int i = 0; i < MAX_SHADER_COMPILES; i++) {
+			if ((i & skipBits) == skipBits) {
+				compileSkipFlags[i] = true;
+			}
+		}
+	}
+	else {
+		compileSkipFlags[skipBits & SHADER_COMPILE_FLAGS_MASK] = true;
+	}
+	
+}
+
 void ShaderProgram::addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader) {
 	VertexAttr attribute(numValues, valueType, -1, normalized, varName);
 
@@ -193,6 +219,8 @@ void ShaderProgram::addAttribute(const VertexAttr& attrib) {
 	}
 
 	for (int k = 0; k < numPrograms; k++) {
+		if (compileSkipFlags[k])
+			continue;
 		bind(k);
 		VertexAttr& a = attributes[k][i];
 		a = attrib;
@@ -210,6 +238,8 @@ void ShaderProgram::addAttribute(const VertexAttr& attrib) {
 void ShaderProgram::initUniform(ShaderUniform& uniform) {
 
 	for (int i = 0; i < numPrograms; i++) {
+		if (compileSkipFlags[i])
+			continue;
 		bind(i);
 
 		uniform.location = glGetUniformLocation(programIds[i], uniform.name);
@@ -296,6 +326,8 @@ void ShaderProgram::setUniform(string uniformName, float value, bool allPrograms
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, false);
 		}
@@ -325,6 +357,8 @@ void ShaderProgram::setUniform(string uniformName, vec2 value, bool allPrograms)
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, false);
 		}
@@ -350,6 +384,8 @@ void ShaderProgram::setUniform(string uniformName, vec3 value, bool allPrograms)
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, false);
 		}
@@ -375,6 +411,8 @@ void ShaderProgram::setUniform(string uniformName, vec4 value, bool allPrograms)
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, false);
 		}
@@ -400,6 +438,8 @@ void ShaderProgram::setUniform(string uniformName, int value, bool allPrograms) 
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, false);
 		}
@@ -428,6 +468,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, bool a
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, value2, false);
 		}
@@ -453,6 +495,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, value2, value3, false);
 		}
@@ -478,6 +522,8 @@ void ShaderProgram::setUniform(string uniformName, int value, int value2, int va
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, value, value2, value3, value4, false);
 		}
@@ -503,6 +549,8 @@ void ShaderProgram::setUniform(string uniformName, float* values, int count, boo
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, values, count, false);
 		}
@@ -549,6 +597,8 @@ void ShaderProgram::setUniform(string uniformName, int* values, int count, bool 
 	if (allPrograms) {
 		int oldEnableBits = activeCompileFlags;
 		for (int i = 0; i < numPrograms; i++) {
+			if (compileSkipFlags[i])
+				continue;
 			bind(i);
 			setUniform(uniformName, values, count, false);
 		}

@@ -162,6 +162,7 @@ private:
 	void checkValidHulls();
 	void reloadLimits();
 
+	byte* loadFont(string path, const unsigned char* fallbackData, int fallbackLen, int& loadedLen);
 	void loadFonts();
 	void updateUiScale();
 	string getUserLayoutPath(); // path to user's saved widget layout

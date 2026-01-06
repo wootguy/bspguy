@@ -22,7 +22,7 @@ varying vec3 fBary;
 varying vec3 fEdgeEnable;
 varying vec2 fPal;
 
-#ifdef TEXTURE_ARRAY
+#ifdef TEX_ARRAY
 	varying vec3 fTex;
 #else
 	varying vec2 fTex;
@@ -35,17 +35,17 @@ void main()
 	fLightmapTex23 = vLightmapTex23*lightmapAtlasScale;
 	fColor = vColor * colorMult;
 	
-	#ifdef TEXTURE_ARRAY
+	#ifdef TEX_ARRAY
 		fTex = vec3(vTex, vAtlas.x + vAtlas.y*256);
 	#else
 		fTex = vTex;
 	#endif
 	
-	#ifdef TEXTURE_ATLAS
+	#ifdef TEX_ATLAS
 		fAtlas = vec4(vAtlas.x*16, vAtlas.y*16, vAtlas.z*16, vAtlas.w*16);
 	#endif
 
-	#ifdef TEXTURE_PAL
+	#ifdef TEX_PAL
 		fPal = vec2(vCustom.y*256 + 0.5, (vCustom.z*256 + vCustom.w + 0.5) * paletteAtlasScale.y);
 	#endif
 

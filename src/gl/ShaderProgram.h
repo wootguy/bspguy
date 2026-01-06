@@ -87,6 +87,9 @@ public:
 	int numCompileFlags = 0;
 	int numPrograms = 1;
 
+	// combinations of flags that should not be compiled
+	bool compileSkipFlags[MAX_SHADER_COMPILES];
+
 	// Creates a shader program to replace the fixed-function pipeline
 	ShaderProgram(const char* name);
 	~ShaderProgram(void);
@@ -115,6 +118,10 @@ public:
 	// enableBit is both a unique ID within this shader and must occupy a single bit so that
 	// you can enable multiple flags at the same time.
 	void addCompileFlag(int enableBit, const char* varName);
+
+	// skip compilation for a combination of bits (mutually exclusive flags, for instance)
+	// mutuallyExclusive = true if the enabled bits can never be enabled together, else skip just this specific combo
+	void skipCompileBits(int skipBits, bool mutuallyExclusive);
 
 	void addAttribute(int numValues, int valueType, int normalized, const char* varName, bool inShader = true);
 	void addAttribute(const VertexAttr& attr);

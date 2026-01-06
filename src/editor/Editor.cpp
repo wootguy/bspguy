@@ -382,9 +382,11 @@ void Editor::compileShaderPrograms() {
 	{
 		ShaderProgram* sh = g_shaders.bsp;
 		sh->addCompileFlag(SH_BSP_WIREFRAME, "WIREFRAME");
-		sh->addCompileFlag(SH_BSP_TEX_ATLAS, "TEXTURE_ATLAS");
-		sh->addCompileFlag(SH_BSP_TEX_ARRAY, "TEXTURE_ARRAY");
-		sh->addCompileFlag(SH_BSP_TEX_PAL, "TEXTURE_PAL");
+		sh->addCompileFlag(SH_BSP_TEX_ATLAS, "TEX_ATLAS");
+		sh->addCompileFlag(SH_BSP_TEX_ARRAY, "TEX_ARRAY");
+		sh->addCompileFlag(SH_BSP_TEX_PAL, "TEX_PAL");
+		sh->skipCompileBits(SH_BSP_TEX_ARRAY | SH_BSP_TEX_ATLAS, true);
+		sh->skipCompileBits(SH_BSP_TEX_ARRAY | SH_BSP_TEX_PAL, true);
 		sh->compile(bsp_vert_glsl, bsp_frag_glsl, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
 		sh->setMatrixNames(NULL, "modelViewProjection");
@@ -604,6 +606,7 @@ void Editor::setupTransformAxes() {
 		}
 
 		originBuffer = new VertexBuffer(g_shaders.color, verts, 3*2, true);
+		originBuffer->upload();
 	}
 
 	glCheckError("creating transform axes");

@@ -97,6 +97,8 @@ Gui::Gui(Editor* app) {
 }
 
 void Gui::init() {
+	float startTime = glfwGetTime();
+
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 
@@ -1347,7 +1349,55 @@ void Gui::drawStatusMessage() {
 	}
 }
 
+byte* Gui::loadFont(string path, const unsigned char* fallbackData, int fallbackLen, int& loadedLen) {
+	loadedLen = 0;
+
+	bool fontLoaded = false;
+	if (fileExists(path)) {
+		char* dat = loadFile(path.c_str(), loadedLen);
+		if (dat) {
+			debugf("Loaded cached font: %s\n", path.c_str());
+			return (byte*)dat;
+			fontLoaded = true;
+		}
+		else {
+			warnf("Failed to load cached font: %s\n", path.c_str());
+		}
+	}
+
+	if (!fontLoaded) {
+		// data copied to new array so that ImGui doesn't delete static data
+		vector<uint8_t> decompressed;
+		if (lzmaDecompress((uint8_t*)fallbackData, fallbackLen, decompressed)) {
+			loadedLen = decompressed.size();
+			byte* dat = new byte[loadedLen];
+			memcpy(dat, &decompressed[0], loadedLen);
+
+			if (!fileExists(path)) {
+				FILE* fout = fopen(path.c_str(), "wb");
+				if (fout) {
+					fwrite(dat, loadedLen, 1, fout);
+					fclose(fout);
+					logf("Decompressed font to: %s\n", path.c_str());
+				}
+				else {
+					warnf("Failed to write font to: %s\n", path.c_str());
+				}
+			}
+
+			return dat;
+		}
+		else {
+			errorf("Failed to decompress font! Crash imminent.\n");
+		}
+	}
+
+	return NULL;
+}
+
 void Gui::loadFonts() {
+	float startTime = glfwGetTime();
+
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	
 	static bool loggedAlready = true;
@@ -1407,41 +1457,24 @@ void Gui::loadFonts() {
 		// - File -> generate fonts
 	}
 
-	vector<uint8_t> decompressed;
-
-	// data copied to new array so that ImGui doesn't delete static data
-	static byte* consoleFontData = NULL;
-	int notosans_mono_sz = 0;
-	if (lzmaDecompress((uint8_t*)notosans_mono, sizeof(notosans_mono), decompressed)) {
-		notosans_mono_sz = decompressed.size();
-		consoleFontData = new byte[notosans_mono_sz];
-		memcpy(consoleFontData, &decompressed[0], notosans_mono_sz);
-	}
-	else {
-		logf("Failed to decompress font! Crash imminent.\n");
-	}
-
-	decompressed.clear();
-	static byte* smallFontData = NULL;
-
-	int notosans_unicode_sz = 0;
-	if (lzmaDecompress((uint8_t*)notosans_unicode, sizeof(notosans_unicode), decompressed)) {
-		notosans_unicode_sz = decompressed.size();
-		smallFontData = new byte[notosans_unicode_sz];
-		memcpy(smallFontData, &decompressed[0], notosans_unicode_sz);
-	}
-	else {
-		logf("Failed to decompress font! Crash imminent.\n");
-	}
+	static byte* smallFontData;
+	static byte* consoleFontData;
+	
+	string configDir = getConfigDir();
+	static int smallFontSz, consoleFontSz;
+	smallFontData = loadFont(configDir + "font_v6.ttf", notosans_unicode, sizeof(notosans_unicode), smallFontSz);
+	consoleFontData = loadFont(configDir + "font_mono_v6.ttf", notosans_mono, sizeof(notosans_mono), consoleFontSz);
 
 	io.Fonts->SetFontLoader(g_settings.freetype_font ? ImGuiFreeType::GetFontLoader() : NULL);
 
-	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, notosans_unicode_sz, g_font_scale_base);
-	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, notosans_mono_sz, g_font_scale_base);
+	defaultFont = io.Fonts->AddFontFromMemoryTTF((void*)smallFontData, smallFontSz, g_font_scale_base);
+	consoleFont = io.Fonts->AddFontFromMemoryTTF((void*)consoleFontData, consoleFontSz, g_font_scale_base);
 
-	fontBytes = notosans_unicode_sz + notosans_mono_sz;
+	fontBytes = smallFontSz + consoleFontSz;
 
 	updateUiScale();
+
+	debugf("Fonts loaded in %.2f\n", glfwGetTime() - startTime);
 }
 
 void Gui::updateUiScale() {
