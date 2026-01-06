@@ -8,6 +8,7 @@
 #include "Entity.h"
 #include "render_utils.h"
 #include "BspRenderer.h"
+#include <algorithm>
 
 ModelRenderer::ModelRenderer() {
 

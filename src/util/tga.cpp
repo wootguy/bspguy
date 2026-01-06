@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <vector>
+#include <cstring>
 
 #pragma pack(push,1)
 struct TGAHeader {

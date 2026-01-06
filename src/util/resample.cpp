@@ -1,4 +1,10 @@
 #include "resample.h"
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+
+using namespace std;
+
 #include <base_resample.h>
 
 bool resample24(uint8_t* src, uint32_t src_width, uint32_t src_height,

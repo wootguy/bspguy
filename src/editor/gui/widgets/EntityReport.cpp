@@ -1,5 +1,6 @@
 #include "Widget.h"
 #include "Entity.h"
+#include <algorithm>
 
 void EntityReport::setup() {
 	const char* plural = filteredEnts.size() == 1 ? "" : "s";

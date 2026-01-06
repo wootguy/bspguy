@@ -1,5 +1,6 @@
 #include "Widget.h"
 #include "Entity.h"
+#include <algorithm>
 
 void RadWidget::open() {
 	refreshTexlightList = true;

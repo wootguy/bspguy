@@ -1275,7 +1275,7 @@ int BspRenderer::allocMegaBufferData() {
 	// find which entities can be included in the mega buffer and tally vertex counts
 	for (int i = 0; i < orderEnts.size(); i++) {
 		OrderedEnt& ent = orderEnts[i];
-		EntRenderOpts& opts = ent.ent->getRenderOpts();
+		const EntRenderOpts& opts = ent.ent->getRenderOpts();
 
 		// don't combine models for entities that have special rendering properties applied
 		if (ent.modelIdx == -1 || ent.ent->highlighted || ent.ent->hidden) {

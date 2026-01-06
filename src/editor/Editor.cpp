@@ -2370,7 +2370,8 @@ void Editor::pickObject(bool boxSelect) {
 	}
 	else {
 		if (boxSelect) {
-			mapRenderer->pickFrustum(getPickFrustum(), boxSelectEnts, boxSelectFaces, boxSelectLeaves, clipnodeRenderHull);
+			Frustum frustum = getPickFrustum();
+			mapRenderer->pickFrustum(frustum, boxSelectEnts, boxSelectFaces, boxSelectLeaves, clipnodeRenderHull);
 			boxSelectFaces.erase(-1); // erase clipnode "faces"
 		}
 		else {

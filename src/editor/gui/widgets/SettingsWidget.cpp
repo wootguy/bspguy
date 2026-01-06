@@ -1,6 +1,7 @@
 #include "Widget.h"
 #include "ModelRenderer.h"
 #include "FrameBuffer.h"
+#include <algorithm>
 
 void SettingsWidget::setup() {
 	ImGui::SetNextWindowPos(ImVec2(5 * uiScale, 50 * uiScale), ImGuiCond_FirstUseEver);

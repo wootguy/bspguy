@@ -334,7 +334,7 @@ vec3 Entity::getVisualAngles() {
 	return angles;
 }
 
-EntRenderOpts Entity::getRenderOpts() {
+const EntRenderOpts& Entity::getRenderOpts() {
 	if (hasCachedRenderOpts) {
 		return cachedRenderOpts;
 	}

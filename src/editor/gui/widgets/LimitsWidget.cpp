@@ -1,5 +1,6 @@
 #include "LimitsWidget.h"
 #include "Entity.h"
+#include <algorithm>
 
 void LimitsWidget::draw() {
 	if (map == NULL) {

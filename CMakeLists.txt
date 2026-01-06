@@ -200,6 +200,7 @@ include_directories(imgui)
 include_directories(imgui/examples)
 include_directories(imgui/backends)
 include_directories(imgui/misc/freetype)
+include_directories(freetype/include)
 include_directories(glew/include)
 include_directories(${CMAKE_BINARY_DIR})
 
