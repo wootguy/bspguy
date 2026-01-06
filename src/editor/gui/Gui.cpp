@@ -1378,7 +1378,7 @@ byte* Gui::loadFont(string path, const unsigned char* fallbackData, int fallback
 				if (fout) {
 					fwrite(dat, loadedLen, 1, fout);
 					fclose(fout);
-					logf("Decompressed font to: %s\n", path.c_str());
+					debugf("Decompressed font to: %s\n", path.c_str());
 				}
 				else {
 					warnf("Failed to write font to: %s\n", path.c_str());

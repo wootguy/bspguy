@@ -179,12 +179,11 @@ void BspRenderer::loadTextures() {
 		string path = findAsset(wadNames[i]);
 
 		if (path.empty()) {
-			logf("Missing WAD: %s\n", wadNames[i].c_str());
+			warnf("Missing WAD: %s\n", wadNames[i].c_str());
 			continue;
 		}
 
-		if (g_verbose)
-			logf("Loading WAD %s\n", path.c_str());
+		debugf("Loading WAD %s\n", path.c_str());
 		Wad* wad = new Wad(path);
 		wad->readInfo();
 		wads.push_back(wad);
@@ -346,7 +345,7 @@ void BspRenderer::loadSkyboxTextures() {
 					skyboxTexturesSwap[i] = new Texture(width, height, pixels);
 				}
 				else {
-					logf("Failed to load TGA file: %s\n", path.c_str());
+					errorf("Failed to load TGA file: %s\n", path.c_str());
 				}
 			}
 			else {
@@ -366,11 +365,11 @@ void BspRenderer::loadSkyboxTextures() {
 						delete[] tex.data;
 					}
 					else {
-						logf("Failed to load BMP as 8-bit: %s\n", path.c_str());
+						errorf("Failed to load BMP as 8-bit: %s\n", path.c_str());
 					}
 				}
 				else {
-					logf("Missing skybox image: %s\n", (skyPath + ".tga").c_str());
+					warnf("Missing skybox image: %s\n", (skyPath + ".tga").c_str());
 				}
 			}
 		}
@@ -804,7 +803,7 @@ void BspRenderer::loadLightmaps() {
 	glLightmapTextures = new Texture * [numLightmapAtlases];
 	for (int i = 0; i < numLightmapAtlases; i++) {
 
-		if (!atlases[atlasId]->insert(0, 1, 1, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y)) {
+		if (!atlases[atlasId]->insert(0, 2, 2, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y)) {
 			errorf("Failed to insert black area for lightmap atlas! Some lightmaps will be broken.\n");
 		}
 
@@ -1073,8 +1072,8 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		AtlasCoord blackLightmap = {0, 0};
 		if (lightmapsGenerated) {
 			// center of the black pixel in the atlas
-			blackLightmap.x = lightmapAtlasBlackArea[lmap->atlasId].x * 16 + 8;
-			blackLightmap.y = lightmapAtlasBlackArea[lmap->atlasId].y * 16 + 8;
+			blackLightmap.x = lightmapAtlasBlackArea[lmap->atlasId].x * 16 + 16;
+			blackLightmap.y = lightmapAtlasBlackArea[lmap->atlasId].y * 16 + 16;
 		}
 
 		if (isSpecial) {
@@ -2358,7 +2357,7 @@ void BspRenderer::delayLoadData() {
 		leavesLoaded = renderLeafDat != NULL;
 		leavesThreadFinished = true;
 
-		if (renderLeafDat) {
+		if (renderLeafDat && renderLeafDat->leafBuffer) {
 			renderLeafDat->leafBuffer->upload();
 
 			if (g_app->pickMode == PICK_LEAF) {

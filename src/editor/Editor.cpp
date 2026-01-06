@@ -957,7 +957,7 @@ void Editor::loadFgds() {
 
 		string loadPath = findAsset(path);
 		if (loadPath.empty()) {
-			logf("Missing FGD: %s\n", path.c_str());
+			warnf("Missing FGD: %s\n", path.c_str());
 			continue;
 		}
 

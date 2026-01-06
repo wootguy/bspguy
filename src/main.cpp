@@ -8,6 +8,9 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
+// - crash selecting leaf mode with empty map
+// - linux detects program not responding and cant click confirm changed dialog
+// - green lightmaps bts_rc
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

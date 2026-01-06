@@ -108,7 +108,7 @@ BaseRenderer* ModelRenderer::loadModel(Entity* ent) {
 		string findPath = findAsset(model);
 		studioModelPaths[lowerModel] = findPath;
 		if (!findPath.size()) {
-			logf("Failed to find model for entity '%s' (%s): %s\n",
+			warnf("Failed to find model for entity '%s' (%s): %s\n",
 				ent->getTargetname().c_str(), ent->getClassname().c_str(),
 				model.c_str());
 			ent->hasCachedMdl = true;
