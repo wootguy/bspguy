@@ -191,3 +191,11 @@ vector<uint8_t> base64decode(const string& input);
 char* cstrf(const char* format, ...);
 
 void AngleVectors(const vec3& angles, float* forward, float* right, float* up);
+
+// non-blocking-ish message box
+// title = message box title
+// msg = message content (can't contain quotes or single quote)
+// options = "ok" "okcancel" "yesno" "yesnocancel"
+// type = "info" "warning" "error" "question"
+// defaultButton = which button is highlighted by default
+int Alert(const char* title, const char* msg, const char* options, const char* type, int defaultButton);

@@ -239,8 +239,7 @@ int Texture::getPixelBytes(int format) {
 	switch (format) {
 	default:
 		return 4;
-	case GL_LUMINANCE8: return 1;
-	case GL_RED: return 1;
+	case GL_LUMINANCE: return 1;
 	case GL_RGB: return 3;
 	case GL_RGBA: return 4;
 	case GL_RGBA32F: return 16;

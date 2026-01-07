@@ -230,7 +230,7 @@ void MergeMultipleWidget::draw() {
 
 		if (result.invalidMaps) {
 			string msg = "One or more of the input maps failed to load.";
-			int ret = tinyfd_messageBox(
+			int ret = Alert(
 				"Invalid Map", /* NULL or "" */
 				msg.c_str(), /* NULL or "" may contain \n \t */
 				"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
@@ -245,7 +245,7 @@ void MergeMultipleWidget::draw() {
 		else if (result.notEnoughSpace) {
 			string msg = "The merger failed to fit all maps inside the configured Map Size.\n\n"
 				"Do you want to try arranging the maps yourself?";
-			int ret = tinyfd_messageBox(
+			int ret = Alert(
 				"Packing Failure", /* NULL or "" */
 				msg.c_str(), /* NULL or "" may contain \n \t */
 				"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */

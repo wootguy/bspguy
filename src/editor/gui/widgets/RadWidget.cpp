@@ -114,7 +114,7 @@ void RadWidget::draw() {
 			"which was recompiled without lights.rad. Texlights identified in both maps "
 			"cannot possibly be texlights if only one map had texlights enabled.\n\n"
 			"Compare with a recompiled map?";
-		int ret = tinyfd_messageBox(
+		int ret = Alert(
 			"Estimation Accuracy", /* NULL or "" */
 			msg.c_str(), /* NULL or "" may contain \n \t */
 			"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */
@@ -158,7 +158,7 @@ void RadWidget::draw() {
 				}
 				else {
 					string msg = "The map you selected did not appear to the same map with recompiled lighting. Estimation cancelled.";
-					int ret = tinyfd_messageBox(
+					int ret = Alert(
 						"Invalid Map", /* NULL or "" */
 						msg.c_str(), /* NULL or "" may contain \n \t */
 						"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
@@ -247,7 +247,7 @@ void RadWidget::draw() {
 			string msg = "Embedded RAD textures are corrupted. If you have the original "
 				"unedited BSP file, you can try to recover texture data from it.\n\n"
 				"Do you want to recover data from the original BSP?";
-			int ret = tinyfd_messageBox(
+			int ret = Alert(
 				"Corrupt Data", /* NULL or "" */
 				msg.c_str(), /* NULL or "" may contain \n \t */
 				"yesno", /* "ok" "okcancel" "yesno" "yesnocancel" */
@@ -314,7 +314,7 @@ void RadWidget::draw() {
 				"1. Compile with -notextures to disable modern RAD features.\n"
 				"2. Update your settings to find missing WAD files.\n"
 				"3. Replace missing textures with the Face Editor.";
-			int ret = tinyfd_messageBox(
+			int ret = Alert(
 				"Missing Textures", /* NULL or "" */
 				msg.c_str(), /* NULL or "" may contain \n \t */
 				"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */

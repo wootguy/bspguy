@@ -12,6 +12,7 @@
 #include "Editor.h"
 #include "Bsp.h"
 #include "globals.h"
+#include "tinyfiledialogs.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -1513,4 +1514,25 @@ void AngleVectors(const vec3& angles, float* forward, float* right, float* up)
 		up[1] = (cr * sp * sy + -sr * cy);
 		up[2] = cr * cp;
 	}
+}
+
+int Alert(const char* title, const char* msg, const char* options, const char* type, int defaultButton) {
+#ifdef WIN32
+	return tinyfd_messageBox(title, msg, options, type, defaultButton);
+#else
+	auto alert = std::async(std::launch::async, [=]() {
+		return tinyfd_messageBox(title, msg, options, type, defaultButton);
+	});
+
+	// don't block the main thread so linux doesn't think the app froze and tries to kill it
+	while (alert.valid()) {
+		if (alert.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+			return alert.get(); // get only ONCE
+		}
+		sleepms(10);
+		glfwPollEvents();
+	}
+
+	return -1;
+#endif
 }

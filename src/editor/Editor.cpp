@@ -114,7 +114,14 @@ void window_maximize_callback(GLFWwindow* window, int maximized)
 
 void window_close_callback(GLFWwindow* window)
 {
+	static bool isExiting;
+
+	if (isExiting)
+		return; // prevent duplicate dialogs on linux
+
+	isExiting = true;
 	g_app->exit();
+	isExiting = false;
 }
 
 int g_scroll = 0;
@@ -4764,12 +4771,7 @@ bool Editor::confirmMapExit() {
 
 		if (map->did_lumps_change(false)) {
 			string msg = "Save changes to " + map->name + "?";
-			int ret = tinyfd_messageBox(
-				"Save", /* NULL or "" */
-				msg.c_str(), /* NULL or "" may contain \n \t */
-				"yesnocancel", /* "ok" "okcancel" "yesno" "yesnocancel" */
-				"warning", /* "info" "warning" "error" "question" */
-				0);
+			int ret = Alert("save", msg.c_str(), "yesnocancel", "warning", 0);
 
 			if (ret == 0) { // cancel
 				glfwSetWindowShouldClose(window, GLFW_FALSE);

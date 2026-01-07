@@ -101,7 +101,7 @@ void SettingsWidget::draw() {
 					const char* msg = "You have made edits that are not ripent safe. "
 						"You can continue to make edits but you should probably save the map and reload "
 						"it to discard the unsafe changes.";
-					int ret = tinyfd_messageBox(
+					int ret = Alert(
 						"Unsafe Changes Detected", /* NULL or "" */
 						msg, /* NULL or "" may contain \n \t */
 						"ok", /* "ok" "okcancel" "yesno" "yesnocancel" */
