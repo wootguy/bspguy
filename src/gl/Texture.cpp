@@ -183,6 +183,15 @@ void Texture::generateMipMaps(int mipLevels, COLOR3 maskColor) {
 	delete[] data24;
 }
 
+void Texture::loadRgbFromIndexed(uint8_t* srcData, COLOR3* pal) {
+	int sz = width * height;
+	data = (uint8_t*)new COLOR3[sz];
+
+	for (int i = 0; i < sz; i++) {
+		((COLOR3*)data)[i] = pal[srcData[i]];
+	}
+}
+
 void Texture::addMipMap(int mipLevel, uint8_t* srcData, COLOR3* pal) {
 	if (mipLevel == 0) {
 		errorf("Can't replace base mip");

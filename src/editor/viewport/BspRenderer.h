@@ -248,6 +248,7 @@ public:
 
 	void generateSingleLeafNavMeshBuffer(LeafNode* node);
 	EntCube* getEntCube(int idx);
+	void postLoadTextures();
 	void delayLoadData();
 	void reloadMegaBuffers();
 

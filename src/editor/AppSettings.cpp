@@ -48,6 +48,8 @@ void AppSettings::loadDefault()
 	g_settings.max_texture_size = 0;
 	settings_tab = 0;
 	render_scale = 100;
+	tex_browser_scale = 100;
+	tex_browser_uniform_grid = false;
 	engine = ENGINE_SVEN_COOP;
 	renderer = RENDERER_OPENGL_21;
 
@@ -115,6 +117,8 @@ void AppSettings::load() {
 			else if (key == "pal_textures") { g_settings.pal_textures = atoi(val.c_str()) != 0; }
 			else if (key == "max_texture_size") { g_settings.max_texture_size = atoi(val.c_str()); }
 			else if (key == "ripent_safe_mode") { g_settings.ripent_safe_mode = atoi(val.c_str()); }
+			else if (key == "tex_browser_uniform_grid") { g_settings.tex_browser_uniform_grid = atoi(val.c_str()); }
+			else if (key == "tex_browser_scale") { g_settings.tex_browser_scale = atoi(val.c_str()); }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -256,6 +260,8 @@ void AppSettings::save() {
 	file << "pal_textures=" << g_settings.pal_textures << endl;
 	file << "max_texture_size=" << g_settings.max_texture_size << endl;
 	file << "ripent_safe_mode=" << g_settings.ripent_safe_mode << endl;
+	file << "tex_browser_uniform_grid=" << g_settings.tex_browser_uniform_grid << endl;
+	file << "tex_browser_scale=" << g_settings.tex_browser_scale << endl;
 }
 
 void AppSettings::addRecentFile(string map) {

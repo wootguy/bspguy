@@ -587,23 +587,8 @@ void BspRenderer::reloadTextures(bool reloadNow) {
 	preloadTextures();
 
 	if (reloadNow) {
-		preloadTextures();
 		loadTextures();
-
-		deleteTextures();
-		glTextures = glTexturesSwap;
-		glTextureAtlases = glTextureAtlasesSwap;
-		numTextureAtlases = numTextureAtlasesSwap;
-		for (int i = 0; i < map->textureCount; i++) {
-			if (!glTextures[i]->uploaded)
-				glTextures[i]->upload(GL_RGBA);
-		}
-		for (int i = 0; i < numTextureAtlases; i++) {
-			glTextureAtlases[i]->upload(GL_RGBA);
-		}
-		glTextureArray->upload();
-		numLoadedTextures = map->textureCount;
-		preRenderFaces();
+		postLoadTextures();
 	}
 	else {
 		texturesLoaded = false;
@@ -2265,6 +2250,70 @@ BspRenderer::~BspRenderer() {
 		delete map;
 }
 
+void BspRenderer::postLoadTextures() {
+	deleteTextures();
+
+	glTextures = glTexturesSwap;
+	glTextureAtlases = glTextureAtlasesSwap;
+	numTextureAtlases = numTextureAtlasesSwap;
+	glPalette = glPaletteSwap;
+	memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
+
+	int texFormat = g_settings.pal_textures ? GL_LUMINANCE : GL_RGBA;
+
+	g_shaders.bsp->bind();
+	g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
+
+	glTextureArray->upload();
+	glCheckError("uploading texture array");
+
+	if (!g_use_texture_arrays && !g_settings.texture_atlas) {
+		for (int i = 0; i < map->textureCount; i++) {
+			if (glTextures[i] && !glTextures[i]->uploaded) {
+				glTextures[i]->upload(texFormat);
+			}
+		}
+		glCheckError("uploading individual textures");
+	}
+	for (int i = 0; i < 6; i++) {
+		if (skyboxTextures[i]) {
+			skyboxTextures[i]->upload(GL_RGB, true);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Note: GL_CLAMP is significantly slower
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		}
+	}
+	glCheckError("uploading skybox textures");
+
+	for (int i = 0; i < numTextureAtlases; i++) {
+		//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
+		//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
+		//lodepng_encode32_file(cstrf("atlas_%d.png", i), glTextureAtlasesSwap[i]->data, textureAtlasSz, textureAtlasSz);
+		glTextureAtlases[i]->upload(texFormat);
+
+		// disable mip-maps because they show seams which can't be fixed without 4x texture memory
+		// and atlas size. https://0fps.net/2013/07/09/texture-atlases-wrapping-and-mip-mapping/
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	}
+	glCheckError("uploading texture atlases");
+
+	if (glPalette) {
+		// keep palette in memory for GUI
+		//lodepng_encode24_file("atlas_pal.png", glPalette->data, palAtlasWidth, palAtlasHeight);
+		g_shaders.bsp->setUniform("paletteAtlasScale", vec2(1.0f / palAtlasWidth, 1.0f / palAtlasHeight), true);
+		glPalette->upload(GL_RGB, false, false);
+		glCheckError("uploading palette");
+	}
+
+	numLoadedTextures = map->textureCount;
+
+	texturesLoaded = true;
+	glCheckError("uploading textures");
+
+	preRenderFaces();
+
+	textureFacesLoaded = true;
+}
+
 void BspRenderer::delayLoadData() {
 	if (!lightmapsUploaded && lightmapFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
 		for (int i = 0; i < numLightmapAtlases; i++) {
@@ -2285,67 +2334,7 @@ void BspRenderer::delayLoadData() {
 		lightmapsUploaded = true;
 	}
 	else if (!texturesLoaded && texturesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {
-		deleteTextures();
-		
-		glTextures = glTexturesSwap;
-		glTextureAtlases = glTextureAtlasesSwap;
-		numTextureAtlases = numTextureAtlasesSwap;
-		glPalette = glPaletteSwap;
-		memcpy(skyboxTextures, skyboxTexturesSwap, sizeof(skyboxTextures));
-
-		int texFormat = g_settings.pal_textures ? GL_LUMINANCE : GL_RGBA;
-
-		g_shaders.bsp->bind();
-		g_shaders.bsp->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
-
-		glTextureArray->upload();
-		glCheckError("uploading texture array");
-
-		if (!g_use_texture_arrays && !g_settings.texture_atlas) {
-			for (int i = 0; i < map->textureCount; i++) {
-				if (glTextures[i] && !glTextures[i]->uploaded) {
-					glTextures[i]->upload(texFormat);
-				}
-			}
-			glCheckError("uploading individual textures");
-		}
-		for (int i = 0; i < 6; i++) {
-			if (skyboxTextures[i]) {
-				skyboxTextures[i]->upload(GL_RGB, true);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Note: GL_CLAMP is significantly slower
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			}
-		}
-		glCheckError("uploading skybox textures");
-
-		for (int i = 0; i < numTextureAtlases; i++) {
-			//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
-			//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
-			//lodepng_encode32_file(cstrf("atlas_%d.png", i), glTextureAtlasesSwap[i]->data, textureAtlasSz, textureAtlasSz);
-			glTextureAtlases[i]->upload(texFormat);
-
-			// disable mip-maps because they show seams which can't be fixed without 4x texture memory
-			// and atlas size. https://0fps.net/2013/07/09/texture-atlases-wrapping-and-mip-mapping/
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-		}
-		glCheckError("uploading texture atlases");
-
-		if (glPalette) {
-			// keep palette in memory for GUI
-			//lodepng_encode24_file("atlas_pal.png", glPalette->data, palAtlasWidth, palAtlasHeight);
-			g_shaders.bsp->setUniform("paletteAtlasScale", vec2(1.0f / palAtlasWidth, 1.0f / palAtlasHeight), true);
-			glPalette->upload(GL_RGB, false, false);
-			glCheckError("uploading palette");
-		}
-
-		numLoadedTextures = map->textureCount;
-
-		texturesLoaded = true;
-		glCheckError("uploading textures");
-
-		preRenderFaces();
-
-		textureFacesLoaded = true;
+		postLoadTextures();
 	}
 
 	if (!clipnodesLoaded && clipnodesFuture.wait_for(chrono::milliseconds(0)) == future_status::ready) {

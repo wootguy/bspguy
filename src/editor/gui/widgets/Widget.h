@@ -117,6 +117,7 @@ public:
 	bool refreshAfterFacePaste = false;
 
 	void checkFaceErrors();
+	void clearTextureBrowserCache(); // call when wads change
 
 private:
 	int copiedLightmapFace = -1; // index into faces
@@ -136,7 +137,7 @@ private:
 	ImTextureID textureId = NULL; // OpenGL ID
 	Texture* buttonTexture = NULL;
 	int lastTextureIdx = 0;
-	char textureName[16];
+	char textureName[MAXTEXTURENAME];
 	int lastPickCount = -1;
 	bool validTexture = true;
 	bool isEmbedded = false;
@@ -144,15 +145,39 @@ private:
 	string last_texture_name;
 	int tex_size_kb = 0;
 
+	bool texture_browser_open = false;
+	int filterWad = -2;
+	bool onlyUsedTextures = false;
+	char texNameFilter[MAXTEXTURENAME];
+	bool pickedBrowserTexture = false;
+
+	struct BrowserTexture {
+		string name;
+		string lowerName; // for sorting/filtering
+		string contextId; // for context menus
+		WADTEX wadTex; // embedded if this is null
+		int width, height;
+		bool usedInMap;
+		int source; // -1 = bsp, 0+ = wad index
+		ImVec2 textSize;
+		int iMiptex; // -1 if not used in map
+		Texture* tex;
+	};
+	vector<BrowserTexture> browserTextures;
+	vector<int> filteredTextures;
+
 	using Widget::Widget;
 	void draw() override;
 	void drawTextureEditor();
 	void drawEmbedCheckbox();
 	void drawTextureButton();
 	void drawResizePopup();
+	void drawTextureBrowserPopup();
 	void drawLightmapsEditor();
 
 	void updateTextureSelection();
+	void openTextureBrowser();
+	void filterTextureBrowser();
 
 	void copyLightmap(int faceIdx, int layer);
 	void pasteLightmap(int faceIdx, int layer);

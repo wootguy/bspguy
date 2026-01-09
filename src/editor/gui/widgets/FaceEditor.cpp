@@ -1,7 +1,9 @@
 #include "Widget.h"
 #include "Texture.h"
+#include "MenuBar.h"
 #include "bmp.h"
 #include <lodepng.h>
+#include <algorithm>
 
 void FaceEditor::draw() {
 	if (app->mapRenderer == NULL || map == NULL || app->pickMode != PICK_FACE || app->pickInfo.faces.size() == 0)
@@ -360,6 +362,11 @@ void FaceEditor::drawTextureEditor() {
 	}
 	ImGui::EndDisabled();
 
+	if (pickedBrowserTexture) {
+		textureChanged = true;
+		pickedBrowserTexture = false;
+	}
+
 	if ((scaledX || scaledY || shiftedX || shiftedY || rotated || textureChanged || refreshAfterFacePaste || toggledFlags)) {
 		if (!faceUndoCommand)
 			faceUndoCommand = new FacesEditCommand("Edit Face");
@@ -479,7 +486,7 @@ void FaceEditor::drawTextureEditor() {
 	//ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
 
 	drawResizePopup();
-
+	drawTextureBrowserPopup();
 }
 
 void FaceEditor::drawEmbedCheckbox() {
@@ -561,7 +568,7 @@ void FaceEditor::drawTextureButton() {
 	float imgWidth = min(235.0f * uiScale, ImGui::GetContentRegionAvail().x - style.WindowPadding.x);
 	ImVec2 imgSize = ImVec2(imgWidth, imgWidth);
 	if (ImGui::ImageButton("texicon", textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
-		logf("Texture browser not implemented.\n");
+		openTextureBrowser();
 	}
 	if (ImGui::BeginPopupContextItem()) {
 		int mip = map->texinfos[map->faces[app->pickInfo.faces[0]].iTextureInfo].iMiptex;
@@ -856,6 +863,396 @@ void FaceEditor::drawResizePopup() {
 			originalTexture = NULL;
 		}
 		ImGui::SetItemDefaultFocus();
+		ImGui::EndPopup();
+	}
+}
+
+void FaceEditor::clearTextureBrowserCache() {
+	for (int i = 0; i < browserTextures.size(); i++) {
+		delete browserTextures[i].tex;
+		delete[] browserTextures[i].wadTex.data;
+	}
+	browserTextures.clear();
+	filterWad = -2;
+	texNameFilter[0] = 0;
+}
+
+void FaceEditor::openTextureBrowser() {
+	texture_browser_open = true;
+	ImGui::OpenPopup("###TexBrowser");
+
+	for (BrowserTexture& tex : browserTextures) {
+		tex.textSize = ImGui::CalcTextSize(tex.name.c_str());
+	}
+
+	if (browserTextures.size())
+		return;
+
+	vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
+
+	unordered_set<string> embeddedTextureNames;
+	unordered_set<string> usedInMapNames;
+	unordered_set<string> foundInWad;
+
+	for (int i = 0; i < map->textureCount; i++) {
+		BSPMIPTEX* tex = map->get_texture(i);
+		if (!tex)
+			continue;
+
+		string lowerName = toLowerCase(tex->szName);
+		usedInMapNames.insert(lowerName);
+
+		if (tex->nOffsets[0]) {
+			BrowserTexture btex;
+			btex.name = tex->szName;
+			btex.lowerName = lowerName;
+			btex.tex = NULL;
+			btex.width = tex->nWidth;
+			btex.height = tex->nHeight;
+			btex.usedInMap = true;
+			btex.source = -1;
+			btex.iMiptex = i;
+			btex.contextId = cstrf("###ctx%d", browserTextures.size());
+
+			memset(&btex.wadTex, 0, sizeof(WADTEX));
+			memcpy(&btex.wadTex, tex, sizeof(BSPMIPTEX));
+
+			int sz = btex.wadTex.getDataSize();
+			btex.wadTex.data = new byte[sz];
+			memcpy(btex.wadTex.data, ((byte*)tex) + tex->nOffsets[0], sz);
+
+			browserTextures.push_back(btex);
+			embeddedTextureNames.insert(lowerName);
+		}
+	}
+
+	for (int i = 0; i < wads.size(); i++) {
+		Wad* wad = wads[i];
+		vector<WADTEX> allTextures = wad->readAllTextures();
+
+		for (WADTEX& tex : allTextures) {
+			string name = tex.szName;
+			string lowerName = toLowerCase(tex.szName);
+
+			if (embeddedTextureNames.count(lowerName)) {
+				continue;
+			}
+
+			BrowserTexture btex;
+			btex.wadTex = tex;
+			btex.name = name;
+			btex.lowerName = lowerName;
+			btex.tex = NULL;
+			btex.width = tex.nWidth;
+			btex.height = tex.nHeight;
+			btex.usedInMap = usedInMapNames.count(lowerName) != 0;
+			btex.source = i;
+			btex.iMiptex = -1;
+			btex.contextId = cstrf("###ctx%d", browserTextures.size());
+			
+			browserTextures.push_back(btex);
+			foundInWad.insert(lowerName);
+		}
+	}
+
+	// add missing textures
+	for (int i = 0; i < map->textureCount; i++) {
+		BSPMIPTEX* tex = map->get_texture(i);
+		if (!tex)
+			continue;
+
+		string lowerName = toLowerCase(tex->szName);
+		usedInMapNames.insert(lowerName);
+
+		if (!tex->nOffsets[0] && !foundInWad.count(lowerName)) {
+			BrowserTexture btex;
+			btex.name = tex->szName;
+			btex.lowerName = lowerName;
+			btex.tex = NULL;
+			btex.width = tex->nWidth;
+			btex.height = tex->nHeight;
+			btex.usedInMap = true;
+			btex.source = -1;
+			btex.iMiptex = i;
+			btex.contextId = cstrf("###ctx%d", browserTextures.size());
+
+			memset(&btex.wadTex, 0, sizeof(WADTEX));
+			memcpy(&btex.wadTex, tex, sizeof(BSPMIPTEX));
+
+			btex.wadTex.data = NULL;
+
+			browserTextures.push_back(btex);
+		}
+	}
+
+	sort(browserTextures.begin(), browserTextures.end(), [](BrowserTexture& a, BrowserTexture& b) {
+		return a.lowerName < b.lowerName;
+	});
+
+	filterTextureBrowser();
+
+	for (BrowserTexture& tex : browserTextures) {
+		tex.textSize = ImGui::CalcTextSize(tex.name.c_str());
+	}
+}
+
+void FaceEditor::filterTextureBrowser() {
+	filteredTextures.clear();
+
+	string lowerFilter = toLowerCase(texNameFilter);
+
+	for (int i = 0; i < browserTextures.size(); i++) {
+		BrowserTexture& btex = browserTextures[i];
+
+		if (filterWad > -2 && btex.source != filterWad)
+			continue;
+		if (onlyUsedTextures && !btex.usedInMap)
+			continue;
+		if (texNameFilter[0] && btex.lowerName.find(lowerFilter) == string::npos)
+			continue;
+
+		filteredTextures.push_back(i);
+	}
+}
+
+void FaceEditor::drawTextureBrowserPopup() {
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::SetNextWindowSize(ImVec2(app->windowWidth, app->windowHeight - gui->menuBar->height), ImGuiCond_Appearing);
+	ImGuiViewport* vp = ImGui::GetMainViewport();
+
+	int texturesLoaded = 0;
+	vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
+	string name = cstrf("Texture Browser (%d results)###TexBrowser", filteredTextures.size());
+
+	if (ImGui::BeginPopupModal(name.c_str(), &texture_browser_open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize)) {
+
+		ImGui::BeginChild("left pane", ImVec2(200 * uiScale, 0), true);
+
+		int inputWidth = ImGui::GetContentRegionAvail().x - style.FramePadding.x;
+
+		ImGui::Text("Filter by name:");
+		ImGui::SetNextItemWidth(inputWidth);
+		if (ImGui::InputText("###texNameFilter", texNameFilter, sizeof(texNameFilter))) {
+			filterTextureBrowser();
+		}
+
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+		ImGui::Separator();
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+
+		ImGui::Text("Filter by source:");
+		ImGui::Indent();
+		if (ImGui::Selectable("All", filterWad == -2)) {
+			filterWad = -2;
+			filterTextureBrowser();
+		}
+		tooltip("Display all WAD textures and embedded textures");
+
+		string bspName = map->name + ".bsp";
+		if (ImGui::Selectable(bspName.c_str(), filterWad == -1)) {
+			filterWad = -1;
+			filterTextureBrowser();
+		}
+		tooltip(cstrf("Display textures embedded into %s", bspName.c_str()));
+
+		for (int i = 0; i < wads.size(); i++) {
+			string name = wads[i]->getName();
+			if (ImGui::Selectable(name.c_str(), filterWad == i)) {
+				filterWad = i;
+				filterTextureBrowser();
+			}
+			tooltip(cstrf("Display textures from %s", name.c_str()));
+		}
+		ImGui::Unindent();
+
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+		ImGui::Separator();
+		ImGui::Dummy(ImVec2(0, 10*uiScale));
+
+		if (ImGui::Checkbox("Only used textures", &onlyUsedTextures)) {
+			filterTextureBrowser();
+		}
+		tooltip("Display only the textures that are used in this map");
+
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+		ImGui::Separator();
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+
+		ImGui::Text("Texture Scale:");
+		ImGui::SetNextItemWidth(inputWidth);
+		ImGui::DragInt("##scale", &g_settings.tex_browser_scale, 0.2f, 25, 400, "%d%%");
+
+		ImGui::Dummy(ImVec2(0, 10 * uiScale));
+		ImGui::Checkbox("Uniform Grid", &g_settings.tex_browser_uniform_grid);
+		tooltip("Display equal sized boxes in the grid. Textures will be resized to fit their grid box.");
+			
+		float iconScale = g_settings.tex_browser_scale * 0.01f;
+
+		ImGui::EndChild();
+		ImGui::SameLine();
+
+		float old_scrollbar_size = style.ScrollbarSize;
+		style.ScrollbarSize *= 2;
+
+		ImGui::BeginChild("texBrowserChild");
+		
+		float contentWidth = ImGui::GetContentRegionAvail().x;
+		float x = 0.0f;
+		float padding = ImGui::GetStyle().ItemSpacing.x;
+
+		string lowerFilter = toLowerCase(texNameFilter);
+
+		bool isAnyContextOpen = false;
+
+		for (int i = 0; i < filteredTextures.size(); i++) {
+			BrowserTexture& btex = browserTextures[filteredTextures[i]];
+
+			int groupWidth = max(btex.width * iconScale, btex.textSize.x);
+
+			if (g_settings.tex_browser_uniform_grid) {
+				groupWidth = 128 * uiScale * iconScale;
+			}
+
+			if (x + groupWidth > contentWidth && x > 0.0f)
+			{
+				x = 0.0f;
+				ImGui::NewLine();
+			}
+
+			ImGui::SameLine(x > 0.0f ? 0.0f : 0.0f);
+			ImGui::SetCursorPosX(x);
+
+			ImVec2 group_start = ImGui::GetCursorScreenPos();
+			ImGui::BeginGroup();
+			{
+				ImVec2 texSize = ImVec2(btex.width * iconScale, btex.height * iconScale);
+				if (g_settings.tex_browser_uniform_grid) {
+					float smallestScale = min((float)groupWidth / texSize.x, (float)groupWidth / texSize.y);
+					texSize.x *= smallestScale;
+					texSize.y *= smallestScale;
+				}
+
+				if (btex.tex) {
+					ImGui::Image((ImTextureID)btex.tex->id, texSize);
+				}
+				else {
+					ImGui::Dummy(texSize);
+				}
+
+				if (g_settings.tex_browser_uniform_grid) {
+					ImGui::Dummy(ImVec2(groupWidth, groupWidth - texSize.y));
+				}
+				
+				ImVec2 text_pos = ImGui::GetCursorScreenPos();
+				ImVec2 text_size = btex.textSize;
+				if (g_settings.tex_browser_uniform_grid) {
+					text_size.x = groupWidth;
+				}
+
+				ImGui::GetWindowDrawList()->AddRectFilled(
+					text_pos, ImVec2(text_pos.x + groupWidth, text_pos.y + text_size.y), 
+					IM_COL32(0, 0, 255, 255)
+				);
+
+				ImVec2 pos = ImGui::GetCursorScreenPos();
+				if (g_settings.tex_browser_uniform_grid)
+					ImGui::PushClipRect(pos, ImVec2(pos.x + groupWidth, pos.y + text_size.y), true);
+				ImGui::TextUnformatted(btex.name.c_str());
+				if (g_settings.tex_browser_uniform_grid)
+					ImGui::PopClipRect();
+			}
+			ImGui::EndGroup();
+			ImVec2 group_end = ImGui::GetItemRectMax();
+			
+			if (g_settings.tex_browser_uniform_grid)
+				group_end.x = group_start.x + groupWidth;
+
+			if (ImGui::IsMouseHoveringRect(group_start, group_end) && !isAnyContextOpen) {
+				ImDrawList* draw_list = ImGui::GetWindowDrawList();
+				draw_list->AddRect(group_start, group_end, IM_COL32(255, 255, 255, 255));
+
+				bool ctxOpen = ImGui::IsPopupOpen(btex.contextId.c_str());
+
+				if (!ctxOpen) {
+					ImGui::BeginTooltip();
+					ImGui::TextUnformatted(cstrf("%s\n%dx%d", btex.name.c_str(), btex.width, btex.height));
+					ImGui::EndTooltip();
+				}
+
+				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+					pickedBrowserTexture = true;
+					strcpy_safe(textureName, btex.name.c_str(), sizeof(textureName));
+				}
+				if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+					ImGui::OpenPopup(btex.contextId.c_str());
+				}
+			}
+
+			bool shouldClosePopup = false;
+			if (ImGui::BeginPopup(btex.contextId.c_str())) {
+				pickedBrowserTexture = false;
+				isAnyContextOpen = true;
+
+				if (ImGui::MenuItem("Apply")) {
+					pickedBrowserTexture = true;
+					strcpy_safe(textureName, btex.name.c_str(), sizeof(textureName));
+					shouldClosePopup = true;
+				}
+				tooltip("Apply this texture to the selected faces");
+
+				if (ImGui::MenuItem("Select")) {
+					app->mapRenderer->highlightPickedFaces(false);
+					app->pickInfo.deselect();
+					gui->selectFacesByTexture(btex.iMiptex, false);
+					shouldClosePopup = true;
+				}
+				tooltip("Select every face in the map which has this texture");
+				ImGui::EndPopup();
+			}
+
+			if (shouldClosePopup) {
+				ImGui::CloseCurrentPopup();
+				break;
+			}
+
+			if (texturesLoaded < 8 && ImGui::IsItemVisible() && btex.tex == NULL) {
+				if (btex.wadTex.data) {
+					btex.tex = new Texture(btex.width, btex.height, (void*)NULL);
+					btex.tex->loadRgbFromIndexed(btex.wadTex.getMip(0), btex.wadTex.getPalette());
+					delete[] btex.wadTex.data;
+					btex.wadTex.data = NULL;
+				}
+				else {
+					static const COLOR3 pink = COLOR3(255, 0, 255);
+					static const COLOR3 black = COLOR3(0, 0, 0);
+					COLOR3* dat = new COLOR3[width * height];
+
+					for (int y = 0; y < height; y++) {
+						for (int x = 0; x < width; x++) {
+							bool isPink = ((x / 8) + ((y / 8) & 1)) & 1;
+							dat[y * width + x] = isPink ? pink : black;
+						}
+					}
+
+					btex.tex = new Texture(btex.width, btex.height, dat);
+				}
+
+				btex.tex->upload(GL_RGB);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				texturesLoaded++;
+			}
+
+			x += groupWidth + padding;
+		}
+
+		if (pickedBrowserTexture)
+			ImGui::CloseCurrentPopup();
+
+		ImGui::EndChild();
+
+		style.ScrollbarSize = old_scrollbar_size;
+
 		ImGui::EndPopup();
 	}
 }

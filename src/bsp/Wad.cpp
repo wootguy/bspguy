@@ -130,7 +130,7 @@ WADTEX * Wad::readTexture( int dirIndex )
 	return readTexture(name);
 }
 
-WADTEX * Wad::readTexture( const string& texname )
+WADTEX* Wad::readTexture( const string& texname )
 {
 	string path = filename;
 	const char * file = (path.c_str());
@@ -188,6 +188,44 @@ WADTEX * Wad::readTexture( const string& texname )
 
 	return tex;
 }
+
+vector<WADTEX> Wad::readAllTextures() {
+	string path = filename;
+	const char* file = (path.c_str());
+	vector<WADTEX> allTextures;
+
+	ifstream fin(file, ifstream::in | ios::binary);
+	if (!fin.good())
+		return allTextures;
+
+	for (int i = 0; i < numTex; i++) {
+		if (dirEntries[i].bCompression) {
+			errorf("OMG texture %s is compressed. I'm too scared to load it :<\n", dirEntries[i].szName);
+			continue;
+		}
+		fin.seekg(dirEntries[i].nFilePos);
+
+		WADTEX tex;
+		fin.read((char*)&tex, sizeof(BSPMIPTEX));
+
+		int w = tex.nWidth;
+		int h = tex.nHeight;
+		int sz = w * h;	   // miptex 0
+		int sz2 = sz / 4;  // miptex 1
+		int sz3 = sz2 / 4; // miptex 2
+		int sz4 = sz3 / 4; // miptex 3
+		int szAll = sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
+
+		tex.data = new byte[szAll];
+		fin.read((char*)tex.data, szAll);
+		allTextures.push_back(tex);
+	}
+
+	fin.close();
+
+	return allTextures;
+}
+
 bool Wad::write(WADTEX* textures, int numTex)
 {
 	return write(filename, textures, numTex);

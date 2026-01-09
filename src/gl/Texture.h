@@ -48,6 +48,9 @@ public:
 
 	void generateMipMaps(int mipLevels, COLOR3 maskColor);
 
+	// load RGB data from indexed texture
+	void loadRgbFromIndexed(uint8_t* srcData, COLOR3* pal);
+
 	// add a mip map as RGB data
 	void addMipMap(int mipLevel, uint8_t* srcData, COLOR3* pal);
 

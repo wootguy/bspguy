@@ -179,6 +179,7 @@ void Gui::init() {
 
 	widgets[WIDGET_FACE_EDITOR] = new FaceEditor(this, "Face Editor",
 		ImVec2(260, 530), ImVec2(260, 510), ImGuiWindowFlags_NoScrollbar);
+	((FaceEditor*)widgets[WIDGET_FACE_EDITOR])->clearTextureBrowserCache();
 
 	widgets[WIDGET_RAD_PREP] = new RadWidget(this, "Configure Texlights",
 		ImVec2(350, 300), ImVec2(350, 300), 0);
@@ -581,49 +582,15 @@ void Gui::draw3dContextMenus() {
 						Bsp* map = app->pickInfo.getMap();
 						BSPTEXTUREINFO& texinfo = map->texinfos[app->pickInfo.getFace()->iTextureInfo];
 						uint32_t selectedMiptex = texinfo.iMiptex;
-
-						g_app->mapRenderer->highlightPickedFaces(false);
-
-						app->pickInfo.deselect();
-						for (int i = 0; i < map->faceCount; i++) {
-							BSPTEXTUREINFO& info = map->texinfos[map->faces[i].iTextureInfo];
-							if (info.iMiptex == selectedMiptex) {
-								app->pickInfo.selectFace(i);
-							}
-						}
-						g_app->mapRenderer->highlightPickedFaces(true);
-						g_app->updateTextureAxes();
-
-						logf("Selected %d faces\n", app->pickInfo.faces.size());
-						g_app->pickCount++;
+						selectFacesByTexture(selectedMiptex, false);
 					}
 					tooltip("Select every face in the map which has this texture.");
 
 					if (ImGui::MenuItem("Texture (bad extents)", "", false, app->pickInfo.faces.size() == 1)) {
 						Bsp* map = app->pickInfo.getMap();
 						BSPTEXTUREINFO& texinfo = map->texinfos[app->pickInfo.getFace()->iTextureInfo];
-						uint32_t selectedMiptex = texinfo.iMiptex;
-
-						g_app->mapRenderer->highlightPickedFaces(false);
-
-						app->pickInfo.deselect();
-						for (int i = 0; i < map->faceCount; i++) {
-							BSPTEXTUREINFO& info = map->texinfos[map->faces[i].iTextureInfo];
-							if (info.iMiptex == selectedMiptex) {
-
-								int size[2];
-								if (GetFaceLightmapSize(map, i, size)) {
-									continue;
-								}
-
-								app->pickInfo.selectFace(i);
-							}
-						}
-						g_app->mapRenderer->highlightPickedFaces(true);
-						g_app->updateTextureAxes();
-
-						logf("Selected %d faces\n", app->pickInfo.faces.size());
-						g_app->pickCount++;
+						uint32_t selectedMiptex = texinfo.iMiptex;						
+						selectFacesByTexture(selectedMiptex, true);
 					}
 					tooltip("Select faces with bad surface extents that use this texture.");
 
@@ -1757,4 +1724,29 @@ void Gui::resetWidgetSizes() {
 		ImGui::ClearWindowSettings(widget->widgetName);
 		widget->shouldResetPosition = true;
 	}
+}
+
+void Gui::selectFacesByTexture(uint32_t selectedMiptex, bool badExtentsOnly) {
+	Bsp* map = app->pickInfo.getMap();
+
+	g_app->mapRenderer->highlightPickedFaces(false);
+
+	app->pickInfo.deselect();
+	for (int i = 0; i < map->faceCount; i++) {
+		BSPTEXTUREINFO& info = map->texinfos[map->faces[i].iTextureInfo];
+		if (info.iMiptex == selectedMiptex) {
+
+			int size[2];
+			if (badExtentsOnly && GetFaceLightmapSize(map, i, size)) {
+				continue;
+			}
+
+			app->pickInfo.selectFace(i);
+		}
+	}
+	g_app->mapRenderer->highlightPickedFaces(true);
+	g_app->updateTextureAxes();
+
+	logf("Selected %d faces\n", app->pickInfo.faces.size());
+	g_app->pickCount++;
 }

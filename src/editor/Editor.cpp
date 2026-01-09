@@ -805,6 +805,7 @@ void Editor::clearMapData() {
 	hiddenFaces.clear();
 	hiddenLeaves.clear();
 	clearStringMap();
+	((FaceEditor*)gui->widgets[WIDGET_FACE_EDITOR])->clearTextureBrowserCache();
 
 	/*
 	for (auto item : studioModels) {

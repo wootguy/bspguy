@@ -121,6 +121,7 @@ public:
 	void showWidget(int id, bool showNotHide);
 	void addText(Text2D text);
 	void resetWidgetSizes();
+	void selectFacesByTexture(uint32_t selectedMiptex, bool badExtentsOnly);
 
 	int calcMemUsage();
 

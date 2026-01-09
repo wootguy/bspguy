@@ -40,6 +40,8 @@ struct AppSettings {
 	bool pal_textures;
 	int max_texture_size;
 	bool ripent_safe_mode;
+	bool tex_browser_uniform_grid;
+	int tex_browser_scale;
 
 	bool debug_open;
 	bool keyvalue_open;

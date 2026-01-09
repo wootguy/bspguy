@@ -154,6 +154,7 @@ public:
 
 	WADTEX * readTexture(int dirIndex);
 	WADTEX * readTexture(const std::string& texname);
+	vector<WADTEX> readAllTextures();
 
 	int calcMemoryUsage();
 };
