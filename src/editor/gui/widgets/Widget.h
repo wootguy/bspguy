@@ -122,11 +122,37 @@ private:
 	int copiedLightmapFace = -1; // index into faces
 	int copiedLightmapLayer = 0; // index into styles
 
+	uint16_t resizeWidth = 0;
+	uint16_t resizeHeight = 0;
+	uint16_t resizeOriginalWidth = 0;
+	uint16_t resizeOriginalHeight = 0;
+	int resizeTextureIdx = 0;
+	bool resizeMasked = false;
+	COLOR3 resizeMaskColor;
+
+	float scaleX = 0, scaleY = 0, shiftX = 0, shiftY = 0, rotate = 0;
+	bool isSpecial = false;
+	int width = 0, height = 0;
+	ImTextureID textureId = NULL; // OpenGL ID
+	Texture* buttonTexture = NULL;
+	int lastTextureIdx = 0;
+	char textureName[16];
+	int lastPickCount = -1;
+	bool validTexture = true;
+	bool isEmbedded = false;
+	string texture_src;
+	string last_texture_name;
+	int tex_size_kb = 0;
+
 	using Widget::Widget;
 	void draw() override;
-
 	void drawTextureEditor();
+	void drawEmbedCheckbox();
+	void drawTextureButton();
+	void drawResizePopup();
 	void drawLightmapsEditor();
+
+	void updateTextureSelection();
 
 	void copyLightmap(int faceIdx, int layer);
 	void pasteLightmap(int faceIdx, int layer);

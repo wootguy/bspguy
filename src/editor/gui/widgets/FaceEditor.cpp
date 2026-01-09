@@ -106,121 +106,107 @@ void FaceEditor::draw() {
 	}
 }
 
+void FaceEditor::updateTextureSelection() {
+	BspRenderer* mapRenderer = app->mapRenderer ? app->mapRenderer : NULL;
+
+	if (app->pickInfo.faces.empty() || mapRenderer == NULL) {
+		scaleX = scaleY = shiftX = shiftY = width = height = 0;
+		textureId = NULL;
+		textureName[0] = 0;
+		return;
+	}
+
+	vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
+
+	int faceIdx = app->pickInfo.faces[0];
+	Bsp* map = app->pickInfo.getMap();
+	BSPFACE& face = map->faces[faceIdx];
+	BSPPLANE& plane = map->planes[face.iPlane];
+	BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
+	BSPMIPTEX* tex = map->get_texture(texinfo.iMiptex);
+
+	width = height = 0;
+	if (tex) {
+		width = tex->nWidth;
+		height = tex->nHeight;
+		strncpy(textureName, tex->szName, MAXTEXTURENAME);
+		isEmbedded = tex->nOffsets[0] != 0;
+
+		int w = tex->nWidth;
+		int h = tex->nHeight;
+		int sz = w * h;	   // miptex 0
+		int sz2 = sz / 4;  // miptex 1
+		int sz3 = sz2 / 4; // miptex 2
+		int sz4 = sz3 / 4; // miptex 3
+		int szAll = sizeof(BSPMIPTEX) + sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
+		tex_size_kb = (szAll + 512) / 1024;
+	}
+	else {
+		textureName[0] = 0;
+	}
+
+	if (textureName != last_texture_name) {
+		last_texture_name = textureName;
+		texture_src = map->get_texture_source(textureName, wads);
+		// TODO: this is slow. cache loaded wads
+	}
+
+	int miptex = texinfo.iMiptex;
+
+	scaleX = 1.0f / texinfo.vS.length();
+	scaleY = 1.0f / texinfo.vT.length();
+	shiftX = texinfo.shiftS;
+	shiftY = texinfo.shiftT;
+	isSpecial = texinfo.nFlags & TEX_SPECIAL;
+
+	{
+		vec3 ref = map->get_face_ut_reference(faceIdx);
+		vec3 utNorm = crossProduct(texinfo.vS, texinfo.vT).normalize();
+		rotate = signedAngle(texinfo.vS, ref, utNorm);
+	}
+
+	if (lastTextureIdx != texinfo.iMiptex) {
+		lastTextureIdx = texinfo.iMiptex;
+		delete buttonTexture;
+		buttonTexture = mapRenderer->getRgbTexture(texinfo.iMiptex);
+		textureId = buttonTexture->id;
+	}
+
+	validTexture = true;
+
+	// show default values if not all faces share the same values
+	for (int i = 1; i < app->pickInfo.faces.size(); i++) {
+		int faceIdx2 = app->pickInfo.faces[i];
+		BSPFACE& face2 = map->faces[faceIdx2];
+		BSPTEXTUREINFO& texinfo2 = map->texinfos[face2.iTextureInfo];
+
+		if (scaleX != 1.0f / texinfo2.vS.length()) scaleX = 1.0f;
+		if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
+		if (shiftX != texinfo2.shiftS) shiftX = 0;
+		if (shiftY != texinfo2.shiftT) shiftY = 0;
+		if (isSpecial != texinfo2.nFlags & TEX_SPECIAL) isSpecial = false;
+		if (texinfo2.iMiptex != miptex) {
+			validTexture = false;
+			textureId = NULL;
+			width = 0;
+			height = 0;
+			textureName[0] = 0;
+		}
+	}
+}
+
 void FaceEditor::drawTextureEditor() {
 	ImGuiContext& g = *GImGui;
 
-	static uint16_t resizeWidth = 0;
-	static uint16_t resizeHeight = 0;
-	static uint16_t resizeOriginalWidth = 0;
-	static uint16_t resizeOriginalHeight = 0;
-	static int resizeTextureIdx = 0;
-	static bool resizeMasked = false;
-	static COLOR3 resizeMaskColor;
-
 	//ImGui::SetNextWindowSize(ImVec2(400, 600));
-
-	static float scaleX, scaleY, shiftX, shiftY, rotate;
-	static bool isSpecial;
-	static int width, height;
-	static ImTextureID textureId = NULL; // OpenGL ID
-	static Texture* buttonTexture;
-	static int lastTextureIdx;
-	static char textureName[16];
-	static int lastPickCount = -1;
-	static bool validTexture = true;
-	static bool isEmbedded = false;
-	static string texture_src;
-	static string last_texture_name;
-	static int tex_size_kb;
+	
 	BspRenderer* mapRenderer = app->mapRenderer ? app->mapRenderer : NULL;
 	Bsp* map = app->pickInfo.getMap();
 	vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
 	static FacesEditCommand* faceUndoCommand = NULL;
 
 	if (lastPickCount != app->pickCount && app->pickMode == PICK_FACE) {
-		if (app->pickInfo.faces.size() && mapRenderer != NULL) {
-			int faceIdx = app->pickInfo.faces[0];
-			Bsp* map = app->pickInfo.getMap();
-			BSPFACE& face = map->faces[faceIdx];
-			BSPPLANE& plane = map->planes[face.iPlane];
-			BSPTEXTUREINFO& texinfo = map->texinfos[face.iTextureInfo];
-			BSPMIPTEX* tex = map->get_texture(texinfo.iMiptex);
-
-			width = height = 0;
-			if (tex) {
-				width = tex->nWidth;
-				height = tex->nHeight;
-				strncpy(textureName, tex->szName, MAXTEXTURENAME);
-				isEmbedded = tex->nOffsets[0] != 0;
-
-				int w = tex->nWidth;
-				int h = tex->nHeight;
-				int sz = w * h;	   // miptex 0
-				int sz2 = sz / 4;  // miptex 1
-				int sz3 = sz2 / 4; // miptex 2
-				int sz4 = sz3 / 4; // miptex 3
-				int szAll = sizeof(BSPMIPTEX) + sz + sz2 + sz3 + sz4 + 2 + 256 * 3 + 2;
-				tex_size_kb = (szAll + 512) / 1024;
-			}
-			else {
-				textureName[0] = 0;
-			}
-
-			if (textureName != last_texture_name) {
-				last_texture_name = textureName;
-				texture_src = map->get_texture_source(textureName, wads);
-				// TODO: this is slow. cache loaded wads
-			}
-
-			int miptex = texinfo.iMiptex;
-
-			scaleX = 1.0f / texinfo.vS.length();
-			scaleY = 1.0f / texinfo.vT.length();
-			shiftX = texinfo.shiftS;
-			shiftY = texinfo.shiftT;
-			isSpecial = texinfo.nFlags & TEX_SPECIAL;
-
-			{
-				vec3 ref = map->get_face_ut_reference(faceIdx);
-				vec3 utNorm = crossProduct(texinfo.vS, texinfo.vT).normalize();
-				rotate = signedAngle(texinfo.vS, ref, utNorm);
-			}
-
-			if (lastTextureIdx != texinfo.iMiptex) {
-				lastTextureIdx = texinfo.iMiptex;
-				delete buttonTexture;
-				buttonTexture = mapRenderer->getRgbTexture(texinfo.iMiptex);
-				textureId = buttonTexture->id;
-			}
-
-			validTexture = true;
-
-			// show default values if not all faces share the same values
-			for (int i = 1; i < app->pickInfo.faces.size(); i++) {
-				int faceIdx2 = app->pickInfo.faces[i];
-				BSPFACE& face2 = map->faces[faceIdx2];
-				BSPTEXTUREINFO& texinfo2 = map->texinfos[face2.iTextureInfo];
-
-				if (scaleX != 1.0f / texinfo2.vS.length()) scaleX = 1.0f;
-				if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
-				if (shiftX != texinfo2.shiftS) shiftX = 0;
-				if (shiftY != texinfo2.shiftT) shiftY = 0;
-				if (isSpecial != texinfo2.nFlags & TEX_SPECIAL) isSpecial = false;
-				if (texinfo2.iMiptex != miptex) {
-					validTexture = false;
-					textureId = NULL;
-					width = 0;
-					height = 0;
-					textureName[0] = 0;
-				}
-			}
-		}
-		else {
-			scaleX = scaleY = shiftX = shiftY = width = height = 0;
-			textureId = NULL;
-			textureName[0] = 0;
-		}
-
+		updateTextureSelection();
 		checkFaceErrors();
 	}
 	lastPickCount = app->pickCount;
@@ -317,77 +303,7 @@ void FaceEditor::drawTextureEditor() {
 
 	ImGui::SameLine(0, 20 * uiScale);
 
-	if (g_app->isLoading) {
-		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-	}
-
-
-	if (ImGui::Checkbox("Embedded", &isEmbedded)) {
-		LumpReplaceCommand* command = new LumpReplaceCommand(isEmbedded ? "Unembed texture" : "Embed texture", true);
-
-		unordered_set<int> mipsToEmbed;
-		for (int i = 0; i < app->pickInfo.faces.size(); i++) {
-			BSPFACE& face = map->faces[app->pickInfo.faces[i]];
-			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-			mipsToEmbed.insert(info.iMiptex);
-		}
-
-		bool anySuccess = false;
-		for (int mip : mipsToEmbed) {
-			bool isActuallyEmbedded = false;
-
-			if (mip > 0 && mip < map->textureCount) {
-				BSPMIPTEX* tex = map->get_texture(mip);
-				isActuallyEmbedded = tex && tex->nOffsets[0] != 0;
-			}
-
-			if (!isEmbedded && isActuallyEmbedded) {
-				int ret = map->unembed_texture(mip, wads);
-				if (ret > 0) {
-					isEmbedded = false;
-					anySuccess = true;
-					if (ret == 2)
-						app->mapRenderer->reloadTextures();
-				}
-				else
-					isEmbedded = true;
-			}
-			else if (isEmbedded && !isActuallyEmbedded) {
-				if (map->embed_texture(mip, wads)) {
-					isEmbedded = true;
-					anySuccess = true;
-				}
-				else {
-					isEmbedded = false;
-				}
-			}
-		}
-
-		// refresh texture source
-		app->pickCount++;
-		last_texture_name = "";
-
-		if (anySuccess) {
-			command->pushUndoState();
-		}
-		else {
-			delete command;
-		}
-	}
-
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::BeginTooltip();
-		ImGui::TextUnformatted("Embedded textures are stored in this BSP rather than a WAD."
-			"\n\nEmbedding allows the texture to be downscaled, but inflates the size of the BSP."
-			"\nUnembedding is disallowed if no loaded WAD has a texture by this name.\n");
-		ImGui::EndTooltip();
-	}
-	if (g_app->isLoading) {
-		ImGui::PopItemFlag();
-		ImGui::PopStyleVar();
-	}
+	drawEmbedCheckbox();
 
 	ImGui::Dummy(ImVec2(0, roundf(8 * uiScale)));
 
@@ -557,6 +473,91 @@ void FaceEditor::drawTextureEditor() {
 
 	refreshAfterFacePaste = false;
 
+	drawTextureButton();
+
+	ImGui::Text(("Source: " + texture_src).c_str());
+	//ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
+
+	drawResizePopup();
+
+}
+
+void FaceEditor::drawEmbedCheckbox() {
+	if (g_app->isLoading) {
+		ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+	}
+
+	if (ImGui::Checkbox("Embedded", &isEmbedded)) {
+		vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
+
+		LumpReplaceCommand* command = new LumpReplaceCommand(isEmbedded ? "Unembed texture" : "Embed texture", true);
+
+		unordered_set<int> mipsToEmbed;
+		for (int i = 0; i < app->pickInfo.faces.size(); i++) {
+			BSPFACE& face = map->faces[app->pickInfo.faces[i]];
+			BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
+			mipsToEmbed.insert(info.iMiptex);
+		}
+
+		bool anySuccess = false;
+		for (int mip : mipsToEmbed) {
+			bool isActuallyEmbedded = false;
+
+			if (mip > 0 && mip < map->textureCount) {
+				BSPMIPTEX* tex = map->get_texture(mip);
+				isActuallyEmbedded = tex && tex->nOffsets[0] != 0;
+			}
+
+			if (!isEmbedded && isActuallyEmbedded) {
+				int ret = map->unembed_texture(mip, wads);
+				if (ret > 0) {
+					isEmbedded = false;
+					anySuccess = true;
+					if (ret == 2)
+						app->mapRenderer->reloadTextures();
+				}
+				else
+					isEmbedded = true;
+			}
+			else if (isEmbedded && !isActuallyEmbedded) {
+				if (map->embed_texture(mip, wads)) {
+					isEmbedded = true;
+					anySuccess = true;
+				}
+				else {
+					isEmbedded = false;
+				}
+			}
+		}
+
+		// refresh texture source
+		app->pickCount++;
+		last_texture_name = "";
+
+		if (anySuccess) {
+			command->pushUndoState();
+		}
+		else {
+			delete command;
+		}
+	}
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted("Embedded textures are stored in this BSP rather than a WAD."
+			"\n\nEmbedding allows the texture to be downscaled, but inflates the size of the BSP."
+			"\nUnembedding is disallowed if no loaded WAD has a texture by this name.\n");
+		ImGui::EndTooltip();
+	}
+	if (g_app->isLoading) {
+		ImGui::PopItemFlag();
+		ImGui::PopStyleVar();
+	}
+}
+
+void FaceEditor::drawTextureButton() {
 	float imgWidth = min(235.0f * uiScale, ImGui::GetContentRegionAvail().x - style.WindowPadding.x);
 	ImVec2 imgSize = ImVec2(imgWidth, imgWidth);
 	if (ImGui::ImageButton("texicon", textureId, imgSize, ImVec2(0, 0), ImVec2(1, 1))) {
@@ -661,10 +662,9 @@ void FaceEditor::drawTextureEditor() {
 
 		ImGui::EndPopup();
 	}
+}
 
-	ImGui::Text(("Source: " + texture_src).c_str());
-	//ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
-
+void FaceEditor::drawResizePopup() {
 	ImGuiIO& io = ImGui::GetIO();
 	int bestWidth = app->windowWidth * 0.5f;
 	ImGui::SetNextWindowSize(ImVec2(bestWidth, bestWidth * 0.8f), ImGuiCond_Appearing);
@@ -858,7 +858,6 @@ void FaceEditor::drawTextureEditor() {
 		ImGui::SetItemDefaultFocus();
 		ImGui::EndPopup();
 	}
-
 }
 
 void FaceEditor::drawLightmapsEditor() {
