@@ -247,9 +247,9 @@ void BspRenderer::loadTextures() {
 					}
 
 					foundInWad = true;
-					palette = (COLOR3*)(wadTex->data + wadTex->nOffsets[3] + lastMipSize + 2 - 40);
+					palette = wadTex->getPalette();
 					for (int i = 0; i < 4; i++)
-						mipdat[i] = wadTex->data + wadTex->nOffsets[i];
+						mipdat[i] = wadTex->getMip(i);
 
 					wadTexCount++;
 					break;
@@ -285,17 +285,18 @@ void BspRenderer::loadTextures() {
 		}
 		else {
 			COLOR4* imageData = new COLOR4[tex->nWidth * tex->nHeight];
+			uint8_t* mip0 = mipdat[0];
 
 			for (int k = 0; k < sz; k++) {
-				imageData[k] = COLOR4(palette[mipdat[0][k]], 255);
+				imageData[k] = COLOR4(palette[mip0[k]], 255);
 
-				if (hasAlpha && mipdat[0][k] == 255)
+				if (hasAlpha && mip0[k] == 255)
 					imageData[k].a = 0;
 			}
 
 			glTexturesSwap[i] = new Texture(tex->nWidth, tex->nHeight, imageData);
 
-			// looks much nicer in some cased but slow to generate
+			// looks much nicer in some cases but slow to generate
 			//glTexturesSwap[i]->generateMipMaps(numMips, palette[255]);
 
 			for (int k = 1; k <= numMips; k++) {

@@ -150,6 +150,7 @@ private:
 	bool onlyUsedTextures = false;
 	char texNameFilter[MAXTEXTURENAME];
 	bool pickedBrowserTexture = false;
+	int scrollToTexIdx;
 
 	struct BrowserTexture {
 		string name;
@@ -173,10 +174,12 @@ private:
 	void drawTextureButton();
 	void drawResizePopup();
 	void drawTextureBrowserPopup();
+	void drawTextureBrowserGrid();
 	void drawLightmapsEditor();
 
 	void updateTextureSelection();
 	void openTextureBrowser();
+	void loadBrowserTextures();
 	void filterTextureBrowser();
 
 	void copyLightmap(int faceIdx, int layer);

@@ -11,6 +11,7 @@
 // - decal rendering
 // - show face extents in debug window
 // - load world clipnodes on demand
+// - merge leaves by root node
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
