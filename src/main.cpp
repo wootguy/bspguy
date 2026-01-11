@@ -8,11 +8,8 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - disable filtering on face editor
-// - name tags not showing
 // - decal rendering
 // - show face extents in debug window
-// - texture axes on shared model broken position
 // - load world clipnodes on demand
 
 // nice to have v6:

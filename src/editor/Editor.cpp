@@ -1645,7 +1645,7 @@ void Editor::updateTextureAxes() {
 		int faceidx = pickInfo.faces[i];
 		BSPFACE& face = map->faces[faceidx];
 		BSPTEXTUREINFO& info = map->texinfos[face.iTextureInfo];
-		vec3 center = map->get_face_center(faceidx);
+		vec3 mcenter = map->get_face_center(faceidx);
 
 		int model = map->get_model_from_face(faceidx);
 
@@ -1654,9 +1654,9 @@ void Editor::updateTextureAxes() {
 				Entity* ent = map->ents[k];
 				if (ent->getBspModelIdx() == model) {
 					mat4x4 rotMat = ent->getRotationMatrix(true);
-					mat4x4 rotMat2 = ent->getRotationMatrix(false);
+					//mat4x4 rotMat2 = ent->getRotationMatrix(false);
 					vec3 offset = ent->getOrigin();
-					center = ((rotMat * vec4(center, 1)).xyz() + offset).flip();
+					vec3 center = ((rotMat * vec4(mcenter, 1)).xyz() + offset).flip();
 					vec3 vS = ((rotMat * vec4(info.vS, 1)).xyz()).flip();
 					vec3 vT = ((rotMat * vec4(info.vT, 1)).xyz()).flip();
 					vec3 norm = crossProduct(vT, vS).normalize();
@@ -1671,7 +1671,7 @@ void Editor::updateTextureAxes() {
 			}
 		}
 		else {
-			center = center.flip();
+			vec3 center = mcenter.flip();
 			vec3 norm = crossProduct(info.vT, info.vS).normalize();
 
 			// world face
@@ -2852,8 +2852,11 @@ void Editor::addNameTags() {
 		return;
 
 	unordered_set<int> selected;
-	for (int i : pickInfo.ents)
+	unordered_set<int> added;
+	for (int i : pickInfo.ents) {
 		selected.insert(i);
+		added.insert(i);
+	}
 
 	struct TagEnt {
 		Entity* ent;
@@ -2868,25 +2871,34 @@ void Editor::addNameTags() {
 	vec3 worldOffset = map->ents[0]->getOrigin();
 
 	vector<Entity*> ents = map->ents;
+	vector<int> entIdx = pickInfo.ents;
 	if (!renderAllTags) {
 		ents = pickInfo.getEnts();
+		for (auto item : entLinks) {
+			if (!added.count(item.first)) {
+				entIdx.push_back(item.first);
+				ents.push_back(map->ents[item.first]);
+				added.insert(item.first);
+			}
+		}
 	}
 
 	for (int i = 0; i < ents.size(); i++) {
+		int idx = renderAllTags ? i : entIdx[i];
 		Entity* ent = ents[i];
 		if (ent->hidden)
 			continue;
 
 		string tname = ent->getTargetname();
-		if (tname.empty())
+		if (tname.empty() && renderAllTags)
 			continue;
 
-		bool isSelected = selected.count(i);
+		bool isSelected = selected.count(idx);
 		bool isLinked = false;
 		COLOR4 color = isSelected ? COLOR4(255, 64, 64, 255) : COLOR4(200, 200, 200, 255);
 
 		if (!isSelected) {
-			auto item = entLinks.find(i);
+			auto item = entLinks.find(idx);
 
 			if (item != entLinks.end()) {
 				if (item->second == 3) {
@@ -2950,7 +2962,7 @@ void Editor::addNameTags() {
 
 		TagEnt tag;
 		tag.ent = ent;
-		tag.idx = i;
+		tag.idx = idx;
 		tag.dist = dist;
 		tag.color = color;
 		tag.text = tname;

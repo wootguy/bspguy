@@ -3928,6 +3928,10 @@ Texture* BspRenderer::getRgbTexture(int iMiptex) {
 
 	Texture* newTex = new Texture(w, h, dat);
 	newTex->upload(GL_RGB);
-	
+	if (!g_settings.texture_filtering) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+
 	return newTex;
 }
