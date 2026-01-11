@@ -181,6 +181,10 @@ void Gui::init() {
 		ImVec2(260, 530), ImVec2(260, 510), ImGuiWindowFlags_NoScrollbar);
 	((FaceEditor*)widgets[WIDGET_FACE_EDITOR])->clearTextureBrowserCache();
 
+	widgets[WIDGET_LEAF] = new LeafWidget(this, "Leaf Graph",
+		ImVec2(500, 500), ImVec2(200, 200), 0);
+
+	// pop ups
 	widgets[WIDGET_RAD_PREP] = new RadWidget(this, "Configure Texlights",
 		ImVec2(350, 300), ImVec2(350, 300), 0);
 
@@ -816,6 +820,27 @@ void Gui::draw3dContextMenus() {
 				}
 				tooltip("Select all leaves in the potentially visible set (PVS) of the selected leaf(s).");
 
+				if (ImGui::MenuItem("Select Branch", "", false, app->pickInfo.leaves.size() >= 1)) {
+					int commonNode = map->get_lowest_common_node(app->pickInfo.leaves);
+
+					app->mapRenderer->highlightPickedFaces(false);
+					app->mapRenderer->highlightPickedLeaves(false);
+					app->pickInfo.deselect();
+
+					vector<int> selectLeaves;
+					map->get_child_leaves(commonNode, selectLeaves);
+					for (int idx : selectLeaves) {
+						app->pickInfo.selectLeaf(idx);
+					}
+
+					app->pickInfo.selectLeafFaces();
+					app->mapRenderer->highlightPickedFaces(true);
+					app->mapRenderer->highlightPickedLeaves(true);
+					app->updateTextureAxes();
+					((LeafWidget*)widgets[WIDGET_LEAF])->selectLeaves(app->pickInfo.leaves);
+				}
+				tooltip("Select all leaves that connect to the same branch as the selected leaf.");
+
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Copy as PVS", "", false, app->pickInfo.leaves.size() >= 1)) {
@@ -843,6 +868,20 @@ void Gui::draw3dContextMenus() {
 				}
 
 				ImGui::Separator();
+
+				if (ImGui::MenuItem("Merge Leaves", "", false, app->pickInfo.leaves.size() > 1)) {
+					LumpReplaceCommand* command = new LumpReplaceCommand("Merge Leaves");
+
+					if (map->merge_leaves(app->pickInfo.leaves)) {
+						map->remove_unused_model_structures(false).print_delete_stats(1);
+						command->pushUndoState();
+						app->mapRenderer->reloadLeaves();
+					}
+					else {
+						delete command;
+					}
+				}
+				tooltip("test");
 
 				if (ImGui::MenuItem("Convert to Model", "", false, app->pickInfo.leaves.size() > 1)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Convert to Model");
@@ -1558,6 +1597,7 @@ void Gui::checkValidHulls() {
 void Gui::refresh() {
 	reloadLimits();
 	checkValidHulls();
+	((LeafWidget*)widgets[WIDGET_LEAF])->needsRefresh = true;
 	entityReportFilterNeeded = true;
 	lightmapEditorNeedsUpdate = true;
 }

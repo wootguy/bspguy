@@ -122,6 +122,7 @@ set(SOURCE_FILES
 	src/editor/gui/widgets/MapMergeWidget.cpp
 	src/editor/gui/widgets/FixExtentsWidget.cpp
 	src/editor/gui/widgets/ModelMergeWidget.cpp
+	src/editor/gui/widgets/LeafWidget.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp
@@ -345,6 +346,7 @@ if(MSVC)
 												src/editor/gui/widgets/MapMergeWidget.cpp
 												src/editor/gui/widgets/FixExtentsWidget.cpp
 												src/editor/gui/widgets/ModelMergeWidget.cpp
+												src/editor/gui/widgets/LeafWidget.cpp
 	)
 	
 	source_group("Header Files\\editor\\gui" FILES	src/editor/gui/MenuBar.h

@@ -67,6 +67,22 @@ struct AtlasLightmap {
 	uint16_t x, y, w, h; // position in atlas
 };
 
+struct GraphNode {
+	int nodeIdx;
+	int depth;
+	int links[2];
+	int nodeType; // -1 = solid, 0 = node, 1 = leaf
+	float x, y;
+	float srcX, srcY;
+	int offset;
+	bool thread;
+};
+
+struct NodeDepth {
+	int nodeIdx;
+	int depth;
+};
+
 class Bsp
 {
 public:
@@ -154,17 +170,47 @@ public:
 	// returns the node path to the given leaf
 	int get_node_branch(int iNode, vector<int>& branch, int ileaf);
 
-	// merges leafb into leafa, preserving face visibility. Doesn't work. Code here for educational purpose.
-	void merge_leaves_broken(int leafa, int leafb);
+	// returns all leaves underneath a node
+	void get_child_leaves(int iNode, vector<int>& leaves);
+
+	// find all leaves which terminate the BSP tree, excluding solid leaves
+	void get_terminal_leaves(int iNode, vector<int>& terminalLeaves);
+
+	// merge all branches of the BSP tree which have a leaf at every node until termination
+	void merge_simple_leaf_chains();
+
+	// find the lowest node in the BSP tree that contains all given leaves
+	int get_lowest_common_node(vector<int>& leaves);
+
+	// returns true if any children fork into 2 nodes instead of 2 leaves, or 1 leaf and 1 node
+	bool node_branch_has_forks(int iNode);
+
+	// returns true if possible and adds depth-sorted nodes to sortedNodes
+	bool can_merge_leaves(vector<int>& ileaves, vector<int>& sortedNodes);
 
 	// Merges leaves into one, preserving the PVS but losing all contained face
-	void merge_leaves(vector<int>& ileaves);
+	bool merge_leaves(vector<int>& ileaves);
+
+	// get data needed to render the bsp tree as a graph. Returns max depth
+	int get_leaf_graph(int iNode, vector<GraphNode>& gnodes, int depth, bool includeSolid);
 
 	// returns all faces marked by the given leaf
 	vector<int> get_leaf_faces(int ileaf);
 
 	// replaces all instances of replace leaves with the replaceWith leaf in the bsp tree
 	void replace_leaves(int iNode, unordered_set<int>& replace, int replaceWith);
+
+	// get a list of all child nodes. Also includes the start node.
+	void get_child_nodes(int iNode, int depth, vector<NodeDepth>& nodes);
+
+	// get parent node for the given child idx
+	int get_node_parent(int iNode, int childIdx);
+
+	// get all faces marked by the given node and its children
+	void get_node_faces(int iNode, vector<int>& faces);
+
+	// true if this node and all its children reference faces in a consecutive order (no gaps)
+	bool node_branch_faces_are_consecutive(int iNode);
 
 	bool is_face_visible(int faceIdx, vec3 pos, vec3 angles);
 
@@ -456,6 +502,8 @@ public:
 	int create_model();
 	int create_texinfo();
 	int create_node();
+
+	void insert_nodes(int offset, int count);
 
 	// create a new model using existing faces. Collision will be completely solid.
 	int create_model_from_faces(vector<int>& faceIndexes);

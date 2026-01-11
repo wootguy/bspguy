@@ -6570,216 +6570,368 @@ int Bsp::get_node_branch(int iNode, vector<int>& branch, int ileaf) {
 	return -1;
 }
 
-void Bsp::merge_leaves_broken(int ileafa, int ileafb) {
-	// TODO: This doesn't work unless the leaves are nearby in the BSP tree.
-	// Their common ancestor node probably needs to have the common faces appended, which will
-	// slow down rendering a lot if merging thousands of leaves, because in a lot of cases the
-	// lowest common ancestor will be leaf 0. Better to move faces to a new model if there are
-	// too many leaves. See below for a note on where i left off.
+void Bsp::get_child_leaves(int iNode, vector<int>& leaves) {
+	BSPNODE& node = nodes[iNode];
 
-	BSPLEAF& leafa = leaves[ileafa];
-	BSPLEAF& leafb = leaves[ileafb];
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			get_child_leaves(node.iChildren[i], leaves);
+		}
+		else if (~node.iChildren[i] != 0) {
+			leaves.push_back(~node.iChildren[i]);
+		}
+	}
+}
 
-	// expand the bounding boxes
+void Bsp::merge_simple_leaf_chains() {
+	int headNode = models[0].iHeadnodes[0];
+
+	vector<int> terminalLeaves;
+	get_terminal_leaves(headNode, terminalLeaves);
+
+	int totalReduce = 0;
+
+	vector<int> mergeNodes;
+
+	for (int leafIdx : terminalLeaves) {
+		vector<int> branch;
+		get_node_branch(headNode, branch, leafIdx);
+
+		int mergeableLeaves = 0;
+		int endNode = -1;
+		for (int k = 1; k < branch.size(); k++) {
+			BSPNODE& node = nodes[branch[k]];
+
+			bool validLeaf0 = node.iChildren[0] < 0 && ~node.iChildren[0] != 0;
+			bool validLeaf1 = node.iChildren[1] < 0 && ~node.iChildren[1] != 0;
+
+			if (!validLeaf0 && !validLeaf1) {
+				endNode = branch[k-1];
+				break;
+			}
+
+			mergeableLeaves += validLeaf0 + validLeaf1;
+		}
+		if (mergeableLeaves > 1)
+			mergeNodes.push_back(endNode);		
+	}
+
+	for (int nodeIdx : mergeNodes) {
+		vector<int> chain;
+		get_child_leaves(nodeIdx, chain);
+		merge_leaves(chain);
+		totalReduce += chain.size() - 1;
+		logf("Merged %d leaves under node %d\n", chain.size(), nodeIdx);
+	}
+
+	logf("Reduced %d world leaves\n", totalReduce);
+}
+
+void Bsp::get_terminal_leaves(int iNode, vector<int>& terminalLeaves) {
+	BSPNODE& node = nodes[iNode];
+
+	bool bothAreLeaves = true;
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			get_terminal_leaves(node.iChildren[i], terminalLeaves);
+			bothAreLeaves = false;
+		}
+	}
+
+	if (bothAreLeaves) {
+		int ileaf1 = ~node.iChildren[0];
+		int ileaf2 = ~node.iChildren[1];
+
+		if (ileaf1 != 0) {
+			terminalLeaves.push_back(ileaf1);
+		}
+		if (ileaf2 != 0) {
+			terminalLeaves.push_back(ileaf2);
+		}
+	}
+}
+
+int Bsp::get_lowest_common_node(vector<int>& leaves) {
+	struct LeafBranch {
+		int parent;
+		vector<int> branch;
+	};
+
+	vector<LeafBranch> branches;
+	
 	int inode = models[0].iHeadnodes[0];
-	vector<int> brancha;
-	vector<int> branchb;
-	int parenta = get_node_branch(inode, brancha, ileafa);
-	int parentb = get_node_branch(inode, branchb, ileafb);
+	int smallestBranch = INT_MAX;
 
-	if (parenta == -1 || parentb == -1) {
-		logf("Failed to find parent node for one of the leaves\n");
-		return;
-	}
+	for (int i = 0; i < leaves.size(); i++) {
+		LeafBranch branch;
+		branch.parent = get_node_branch(inode, branch.branch, leaves[i]);
+		branches.push_back(branch);
 
-	BSPNODE& nodea = nodes[parenta];
-	BSPNODE& nodeb = nodes[parentb];
-
-	for (int i = 0; i < 3; i++) {
-		leafa.nMins[i] = min(leafa.nMins[i], leafb.nMins[i]);
-		leafa.nMaxs[i] = max(leafa.nMaxs[i], leafb.nMaxs[i]);
-
-		// test
-		leafa.nMins[i] = -16384;
-		leafa.nMaxs[i] = 16384;
-
-		nodes[parenta].nMins[i] = -16384;
-		nodes[parenta].nMaxs[i] = 16384;
-		nodes[parentb].nMins[i] = -16384;
-		nodes[parentb].nMaxs[i] = 16384;
-	}
-
-	unordered_set<int> replace;
-	replace.insert(ileafb);
-	replace_leaves(models[0].iHeadnodes[0], replace, ileafa);
-
-	unordered_set<int> existingFaces;
-	vector<int> allFaces;
-	for (int i = 0; i < leafa.nMarkSurfaces; i++) {
-		existingFaces.insert(marksurfs[leafa.iFirstMarkSurface + i]);
-		allFaces.push_back(marksurfs[leafa.iFirstMarkSurface + i]);
-	}
-
-	vector<int> newFaces;
-	for (int i = 0; i < leafb.nMarkSurfaces; i++) {
-		int face = marksurfs[leafb.iFirstMarkSurface + i];
-
-		if (!existingFaces.count(face)) {
-			newFaces.push_back(face);
-			allFaces.push_back(face);
+		if (branch.branch.size() < smallestBranch) {
+			smallestBranch = branch.branch.size()-1; // exclude leaf
 		}
 	}
 
 	// find the lowest common parent node
 	int irootNode = 0;
-	for (int i = 0; i < brancha.size() && i < branchb.size(); i++) {
-		int na = brancha[(brancha.size() - 1) - i];
-		int nb = branchb[(branchb.size() - 1) - i];
+	for (int i = 0; i < smallestBranch; i++) {
 
-		if (na == nb) {
-			irootNode = na;
+		int lastNode = -1;
+		bool allNodesMatch = true;
+
+		for (int k = 0; k < branches.size(); k++) {
+			LeafBranch& b = branches[k];
+			int nodeIdx = b.branch[(b.branch.size() - 1) - i];
+			if (lastNode == -1) {
+				lastNode = nodeIdx;
+			}
+			else if (lastNode != nodeIdx) {
+				allNodesMatch = false;
+				break;
+			}
+		}
+
+		if (allNodesMatch) {
+			irootNode = lastNode;
 		}
 		else {
 			break; // branches split off
 		}
 	}
-	BSPNODE& root = nodes[irootNode];
-	int oldRootFaceCount = root.nFaces;
 	
-	// add new faces to the parent node's face list
-	// 
-	// TODO: the entire leaf is now invisible when viewed from certain angles. Something to do with node planes?
-	// The issue is that renderer marks the entire node branch for a leaf to render faces piecemeal.
-	// Only one branch will be ascended if 2 leaves are in different branches. Leaves only mark faces
-	// for visibility. Nodes do the actual rendering. Each node will only have a few faces while leaves
-	// may have much more. It's not enough simply to add faces to a leaf. The entire node branch should
-	// be updated as well, which probably wouldn't make sense anymore if the faces aren't associated with
-	// the clipping planes that define the tree. Try a better hack to reduce world leaves.
-	{
-		// add all faces in the merged leaf to the common parent, so that all faces are considered
-		// for rendering no matter which branch was taken upward to reach the parent.
-		// This may reduce performance a lot.
-		BSPFACE* newFaceLump = new BSPFACE[faceCount + allFaces.size()];
-		int copyEnd = root.firstFace + root.nFaces;
-		memcpy(newFaceLump, faces, copyEnd * sizeof(BSPFACE));
-		memcpy(newFaceLump + copyEnd + allFaces.size(), faces + copyEnd, (faceCount - copyEnd) * sizeof(BSPFACE));
-
-		// copy leafb faces into leafa's parent node face list
-		for (int i = 0; i < allFaces.size(); i++) {
-			newFaceLump[root.firstFace + root.nFaces + i] = faces[allFaces[i]];
-		}
-
-		// shift face indexes in other structures
-		for (int i = 0; i < nodeCount; i++) {
-			if (nodes[i].firstFace >= root.firstFace + root.nFaces) {
-				nodes[i].firstFace += allFaces.size();
-			}
-		}
-		for (int i = 0; i < marksurfCount; i++) {
-			if (marksurfs[i] >= root.firstFace + root.nFaces) {
-				marksurfs[i] += allFaces.size();
-			}
-		}
-		for (int i = 0; i < modelCount; i++) {
-			if (models[i].iFirstFace >= root.firstFace + root.nFaces) {
-				models[i].iFirstFace += allFaces.size();
-			}
-		}
-		models[0].nFaces += allFaces.size();
-
-		for (int i = 0; i < 3; i++) {
-			root.nMins[i] = -16384;
-			root.nMaxs[i] = 16384;
-		}
-
-		root.nFaces += allFaces.size();
-		logf("Node %d face count is %d (+%d)\n", irootNode, root.nFaces, allFaces.size());
-
-		replace_lump(LUMP_FACES, newFaceLump, (faceCount + allFaces.size())*sizeof(BSPFACE));
-	}
-
-	uint16* newMarkSurfs = new uint16[marksurfCount + newFaces.size()];
-	int copyEnd = leafa.iFirstMarkSurface + leafa.nMarkSurfaces;
-
-	// copy old data in, leaving a gap for the new faces being added to leafa
-	memcpy(newMarkSurfs, marksurfs, copyEnd*sizeof(uint16));
-	memcpy(newMarkSurfs + copyEnd + newFaces.size(), marksurfs + copyEnd, (marksurfCount - copyEnd) * sizeof(uint16));
-
-	// shift surface mark indexes
-	for (int i = 0; i < leafCount; i++) {
-		BSPLEAF& leaf = leaves[i];
-		if (leaf.iFirstMarkSurface >= leafa.iFirstMarkSurface + leafa.nMarkSurfaces) {
-			leaf.iFirstMarkSurface += newFaces.size();
-		}
-	}
-
-	// use the new faces to leafa
-	leafa.nMarkSurfaces = allFaces.size();
-	for (int i = 0; i < leafa.nMarkSurfaces; i++) {
-		newMarkSurfs[leafa.iFirstMarkSurface + i] = root.firstFace + oldRootFaceCount + i;
-	}
-
-	// unmark the merged leaf faces
-	leafb.nMarkSurfaces = 0;
-	leafb.iFirstMarkSurface = 0;
-
-	replace_lump(LUMP_MARKSURFACES, newMarkSurfs, (marksurfCount + newFaces.size()) * sizeof(uint16));
-
-	// merge PVS
-	int visLeafCount = leafCount - 1;
-	uint visRowSize = ((visLeafCount + 63) & ~63) >> 3;
-
-	int decompressedVisSize = visLeafCount * visRowSize;
-	byte* decompressedVis = new byte[decompressedVisSize];
-	memset(decompressedVis, 0, decompressedVisSize);
-	decompress_vis_lump(leaves, lumps[LUMP_VISIBILITY], visDataLength, decompressedVis, visLeafCount);
-
-	byte* visRowa = decompressedVis + (ileafa - 1) * visRowSize;
-	byte* visRowb = decompressedVis + (ileafb - 1) * visRowSize;
-
-	// all leaves visible from B should now also be visible from A
-	for (int k = 1; k < visRowSize; k++) {
-		visRowa[k] |= visRowb[k];
-	}
-
-	// all leaves that could see B should now also see A
-	int oldLeafIdx = ileafb - 1;
-	int oldByteOffset = oldLeafIdx / 8;
-	int oldBitOffset = 1 << (oldLeafIdx % 8);
-	int newLeafIdx = ileafa - 1;
-	int newByteOffset = newLeafIdx / 8;
-	int newBitOffset = 1 << (newLeafIdx % 8);
-
-	for (int i = 1; i < visLeafCount; i++) {
-		byte* visRow = decompressedVis + (i - 1) * visRowSize;
-
-		if (visRow[oldByteOffset] & oldBitOffset) {
-			visRow[newByteOffset] |= newBitOffset;
-		}
-
-		//memset(visRow, 0xff, visRowSize); // test
-	}
-
-	byte* compressedVis = new byte[decompressedVisSize]; // assuming compressed will reduce size
-	memset(compressedVis, 0, decompressedVisSize);
-	int newVisLen = CompressAll(leaves, decompressedVis, compressedVis, visLeafCount, decompressedVisSize);
-
-	byte* compressedVisResized = new byte[newVisLen];
-	memcpy(compressedVisResized, compressedVis, newVisLen);
-
-	replace_lump(LUMP_VISIBILITY, compressedVisResized, newVisLen);
-
-	delete[] decompressedVis;
-	delete[] compressedVis;
+	return irootNode;
 }
 
-void Bsp::merge_leaves(vector<int>& ileaves) {
-	if (ileaves.empty())
-		return;
+bool Bsp::node_branch_has_forks(int iNode) {
+	BSPNODE& node = nodes[iNode];
 
-	uint16_t rootIdx = ileaves[0];
+	if (node.iChildren[0] >= 0 && node.iChildren[1] >= 0) {
+		return true;
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0 && node_branch_has_forks(node.iChildren[i]))
+			return true;
+	}
+
+	return false;
+}
+
+int Bsp::get_leaf_graph(int iNode, vector<GraphNode>& gnodes, int depth, bool includeSolid) {
+	BSPNODE& node = nodes[iNode];
+
+	GraphNode gnode;
+	gnode.nodeIdx = iNode;
+	gnode.depth = depth;
+	gnode.nodeType = 0;
+
+	int maxDepth = depth + 1;
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			gnode.links[i] = node.iChildren[i];
+			maxDepth = max(get_leaf_graph(node.iChildren[i], gnodes, depth+1, includeSolid), maxDepth);
+		}
+		else {
+			gnode.links[i] = ((uint32_t)(~node.iChildren[i]+1) << 16) | ((uint16_t)iNode);
+
+			GraphNode leaf;
+			leaf.nodeIdx = ((uint32_t)(~node.iChildren[i]+1) << 16) | ((uint16_t)iNode);
+			leaf.depth = depth+1;
+			leaf.links[0] = -1;
+			leaf.links[1] = -1;
+			leaf.nodeType = ~node.iChildren[i] == 0 ? -1 : 1;
+
+			if (!includeSolid && leaf.nodeType == -1)
+				continue;
+
+			gnodes.push_back(leaf);
+		}
+	}
+
+	gnodes.push_back(gnode);
+	return maxDepth;
+}
+
+bool Bsp::merge_leaves(vector<int>& ileaves) {
+	if (ileaves.empty())
+		return false;
+
+	int lcn = get_lowest_common_node(ileaves);
+
+	// failed attempt to keep faces rendering without breaking collision
+	bool preserveFaceVisibility = false;
+
+	/*
+	if (node_branch_has_forks(lcn)) {
+		errorf("Can't merge branches that fork into more than 1 node.\n");
+		return false;
+	}
+	if (!node_branch_faces_are_consecutive(lcn)) {
+		errorf("Can't merge branches with non-consecutive faces.\n");
+		return false;
+	}
+	*/
+
+	int dummyLeafIdx = create_leaf(CONTENTS_EMPTY);
+
+	uint16_t rootIdx = ileaves[0]; // this leaf will expand to contain all merged leaves
 	BSPLEAF& root = leaves[rootIdx];
-	unordered_set<int> ileafSet;
+
+	// merge node data, but not the nodes themselves.
+	// This is necessary to prevent view culling and faces being missed when a leaf marks them.
+	// The renderer recursively renders faces in nodes that are marked by leaves. Merged leaves may
+	// begin marking at any point in the branch (depends on your view position), so the top-level
+	// node must contain all faces to be marked.
+	if (preserveFaceVisibility) {
+		vector<NodeDepth> sortedNodes;
+		get_child_nodes(lcn, 0, sortedNodes);
+
+		sort(sortedNodes.begin(), sortedNodes.end(), [](const NodeDepth& a, const NodeDepth& b) {
+			return a.depth < b.depth;
+		});
+
+		int lowestFaceIdx = INT_MAX;
+		int totalFaces = 0;
+		for (int i = 0; i < sortedNodes.size(); i++) {
+			BSPNODE& node = nodes[sortedNodes[i].nodeIdx];
+			totalFaces += node.nFaces;
+			lowestFaceIdx = min(lowestFaceIdx, (int)node.firstFace);
+		}
+
+		// unlink faces
+		for (NodeDepth& lp : sortedNodes) {
+			//nodes[lp.nodeIdx].nFaces = 0;
+			//nodes[lp.nodeIdx].firstFace = 0;
+		}
+
+		//BSPNODE& topNode = nodes[lcn];
+		//topNode.firstFace = lowestFaceIdx;
+		//topNode.nFaces = totalFaces;
+
+		// attach a duplicate of the merged leaf to the end of the branch. This is used to mark
+		// all nodes in the branch as visible. The actual root node is used to mark all faces
+		// as soon as the branch begins recursing (because node render order is unpredictable).
+		int bottomNodeIdx = sortedNodes[sortedNodes.size() - 1].nodeIdx;
+		/*
+		{
+			BSPNODE& bottomNode = nodes[bottomNodeIdx];
+			for (int i = 0; i < 2; i++) {
+				if (bottomNode.iChildren[i] < 0 && ~bottomNode.iChildren[i] != 0) {
+					tailIdx = ~bottomNode.iChildren[i];
+				}
+			}
+		}
+		*/
+
+		// set the same bounding box on all nodes, which is the box that contains all node bounds
+		int16_t largestMins[3] = { INT16_MAX, INT16_MAX, INT16_MAX };
+		int16_t largestMaxs[3] = { INT16_MIN, INT16_MIN, INT16_MIN };
+		for (NodeDepth& lp : sortedNodes) {
+			BSPNODE& parent = nodes[lp.nodeIdx];
+			for (int i = 0; i < 3; i++) {
+				largestMins[i] = min(largestMins[i], parent.nMins[i]);
+				largestMaxs[i] = max(largestMaxs[i], parent.nMaxs[i]);
+			}
+		}
+		for (NodeDepth& lp : sortedNodes) {
+			BSPNODE& parent = nodes[lp.nodeIdx];
+
+			// apply bounding box
+			for (int i = 0; i < 3; i++) {
+				parent.nMins[i] = largestMins[i];
+				parent.nMaxs[i] = largestMaxs[i];
+			}
+		}
+
+		// replace all leaves with the dummy leaf, except for the tail leaf
+		for (int i = 0; i < sortedNodes.size(); i++) {
+			BSPNODE& parent = nodes[sortedNodes[i].nodeIdx];
+
+			for (int i = 0; i < 2; i++) {
+				if (parent.iChildren[i] < 0 && ~parent.iChildren[i] != 0) {
+					parent.iChildren[i] = ~dummyLeafIdx;
+					//parent.iChildren[i] = ~rootIdx;
+				}
+			}
+		}
+
+		// create a new node which will contain all faces in the branch. It will also use a plane that
+		// you can never possibly get behind, so that you know that the 1st child will always be traversed
+		// by the renderer first, no matter where the camera is. This allows you attach a leaf on the
+		// front which marks all faces.
+		// FAILED - Rendering or collision breaks no matter how you create the plane for this node
+		/*
+		int topNodeIdx = lcn;
+		insert_nodes(topNodeIdx, 1);
+		int newNodeIdx = topNodeIdx++;
+		BSPNODE& newNode = nodes[newNodeIdx];
+		newNode = nodes[topNodeIdx]; // copy top level node of the branch
+		//newNode.firstFace = lowestFaceIdx;
+		//newNode.nFaces = totalFaces;
+		newNode.firstFace = 0;
+		newNode.nFaces = 0;
+
+		// should never be able to move behind this plane for this hack to work
+		// also important the player can never shoot at this plane or else collision will be broken
+		// TODO: can't get rendering and collision to work at the same time. Flipping the plane
+		// fixes collision but breaks rendering.
+
+		//int parentIdx = get_node_parent(models[0].iHeadnodes[0], newNodeIdx);
+		//newNode.iPlane = nodes[parentIdx].iPlane;
+
+		newNode.iPlane = create_plane();
+		BSPPLANE& plane = planes[newNode.iPlane];
+		plane.nType = PLANE_ANYZ;
+		plane.vNormal = vec3(0, 0, 1);
+		plane.fDist = -MAX_MAP_COORD;
+
+		// insert above the top node of the branch
+		for (int i = 0; i < nodeCount; i++) {
+			BSPNODE& node = nodes[i];
+
+			for (int k = 0; k < 2; k++) {
+				if (node.iChildren[k] == topNodeIdx) {
+					node.iChildren[k] = newNodeIdx;
+				}
+			}
+		}
+
+		// front child should always be traversed first due to our crazy plane, so put the merged leaf here
+		newNode.iChildren[1] = ~rootIdx;
+		newNode.iChildren[0] = topNodeIdx;
+		*/
+
+		// new idea: add the node to the tail instead of head
+		// FAILED - same problem where flipping the plane breaks collision or rendering
+		int newNodeIdx = bottomNodeIdx + 1;
+		insert_nodes(newNodeIdx, 1);
+		BSPNODE& bottomNode = nodes[bottomNodeIdx];
+		BSPNODE& newNode = nodes[newNodeIdx];
+		newNode = bottomNode; // copy mins/maxs
+		newNode.firstFace = lowestFaceIdx;
+		newNode.nFaces = totalFaces;
+		//newNode.firstFace = 0;
+		//newNode.nFaces = 0;
+
+		newNode.iPlane = create_plane();
+		BSPPLANE& plane = planes[newNode.iPlane];
+		plane.nType = PLANE_ANYZ;
+		plane.vNormal = vec3(0, 0, 1);
+		plane.fDist = -MAX_MAP_COORD;
+
+		newNode.iChildren[1] = ~rootIdx;
+		newNode.iChildren[0] = ~0;
+
+		// replace bottom node solid leaf with the new node
+		if (~bottomNode.iChildren[0] == 0) {
+			bottomNode.iChildren[0] = newNodeIdx;
+		}
+		else {
+			bottomNode.iChildren[1] = newNodeIdx;
+		}
+	}
 
 	int visLeafCount = leafCount - 1;
 	uint visRowSize = ((visLeafCount + 63) & ~63) >> 3;
@@ -6795,13 +6947,21 @@ void Bsp::merge_leaves(vector<int>& ileaves) {
 	int rootByteOffset = rootLeafIdx / 8;
 	int rootBitOffset = 1 << (rootLeafIdx % 8);
 
+	unordered_set<int> existingFaces;
+	vector<int> allFaces;
+	vector<int> newFaces;
+
+	for (int i = 0; i < root.nMarkSurfaces; i++) {
+		existingFaces.insert(marksurfs[root.iFirstMarkSurface + i]);
+		allFaces.push_back(marksurfs[root.iFirstMarkSurface + i]);
+	}
+
+	// merge leaf structs and update VIS
 	for (int idx : ileaves) {
 		if (idx == rootIdx)
 			continue;
 
 		BSPLEAF& leaf = leaves[idx];
-
-		ileafSet.insert(idx);
 
 		// expand bounding box
 		for (int i = 0; i < 3; i++) {
@@ -6809,7 +6969,16 @@ void Bsp::merge_leaves(vector<int>& ileaves) {
 			root.nMaxs[i] = max(root.nMaxs[i], leaf.nMaxs[i]);
 		}
 
-		// remove faces from visibility
+		for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+			int face = marksurfs[leaf.iFirstMarkSurface + k];
+
+			if (!existingFaces.count(face)) {
+				newFaces.push_back(face);
+				allFaces.push_back(face);
+			}
+		}
+
+		// unlink faces
 		leaf.nMarkSurfaces = 0;
 		leaf.iFirstMarkSurface = 0;
 
@@ -6835,7 +7004,46 @@ void Bsp::merge_leaves(vector<int>& ileaves) {
 		}
 	}
 
-	replace_leaves(models[0].iHeadnodes[0], ileafSet, rootIdx);
+	// merge marksurfs for the merged leaf
+	if (preserveFaceVisibility) {
+		uint16* newMarkSurfs = new uint16[marksurfCount + newFaces.size()];
+		int copyEnd = root.iFirstMarkSurface + root.nMarkSurfaces;
+
+		// copy old data in, leaving a gap for the new faces being added to leafa
+		memcpy(newMarkSurfs, marksurfs, copyEnd * sizeof(uint16));
+		memcpy(newMarkSurfs + copyEnd + newFaces.size(), marksurfs + copyEnd, (marksurfCount - copyEnd) * sizeof(uint16));
+		replace_lump(LUMP_MARKSURFACES, newMarkSurfs, (marksurfCount + newFaces.size()) * sizeof(uint16));
+
+		// shift surface mark indexes
+		for (int i = 0; i < leafCount; i++) {
+			BSPLEAF& leaf = leaves[i];
+			if (leaf.iFirstMarkSurface >= root.iFirstMarkSurface + root.nMarkSurfaces) {
+				leaf.iFirstMarkSurface += newFaces.size();
+			}
+		}
+
+		// add new faces to merged leaf
+		root.nMarkSurfaces = allFaces.size();
+		for (int i = 0; i < root.nMarkSurfaces; i++) {
+			marksurfs[root.iFirstMarkSurface + i] = allFaces[i];
+		}
+	}
+	else {
+		root.nMarkSurfaces = 0;
+		root.iFirstMarkSurface = 0;
+
+		vector<NodeDepth> sortedNodes;
+		get_child_nodes(lcn, 0, sortedNodes);
+		for (NodeDepth& dnode : sortedNodes) {
+			BSPNODE& node = nodes[dnode.nodeIdx];
+
+			for (int i = 0; i < 2; i++) {
+				if (node.iChildren[i] < 0 && ~node.iChildren[i] != 0) {
+					node.iChildren[i] = ~rootIdx;
+				}
+			}
+		}
+	}
 
 	byte* compressedVis = new byte[decompressedVisSize]; // assuming compressed will reduce size
 	memset(compressedVis, 0, decompressedVisSize);
@@ -6848,6 +7056,8 @@ void Bsp::merge_leaves(vector<int>& ileaves) {
 
 	delete[] decompressedVis;
 	delete[] compressedVis;
+
+	return true;
 }
 
 // returns all faces marked by the given leaf
@@ -6874,6 +7084,73 @@ void Bsp::replace_leaves(int iNode, unordered_set<int>& replace, int dstLeaf) {
 			node.iChildren[i] = ~dstLeaf;
 		}
 	}
+}
+
+void Bsp::get_child_nodes(int iNode, int depth, vector<NodeDepth>& childNodes) {
+	BSPNODE& node = nodes[iNode];
+	
+	NodeDepth dnode;
+	dnode.nodeIdx = iNode;
+	dnode.depth = depth;
+	childNodes.push_back(dnode);
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			get_child_nodes(node.iChildren[i], depth+1, childNodes);
+		}
+	}
+}
+
+int Bsp::get_node_parent(int iNode, int childIdx) {
+	BSPNODE& node = nodes[iNode];
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] == childIdx) {
+			return iNode;
+		}
+		if (node.iChildren[i] >= 0) {
+			int idx = get_node_parent(node.iChildren[i], childIdx);
+			if (idx != -1)
+				return idx;
+		}
+	}
+
+	return -1;
+}
+
+void Bsp::get_node_faces(int iNode, vector<int>& faces) {
+	BSPNODE& node = nodes[iNode];
+
+	for (int i = 0; i < node.nFaces; i++)
+		faces.push_back(node.firstFace + i);
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			get_node_faces(node.iChildren[i], faces);
+		}
+	}
+}
+
+bool Bsp::node_branch_faces_are_consecutive(int iNode) {
+	vector<int> faces;
+	get_node_faces(iNode, faces);
+
+	sort(faces.begin(), faces.end());
+
+	if (faces.empty())
+		return true;
+
+	bool consecutive = true;
+	int lastIdx = faces[0];
+	for (int idx : faces) {
+		if (idx - lastIdx > 1) {
+			consecutive = false;
+			break;
+		}
+		lastIdx = idx;
+	}
+
+	return consecutive;
 }
 
 bool Bsp::is_face_visible(int faceIdx, vec3 pos, vec3 angles) {
@@ -8008,6 +8285,34 @@ int Bsp::create_node() {
 	replace_lump(LUMP_NODES, newNodes, (nodeCount + 1) * sizeof(BSPNODE));
 
 	return nodeCount - 1;
+}
+
+void Bsp::insert_nodes(int offset, int count) {
+	BSPNODE* newNodes = new BSPNODE[nodeCount + count];
+	memcpy(newNodes, nodes, offset * sizeof(BSPNODE));
+	memcpy(newNodes + offset + count, nodes + offset, (nodeCount - offset) * sizeof(BSPNODE));
+
+	memset(newNodes + offset, 0, count*sizeof(BSPNODE));
+
+	replace_lump(LUMP_NODES, newNodes, (nodeCount + count) * sizeof(BSPNODE));
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = nodes[i];
+
+		for (int k = 0; k < 2; k++) {
+			if (node.iChildren[k] >= offset) {
+				node.iChildren[k] += count;
+			}
+		}
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		if (model.iHeadnodes[0] >= offset) {
+			model.iHeadnodes[0] += count;
+		}
+	}
 }
 
 int Bsp::duplicate_model(int modelIdx) {

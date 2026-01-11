@@ -970,6 +970,7 @@ void Editor::loadWidgetStates() {
 	gui->widgets[WIDGET_SETTINGS]->widgetVisible = g_settings.settings_open;
 	gui->widgets[WIDGET_LIMITS]->widgetVisible = g_settings.limits_open;
 	gui->widgets[WIDGET_ENT_REPORT]->widgetVisible = g_settings.entreport_open;
+	gui->widgets[WIDGET_LEAF]->widgetVisible = true;
 
 	gui->settingsTab = g_settings.settings_tab;
 	gui->openSavedTabs = true;
@@ -2601,6 +2602,7 @@ void Editor::pickObject(bool boxSelect) {
 		pickInfo.selectLeafFaces();
 		mapRenderer->highlightPickedFaces(true);
 		mapRenderer->highlightPickedLeaves(true);
+		((LeafWidget*)gui->widgets[WIDGET_LEAF])->selectLeaves(pickInfo.leaves);
 	}
 
 	postSelectEnt();

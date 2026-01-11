@@ -8,7 +8,6 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - decal rendering
 // - show face extents in debug window
 // - load world clipnodes on demand
 // - merge leaves by root node
@@ -21,6 +20,7 @@
 // - name tag render distance
 
 // todo:
+// decal rendering
 // show texture mipmaps (only used in software mode?)
 // model render mode scale
 // auto scale lightmaps when editing faces

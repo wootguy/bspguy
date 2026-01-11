@@ -77,6 +77,7 @@ class Editor {
 	friend class EntityReport;
 	friend class FaceEditor;
 	friend class RadWidget;
+	friend class LeafWidget;
 	friend class DedupModelsWidget;
 	friend class EditEntitiesCommand;
 	friend class DeleteEntitiesCommand;

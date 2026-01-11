@@ -1431,6 +1431,22 @@ void MenuBar::drawToolsMenu() {
 
 			ImGui::EndMenu();
 		}
+		
+		/*
+		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Leaves")) {
+			if (ImGui::MenuItem("World Leaf Reduction", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("World Leaf Reduction");
+				
+				map->merge_simple_leaf_chains();
+
+				command->pushUndoState();
+			}
+			tooltip("Merges simple leaf chains which don't split out into different branches in the BSP "
+				"tree. World leaf count will be reduced and more faces will be visible on average after doing this.");
+
+			ImGui::EndMenu();
+		}
+		*/
 
 		if (ImGui::BeginMenu("Models")) {
 			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
@@ -1661,6 +1677,15 @@ void MenuBar::drawWidgetsMenu() {
 				ImGui::SetWindowCollapsed("Keyvalue Editor", false);
 		}
 		tooltip("Edit entity properties.");
+
+		if (!g_settings.ripent_safe_mode) {
+			if (ImGui::MenuItem("Leaf Graph", "", gui->widgets[WIDGET_LEAF]->widgetVisible)) {
+				gui->widgets[WIDGET_LEAF]->widgetVisible = !gui->widgets[WIDGET_LEAF]->widgetVisible;
+				if (gui->widgets[WIDGET_LEAF]->widgetVisible)
+					ImGui::SetWindowCollapsed("Leaf Graph", false);
+			}
+			tooltip("View BSP tree graph.");
+		}
 
 		if (ImGui::MenuItem("Map Limits", NULL, gui->widgets[WIDGET_LIMITS]->widgetVisible)) {
 			gui->widgets[WIDGET_LIMITS]->widgetVisible = !gui->widgets[WIDGET_LIMITS]->widgetVisible;

@@ -202,6 +202,25 @@ class EntityReport : public Widget {
 	vector<ReportEnt> filteredEnts;
 };
 
+class LeafWidget : public Widget {
+public:
+	using Widget::Widget;
+	void draw() override;
+
+	void selectLeaves(vector<int>& leaves);
+
+	bool needsRefresh = true;
+
+private:
+	void refresh();
+
+	vector<GraphNode> gnodes;
+	unordered_map<int, int> nodeIdxToGnode;
+	unordered_set<int> hotPath;
+
+	float graphWidth, graphHeight;
+};
+
 class RadWidget : public Popup {
 public:
 	bool refreshTexlightList = false;

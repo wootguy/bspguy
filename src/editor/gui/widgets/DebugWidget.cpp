@@ -94,14 +94,15 @@ void DebugWidget::drawSelectionDetails() {
 			static string leafList;
 			static int leafPick = 0;
 
-			if (app->pickInfo.getFaceIndex() != lastFaceIdx) {
-				lastFaceIdx = app->pickInfo.getFaceIndex();
+			int faceIdx = app->pickInfo.getFaceIndex();
+			if (faceIdx != lastFaceIdx) {
+				lastFaceIdx = faceIdx;
 				leafList = "";
 				leafPick = -1;
 				for (int i = 1; i < map->leafCount; i++) {
 					BSPLEAF& leaf = map->leaves[i];
 					for (int k = 0; k < leaf.nMarkSurfaces; k++) {
-						if (map->marksurfs[leaf.iFirstMarkSurface + k] == app->pickInfo.getFaceIndex()) {
+						if (map->marksurfs[leaf.iFirstMarkSurface + k] == faceIdx) {
 							leafList += " " + to_string(i);
 							leafPick = i;
 						}
