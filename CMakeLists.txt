@@ -152,6 +152,9 @@ set(SHADER_FILES
 	src/shaders/cvert_vert.glsl
 	src/shaders/cvert_frag.glsl
 	
+	src/shaders/elink_vert.glsl
+	src/shaders/elink_frag.glsl
+	
 	src/shaders/clipnode_vert.glsl
 	src/shaders/clipnode_frag.glsl
 	

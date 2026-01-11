@@ -63,6 +63,16 @@ struct cVert
 	vec3 pos() { return vec3(x, y, z); }
 };
 
+// entity link vert
+struct eLinkVert {
+	COLOR4 c;
+	float dist, dir;
+	float x, y, z;
+
+	eLinkVert() {}
+	eLinkVert(vec3 p, COLOR4 c, float dist, float dir) : c(c), x(p.x), y(p.y), z(p.z), dist(dist), dir(dir) {}
+};
+
 struct tTri
 {
 	tVert v1, v2, v3;

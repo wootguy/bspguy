@@ -78,6 +78,7 @@ struct MapLimits {
 struct GlobalShaders {
 	ShaderProgram* bsp = new ShaderProgram("BSP");
 	ShaderProgram* color = new ShaderProgram("Color");
+	ShaderProgram* elink = new ShaderProgram("ELink"); // entity links
 	ShaderProgram* clipnode = new ShaderProgram("Clipnode");
 	ShaderProgram* texture = new ShaderProgram("Texture");
 	ShaderProgram* mdl = new ShaderProgram("MDL");

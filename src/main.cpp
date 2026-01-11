@@ -32,7 +32,6 @@
 // dialogs for errors / warnings
 // ignorable popups for misc messages
 // "pose" key for dead monsters ? (svencoop1)
-// ent links should be animated.people ask what each color means
 // speed up clipnode gen ?
 // scale axes and vertex editing in wrong place for rotated solids
 // ! textures dont count toward allocblock?

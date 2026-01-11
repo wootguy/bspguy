@@ -455,6 +455,24 @@ void Editor::compileShaderPrograms() {
 	}
 
 	{
+		ShaderProgram* sh = g_shaders.elink;
+		sh->compile(elink_vert_glsl, elink_frag_glsl, "120");
+		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
+		sh->setMatrixNames(NULL, "modelViewProjection");
+		sh->addAttributes({
+			{4, GL_UNSIGNED_BYTE, 1, "vColor"},
+			{1, GL_FLOAT, 0, "vDist"},
+			{1, GL_FLOAT, 0, "vDir"},
+			{3, GL_FLOAT, 0, "vPosition"},
+		});
+		sh->addUniforms({
+			{ "colorMult", UNIFORM_VEC4 },
+			{ "time", UNIFORM_FLOAT },
+		});
+		sh->setUniform("colorMult", vec4(1, 1, 1, 1), true);
+	}
+
+	{
 		ShaderProgram* sh = g_shaders.clipnode;
 		sh->compile(clipnode_vert_glsl, clipnode_frag_glsl, "120");
 		sh->setMatrixes(&model, &view, &projection, &modelView, &modelViewProjection);
@@ -1525,11 +1543,16 @@ void Editor::drawEntConnections() {
 	if (g_settings.render_flags & RENDER_ENT_CONNECTIONS) {
 		model.loadIdentity();
 		model.translate(mapRenderer->renderOffset.x, mapRenderer->renderOffset.y, mapRenderer->renderOffset.z);
-		g_shaders.color->updateMatrixes();
 
+		g_shaders.elink->bind();
+		g_shaders.elink->updateMatrixes();
+		g_shaders.elink->setUniform("time", (float)glfwGetTime());
 		if (entConnections) {
-			entConnections->draw(g_shaders.color, GL_LINES);
+			entConnections->draw(g_shaders.elink, GL_LINES);
 		}
+		
+		g_shaders.color->updateMatrixes();
+		g_shaders.color->bind();
 
 		if (entConnectionPoints) {
 			glDisable(GL_DEPTH_TEST);
@@ -3383,16 +3406,19 @@ void Editor::updateEntConnections() {
 
 				if (isTarget && isCaller) {
 					link.color = bothColor;
+					link.dir = 0;
 					entLinks[k] = 3;
 					entConnectionLinks.push_back(link);
 				}
 				else if (isTarget) {
 					link.color = targetColor;
+					link.dir = -1;
 					entLinks[k] = 1;
 					entConnectionLinks.push_back(link);
 				}
 				else if (isCaller) {
 					link.color = callerColor;
+					link.dir = 1;
 					entLinks[k] = 2;
 					entConnectionLinks.push_back(link);
 				}
@@ -3407,7 +3433,7 @@ void Editor::updateEntConnections() {
 
 		int numVerts = entConnectionLinks.size() * 2;
 		int numPoints = entConnectionLinks.size();
-		cVert* lines = new cVert[numVerts];
+		eLinkVert* lines = new eLinkVert[numVerts];
 		cCube* points = new cCube[numPoints];
 
 		int idx = 0;
@@ -3419,12 +3445,13 @@ void Editor::updateEntConnections() {
 			EntConnection& link = entConnectionLinks[i];
 			vec3 srcPos = getEntOrigin(map, link.self).flip();
 			vec3 ori = getEntOrigin(map, link.target).flip();
+			float dist = (ori - srcPos).length();
 			points[cidx++] = cCube(ori - extent, ori + extent, link.color);
-			lines[idx++] = cVert(srcPos, link.color);
-			lines[idx++] = cVert(ori, link.color);
+			lines[idx++] = eLinkVert(srcPos, link.color, 0, link.dir);
+			lines[idx++] = eLinkVert(ori, link.color, dist, link.dir);
 		}
 
-		entConnections = new VertexBuffer(g_shaders.color, lines, numVerts, true);
+		entConnections = new VertexBuffer(g_shaders.elink, lines, numVerts, true);
 		entConnectionPoints = new VertexBuffer(g_shaders.color, points, numPoints * 6 * 6, true);
 		entConnections->upload();
 		entConnectionPoints->upload();

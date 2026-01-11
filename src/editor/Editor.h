@@ -58,6 +58,7 @@ struct EntConnection {
 	Entity* self;
 	Entity* target; // TODO: crashed
 	COLOR4 color;
+	float dir;
 };
 
 struct EntityState {
