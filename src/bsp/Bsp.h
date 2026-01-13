@@ -68,9 +68,9 @@ struct AtlasLightmap {
 };
 
 struct GraphNode {
-	int nodeIdx;
+	uint64_t nodeIdx;
 	int depth;
-	int links[2];
+	uint64_t links[2];
 	int nodeType; // -1 = solid, 0 = node, 1 = leaf
 	float x, y;
 	float srcX, srcY;
@@ -173,8 +173,14 @@ public:
 	// returns all leaves underneath a node
 	void get_child_leaves(int iNode, vector<int>& leaves);
 
+	// get parent nodes for the given leaves
+	void get_leaf_parents(int iNode, unordered_set<int>& leaves);
+
 	// find all leaves which terminate the BSP tree, excluding solid leaves
 	void get_terminal_leaves(int iNode, vector<int>& terminalLeaves);
+
+	// descend the node until hitting a terminal leaf or 2-node fork
+	void get_simple_leaf_branch(int iNode, vector<int>& branch);
 
 	// merge all branches of the BSP tree which have a leaf at every node until termination
 	void merge_simple_leaf_chains();
@@ -185,14 +191,23 @@ public:
 	// returns true if any children fork into 2 nodes instead of 2 leaves, or 1 leaf and 1 node
 	bool node_branch_has_forks(int iNode);
 
-	// returns true if possible and adds depth-sorted nodes to sortedNodes
-	bool can_merge_leaves(vector<int>& ileaves, vector<int>& sortedNodes);
-
 	// Merges leaves into one, preserving the PVS but losing all contained face
-	bool merge_leaves(vector<int>& ileaves);
+	// discardVis = discard face visibility data, for model conversion. inodes are leaves instead of nodes
+	// returns number of leaves reduced, or 0 on failure
+	int merge_leaves(vector<int>& inodes, bool discardVis);
+	int merge_leaves(vector<int>& inodes, byte* decompressedVis, bool discardVis);
+
+	// decompress vis lump
+	byte* decompress_vis();
+
+	// assumes leaf count didn't change since decompress. Deletes decompressed vis buffer
+	void compress_vis(byte* decompressedVis);
 
 	// get data needed to render the bsp tree as a graph. Returns max depth
 	int get_leaf_graph(int iNode, vector<GraphNode>& gnodes, int depth, bool includeSolid);
+
+	// count instances of each leaf in the BSP tree
+	void get_leaf_counts(int iNode, unordered_map<int, int>& leafCounts);
 
 	// returns all faces marked by the given leaf
 	vector<int> get_leaf_faces(int ileaf);
@@ -202,6 +217,9 @@ public:
 
 	// get a list of all child nodes. Also includes the start node.
 	void get_child_nodes(int iNode, int depth, vector<NodeDepth>& nodes);
+
+	// get parent nodes for the given leaves
+	void get_leaf_parents(int iNode, unordered_set<int>& leaves, vector<int>& parents);
 
 	// get parent node for the given child idx
 	int get_node_parent(int iNode, int childIdx);
@@ -468,6 +486,10 @@ public:
 	int create_solid(Solid& solid, int targetModelIdx=-1);
 
 	int create_leaf(int contents);
+	void insert_leaves(int offset, int count); // only insert after all world leaves or else fix VIS yourself
+	
+	void insert_marksurfs(int offset, int count);
+	
 	void create_node_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int textureIdx);
 	void create_nodes(Solid& solid, BSPMODEL* targetModel);
 	// returns index of the solid node

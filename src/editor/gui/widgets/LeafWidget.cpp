@@ -19,14 +19,15 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
 
     nodes[t].y = level * LEVEL_HEIGHT;
 
-    int l = nodes[t].links[0];
-    int r = nodes[t].links[1];
+    const uint64_t badidx = (uint64_t)-1;
+    uint64_t l = nodes[t].links[0];
+    uint64_t r = nodes[t].links[1];
 
     extreme lr, ll, rr, rl;
     setup_tree(nodes, l, level + 1, &lr, &ll);
     setup_tree(nodes, r, level + 1, &rr, &rl);
 
-    if (l < 0 && r < 0) { // leaf
+    if (l == badidx && r == badidx) { // leaf
         rmost->addr = t;
         lmost->addr = t;
         rmost->lev = level;
@@ -40,15 +41,15 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
         int rootsep = MINSEP;
         int loffsum = 0, roffsum = 0;
 
-        int lptr = l, rptr = r;
+        uint64_t lptr = l, rptr = r;
 
-        while (lptr >= 0 && rptr >= 0) {
+        while (lptr != badidx && rptr != badidx) {
             if (cursep < MINSEP) {
                 rootsep += (MINSEP - cursep);
                 cursep = MINSEP;
             }
 
-            if (nodes[lptr].links[1] >= 0) {
+            if (nodes[lptr].links[1] != badidx) {
                 loffsum += nodes[lptr].offset;
                 cursep -= nodes[lptr].offset;
                 lptr = nodes[lptr].links[1];
@@ -59,7 +60,7 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
                 lptr = nodes[lptr].links[0];
             }
 
-            if (nodes[rptr].links[0] >= 0) {
+            if (nodes[rptr].links[0] != badidx) {
                 roffsum -= nodes[rptr].offset;
                 cursep -= nodes[rptr].offset;
                 rptr = nodes[rptr].links[0];
@@ -75,7 +76,7 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
         loffsum -= nodes[t].offset;
         roffsum += nodes[t].offset;
 
-        if ((rl.lev > ll.lev) || (nodes[t].links[0] < 0)) {
+        if ((rl.lev > ll.lev) || (nodes[t].links[0] == badidx)) {
             *lmost = rl;
             lmost->off += nodes[t].offset;
         }
@@ -84,7 +85,7 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
             lmost->off -= nodes[t].offset;
         }
 
-        if ((lr.lev > rr.lev) || (nodes[t].links[1] < 0)) {
+        if ((lr.lev > rr.lev) || (nodes[t].links[1] == badidx)) {
             *rmost = lr;
             rmost->off -= nodes[t].offset;
         }
@@ -94,7 +95,7 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
         }
 
         // Threading for uneven subtrees
-        if (lptr >= 0 && lptr != nodes[t].links[0]) {
+        if (lptr != badidx && lptr != nodes[t].links[0]) {
             nodes[rr.addr].thread = true;
             nodes[rr.addr].offset = abs((rr.off + nodes[t].offset) - loffsum);
             if (loffsum - nodes[t].offset <= rr.off)
@@ -102,7 +103,7 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
             else
                 nodes[rr.addr].links[1] = lptr;
         }
-        else if (rptr >= 0 && rptr != nodes[t].links[1]) {
+        else if (rptr != badidx && rptr != nodes[t].links[1]) {
             nodes[ll.addr].thread = true;
             nodes[ll.addr].offset = abs((ll.off - nodes[t].offset) - roffsum);
             if (roffsum + nodes[t].offset >= ll.off)
@@ -113,8 +114,8 @@ void setup_tree(vector<GraphNode>& nodes, int t, int level, extreme* rmost, extr
     }
 }
 
-void petrify(vector<GraphNode>& nodes, int t, int xpos) {
-    if (t < 0) return;
+void petrify(vector<GraphNode>& nodes, uint64_t t, int xpos) {
+    if (t == (uint64_t)-1) return;
 
     nodes[t].x = xpos;
 
@@ -134,9 +135,20 @@ void LeafWidget::refresh() {
     gnodes.clear();
     nodeIdxToGnode.clear();
     hotPath.clear();
+    mergedLeaves.clear();
 
 	int headNode = map->models[0].iHeadnodes[0];
 	int maxDepth = map->get_leaf_graph(headNode, gnodes, 0, true);
+
+    unordered_map<int, int> leafCounts;
+    map->get_leaf_counts(headNode, leafCounts);
+    leafCounts.erase(0); // don't care about the solid leaf
+
+    for (auto item : leafCounts) {
+        if (item.second > 1) {
+            mergedLeaves.insert(item.first);
+        }
+    }
 
 	int rootIdx = 0;
 	for (int i = 0; i < gnodes.size(); i++) {
@@ -154,13 +166,13 @@ void LeafWidget::refresh() {
 		gnodes[i].thread = false;
 
 		for (int k = 0; k < 2; k++) {
-			int linkIdx = node.links[k];
-			if (linkIdx >= 0) {
+			uint64_t linkIdx = node.links[k];
+			if (linkIdx != (uint64_t)-1) {
 				auto item = nodeIdxToGnode.find(linkIdx);
 				if (item != nodeIdxToGnode.end())
 					node.links[k] = nodeIdxToGnode[linkIdx];
 				else
-					node.links[k] = -1;
+					node.links[k] = (uint64_t)-1;
 			}
 		}
 	}
@@ -229,9 +241,10 @@ void LeafWidget::selectLeaves(vector<int>& leaves) {
     
     for (int leafIdx : leaves) {
         vector<int> branch;
-        int parent = map->get_node_branch(map->models[0].iHeadnodes[0], branch, leafIdx);
-        int gnodeId = (leafIdx + 1 << 16) | parent;
+        uint32_t parent = map->get_node_branch(map->models[0].iHeadnodes[0], branch, leafIdx);
+        uint64_t gnodeId = ((uint64_t)(leafIdx + 1) << 32) | ((uint64_t)parent << 1);
         hotPath.insert(nodeIdxToGnode[gnodeId]);
+        hotPath.insert(nodeIdxToGnode[gnodeId | 1]);
         for (int k = 1; k < branch.size(); k++) {
             int gidx = nodeIdxToGnode[branch[k]];
             hotPath.insert(gidx);
@@ -307,6 +320,14 @@ void LeafWidget::draw() {
             break;
         }
 
+
+        if (gnode.nodeType != 0) {
+            int leafIdx = (gnode.nodeIdx >> 32) - 1;
+            if (mergedLeaves.count(leafIdx)) {
+                color = !isHot ? IM_COL32(64, 160, 255, 255) : IM_COL32(96, 255, 255, 255);
+            }
+        }
+
         if (PointInBounds(start, clipMin, clipMax)) {
             dl->AddCircleFilled(start, sz, color);
         }
@@ -322,7 +343,7 @@ void LeafWidget::draw() {
                     gnode.nodeIdx, gnode.depth, node.nFaces, node.firstFace, width, len, height));
             }
             else {
-                int leafIdx = (gnode.nodeIdx >> 16) - 1;
+                int leafIdx = (gnode.nodeIdx >> 32) - 1;
                 BSPLEAF& leaf = map->leaves[leafIdx];
                 ImGui::TextUnformatted(cstrf("Leaf %d\nDepth: %d\nFaces: %d", leafIdx, gnode.depth, leaf.nMarkSurfaces));
             }
@@ -336,7 +357,7 @@ void LeafWidget::draw() {
                     map->get_child_leaves(gnode.nodeIdx, leaves);
                 }
                 else {
-                    int leafIdx = (gnode.nodeIdx >> 16) - 1;
+                    int leafIdx = (gnode.nodeIdx >> 32) - 1;
                     leaves.push_back(leafIdx);
                 }
 

@@ -215,8 +215,9 @@ private:
 	void refresh();
 
 	vector<GraphNode> gnodes;
-	unordered_map<int, int> nodeIdxToGnode;
-	unordered_set<int> hotPath;
+	unordered_map<uint64_t, int> nodeIdxToGnode;
+	unordered_set<uint64_t> hotPath;
+	unordered_set<int> mergedLeaves;
 
 	float graphWidth, graphHeight;
 };

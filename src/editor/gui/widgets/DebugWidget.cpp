@@ -12,7 +12,8 @@ void DebugWidget::drawSelectionDetails() {
 	int modelIndex = app->pickInfo.getModelIndex();
 	if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::Text("Entity ID: %d", app->pickInfo.getEntIndex());
+		if (app->pickMode == PICK_OBJECT)
+			ImGui::Text("Entity ID: %d", app->pickInfo.getEntIndex());
 
 		if (modelIndex > 0) {
 			BSPMODEL& model = map->models[modelIndex];
@@ -34,14 +35,25 @@ void DebugWidget::drawSelectionDetails() {
 		if (app->pickInfo.leaves.size()) {
 			if (app->pickInfo.getLeafIndex() != -1) {
 				BSPLEAF& leaf = map->leaves[app->pickInfo.getLeafIndex()];
+
+				string faceList = "";
+				if (leaf.nMarkSurfaces) {
+					faceList = " (";
+					for (int i = 0; i < leaf.nMarkSurfaces; i++) {
+						faceList += to_string(map->marksurfs[leaf.iFirstMarkSurface + i]) + ", ";
+					}
+					faceList = faceList.substr(0, faceList.size() - 2) + ")";
+				}
+				ImGui::PushTextWrapPos(min(ImGui::GetFontSize() * 15.0f, (float)g_app->windowWidth));
 				ImGui::Text("Leaf ID: %d", app->pickInfo.getLeafIndex());
 				ImGui::Text("Leaf contents: %s (%d)", map->getLeafContentsName(leaf.nContents), leaf.nContents);
-				ImGui::Text("Leaf faces: %d", leaf.nMarkSurfaces);
+				ImGui::Text("Leaf faces: %d%s", leaf.nMarkSurfaces, faceList.c_str());
 				ImGui::Text("Leaf first surf: %d", leaf.iFirstMarkSurface);
 				ImGui::Text("Leaf VIS offset: %d", leaf.nVisOffset);
 				ImGui::Text("Leaf ambient levels: %d %d %d %d", leaf.nAmbientLevels[0], leaf.nAmbientLevels[1], leaf.nAmbientLevels[2], leaf.nAmbientLevels[3]);
 				ImGui::Text("Leaf mins: %d %d %d", (int)leaf.nMins[0], (int)leaf.nMins[1], (int)leaf.nMins[2]);
 				ImGui::Text("Leaf maxs: %d %d %d", (int)leaf.nMaxs[0], (int)leaf.nMaxs[1], (int)leaf.nMaxs[2]);
+				ImGui::PopTextWrapPos();
 			}
 			else {
 				unordered_set<int> uniqueFaces;
@@ -55,12 +67,8 @@ void DebugWidget::drawSelectionDetails() {
 			}
 		}
 		else if (app->pickInfo.getFaceIndex() != -1) {
-			BSPMODEL& model = map->models[modelIndex];
 			BSPFACE& face = *app->pickInfo.getFace();
 			BSPPLANE& plane = map->planes[face.iPlane];
-
-			ImGui::Text("Model ID: %d", modelIndex);
-			ImGui::Text("Model polies: %d", model.nFaces);
 
 			ImGui::Text("Face ID: %d", app->pickInfo.getFaceIndex());
 

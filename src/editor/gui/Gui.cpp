@@ -869,10 +869,11 @@ void Gui::draw3dContextMenus() {
 
 				ImGui::Separator();
 
+				/*
 				if (ImGui::MenuItem("Merge Leaves", "", false, app->pickInfo.leaves.size() > 1)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Merge Leaves");
 
-					if (map->merge_leaves(app->pickInfo.leaves)) {
+					if (map->merge_leaves(app->pickInfo.leaves, false)) {
 						map->remove_unused_model_structures(false).print_delete_stats(1);
 						command->pushUndoState();
 						app->mapRenderer->reloadLeaves();
@@ -882,6 +883,7 @@ void Gui::draw3dContextMenus() {
 					}
 				}
 				tooltip("test");
+				*/
 
 				if (ImGui::MenuItem("Convert to Model", "", false, app->pickInfo.leaves.size() > 1)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Convert to Model");

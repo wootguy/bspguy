@@ -1432,12 +1432,12 @@ void MenuBar::drawToolsMenu() {
 			ImGui::EndMenu();
 		}
 		
-		/*
 		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Leaves")) {
 			if (ImGui::MenuItem("World Leaf Reduction", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("World Leaf Reduction");
 				
 				map->merge_simple_leaf_chains();
+				map->remove_unused_model_structures(false).print_delete_stats(1);
 
 				command->pushUndoState();
 			}
@@ -1446,7 +1446,6 @@ void MenuBar::drawToolsMenu() {
 
 			ImGui::EndMenu();
 		}
-		*/
 
 		if (ImGui::BeginMenu("Models")) {
 			if (ImGui::MenuItem("Deduplicate Models", 0, false, !app->isLoading)) {
