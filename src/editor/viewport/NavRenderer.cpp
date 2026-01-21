@@ -412,7 +412,7 @@ void NavRenderer::renderLeafGraph(LeafNavMesh* mesh, vec3 cameraOrigin, Bsp* map
 	if (g_app->isLoading || !mesh)
 		return;
 
-	int leafNavIdx = mesh->getNodeIdx(map, cameraOrigin);
+	uint32_t leafNavIdx = mesh->getNodeIdx(map, cameraOrigin);
 
 	if (leafNavIdx == NAV_INVALID_IDX)
 		return;

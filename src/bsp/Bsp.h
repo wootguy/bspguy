@@ -86,6 +86,7 @@ struct NodeDepth {
 enum BspFormat {
 	BSP_QUAKE1,	  // Quake 1, version 29
 	BSP_HALFLIFE, // half-life, version 30
+	BSP_GUY, // an internal format that can be converted to any of the others
 	BSP_UNKNOWN,
 	BSP_FORMAT_TYPES
 };
@@ -114,7 +115,7 @@ public:
 	byte* lightdata;
 	int32_t* surfedges;
 	BSPEDGE* edges;
-	uint16* marksurfs;
+	BSPMARKSURF* marksurfs;
 
 	// VIS data is a compressed 2D array.
 	// Example binary for uncompressed vis data in a map with 4 leaves:
@@ -162,7 +163,7 @@ public:
 	void print_info(bool perModelStats, int perModelLimit, int sortMode);
 	void print_model_hull(int modelIdx, int hull);
 	void print_clipnode_tree(int iNode, int depth);
-	void recurse_node(int16_t node, int depth);
+	void recurse_node(int32_t node, int depth);
 	int32_t pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx);
 	int32_t pointContents(int iNode, vec3 p, int hull);
 	bool recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace);
@@ -297,9 +298,9 @@ public:
 	bool isInteriorFace(const Polygon3D& poly, int hull);
 
 	// get cuts required to create bounding volumes for each solid leaf in the model
-	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int16_t contents);
-	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int16_t contents);
-	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int16_t contents);
+	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int32_t contents);
+	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
+	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
 
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
@@ -358,17 +359,17 @@ public:
 	// deletes data outside the map bounds
 	void delete_oob_data(int clipFlags);
 
-	void delete_oob_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, 
+	void delete_oob_clipnodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder, 
 		int oobFlags, bool* oobHistory, bool isFirstPass, int& removedNodes);
 	
-	void delete_oob_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder, 
+	void delete_oob_nodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder, 
 		int oobFlags, bool* oobHistory, bool isFirstPass, int& removedNodes);
 
 	// deletes data inside a bounding box
 	void delete_box_data(vec3 clipMins, vec3 clipMaxs);
-	void delete_box_clipnodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+	void delete_box_clipnodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder,
 		vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes);
-	void delete_box_nodes(int iNode, int16_t* parentBranch, vector<BSPPLANE>& clipOrder,
+	void delete_box_nodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder,
 		vec3 clipMins, vec3 clipMaxs, bool* oobHistory, bool isFirstPass, int& removedNodes);
 
 	// assumes contiguous leaves starting at 0. Only works for worldspawn, which is the only model which
@@ -667,8 +668,33 @@ private:
 
 	bool load_lumps(string fname, BSPHEADER& head, LumpState& state);
 
-	// convert lumps to the internal format
-	void convert_lumps(int fromVersion, int toVersion, LumpState& state);
+	// convert a file-specific struct to the internal format
+	void internalize_face(BSPFACE_29& src, BSPFACE& dst);
+	void internalize_leaf(BSPLEAF_29& src, BSPLEAF& dst);
+	void internalize_edge(BSPEDGE_29& src, BSPEDGE& dst);
+	void internalize_node(BSPNODE_29& src, BSPNODE& dst);
+	void internalize_clip(BSPCLIPNODE_29& src, BSPCLIPNODE& dst);
+	void internalize_mark(BSPMARKSURF_29& src, BSPMARKSURF& dst);
+
+	// convert internal struct for a specific file format
+	void externalize_face(BSPFACE& src, BSPFACE_29& dst);
+	void externalize_leaf(BSPLEAF& src, BSPLEAF_29& dst);
+	void externalize_edge(BSPEDGE& src, BSPEDGE_29& dst);
+	void externalize_node(BSPNODE& src, BSPNODE_29& dst);
+	void externalize_clip(BSPCLIPNODE& src, BSPCLIPNODE_29& dst);
+	void externalize_mark(BSPMARKSURF& src, BSPMARKSURF_29& dst);
+
+	// convert file lumps to the internal format
+	void internalize_lumps(int fromVersion, LumpState& state);
+
+	// convert internal lumps to a standard file format
+	void externalize_lumps(int toVersion, LumpState& state);
+
+	// convert to/from monochrome and RGB lightmaps
+	void convert_lightmaps(LumpState& state, bool quakeNotHl);
+
+	// convert to/from quake texture palettes and half-life
+	void convert_texture_palettes(LumpState& state, bool monochromeNotRgb);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
 	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according
@@ -684,16 +710,16 @@ private:
 	string get_model_usage(int modelIdx);
 	vector<Entity*> get_model_ents(int modelIdx);
 
-	void write_csg_polys(int16_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
+	void write_csg_polys(int32_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	
 
 	void write_portal_file_leaf_count(int iNode, FILE* fout);
 
 	// create a mapping from bsp leaf index to portal file leaf number
-	void get_portal_file_leaf_numbers(int iNode, unordered_map<uint16_t, uint16_t>& leafMap, int &leafCount);
+	void get_portal_file_leaf_numbers(int iNode, unordered_map<uint32_t, uint32_t>& leafMap, int &leafCount);
 	
 	// returns number of portals written, or that would be written if fout is NULL
 	int write_portal_file_portals(int iNode, LeafNavMesh* mesh, unordered_set<uint32_t>& visited, 
-		unordered_map<uint16_t, uint16_t>& leafMap, FILE* fout);
+		unordered_map<uint32_t, uint32_t>& leafMap, FILE* fout);
 
 	// marks all structures that this model uses
 	// TODO: don't mark faces in submodel leaves (unused)

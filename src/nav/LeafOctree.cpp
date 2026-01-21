@@ -94,7 +94,7 @@ bool LeafOctree::validate(LeafOctant* node, int currentDepth, int maxNodes) {
     bool valid = true;
 
     if (currentDepth >= maxDepth) {
-        for (uint16_t p : node->leaves) {
+        for (uint32_t p : node->leaves) {
             if (p >= maxNodes) {
                 logf("Invalid node in octant: %d / %d\n", (int)p, maxNodes);
                 valid = false;
@@ -118,7 +118,7 @@ bool LeafOctree::validate(int maxNodes) {
 
 void LeafOctree::shiftLeafIds(LeafOctant* node, int currentDepth, int shiftStart, int shiftAmount) {
     if (currentDepth >= maxDepth) {
-        for (uint16_t& p : node->leaves) {
+        for (uint32_t& p : node->leaves) {
             if (p >= shiftStart) {
                 p -= shiftAmount;
             }
@@ -136,7 +136,7 @@ void LeafOctree::shiftLeafIds(int shiftStart, int shiftAmount) {
 
 void LeafOctree::getLeavesInRegion(LeafOctant* node, LeafNode* leaf, int currentDepth, vector<bool>& regionLeaves) {
     if (currentDepth >= maxDepth) {
-        for (uint16_t p : node->leaves) {
+        for (uint32_t p : node->leaves) {
             regionLeaves[p] = true;
         }
         return;
@@ -155,7 +155,7 @@ int LeafOctree::calcMemoryUsage() {
 }
 
 void LeafOctree::calcMemoryUsage(LeafOctant* node, int& usage) {
-    usage += sizeof(LeafOctant) + sizeof(uint16_t)*node->leaves.size();
+    usage += sizeof(LeafOctant) + sizeof(uint32_t)*node->leaves.size();
 
     for (int i = 0; i < 8; ++i) {
         if (node->children[i])

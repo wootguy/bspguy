@@ -113,7 +113,7 @@ LeafNavMesh::~LeafNavMesh() {
 }
 
 void LeafNavMesh::clear() {
-	memset(leafMap, 65535, sizeof(uint16_t) * MAX_MAP_CLIPNODE_LEAVES);
+	memset(leafMap, 0xff, sizeof(leafMap));
 	nodes.clear();
 }
 
@@ -177,7 +177,7 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 	};
 
 	for (int i = 0; i < 10; i++) {
-		uint16_t nodeId = getNodeIdx(map, testPoints[i]);
+		uint32_t nodeId = getNodeIdx(map, testPoints[i]);
 
 		if (nodeId != NAV_INVALID_IDX) {
 			return nodeId;
@@ -227,14 +227,14 @@ int LeafNavMesh::getNodeIdx(Bsp* map, Entity* ent) {
 	return -1;
 }
 
-uint16_t LeafNavMesh::getNodeIdx(Bsp* map, vec3 pos) {
+uint32_t LeafNavMesh::getNodeIdx(Bsp* map, vec3 pos) {
 	int bspLeaf = map->get_leaf(pos, hull);
 
 	if (bspLeaf < 0 || bspLeaf >= MAX_MAP_CLIPNODE_LEAVES) {
 		return NAV_INVALID_IDX;
 	}
 
-	uint16_t idx = leafMap[bspLeaf];
+	uint32_t idx = leafMap[bspLeaf];
 
 	if (idx >= nodes.size()) {
 		return NAV_INVALID_IDX;
@@ -531,7 +531,7 @@ bool LeafNavMesh::validate() {
 	return valid;
 }
 
-void LeafNavMesh::unsplitNode(uint16_t idx) {
+void LeafNavMesh::unsplitNode(uint32_t idx) {
 	if (idx > nodes.size()) {
 		logf("Can't unsplit node %d / %d\n", idx, (int)nodes.size());
 		return;
@@ -544,8 +544,8 @@ void LeafNavMesh::unsplitNode(uint16_t idx) {
 		return;
 	}
 
-	uint16_t unsplitStart = parent.childIdx;
-	uint16_t unsplitEnd = parent.childIdx + 1;
+	uint32_t unsplitStart = parent.childIdx;
+	uint32_t unsplitEnd = parent.childIdx + 1;
 
 	for (int i = parent.childIdx + 1; i < nodes.size(); i++) {
 		LeafNode& child = nodes[i];
@@ -615,7 +615,7 @@ void LeafNavMesh::refreshNodes(Bsp* map) {
 			}
 
 			for (int k = 0; k < node.links.size(); k++) {
-				uint16_t linkId = node.links[k].node;
+				uint32_t linkId = node.links[k].node;
 
 				if (linkId >= nodes.size() || nodes[linkId].parentIdx != NAV_INVALID_IDX || nodes[linkId].entidx != 0) {
 					node.links.erase(node.links.begin() + k);

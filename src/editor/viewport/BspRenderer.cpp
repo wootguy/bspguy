@@ -1095,7 +1095,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 		for (int e = 0; e < face.nEdges; e++) {
 			int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 			BSPEDGE& edge = map->edges[abs(edgeIdx)];
-			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount-1));
+			int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint32_t)(map->vertCount-1));
 
 			vec3& vert = map->verts[vertIdx];
 			verts[e].x = vert.x;
@@ -1157,7 +1157,7 @@ int BspRenderer::refreshModel(int modelIdx, bool refreshClipnodes) {
 
 
 		// convert TRIANGLE_FAN verts to TRIANGLES so multiple faces can be drawn in a single draw call
-		int newCount = face.nEdges + max(0, face.nEdges - 3) * 2;
+		int newCount = face.nEdges + max((uint32_t)0, face.nEdges - 3) * 2;
 		lightmapVert* newVerts = new lightmapVert[newCount];
 
 		int idx = 0;
@@ -2192,7 +2192,7 @@ void BspRenderer::refreshFace(int faceIdx) {
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
-		int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint16_t)(map->vertCount-1));
+		int vertIdx = min(edgeIdx < 0 ? edge.iVertex[1] : edge.iVertex[0], (uint32_t)(map->vertCount-1));
 		vec3 v = map->verts[vertIdx];
 
 		// 2 verts can share the same position on a face, so need to find one that isn't shared (aomdc_1intro)
@@ -3317,10 +3317,8 @@ void BspRenderer::updatePvs(vec3 viewOrigin) {
 			bool inPvs = false;
 			for (int leafIdx : pvsDat->pvsLeaves) {
 				BSPLEAF& leaf = map->leaves[leafIdx];
-				vec3 leafMins(leaf.nMins[0], leaf.nMins[1], leaf.nMins[2]);
-				vec3 leafMaxs(leaf.nMaxs[0], leaf.nMaxs[1], leaf.nMaxs[2]);
 			
-				if (boxesIntersect(leafMins, leafMaxs, entMin, entMax)) {
+				if (boxesIntersect(leaf.nMins, leaf.nMaxs, entMin, entMax)) {
 					inPvs = true;
 					break;
 				}

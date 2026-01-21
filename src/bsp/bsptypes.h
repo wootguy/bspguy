@@ -55,9 +55,9 @@ enum lump_copy_targets {
 #define CONTENTS_CURRENT_UP   -13
 #define CONTENTS_CURRENT_DOWN -14
 #define CONTENTS_TRANSLUCENT  -15
-#define CONTENTS_NOT_LEAF_0	((int16_t)0x0ffd) // select any leaf that is not the shared solid leaf
-#define CONTENTS_ANY		((int16_t)0x0ffe) // select any leaf
-#define CONTENTS_NOT_SOLID	((int16_t)0x0fff) // select any non-solid leaf
+#define CONTENTS_NOT_LEAF_0	((int32_t)0x0ffffffd) // select any leaf that is not the shared solid leaf
+#define CONTENTS_ANY		((int32_t)0x0ffffffe) // select any leaf
+#define CONTENTS_NOT_SOLID	((int32_t)0x0fffffff) // select any non-solid leaf
 
 #define PLANE_X 0     // Plane is perpendicular to given axis
 #define PLANE_Y 1
@@ -133,6 +133,9 @@ struct CSGPLANE {
 	int32_t nType;
 };
 
+//
+// internal BSP format
+//
 struct BSPTEXTUREINFO {
 	vec3 vS;
 	float shiftS;
@@ -142,8 +145,7 @@ struct BSPTEXTUREINFO {
 	uint32_t nFlags;
 };
 
-struct BSPMIPTEX
-{
+struct BSPMIPTEX {
 	char szName[MAXTEXTURENAME];  // Name of texture
 	uint32_t nWidth, nHeight;		  // Extends of the texture
 	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps, relative to the start of this structure
@@ -158,37 +160,31 @@ struct BSPMIPTEX
 		return sz + sz2 + sz3 + sz4;
 	}
 };
-
 struct BSPFACE {
-	uint16_t iPlane;          // Plane the face is parallel to
-	uint16_t nPlaneSide;      // Set if different normals orientation
+	uint32_t iPlane;          // Plane the face is parallel to
+	uint32_t nPlaneSide;      // Set if different normals orientation
 	uint32_t iFirstEdge;      // Index of the first surfedge
-	uint16_t nEdges;          // Number of consecutive surfedges
-	uint16_t iTextureInfo;    // Index of the texture info structure
+	uint32_t nEdges;          // Number of consecutive surfedges
+	uint32_t iTextureInfo;    // Index of the texture info structure
 	uint8_t nStyles[4];       // Specify lighting styles
 	uint32_t nLightmapOffset; // Offsets into the raw lightmap data
 };
-
-struct BSPLEAF
-{
+struct BSPLEAF {
 	int32_t nContents;                         // Contents enumeration
 	int32_t nVisOffset;                        // Offset into the visibility lump
-	int16_t nMins[3], nMaxs[3];                // Defines bounding box. Used for view culling.
-	uint16_t iFirstMarkSurface, nMarkSurfaces; // Index and count into marksurfaces array. Used to mark visible faces to render in parent nodes.
+	vec3 nMins, nMaxs;                // Defines bounding box. Used for view culling.
+	uint32_t iFirstMarkSurface, nMarkSurfaces; // Index and count into marksurfaces array. Used to mark visible faces to render in parent nodes.
 	uint8_t nAmbientLevels[4];                 // Ambient sound levels
 
 	bool isEmpty();
 };
-
 struct BSPEDGE {
-	uint16_t iVertex[2]; // Indices into vertex array
+	uint32_t iVertex[2]; // Indices into vertex array
 
 	BSPEDGE();
-	BSPEDGE(uint16_t v1, uint16_t v2);
+	BSPEDGE(uint32_t v1, uint32_t v2);
 };
-
-struct BSPMODEL
-{
+struct BSPMODEL {
 	vec3 nMins;
 	vec3 nMaxs;
 	vec3 vOrigin;                  // Coordinates to move the // coordinate system
@@ -196,20 +192,54 @@ struct BSPMODEL
 	int32_t nVisLeafs;                 // ???
 	int32_t iFirstFace, nFaces;        // Index and count into faces.
 };
-
-struct BSPNODE
-{
+struct BSPNODE {
 	uint32_t iPlane;            // Index into Planes lump
-	int16_t iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
-	int16_t nMins[3], nMaxs[3]; // Defines bounding box. Used for view culling.
-	uint16_t firstFace, nFaces; // Index and count into Faces. These faces are conditionally rendered depending on child leaf visibility.
+	int32_t iChildren[2];       // If > 0, then indices into Nodes // otherwise bitwise inverse indices into Leafs
+	vec3 nMins, nMaxs;			// Defines bounding box. Used for view culling.
+	uint32_t firstFace, nFaces; // Index and count into Faces. These faces are conditionally rendered depending on child leaf visibility.
 };
-
-struct BSPCLIPNODE
-{
+struct BSPCLIPNODE {
 	int32_t iPlane;       // Index into planes
-	int16_t iChildren[2]; // negative numbers are contents
+	int32_t iChildren[2]; // negative numbers are contents
 };
+typedef uint32_t BSPMARKSURF;
+
+
+//
+// BSP29 and BSP30 format (identical to the internal format but with fewer bits)
+// Missing structs match the internal structs exactly (no extra bits were needed)
+//
+struct BSPFACE_29 {
+	uint16_t iPlane;
+	uint16_t nPlaneSide;
+	uint32_t iFirstEdge;
+	uint16_t nEdges;
+	uint16_t iTextureInfo;
+	uint8_t nStyles[4];
+	uint32_t nLightmapOffset;
+};
+struct BSPLEAF_29 {
+	int32_t nContents;
+	int32_t nVisOffset;
+	int16_t nMins[3], nMaxs[3];
+	uint16_t iFirstMarkSurface, nMarkSurfaces;
+	uint8_t nAmbientLevels[4];
+};
+struct BSPEDGE_29 {
+	uint16_t iVertex[2];
+};
+struct BSPNODE_29
+{
+	uint32_t iPlane;
+	int16_t iChildren[2];
+	int16_t nMins[3], nMaxs[3];
+	uint16_t firstFace, nFaces;
+};
+struct BSPCLIPNODE_29 {
+	int32_t iPlane;
+	int16_t iChildren[2];
+};
+typedef uint16_t BSPMARKSURF_29;
 
 
 /*
@@ -217,11 +247,11 @@ struct BSPCLIPNODE
  */
 
 struct ScalableTexinfo {
-	int texinfoIdx;
+	uint32_t texinfoIdx;
 	vec3 oldS, oldT;
 	float oldShiftS, oldShiftT;
-	int planeIdx;
-	int faceIdx;
+	uint32_t planeIdx;
+	uint32_t faceIdx;
 };
 
 struct TransformVert {

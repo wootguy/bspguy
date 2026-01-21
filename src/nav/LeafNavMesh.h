@@ -3,8 +3,9 @@
 #include <map>
 #include "Clipper.h"
 
-#define MAX_MAP_CLIPNODE_LEAVES 65536 // doubled to account for each clipnode's child contents having its own ID
-#define NAV_INVALID_IDX 65535
+// TODO: dynamically allocate for BSP2, this limit won't last forever
+#define MAX_MAP_CLIPNODE_LEAVES 262144 // double max leaves to account for each clipnode's child contents having its own ID
+#define NAV_INVALID_IDX UINT32_MAX
 
 #define NAV_STEP_HEIGHT 18
 #define NAV_JUMP_HEIGHT 44
@@ -23,7 +24,7 @@ class LeafOctree;
 class VertexBuffer;
 
 struct LeafLink {
-	uint16_t node; // which leaf is linked to
+	uint32_t node; // which leaf is linked to
 	vec3 pos; // link position
 	float baseCost; // flat cost for using this path
 	float costMultiplier; // cost applied to length of path
@@ -37,17 +38,17 @@ struct LeafLink {
 struct EntState {
 	vec3 origin;
 	vec3 angles;
-	uint16_t model; // 0 = point entity box as hull
+	uint32_t model; // 0 = point entity box as hull
 };
 
 struct LeafNode {
 	vector<LeafLink> links;
-	uint16_t id;
-	uint16_t leafIdx; // leaf index in the BSP data
+	uint32_t id;
+	uint32_t leafIdx; // leaf index in the BSP data
 	vec3 origin; // the best position for pathing (not necessarily the center)
-	int16_t entidx; // 0 for world leaves, else an entity leaf which may be relocated, enabled, or disabled
-	uint16_t parentIdx; // parent leaf idx if this node is the child of another leaf, else 65535
-	uint16_t childIdx; // first child idx if this node contains split leaves, else 65535
+	uint32_t entidx; // 0 for world leaves, else an entity leaf which may be relocated, enabled, or disabled
+	uint32_t parentIdx; // parent leaf idx if this node is the child of another leaf, else 65535
+	uint32_t childIdx; // first child idx if this node contains split leaves, else 65535
 
 	vector<EntState> splittingEnts; // entities which are splitting this node
 
@@ -79,7 +80,7 @@ class LeafNavMesh {
 public:
 	vector<LeafNode> nodes;
 	LeafOctree* octree; // finds nearby leaves from any point in space, even outside of the BSP tree
-	uint16_t leafMap[MAX_MAP_CLIPNODE_LEAVES]; // maps a BSP leaf index to nav mesh node index
+	uint32_t leafMap[MAX_MAP_CLIPNODE_LEAVES]; // maps a BSP leaf index to nav mesh node index
 	vector<vector<LeafNode>> bspModelLeaves; // cached entity model leaves
 	vector<LeafNode> bspModelNodes; // cached entity model nodes
 	int hull; // which hull this mesh represents
@@ -104,11 +105,11 @@ public:
 	int getNodeIdx(Bsp* map, Entity* ent);
 
 	// accounts for leaves that have been split by entities
-	uint16_t getNodeIdx(Bsp* map, vec3 pos);
+	uint32_t getNodeIdx(Bsp* map, vec3 pos);
 
 	// unsplits a node that was divided by one or more entities
 	// use when the entities that did the splitting have moved/rotated
-	void unsplitNode(uint16_t idx);
+	void unsplitNode(uint32_t idx);
 
 	// splits nodes again when entities change
 	void refreshNodes(Bsp* map);

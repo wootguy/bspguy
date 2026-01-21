@@ -7,7 +7,7 @@
 struct LeafOctant {
     vec3 min;
     vec3 max;
-    list<uint16_t> leaves;
+    list<uint32_t> leaves;
     LeafOctant* children[8]; // Eight children octants
 
     LeafOctant(vec3 min, vec3 max);

@@ -1630,12 +1630,12 @@ void BspMerger::merge_marksurfs(Bsp& mapA, Bsp& mapB) {
 	g_progress.update("Merging marksurfaces", totalSurfCount + 1);
 	g_progress.tick();
 
-	uint16* newSurfs = new uint16[totalSurfCount];
-	memcpy(newSurfs, mapA.marksurfs, thisMarkSurfCount * sizeof(uint16));
-	memcpy(newSurfs + thisMarkSurfCount, mapB.marksurfs, mapB.marksurfCount * sizeof(uint16));
+	BSPMARKSURF* newSurfs = new BSPMARKSURF[totalSurfCount];
+	memcpy(newSurfs, mapA.marksurfs, thisMarkSurfCount * sizeof(BSPMARKSURF));
+	memcpy(newSurfs + thisMarkSurfCount, mapB.marksurfs, mapB.marksurfCount * sizeof(BSPMARKSURF));
 
 	for (int i = 0; i < thisMarkSurfCount; i++) {
-		uint16& mark = newSurfs[i];
+		BSPMARKSURF& mark = newSurfs[i];
 		if (mark >= thisWorldFaceCount) {
 			mark = mark + otherFaceCount;
 		}
@@ -1643,12 +1643,12 @@ void BspMerger::merge_marksurfs(Bsp& mapA, Bsp& mapB) {
 	}
 
 	for (int i = thisMarkSurfCount; i < totalSurfCount; i++) {
-		uint16& mark = newSurfs[i];
+		BSPMARKSURF& mark = newSurfs[i];
 		mark = mark + thisWorldFaceCount;
 		g_progress.tick();
 	}
 
-	mapA.replace_lump(LUMP_MARKSURFACES, newSurfs, totalSurfCount * sizeof(uint16));
+	mapA.replace_lump(LUMP_MARKSURFACES, newSurfs, totalSurfCount * sizeof(BSPMARKSURF));
 }
 
 void BspMerger::merge_edges(Bsp& mapA, Bsp& mapB) {
@@ -1709,7 +1709,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 					node.iChildren[k] += 1; // shifted from new head node
 				}
 				else {
-					node.iChildren[k] = ~((int16_t)modelLeafRemap[~node.iChildren[k]]);
+					node.iChildren[k] = ~((int32_t)modelLeafRemap[~node.iChildren[k]]);
 				}
 			}
 		}
@@ -1729,7 +1729,7 @@ void BspMerger::merge_nodes(Bsp& mapA, Bsp& mapB) {
 				node.iChildren[k] += thisNodeCount;
 			}
 			else {
-				node.iChildren[k] = ~((int16_t)leavesRemap[~node.iChildren[k]]);
+				node.iChildren[k] = ~((int32_t)leavesRemap[~node.iChildren[k]]);
 			}
 		}
 		node.iPlane = planeRemap[node.iPlane];
@@ -2004,7 +2004,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 		};
 
 		if (swapNodeChildren) {
-			int16_t temp = headNode.iChildren[0];
+			int32_t temp = headNode.iChildren[0];
 			headNode.iChildren[0] = headNode.iChildren[1];
 			headNode.iChildren[1] = temp;
 		}
@@ -2027,8 +2027,8 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 			newHeadNodes[i] = {
 				separationPlaneIdx,	// plane idx
 				{	// child nodes
-					(int16_t)(otherWorld.iHeadnodes[i + 1] + mapA.clipnodeCount + NEW_NODE_COUNT),
-					(int16_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT)
+					(int32_t)(otherWorld.iHeadnodes[i + 1] + mapA.clipnodeCount + NEW_NODE_COUNT),
+					(int32_t)(thisWorld.iHeadnodes[i + 1] + NEW_NODE_COUNT)
 				},
 			};
 
@@ -2041,7 +2041,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 			
 
 			if (swapNodeChildren) {
-				int16_t temp = newHeadNodes[i].iChildren[0];
+				int32_t temp = newHeadNodes[i].iChildren[0];
 				newHeadNodes[i].iChildren[0] = newHeadNodes[i].iChildren[1];
 				newHeadNodes[i].iChildren[1] = temp;
 			}

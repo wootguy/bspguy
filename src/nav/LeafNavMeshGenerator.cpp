@@ -101,13 +101,13 @@ vector<LeafNode> LeafNavMeshGenerator::getHullLeaves(Bsp* map, int modelIdx, int
 			BSPLEAF& leaf = map->leaves[nodes[m].leafIdx];
 			debugf("Failed to mesh leaf %d @ %d %d %d (%d contents, %d faces, %d %d %d size)\n",
 				nodes[m].leafIdx,
-				(int)(leaf.nMins[0] + (leaf.nMaxs[0] - leaf.nMins[0]) * 0.5f),
-				(int)(leaf.nMins[1] + (leaf.nMaxs[1] - leaf.nMins[1]) * 0.5f),
-				(int)(leaf.nMins[2] + (leaf.nMaxs[2] - leaf.nMins[2]) * 0.5f),
+				(int)(leaf.nMins.x + (leaf.nMaxs.x - leaf.nMins.x) * 0.5f),
+				(int)(leaf.nMins.y + (leaf.nMaxs.y - leaf.nMins.y) * 0.5f),
+				(int)(leaf.nMins.z + (leaf.nMaxs.z - leaf.nMins.z) * 0.5f),
 				leaf.nContents, leaf.nMarkSurfaces,
-				(int)(leaf.nMaxs[0] - leaf.nMins[0]),
-				(int)(leaf.nMaxs[1] - leaf.nMins[1]),
-				(int)(leaf.nMaxs[2] - leaf.nMins[2]));
+				(int)(leaf.nMaxs.x - leaf.nMins.x),
+				(int)(leaf.nMaxs.y - leaf.nMins.y),
+				(int)(leaf.nMaxs.z - leaf.nMins.z));
 			//getHullForClipperMesh(mesh, hull, allowDegenerateMeshes);
 		}
 	}

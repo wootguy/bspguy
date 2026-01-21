@@ -336,11 +336,9 @@ void LeafWidget::draw() {
             ImGui::BeginTooltip();
             if (gnode.nodeType == 0) {
                 BSPNODE& node = map->nodes[gnode.nodeIdx];
-                int width = node.nMaxs[0] - node.nMins[0];
-                int len = node.nMaxs[1] - node.nMins[1];
-                int height = node.nMaxs[2] - node.nMins[2];
+                vec3 sz = node.nMaxs - node.nMins;
                 ImGui::TextUnformatted(cstrf("Node %d\nDepth: %d\nFaces: %d (offset %d)\nSize: %d %d %d",
-                    gnode.nodeIdx, gnode.depth, node.nFaces, node.firstFace, width, len, height));
+                    gnode.nodeIdx, gnode.depth, node.nFaces, node.firstFace, (int)sz.x, (int)sz.y, (int)sz.z));
             }
             else {
                 int leafIdx = (gnode.nodeIdx >> 32) - 1;

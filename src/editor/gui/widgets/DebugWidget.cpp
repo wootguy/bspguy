@@ -15,7 +15,7 @@ void DebugWidget::drawSelectionDetails() {
 		if (app->pickMode == PICK_OBJECT)
 			ImGui::Text("Entity ID: %d", app->pickInfo.getEntIndex());
 
-		if (modelIndex > 0) {
+		if (modelIndex >= 0) {
 			BSPMODEL& model = map->models[modelIndex];
 			ImGui::Text("Model ID: %d", modelIndex);
 			ImGui::Text("Model polys: %d", model.nFaces);
@@ -51,8 +51,8 @@ void DebugWidget::drawSelectionDetails() {
 				ImGui::Text("Leaf first surf: %d", leaf.iFirstMarkSurface);
 				ImGui::Text("Leaf VIS offset: %d", leaf.nVisOffset);
 				ImGui::Text("Leaf ambient levels: %d %d %d %d", leaf.nAmbientLevels[0], leaf.nAmbientLevels[1], leaf.nAmbientLevels[2], leaf.nAmbientLevels[3]);
-				ImGui::Text("Leaf mins: %d %d %d", (int)leaf.nMins[0], (int)leaf.nMins[1], (int)leaf.nMins[2]);
-				ImGui::Text("Leaf maxs: %d %d %d", (int)leaf.nMaxs[0], (int)leaf.nMaxs[1], (int)leaf.nMaxs[2]);
+				ImGui::Text("Leaf mins: %d %d %d", (int)leaf.nMins.x, (int)leaf.nMins.y, (int)leaf.nMins.z);
+				ImGui::Text("Leaf maxs: %d %d %d", (int)leaf.nMaxs.x, (int)leaf.nMaxs.y, (int)leaf.nMaxs.z);
 				ImGui::PopTextWrapPos();
 			}
 			else {

@@ -4,7 +4,7 @@
 
 BSPEDGE::BSPEDGE() {}
 
-BSPEDGE::BSPEDGE(uint16_t v1, uint16_t v2) { 
+BSPEDGE::BSPEDGE(uint32_t v1, uint32_t v2) { 
 	iVertex[0] = v1;
 	iVertex[1] = v2; 
 }
