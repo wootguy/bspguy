@@ -12,6 +12,7 @@
 // - load world clipnodes on demand
 // - disable wireframe in preview mode
 // - creating info player start from face mode, moving it, then switching to object mode moved the ent, smth like that
+// = - xash3d crashes on lostmaze_hl, check other merges too
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

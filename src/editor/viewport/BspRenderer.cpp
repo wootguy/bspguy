@@ -812,9 +812,13 @@ void BspRenderer::loadLightmaps() {
 	glLightmapTextures = new Texture * [numLightmapAtlases];
 	for (int i = 0; i < numLightmapAtlases; i++) {
 
-		if (!atlases[atlasId]->insert(0, 2, 2, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y)) {
+		if (!atlases[i]->insert(0, 2, 2, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y)) {
 			errorf("Failed to insert black area for lightmap atlas! Some lightmaps will be broken.\n");
 		}
+
+		// TODO: reserve space for this 2x2 square during lightmap generation. The full bright faces bug will come again...
+		//logf("Black area for %d at %d %d\n", i, lightmapAtlasBlackArea[i].x, lightmapAtlasBlackArea[i].y);
+		//lodepng_encode24_file(("lightmap_atlas_" + to_string(i) + ".png").c_str(), atlasTextures[i]->data, lightmapAtlasSz, lightmapAtlasSz);
 
 		delete atlases[i];
 		glLightmapTextures[i] = atlasTextures[i];
