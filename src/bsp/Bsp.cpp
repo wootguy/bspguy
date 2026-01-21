@@ -3001,6 +3001,107 @@ int Bsp::allocblock_reduction() {
 	return scaleCount;
 }
 
+void Bsp::delete_face(int faceId) {
+	for (int i = 0; i < modelCount; i++) {
+		BSPMODEL& model = models[i];
+
+		if (!model.nFaces)
+			continue;
+
+		if (faceId < model.iFirstFace) {
+			model.iFirstFace--;
+		}
+		else if (model.iFirstFace + model.nFaces > faceId) {
+			model.nFaces--;
+		}
+
+		if (model.nFaces == 0)
+			model.iFirstFace = 0;
+	}
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = nodes[i];
+
+		if (!node.nFaces)
+			continue;
+
+		if (faceId < node.firstFace) {
+			node.firstFace--;
+		}
+		else if (node.firstFace + node.nFaces > faceId) {
+			node.nFaces--;
+		}
+
+		if (!node.nFaces)
+			node.firstFace = 0;
+	}
+
+	for (int i = 0; i < marksurfCount; i++) {
+		if (marksurfs[i] > faceId) {
+			marksurfs[i] -= 1;
+			continue;
+		}
+		if (marksurfs[i] != faceId) {
+			continue;
+		}
+
+		for (int k = 0; k < leafCount; k++) {
+			BSPLEAF& leaf = leaves[k];
+
+			if (!leaf.nMarkSurfaces)
+				continue;
+
+			if (i < leaf.iFirstMarkSurface) {
+				leaf.iFirstMarkSurface--;
+			}
+			else if (leaf.iFirstMarkSurface + leaf.nMarkSurfaces > i) {
+				leaf.nMarkSurfaces--;
+			}
+
+			if (!leaf.nMarkSurfaces)
+				leaf.iFirstMarkSurface = 0;
+		}
+
+		memmove(marksurfs + i, marksurfs + i + 1, (marksurfCount - (i + 1)) * sizeof(uint16_t));
+		marksurfCount--;
+		i--;
+	}
+}
+
+void Bsp::delete_faces(vector<int>& faceIds) {
+	int oldMarkSurfCount = marksurfCount;
+	
+	unordered_set<int> removeSet;
+
+	sort(faceIds.begin(), faceIds.end(), [](const int& a, const int& b) {
+		return a > b;
+	});
+
+	for (int f : faceIds) {
+		removeSet.insert(f);
+		delete_face(f);
+	}
+
+	if (marksurfCount != oldMarkSurfCount) {
+		uint16_t* newMarks = new uint16_t[marksurfCount];
+		memcpy(newMarks, marksurfs, marksurfCount * sizeof(uint16_t));
+		replace_lump(LUMP_MARKSURFACES, newMarks, marksurfCount * sizeof(uint16_t));
+	}
+
+	int newFaceCount = faceCount - faceIds.size();
+	BSPFACE* newFaces = new BSPFACE[newFaceCount];
+	memcpy(newFaces, faces, newFaceCount * sizeof(BSPFACE));
+
+	int idx = 0;
+	for (int i = 0; i < faceCount; i++) {
+		if (removeSet.count(i))
+			continue;
+		newFaces[idx++] = faces[i];
+	}
+
+	replace_lump(LUMP_FACES, newFaces, newFaceCount * sizeof(BSPFACE));
+}
+
 bool Bsp::subdivide_face(int faceIdx, bool dryRunForExtents) {
 	BSPFACE& face = faces[faceIdx];
 	BSPPLANE& plane = planes[face.iPlane];
@@ -8576,6 +8677,8 @@ int Bsp::convert_leaves_to_model(vector<int>& leafIndexes) {
 	int modelIdx = create_model_from_faces(allLeafFaces);
 
 	merge_leaves(leafIndexes, true);
+
+	delete_faces(allLeafFaces);
 
 	return modelIdx;
 }

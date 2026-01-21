@@ -601,6 +601,18 @@ void Gui::draw3dContextMenus() {
 					ImGui::EndMenu();
 				}
 
+				if (ImGui::MenuItem("Delete", "", false, !app->isLoading)) {
+					bool plural = app->pickInfo.faces.size() > 1;
+					LumpReplaceCommand* command = new LumpReplaceCommand(plural ? "Delete Faces" : "Delete Face");
+
+					Bsp* map = app->pickInfo.getMap();
+
+					map->delete_faces(app->pickInfo.faces);
+
+					command->pushUndoState();
+				}
+				tooltip("Delete visible faces. This reduces face count and does not affect collision detection.");
+
 				Bsp* map = app->pickInfo.getMap();
 				bool isEmbedded = false;
 				if (map && app->pickInfo.getFace()) {
@@ -885,7 +897,7 @@ void Gui::draw3dContextMenus() {
 				tooltip("test");
 				*/
 
-				if (ImGui::MenuItem("Convert to Model", "", false, app->pickInfo.leaves.size() > 1)) {
+				if (ImGui::MenuItem("Convert to Model", "", false, !app->isLoading && app->pickInfo.leaves.size() > 1)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Convert to Model");
 
 					int modelIdx = map->convert_leaves_to_model(app->pickInfo.leaves);
@@ -901,11 +913,11 @@ void Gui::draw3dContextMenus() {
 					command->pushUndoState();
 					app->mapRenderer->reloadLeaves();
 				}
-				tooltip("Merges the selected leaves and converts leaf faces to a fully solid BSP model. "
+				tooltip("Merges the selected leaves/faces and moves them to a new solid BSP model. "
 					"The new model is then attached to a func_illusionary entity which overlaps "
 					"the original faces."
 					"\n\nThis reduces world leaf count, but has these drawbacks:\n"
-					"- Decals won't work on the new model faces (the entity must be non-solid).\n"
+					"- Decals won't work on affected faces.\n"
 					"- Performance is reduced due to merged faces being visible from more areas.\n"
 					"- Performance is reduced inside the merged leaf area due to its combined PVS.\n"
 					"- Performance is reduced globally if the new model is so big that it is never culled.\n\n"

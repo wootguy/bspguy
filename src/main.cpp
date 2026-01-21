@@ -10,16 +10,18 @@
 // - update version string
 // - show face extents in debug window
 // - load world clipnodes on demand
-// - merge leaves by root node
+// - disable wireframe in preview mode
+// - creating info player start from face mode, moving it, then switching to object mode moved the ent, smth like that
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
-// - lower mem usage (pal textures + wtf is cpu saving)
 // - mega buffer for leaves
 // - all name tags expensive even with nothing shown
 // - name tag render distance
+// - bsp2 support
 
 // todo:
+// unsubdivide face
 // decal rendering
 // show texture mipmaps (only used in software mode?)
 // model render mode scale

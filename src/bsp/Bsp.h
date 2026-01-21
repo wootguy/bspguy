@@ -466,6 +466,10 @@ public:
 	// if dryRun, only update the lumps needed for calculating surface extents
 	bool subdivide_face(int faceIdx, bool dryRunForExtents=false);
 
+	void delete_face(int faceId);
+
+	void delete_faces(vector<int>& faceIds);
+
 	// select faces connected to the given one
 	// ignoreFaces will not be connected thru
 	// planarTextureOnly = only select on the same plane with the same texture
