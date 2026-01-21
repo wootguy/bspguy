@@ -1078,7 +1078,7 @@ void MenuBar::drawSettingsMenu() {
 
 		bool changed = false;
 		if (ImGui::BeginMenu("Engine")) {
-			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
+			if (ImGui::MenuItem("Half-Life (BSP30)", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_HALF_LIFE;
 				g_settings.engine = ENGINE_HALF_LIFE;
 				if (g_settings.mapsize_auto) {
@@ -1086,9 +1086,24 @@ void MenuBar::drawSettingsMenu() {
 					g_settings.mapsize_max = 4096;
 				}
 			}
-			tooltip("The standard GoldSrc engine.\n");
+			tooltip("The standard GoldSrc engine.\n\nThis engine uses the BSP30 format. BSP30 adds "
+				"true color lightmaps, unique color palettes for each texture, and the ability to load "
+				"textures from WAD files. Due to a buffer overflow bug in the renderer, the max leaves "
+				"allowed in the world model is reduced to 8192 from 32760.\n");
 
-			if (ImGui::MenuItem("Sven Co-op", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
+			if (ImGui::MenuItem("Quake 1 (BSP29)", 0, g_settings.engine == ENGINE_QUAKE_1, !app->isLoading)) {
+				changed = g_settings.engine != ENGINE_QUAKE_1;
+				g_settings.engine = ENGINE_QUAKE_1;
+				if (g_settings.mapsize_auto) {
+					g_settings.mapsize_min = -4096;
+					g_settings.mapsize_max = 4096;
+				}
+			}
+			tooltip("The original Quake engine from 1997.\n\nThis engine uses the BSP29 file format. "
+				"All other BSP formats derive from this. BSP29 is limited to greyscale lightmaps "
+				"and a global texture palette which all textures share.\n");
+
+			if (ImGui::MenuItem("Sven Co-op 5.0 (BSP30)", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_SVEN_COOP;
 				g_settings.engine = ENGINE_SVEN_COOP;
 				if (g_settings.mapsize_auto) {
@@ -1096,14 +1111,28 @@ void MenuBar::drawSettingsMenu() {
 					g_settings.mapsize_max = 32768;
 				}
 			}
-			tooltip("Sven Co-op has higher map limits than Half-Life. Some maps need this selected to display correctly in the editor."
-				"\n\nAttempting to run a "
+			tooltip("Sven Co-op 5.0 uses a modified version of the Half-Life engine. It enables higher map limits "
+				"without modifying the BSP30 file format. Some maps need this selected to display correctly in the editor.\n\n"
+				
+				"Sven Co-op 5.0 increases the following limits:\n"
+				"    AllocBlocks: 64 -> 1024\n"
+				"    Leaves (world model): 8192 -> 32768\n"
+				"    Light Data: 48 MB -> 64 MB\n"
+				"    Light Styles: 32 -> 224\n"
+				"    Models: 512 -> 4096\n"
+				"    Planes: 32768 -> 65535\n"
+				"    Surface Extents: 16 -> 64 (lightmap size)\n"
+				"    Texture Pixels: 262144 -> 104856 (512x512 -> 1024x1024)\n"
+				"    VIS Data: 8 MB -> 64 MB\n\n"
+
+				"Attempting to run a "
 				"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents, "
 				"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
 				"See the Tools menu for solutions to these problems.");
 
 			ImGui::EndMenu();
 		}
+		tooltip("The engine determines the file format for saving and limits for the map.\n");
 
 		if (ImGui::BeginMenu("Map Size")) {
 			if (ImGui::MenuItem("Auto", 0, g_settings.mapsize_auto)) {
@@ -1551,26 +1580,7 @@ void MenuBar::drawToolsMenu() {
 			if (ImGui::MenuItem("Embed All", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("Embed Textures");
 
-				vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
-
-				int count = 0;
-				int fail = 0;
-				for (int i = 0; i < map->textureCount; i++) {
-					BSPMIPTEX* tex = map->get_texture(i);
-					if (!tex)
-						continue;
-
-					if (tex->nOffsets[0] != 0) {
-						continue;
-					}
-
-					if (map->embed_texture(i, wads)) {
-						count++;
-					}
-					else {
-						fail++;
-					}
-				}
+				int count = map->embed_all_textures();
 				logf("Embedded %d textures\n", count);
 
 				command->pushUndoState();

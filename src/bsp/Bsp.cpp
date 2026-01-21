@@ -26,6 +26,8 @@
 #include "PolyOctree.h"
 #include "TextureAtlas.h"
 #include "BspRenderer.h"
+#include "q1_palette.h"
+#include "quant.h"
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -34,6 +36,12 @@ vec3 default_hull_extents[MAX_MAP_HULLS] = {
 	vec3(16, 16, 36),	// hull 1
 	vec3(32, 32, 64),	// hull 2
 	vec3(16, 16, 18)	// hull 3
+};
+
+const char* g_bsp_format_names[BSP_FORMAT_TYPES]{
+	"BSP29",
+	"BSP30",
+	"BSP",
 };
 
 int g_sort_mode = SORT_CLIPNODES;
@@ -140,6 +148,23 @@ Bsp::~Bsp()
 	if (pvsFaces) {
 		delete[] pvsFaces;
 		pvsFaces = NULL;
+	}
+}
+
+int Bsp::formatForFileVersion(int bspVersion) {
+	switch (bspVersion < 0 ? header.nVersion : bspVersion) {
+	default: return BSP_UNKNOWN;
+	case 30: return BSP_HALFLIFE;
+	case 29: return BSP_QUAKE1;
+	}
+}
+
+int Bsp::formatForGameEngine(int engine) {
+	switch (engine) {
+	default: return BSP_HALFLIFE;
+	case ENGINE_HALF_LIFE: return BSP_HALFLIFE;
+	case ENGINE_SVEN_COOP: return BSP_HALFLIFE;
+	case ENGINE_QUAKE_1: return BSP_QUAKE1;
 	}
 }
 
@@ -4088,7 +4113,7 @@ bool Bsp::embed_texture(int textureId, vector<Wad*>& wads) {
 			WADTEX* wadTex = wads[k]->readTexture(tex->szName);
 
 			if (tex->nHeight != wadTex->nHeight || tex->nWidth != wadTex->nWidth) {
-				logf("Failed to embed texture %s from wad %s (dimensions don't match)\n", tex->szName, wads[k]->filename.c_str());
+				errorf("Failed to embed texture %s from wad %s (dimensions don't match)\n", tex->szName, wads[k]->filename.c_str());
 				delete wadTex;
 				continue;
 			}
@@ -4132,7 +4157,7 @@ bool Bsp::embed_texture(int textureId, vector<Wad*>& wads) {
 	}
 
 	if (!embedded) {
-		logf("Failed to embed %s. Texture not found in any loaded WAD.\n", tex->szName);
+		errorf("Failed to embed %s. Texture not found in any loaded WAD.\n", tex->szName);
 	}
 
 	return embedded;
@@ -4209,6 +4234,31 @@ int Bsp::unembed_texture(int textureId, vector<Wad*>& wads, bool force, bool qui
 	update_lump_pointers();
 
 	return wasResized ? 2 : 1;
+}
+
+int Bsp::embed_all_textures() {
+	vector<Wad*> wads = g_app->mapRenderer ? g_app->mapRenderer->wads : vector<Wad*>();
+
+	int count = 0;
+	int fail = 0;
+	for (int i = 0; i < textureCount; i++) {
+		BSPMIPTEX* tex = get_texture(i);
+		if (!tex)
+			continue;
+
+		if (tex->nOffsets[0] != 0) {
+			continue;
+		}
+
+		if (embed_texture(i, wads)) {
+			count++;
+		}
+		else {
+			fail++;
+		}
+	}
+
+	return count;
 }
 
 int Bsp::add_texture_from_wad(WADTEX* tex) {
@@ -5219,6 +5269,7 @@ void Bsp::write(string path) {
 	if (path.rfind(".bsp") != path.size() - 4) {
 		path = path + ".bsp";
 	}
+	
 
 	if (g_settings.ripent_safe_mode) {
 		LumpState state;
@@ -5226,6 +5277,9 @@ void Bsp::write(string path) {
 		if (!load_lumps(path, head, state)) {
 			errorf("Save aborted because the original BSP can no longer be read, and ripent safe mode is on. "
 				"Lumps cannot be compared for differences.\n", path.c_str());
+			for (int i = 0; i < HEADER_LUMPS; i++) {
+				delete[] state.lumps[i];
+			}
 			return;
 		}
 		int numDiscard = 0;
@@ -5242,13 +5296,68 @@ void Bsp::write(string path) {
 		}
 		if (numDiscard)
 			warnf("Ripent safety: Discarded changes in %d lumps during save\n", numDiscard);
+
+		for (int i = 0; i < HEADER_LUMPS; i++) {
+			delete[] state.lumps[i];
+		}
+	}
+
+	int formatFrom = lastSaveFormat != -1 ? lastSaveFormat : formatForFileVersion();
+	int formatTo = formatForGameEngine(g_settings.engine);
+
+	if (formatFrom != formatTo) {
+		switch (formatFrom) {
+		default:
+		case BSP_QUAKE1:
+			if (formatTo == BSP_HALFLIFE) {
+				int ret = Alert("Format conversion", "Saving a Quake 1 map (BSP29) in the Half-Life format (BSP30) "
+					"prevents the map working in Quake 1.\n\nSave anyway?",
+					"yesno", "warning", 0);
+				if (ret == 0)
+					return;
+			}
+			break;
+		case BSP_HALFLIFE:
+			if (formatTo == BSP_QUAKE1) {
+				int ret = Alert("Format conversion", "Saving a Half-Life map (BSP30) in the Quake 1 format (BSP29) "
+					"results in data loss. Colored lights will become grey, textures will be recolored "
+					"with the Quake palette, and WAD textures will be embedded into the BSP. "
+					"\n\nThe map will no longer work in Half-Life.\n\nSave anyway?",
+					"yesno", "warning", 0);
+				if (ret == 0)
+					return;
+			}
+			break;
+		}
+	}
+	
+	lastSaveFormat = formatTo;
+
+	LumpState saveLumps = duplicate_lumps(0xffffffff);
+
+	// convert from internal format to desired format
+	if (formatTo == BSP_QUAKE1) {
+		convert_lumps(BSP_HALFLIFE, BSP_QUAKE1, saveLumps);
+	}	
+
+	BSPHEADER saveHeader;
+	
+	switch (formatTo) {
+	case BSP_QUAKE1:
+		saveHeader.nVersion = 29;
+		break;
+	default:
+	case BSP_HALFLIFE:
+		saveHeader.nVersion = 30;
+		break;
 	}
 
 	// calculate lump offsets
 	int offset = sizeof(BSPHEADER);
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		header.lump[i].nOffset = offset;
-		offset += header.lump[i].nLength;
+		saveHeader.lump[i].nOffset = offset;
+		saveHeader.lump[i].nLength = saveLumps.lumpLen[i];
+		offset += saveLumps.lumpLen[i];
 	}
 
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
@@ -5257,15 +5366,15 @@ void Bsp::write(string path) {
 		return;
 	}
 
-	logf("Writing %s\n", path.c_str());
-
-	file.write((char*)&header, sizeof(BSPHEADER));
+	file.write((char*)&saveHeader, sizeof(BSPHEADER));
 
 	// write the lumps
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		file.write((char*)lumps[i], header.lump[i].nLength);
+		file.write((char*)saveLumps.lumps[i], saveLumps.lumpLen[i]);
 		//logf("LUMP %10s = %.2f MB\n", g_lump_names[i], (float)header.lump[i].nLength / (1024.0f*1024.0f));
 	}
+
+	logf("Wrote %s %s\n", g_bsp_format_names[formatTo], path.c_str());
 }
 
 bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
@@ -5312,79 +5421,241 @@ bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
 	
 	fin.close();
 
+	convert_lumps(formatForFileVersion(head.nVersion), BSP_HALFLIFE, state);
+
 	return valid;
+}
+
+void Bsp::convert_lumps(int fromFormat, int toVersion, LumpState& state) {
+	if (fromFormat == BSP_QUAKE1 && toVersion == BSP_HALFLIFE) {
+		// convert from monochrome light to RGB
+		if (state.lumps[LUMP_LIGHTING] && state.lumps[LUMP_FACES]) {
+			int pixels = state.lumpLen[LUMP_LIGHTING];
+			COLOR3* newLighting = new COLOR3[pixels];
+
+			for (int i = 0; i < pixels; i++) {
+				uint8_t b = state.lumps[LUMP_LIGHTING][i];
+				newLighting[i] = COLOR3(b, b, b);
+			}
+
+			delete[] state.lumps[LUMP_LIGHTING];
+			state.lumps[LUMP_LIGHTING] = (uint8_t*)newLighting;
+			state.lumpLen[LUMP_LIGHTING] = pixels*sizeof(COLOR3);
+
+			int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
+			BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
+			for (int i = 0; i < numFaces; i++) {
+				lumpFaces[i].nLightmapOffset *= 3;
+			}
+		}
+
+		// convert from global palette to per-texture palettes
+		if (state.lumps[LUMP_TEXTURES]) {
+			uint8_t* texLump = state.lumps[LUMP_TEXTURES];
+			uint32_t numTex = *(uint32_t*)texLump;
+
+			// includes padding and color count
+			const int palDataSz = sizeof(COLOR3) * 256 + 4;
+			uint8_t* palData = new uint8_t[palDataSz];
+			memcpy(palData + 2, g_quake_pal, sizeof(COLOR3) * 256);
+			*((uint16_t*)palData) = 256;
+			*((uint16_t*)(palData + palDataSz - 2)) = 0; // padding
+			
+			int newLumpSz = state.lumpLen[LUMP_TEXTURES] + numTex*palDataSz;
+			uint8_t* newTexLump = new uint8_t[newLumpSz];
+
+			*((uint32_t*)newTexLump) = numTex;
+			
+			uint32_t* srcIndexPtr = (uint32_t*)(texLump + sizeof(uint32_t));
+			uint32_t* indexPtr = (uint32_t*)(newTexLump + sizeof(uint32_t));
+			uint8_t* writePtr = newTexLump + sizeof(uint32_t) * (numTex + 1);
+
+			for (int i = 0; i < numTex; i++) {
+				uint32_t srcOffset = srcIndexPtr[i];
+				BSPMIPTEX* src = (BSPMIPTEX*)(texLump + srcOffset);
+
+				*indexPtr++ = writePtr - newTexLump;
+
+				int copySz = sizeof(BSPMIPTEX) + src->pixelDataSize();
+				memcpy(writePtr, src, copySz);
+				writePtr += copySz;
+
+				memcpy(writePtr, palData, palDataSz);
+				writePtr += palDataSz;
+			}
+
+			delete[] palData;
+			delete[] state.lumps[LUMP_TEXTURES];
+			state.lumps[LUMP_TEXTURES] = newTexLump;
+			state.lumpLen[LUMP_TEXTURES] = newLumpSz;
+		}
+	}
+
+	if (fromFormat == BSP_HALFLIFE && toVersion == BSP_QUAKE1) {
+		// convert from RGB light to monochrome
+		if (state.lumps[LUMP_LIGHTING] && state.lumps[LUMP_FACES]) {
+			int pixels = state.lumpLen[LUMP_LIGHTING] / sizeof(COLOR3);
+			uint8_t* newLighting = new uint8_t[pixels];
+			COLOR3* srcLighting = (COLOR3*)state.lumps[LUMP_LIGHTING];
+
+			for (int i = 0; i < pixels; i++) {
+				newLighting[i] = monochrome_lightmap_pixel(srcLighting[i]);
+			}
+
+			delete[] state.lumps[LUMP_LIGHTING];
+			state.lumps[LUMP_LIGHTING] = newLighting;
+			state.lumpLen[LUMP_LIGHTING] = pixels;
+
+			int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
+			BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
+			for (int i = 0; i < numFaces; i++) {
+				lumpFaces[i].nLightmapOffset /= 3;
+			}
+		}
+
+		// convert from per-texture palette to global palette
+		if (state.lumps[LUMP_TEXTURES]) {
+			uint8_t* texLump = state.lumps[LUMP_TEXTURES];
+			uint32_t numTex = *(uint32_t*)texLump;
+
+			uint32_t* srcIndexPtr = (uint32_t*)(texLump + sizeof(uint32_t));
+
+			// calc new lump size
+			const int palDataSz = sizeof(COLOR3) * 256 + 4;
+			int newLumpSz = (sizeof(uint32_t) + sizeof(BSPMIPTEX))*numTex + sizeof(uint32_t);
+			for (int i = 0; i < numTex; i++) {
+				uint32_t srcOffset = srcIndexPtr[i];
+				BSPMIPTEX* src = (BSPMIPTEX*)(texLump + srcOffset);
+				newLumpSz += src->pixelDataSize();
+			}
+			uint8_t* newTexLump = new uint8_t[newLumpSz];
+
+			*((uint32_t*)newTexLump) = numTex;
+			
+			uint32_t* indexPtr = (uint32_t*)(newTexLump + sizeof(uint32_t));
+			uint8_t* writePtr = newTexLump + sizeof(uint32_t) * (numTex + 1);
+
+			// cache mapping from RGB to closest q1 color
+			uint8_t* hl_to_q1 = new uint8_t[256 * 256 * 256];
+			bool* hl_to_q1_cached = new bool[256 * 256 * 256];
+			memset(hl_to_q1_cached, 0, 256 * 256 * 256);
+
+			for (int i = 0; i < numTex; i++) {
+				uint32_t srcOffset = srcIndexPtr[i];
+				BSPMIPTEX* src = (BSPMIPTEX*)(texLump + srcOffset);
+
+				*indexPtr++ = writePtr - newTexLump;
+
+				memcpy(writePtr, src, sizeof(BSPMIPTEX));
+				int pixelCount = src->pixelDataSize();
+				BSPMIPTEX* dst = (BSPMIPTEX*)writePtr;
+				int sz = dst->nWidth * dst->nHeight;
+				int sz2 = sz / 4;  // miptex 1
+				int sz3 = sz2 / 4; // miptex 2
+				dst->nOffsets[0] = sizeof(BSPMIPTEX);
+				dst->nOffsets[1] = sizeof(BSPMIPTEX) + sz;
+				dst->nOffsets[2] = sizeof(BSPMIPTEX) + sz + sz2;
+				dst->nOffsets[3] = sizeof(BSPMIPTEX) + sz + sz2 + sz3;
+
+				writePtr += sizeof(BSPMIPTEX);
+
+				WADTEX tex = load_texture(i);
+				if (tex.data != NULL) {
+					COLOR3* srcPal = (COLOR3*)(tex.data + pixelCount + 2);
+					uint8_t* srcPixel = tex.data;
+
+					for (int k = 0; k < pixelCount; k++) {
+						uint8_t pidx = *srcPixel++;
+						if (pidx == 255 && tex.szName[0] == '{') {
+							*writePtr++ = 255; // transparent color
+						}
+						else {
+							COLOR3& c = srcPal[pidx];
+							uint32_t hash = (c.r << 16) | (c.g << 8) | c.b;
+							if (!hl_to_q1_cached[hash]) {
+								hl_to_q1[hash] = closest_q1_color(c);
+								hl_to_q1_cached[hash] = true;
+							}
+							*writePtr++ = hl_to_q1[hash];
+						}
+					}
+
+					delete[] tex.data;
+				}
+				else {
+					errorf("Could not embed missing texture: %s\n", src->szName);
+					memset(writePtr, 0, pixelCount);
+				}
+			}
+
+			delete[] hl_to_q1;
+			delete[] hl_to_q1_cached;
+			delete[] state.lumps[LUMP_TEXTURES];
+			state.lumps[LUMP_TEXTURES] = newTexLump;
+			state.lumpLen[LUMP_TEXTURES] = newLumpSz;
+		}
+	}
 }
 
 bool Bsp::did_lumps_change(bool ignoreEntLump) {
 	LumpState currentLumps = duplicate_lumps(0xffffffff);
 
 	// Read all BSP Data
-	ifstream fin(path, ios::binary | ios::ate);
-	int size = fin.tellg();
-	fin.seekg(0, fin.beg);
-
 	bool lumpsChanged = true;
 
-	if (size < sizeof(BSPHEADER) + sizeof(BSPLUMP) * HEADER_LUMPS)
+	int saveFormat = formatForGameEngine(g_settings.engine);
+
+	BSPHEADER oldHead;
+	LumpState fileState;
+	if (!load_lumps(path, oldHead, fileState)) {
 		goto cleanup;
+	}
 
-	fin.read((char*)&header.nVersion, sizeof(int));
+	if (saveFormat != lastSaveFormat) {
+		// saving will do a format conversion, so compare lumps in the converted state
+		convert_lumps(BSP_HALFLIFE, saveFormat, currentLumps);
+		convert_lumps(BSP_HALFLIFE, saveFormat, fileState);
+	}
 
-	BSPHEADER head;
 	for (int i = 0; i < HEADER_LUMPS; i++) {
-		fin.read((char*)&head.lump[i], sizeof(BSPLUMP));
-
 		if (i == LUMP_ENTITIES)
 			continue; // special comparison later
 
-		if (currentLumps.lumpLen[i] != head.lump[i].nLength) {
+		if (currentLumps.lumpLen[i] != fileState.lumpLen[i]) {
 			goto cleanup;
 		}
 	}
 
 	for (int i = 0; i < HEADER_LUMPS; i++)
 	{
-		if (head.lump[i].nLength == 0) {
+		if (fileState.lumpLen[i] == 0) {
 			continue;
 		}
 		if (i == LUMP_ENTITIES && ignoreEntLump)
 			continue;
 
-		fin.seekg(head.lump[i].nOffset);
-		if (fin.eof()) {
-			logf("FAILED TO READ BSP LUMP %d\n", i);
-			goto cleanup;
+		if (i == LUMP_ENTITIES) {
+			// re-create file lump in case there are differences in spacing or something when saving
+			vector<Entity*> fileEnts;
+			load_ents(fileState.lumps[i], fileState.lumpLen[i], fileEnts);
+			delete[] fileState.lumps[i];
+			fileState.lumps[i] = create_ent_lump(fileEnts, fileState.lumpLen[i]);
 		}
-		else
-		{
-			byte* oldLump = new byte[head.lump[i].nLength];
-			fin.read((char*)oldLump, head.lump[i].nLength);
 
-			if (i == LUMP_ENTITIES) {
-				// re-create file lump in case there are differences in spacing or something when saving
-				vector<Entity*> fileEnts;
-				load_ents(oldLump, head.lump[i].nLength, fileEnts);
-				delete[] oldLump;
-				oldLump = create_ent_lump(fileEnts, head.lump[i].nLength);
-			}
+		bool lumpChanged = currentLumps.lumpLen[i] != fileState.lumpLen[i] ||
+			memcmp(fileState.lumps[i], currentLumps.lumps[i], fileState.lumpLen[i]);
 
-			bool lumpChanged = head.lump[i].nLength != head.lump[i].nLength || 
-				memcmp(oldLump, currentLumps.lumps[i], head.lump[i].nLength);
-
-			delete[] oldLump;
-
-			if (lumpChanged) {
-				goto cleanup;
-			}
+		if (lumpChanged) {
+			goto cleanup;
 		}
 	}
 
 	lumpsChanged = false;
 
 cleanup:
-	fin.close();
 	for (int i = 0; i < HEADER_LUMPS; i++) {
 		delete[] currentLumps.lumps[i];
+		delete[] fileState.lumps[i];
 	}
 
 	return lumpsChanged;

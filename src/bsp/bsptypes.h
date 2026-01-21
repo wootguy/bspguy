@@ -147,6 +147,16 @@ struct BSPMIPTEX
 	char szName[MAXTEXTURENAME];  // Name of texture
 	uint32_t nWidth, nHeight;		  // Extends of the texture
 	uint32_t nOffsets[MIPLEVELS];	  // Offsets to texture mipmaps, relative to the start of this structure
+
+	int pixelDataSize() {
+		int w = nWidth;
+		int h = nHeight;
+		int sz = w * h;	   // miptex 0
+		int sz2 = sz / 4;  // miptex 1
+		int sz3 = sz2 / 4; // miptex 2
+		int sz4 = sz3 / 4; // miptex 3
+		return sz + sz2 + sz3 + sz4;
+	}
 };
 
 struct BSPFACE {

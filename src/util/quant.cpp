@@ -10,12 +10,13 @@
 #include <limits>
 #include <algorithm>
 #include <cfloat>
+#include "q1_palette.h"
 
-float color_distance(const COLOR3& c1, const COLOR3& c2) {
-    return std::sqrt(
+int color_distance(const COLOR3& c1, const COLOR3& c2) {
+    return
         (c1.r - c2.r) * (c1.r - c2.r) +
         (c1.g - c2.g) * (c1.g - c2.g) +
-        (c1.b - c2.b) * (c1.b - c2.b));
+        (c1.b - c2.b) * (c1.b - c2.b);
 }
 
 COLOR3 average_color(const std::vector<COLOR3>& colors) {
@@ -116,10 +117,10 @@ std::vector<COLOR3> median_cut_quantize(COLOR3* pixels, int pixel_count, int k) 
 
     // quantize the image
     for (int i = 0; i < pixel_count; ++i) {
-        float min_dist = FLT_MAX;
+        int min_dist = FLT_MAX;
         int best = 0;
         for (int j = 0; j < palette.size(); ++j) {
-            float d = color_distance(pixels[i], palette[j]);
+            int d = color_distance(pixels[i], palette[j]);
             if (d < min_dist) {
                 min_dist = d;
                 best = j;
@@ -129,4 +130,28 @@ std::vector<COLOR3> median_cut_quantize(COLOR3* pixels, int pixel_count, int k) 
     }
 
     return palette;
+}
+
+int closest_q1_color(COLOR3& c) {
+    static COLOR3* qpal = (COLOR3*)g_quake_pal;
+
+    int min_dist = INT32_MAX;
+    int best = 0;
+    for (int j = 0; j < 256; ++j) {
+        int d = color_distance(c, qpal[j]);
+        if (d < min_dist) {
+            min_dist = d;
+            best = j;
+        }
+    }
+
+    return best;
+}
+
+void quantize_to_q1_pal(COLOR3* pal) {
+    COLOR3* qpal = (COLOR3*)g_quake_pal;
+
+    for (int i = 0; i < 256; ++i) {
+        pal[i] = qpal[closest_q1_color(pal[i])];
+    }
 }

@@ -21,6 +21,7 @@
 // - bsp2 support
 
 // todo:
+// selected connected ents
 // unsubdivide face
 // decal rendering
 // show texture mipmaps (only used in software mode?)
@@ -179,6 +180,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #endif
 
 void start_viewer(const char* map) {
+	Editor renderer = Editor();
+
 	Bsp* bsp = NULL;
 
 	if (map) {
@@ -188,8 +191,6 @@ void start_viewer(const char* map) {
 			return;
 		}
 	}
-
-	Editor renderer = Editor();
 
 	if (!map) {
 		Bsp* emptyBsp = new Bsp();
@@ -764,47 +765,38 @@ void print_help(string command) {
 }
 
 void init_limits() {
-	g_engine_limits[ENGINE_HALF_LIFE].max_surface_extents = 16;
-	g_engine_limits[ENGINE_HALF_LIFE].max_models = 512;
-	g_engine_limits[ENGINE_HALF_LIFE].max_planes = 32768;
-	g_engine_limits[ENGINE_HALF_LIFE].max_vertexes = 65535;
-	g_engine_limits[ENGINE_HALF_LIFE].max_nodes = 32767;
-	g_engine_limits[ENGINE_HALF_LIFE].max_faces = 65535;
-	g_engine_limits[ENGINE_HALF_LIFE].max_clipnodes = 32767;
-	g_engine_limits[ENGINE_HALF_LIFE].max_leaves = 32760;
-	g_engine_limits[ENGINE_HALF_LIFE].max_worldleaves = 8192;
-	g_engine_limits[ENGINE_HALF_LIFE].max_marksurfaces = 65535;
-	g_engine_limits[ENGINE_HALF_LIFE].max_surfedges = 512000;
-	g_engine_limits[ENGINE_HALF_LIFE].max_edges = 256000;
-	g_engine_limits[ENGINE_HALF_LIFE].max_textures = 4096;
-	g_engine_limits[ENGINE_HALF_LIFE].max_lightdata = 48 * 1024 * 1024;
-	g_engine_limits[ENGINE_HALF_LIFE].max_lightstyles = 32;
-	g_engine_limits[ENGINE_HALF_LIFE].max_visdata = 8 * 1024 * 1024;
-	g_engine_limits[ENGINE_HALF_LIFE].max_entdata = 2 * 1024 * 1024;
-	g_engine_limits[ENGINE_HALF_LIFE].max_entities = 8192;
-	g_engine_limits[ENGINE_HALF_LIFE].max_texinfos = 32767;
-	g_engine_limits[ENGINE_HALF_LIFE].max_allocblocks = 64;
-	g_engine_limits[ENGINE_HALF_LIFE].max_texturepixels = 262144;
+	g_engine_limits[ENGINE_QUAKE_1].max_surface_extents = 16;
+	g_engine_limits[ENGINE_QUAKE_1].max_models = 512;
+	g_engine_limits[ENGINE_QUAKE_1].max_planes = 32768;
+	g_engine_limits[ENGINE_QUAKE_1].max_vertexes = 65535;
+	g_engine_limits[ENGINE_QUAKE_1].max_nodes = 32767;
+	g_engine_limits[ENGINE_QUAKE_1].max_faces = 65535;
+	g_engine_limits[ENGINE_QUAKE_1].max_clipnodes = 32767;
+	g_engine_limits[ENGINE_QUAKE_1].max_leaves = 32760;
+	g_engine_limits[ENGINE_QUAKE_1].max_worldleaves = 32760;
+	g_engine_limits[ENGINE_QUAKE_1].max_marksurfaces = 65535;
+	g_engine_limits[ENGINE_QUAKE_1].max_surfedges = 512000;
+	g_engine_limits[ENGINE_QUAKE_1].max_edges = 256000;
+	g_engine_limits[ENGINE_QUAKE_1].max_textures = 4096;
+	g_engine_limits[ENGINE_QUAKE_1].max_lightdata = 48 * 1024 * 1024;
+	g_engine_limits[ENGINE_QUAKE_1].max_lightstyles = 32;
+	g_engine_limits[ENGINE_QUAKE_1].max_visdata = 8 * 1024 * 1024;
+	g_engine_limits[ENGINE_QUAKE_1].max_entdata = 2 * 1024 * 1024;
+	g_engine_limits[ENGINE_QUAKE_1].max_entities = 8192;
+	g_engine_limits[ENGINE_QUAKE_1].max_texinfos = 32767;
+	g_engine_limits[ENGINE_QUAKE_1].max_allocblocks = 64;
+	g_engine_limits[ENGINE_QUAKE_1].max_texturepixels = 262144;
 
+	memcpy(g_engine_limits + ENGINE_HALF_LIFE, g_engine_limits + ENGINE_QUAKE_1, sizeof(MapLimits));
+	g_engine_limits[ENGINE_HALF_LIFE].max_worldleaves = 8192; // client engine has a buffer overflow in the renderer
+
+	memcpy(g_engine_limits + ENGINE_SVEN_COOP, g_engine_limits + ENGINE_QUAKE_1, sizeof(MapLimits));
 	g_engine_limits[ENGINE_SVEN_COOP].max_surface_extents = 64;
 	g_engine_limits[ENGINE_SVEN_COOP].max_models = 4096;
 	g_engine_limits[ENGINE_SVEN_COOP].max_planes = 65535;
-	g_engine_limits[ENGINE_SVEN_COOP].max_vertexes = 65535;
-	g_engine_limits[ENGINE_SVEN_COOP].max_nodes = 32768;
-	g_engine_limits[ENGINE_SVEN_COOP].max_faces = 65535;
-	g_engine_limits[ENGINE_SVEN_COOP].max_clipnodes = 32768;
-	g_engine_limits[ENGINE_SVEN_COOP].max_leaves = 65536;
-	g_engine_limits[ENGINE_SVEN_COOP].max_worldleaves = 65536;
-	g_engine_limits[ENGINE_SVEN_COOP].max_marksurfaces = 65535;
-	g_engine_limits[ENGINE_SVEN_COOP].max_surfedges = 512000;
-	g_engine_limits[ENGINE_SVEN_COOP].max_edges = 256000;
-	g_engine_limits[ENGINE_SVEN_COOP].max_textures = 4096;
 	g_engine_limits[ENGINE_SVEN_COOP].max_lightdata = 64 * 1024 * 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_lightstyles = 224;
 	g_engine_limits[ENGINE_SVEN_COOP].max_visdata = 64 * 1024 * 1024;
-	g_engine_limits[ENGINE_SVEN_COOP].max_entdata = 2 * 1024 * 1024;
-	g_engine_limits[ENGINE_SVEN_COOP].max_entities = 8192;
-	g_engine_limits[ENGINE_SVEN_COOP].max_texinfos = 32767;
 	g_engine_limits[ENGINE_SVEN_COOP].max_allocblocks = 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_texturepixels = 1048576;
 

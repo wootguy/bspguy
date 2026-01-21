@@ -28,6 +28,7 @@
 #include "TextureArray.h"
 #include "tga.h"
 #include "bmp.h"
+#include "quant.h"
 
 
 BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
@@ -209,6 +210,8 @@ void BspRenderer::loadTextures() {
 		}
 	}
 
+	bool use_q1_pal = g_settings.engine == ENGINE_QUAKE_1 && map->formatForFileVersion() != BSP_QUAKE1;
+
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
 		int32_t texOffset = ((int32_t*)map->textures)[i + 1];
@@ -273,6 +276,16 @@ void BspRenderer::loadTextures() {
 		int sz = tex->nWidth * tex->nHeight;
 		bool hasAlpha = tex->szName[0] == '{';
 
+		COLOR3* palSwap = NULL;
+
+		// convert individual palettes to the quake 1 global palette
+		if (use_q1_pal) {
+			palSwap = new COLOR3[256];
+			memcpy(palSwap, palette, 256*sizeof(COLOR3));
+			quantize_to_q1_pal(palSwap);
+			palette = palSwap;
+		}
+
 		if (g_settings.pal_textures) {
 			memcpy(atlasPal, palette, sizeof(COLOR3) * 256);
 
@@ -310,6 +323,8 @@ void BspRenderer::loadTextures() {
 			delete[] wadTex->data;
 			delete wadTex;
 		}
+		if (palSwap)
+			delete[] palSwap;
 	}
 
 	fillTextureAtlases();
@@ -715,6 +730,8 @@ void BspRenderer::loadLightmaps() {
 	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
 	memset(atlasTextures[0]->data, 0, lightmapAtlasSz* lightmapAtlasSz * sizeof(COLOR3));
 
+	bool monochrome = g_settings.engine == ENGINE_QUAKE_1;
+
 	int lightmapCount = 0;
 	int atlasId = 0;
 	for (int i = 0; i < sortedFaces.size(); i++) {
@@ -773,7 +790,13 @@ void BspRenderer::loadLightmaps() {
 					int src = y * info.w + x;
 					int dst = (info.y[s] + y) * lightmapAtlasSz + info.x[s] + x;
 					if (offset + src*sizeof(COLOR3) < map->lightDataLength) {
-						lightDst[dst] = lightSrc[src];
+						if (monochrome) {
+							uint8_t b = Bsp::monochrome_lightmap_pixel(lightSrc[src]);
+							lightDst[dst] = COLOR3(b, b, b);
+						}
+						else {
+							lightDst[dst] = lightSrc[src];
+						}						
 					}
 					else {
 						bool checkers = x % 2 == 0 != y % 2 == 0;

@@ -83,6 +83,15 @@ struct NodeDepth {
 	int depth;
 };
 
+enum BspFormat {
+	BSP_QUAKE1,	  // Quake 1, version 29
+	BSP_HALFLIFE, // half-life, version 30
+	BSP_UNKNOWN,
+	BSP_FORMAT_TYPES
+};
+
+extern const char* g_bsp_format_names[BSP_FORMAT_TYPES];
+
 class Bsp
 {
 public:
@@ -91,6 +100,7 @@ public:
 	BSPHEADER header = BSPHEADER();
 	byte ** lumps;
 	bool valid;
+	int lastSaveFormat = -1; // bsp format the user last saved as
 
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
@@ -137,6 +147,11 @@ public:
 	Bsp(const Bsp& other);
 	Bsp(std::string fname);
 	~Bsp();
+
+	// pass -1 version to use version loaded from file
+	int formatForFileVersion(int bspVersion=-1);
+
+	int formatForGameEngine(int engine);
 
 	// if modelIdx=0, the world is moved and all entities along with it
 	bool move(vec3 offset, int modelIdx=0);
@@ -401,6 +416,8 @@ public:
 	// return 1 on success, 0 on failure, 2 on success and resize
 	int unembed_texture(int textureId, vector<Wad*>& wads, bool force=false, bool quiet=false);
 
+	int embed_all_textures();
+
 	// adds a texture reference to the BSP (does not embed it)
 	// returns an iMipTex for use in texture infos
 	int add_texture_from_wad(WADTEX* tex);
@@ -634,6 +651,9 @@ public:
 
 	int calcMemoryUsage();
 
+	// convert an RGB lightmap pixel to monochrome (for Quake 1)
+	static inline uint8_t monochrome_lightmap_pixel(COLOR3& c) { return (uint8_t)((77 * c.r + 150 * c.g + 29 * c.b) >> 8); }
+
 private:
 	bool* pvsFaces = NULL; // flags which faces are marked for rendering in the PVS
 	int pvsFaceCount = 0;
@@ -646,6 +666,9 @@ private:
 	void resize_lightmaps(LIGHTMAP* oldLightmaps, LIGHTMAP* newLightmaps);
 
 	bool load_lumps(string fname, BSPHEADER& head, LumpState& state);
+
+	// convert lumps to the internal format
+	void convert_lumps(int fromVersion, int toVersion, LumpState& state);
 
 	// lightmaps that are resized due to precision errors should not be stretched to fit the new canvas.
 	// Instead, the texture should be shifted around, depending on which parts of the canvas is "lit" according

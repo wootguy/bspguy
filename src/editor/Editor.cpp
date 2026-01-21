@@ -938,8 +938,6 @@ void Editor::openMap(Bsp* map) {
 
 	gui->refresh();
 	updateCullBox();
-
-	logf("Loaded map: %s\n", map->path.c_str());
 }
 
 void Editor::saveSettings() {
@@ -2862,6 +2860,8 @@ void Editor::addMap(Bsp* map) {
 	updateWindowTitle();
 
 	emptyMapLoaded = false;
+
+	logf("Loaded %s: %s\n", g_bsp_format_names[map->formatForFileVersion()], map->path.c_str());
 
 	glCheckError("add map");
 }
