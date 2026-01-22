@@ -40,9 +40,10 @@ vec3 default_hull_extents[MAX_MAP_HULLS] = {
 
 const char* g_bsp_format_names[BSP_FORMAT_TYPES]{
 	"BSP29",
-	"BSP30",
 	"BSP2",
 	"2PSB",
+	"BSP30",
+	"BSP30_BS",
 	"BSPGUY",
 	"BSP_UNKOWN",
 };
@@ -168,6 +169,7 @@ int Bsp::formatForGameEngine(int engine) {
 	switch (engine) {
 	default: return BSP_HALFLIFE;
 	case ENGINE_HALF_LIFE: return BSP_HALFLIFE;
+	case ENGINE_BLUE_SHIFT: return BSP_BLUESHIFT;
 	case ENGINE_SVEN_COOP: return BSP_HALFLIFE;
 	case ENGINE_QUAKE_1: return BSP_QUAKE1;
 	case ENGINE_QUAKE_1_BSP2: return BSP_QUAKE1_BSP2;
@@ -5308,7 +5310,7 @@ void Bsp::write(string path) {
 		}
 	}
 
-	int formatFrom = lastSaveFormat != -1 ? lastSaveFormat : formatForFileVersion();
+	int formatFrom = lastSaveFormat != -1 ? lastSaveFormat : lastLoadformat;
 	int formatTo = formatForGameEngine(g_settings.engine);
 
 	if (formatFrom != formatTo) {
@@ -5317,8 +5319,8 @@ void Bsp::write(string path) {
 		case BSP_QUAKE1:
 		case BSP_QUAKE1_BSP2:
 		case BSP_QUAKE1_2PSB:
-			if (formatTo == BSP_HALFLIFE) {
-				int ret = Alert("Format conversion", "Saving a Quake 1 map in the Half-Life format "
+			if (formatTo == BSP_HALFLIFE || formatTo == BSP_BLUESHIFT) {
+				int ret = Alert("Format conversion", "Saving a Quake 1 map in a GoldSrc format "
 					"prevents the map working in Quake 1.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
@@ -5326,12 +5328,27 @@ void Bsp::write(string path) {
 			}
 			break;
 		case BSP_HALFLIFE:
+		case BSP_BLUESHIFT:
 			if (formatTo == BSP_QUAKE1 || formatTo == BSP_QUAKE1_BSP2) {
-				int ret = Alert("Format conversion", "Saving a Half-Life map in the Quake 1 format "
+				int ret = Alert("Format conversion", "Saving a GoldSrc map in the Quake 1 format "
 					"results in data loss. Textures will be recolored with the Quake palette, and WAD "
 					"textures will be embedded into the BSP. Colored lightmaps will be stored in an "
 					"external QLIT file (.lit) for the source ports that support them."
-					"\n\nThe map will no longer work in Half-Life.\n\nSave anyway?",
+					"\n\nThe map will no longer work in GoldSrc.\n\nSave anyway?",
+					"yesno", "warning", 0);
+				if (ret == 0)
+					return;
+			}
+			if (formatFrom == BSP_HALFLIFE && formatTo == BSP_BLUESHIFT) {
+				int ret = Alert("Format conversion", "Saving a Half-Life map in the Blue Shift format "
+					"prevents the map working in Half-Life.\n\nSave anyway?",
+					"yesno", "warning", 0);
+				if (ret == 0)
+					return;
+			}
+			if (formatFrom == BSP_BLUESHIFT && formatTo == BSP_HALFLIFE) {
+				int ret = Alert("Format conversion", "Saving a Blue Shift map in the Half-Life format "
+					"prevents the map working in Blue Shift.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
 					return;
@@ -5431,9 +5448,36 @@ bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
 	
 	fin.close();
 
-	internalize_lumps(formatForFileVersion(head.nVersion), state);
+	int bspFormat = formatForFileVersion(head.nVersion);
 
-	return valid;
+	if (bspFormat == BSP_HALFLIFE) {
+		bool isBlueShiftBsp = state.lumpLen[LUMP_PLANES] % sizeof(BSPPLANE) != 0;
+
+		if (!isBlueShiftBsp && state.lumpLen[LUMP_ENTITIES] > 1) {
+			// plane lump looks ok, now do the slower ent lump check
+			bool firstAsciiIsBracket = true;
+
+			char* c = (char*)state.lumps[LUMP_ENTITIES];
+			for (int i = 0; i < state.lumpLen[LUMP_ENTITIES]; i++) {
+				if (c[i] == ' ' || c[i] == '\t' || c[i] == '\r' || c[i] == '\n')
+					continue;
+
+				// first non-space character in the ent lump should be an opening bracket
+				isBlueShiftBsp = c[i] != '{';
+				break;
+			}
+		}
+
+		if (isBlueShiftBsp) {
+			bspFormat = BSP_BLUESHIFT;
+		}
+	}
+
+	internalize_lumps(bspFormat, state);
+
+	lastLoadformat = bspFormat;
+
+	return true;
 }
 
 void Bsp::internalize_face(BSPFACE_29& src, BSPFACE& dst) {
@@ -5558,6 +5602,7 @@ void Bsp::externalize_mark(BSPMARKSURF& src, BSPMARKSURF_29& dst) {
 	int fileStructCount = lump_state.lumpLen[lump_id] / sizeof(type_from); \
 	type_from* fileStructs = (type_from*)lump_state.lumps[lump_id]; \
 	type_to* internalStructs = new type_to[fileStructCount]; \
+	debugf("Convert %d structs\n", fileStructCount); \
 	for (int i = 0; i < fileStructCount; i++) { \
 		func(fileStructs[i], internalStructs[i]); \
 	} \
@@ -5567,6 +5612,17 @@ void Bsp::externalize_mark(BSPMARKSURF& src, BSPMARKSURF_29& dst) {
 } \
 
 void Bsp::internalize_lumps(int fromFormat, LumpState& state) {
+	if (fromFormat == BSP_BLUESHIFT) {
+		// Blue Shift BSPs swap the Planes and Entities lumps
+		int temp = state.lumpLen[LUMP_PLANES];
+		state.lumpLen[LUMP_PLANES] = state.lumpLen[LUMP_ENTITIES];
+		state.lumpLen[LUMP_ENTITIES] = temp;
+
+		byte* temp2 = state.lumps[LUMP_PLANES];
+		state.lumps[LUMP_PLANES] = state.lumps[LUMP_ENTITIES];
+		state.lumps[LUMP_ENTITIES] = temp2;
+	}
+
 	if (fromFormat != BSP_QUAKE1_BSP2 && fromFormat != BSP_QUAKE1_2PSB) {
 		CONVERT_STRUCTS(state, BSPFACE_29, BSPFACE, LUMP_FACES, internalize_face);
 		CONVERT_STRUCTS(state, BSPLEAF_29, BSPLEAF, LUMP_LEAVES, internalize_leaf);
@@ -5600,6 +5656,17 @@ void Bsp::externalize_lumps(int toVersion, LumpState& state) {
 		CONVERT_STRUCTS(state, BSPNODE, BSPNODE_29, LUMP_NODES, externalize_node);
 		CONVERT_STRUCTS(state, BSPCLIPNODE, BSPCLIPNODE_29, LUMP_CLIPNODES, externalize_clip);
 		CONVERT_STRUCTS(state, BSPMARKSURF, BSPMARKSURF_29, LUMP_MARKSURFACES, externalize_mark);
+	}
+
+	if (toVersion == BSP_BLUESHIFT) {
+		// Blue Shift BSPs swap the Planes and Entities lumps
+		int temp = state.lumpLen[LUMP_PLANES];
+		state.lumpLen[LUMP_PLANES] = state.lumpLen[LUMP_ENTITIES];
+		state.lumpLen[LUMP_ENTITIES] = temp;
+
+		byte* temp2 = state.lumps[LUMP_PLANES];
+		state.lumps[LUMP_PLANES] = state.lumps[LUMP_ENTITIES];
+		state.lumps[LUMP_ENTITIES] = temp2;
 	}
 }
 
@@ -5852,6 +5919,9 @@ bool Bsp::did_lumps_change(bool ignoreEntLump) {
 	if (!load_lumps(path, oldHead, fileState)) {
 		goto cleanup;
 	}
+
+	if (saveFormat == BSP_BLUESHIFT)
+		saveFormat = BSP_HALFLIFE; // don't complicate comparison
 
 	// compare lumps in the output format
 	externalize_lumps(saveFormat, currentLumps);

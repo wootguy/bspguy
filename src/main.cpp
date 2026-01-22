@@ -792,6 +792,8 @@ void init_limits() {
 	memcpy(g_engine_limits + ENGINE_HALF_LIFE, g_engine_limits + ENGINE_QUAKE_1, sizeof(MapLimits));
 	g_engine_limits[ENGINE_HALF_LIFE].max_worldleaves = 8192; // client engine has a buffer overflow in the renderer
 
+	memcpy(g_engine_limits + ENGINE_BLUE_SHIFT, g_engine_limits + ENGINE_HALF_LIFE, sizeof(MapLimits));
+
 	memcpy(g_engine_limits + ENGINE_SVEN_COOP, g_engine_limits + ENGINE_QUAKE_1, sizeof(MapLimits));
 	g_engine_limits[ENGINE_SVEN_COOP].max_surface_extents = 64;
 	g_engine_limits[ENGINE_SVEN_COOP].max_models = 4096;

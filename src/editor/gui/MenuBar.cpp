@@ -1088,7 +1088,7 @@ void MenuBar::drawSettingsMenu() {
 
 		bool changed = false;
 		if (ImGui::BeginMenu("Engine")) {
-			if (ImGui::MenuItem("Half-Life (BSP30)", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
+			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_HALF_LIFE;
 				g_settings.engine = ENGINE_HALF_LIFE;
 				if (g_settings.mapsize_auto) {
@@ -1096,12 +1096,23 @@ void MenuBar::drawSettingsMenu() {
 					g_settings.mapsize_max = 4096;
 				}
 			}
-			tooltip("The standard GoldSrc engine.\n\nThis engine uses the BSP30 format. BSP30 adds "
+			tooltip("The original GoldSrc engine.\n\nThis engine uses the BSP30 format. BSP30 adds "
 				"true color lightmaps, unique color palettes for each texture, and the ability to load "
 				"textures from WAD files. Due to a buffer overflow bug in the renderer, the max leaves "
 				"allowed in the world model is reduced to 8192 from 32760.\n");
 
-			if (ImGui::MenuItem("Quake 1 (BSP29)", 0, g_settings.engine == ENGINE_QUAKE_1, !app->isLoading)) {
+			if (ImGui::MenuItem("Half-Life: Blue Shift", 0, g_settings.engine == ENGINE_BLUE_SHIFT, !app->isLoading)) {
+				changed = g_settings.engine != ENGINE_BLUE_SHIFT;
+				g_settings.engine = ENGINE_BLUE_SHIFT;
+				if (g_settings.mapsize_auto) {
+					g_settings.mapsize_min = -4096;
+					g_settings.mapsize_max = 4096;
+				}
+			}
+			tooltip("A slightly modified version of the Half-Life engine.\n\nThis engine uses the BSP30 "
+				"format with different ordering of data. No limits are changed.\n");
+
+			if (ImGui::MenuItem("Quake 1", 0, g_settings.engine == ENGINE_QUAKE_1, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_QUAKE_1;
 				g_settings.engine = ENGINE_QUAKE_1;
 				if (g_settings.mapsize_auto) {
@@ -1110,7 +1121,7 @@ void MenuBar::drawSettingsMenu() {
 				}
 			}
 			tooltip("The original Quake engine from 1997.\n\nThis engine uses the BSP29 file format. "
-				"All other BSP formats derive from this. BSP29 is limited to greyscale lightmaps "
+				"BSP29 is limited to greyscale lightmaps "
 				"and a global texture palette which all textures share.\n\n"
 				"External QLIT files (.lit) are automatically imported and generated for source ports that "
 				"support colored lightmaps.\n");
@@ -1139,7 +1150,7 @@ void MenuBar::drawSettingsMenu() {
 				"  - Xash3D\n"
 			);
 
-			if (ImGui::MenuItem("Sven Co-op 5.0 (BSP30)", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
+			if (ImGui::MenuItem("Sven Co-op 5.0", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_SVEN_COOP;
 				g_settings.engine = ENGINE_SVEN_COOP;
 				if (g_settings.mapsize_auto) {

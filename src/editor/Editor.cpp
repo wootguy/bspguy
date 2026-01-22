@@ -2861,7 +2861,7 @@ void Editor::addMap(Bsp* map) {
 
 	emptyMapLoaded = false;
 
-	logf("Loaded %s: %s\n", g_bsp_format_names[map->formatForFileVersion()], map->path.c_str());
+	logf("Loaded %s: %s\n", g_bsp_format_names[map->lastLoadformat], map->path.c_str());
 
 	glCheckError("add map");
 }

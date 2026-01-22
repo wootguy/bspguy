@@ -91,11 +91,12 @@ struct QLITHEADER {
 
 enum BspFormat {
 	BSP_QUAKE1,			// Quake 1, version 29
-	BSP_HALFLIFE,		// half-life, version 30
 	BSP_QUAKE1_BSP2,	// 32bit structs, various source ports
 	BSP_QUAKE1_2PSB,	// early version of the BSP2 format
+	BSP_HALFLIFE,		// half-life, version 30
+	BSP_BLUESHIFT,		// half-life blue shift, version 30
 	BSP_GUY,			// an internal format that can be converted to any of the others
-	BSP_UNKNOWN,
+	BSP_UNKNOWN,		// unknown BSP format
 	BSP_FORMAT_TYPES
 };
 
@@ -110,6 +111,7 @@ public:
 	byte ** lumps;
 	bool valid;
 	int lastSaveFormat = -1; // bsp format the user last saved as
+	int lastLoadformat = -1; // bsp format loaded from disk
 
 	BSPPLANE* planes;
 	BSPTEXTUREINFO* texinfos;
