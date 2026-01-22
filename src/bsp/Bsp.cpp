@@ -41,7 +41,10 @@ vec3 default_hull_extents[MAX_MAP_HULLS] = {
 const char* g_bsp_format_names[BSP_FORMAT_TYPES]{
 	"BSP29",
 	"BSP30",
-	"BSP",
+	"BSP2",
+	"2PSB",
+	"BSPGUY",
+	"BSP_UNKOWN",
 };
 
 int g_sort_mode = SORT_CLIPNODES;
@@ -153,9 +156,11 @@ Bsp::~Bsp()
 
 int Bsp::formatForFileVersion(int bspVersion) {
 	switch (bspVersion < 0 ? header.nVersion : bspVersion) {
-	default: return BSP_UNKNOWN;
-	case 30: return BSP_HALFLIFE;
-	case 29: return BSP_QUAKE1;
+	default:			return BSP_UNKNOWN;
+	case 30:			return BSP_HALFLIFE;
+	case 29:			return BSP_QUAKE1;
+	case 0x32505342:	return BSP_QUAKE1_BSP2;
+	case 0x42535032:	return BSP_QUAKE1_2PSB;
 	}
 }
 
@@ -165,6 +170,7 @@ int Bsp::formatForGameEngine(int engine) {
 	case ENGINE_HALF_LIFE: return BSP_HALFLIFE;
 	case ENGINE_SVEN_COOP: return BSP_HALFLIFE;
 	case ENGINE_QUAKE_1: return BSP_QUAKE1;
+	case ENGINE_QUAKE_1_BSP2: return BSP_QUAKE1_BSP2;
 	}
 }
 
@@ -5309,8 +5315,10 @@ void Bsp::write(string path) {
 		switch (formatFrom) {
 		default:
 		case BSP_QUAKE1:
+		case BSP_QUAKE1_BSP2:
+		case BSP_QUAKE1_2PSB:
 			if (formatTo == BSP_HALFLIFE) {
-				int ret = Alert("Format conversion", "Saving a Quake 1 map (BSP29) in the Half-Life format (BSP30) "
+				int ret = Alert("Format conversion", "Saving a Quake 1 map in the Half-Life format "
 					"prevents the map working in Quake 1.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
@@ -5318,10 +5326,11 @@ void Bsp::write(string path) {
 			}
 			break;
 		case BSP_HALFLIFE:
-			if (formatTo == BSP_QUAKE1) {
-				int ret = Alert("Format conversion", "Saving a Half-Life map (BSP30) in the Quake 1 format (BSP29) "
-					"results in data loss. Colored lights will become grey, textures will be recolored "
-					"with the Quake palette, and WAD textures will be embedded into the BSP. "
+			if (formatTo == BSP_QUAKE1 || formatTo == BSP_QUAKE1_BSP2) {
+				int ret = Alert("Format conversion", "Saving a Half-Life map in the Quake 1 format "
+					"results in data loss. Textures will be recolored with the Quake palette, and WAD "
+					"textures will be embedded into the BSP. Colored lightmaps will be stored in an "
+					"external QLIT file (.lit) for the source ports that support them."
 					"\n\nThe map will no longer work in Half-Life.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
@@ -5343,6 +5352,9 @@ void Bsp::write(string path) {
 	switch (formatTo) {
 	case BSP_QUAKE1:
 		saveHeader.nVersion = 29;
+		break;
+	case BSP_QUAKE1_BSP2:
+		saveHeader.nVersion = 0x32505342;
 		break;
 	default:
 	case BSP_HALFLIFE:
@@ -5444,12 +5456,32 @@ void Bsp::internalize_leaf(BSPLEAF_29& src, BSPLEAF& dst) {
 	memcpy(dst.nAmbientLevels, src.nAmbientLevels, 4);
 }
 
+void Bsp::internalize_leaf(BSPLEAF_2PSB& src, BSPLEAF& dst) {
+	dst.nContents = src.nContents;
+	dst.nVisOffset = src.nVisOffset;
+	dst.nMins = vec3(src.nMins[0], src.nMins[1], src.nMins[2]);
+	dst.nMaxs = vec3(src.nMaxs[0], src.nMaxs[1], src.nMaxs[2]);
+	dst.iFirstMarkSurface = src.iFirstMarkSurface;
+	dst.nMarkSurfaces = src.nMarkSurfaces;
+	memcpy(dst.nAmbientLevels, src.nAmbientLevels, 4);
+}
+
 void Bsp::internalize_edge(BSPEDGE_29& src, BSPEDGE& dst) {
 	dst.iVertex[0] = src.iVertex[0];
 	dst.iVertex[1] = src.iVertex[1];
 }
 
 void Bsp::internalize_node(BSPNODE_29& src, BSPNODE& dst) {
+	dst.iPlane = src.iPlane;
+	dst.iChildren[0] = src.iChildren[0];
+	dst.iChildren[1] = src.iChildren[1];
+	dst.nMins = vec3(src.nMins[0], src.nMins[1], src.nMins[2]);
+	dst.nMaxs = vec3(src.nMaxs[0], src.nMaxs[1], src.nMaxs[2]);
+	dst.firstFace = src.firstFace;
+	dst.nFaces = src.nFaces;
+}
+
+void Bsp::internalize_node(BSPNODE_2PSB& src, BSPNODE& dst) {
 	dst.iPlane = src.iPlane;
 	dst.iChildren[0] = src.iChildren[0];
 	dst.iChildren[1] = src.iChildren[1];
@@ -5535,78 +5567,145 @@ void Bsp::externalize_mark(BSPMARKSURF& src, BSPMARKSURF_29& dst) {
 } \
 
 void Bsp::internalize_lumps(int fromFormat, LumpState& state) {
-	CONVERT_STRUCTS(state, BSPFACE_29, BSPFACE, LUMP_FACES, internalize_face);
-	CONVERT_STRUCTS(state, BSPLEAF_29, BSPLEAF, LUMP_LEAVES, internalize_leaf);
-	CONVERT_STRUCTS(state, BSPEDGE_29, BSPEDGE, LUMP_EDGES, internalize_edge);
-	CONVERT_STRUCTS(state, BSPNODE_29, BSPNODE, LUMP_NODES, internalize_node);
-	CONVERT_STRUCTS(state, BSPCLIPNODE_29, BSPCLIPNODE, LUMP_CLIPNODES, internalize_clip);
-	CONVERT_STRUCTS(state, BSPMARKSURF_29, BSPMARKSURF, LUMP_MARKSURFACES, internalize_mark);
+	if (fromFormat != BSP_QUAKE1_BSP2 && fromFormat != BSP_QUAKE1_2PSB) {
+		CONVERT_STRUCTS(state, BSPFACE_29, BSPFACE, LUMP_FACES, internalize_face);
+		CONVERT_STRUCTS(state, BSPLEAF_29, BSPLEAF, LUMP_LEAVES, internalize_leaf);
+		CONVERT_STRUCTS(state, BSPEDGE_29, BSPEDGE, LUMP_EDGES, internalize_edge);
+		CONVERT_STRUCTS(state, BSPNODE_29, BSPNODE, LUMP_NODES, internalize_node);
+		CONVERT_STRUCTS(state, BSPCLIPNODE_29, BSPCLIPNODE, LUMP_CLIPNODES, internalize_clip);
+		CONVERT_STRUCTS(state, BSPMARKSURF_29, BSPMARKSURF, LUMP_MARKSURFACES, internalize_mark);
+	}
+	if (fromFormat == BSP_QUAKE1_2PSB) {
+		CONVERT_STRUCTS(state, BSPLEAF_2PSB, BSPLEAF, LUMP_LEAVES, internalize_leaf);
+		CONVERT_STRUCTS(state, BSPNODE_2PSB, BSPNODE, LUMP_NODES, internalize_node);
+	}
 
 	// engine specific conversions
-	if (fromFormat == BSP_QUAKE1) {
+	if (fromFormat == BSP_QUAKE1 || fromFormat == BSP_QUAKE1_BSP2 || fromFormat == BSP_QUAKE1_2PSB) {
 		convert_lightmaps(state, false);
 		convert_texture_palettes(state, false);
 	}
 }
 
 void Bsp::externalize_lumps(int toVersion, LumpState& state) {
-	if (toVersion == BSP_QUAKE1) {
+	if (toVersion == BSP_QUAKE1 || toVersion == BSP_QUAKE1_BSP2 || toVersion == BSP_QUAKE1_2PSB) {
 		convert_lightmaps(state, true);
 		convert_texture_palettes(state, true);
 	}
 
-	CONVERT_STRUCTS(state, BSPFACE, BSPFACE_29, LUMP_FACES, externalize_face);
-	CONVERT_STRUCTS(state, BSPLEAF, BSPLEAF_29, LUMP_LEAVES, externalize_leaf);
-	CONVERT_STRUCTS(state, BSPEDGE, BSPEDGE_29, LUMP_EDGES, externalize_edge);
-	CONVERT_STRUCTS(state, BSPNODE, BSPNODE_29, LUMP_NODES, externalize_node);
-	CONVERT_STRUCTS(state, BSPCLIPNODE, BSPCLIPNODE_29, LUMP_CLIPNODES, externalize_clip);
-	CONVERT_STRUCTS(state, BSPMARKSURF, BSPMARKSURF_29, LUMP_MARKSURFACES, externalize_mark);
+	if (toVersion != BSP_QUAKE1_BSP2) {
+		CONVERT_STRUCTS(state, BSPFACE, BSPFACE_29, LUMP_FACES, externalize_face);
+		CONVERT_STRUCTS(state, BSPLEAF, BSPLEAF_29, LUMP_LEAVES, externalize_leaf);
+		CONVERT_STRUCTS(state, BSPEDGE, BSPEDGE_29, LUMP_EDGES, externalize_edge);
+		CONVERT_STRUCTS(state, BSPNODE, BSPNODE_29, LUMP_NODES, externalize_node);
+		CONVERT_STRUCTS(state, BSPCLIPNODE, BSPCLIPNODE_29, LUMP_CLIPNODES, externalize_clip);
+		CONVERT_STRUCTS(state, BSPMARKSURF, BSPMARKSURF_29, LUMP_MARKSURFACES, externalize_mark);
+	}
 }
 
 void Bsp::convert_lightmaps(LumpState& state, bool monochromeNotRgb) {
+	if (!state.lumps[LUMP_LIGHTING] || !state.lumps[LUMP_FACES])
+		return;
+
+	string litFile = path.substr(0, path.size() - 4) + ".lit";
+
 	if (monochromeNotRgb) {
 		// convert from RGB light to monochrome
-		if (state.lumps[LUMP_LIGHTING] && state.lumps[LUMP_FACES]) {
-			int pixels = state.lumpLen[LUMP_LIGHTING] / sizeof(COLOR3);
-			uint8_t* newLighting = new uint8_t[pixels];
-			COLOR3* srcLighting = (COLOR3*)state.lumps[LUMP_LIGHTING];
+		int pixels = state.lumpLen[LUMP_LIGHTING] / sizeof(COLOR3);
+		uint8_t* newLighting = new uint8_t[pixels];
+		COLOR3* srcLighting = (COLOR3*)state.lumps[LUMP_LIGHTING];
 
-			for (int i = 0; i < pixels; i++) {
-				newLighting[i] = monochrome_lightmap_pixel(srcLighting[i]);
-			}
+		bool hasColorLighting = false;
 
-			delete[] state.lumps[LUMP_LIGHTING];
-			state.lumps[LUMP_LIGHTING] = newLighting;
-			state.lumpLen[LUMP_LIGHTING] = pixels;
+		for (int i = 0; i < pixels; i++) {
+			COLOR3& c = srcLighting[i];
+			hasColorLighting |= c.r != c.g || c.r != c.b;
+			newLighting[i] = monochrome_lightmap_pixel(srcLighting[i]);
+		}
 
-			int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
-			BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
-			for (int i = 0; i < numFaces; i++) {
-				lumpFaces[i].nLightmapOffset /= 3;
-			}
+		// write an external .lit file if the map has colored lighting
+		if (hasColorLighting) {
+			QLITHEADER head;
+			memcpy(head.magic, "QLIT", 4);
+			head.version = 1;
+
+			int fsize = sizeof(QLITHEADER) + state.lumpLen[LUMP_LIGHTING];
+			uint8_t* fdat = new uint8_t[fsize];
+
+			memcpy(fdat, &head, sizeof(QLITHEADER));
+			memcpy(fdat + sizeof(QLITHEADER), srcLighting, state.lumpLen[LUMP_LIGHTING]);
+			writeFile(litFile.c_str(), (const char*)fdat, fsize);
+
+			delete[] fdat;
+		}
+		else {
+			// no need for the QLIT file if there's no colored lighting. Remove it to prevent colored
+			// lights coming back after they were removed explicitly.
+			remove(litFile.c_str());
+		}
+
+		delete[] state.lumps[LUMP_LIGHTING];
+		state.lumps[LUMP_LIGHTING] = newLighting;
+		state.lumpLen[LUMP_LIGHTING] = pixels;
+
+		int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
+		BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
+		for (int i = 0; i < numFaces; i++) {
+			lumpFaces[i].nLightmapOffset /= 3;
 		}
 	}
 	else {
-		// convert from monochrome light to RGB
-		if (state.lumps[LUMP_LIGHTING] && state.lumps[LUMP_FACES]) {
-			int pixels = state.lumpLen[LUMP_LIGHTING];
-			COLOR3* newLighting = new COLOR3[pixels];
-
-			for (int i = 0; i < pixels; i++) {
-				uint8_t b = state.lumps[LUMP_LIGHTING][i];
-				newLighting[i] = COLOR3(b, b, b);
-			}
-
-			delete[] state.lumps[LUMP_LIGHTING];
-			state.lumps[LUMP_LIGHTING] = (uint8_t*)newLighting;
-			state.lumpLen[LUMP_LIGHTING] = pixels * sizeof(COLOR3);
-
-			int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
-			BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
-			for (int i = 0; i < numFaces; i++) {
-				lumpFaces[i].nLightmapOffset *= 3;
-			}
+		// update face offsets for RGB data
+		int numFaces = state.lumpLen[LUMP_FACES] / sizeof(BSPFACE);
+		BSPFACE* lumpFaces = (BSPFACE*)state.lumps[LUMP_FACES];
+		for (int i = 0; i < numFaces; i++) {
+			lumpFaces[i].nLightmapOffset *= 3;
 		}
+
+		// Try to load color lightmaps from an external LIT file
+		int numLightPixels = state.lumpLen[LUMP_LIGHTING];
+		int len;
+		char* litData = loadFile(litFile, len);
+
+		if (litData) {
+			QLITHEADER* header = (QLITHEADER*)litData;
+
+			int expectedSize = sizeof(QLITHEADER) + numLightPixels * 3;
+			if (len < expectedSize) {
+				warnf("QLIT is smaller than expected (%d < %d bytes): %s\n", len, expectedSize, litFile.c_str());
+			}
+			else if (strncmp(header->magic, "QLIT", 4)) {
+				string magic = string(header->magic, 4);
+				warnf("QLIT has invalid header '%s': %s\n", magic.c_str(), litFile.c_str());
+			}
+			else if (header->version != 1) {
+				warnf("QLIT version %d not supported: %s\n", header->version, litFile.c_str());
+			}
+			else {
+				int lightDataLen = len - sizeof(QLITHEADER);
+				state.lumpLen[LUMP_LIGHTING] = lightDataLen;
+				delete[] state.lumps[LUMP_LIGHTING];
+				state.lumps[LUMP_LIGHTING] = new uint8_t[lightDataLen];
+				memcpy(state.lumps[LUMP_LIGHTING], litData + sizeof(QLITHEADER), lightDataLen);
+				logf("QLIT loaded: %s\n", litFile.c_str());
+				return;
+			}
+
+			warnf("Falling back to monochrome lighting due to failed LIT file load.\n");
+		}
+
+		// convert from monochrome light to RGB
+		int pixels = state.lumpLen[LUMP_LIGHTING];
+		COLOR3* newLighting = new COLOR3[pixels];
+
+		for (int i = 0; i < pixels; i++) {
+			uint8_t b = state.lumps[LUMP_LIGHTING][i];
+			newLighting[i] = COLOR3(b, b, b);
+		}
+
+		delete[] state.lumps[LUMP_LIGHTING];
+		state.lumps[LUMP_LIGHTING] = (uint8_t*)newLighting;
+		state.lumpLen[LUMP_LIGHTING] = pixels * sizeof(COLOR3);
 	}
 }
 
@@ -5718,6 +5817,8 @@ void Bsp::convert_texture_palettes(LumpState& state, bool quakeNotHl) {
 
 			for (int i = 0; i < numTex; i++) {
 				uint32_t srcOffset = srcIndexPtr[i];
+				if (srcOffset == -1)
+					continue;
 				BSPMIPTEX* src = (BSPMIPTEX*)(texLump + srcOffset);
 
 				*indexPtr++ = writePtr - newTexLump;

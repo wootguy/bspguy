@@ -204,6 +204,22 @@ struct BSPCLIPNODE {
 };
 typedef uint32_t BSPMARKSURF;
 
+//
+// 2BSP format. An early version of BSP2 which didn't have 32bit bounding boxes
+//
+struct BSPLEAF_2PSB {
+	int32_t nContents;
+	int32_t nVisOffset;
+	int16_t nMins[3], nMaxs[3];
+	uint32_t iFirstMarkSurface, nMarkSurfaces;
+	uint8_t nAmbientLevels[4];
+};
+struct BSPNODE_2PSB {
+	uint32_t iPlane;
+	int32_t iChildren[2];
+	int16_t nMins[3], nMaxs[3];
+	uint32_t firstFace, nFaces;
+};
 
 //
 // BSP29 and BSP30 format (identical to the internal format but with fewer bits)
@@ -228,8 +244,7 @@ struct BSPLEAF_29 {
 struct BSPEDGE_29 {
 	uint16_t iVertex[2];
 };
-struct BSPNODE_29
-{
+struct BSPNODE_29 {
 	uint32_t iPlane;
 	int16_t iChildren[2];
 	int16_t nMins[3], nMaxs[3];

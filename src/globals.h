@@ -12,6 +12,7 @@ class Editor;
 
 enum engine_types {
 	ENGINE_QUAKE_1,
+	ENGINE_QUAKE_1_BSP2,
 	ENGINE_HALF_LIFE,
 	ENGINE_SVEN_COOP,
 	ENGINE_TYPES

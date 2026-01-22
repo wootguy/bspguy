@@ -104,6 +104,7 @@ public:
 	bool emptyMapLoaded = false;
 	bool previewMode = false; // render the map as it would appear in-game	
 	float tex_lod_bias = -0.5f;
+	bool monochromeLight = false;
 
 	bool hideGui = false;
 	bool isFocused = false;

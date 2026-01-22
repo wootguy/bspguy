@@ -210,7 +210,7 @@ void BspRenderer::loadTextures() {
 		}
 	}
 
-	bool use_q1_pal = g_settings.engine == ENGINE_QUAKE_1 && map->formatForFileVersion() != BSP_QUAKE1;
+	bool use_q1_pal = (g_settings.engine == ENGINE_QUAKE_1 || g_settings.engine == BSP_QUAKE1_BSP2);
 
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {
@@ -413,6 +413,9 @@ void BspRenderer::buildTextureAtlases() {
 	int totalPixels = 0;
 	for (int i = 0; i < map->textureCount; i++) {
 		BSPMIPTEX* tex = map->get_texture(i);
+		if (!tex)
+			continue;
+
 		totalPixels += tex->nWidth * tex->nHeight;
 	}
 
@@ -730,7 +733,7 @@ void BspRenderer::loadLightmaps() {
 	atlasTextures.push_back(new Texture(lightmapAtlasSz, lightmapAtlasSz));
 	memset(atlasTextures[0]->data, 0, lightmapAtlasSz* lightmapAtlasSz * sizeof(COLOR3));
 
-	bool monochrome = g_settings.engine == ENGINE_QUAKE_1;
+	bool monochrome = g_app->monochromeLight;
 
 	int lightmapCount = 0;
 	int atlasId = 0;
@@ -1840,8 +1843,19 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	renderClip->faceMathVerts.clear();
 
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
+		if (modelIdx != 0 && i == 3) {
+			int worldHeadNode = map->models[0].iHeadnodes[3];
+			int headNode = map->models[modelIdx].iHeadnodes[3];
+			if (headNode == worldHeadNode) {
+				// Quake 1 maps generally don't use HULL 3, but instead of redirecting the hull to a
+				// solid/empty node, it redirects to the world HULL 3. This results in massive slowdowns
+				// due to generating the entire world hull for every model, especially in BSP2 maps.
+				continue;
+			}
+		}
+
 		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i, CONTENTS_SOLID);
-		
+
 		static COLOR4 hullColors[] = {
 			COLOR4(255, 255, 255, 255),
 			COLOR4(96, 255, 255, 255),
@@ -1933,16 +1947,16 @@ void BspRenderer::generateNodeMesh(CMesh* mesh, COLOR4 color, vector<clipnodeVer
 	vector<vec3>& allFaceMathVerts, vector<vec2>& allFaceMathLocalVerts, vector<FaceMath>& faceMaths, int elementIndex) {
 	clipnodeLeafCount++;
 
-	vec3 faceVerts[512]; // index into mesh verts
-	bool addedFaceVerts[512]; // true if vert already added
+	vec3 faceVerts[1024]; // index into mesh verts
+	bool addedFaceVerts[1024]; // true if vert already added
 
 	for (int i = 0; i < mesh->faces.size(); i++) {
 
 		if (!mesh->faces[i].visible) {
 			continue;
 		}
-		if (mesh->verts.size() > 512) {
-			logf("Too many verts in clipnode face\n");
+		if (mesh->verts.size() > 1024) {
+			logf("Too many verts in clipnode face (%d)\n", mesh->verts.size());
 			continue;
 		}
 
@@ -2192,7 +2206,7 @@ void BspRenderer::refreshFace(int faceIdx) {
 	
 	vec3 v1;
 	vec3 v0;
-	vec3 faceVerts[MAX_FACE_VERTS];
+	vec3* faceVerts = new vec3[face.nEdges];
 	for (int e = 0; e < face.nEdges; e++) {
 		int32_t edgeIdx = map->surfedges[face.iFirstEdge + e];
 		BSPEDGE& edge = map->edges[abs(edgeIdx)];
@@ -2226,6 +2240,8 @@ void BspRenderer::refreshFace(int faceIdx) {
 		faceMathVerts[faceMath.vertIdx + e] = faceVerts[e];
 		faceMathLocalVerts[faceMath.vertIdx + e] = faceMath.worldToLocal.multColMajor(faceVerts[e]).xy();
 	}
+
+	delete[] faceVerts;
 }
 
 BspRenderer::~BspRenderer() {
@@ -2688,7 +2704,11 @@ void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass)
 	
 	BSPMODEL& world = map->models[0];
 
-	int shaderbits = (g_settings.render_flags & RENDER_WIREFRAME) ? SH_BSP_WIREFRAME : 0;
+	int shaderbits = 0;
+	
+	if ((g_settings.render_flags & RENDER_WIREFRAME) && !g_app->previewMode) {
+		shaderbits |= SH_BSP_WIREFRAME;
+	}
 	
 	if (g_settings.pal_textures && (g_settings.render_flags & RENDER_TEXTURES)) {
 		shaderbits |= SH_BSP_TEX_PAL;
@@ -2719,7 +2739,7 @@ void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass)
 			wireframeOnly = true;
 		}
 	}
-	if (g_settings.backface_wireframe && (g_settings.render_flags & RENDER_WIREFRAME))
+	if (g_settings.backface_wireframe && shaderbits & SH_BSP_WIREFRAME)
 		glDisable(GL_CULL_FACE); // expensive on fill-rate limited hardware, so only for this special case
 	activeShader->setUniform("wireframeOnly", wireframeOnly ? 1.0f : 0.0f);
 	

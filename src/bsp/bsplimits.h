@@ -10,6 +10,4 @@
 
 #define MAXLIGHTMAPS    4
 
-#define MAX_FACE_VERTS    32 // max points on any BSP face
-
 #define TOGGLED_LIGHT_STYLE_OFFSET 32 // all toggled lights start at this style

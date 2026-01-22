@@ -83,10 +83,18 @@ struct NodeDepth {
 	int depth;
 };
 
+// header for Quake 1 external lightmap lump for colored lighting
+struct QLITHEADER {
+	char magic[4]; // magic QLIT bytes
+	int version;
+};
+
 enum BspFormat {
-	BSP_QUAKE1,	  // Quake 1, version 29
-	BSP_HALFLIFE, // half-life, version 30
-	BSP_GUY, // an internal format that can be converted to any of the others
+	BSP_QUAKE1,			// Quake 1, version 29
+	BSP_HALFLIFE,		// half-life, version 30
+	BSP_QUAKE1_BSP2,	// 32bit structs, various source ports
+	BSP_QUAKE1_2PSB,	// early version of the BSP2 format
+	BSP_GUY,			// an internal format that can be converted to any of the others
 	BSP_UNKNOWN,
 	BSP_FORMAT_TYPES
 };
@@ -671,8 +679,10 @@ private:
 	// convert a file-specific struct to the internal format
 	void internalize_face(BSPFACE_29& src, BSPFACE& dst);
 	void internalize_leaf(BSPLEAF_29& src, BSPLEAF& dst);
+	void internalize_leaf(BSPLEAF_2PSB& src, BSPLEAF& dst);
 	void internalize_edge(BSPEDGE_29& src, BSPEDGE& dst);
 	void internalize_node(BSPNODE_29& src, BSPNODE& dst);
+	void internalize_node(BSPNODE_2PSB& src, BSPNODE& dst);
 	void internalize_clip(BSPCLIPNODE_29& src, BSPCLIPNODE& dst);
 	void internalize_mark(BSPMARKSURF_29& src, BSPMARKSURF& dst);
 

@@ -972,6 +972,16 @@ void MenuBar::drawViewMenu() {
 			}
 			tooltip("Render lighting textures for all faces. Disable for full brightness.");
 
+			ImGui::BeginDisabled(!lightEnabled);
+			if (ImGui::MenuItem("Monochrome", 0, g_app->monochromeLight)) {
+				g_app->monochromeLight = !g_app->monochromeLight;
+				app->mapRenderer->reloadLightmaps();
+			}
+			tooltip("Render lightmaps in greyscale. Use this to preview how the map will look in "
+				"Quake 1.\n\nSome Quake 1 source ports support colored lighting via external "
+				".lit files. These files are created whenever you save the map in a Quake 1 format.");
+			ImGui::EndDisabled();
+
 			ImGui::Separator();
 
 			if (ImGui::MenuItem("Layer 0", 0, app->lightStylesEnabled[0], lightEnabled)) {
@@ -1101,7 +1111,33 @@ void MenuBar::drawSettingsMenu() {
 			}
 			tooltip("The original Quake engine from 1997.\n\nThis engine uses the BSP29 file format. "
 				"All other BSP formats derive from this. BSP29 is limited to greyscale lightmaps "
-				"and a global texture palette which all textures share.\n");
+				"and a global texture palette which all textures share.\n\n"
+				"External QLIT files (.lit) are automatically imported and generated for source ports that "
+				"support colored lightmaps.\n");
+
+			if (ImGui::MenuItem("Quake 1 (BSP2)", 0, g_settings.engine == ENGINE_QUAKE_1_BSP2, !app->isLoading)) {
+				changed = g_settings.engine != ENGINE_QUAKE_1_BSP2;
+				g_settings.engine = ENGINE_QUAKE_1_BSP2;
+				if (g_settings.mapsize_auto) {
+					g_settings.mapsize_min = -4096;
+					g_settings.mapsize_max = 4096;
+				}
+			}
+			tooltip("An upgraded Quake 1 engine with support for the BSP2 file format.\n\n"
+				"BSP2 increases map structure limits to the point of irrelevence. Lighting and "
+				"texture palette limitations still apply. External QLIT files (.lit) are automatically imported and generated for source ports that "
+				"support colored lightmaps.\n\n"
+				"Some source ports that can load BSP2 files:\n"
+				"  - Darkplaces\n"
+				"  - ezQuake\n"
+				"  - FTE\n"
+				"  - Mark V\n"
+				"  - Quakeforge\n"
+				"  - Quakespasm\n"
+				"  - Super8\n"
+				"  - TyrQuake\n"
+				"  - Xash3D\n"
+			);
 
 			if (ImGui::MenuItem("Sven Co-op 5.0 (BSP30)", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_SVEN_COOP;

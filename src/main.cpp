@@ -13,15 +13,16 @@
 // - disable wireframe in preview mode
 // - creating info player start from face mode, moving it, then switching to object mode moved the ent, smth like that
 // = - xash3d crashes on lostmaze_hl, check other merges too
+// - clicking is very slow in bsp2
+// - "DISMAL SIGNAL REFORGED" keyvalue multiline not working
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
 // - mega buffer for leaves
-// - all name tags expensive even with nothing shown
 // - name tag render distance
-// - bsp2 support
 
 // todo:
+// animated/scrolling textures
 // selected connected ents
 // unsubdivide face
 // decal rendering
@@ -800,6 +801,29 @@ void init_limits() {
 	g_engine_limits[ENGINE_SVEN_COOP].max_visdata = 64 * 1024 * 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_allocblocks = 1024;
 	g_engine_limits[ENGINE_SVEN_COOP].max_texturepixels = 1048576;
+
+	memcpy(g_engine_limits + ENGINE_QUAKE_1_BSP2, g_engine_limits + ENGINE_QUAKE_1, sizeof(MapLimits));
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_surface_extents = 16;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_models = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_planes = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_vertexes = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_nodes = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_faces = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_clipnodes = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_leaves = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_worldleaves = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_marksurfaces = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_surfedges = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_edges = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_textures = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_lightdata = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_lightstyles = 224;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_visdata = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_entdata = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_entities = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_texinfos = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_allocblocks = INT32_MAX;
+	g_engine_limits[ENGINE_QUAKE_1_BSP2].max_texturepixels = INT32_MAX;
 
 	g_limits = g_engine_limits[ENGINE_SVEN_COOP];
 }
