@@ -8,6 +8,7 @@ ProgressMeter g_progress;
 vector<LogEntry> g_log_buffer;
 mutex g_log_mutex;
 std::thread::id g_main_thread_id = std::this_thread::get_id();
+int g_model_edits;
 
 AppSettings g_settings;
 string g_config_dir = getConfigDir();

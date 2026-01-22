@@ -48,10 +48,14 @@ struct STRUCTUSAGE
 
 	int modelIdx;
 
+	STRUCTUSAGE() {}
 	STRUCTUSAGE(Bsp* map);
 	~STRUCTUSAGE();
 
+	void init(Bsp* map);
+	void clear();
 	void compute_sum();
+	void merge(STRUCTUSAGE& other);
 };
 
 // used to remap structure indexes to new locations

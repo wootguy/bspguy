@@ -102,7 +102,13 @@ void STRUCTCOUNT::print_delete_stats(int indent) {
 	print_stat_mem(indent, visdata, "VIS data");
 }
 
-STRUCTUSAGE::STRUCTUSAGE(Bsp* map) : count(map) {
+STRUCTUSAGE::STRUCTUSAGE(Bsp* map) {
+	init(map);
+}
+
+void STRUCTUSAGE::init(Bsp* map) {
+	count = STRUCTCOUNT(map);
+
 	nodes = new bool[count.nodes];
 	clipnodes = new bool[count.clipnodes];
 	leaves = new bool[count.leaves];
@@ -128,6 +134,23 @@ STRUCTUSAGE::STRUCTUSAGE(Bsp* map) : count(map) {
 	memset(edges, 0, count.edges * sizeof(bool));
 }
 
+void STRUCTUSAGE::clear() {
+	delete[] nodes;
+	delete[] clipnodes;
+	delete[] leaves;
+	delete[] planes;
+	delete[] verts;
+	delete[] texInfo;
+	delete[] faces;
+	delete[] textures;
+	delete[] markSurfs;
+	delete[] surfEdges;
+	delete[] edges;
+
+	nodes = clipnodes = leaves = planes = verts = texInfo = faces = textures
+		= markSurfs = surfEdges = edges = NULL;
+}
+
 void STRUCTUSAGE::compute_sum() {
 	memset(&sum, 0, sizeof(STRUCTCOUNT));
 	for (int i = 0; i < count.planes; i++) sum.planes += planes[i];
@@ -143,18 +166,22 @@ void STRUCTUSAGE::compute_sum() {
 	for (int i = 0; i < count.edges; i++) sum.edges += edges[i];
 }
 
+void STRUCTUSAGE::merge(STRUCTUSAGE& other) {
+	for (int i = 0; i < count.planes; i++) planes[i] |= other.planes[i];
+	for (int i = 0; i < count.texInfos; i++) texInfo[i] |= other.texInfo[i];
+	for (int i = 0; i < count.leaves; i++) leaves[i] |= other.leaves[i];
+	for (int i = 0; i < count.nodes; i++) nodes[i] |= other.nodes[i];
+	for (int i = 0; i < count.clipnodes; i++) clipnodes[i] |= other.clipnodes[i];
+	for (int i = 0; i < count.verts; i++) verts[i] |= other.verts[i];
+	for (int i = 0; i < count.faces; i++) faces[i] |= other.faces[i];
+	for (int i = 0; i < count.textures; i++) textures[i] |= other.textures[i];
+	for (int i = 0; i < count.markSurfs; i++) markSurfs[i] |= other.markSurfs[i];
+	for (int i = 0; i < count.surfEdges; i++) surfEdges[i] |= other.surfEdges[i];
+	for (int i = 0; i < count.edges; i++) edges[i] |= other.edges[i];
+}
+
 STRUCTUSAGE::~STRUCTUSAGE() {
-	delete[] nodes;
-	delete[] clipnodes;
-	delete[] leaves;
-	delete[] planes;
-	delete[] verts;
-	delete[] texInfo;
-	delete[] faces;
-	delete[] textures;
-	delete[] markSurfs;
-	delete[] surfEdges;
-	delete[] edges;
+	clear();
 }
 
 STRUCTREMAP::STRUCTREMAP(Bsp* map) : count(map) {

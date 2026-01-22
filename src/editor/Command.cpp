@@ -415,6 +415,7 @@ void EditBspModelCommand::refresh() {
 	g_app->saveLumpState(map, 0xffffff, true);
 	g_app->updateEntityUndoState();
 	g_app->gui->lightmapEditorNeedsUpdate = true;
+	g_model_edits++;
 
 	if (g_app->pickInfo.getEntIndex() == entIdx) {
 		g_app->updateModelVerts();
@@ -511,6 +512,7 @@ void LumpReplaceCommand::refresh() {
 	renderer->reload();
 	g_app->deselectObject();
 	g_app->saveLumpState(map, 0xffffffff, true);
+	g_model_edits++;
 }
 
 int LumpReplaceCommand::memoryUsage() {
@@ -574,6 +576,7 @@ void FacesEditCommand::refresh() {
 	g_app->pickCount++;
 	g_app->updateTextureAxes();
 	g_app->gui->refresh();
+	g_model_edits++;
 }
 
 int FacesEditCommand::memoryUsage() {
@@ -588,6 +591,7 @@ LightmapsEditCommand::LightmapsEditCommand(string desc) : LumpReplaceCommand(des
 void LightmapsEditCommand::refresh() {
 	g_app->mapRenderer->reloadLightmaps();
 	g_app->gui->refresh();
+	g_model_edits++;
 }
 
 int LightmapsEditCommand::memoryUsage() {

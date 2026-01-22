@@ -153,6 +153,13 @@ Bsp::~Bsp()
 		delete[] pvsFaces;
 		pvsFaces = NULL;
 	}
+
+	if (model_struct_usage_cache) {
+		for (int i = 0; i < modelCount; i++) {
+			model_struct_usage_cache[i].clear();
+		}
+		delete[] model_struct_usage_cache;
+	}
 }
 
 int Bsp::formatForFileVersion(int bspVersion) {
@@ -1180,26 +1187,45 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 }
 
 bool Bsp::does_model_use_shared_structures(int modelIdx) {
-	STRUCTUSAGE shouldMove(this);
-	STRUCTUSAGE shouldNotMove(this);
+	if (g_model_edits != last_model_edit_count) {
+		last_model_edit_count = g_model_edits;
+
+		if (model_struct_usage_cache) {
+			for (int i = 0; i < model_struct_usage_cache_count; i++) {
+				model_struct_usage_cache[i].clear();
+			}
+		}
+		delete[] model_struct_usage_cache;
+		model_struct_usage_cache = new STRUCTUSAGE[modelCount];
+
+		for (int i = 0; i < modelCount; i++) {
+			model_struct_usage_cache[i].init(this);
+			mark_model_structures(i, &model_struct_usage_cache[i], false);
+		}
+
+		model_struct_usage_cache_count = modelCount;
+	}
+
+	STRUCTUSAGE& shouldMove = model_struct_usage_cache[modelIdx];
 
 	for (int i = 0; i < modelCount; i++) {
 		if (i == modelIdx)
-			mark_model_structures(i, &shouldMove, true);
-		else
-			mark_model_structures(i, &shouldNotMove, false);
+			continue;
+
+		STRUCTUSAGE& shouldNotMove = model_struct_usage_cache[i];
+
+		for (int i = 0; i < planeCount; i++) {
+			if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
+				return true;
+			}
+		}
+		for (int i = 0; i < clipnodeCount; i++) {
+			if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
+				return true;
+			}
+		}
 	}
 
-	for (int i = 0; i < planeCount; i++) {
-		if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
-			return true;
-		}
-	}
-	for (int i = 0; i < clipnodeCount; i++) {
-		if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
-			return true;
-		}
-	}
 	return false;
 }
 

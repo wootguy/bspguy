@@ -668,6 +668,9 @@ public:
 private:
 	bool* pvsFaces = NULL; // flags which faces are marked for rendering in the PVS
 	int pvsFaceCount = 0;
+	int last_model_edit_count = -1;
+	int model_struct_usage_cache_count = -1;
+	STRUCTUSAGE* model_struct_usage_cache = NULL;
 
 	int remove_unused_lightmaps(bool* usedFaces);
 	int remove_unused_visdata(STRUCTREMAP* remap, BSPLEAF* oldLeaves, int oldLeafCount, int oldWorldspawnLeafCount); // called after removing unused leaves

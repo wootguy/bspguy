@@ -129,6 +129,7 @@ extern ProgressMeter g_progress;
 extern std::vector<LogEntry> g_log_buffer;
 extern const char* g_version_string;
 extern std::mutex g_log_mutex;
+extern int g_model_edits; // increment this anytime a BSPMODEL is edited (for clearing cached data)
 
 extern AppSettings g_settings;
 extern Editor* g_app;

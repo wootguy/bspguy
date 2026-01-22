@@ -4594,6 +4594,7 @@ void Editor::pushModelUndoState(string actionDesc, int targetLumps) {
 
 	// entity origin edits also update the ent origin (TODO: this breaks when moving + scaling something)
 	updateEntityUndoState();
+	g_model_edits++;
 }
 
 void Editor::pushUndoCommand(Command* cmd) {
