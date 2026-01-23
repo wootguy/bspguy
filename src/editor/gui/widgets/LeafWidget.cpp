@@ -1,4 +1,5 @@
 #include "Widget.h"
+#include "QuadTree.h"
 
 const float MINSEP = 12;
 const float LEVEL_HEIGHT = 16;
@@ -136,6 +137,12 @@ void LeafWidget::refresh() {
     nodeIdxToGnode.clear();
     hotPath.clear();
     mergedLeaves.clear();
+    edges.clear();
+
+    delete nodeTree;
+    delete edgeTree;
+    nodeTree = NULL;
+    edgeTree = NULL;
 
     if (map->modelCount == 0)
         return;
@@ -199,8 +206,41 @@ void LeafWidget::refresh() {
     graphWidth = maxX - minX;
     graphHeight = (maxDepth+2) * LEVEL_HEIGHT;
 
+    vec2 graphMin = vec2(FLT_MAX, FLT_MAX);
+    vec2 graphMax = vec2(-FLT_MAX, -FLT_MAX);
+
     for (int i = 0; i < gnodes.size(); i++) {
         gnodes[i].srcX += -minX;
+        expandBoundingBox(vec2(gnodes[i].srcX, gnodes[i].srcY), graphMin, graphMax);
+    }
+
+    nodeTree = new QuadTree(graphMin, graphMax, 8);
+    edgeTree = new QuadTree(graphMin, graphMax, 8);
+
+    for (int i = 0; i < gnodes.size(); i++) {
+        GraphNode& node = gnodes[i];
+        vec2 start(node.srcX, node.srcY);
+
+        vec2 ori = vec2(node.srcX, node.srcY);
+        nodeTree->insertObject(ori, ori, i);
+
+        for (int k = 0; k < 2; k++) {
+            if (node.links[k] == -1)
+                continue;
+
+            GraphNode& child = gnodes[node.links[k]];
+            vec2 dst = vec2(child.srcX, child.srcY);
+            vec2 boxMin = vec2(min(start.x, dst.x), min(start.y, dst.y));
+            vec2 boxMax = vec2(max(start.x, dst.x), max(start.y, dst.y));
+
+            NodeEdge edge;
+            edge.start = start;
+            edge.end = dst;
+            edge.endNode = node.links[k];
+
+            edgeTree->insertObject(boxMin, boxMax, edges.size());
+            edges.push_back(edge);
+        }
     }
 }
 
@@ -261,6 +301,12 @@ void LeafWidget::draw() {
         needsRefresh = false;
     }
 
+    if (!edgeTree || !nodeTree)
+        return;
+
+    float old_scrollbar_size = style.ScrollbarSize;
+    style.ScrollbarSize *= 2;
+
     ImGui::BeginChild("GraphChild", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -275,33 +321,23 @@ void LeafWidget::draw() {
         windowPos.y + contentMin.y + 15
     );
 
-    for (int i = 0; i < gnodes.size(); i++) {
-        gnodes[i].x = gnodes[i].srcX + origin.x;
-        gnodes[i].y = gnodes[i].srcY + origin.y;
+    vec2 viewMin(clipMin.x - origin.x, clipMin.y - origin.y);
+    vec2 viewMax(clipMax.x - origin.x, clipMax.y - origin.y);
+    unordered_set<int> edgeIds = edgeTree->getObjectsInRegion(viewMin, viewMax);
+    unordered_set<int> nodeIds = nodeTree->getObjectsInRegion(viewMin, viewMax);
+
+    for (int id : edgeIds) {
+        NodeEdge& edge = edges[id];
+
+        bool isHot = hotPath.count(edge.endNode);
+        ImU32 color = isHot ? IM_COL32(255, 255, 0, 255) : IM_COL32(128, 64, 255, 255);
+        dl->AddLine(ImVec2(edge.start.x + origin.x, edge.start.y + origin.y),
+            ImVec2(edge.end.x + origin.x, edge.end.y + origin.y), color, 1.0f);
     }
 
-    for (int i = 0; i < gnodes.size(); i++) {
-        GraphNode& node = gnodes[i];
-        ImVec2 start(node.x, node.y);
-
-        for (int k = 0; k < 2; k++) {
-            if (node.links[k] == -1)
-                continue;
-
-            GraphNode& child = gnodes[node.links[k]];
-            ImVec2 dst = ImVec2(child.x, child.y);
-
-            if (LineIntersectsAABB(start, dst, clipMin, clipMax)) {
-                bool isHot = hotPath.count(node.links[k]);
-                ImU32 color = isHot ? IM_COL32(255, 255, 0, 255) : IM_COL32(128, 64, 255, 255);
-                dl->AddLine(start, dst, color, 1.0f);
-            }
-        }
-    }
-
-    for (int i = 0; i < gnodes.size(); i++) {
+    for (int i : nodeIds) {
         GraphNode& gnode = gnodes[i];
-        ImVec2 start(gnode.x, gnode.y);
+        ImVec2 start(gnode.srcX + origin.x, gnode.srcY + origin.y);
         ImU32 color;
 
         if (!PointInBounds(start, clipMin, clipMax)) {
@@ -383,4 +419,6 @@ void LeafWidget::draw() {
     
     ImGui::Dummy(ImVec2(graphWidth, graphHeight));
     ImGui::EndChild();
+
+    style.ScrollbarSize = old_scrollbar_size;
 }

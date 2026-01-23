@@ -74,6 +74,7 @@ set(SOURCE_FILES
 	src/nav/LeafNavMesh.h			src/nav/LeafNavMesh.cpp
 	src/nav/PolyOctree.h			src/nav/PolyOctree.cpp
 	src/nav/LeafOctree.h			src/nav/LeafOctree.cpp
+	src/nav/QuadTree.h			src/nav/QuadTree.cpp
 	
 	# OpenGL rendering
 	src/gl/primitives.h			src/gl/primitives.cpp
@@ -408,6 +409,7 @@ if(MSVC)
 												src/nav/LeafNavMeshGenerator.h
 												src/nav/LeafNavMesh.h
 												src/nav/PolyOctree.h
+												src/nav/QuadTree.h
 												src/nav/LeafOctree.h)
 												
 	source_group("Source Files\\nav" FILES		src/nav/NavMesh.cpp
@@ -415,6 +417,7 @@ if(MSVC)
 												src/nav/LeafNavMeshGenerator.cpp
 												src/nav/LeafNavMesh.cpp
 												src/nav/PolyOctree.cpp
+												src/nav/QuadTree.cpp
 												src/nav/LeafOctree.cpp)
 	
 	source_group("Header Files\\lib" FILES	src/lib/lodepng.h 

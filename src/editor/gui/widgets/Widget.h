@@ -202,6 +202,8 @@ class EntityReport : public Widget {
 	vector<ReportEnt> filteredEnts;
 };
 
+class QuadTree;
+
 class LeafWidget : public Widget {
 public:
 	using Widget::Widget;
@@ -218,6 +220,15 @@ private:
 	unordered_map<uint64_t, int> nodeIdxToGnode;
 	unordered_set<uint64_t> hotPath;
 	unordered_set<int> mergedLeaves;
+	
+	struct NodeEdge {
+		vec2 start, end;
+		int endNode;
+	};
+
+	QuadTree* nodeTree = NULL;
+	QuadTree* edgeTree = NULL;
+	vector<NodeEdge> edges;
 
 	float graphWidth, graphHeight;
 };
