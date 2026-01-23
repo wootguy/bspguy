@@ -137,6 +137,9 @@ void LeafWidget::refresh() {
     hotPath.clear();
     mergedLeaves.clear();
 
+    if (map->modelCount == 0)
+        return;
+
 	int headNode = map->models[0].iHeadnodes[0];
 	int maxDepth = map->get_leaf_graph(headNode, gnodes, 0, true);
 

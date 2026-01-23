@@ -5451,7 +5451,7 @@ bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
 	{
 		fin.read((char*)&head.lump[i], sizeof(BSPLUMP));
 		state.lumpLen[i] = head.lump[i].nLength;
-		debugf("Read lump id: %d. Len: %d. Offset %d.\n", i, state.lumpLen[i], head.lump[i].nOffset);
+		//debugf("Read lump id: %d. Len: %d. Offset %d.\n", i, state.lumpLen[i], head.lump[i].nOffset);
 	}
 	
 	for (int i = 0; i < HEADER_LUMPS; i++)
@@ -5628,7 +5628,6 @@ void Bsp::externalize_mark(BSPMARKSURF& src, BSPMARKSURF_29& dst) {
 	int fileStructCount = lump_state.lumpLen[lump_id] / sizeof(type_from); \
 	type_from* fileStructs = (type_from*)lump_state.lumps[lump_id]; \
 	type_to* internalStructs = new type_to[fileStructCount]; \
-	debugf("Convert %d structs\n", fileStructCount); \
 	for (int i = 0; i < fileStructCount; i++) { \
 		func(fileStructs[i], internalStructs[i]); \
 	} \

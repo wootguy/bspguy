@@ -833,13 +833,18 @@ void MenuBar::drawViewMenu() {
 		ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
 
 		if (ImGui::BeginMenu("Clipnodes")) {
+			ImGui::BeginDisabled(app->isLoading);
+
 			if (ImGui::MenuItem("World", 0, g_settings.render_flags & RENDER_WORLD_CLIPNODES)) {
 				g_settings.render_flags ^= RENDER_WORLD_CLIPNODES;
+				app->mapRenderer->loadMoreClipnodes();
 			}
-			tooltip("Render clipnode hulls for worldspawn");
+			tooltip("Render clipnode hulls for worldspawn. These may take a long time to generate, "
+				"which slows startup time if you leave this enabled.");
 
 			if (ImGui::MenuItem("Entities", 0, g_settings.render_flags & RENDER_ENT_CLIPNODES)) {
 				g_settings.render_flags ^= RENDER_ENT_CLIPNODES;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Render clipnode hulls for solid entities");
 
@@ -853,6 +858,7 @@ void MenuBar::drawViewMenu() {
 
 			if (ImGui::MenuItem("Auto Hulls", 0, app->clipnodeRenderHull == -1)) {
 				app->clipnodeRenderHull = -1;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Render collision hulls for things which would otherwise be invisible."
 				"\n\nAn example of this is a trigger_once which had the NULL texture applied to it by the mapper. "
@@ -860,30 +866,36 @@ void MenuBar::drawViewMenu() {
 
 			if (ImGui::MenuItem("Hull 0 (Point)", 0, app->clipnodeRenderHull == 0)) {
 				app->clipnodeRenderHull = 0;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Renders hull 0 regardless of object visibility.\n\n"
 				"This hull is used for point-sized object collision and mesh rendering.");
 
 			if (ImGui::MenuItem("Hull 1 (Human)", 0, app->clipnodeRenderHull == 1)) {
 				app->clipnodeRenderHull = 1;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Renders hull 1 regardless of object visibility."
 				"\n\nThis is a collision hull used by standing players and human-sized monsters.");
 
 			if (ImGui::MenuItem("Hull 2 (Large)", 0, app->clipnodeRenderHull == 2)) {
 				app->clipnodeRenderHull = 2;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Renders hull 2 regardless of object visibility.\n\n"
 				"This is a collision hull used by large monsters and pushable objects.");
 
 			if (ImGui::MenuItem("Hull 3 (Head)", 0, app->clipnodeRenderHull == 3)) {
 				app->clipnodeRenderHull = 3;
+				app->mapRenderer->loadMoreClipnodes();
 			}
 			tooltip("Renders hull 3 regardless of object visibility.\n\n"
 				"This is a collision hull used by crouching players and small monsters.");
+			ImGui::EndDisabled();
 
 			ImGui::EndMenu();
 		}
+		
 
 		if (ImGui::BeginMenu("Entities")) {
 			if (ImGui::MenuItem("Point Entities", 0, g_settings.render_flags & RENDER_POINT_ENTS)) {

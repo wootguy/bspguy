@@ -216,6 +216,7 @@ public:
 	void reloadTextures(bool reloadNow=false);
 	void reloadLightmaps();
 	void reloadClipnodes();
+	void loadMoreClipnodes(); // add new clipnode meshes according to current render settings
 	void reloadLeaves(bool reloadNow=false);
 	void delayLoadLeaves(); // load leaf data if not already loaded
 	void addClipnodeModel(int modelIdx);
@@ -343,9 +344,11 @@ private:
 	future<void> megaBufferFuture;
 
 	void loadLightmaps();
-	void loadClipnodes();
+	void loadClipnodes(bool newNodesOnly);
 	void loadLeaves();
-	void generateClipnodeBuffer(int modelIdx);
+
+	// newOnly = only create buffers for nodes that don't have them yet
+	void generateClipnodeBuffer(int modelIdx, bool newOnly);
 	void generateLeafBuffer();
 	void generateNodeMesh(CMesh* volume, COLOR4 color, vector<clipnodeVert>& allVerts,
 		vector<vec3>& allFaceMathVerts, vector<vec2>& allFaceMathLocalVerts, vector<FaceMath>& faceMaths, int elementIndex);

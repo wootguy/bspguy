@@ -80,7 +80,7 @@ BspRenderer::BspRenderer(Bsp* map, PointEntRenderer* pointEntRenderer) {
 	numRenderClipnodes = map->modelCount;
 	lightmapFuture = async(launch::async, &BspRenderer::loadLightmaps, this);
 	texturesFuture = async(launch::async, &BspRenderer::loadTextures, this);
-	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
+	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this, false);
 
 	if (0) {
 		leavesThreadFinished = true;
@@ -631,7 +631,12 @@ void BspRenderer::reloadClipnodes() {
 
 	deleteRenderClipnodes();
 
-	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this);
+	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this, false);
+}
+
+void BspRenderer::loadMoreClipnodes() {
+	clipnodesLoaded = false;
+	clipnodesFuture = async(launch::async, &BspRenderer::loadClipnodes, this, true);
 }
 
 void BspRenderer::reloadLeaves(bool reloadNow) {
@@ -668,7 +673,7 @@ void BspRenderer::addClipnodeModel(int modelIdx) {
 	numRenderClipnodes++;
 	renderClipnodeDat = newRenderClipnodes;
 	
-	generateClipnodeBuffer(modelIdx);
+	generateClipnodeBuffer(modelIdx, false);
 }
 
 void BspRenderer::loadLightmaps() {
@@ -1615,7 +1620,7 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 	}
 
 	deleteRenderModelClipnodes(&renderClipnodeDat[modelIdx]);
-	generateClipnodeBuffer(modelIdx);
+	generateClipnodeBuffer(modelIdx, false);
 
 	RenderClipnodes& renderClip = renderClipnodeDat[modelIdx];
 
@@ -1627,14 +1632,17 @@ bool BspRenderer::refreshModelClipnodes(int modelIdx) {
 	return true;
 }
 
-void BspRenderer::loadClipnodes() {
+void BspRenderer::loadClipnodes(bool newNodesOnly) {
 	float startTime = glfwGetTime();
-	numRenderClipnodes = map->modelCount;
-	renderClipnodeDat = new RenderClipnodes[numRenderClipnodes];
-	memset(renderClipnodeDat, 0, numRenderClipnodes * sizeof(RenderClipnodes));
+
+	if (!newNodesOnly) {
+		numRenderClipnodes = map->modelCount;
+		renderClipnodeDat = new RenderClipnodes[numRenderClipnodes];
+		memset(renderClipnodeDat, 0, numRenderClipnodes * sizeof(RenderClipnodes));
+	}
 
 	for (int i = 0; i < numRenderClipnodes; i++) {
-		generateClipnodeBuffer(i);
+		generateClipnodeBuffer(i, newNodesOnly);
 	}
 	debugf("Clipnode meshes generated in %.2fs\n", glfwGetTime() - startTime);
 }
@@ -1826,9 +1834,13 @@ void BspRenderer::generateSingleLeafNavMeshBuffer(LeafNode* node) {
 	node->face_buffer = new VertexBuffer(g_shaders.clipnode, output, allVerts.size(), true);
 }
 
-void BspRenderer::generateClipnodeBuffer(int modelIdx) {
+void BspRenderer::generateClipnodeBuffer(int modelIdx, bool newOnly) {
 	BSPMODEL& model = map->models[modelIdx];
 	RenderClipnodes* renderClip = &renderClipnodeDat[modelIdx];
+
+	if (newOnly && renderClip->faceMathVerts.size()) {
+		return;
+	}
 
 	vec3 min = vec3(model.nMins.x, model.nMins.y, model.nMins.z);
 	vec3 max = vec3(model.nMaxs.x, model.nMaxs.y, model.nMaxs.z);
@@ -1842,10 +1854,24 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx) {
 	renderClip->faceMathLocalVerts.clear();
 	renderClip->faceMathVerts.clear();
 
+	bool wantWorldNodes = g_app->clipnodeRenderHull != -1 && (g_settings.render_flags & RENDER_WORLD_CLIPNODES);
+	bool wantEntNodes = (g_settings.render_flags & RENDER_ENT_CLIPNODES);
+
+	if (!wantWorldNodes && modelIdx == 0)
+		return;
+
+	if (modelIdx != 0) {
+		if (!wantEntNodes)
+			return;
+
+		if (g_app->clipnodeRenderHull == -1 && map->models[modelIdx].nFaces != 0)
+			return; // auto clipnode hulls won't show for this model because it has selectable faces
+	}
+
 	for (int i = 0; i < MAX_MAP_HULLS; i++) {
-		if (modelIdx != 0 && i == 3) {
-			int worldHeadNode = map->models[0].iHeadnodes[3];
-			int headNode = map->models[modelIdx].iHeadnodes[3];
+		if (modelIdx != 0) {
+			int worldHeadNode = map->models[0].iHeadnodes[i];
+			int headNode = map->models[modelIdx].iHeadnodes[i];
 			if (headNode == worldHeadNode) {
 				// Quake 1 maps generally don't use HULL 3, but instead of redirecting the hull to a
 				// solid/empty node, it redirects to the world HULL 3. This results in massive slowdowns
@@ -2845,7 +2871,7 @@ void BspRenderer::renderClipnodes(int clipnodeHull) {
 	else
 		g_shaders.clipnode->setUniform("opacity", 0.5f);
 
-	if (g_settings.render_flags & RENDER_WORLD_CLIPNODES && clipnodeHull != -1 && !map->ents[0]->hidden) {
+	if ((g_settings.render_flags & RENDER_WORLD_CLIPNODES) && clipnodeHull != -1 && !map->ents[0]->hidden) {
 		drawModelClipnodes(0, false, clipnodeHull);
 	}
 
