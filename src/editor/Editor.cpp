@@ -948,6 +948,7 @@ void Editor::saveSettings() {
 	g_settings.settings_open = gui->widgets[WIDGET_SETTINGS]->widgetVisible;
 	g_settings.limits_open = gui->widgets[WIDGET_LIMITS]->widgetVisible;
 	g_settings.entreport_open = gui->widgets[WIDGET_ENT_REPORT]->widgetVisible;
+	g_settings.leafgraph_open = gui->widgets[WIDGET_LEAF]->widgetVisible;
 	g_settings.settings_tab = gui->settingsTab;
 	g_settings.vsync = gui->vsync;
 	g_settings.show_transform_axes = showDragAxes;
@@ -968,7 +969,7 @@ void Editor::loadWidgetStates() {
 	gui->widgets[WIDGET_SETTINGS]->widgetVisible = g_settings.settings_open;
 	gui->widgets[WIDGET_LIMITS]->widgetVisible = g_settings.limits_open;
 	gui->widgets[WIDGET_ENT_REPORT]->widgetVisible = g_settings.entreport_open;
-	gui->widgets[WIDGET_LEAF]->widgetVisible = true;
+	gui->widgets[WIDGET_LEAF]->widgetVisible = g_settings.leafgraph_open;
 
 	gui->settingsTab = g_settings.settings_tab;
 	gui->openSavedTabs = true;

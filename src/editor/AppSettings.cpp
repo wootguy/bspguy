@@ -30,6 +30,7 @@ void AppSettings::loadDefault()
 	settings_open = false;
 	limits_open = false;
 	entreport_open = false;
+	leafgraph_open = false;
 	show_transform_axes = false;
 	autoload_layout = false;
 	autoload_layout_width = 0;
@@ -100,6 +101,7 @@ void AppSettings::load() {
 			else if (key == "settings_open") { g_settings.settings_open = atoi(val.c_str()) != 0; }
 			else if (key == "limits_open") { g_settings.limits_open = atoi(val.c_str()) != 0; }
 			else if (key == "entreport_open") { g_settings.entreport_open = atoi(val.c_str()) != 0; }
+			else if (key == "leafgraph_open") { g_settings.leafgraph_open = atoi(val.c_str()) != 0; }
 			else if (key == "settings_tab") { g_settings.settings_tab = atoi(val.c_str()); }
 			else if (key == "vsync") { g_settings.vsync = atoi(val.c_str()) != 0; }
 			else if (key == "show_wpoly") { g_settings.show_wpoly = atoi(val.c_str()) != 0; }
@@ -211,6 +213,7 @@ void AppSettings::save() {
 	file << "settings_open=" << g_settings.settings_open << endl;
 	file << "limits_open=" << g_settings.limits_open << endl;
 	file << "entreport_open=" << g_settings.entreport_open << endl;
+	file << "leafgraph_open=" << g_settings.leafgraph_open << endl;
 
 	file << "settings_tab=" << g_settings.settings_tab << endl;
 

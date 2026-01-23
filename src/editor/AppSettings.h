@@ -50,6 +50,7 @@ struct AppSettings {
 	bool settings_open;
 	bool limits_open;
 	bool entreport_open;
+	bool leafgraph_open;
 	int settings_tab;
 
 	float fov;

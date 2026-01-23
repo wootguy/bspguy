@@ -1933,17 +1933,17 @@ void BspRenderer::generateLeafBuffer() {
 
 	vector<clipnodeVert> allVerts;
 	vector<FaceMath> faceMaths;
-
-	for (int i = 0; i < 65536; i++) {
-		renderLeafDat->leafRanges[i].clear();
-	}
+	
+	renderLeafDat->faceMaths.clear();
+	renderLeafDat->leafRanges.clear();
+	renderLeafDat->leafRanges.resize(map->leafCount);
 
 	for (int k = 0; k < leafNodes.size(); k++) {
 		int leafIdx = leafNodes[k].leafIdx;
 		int start = allVerts.size();
 		CMesh mesh = clipper.clip(leafNodes[k].cuts);
 		generateNodeMesh(&mesh, color, allVerts, renderLeafDat->faceMathVerts,
-			renderLeafDat->faceMathLocalVerts, faceMaths, leafNodes[k].leafIdx);
+			renderLeafDat->faceMathLocalVerts, renderLeafDat->faceMaths, leafNodes[k].leafIdx);
 		
 		for (int i = start; i < allVerts.size(); i++) {
 			renderLeafDat->leafRanges[leafIdx].push_back(i);
@@ -1958,8 +1958,6 @@ void BspRenderer::generateLeafBuffer() {
 	memcpy(output, &allVerts[0], allVerts.size() * sizeof(clipnodeVert));
 
 	renderLeafDat->leafBuffer = new VertexBuffer(g_shaders.clipnode, output, allVerts.size(), true);
-
-	renderLeafDat->faceMaths = faceMaths;
 
 	renderLeafDat->originalColors.resize(allVerts.size());
 	for (int i = 0; i < allVerts.size(); i++) {
@@ -2441,7 +2439,7 @@ void BspRenderer::delayLoadData() {
 }
 
 bool BspRenderer::isFinishedLoading() {
-	return lightmapsUploaded && texturesLoaded && textureFacesLoaded && clipnodesLoaded && leavesThreadFinished ||
+	return (lightmapsUploaded && texturesLoaded && textureFacesLoaded && clipnodesLoaded && leavesThreadFinished) ||
 		map->ents.empty();
 }
 
@@ -3892,7 +3890,7 @@ int BspRenderer::calcMemoryUsage() {
 		bytes += renderLeafDat->faceMathLocalVerts.size() * sizeof(vec2);
 		bytes += renderLeafDat->originalColors.size() * sizeof(COLOR4);
 
-		for (int i = 0; i < 65536; i++) {
+		for (int i = 0; i < renderLeafDat->leafRanges.size(); i++) {
 			bytes += renderLeafDat->leafRanges[i].size() * sizeof(int);
 		}
 	}

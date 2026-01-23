@@ -1,4 +1,5 @@
 #pragma once
+#include <string.h>
 class Bsp;
 
 // excludes entities
@@ -31,22 +32,22 @@ struct STRUCTCOUNT {
 // used to mark structures that are in use by a model
 struct STRUCTUSAGE
 {
-	bool* nodes;
-	bool* clipnodes;
-	bool* leaves;
-	bool* planes;
-	bool* verts;
-	bool* texInfo;
-	bool* faces;
-	bool* textures;
-	bool* markSurfs;
-	bool* surfEdges;
-	bool* edges;
+	bool* nodes = NULL;
+	bool* clipnodes = NULL;
+	bool* leaves = NULL;
+	bool* planes = NULL;
+	bool* verts = NULL;
+	bool* texInfo = NULL;
+	bool* faces = NULL;
+	bool* textures = NULL;
+	bool* markSurfs = NULL;
+	bool* surfEdges = NULL;
+	bool* edges = NULL;
 
 	STRUCTCOUNT count; // size of each array
 	STRUCTCOUNT sum;
 
-	int modelIdx;
+	int modelIdx = 0;
 
 	STRUCTUSAGE() {}
 	STRUCTUSAGE(Bsp* map);

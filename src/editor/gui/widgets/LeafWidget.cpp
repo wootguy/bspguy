@@ -304,6 +304,10 @@ void LeafWidget::draw() {
         ImVec2 start(gnode.x, gnode.y);
         ImU32 color;
 
+        if (!PointInBounds(start, clipMin, clipMax)) {
+            continue;
+        }
+
         float sz = max(1, 5 - gnode.depth) * 3;
         ImVec2 rectMin(start.x - sz, start.y - sz);
         ImVec2 rectMax(start.x + sz, start.y + sz);
@@ -323,7 +327,6 @@ void LeafWidget::draw() {
             break;
         }
 
-
         if (gnode.nodeType != 0) {
             int leafIdx = (gnode.nodeIdx >> 32) - 1;
             if (mergedLeaves.count(leafIdx)) {
@@ -331,9 +334,7 @@ void LeafWidget::draw() {
             }
         }
 
-        if (PointInBounds(start, clipMin, clipMax)) {
-            dl->AddCircleFilled(start, sz, color);
-        }
+        dl->AddCircleFilled(start, sz, color);
 
         if (isHovering) {
             ImGui::BeginTooltip();

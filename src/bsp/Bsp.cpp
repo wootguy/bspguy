@@ -154,12 +154,7 @@ Bsp::~Bsp()
 		pvsFaces = NULL;
 	}
 
-	if (model_struct_usage_cache) {
-		for (int i = 0; i < modelCount; i++) {
-			model_struct_usage_cache[i].clear();
-		}
-		delete[] model_struct_usage_cache;
-	}
+	world_model_struct_usage_cache.clear();
 }
 
 int Bsp::formatForFileVersion(int bspVersion) {
@@ -1190,29 +1185,32 @@ bool Bsp::does_model_use_shared_structures(int modelIdx) {
 	if (g_model_edits != last_model_edit_count) {
 		last_model_edit_count = g_model_edits;
 
-		if (model_struct_usage_cache) {
-			for (int i = 0; i < model_struct_usage_cache_count; i++) {
-				model_struct_usage_cache[i].clear();
-			}
-		}
-		delete[] model_struct_usage_cache;
-		model_struct_usage_cache = new STRUCTUSAGE[modelCount];
-
-		for (int i = 0; i < modelCount; i++) {
-			model_struct_usage_cache[i].init(this);
-			mark_model_structures(i, &model_struct_usage_cache[i], false);
-		}
-
-		model_struct_usage_cache_count = modelCount;
+		world_model_struct_usage_cache.clear();
+		world_model_struct_usage_cache.init(this);
+		mark_model_structures(0, &world_model_struct_usage_cache, false);
 	}
 
-	STRUCTUSAGE& shouldMove = model_struct_usage_cache[modelIdx];
+	STRUCTUSAGE shouldMove(this);
+
+	if (modelIdx == 0) {
+		shouldMove.merge(world_model_struct_usage_cache);
+	}
+	else {
+		mark_model_structures(modelIdx, &shouldMove, false);
+	}
 
 	for (int i = 0; i < modelCount; i++) {
 		if (i == modelIdx)
 			continue;
 
-		STRUCTUSAGE& shouldNotMove = model_struct_usage_cache[i];
+		STRUCTUSAGE shouldNotMove(this);
+
+		if (modelIdx == 0) {
+			shouldNotMove.merge(world_model_struct_usage_cache);
+		}
+		else {
+			mark_model_structures(modelIdx, &shouldNotMove, false);
+		}
 
 		for (int i = 0; i < planeCount; i++) {
 			if (shouldMove.planes[i] && shouldNotMove.planes[i]) {

@@ -15,7 +15,6 @@
 // - "DISMAL SIGNAL REFORGED" keyvalue multiline not working
 // - convert bsp29/30 to bsp2 on save if exceeding limits
 // - show class name as well as target name
-// - leaf graph shouldn't show by default
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
@@ -23,6 +22,7 @@
 // - name tag render distance
 
 // todo:
+// transparent quake textures (always, render mode doesn't exist)
 // animated/scrolling textures
 // selected connected ents
 // unsubdivide face

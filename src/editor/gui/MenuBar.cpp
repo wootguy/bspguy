@@ -984,7 +984,7 @@ void MenuBar::drawViewMenu() {
 			}
 			tooltip("Render lighting textures for all faces. Disable for full brightness.");
 
-			ImGui::BeginDisabled(!lightEnabled);
+			ImGui::BeginDisabled(!lightEnabled || app->isLoading);
 			if (ImGui::MenuItem("Monochrome", 0, g_app->monochromeLight)) {
 				g_app->monochromeLight = !g_app->monochromeLight;
 				app->mapRenderer->reloadLightmaps();

@@ -114,7 +114,7 @@ struct RenderLeaves {
 	vector<vec3> faceMathVerts;
 	vector<vec2> faceMathLocalVerts;
 	vector<COLOR4> originalColors; // original color values for each vertex
-	vector<int> leafRanges[65536]; // maps a leaf index to vertex indexes in the leafBuffer
+	vector<vector<int>> leafRanges; // maps a leaf index to vertex indexes in the leafBuffer
 };
 
 struct RenderPvs {
