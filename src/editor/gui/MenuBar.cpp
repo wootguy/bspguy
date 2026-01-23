@@ -1050,7 +1050,7 @@ void MenuBar::drawViewMenu() {
 		if (ImGui::MenuItem("Leaf Links", 0, g_settings.render_flags & RENDER_LEAF_GRAPH)) {
 			g_settings.render_flags ^= RENDER_LEAF_GRAPH;
 		}
-		tooltip("Display leaf connectivity graph when in leaf selection mode.\n\n"
+		tooltip("Display leaf connectivity graph when in leaf selection mode. Leaf numbers don't match VIS compiler numbering.\n\n"
 			"Green box = Leaf origin\n"
 			"Yellow box = Portal origin\n"
 			"Yellow outline = Portal\n"
@@ -1124,6 +1124,35 @@ void MenuBar::drawSettingsMenu() {
 			tooltip("A slightly modified version of the Half-Life engine.\n\nThis engine uses the BSP30 "
 				"format with different ordering of data. No limits are changed.\n");
 
+			if (ImGui::MenuItem("Sven Co-op 5.0", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
+				changed = g_settings.engine != ENGINE_SVEN_COOP;
+				g_settings.engine = ENGINE_SVEN_COOP;
+				if (g_settings.mapsize_auto) {
+					g_settings.mapsize_min = -32768;
+					g_settings.mapsize_max = 32768;
+				}
+			}
+			tooltip("Sven Co-op 5.0 uses a modified version of the Half-Life engine. It enables higher map limits "
+				"without modifying the BSP30 file format. Some maps need this selected to display correctly in the editor.\n\n"
+
+				"Sven Co-op 5.0 increases the following limits:\n"
+				"    AllocBlocks: 64 -> 1024\n"
+				"    Leaves (world model): 8192 -> 32768\n"
+				"    Light Data: 48 MB -> 64 MB\n"
+				"    Light Styles: 32 -> 224\n"
+				"    Models: 512 -> 4096\n"
+				"    Planes: 32768 -> 65535\n"
+				"    Surface Extents: 16 -> 64 (lightmap size)\n"
+				"    Texture Pixels: 262144 -> 104856 (512x512 -> 1024x1024)\n"
+				"    VIS Data: 8 MB -> 64 MB\n\n"
+
+				"Attempting to run a "
+				"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents, "
+				"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
+				"See the Tools menu for solutions to these problems.");
+
+			ImGui::Separator();
+
 			if (ImGui::MenuItem("Quake 1", 0, g_settings.engine == ENGINE_QUAKE_1, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_QUAKE_1;
 				g_settings.engine = ENGINE_QUAKE_1;
@@ -1161,33 +1190,6 @@ void MenuBar::drawSettingsMenu() {
 				"  - TyrQuake\n"
 				"  - Xash3D\n"
 			);
-
-			if (ImGui::MenuItem("Sven Co-op 5.0", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
-				changed = g_settings.engine != ENGINE_SVEN_COOP;
-				g_settings.engine = ENGINE_SVEN_COOP;
-				if (g_settings.mapsize_auto) {
-					g_settings.mapsize_min = -32768;
-					g_settings.mapsize_max = 32768;
-				}
-			}
-			tooltip("Sven Co-op 5.0 uses a modified version of the Half-Life engine. It enables higher map limits "
-				"without modifying the BSP30 file format. Some maps need this selected to display correctly in the editor.\n\n"
-				
-				"Sven Co-op 5.0 increases the following limits:\n"
-				"    AllocBlocks: 64 -> 1024\n"
-				"    Leaves (world model): 8192 -> 32768\n"
-				"    Light Data: 48 MB -> 64 MB\n"
-				"    Light Styles: 32 -> 224\n"
-				"    Models: 512 -> 4096\n"
-				"    Planes: 32768 -> 65535\n"
-				"    Surface Extents: 16 -> 64 (lightmap size)\n"
-				"    Texture Pixels: 262144 -> 104856 (512x512 -> 1024x1024)\n"
-				"    VIS Data: 8 MB -> 64 MB\n\n"
-
-				"Attempting to run a "
-				"Sven Co-op map in Half-Life may result in AllocBlock Full errors, Bad Surface Extents, "
-				"crashes caused by large textures, and visual glitches caused by crossing the +/-4096 map boundary. "
-				"See the Tools menu for solutions to these problems.");
 
 			ImGui::EndMenu();
 		}

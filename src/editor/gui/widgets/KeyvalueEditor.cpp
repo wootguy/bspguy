@@ -1097,7 +1097,7 @@ void KeyvalueEditor::drawRawEditTab() {
 			if (ripentUnsafe)
 				flags = ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap;
 			ImGui::InputTextMultiline(("##key" + to_string(i) + "_" + to_string(app->pickCount)).c_str(),
-				keyNames[i], MAX_KEY_LEN, ImVec2(keyColWidth - style.ScrollbarSize, fieldHeight),
+				keyNames[i], MAX_KEY_LEN, ImVec2(keyColWidth, fieldHeight),
 				flags,
 				TextChangeCallback::keyNameChanged, &keyIds[i]);
 
@@ -1161,7 +1161,7 @@ void KeyvalueEditor::drawRawEditTab() {
 			if (ripentUnsafe)
 				flags = ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap;
 			ImGui::InputTextMultiline(("##val" + to_string(i) + to_string(app->pickCount)).c_str(),
-				keyValues[i], MAX_VAL_LEN, ImVec2(valColWidth - style.ScrollbarSize, fieldHeight),
+				keyValues[i], MAX_VAL_LEN, ImVec2(valColWidth, fieldHeight),
 				flags,
 				TextChangeCallback::keyValueChanged, &valueIds[i]);
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {

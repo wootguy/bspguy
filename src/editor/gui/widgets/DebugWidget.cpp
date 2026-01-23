@@ -67,10 +67,11 @@ void DebugWidget::drawSelectionDetails() {
 			}
 		}
 		else if (app->pickInfo.getFaceIndex() != -1) {
+			int faceIdx = app->pickInfo.getFaceIndex();
 			BSPFACE& face = *app->pickInfo.getFace();
 			BSPPLANE& plane = map->planes[face.iPlane];
 
-			ImGui::Text("Face ID: %d", app->pickInfo.getFaceIndex());
+			ImGui::Text("Face ID: %d", faceIdx);
 
 			vec3 faceNormal = plane.vNormal * (face.nPlaneSide ? -1 : 1);
 
@@ -95,14 +96,18 @@ void DebugWidget::drawSelectionDetails() {
 					ImGui::Text("Texture: INVALID OFFSET");
 				}
 			}
+
+			int extents[2];
+			GetFaceLightmapSize(map, faceIdx, extents);
+
 			ImGui::Text("Lightmap Offset: %d", face.nLightmapOffset);
 			ImGui::Text("Light Styles: [%d, %d, %d, %d]", face.nStyles[0], face.nStyles[1], face.nStyles[2], face.nStyles[3]);
+			ImGui::Text("Extents: %dx%d", extents[0]-1, extents[1]-1);
 
 			static int lastFaceIdx = -1;
 			static string leafList;
 			static int leafPick = 0;
 
-			int faceIdx = app->pickInfo.getFaceIndex();
 			if (faceIdx != lastFaceIdx) {
 				lastFaceIdx = faceIdx;
 				leafList = "";

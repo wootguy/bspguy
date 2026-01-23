@@ -135,6 +135,7 @@ extern AppSettings g_settings;
 extern Editor* g_app;
 extern MapLimits g_limits;
 extern MapLimits g_engine_limits[ENGINE_TYPES];
+extern const char* g_engine_names[ENGINE_TYPES];
 extern GlobalShaders g_shaders;
 extern RenderStats g_renderStats;
 

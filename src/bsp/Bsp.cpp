@@ -5301,8 +5301,16 @@ void Bsp::write(string path) {
 	if (path.rfind(".bsp") != path.size() - 4) {
 		path = path + ".bsp";
 	}
-	
 
+	if (!isWritable()) {
+		Alert("Overflow", cstrf("This map exceeds %s engine limits. "
+			"Choose an engine with higher limits before saving (Settings -> Engine).\n\n"
+			"Open the Map Limits widget to see which limits are exceeded "
+			"(Widgets -> Map Limits).", g_engine_names[g_settings.engine]),
+			"ok", "error", 0);
+		return;
+	}
+	
 	if (g_settings.ripent_safe_mode) {
 		LumpState state;
 		BSPHEADER head;
@@ -5425,7 +5433,7 @@ void Bsp::write(string path) {
 		//logf("LUMP %10s = %.2f MB\n", g_lump_names[i], (float)header.lump[i].nLength / (1024.0f*1024.0f));
 	}
 
-	logf("Wrote %s %s\n", g_bsp_format_names[formatTo], path.c_str());
+	logf("Wrote %s: %s\n", g_bsp_format_names[formatTo], path.c_str());
 }
 
 bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)

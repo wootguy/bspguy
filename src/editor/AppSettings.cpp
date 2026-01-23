@@ -144,7 +144,7 @@ void AppSettings::load() {
 			else if (key == "mapsize_max") { g_settings.mapsize_max = atoi(val.c_str()); }
 			else if (key == "renderer") { g_settings.renderer = atoi(val.c_str()); }
 			else if (key == "engine") { 
-				g_settings.engine = clamp(atoi(val.c_str()), 0, 1);
+				g_settings.engine = clamp(atoi(val.c_str()), 0, ENGINE_TYPES-1);
 				g_limits = g_engine_limits[g_settings.engine];
 			}
 		}

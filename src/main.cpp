@@ -8,22 +8,17 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - show face extents in debug window
-// - disable wireframe in preview mode
-// - creating info player start from face mode, moving it, then switching to object mode moved the ent, smth like that
-// = - xash3d crashes on lostmaze_hl, check other merges too
-// - "DISMAL SIGNAL REFORGED" keyvalue multiline not working
-// - convert bsp29/30 to bsp2 on save if exceeding limits
-// - show class name as well as target name
+// - xash3d crashes on lostmaze_hl, check other merges too
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
 // - mega buffer for leaves
 // - name tag render distance
+// - transparent quake textures (always, render mode doesn't exist)
 
 // todo:
-// transparent quake textures (always, render mode doesn't exist)
-// animated/scrolling textures
+// animated/scrolling textures 
+// show class name as well as target name
 // selected connected ents
 // unsubdivide face
 // decal rendering

@@ -300,6 +300,8 @@ void Gui::draw() {
 
 void Gui::drawWidgets() {
 	for (Widget* widget : widgets) {
+		widget->map = g_app->mapRenderer->map;
+
 		if (!widget->widgetVisible)
 			continue;
 		if (widget->isPopup)
@@ -311,7 +313,6 @@ void Gui::drawWidgets() {
 		ImGui::SetNextWindowSizeConstraints(ImVec2(widget->widgetSizeMin.x * uiScale, widget->widgetSizeMin.y * uiScale), ImVec2(FLT_MAX, app->windowHeight));
 
 		widget->uiScale = uiScale;
-		widget->map = g_app->mapRenderer->map;
 		widget->setup();
 
 		if (widget->shouldResetPosition) {
@@ -1133,7 +1134,7 @@ void Gui::drawToolbar() {
 			BspRenderer* mapRenderer = app->mapRenderer;
 
 			if (app->pickMode == PICK_OBJECT) {
-				app->deselectFaces();
+				//app->deselectFaces(); // breaks ungrab logic
 				app->deselectObject();
 
 				// don't select all worldspawn faces because it lags the program
@@ -1656,8 +1657,13 @@ void Gui::switchToLeafSelectMode(bool selectFaceLeaves, bool strictFaceLeafSelec
 	vector<int> faces = app->pickInfo.faces;
 	Bsp* map = app->mapRenderer->map;
 
-	app->deselectFaces();
-	app->deselectObject();
+	if (app->pickMode == PICK_OBJECT) {
+		app->deselectObject();
+	}
+	else {
+		app->deselectFaces();
+	}
+	
 	g_app->mapRenderer->hideLeaves(false);
 	g_app->mapRenderer->highlightPickedLeaves(false);
 	g_app->mapRenderer->hideFaces(false);

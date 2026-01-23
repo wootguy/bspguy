@@ -4353,6 +4353,8 @@ void Editor::deleteEnts() {
 }
 
 void Editor::deselectObject() {
+	ungrabEnts();
+
 	if (pickInfo.getEnt() && pickInfo.getEnt()->isBspModel())
 		saveLumpState(pickInfo.getMap(), 0xffffffff, true);
 
