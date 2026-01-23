@@ -1224,6 +1224,8 @@ bool BspMerger::merge(Bsp& mapA, Bsp& mapB) {
 	// merge as soon as possible. // TODO: fail fast if overflow detected in other merges? Kind ni
 	merge_vis(mapA, mapB);
 
+	mapA.make_nodes_contiguous();
+
 	g_progress.clear();
 
 	return true;

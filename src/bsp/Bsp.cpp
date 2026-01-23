@@ -1227,6 +1227,104 @@ bool Bsp::does_model_use_shared_structures(int modelIdx) {
 	return false;
 }
 
+void Bsp::make_nodes_contiguous() {
+	// make world nodes contiguous (fixes crash in xash3d)
+	STRUCTUSAGE worldNodeMarks(this);
+	mark_node_structures(0, &worldNodeMarks, true);
+
+	BSPNODE* newNodeOrder = new BSPNODE[nodeCount];
+	int* nodesRemap = new int[nodeCount];
+	int order = 0;
+
+	// world nodes first
+	for (int i = 0; i < nodeCount; i++) {
+		if (worldNodeMarks.nodes[i]) {
+			newNodeOrder[order] = nodes[i];
+			nodesRemap[i] = order;
+			order++;
+		}
+	}
+
+	// entity nodes next
+	for (int i = 0; i < nodeCount; i++) {
+		if (!worldNodeMarks.nodes[i]) {
+			newNodeOrder[order] = nodes[i];
+			nodesRemap[i] = order;
+			order++;
+		}
+	}
+
+	for (int i = 0; i < nodeCount; i++) {
+		BSPNODE& node = newNodeOrder[i];
+
+		for (int k = 0; k < 2; k++) {
+			if (node.iChildren[k] >= 0) {
+				node.iChildren[k] = nodesRemap[node.iChildren[k]];
+			}
+		}
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		if (models[i].iHeadnodes[0] >= 0)
+			models[i].iHeadnodes[0] = nodesRemap[models[i].iHeadnodes[0]];
+	}
+
+	delete[] nodesRemap;
+	replace_lump(LUMP_NODES, newNodeOrder, nodeCount * sizeof(BSPNODE));
+
+	make_clipnodes_contiguous();
+}
+
+void Bsp::make_clipnodes_contiguous() {
+	// make world nodes contiguous (fixes crash in xash3d)
+	STRUCTUSAGE worldClipnodeMarks(this);
+	mark_clipnode_structures(models[0].iHeadnodes[1], &worldClipnodeMarks);
+	mark_clipnode_structures(models[0].iHeadnodes[2], &worldClipnodeMarks);
+	mark_clipnode_structures(models[0].iHeadnodes[3], &worldClipnodeMarks);
+
+	BSPCLIPNODE* newClipnodeOrder = new BSPCLIPNODE[clipnodeCount];
+	int* clipnodesRemap = new int[clipnodeCount];
+	int order = 0;
+
+	// world clipnodes first
+	for (int i = 0; i < clipnodeCount; i++) {
+		if (worldClipnodeMarks.clipnodes[i]) {
+			newClipnodeOrder[order] = clipnodes[i];
+			clipnodesRemap[i] = order;
+			order++;
+		}
+	}
+
+	// entity nodes next
+	for (int i = 0; i < clipnodeCount; i++) {
+		if (!worldClipnodeMarks.clipnodes[i]) {
+			newClipnodeOrder[order] = clipnodes[i];
+			clipnodesRemap[i] = order;
+			order++;
+		}
+	}
+
+	for (int i = 0; i < clipnodeCount; i++) {
+		BSPCLIPNODE& node = newClipnodeOrder[i];
+
+		for (int k = 0; k < 2; k++) {
+			if (node.iChildren[k] >= 0) {
+				node.iChildren[k] = clipnodesRemap[node.iChildren[k]];
+			}
+		}
+	}
+
+	for (int i = 0; i < modelCount; i++) {
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			if (models[i].iHeadnodes[k] >= 0)
+				models[i].iHeadnodes[k] = clipnodesRemap[models[i].iHeadnodes[k]];
+		}
+	}
+
+	delete[] clipnodesRemap;
+	replace_lump(LUMP_CLIPNODES, newClipnodeOrder, clipnodeCount * sizeof(BSPCLIPNODE));
+}
+
 LumpState Bsp::duplicate_lumps(int targets) {
 	LumpState state;
 
@@ -6451,6 +6549,7 @@ bool Bsp::validate() {
 		}
 	}
 
+	bool notContig = false;
 	int totalVisLeaves = 1; // solid leaf not included in model leaf counts
 	int totalFaces = 0;
 	for (int i = 0; i < modelCount; i++) {
@@ -6496,6 +6595,35 @@ bool Bsp::validate() {
 			// This isn't necessarily an error. A func_illusionary with a null face can set lower face count
 			logf("Unexpected face count in model %d: %d / %d\n", i, usage.sum.faces, models[i].nFaces);
 		}
+		
+		
+		int lastNode = -1;
+		for (int k = 0; k < nodeCount; k++) {
+			if (usage.nodes[k]) {
+				if (lastNode != -1 && k - lastNode > 1) {
+					logf("Model %d HULL 0 nodes not contiguous\n", i, lastNode, k);
+					notContig = true;
+					break;
+				}
+
+				lastNode = k;
+			}
+		}
+
+		for (int h = 1; h < MAX_MAP_HULLS; h++) {
+			int lastClipnode = -1;
+			for (int k = 0; k < clipnodeCount; k++) {
+				if (usage.clipnodes[k]) {
+					if (lastClipnode != -1 && k - lastClipnode > 1) {
+						logf("Model %d HULL %d clipnodes not contiguous\n", i, h);
+						notContig = true;
+						break;
+					}
+
+					lastClipnode = k;
+				}
+			}
+		}
 	}
 	if (totalVisLeaves != leafCount) {
 		logf("Bad model vis leaf sum: %d / %d\n", totalVisLeaves, leafCount);
@@ -6504,6 +6632,11 @@ bool Bsp::validate() {
 	if (totalFaces != faceCount) {
 		logf("Bad model face sum: %d / %d\n", totalFaces, faceCount);
 		isValid = false;
+	}
+
+	if (notContig) {
+		make_nodes_contiguous();
+		logf("Rearranged nodes/clipnodes for contiguity\n");
 	}
 
 	int worldspawn_count = 0;

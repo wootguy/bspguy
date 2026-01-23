@@ -647,6 +647,12 @@ public:
 	// true if the model is sharing planes/clipnodes with other models
 	bool does_model_use_shared_structures(int modelIdx);
 
+	// don't allow models to have nodes that interleave with other models
+	void make_nodes_contiguous();
+
+	// don't allow models to have clipnodes that interleave with other models
+	void make_clipnodes_contiguous();
+
 	// returns the current lump contents
 	LumpState duplicate_lumps(int targets);
 
