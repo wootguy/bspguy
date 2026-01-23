@@ -153,8 +153,6 @@ Bsp::~Bsp()
 		delete[] pvsFaces;
 		pvsFaces = NULL;
 	}
-
-	world_model_struct_usage_cache.clear();
 }
 
 int Bsp::formatForFileVersion(int bspVersion) {
@@ -1182,48 +1180,26 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 }
 
 bool Bsp::does_model_use_shared_structures(int modelIdx) {
-	if (g_model_edits != last_model_edit_count) {
-		last_model_edit_count = g_model_edits;
-
-		world_model_struct_usage_cache.clear();
-		world_model_struct_usage_cache.init(this);
-		mark_model_structures(0, &world_model_struct_usage_cache, false);
-	}
-
 	STRUCTUSAGE shouldMove(this);
-
-	if (modelIdx == 0) {
-		shouldMove.merge(world_model_struct_usage_cache);
-	}
-	else {
-		mark_model_structures(modelIdx, &shouldMove, false);
-	}
+	STRUCTUSAGE shouldNotMove(this);
 
 	for (int i = 0; i < modelCount; i++) {
 		if (i == modelIdx)
-			continue;
-
-		STRUCTUSAGE shouldNotMove(this);
-
-		if (modelIdx == 0) {
-			shouldNotMove.merge(world_model_struct_usage_cache);
-		}
-		else {
-			mark_model_structures(modelIdx, &shouldNotMove, false);
-		}
-
-		for (int i = 0; i < planeCount; i++) {
-			if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
-				return true;
-			}
-		}
-		for (int i = 0; i < clipnodeCount; i++) {
-			if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
-				return true;
-			}
-		}
+			mark_model_structures(i, &shouldMove, true);
+		else
+			mark_model_structures(i, &shouldNotMove, false);
 	}
 
+	for (int i = 0; i < planeCount; i++) {
+		if (shouldMove.planes[i] && shouldNotMove.planes[i]) {
+			return true;
+		}
+	}
+	for (int i = 0; i < clipnodeCount; i++) {
+		if (shouldMove.clipnodes[i] && shouldNotMove.clipnodes[i]) {
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -8117,6 +8093,9 @@ void Bsp::mark_model_structures(int modelIdx, STRUCTUSAGE* usage, bool skipLeave
 	if (model.iHeadnodes[0] >= 0 && model.iHeadnodes[0] < nodeCount)
 		mark_node_structures(model.iHeadnodes[0], usage, skipLeaves);
 	for (int k = 1; k < MAX_MAP_HULLS; k++) {
+		if (modelIdx != 0 && model.iHeadnodes[k] == models[0].iHeadnodes[k])
+			continue; // quake maps redirect unused hulls to the world. skip all that extra work.
+
 		if (model.iHeadnodes[k] >= 0 && model.iHeadnodes[k] < clipnodeCount)
 			mark_clipnode_structures(model.iHeadnodes[k], usage);
 	}
