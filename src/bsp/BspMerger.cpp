@@ -1428,7 +1428,7 @@ void BspMerger::merge_textures(Bsp& mapA, Bsp& mapB) {
 					continue;
 				}
 				BSPMIPTEX* thisTex = (BSPMIPTEX*)(newMipTexData + mipTexOffsets[k]);
-				if (memcmp(tex, thisTex, sz) == 0) {
+				if (strncmp(tex->szName, thisTex->szName, sizeof(thisTex->szName)) == 0) {
 					isUnique = false;
 					texRemap.push_back(k);
 					break;

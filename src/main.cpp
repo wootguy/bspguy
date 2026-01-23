@@ -8,15 +8,14 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - xash3d crashes on lostmaze_hl, check other merges too
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures
 // - mega buffer for leaves
 // - name tag render distance
-// - transparent quake textures (always, render mode doesn't exist)
 
 // todo:
+// transparent quake textures (always, render mode doesn't exist) 
 // animated/scrolling textures 
 // show class name as well as target name
 // selected connected ents

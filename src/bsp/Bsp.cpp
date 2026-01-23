@@ -6636,7 +6636,7 @@ bool Bsp::validate() {
 
 	if (notContig) {
 		make_nodes_contiguous();
-		logf("Rearranged nodes/clipnodes for contiguity\n");
+		logf("Rearranged nodes/clipnodes for contiguity (fixes Xash3D crash)\n");
 	}
 
 	int worldspawn_count = 0;
