@@ -8115,7 +8115,7 @@ void Bsp::unlink_model_leaf_faces_by_node(int iNode) {
 		if (node.iChildren[i] >= 0) {
 			unlink_model_leaf_faces_by_node(node.iChildren[i]);
 		}
-		else {
+		else if (~node.iChildren[i] > models[0].nVisLeafs) {
 			BSPLEAF& leaf = leaves[~node.iChildren[i]];
 
 			// submodels don't use the faces linked to leaves, so deleting the references
