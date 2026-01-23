@@ -725,29 +725,44 @@ const char* potential_targetname_keys[TOTAL_TARGETNAME_KEYS] = {
 
 // This needs to be kept in sync with the FGD
 
+unordered_map<string, StringSet> g_cached_target_keys;
+
 const StringSet& Entity::getTargets() {
 	if (targetsCached) {
 		return cachedTargets;
 	}
 
-	StringSet targetKeys;
-	cachedTargets.clear();
+	cachedTargets.eraseAll();
 
-	for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
-		targetKeys.put(potential_targetname_keys[i]);
+	StringSet* targetKeys;
+	string cname = getClassname();
+
+	auto cachedKeys = g_cached_target_keys.find(cname);
+	if (cachedKeys != g_cached_target_keys.end()) {
+		targetKeys = &cachedKeys->second;
 	}
+	else {
+		StringSet targetKeysCache;
 
-	FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(getClassname()) : NULL;
-	if (fgd) {
-		for (KeyvalueDef& def : fgd->keyvalues) {
-			if (def.iType == FGD_KEY_TARGET_DST) {
-				targetKeys.put(def.name.c_str());
+		for (int i = 1; i < TOTAL_TARGETNAME_KEYS; i++) { // skip targetname
+			targetKeysCache.put(potential_targetname_keys[i]);
+		}
+
+		FgdClass* fgd = g_app->mergedFgd ? g_app->mergedFgd->getFgdClass(getClassname()) : NULL;
+		if (fgd) {
+			for (KeyvalueDef& def : fgd->keyvalues) {
+				if (def.iType == FGD_KEY_TARGET_DST) {
+					targetKeysCache.put(def.name.c_str());
+				}
 			}
 		}
+
+		g_cached_target_keys[cname] = targetKeysCache;
+		targetKeys = &g_cached_target_keys[cname];
 	}
 
 	StringSet::iterator_t iter;
-	while (targetKeys.iterate(iter)) {
+	while (targetKeys->iterate(iter)) {
 		string val = getKeyvalue(iter.key);
 		if (val.size()) {
 			cachedTargets.put(val.c_str());
@@ -925,6 +940,8 @@ bool Entity::deserialize() {
 		int modelIdx = g_app->mapRenderer->map->add_model(getKeyvalue("bspguy_binary_data"));
 		if (modelIdx != -1)
 			setOrAddKeyvalue("model", "*" + to_string(modelIdx));
+		else
+			removeKeyvalue("model");
 		removeKeyvalue("bspguy_binary_data");
 		return true;
 	}

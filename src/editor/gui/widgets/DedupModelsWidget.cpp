@@ -16,10 +16,8 @@ void DedupModelsWidget::draw() {
 	if (ImGui::Checkbox("Allow Shifted Textures", &allowShift)) {
 		dedupEstimate = -1;
 	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Ignore texture shifts when deduplicating. "
-			"Textures must still match for every face but the shift values don't need to be exactly the same.");
-	}
+	tooltip("Ignore texture shifts when deduplicating. "
+		"Textures must still match for every face but the shift values don't need to be exactly the same.");
 
 	ImGui::Dummy(ImVec2(0, 10));
 

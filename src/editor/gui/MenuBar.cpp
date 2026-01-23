@@ -1100,6 +1100,7 @@ void MenuBar::drawSettingsMenu() {
 
 		bool changed = false;
 		if (ImGui::BeginMenu("Engine")) {
+			ImGui::BeginDisabled(g_settings.ripent_safe_mode);
 			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
 				changed = g_settings.engine != ENGINE_HALF_LIFE;
 				g_settings.engine = ENGINE_HALF_LIFE;
@@ -1191,9 +1192,17 @@ void MenuBar::drawSettingsMenu() {
 				"  - Xash3D\n"
 			);
 
+			ImGui::EndDisabled();
+
 			ImGui::EndMenu();
 		}
-		tooltip("The engine determines the file format for saving and limits for the map.\n");
+		if (g_settings.ripent_safe_mode) {
+			tooltip("The engine determines the file format for saving and limits for the map.\n\n"
+				"In Ripent Safe Mode, the engine is selected automatically based on the format of the BSP");
+		}
+		else {
+			tooltip("The engine determines the file format for saving and limits for the map.\n");
+		}
 
 		if (ImGui::BeginMenu("Map Size")) {
 			if (ImGui::MenuItem("Auto", 0, g_settings.mapsize_auto)) {
@@ -1287,7 +1296,7 @@ void MenuBar::drawCreateMenu() {
 			createCommand->execute();
 			app->pushUndoCommand(createCommand);
 		}
-		tooltip("Create a point entity. This is a ripent-only operation which does not affect BSP structures.\n");
+		tooltip("Create a point entity.\n");
 
 		if (!g_settings.ripent_safe_mode) {
 			if (ImGui::MenuItem("BSP Model", 0, false, !app->isLoading)) {
@@ -1315,7 +1324,7 @@ void MenuBar::drawCreateMenu() {
 
 				command->pushUndoState();
 			}
-			tooltip("Create a BSP model and attach it to a new entity. This is not a ripent-only operation and will create new BSP structures.\n");
+			tooltip("Create a BSP model and attach it to a new entity.\n");
 
 			if (ImGui::MenuItem("Cull Entity", 0, false, true)) {
 				Entity* newEnt = new Entity();
@@ -1363,8 +1372,7 @@ void MenuBar::drawToolsMenu() {
 			}
 			tooltip("Removes unreferenced structures in the BSP data. Run this after editing BSP models.\n\nWhen you edit BSP models or delete"
 				" references to them, the data is not deleted until you run this command. "
-				"If you are close exceeding engine limits, you may need to run this regularly while creating "
-				"and editing models. Watch the Limits and Messages widgets to see how many structures were removed.");
+				"Watch the Limits and Messages widgets to see how many structures were removed.");
 
 			if (ImGui::MenuItem("Optimize", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("Optimize " + map->name);
@@ -1861,10 +1869,12 @@ void MenuBar::createSeriesWad() {
 	char* fnamestr = tinyfd_openFileDialog("Select Series Maps", "",
 		1, bspFilterPatterns, "GoldSrc Map Files (*.bsp)", 1);
 
+	if (!fnamestr)
+		return;
+
 	vector<string> fnames;
 
-	if (fnamestr)
-		fnames = splitString(fnamestr, "|");
+	fnames = splitString(fnamestr, "|");
 
 	string defaultPath = getFolderPath(getFolderPath(fnames[0]));
 

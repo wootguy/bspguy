@@ -833,6 +833,7 @@ void Gui::draw3dContextMenus() {
 				}
 				tooltip("Select all leaves in the potentially visible set (PVS) of the selected leaf(s).");
 
+				/*
 				if (ImGui::MenuItem("Select Branch", "", false, app->pickInfo.leaves.size() >= 1)) {
 					int commonNode = map->get_lowest_common_node(app->pickInfo.leaves);
 
@@ -853,6 +854,7 @@ void Gui::draw3dContextMenus() {
 					((LeafWidget*)widgets[WIDGET_LEAF])->selectLeaves(app->pickInfo.leaves);
 				}
 				tooltip("Select all leaves that connect to the same branch as the selected leaf.");
+				*/
 
 				ImGui::Separator();
 

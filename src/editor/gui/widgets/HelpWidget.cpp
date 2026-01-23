@@ -31,9 +31,11 @@ void HelpWidget::draw() {
 			ImGuiIO& io = ImGui::GetIO();
 			ImGui::BulletText("WASD to move (hold SHIFT/CTRL for faster/slower movement).");
 			ImGui::BulletText("Hold right mouse button to rotate view.");
-			ImGui::BulletText("Press Z to toggle mouse capture for camera rotation.");
 			ImGui::BulletText("Left click to select objects/entities. Right click for options.");
-			ImGui::BulletText("While grabbing an entity:\n");
+			ImGui::BulletText("Press Z to toggle mouse capture for camera rotation.");
+			ImGui::BulletText("Press R to enable Preview Mode. This temporarily enables various \"View\"\n"
+				"options to give you a better idea of how the map will look in-game.");
+			ImGui::BulletText("While grabbing an entity (G):\n");
 			ImGui::Indent();
 			ImGui::BulletText("Mouse wheel to push/pull (hold SHIFT/CTRL for faster/slower).");
 			ImGui::BulletText("Click outside of the entity or press G to let go.");

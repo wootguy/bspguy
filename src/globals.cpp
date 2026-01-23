@@ -19,11 +19,11 @@ std::set<std::string> g_parsed_fgds;
 MapLimits g_limits;
 MapLimits g_engine_limits[ENGINE_TYPES];
 const char* g_engine_names[ENGINE_TYPES] = {
-	"Quake 1",
-	"Quake 1 (BSP2)",
 	"Half-Life",
 	"Blue Shift",
-	"Sven Co-op 5.0"
+	"Sven Co-op 5.0",
+	"Quake 1",
+	"Quake 1 (BSP2)",
 };
 
 GlobalShaders g_shaders = GlobalShaders();

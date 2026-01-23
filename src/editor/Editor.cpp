@@ -791,6 +791,7 @@ void Editor::postLoadFgds()
 	}
 	mapRenderer->pointEntRenderer->uploadCubeBuffers();
 
+	g_cached_target_keys.clear();
 	for (int i = 0; i < mapRenderer->map->ents.size(); i++) {
 		Entity* ent = mapRenderer->map->ents[i];
 		ent->clearCache();

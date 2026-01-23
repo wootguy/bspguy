@@ -6638,8 +6638,7 @@ bool Bsp::validate() {
 		Entity* ent = ents[i];
 		vec3 ori = ent->getOrigin();
 		string cname = ent->getClassname();
-		//float oob = g_engine_limits->max_mapboundary;
-		float oob = 8192;
+		float oob = g_settings.mapsize_max;
 
 		if (ori.x || ori.y || ori.z) {
 			if (cname == "func_ladder" || cname == "func_water" || cname == "func_mortar_field") {
@@ -6648,12 +6647,10 @@ bool Bsp::validate() {
 		}
 
 		if (fabs(ori.x) > oob || fabs(ori.y) > oob || fabs(ori.z) > oob) {
-			/*
-			logf("Entity '%s' (%s) outside map boundary at (%d %d %d)\n",
+			debugf("Entity '%s' (%s) outside map boundary at (%d %d %d)\n",
 				ent->hasKey("targetname") ? ent->getKeyvalue("targetname").c_str() : "",
 				ent->hasKey("classname") ? ent->getKeyvalue("classname").c_str() : "",
 				(int)ori.x, (int)ori.y, (int)ori.z);
-				*/
 			oobCount++;
 		}
 		if (ent->getBspModelIdx() >= modelCount) {
@@ -9691,30 +9688,32 @@ string Bsp::stringify_model(int modelIdx) {
 
 	// surfedges use sign to index into the edge. You can't have a signed index into edge 0.
 	// So, forbid index 0 being used in the cloned edges.
-	BSPEDGE dummyEdge = { 0, 0 };
-	model.edges.push_back(dummyEdge);
+	if (model.verts.size()) {
+		BSPEDGE dummyEdge = { 0, 0 };
+		model.edges.push_back(dummyEdge);
 
-	for (int i = 0; i < usage.count.edges; i++) {
-		if (usage.edges[i]) {
-			remap.edges[i] = model.edges.size();
+		for (int i = 0; i < usage.count.edges; i++) {
+			if (usage.edges[i]) {
+				remap.edges[i] = model.edges.size();
 
-			BSPEDGE edge = edges[i];
-			for (int k = 0; k < 2; k++) {
-				edge.iVertex[k] = remap.verts[edge.iVertex[k]];
+				BSPEDGE edge = edges[i];
+				for (int k = 0; k < 2; k++) {
+					edge.iVertex[k] = remap.verts[edge.iVertex[k]];
+				}
+				model.edges.push_back(edge);
 			}
-			model.edges.push_back(edge);
 		}
-	}
 
-	for (int i = 0; i < usage.count.surfEdges; i++) {
-		if (usage.surfEdges[i]) {
-			remap.surfEdges[i] = model.surfEdges.size();
+		for (int i = 0; i < usage.count.surfEdges; i++) {
+			if (usage.surfEdges[i]) {
+				remap.surfEdges[i] = model.surfEdges.size();
 
-			int32_t surfedge = remap.edges[abs(surfedges[i])];
-			if (surfedges[i] < 0)
-				surfedge = -surfedge;
+				int32_t surfedge = remap.edges[abs(surfedges[i])];
+				if (surfedges[i] < 0)
+					surfedge = -surfedge;
 
-			model.surfEdges.push_back(surfedge);
+				model.surfEdges.push_back(surfedge);
+			}
 		}
 	}
 
@@ -9815,6 +9814,9 @@ string Bsp::stringify_model(int modelIdx) {
 		model.model.iHeadnodes[i] = oldModel.iHeadnodes[i] < 0 ? -1 : remap.clipnodes[oldModel.iHeadnodes[i]];
 	}
 	model.model.nVisLeafs = 0; // techinically should match the old model, but leaves aren't duplicated yet
+
+	if (model.model.nFaces == 0)
+		model.model.iFirstFace = 0;
 
 	return model.serialize();
 }
@@ -9956,7 +9958,7 @@ int Bsp::add_model(string serialized) {
 	}
 	
 	if (invalidRefs) {
-		logf("Invalid BSP structure references in serialized data. Ignoring data.\n");
+		warnf("Invalid BSP structure references in serialized data. Ignoring data.\n");
 		return -1;
 	}
 

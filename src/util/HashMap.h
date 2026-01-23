@@ -36,6 +36,9 @@ public:
 
 	void clear();
 
+	// erase all entries without resizing the map, and prevent shrinking the map below the current size
+	void eraseAll();
+
 	// returns number of filled slots
 	int size() const;
 
@@ -66,6 +69,7 @@ protected:
 	size_t maxEntries;
 	size_t entryCount;
 	size_t delCount; // number of deleted items that are still taking up space in the table
+	size_t reserveSz; // don't resize smaller than this
 	uint32_t stringOffset;    // next free space in string pool
 	uint32_t stringPoolSz;
 	int entrySz;

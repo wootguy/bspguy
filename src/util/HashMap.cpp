@@ -110,6 +110,7 @@ void BaseHashMap::init(int newMaxEntries, uint32_t newStringPoolSz) {
 	delCount = 0;
 	maxEntries = newMaxEntries;
 	stringPoolSz = newStringPoolSz;
+	reserveSz = 0;
 
 	int dataSz = stringPoolSz + maxEntries * entrySz;
 
@@ -128,6 +129,18 @@ void BaseHashMap::clear() {
 		data = NULL;
 	}
 	init(HMAP_DEFAULT_MAX_ENTRIES, HMAP_DEFAULT_STRING_POOL_SZ);
+}
+
+void BaseHashMap::eraseAll() {
+	stringOffset = 1; // skip 0 for NULL value
+	entryCount = 0;
+	delCount = 0;
+	reserveSz = maxEntries;
+
+	int dataSz = stringPoolSz + maxEntries * entrySz;
+
+	memset(data, 0, dataSz);
+	memset(&stats, 0, sizeof(hash_map_stats_t));
 }
 
 // FNV1a algorithm
@@ -276,6 +289,8 @@ bool BaseHashMap::put(const char* key, void* value) {
 			}
 		} // else just rehash the table to get rid of the deleted keys
 
+		nextSz = max(reserveSz, (size_t)nextSz);
+
 		resizeHashTable(nextSz);
 	}
 
@@ -339,6 +354,8 @@ void BaseHashMap::del(const char* key) {
 					break;
 				}
 			}
+
+			nextSz = max(reserveSz, (size_t)nextSz);
 			
 			resizeHashTable(nextSz);
 		}

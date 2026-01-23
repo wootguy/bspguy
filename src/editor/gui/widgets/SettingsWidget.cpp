@@ -96,6 +96,28 @@ void SettingsWidget::draw() {
 				g_app->pickMode = PICK_OBJECT;
 				app->transformTarget = TRANSFORM_OBJECT;
 				gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible = false;
+				
+				int oldEngine = g_settings.engine;
+				int autoFormat = map->lastSaveFormat != -1 ? map->lastSaveFormat : map->lastLoadformat;
+				switch (autoFormat) {
+				case BSP_QUAKE1:
+					g_settings.engine = ENGINE_QUAKE_1;
+					break;
+				case BSP_QUAKE1_BSP2:
+					g_settings.engine = ENGINE_QUAKE_1_BSP2;
+					break;
+				case BSP_HALFLIFE:
+				default:
+					g_settings.engine = ENGINE_SVEN_COOP;
+					break;
+				case BSP_BLUESHIFT:
+					g_settings.engine = BSP_BLUESHIFT;
+					break;
+				}
+				if (g_settings.engine != oldEngine) {
+					warnf("Engine changed from %s to %s to prevent file format changes\n",
+						g_engine_names[oldEngine], g_engine_names[g_settings.engine]);
+				}
 
 				if (map->did_lumps_change(true)) {
 					const char* msg = "You have made edits that are not ripent safe. "
@@ -275,7 +297,7 @@ void SettingsWidget::draw() {
 		ImGui::Text("(F10)");
 		ImGui::EndDisabled();
 
-		ImGui::Checkbox("wpoly", &g_settings.show_wpoly);
+		ImGui::Checkbox("Wpoly Counter", &g_settings.show_wpoly);
 		tooltip("Display the number of polygons that would be rendered in-game. Enabling this reduces FPS when wpoly counts are high.");
 
 		ImGui::NextColumn();

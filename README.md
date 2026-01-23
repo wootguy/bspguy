@@ -1,18 +1,25 @@
 # bspguy
-A tool for editing GoldSrc maps without decompiling.
+Edit GoldSrc and Quake maps without decompiling.
 
 # Usage
 Double-click to launch the 3D editor, or run `bspguy -help` for the command-line interface.
+
+Supported BSP files: 
+- BSP30 (Half-Life and Half-Life: Blue Shift)
+- BSP29 (Quake 1)
+- BSP2/2PSB (Quake 1 source ports)
 
 See the [wiki](https://github.com/wootguy/bspguy/wiki) for merging and porting tutorials.
 
 ## Editor Features
 - Entity editor with FGD support
-- Visualized entity connections and keyvalue searching
-- Map merging and porting tools
-- BSP model editing (convex only)
-- Texture editing
-- Clipnode rendering
+- Visualized entity connections with text searching
+- Map merging, splitting, and porting tools
+- BSP model editing
+- VIS and RAD recompilation tools
+- Visleaf/PVS editing
+- Face editing (textures, lightmaps)
+- Clipnode/Leaf visualization
 - And more!
 
 ![image](https://github.com/user-attachments/assets/1db127c9-e52a-4ca6-a011-ccb2ed2a7407)

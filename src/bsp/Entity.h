@@ -31,6 +31,7 @@ struct EntRenderOpts {
 
 typedef uint16_t string_t;
 extern unordered_map<string, uint16_t> g_stringMap; // maps a string to an integer for smaller connection graphs
+extern unordered_map<string, StringSet> g_cached_target_keys;
 void clearStringMap();
 
 class Entity
