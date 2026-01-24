@@ -89,6 +89,9 @@ public:
 	// otherwise returns an empty polygon
 	Polygon3D coplanerIntersectArea(Polygon3D otherPoly);
 
+	// true if the polygons are parallel and touching each other
+	bool overlapping(Polygon3D& otherPoly);
+
 	// returns true if the polygons intersect
 	bool intersects(Polygon3D& otherPoly);
 

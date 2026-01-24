@@ -182,7 +182,7 @@ bool decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, int visLength, byte* 
 
 			if (!DecompressVis((const byte*)(visLump + leafLump[i + 1].nVisOffset), dest, oldVisRowSize,
 				visDataLeafCount, visLump, visLength)) {
-				logf("Failed to decompress VIS for leaf %d\n", i+1);
+				warnf("Failed to decompress VIS for leaf %d\n", i+1);
 				anyErrors = true;
 			}
 
@@ -197,7 +197,7 @@ bool decompress_vis_lump(BSPLEAF* leafLump, byte* visLump, int visLength, byte* 
 			}
 		}
 		else {
-			logf("Overflow decompressing VIS lump!");
+			errorf("Overflow decompressing VIS lump!");
 			return false;
 		}
 	}

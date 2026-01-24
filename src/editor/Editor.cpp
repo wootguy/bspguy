@@ -4942,11 +4942,23 @@ bool Editor::autoSelectEngine(Bsp* map, bool reloadIfChanged) {
 		warnf("Engine changed from %s to %s to prevent file format changes\n",
 			g_engine_names[oldEngine], g_engine_names[g_settings.engine]);
 
-		g_limits = g_engine_limits[g_settings.engine];
+		if (g_settings.mapsize_auto) {
+			if (g_settings.engine == ENGINE_SVEN_COOP) {
+				g_settings.mapsize_min = -32768;
+				g_settings.mapsize_max = 32768;
+			}
+			else {
+				g_settings.mapsize_min = -4096;
+				g_settings.mapsize_max = 4096;
+			}
+		}
+
 		if (reloadIfChanged)
 			mapRenderer->reload();
 		gui->reloadLimits();
 	}
+
+	g_limits = g_engine_limits[g_settings.engine];
 
 	return changed;
 }

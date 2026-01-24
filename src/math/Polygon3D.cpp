@@ -620,6 +620,44 @@ Polygon3D Polygon3D::coplanerIntersectArea(Polygon3D otherPoly) {
 	return outVerts;
 }
 
+bool Polygon3D::overlapping(Polygon3D& otherPoly) {
+	vector<vec3> outVerts;
+
+	float epsilon = 1.0f;
+
+	float dot = dotProduct(plane_z, otherPoly.plane_z);
+
+	float otherDist = otherPoly.fdist;
+	if (dot < 0) {
+		otherDist *= -1;
+	}
+
+	if (fabs(fdist - otherDist) > epsilon || fabs(dot) < 0.999f)
+		return false; // faces are not coplaner
+
+	// project other polys verts onto the same coordinate system as this face
+	vector<vec2> otherLocalVerts;
+	for (int i = 0; i < otherPoly.verts.size(); i++) {
+		otherLocalVerts.push_back(project(otherPoly.verts[i]));
+	}
+	otherPoly.localVerts = otherLocalVerts;
+
+	// check if any points are inside the other poly
+	for (int i = 0; i < localVerts.size(); i++) {
+		if (otherPoly.isInside(localVerts[i], true)) {
+			return true;
+		}
+	}
+
+	for (int k = 0; k < otherLocalVerts.size(); k++) {
+		if (isInside(otherLocalVerts[k], true)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool Polygon3D::intersects(Polygon3D& otherPoly) {
 	vec3 isect;
 	const float eps = 0.5f;

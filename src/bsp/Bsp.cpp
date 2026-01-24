@@ -28,6 +28,7 @@
 #include "BspRenderer.h"
 #include "q1_palette.h"
 #include "quant.h"
+#include "LeafOctree.h"
 
 typedef map< string, vec3 > mapStringToVector;
 
@@ -6328,19 +6329,19 @@ bool Bsp::validate() {
 
 	for (int i = 0; i < marksurfCount; i++) {
 		if (marksurfs[i] >= faceCount) {
-			logf("Bad face reference in marksurf %d: %d / %d\n", i, marksurfs[i], faceCount);
+			errorf("Bad face reference in marksurf %d: %d / %d\n", i, marksurfs[i], faceCount);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < surfedgeCount; i++) {
 		if (abs(surfedges[i]) >= edgeCount) {
-			logf("Bad edge reference in surfedge %d: %d / %d\n", i, surfedges[i], edgeCount);
+			errorf("Bad edge reference in surfedge %d: %d / %d\n", i, surfedges[i], edgeCount);
 			isValid = false;
 		}
 	}
 	for (int i = 0; i < texinfoCount; i++) {
 		if (texinfos[i].iMiptex < 0 || texinfos[i].iMiptex >= textureCount) {
-			logf("Bad texture reference in textureinfo %d: %d / %d\n", i, texinfos[i].iMiptex, textureCount);
+			errorf("Bad texture reference in textureinfo %d: %d / %d\n", i, texinfos[i].iMiptex, textureCount);
 			isValid = false;
 		}
 	}
@@ -6349,21 +6350,21 @@ bool Bsp::validate() {
 	int numBadSubdivides = 0;
 	for (int i = 0; i < faceCount; i++) {
 		if (faces[i].iPlane < 0 || faces[i].iPlane >= planeCount) {
-			logf("Bad plane reference in face %d: %d / %d\n", i, faces[i].iPlane, planeCount);
+			errorf("Bad plane reference in face %d: %d / %d\n", i, faces[i].iPlane, planeCount);
 			isValid = false;
 		}
 		if (faces[i].nEdges > 0 && (faces[i].iFirstEdge < 0 || faces[i].iFirstEdge >= surfedgeCount)) {
-			logf("Bad surfedge reference in face %d: %d / %d\n", i, faces[i].iFirstEdge, surfedgeCount);
+			errorf("Bad surfedge reference in face %d: %d / %d\n", i, faces[i].iFirstEdge, surfedgeCount);
 			isValid = false;
 		}
 		if (faces[i].iTextureInfo < 0 || faces[i].iTextureInfo >= texinfoCount) {
-			logf("Bad textureinfo reference in face %d: %d / %d\n", i, faces[i].iTextureInfo, texinfoCount);
+			errorf("Bad textureinfo reference in face %d: %d / %d\n", i, faces[i].iTextureInfo, texinfoCount);
 			isValid = false;
 		}
 		if (lightDataLength > 0 && faces[i].nStyles[0] != 255 && 
 			faces[i].nLightmapOffset != (uint32_t)-1 && faces[i].nLightmapOffset >= lightDataLength) 
 		{
-			logf("Bad lightmap offset in face %d: %d / %d\n", i, faces[i].nLightmapOffset, lightDataLength);
+			errorf("Bad lightmap offset in face %d: %d / %d\n", i, faces[i].nLightmapOffset, lightDataLength);
 			isValid = false;
 		}
 
@@ -6438,11 +6439,11 @@ bool Bsp::validate() {
 		}
 	}
 	if (numBadExtent) {
-		logf("Bad Surface Extents on %d faces\n", numBadExtent);
+		errorf("Bad Surface Extents on %d faces\n", numBadExtent);
 		isValid = false;
 	}
 	if (numBadRadTexture) {
-		logf("%d faces have invalid RAD textures. VHLT will complain about malformed faces.\n", numBadRadTexture);
+		warnf("%d faces have invalid RAD textures. VHLT will complain about malformed faces.\n", numBadRadTexture);
 		isValid = false;
 	}
 	if (numBadSubdivides) {
@@ -6452,14 +6453,16 @@ bool Bsp::validate() {
 
 	for (int i = 0; i < leafCount; i++) {
 		if ((leaves[i].iFirstMarkSurface < 0 || leaves[i].iFirstMarkSurface + leaves[i].nMarkSurfaces > marksurfCount)) {
-			logf("Bad marksurf reference in leaf %d: (%d + %d) / %d", 
+			const char* msg = cstrf("Bad marksurf reference in leaf %d: (%d + %d) / %d", 
 				i, leaves[i].iFirstMarkSurface, leaves[i].nMarkSurfaces, marksurfCount);
 
 			if (leaves[i].nMarkSurfaces == 0) {
-				logf(" (fixed!)");
+				logf("%s (fixed!)\n", msg);
 				leaves[i].iFirstMarkSurface = 0;
 			}
-			logf("\n");
+			else {
+				errorf("%s\n", msg);
+			}
 
 			isValid = false;
 		}
@@ -6468,32 +6471,34 @@ bool Bsp::validate() {
 	for (int i = 0; i < edgeCount; i++) {
 		for (int k = 0; k < 2; k++) {
 			if (edges[i].iVertex[k] >= vertCount) {
-				logf("Bad vertex reference in edge %d: %d / %d\n", i, edges[i].iVertex[k], vertCount);
+				errorf("Bad vertex reference in edge %d: %d / %d\n", i, edges[i].iVertex[k], vertCount);
 				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < nodeCount; i++) {
 		if ((nodes[i].firstFace < 0 || nodes[i].firstFace + nodes[i].nFaces > faceCount)) {
-			logf("Bad face reference in node %d: %d / %d", i, nodes[i].firstFace, faceCount);
+			const char* msg = cstrf("Bad face reference in node %d: %d / %d", i, nodes[i].firstFace, faceCount);
 			if (nodes[i].nFaces == 0) {
 				nodes[i].firstFace = 0;
-				logf(" (fixed!)");
+				logf("%s (fixed!)\n", msg);
 			}
-			logf("\n");
+			else {
+				errorf("%s\n", msg);
+			}
 			isValid = false;
 		}
 		if (nodes[i].iPlane < 0 || nodes[i].iPlane >= planeCount) {
-			logf("Bad plane reference in node %d: %d / %d\n", i, nodes[i].iPlane, planeCount);
+			errorf("Bad plane reference in node %d: %d / %d\n", i, nodes[i].iPlane, planeCount);
 			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (nodes[i].iChildren[k] >= nodeCount) {
-				logf("Bad node reference in node %d child %d: %d / %d\n", i, k, nodes[i].iChildren[k], nodeCount);
+				errorf("Bad node reference in node %d child %d: %d / %d\n", i, k, nodes[i].iChildren[k], nodeCount);
 				isValid = false;
 			}
 			else if (nodes[i].iChildren[k] < 0 && ~nodes[i].iChildren[k] >= leafCount) {
-				logf("Bad leaf reference in node %d child %d: %d / %d\n", i, k, ~nodes[i].iChildren[k], leafCount);
+				errorf("Bad leaf reference in node %d child %d: %d / %d\n", i, k, ~nodes[i].iChildren[k], leafCount);
 				isValid = false;
 			}
 		}
@@ -6501,7 +6506,7 @@ bool Bsp::validate() {
 		if (nodes[i].nMins.x > nodes[i].nMaxs.x ||
 			nodes[i].nMins.y > nodes[i].nMaxs.y ||
 			nodes[i].nMins.z > nodes[i].nMaxs.z) {
-			logf("Backwards mins/maxs in node %d. Mins: (%d, %d, %d) Maxs: (%d %d %d)\n", i,
+			warnf("Backwards mins/maxs in node %d. Mins: (%d, %d, %d) Maxs: (%d %d %d)\n", i,
 				(int)nodes[i].nMins.x, (int)nodes[i].nMins.y, (int)nodes[i].nMins.z,
 				(int)nodes[i].nMaxs.x, (int)nodes[i].nMaxs.y, (int)nodes[i].nMaxs.z);
 			isValid = false;
@@ -6510,15 +6515,16 @@ bool Bsp::validate() {
 	for (int i = 0; i < planeCount; i++) {
 		BSPPLANE& plane = planes[i];
 		float normLen = plane.vNormal.length();
-
 		
 		if (normLen < 0.5f) {
-			logf("Bad normal for plane %d", i);
+			const char* msg = cstrf("Bad normal for plane %d", i);
 			if (normLen > 0) {
 				plane.vNormal = plane.vNormal.normalize(1.0f);
-				logf(" (fixed!)");
+				logf("%s (fixed!)\n", msg);
 			}
-			logf("\n");
+			else {
+				errorf("%s\n", msg);
+			}
 			
 			isValid = false;
 		}
@@ -6526,19 +6532,19 @@ bool Bsp::validate() {
 
 	for (int i = 0; i < clipnodeCount; i++) {
 		if (clipnodes[i].iPlane < 0 || clipnodes[i].iPlane >= planeCount) {
-			logf("Bad plane reference in clipnode %d: %d / %d\n", i, clipnodes[i].iPlane, planeCount);
+			errorf("Bad plane reference in clipnode %d: %d / %d\n", i, clipnodes[i].iPlane, planeCount);
 			isValid = false;
 		}
 		for (int k = 0; k < 2; k++) {
 			if (clipnodes[i].iChildren[k] >= clipnodeCount) {
-				logf("Bad clipnode reference in clipnode %d child %d: %d / %d\n", i, k, clipnodes[i].iChildren[k], clipnodeCount);
+				errorf("Bad clipnode reference in clipnode %d child %d: %d / %d\n", i, k, clipnodes[i].iChildren[k], clipnodeCount);
 				isValid = false;
 			}
 		}
 	}
 	for (int i = 0; i < ents.size(); i++) {
 		if (ents[i]->getBspModelIdx() >= modelCount) {
-			logf("Bad model reference in entity %d: %d / %d\n", i, ents[i]->getBspModelIdx(), modelCount);
+			errorf("Bad model reference in entity %d: %d / %d\n", i, ents[i]->getBspModelIdx(), modelCount);
 			isValid = false;
 		}
 	}
@@ -6546,25 +6552,28 @@ bool Bsp::validate() {
 	bool notContig = false;
 	int totalVisLeaves = 1; // solid leaf not included in model leaf counts
 	int totalFaces = 0;
+	vector<int> unlinkedFaces;
 	for (int i = 0; i < modelCount; i++) {
 		totalVisLeaves += models[i].nVisLeafs;
 		totalFaces += models[i].nFaces;
 		if ((models[i].iFirstFace < 0 || models[i].iFirstFace + models[i].nFaces > faceCount)) {
-			logf("Bad face reference in model %d: %d / %d", i, models[i].iFirstFace, faceCount);
+			const char* msg = cstrf("Bad face reference in model %d: %d / %d", i, models[i].iFirstFace, faceCount);
 			if (models[i].nFaces == 0) {
 				models[i].iFirstFace = 0;
-				logf(" (fixed!)");
+				logf("%s (fixed!)\n", msg);
 			}
-			logf("\n");
+			else {
+				errorf("%s\n", msg);
+			}
 			isValid = false;
 		}
 		if (models[i].iHeadnodes[0] >= nodeCount) {
-			logf("Bad node reference in model %d hull 0: %d / %d\n", i, models[i].iHeadnodes[0], nodeCount);
+			errorf("Bad node reference in model %d hull 0: %d / %d\n", i, models[i].iHeadnodes[0], nodeCount);
 			isValid = false;
 		}
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (models[i].iHeadnodes[k] >= clipnodeCount) {
-				logf("Bad clipnode reference in model %d hull %d: %d / %d\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
+				errorf("Bad clipnode reference in model %d hull %d: %d / %d\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
 				isValid = false;
 			}
 		}
@@ -6583,13 +6592,48 @@ bool Bsp::validate() {
 		}
 
 		STRUCTUSAGE usage = STRUCTUSAGE(this);
-		mark_model_structures(i, &usage, false);
-		usage.compute_sum();
-		if (usage.sum.faces != models[i].nFaces) {
-			// This isn't necessarily an error. A func_illusionary with a null face can set lower face count
-			logf("Unexpected face count in model %d: %d / %d\n", i, usage.sum.faces, models[i].nFaces);
+		mark_model_structures(i, &usage, i != 0);
+		int faceSum = 0;
+		for (int i = 0; i < faceCount; i++)
+			faceSum += usage.faces[i];
+		if (faceSum != models[i].nFaces) {
+			// This isn't necessarily an error. A func_illusionary with a null face can set lower face count.
+			// Newly created BSP models also reuse leaves from the world since leaf faces don't matter for submodels.
+			warnf("Expected %d faces in model %d but found %d\n", models[i].nFaces, i, faceSum);
 		}
 		
+		if (i == 0) {
+			STRUCTUSAGE nodeUsage = STRUCTUSAGE(this);
+			STRUCTUSAGE leafUsage = STRUCTUSAGE(this);
+
+			for (int k = 0; k < nodeCount; k++) {
+				if (usage.nodes[k]) {
+					BSPNODE& node = nodes[k];
+
+					for (int i = 0; i < node.nFaces; i++) {
+						nodeUsage.faces[node.firstFace + i] = true;
+					}
+					for (int j = 0; j < 2; j++) {
+						if (node.iChildren[j] < 0) {
+							BSPLEAF& leaf = leaves[~node.iChildren[j]];
+							
+							for (int f = 0; f < leaf.nMarkSurfaces; f++) {
+								leafUsage.faces[marksurfs[leaf.iFirstMarkSurface + f]] = true;
+							}
+						}
+					}
+				}
+			}
+
+			for (int k = 0; k < faceCount; k++) {
+				if (nodeUsage.faces[k] && !leafUsage.faces[k]) {
+					BSPTEXTUREINFO& info = texinfos[faces[k].iTextureInfo];
+					if (info.nFlags & TEX_SPECIAL)
+						continue; // shouldn't be visible anyway
+					unlinkedFaces.push_back(k);
+				}
+			}
+		}
 		
 		int lastNode = -1;
 		for (int k = 0; k < nodeCount; k++) {
@@ -6620,12 +6664,21 @@ bool Bsp::validate() {
 		}
 	}
 	if (totalVisLeaves != leafCount) {
-		logf("Bad model vis leaf sum: %d / %d\n", totalVisLeaves, leafCount);
+		warnf("Bad model vis leaf sum: %d / %d\n", totalVisLeaves, leafCount);
 		isValid = false;
 	}
 	if (totalFaces != faceCount) {
-		logf("Bad model face sum: %d / %d\n", totalFaces, faceCount);
+		warnf("Bad model face sum: %d / %d\n", totalFaces, faceCount);
 		isValid = false;
+	}
+	for (int i = 0; i < unlinkedFaces.size(); i++) {
+		int faceIdx = unlinkedFaces[i];
+		if (add_face_to_touched_leaves(faceIdx)) {
+			logf("Face %d was not linked to any leaves (fixed!)\n", faceIdx);
+		}
+		else {
+			logf("Face %d is not linked to any leaves, and none are nearby. It will be invisible in-game.\n", faceIdx);
+		}
 	}
 
 	if (notContig) {
@@ -6640,7 +6693,7 @@ bool Bsp::validate() {
 		}
 	}
 	if (worldspawn_count != 1) {
-		logf("Found %d worldspawn entities (expected 1). This can cause crashes and svc_bad errors.\n", worldspawn_count);
+		errorf("Found %d worldspawn entities (expected 1). This can cause crashes and svc_bad errors.\n", worldspawn_count);
 		isValid = false;
 	}
 
@@ -6682,34 +6735,34 @@ bool Bsp::validate() {
 		}
 	}
 	if (missingBspModelCount) {
-		logf("%d solid entities have no model key set\n", missingBspModelCount);
+		warnf("%d solid entities have no model key set\n", missingBspModelCount);
 	}
 	if (badModelRefCount) {
-		logf("%d entities have invalid BSP model references\n", badModelRefCount);
+		errorf("%d entities have invalid BSP model references\n", badModelRefCount);
 	}
 	if (oobCount) {
-		logf("%d entities outside of the map boundaries\n", oobCount);
+		warnf("%d entities outside of the map boundaries\n", oobCount);
 	}
 	if (badOriginCount) {
-		logf("%d entities have origins that may cause problems (see \"Zero Entity Origins\" tool)\n", badOriginCount);
+		warnf("%d entities have origins that may cause problems (see \"Zero Entity Origins\" tool)\n", badOriginCount);
 	}
 
 	for (int i = 0; i < textureCount; i++) {
 		BSPMIPTEX* tex = get_texture(i);
 		if (!tex) {
 			int32_t texOffset = ((int32_t*)textures)[i + 1];
-			logf("Invalid offset %d for texture ID %d\n", texOffset, i);
+			errorf("Invalid offset %d for texture ID %d\n", texOffset, i);
 			continue;
 		}
 
 		if (tex->nWidth * tex->nHeight > g_limits.max_texturepixels) {
-			logf("Texture '%s' too large (%dx%d)\n", tex->szName, tex->nWidth, tex->nHeight);
+			errorf("Texture '%s' too large (%dx%d)\n", tex->szName, tex->nWidth, tex->nHeight);
 		}
 	}
 
 	int missing_textures = count_missing_textures();
 	if (missing_textures) {
-		logf("%d missing textures\n", missing_textures);
+		warnf("%d missing textures\n", missing_textures);
 	}
 
 	return isValid;
@@ -7523,9 +7576,22 @@ void Bsp::merge_simple_leaf_chains() {
 					q.push(node.iChildren[i]);
 				else {
 					int leafIdx = ~node.iChildren[i];
+					BSPLEAF& leaf = leaves[leafIdx];
 					if (leaves[leafIdx].nContents == CONTENTS_SKY) {
-						skyLeaves.insert(leafIdx);
-						node.iChildren[i] = ~sharedSkyLeafIdx;
+
+						bool anyNormalFaces = false;
+						for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+							BSPFACE& face = faces[marksurfs[leaf.iFirstMarkSurface + k]];
+							if (!(texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)) {
+								anyNormalFaces = true;
+								break;
+							}
+						}
+
+						if (!anyNormalFaces) {
+							skyLeaves.insert(leafIdx);
+							node.iChildren[i] = ~sharedSkyLeafIdx;
+						}
 					}
 				}
 			}
@@ -7538,6 +7604,85 @@ void Bsp::merge_simple_leaf_chains() {
 	totalReduce += mergedSky;
 	logf("Merged %d world leaves (%d normal + %d sky)\n",
 		totalReduce, mergedNormal, mergedSky);
+}
+
+void Bsp::add_face_to_leaf(int faceIdx, int leafIdx) {
+	if (leafIdx <= 0 || leafIdx >= leafCount || faceIdx < 0 || faceIdx >= faceCount)
+		return;
+
+	BSPLEAF& leaf = leaves[leafIdx];
+
+	bool alreadyAdded = false;
+	for (int i = 0; i < leaf.nMarkSurfaces; i++) {
+		if (marksurfs[leaf.iFirstMarkSurface + i] == faceIdx) {
+			alreadyAdded = true;
+			break;
+		}
+	}
+
+	if (alreadyAdded) {
+		logf("Face %d is already marked by leaf %d\n", faceIdx, leafIdx);
+		return;
+	}
+
+	debugf("Linked face %d to leaf %d\n", faceIdx, leafIdx);
+
+	BSPMARKSURF* newMarks = new BSPMARKSURF[marksurfCount + 1];
+	int copyEnd = leaf.iFirstMarkSurface + leaf.nMarkSurfaces;
+	memcpy(newMarks, marksurfs, sizeof(BSPMARKSURF)*copyEnd);
+	memcpy(newMarks + copyEnd + 1, marksurfs + copyEnd, sizeof(BSPMARKSURF)*(marksurfCount - copyEnd));
+
+	newMarks[leaf.iFirstMarkSurface + leaf.nMarkSurfaces] = faceIdx;
+	leaf.nMarkSurfaces += 1;
+
+	for (int i = 1; i < leafCount; i++) {
+		BSPLEAF& otherLeaf = leaves[i];
+		if (i != leafIdx && otherLeaf.iFirstMarkSurface >= copyEnd) {
+			otherLeaf.iFirstMarkSurface++;
+		}
+	}
+	
+	replace_lump(LUMP_MARKSURFACES, newMarks, (marksurfCount + 1) * sizeof(BSPMARKSURF));
+}
+
+bool Bsp::add_face_to_touched_leaves(int faceIdx) {
+	if (faceIdx < 0 || faceIdx >= faceCount)
+		return false;
+
+	if (!g_app->mapRenderer->leafNavMesh) {
+		g_app->mapRenderer->reloadLeaves(true);
+	}
+
+	LeafNavMesh* mesh = g_app->mapRenderer->leafNavMesh;
+
+	LeafNode dummy;
+	get_face_bounding_box(faceIdx, dummy.mins, dummy.maxs);
+	vector<bool> regionLeaves(leafCount);
+
+	mesh->octree->getLeavesInRegion(&dummy, regionLeaves);
+
+	vector<vec3> verts;
+	get_face_verts(faceIdx, verts);
+	Polygon3D poly(verts);
+
+	bool linkedToAny = false;
+
+	for (int i = 0; i < mesh->nodes.size(); i++) {
+		if (!regionLeaves[i])
+			continue;
+
+		LeafNode& node = mesh->nodes[i];
+
+		for (int k = 0; k < node.leafFaces.size(); k++) {
+			if (poly.overlapping(node.leafFaces[k])) {
+				add_face_to_leaf(faceIdx, node.leafIdx);
+				linkedToAny = true;
+				break;
+			}
+		}
+	}
+
+	return linkedToAny;
 }
 
 void Bsp::get_terminal_leaves(int iNode, vector<int>& terminalLeaves) {

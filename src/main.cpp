@@ -8,14 +8,13 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - assign faces that lost their leaves
-
-// nice to have v6:
-// - even lower texture quality for maps with huge textures
-// - mega buffer for leaves
-// - name tag render distance
 
 // todo:
+// very broken texture crossedpaths1 propaganda_02 with paletted textures. Messing with render settings fixed it. Can't repro.
+// got a crash copying and pasting a BSP model without faces. Can't repro.
+// even lower texture quality for maps with huge textures
+// mega buffer for leaves
+// name tag render distance 
 // transparent quake textures (always, render mode doesn't exist) 
 // animated/scrolling textures 
 // show class name as well as target name
@@ -80,7 +79,7 @@
 
 // refactoring:
 // stop mixing camel case and underscores
-// render, bsp, GUI classes are way too big and doing too many things and too many state checks
+// Editor and bsp classes are way too big and doing too many things and too many state checks
 
 // Ideas for commands:
 // decompile:

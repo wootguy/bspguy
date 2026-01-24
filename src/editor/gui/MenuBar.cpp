@@ -1109,7 +1109,7 @@ void MenuBar::drawSettingsMenu() {
 					changed = app->autoSelectEngine(app->mapRenderer->map, false);
 				}
 			}
-			tooltip("Automatically select an engine best suited for the BSP file that was loaded. "
+			tooltip("Automatically select the engine best suited for the BSP file that was loaded. "
 				"Disable this to convert between BSP formats.");
 
 			ImGui::Separator();

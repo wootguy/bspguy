@@ -210,7 +210,7 @@ void BspRenderer::loadTextures() {
 		}
 	}
 
-	bool use_q1_pal = (g_settings.engine == ENGINE_QUAKE_1 || g_settings.engine == BSP_QUAKE1_BSP2);
+	bool use_q1_pal = (g_settings.engine == ENGINE_QUAKE_1 || g_settings.engine == ENGINE_QUAKE_1_BSP2);
 
 	glTexturesSwap = new Texture * [map->textureCount];
 	for (int i = 0; i < map->textureCount; i++) {

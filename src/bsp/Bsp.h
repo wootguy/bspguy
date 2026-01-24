@@ -208,6 +208,12 @@ public:
 	// descend the node until hitting a terminal leaf or 2-node fork
 	void get_simple_leaf_branch(int iNode, vector<int>& branch);
 
+	void add_face_to_leaf(int faceIdx, int leafIdx);
+
+	// find leaves which make contact with the given faces and add the leaf to it
+	// returns true if added to any leaves
+	bool add_face_to_touched_leaves(int faceIdx);
+
 	// merge all branches of the BSP tree which have a leaf at every node until termination
 	void merge_simple_leaf_chains();
 
