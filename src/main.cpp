@@ -9,8 +9,6 @@
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
 // - assign faces that lost their leaves
-// - crash pasting GAMEMODE_TRAM_TEST2 model in tram area
-// - big lag on first click
 
 // nice to have v6:
 // - even lower texture quality for maps with huge textures

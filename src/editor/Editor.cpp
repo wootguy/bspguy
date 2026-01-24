@@ -2826,7 +2826,9 @@ void Editor::setupView() {
 void Editor::addMap(Bsp* map) {
 	g_settings.addRecentFile(map->path);
 	g_settings.save(); // in case the program crashes
-	
+
+	autoSelectEngine(map, false);
+
 	delete navRenderer;
 	navRenderer = new NavRenderer();
 
@@ -4903,4 +4905,48 @@ void Editor::exit() {
 
 	g_settings.save();
 	logf("adios\n");
+}
+
+bool Editor::autoSelectEngine(Bsp* map, bool reloadIfChanged) {
+	if (!map || !g_settings.auto_engine_select && !g_settings.ripent_safe_mode)
+		return false;
+
+	int oldEngine = g_settings.engine;
+	int autoFormat = map->lastSaveFormat != -1 ? map->lastSaveFormat : map->lastLoadformat;
+
+	switch (autoFormat) {
+	case BSP_QUAKE1:
+		g_settings.engine = ENGINE_QUAKE_1;
+		break;
+	case BSP_QUAKE1_BSP2:
+	case BSP_QUAKE1_2PSB:
+		g_settings.engine = ENGINE_QUAKE_1_BSP2;
+		break;
+	case BSP_HALFLIFE:
+	default:
+		g_settings.engine = ENGINE_HALF_LIFE;
+
+		g_limits = g_engine_limits[g_settings.engine];
+		if (!map->isWritable() || map->has_bad_extents()) {
+			g_settings.engine = ENGINE_SVEN_COOP;
+		}
+		break;
+	case BSP_BLUESHIFT:
+		g_settings.engine = ENGINE_BLUE_SHIFT;
+		break;
+	}
+	
+	bool changed = g_settings.engine != oldEngine;
+
+	if (g_settings.engine != oldEngine) {
+		warnf("Engine changed from %s to %s to prevent file format changes\n",
+			g_engine_names[oldEngine], g_engine_names[g_settings.engine]);
+
+		g_limits = g_engine_limits[g_settings.engine];
+		if (reloadIfChanged)
+			mapRenderer->reload();
+		gui->reloadLimits();
+	}
+
+	return changed;
 }

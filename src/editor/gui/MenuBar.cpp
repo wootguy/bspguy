@@ -1101,7 +1101,22 @@ void MenuBar::drawSettingsMenu() {
 		bool changed = false;
 		if (ImGui::BeginMenu("Engine")) {
 			ImGui::BeginDisabled(g_settings.ripent_safe_mode);
-			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE, !app->isLoading)) {
+
+			if (ImGui::MenuItem("Auto", 0, g_settings.auto_engine_select, !app->isLoading)) {
+				g_settings.auto_engine_select = !g_settings.auto_engine_select;
+
+				if (g_settings.auto_engine_select) {
+					changed = app->autoSelectEngine(app->mapRenderer->map, false);
+				}
+			}
+			tooltip("Automatically select an engine best suited for the BSP file that was loaded. "
+				"Disable this to convert between BSP formats.");
+
+			ImGui::Separator();
+
+			ImGui::BeginDisabled(app->isLoading || g_settings.auto_engine_select);
+
+			if (ImGui::MenuItem("Half-Life", 0, g_settings.engine == ENGINE_HALF_LIFE)) {
 				changed = g_settings.engine != ENGINE_HALF_LIFE;
 				g_settings.engine = ENGINE_HALF_LIFE;
 				if (g_settings.mapsize_auto) {
@@ -1114,7 +1129,7 @@ void MenuBar::drawSettingsMenu() {
 				"textures from WAD files. Due to a buffer overflow bug in the renderer, the max leaves "
 				"allowed in the world model is reduced to 8192 from 32760.\n");
 
-			if (ImGui::MenuItem("Half-Life: Blue Shift", 0, g_settings.engine == ENGINE_BLUE_SHIFT, !app->isLoading)) {
+			if (ImGui::MenuItem("Half-Life: Blue Shift", 0, g_settings.engine == ENGINE_BLUE_SHIFT)) {
 				changed = g_settings.engine != ENGINE_BLUE_SHIFT;
 				g_settings.engine = ENGINE_BLUE_SHIFT;
 				if (g_settings.mapsize_auto) {
@@ -1125,7 +1140,7 @@ void MenuBar::drawSettingsMenu() {
 			tooltip("A slightly modified version of the Half-Life engine.\n\nThis engine uses the BSP30 "
 				"format with different ordering of data. No limits are changed.\n");
 
-			if (ImGui::MenuItem("Sven Co-op 5.0", 0, g_settings.engine == ENGINE_SVEN_COOP, !app->isLoading)) {
+			if (ImGui::MenuItem("Sven Co-op 5.0", 0, g_settings.engine == ENGINE_SVEN_COOP)) {
 				changed = g_settings.engine != ENGINE_SVEN_COOP;
 				g_settings.engine = ENGINE_SVEN_COOP;
 				if (g_settings.mapsize_auto) {
@@ -1154,7 +1169,7 @@ void MenuBar::drawSettingsMenu() {
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Quake 1", 0, g_settings.engine == ENGINE_QUAKE_1, !app->isLoading)) {
+			if (ImGui::MenuItem("Quake 1", 0, g_settings.engine == ENGINE_QUAKE_1)) {
 				changed = g_settings.engine != ENGINE_QUAKE_1;
 				g_settings.engine = ENGINE_QUAKE_1;
 				if (g_settings.mapsize_auto) {
@@ -1168,7 +1183,7 @@ void MenuBar::drawSettingsMenu() {
 				"External QLIT files (.lit) are automatically imported and generated for source ports that "
 				"support colored lightmaps.\n");
 
-			if (ImGui::MenuItem("Quake 1 (BSP2)", 0, g_settings.engine == ENGINE_QUAKE_1_BSP2, !app->isLoading)) {
+			if (ImGui::MenuItem("Quake 1 (BSP2)", 0, g_settings.engine == ENGINE_QUAKE_1_BSP2)) {
 				changed = g_settings.engine != ENGINE_QUAKE_1_BSP2;
 				g_settings.engine = ENGINE_QUAKE_1_BSP2;
 				if (g_settings.mapsize_auto) {
@@ -1177,7 +1192,7 @@ void MenuBar::drawSettingsMenu() {
 				}
 			}
 			tooltip("An upgraded Quake 1 engine with support for the BSP2 file format.\n\n"
-				"BSP2 increases map structure limits to the point of irrelevence. Lighting and "
+				"BSP2 increases map limits so much that they no longer matter. Lighting and "
 				"texture palette limitations still apply. External QLIT files (.lit) are automatically imported and generated for source ports that "
 				"support colored lightmaps.\n\n"
 				"Some source ports that can load BSP2 files:\n"
@@ -1191,7 +1206,7 @@ void MenuBar::drawSettingsMenu() {
 				"  - TyrQuake\n"
 				"  - Xash3D\n"
 			);
-
+			ImGui::EndDisabled();
 			ImGui::EndDisabled();
 
 			ImGui::EndMenu();

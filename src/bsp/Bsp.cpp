@@ -3053,6 +3053,23 @@ bool Bsp::has_bad_extents(int textureIdx, float scale) {
 	return false;
 }
 
+bool Bsp::has_bad_extents() {
+	for (int i = 0; i < faceCount; i++) {
+		BSPTEXTUREINFO& info = texinfos[faces[i].iTextureInfo];
+
+		if ((info.nFlags & TEX_SPECIAL)) {
+			continue;
+		}
+
+		int size[2];
+		if (!GetFaceLightmapSize(this, i, size)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 float Bsp::get_scale_to_fix_bad_extents(int textureIdx) {
 	float bestScale = 1.0f;
 	float lastWorkingScale = 1.0f;
@@ -6269,6 +6286,7 @@ bool Bsp::isWritable() {
 		&& marksurfCount < g_limits.max_marksurfaces
 		&& surfedgeCount < g_limits.max_surfedges
 		&& edgeCount < g_limits.max_edges
+		&& (modelCount == 0 || models[0].nVisLeafs < g_limits.max_worldleaves)
 		&& lightstyle_count() < 255;
 }
 

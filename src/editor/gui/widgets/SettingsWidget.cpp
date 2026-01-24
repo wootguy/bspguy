@@ -89,6 +89,7 @@ void SettingsWidget::draw() {
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Invert Y axis camera rotation.\n");
 		}
+		ImGui::BeginDisabled(app->isLoading);
 		if (ImGui::Checkbox("Ripent Safe Mode", &g_settings.ripent_safe_mode)) {
 			if (g_settings.ripent_safe_mode) {
 				g_app->deselectFaces();
@@ -97,27 +98,8 @@ void SettingsWidget::draw() {
 				app->transformTarget = TRANSFORM_OBJECT;
 				gui->widgets[WIDGET_FACE_EDITOR]->widgetVisible = false;
 				
-				int oldEngine = g_settings.engine;
-				int autoFormat = map->lastSaveFormat != -1 ? map->lastSaveFormat : map->lastLoadformat;
-				switch (autoFormat) {
-				case BSP_QUAKE1:
-					g_settings.engine = ENGINE_QUAKE_1;
-					break;
-				case BSP_QUAKE1_BSP2:
-					g_settings.engine = ENGINE_QUAKE_1_BSP2;
-					break;
-				case BSP_HALFLIFE:
-				default:
-					g_settings.engine = ENGINE_SVEN_COOP;
-					break;
-				case BSP_BLUESHIFT:
-					g_settings.engine = BSP_BLUESHIFT;
-					break;
-				}
-				if (g_settings.engine != oldEngine) {
-					warnf("Engine changed from %s to %s to prevent file format changes\n",
-						g_engine_names[oldEngine], g_engine_names[g_settings.engine]);
-				}
+				g_settings.auto_engine_select = true;
+				app->autoSelectEngine(map, true);
 
 				if (map->did_lumps_change(true)) {
 					const char* msg = "You have made edits that are not ripent safe. "
@@ -136,6 +118,8 @@ void SettingsWidget::draw() {
 			"Enable this then do whatever you want without fear of triggering "
 			"the \"Your map differs from the server's\" error."
 			"\n\nYou can also enable this before saving the map to discard any unsafe edits.", 0);
+		ImGui::EndDisabled();
+		
 		ImGui::NextColumn();
 
 		ImGui::Checkbox("Confirm Close", &g_settings.confirm_exit);

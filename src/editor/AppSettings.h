@@ -42,6 +42,7 @@ struct AppSettings {
 	bool ripent_safe_mode;
 	bool tex_browser_uniform_grid;
 	int tex_browser_scale;
+	bool auto_engine_select;
 
 	bool debug_open;
 	bool keyvalue_open;

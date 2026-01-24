@@ -487,6 +487,9 @@ public:
 	// true if any face using this texture has bad extents, if texture info is scaled by scale
 	bool has_bad_extents(int textureIdx, float scale);
 
+	// true if any face in the map has bad extents
+	bool has_bad_extents();
+
 	// returns how much to scale up face textures to fix all bad extents in the map
 	float get_scale_to_fix_bad_extents(int textureIdx);
 

@@ -185,6 +185,7 @@ public:
 	Frustum getCameraFrustum();
 	vec3 worldToScreen(const vec3& P);
 	void exit();
+	bool autoSelectEngine(Bsp* map, bool reloadIfChanged); // returns true if changed
 
 private:
 	GLFWwindow* window;

@@ -46,6 +46,7 @@ void AppSettings::loadDefault()
 	freetype_font = false;
 	texture_atlas = true;
 	pal_textures = true;
+	auto_engine_select = true;
 	g_settings.max_texture_size = 0;
 	settings_tab = 0;
 	render_scale = 100;
@@ -121,6 +122,7 @@ void AppSettings::load() {
 			else if (key == "ripent_safe_mode") { g_settings.ripent_safe_mode = atoi(val.c_str()); }
 			else if (key == "tex_browser_uniform_grid") { g_settings.tex_browser_uniform_grid = atoi(val.c_str()); }
 			else if (key == "tex_browser_scale") { g_settings.tex_browser_scale = atoi(val.c_str()); }
+			else if (key == "auto_engine_select") { g_settings.auto_engine_select = atoi(val.c_str()); }
 			else if (key == "fov") { g_settings.fov = atof(val.c_str()); }
 			else if (key == "zfar") { g_settings.zfar = atof(val.c_str()); }
 			else if (key == "zfarmdl") { g_settings.zFarMdl = atof(val.c_str()); }
@@ -265,6 +267,7 @@ void AppSettings::save() {
 	file << "ripent_safe_mode=" << g_settings.ripent_safe_mode << endl;
 	file << "tex_browser_uniform_grid=" << g_settings.tex_browser_uniform_grid << endl;
 	file << "tex_browser_scale=" << g_settings.tex_browser_scale << endl;
+	file << "auto_engine_select=" << g_settings.auto_engine_select << endl;
 }
 
 void AppSettings::addRecentFile(string map) {

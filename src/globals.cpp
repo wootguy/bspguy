@@ -20,8 +20,8 @@ MapLimits g_limits;
 MapLimits g_engine_limits[ENGINE_TYPES];
 const char* g_engine_names[ENGINE_TYPES] = {
 	"Half-Life",
-	"Blue Shift",
 	"Sven Co-op 5.0",
+	"Blue Shift",
 	"Quake 1",
 	"Quake 1 (BSP2)",
 };
