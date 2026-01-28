@@ -3330,23 +3330,23 @@ bool Bsp::subdivide_face(int faceIdx, bool dryRunForExtents) {
 	int totalMarks = marksurfCount + addMarks;
 
 	bool limitExceeded = false;
-	if (totalMarks > g_limits.max_marksurfaces) {
+	if (totalMarks >= INT32_MAX) {
 		logf("Exceeded max marksurfaces while subdividing face\n");
 		limitExceeded = true;
 	}
-	if (faceCount + 1 > g_limits.max_faces) {
+	if (faceCount + 1 >= INT32_MAX) {
 		logf("Exceeded max faces while subdividing face\n");
 		limitExceeded = true;
 	}
-	if (edgeCount + addVerts > g_limits.max_edges) {
+	if (edgeCount + addVerts >= INT32_MAX) {
 		logf("Exceeded max edges while subdividing face\n");
 		limitExceeded = true;
 	}
-	if (surfedgeCount + addVerts > g_limits.max_surfedges) {
+	if (surfedgeCount + addVerts >= INT32_MAX) {
 		logf("Exceeded max edges while subdividing face\n");
 		limitExceeded = true;
 	}
-	if (vertCount + addVerts > g_limits.max_vertexes) {
+	if (vertCount + addVerts >= INT32_MAX) {
 		logf("Exceeded max vertexes while subdividing face\n");
 		limitExceeded = true;
 	}
@@ -6111,6 +6111,7 @@ void Bsp::load_ents(byte* lump, int lumpLen, vector<Entity*>& entList)
 	string line = "";
 	while (getline(in, line))
 	{
+		line = trimSpaces(line);
 		lineNum++;
 		if (line.length() < 1 || line[0] == '\n')
 			continue;

@@ -647,6 +647,7 @@ void BspRenderer::reloadLeaves(bool reloadNow) {
 		return;
 	}
 
+	g_app->hiddenLeaves.clear();
 	deleteRenderLeaves();
 
 	leavesLoaded = false;

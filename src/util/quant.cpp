@@ -117,7 +117,7 @@ std::vector<COLOR3> median_cut_quantize(COLOR3* pixels, int pixel_count, int k) 
 
     // quantize the image
     for (int i = 0; i < pixel_count; ++i) {
-        int min_dist = FLT_MAX;
+        int min_dist = INT32_MAX;
         int best = 0;
         for (int j = 0; j < palette.size(); ++j) {
             int d = color_distance(pixels[i], palette[j]);

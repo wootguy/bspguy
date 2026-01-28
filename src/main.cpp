@@ -10,6 +10,7 @@
 // - update version string
 
 // todo:
+// warning for solid ents without a hull 0 (server/client crash)
 // very broken texture crossedpaths1 propaganda_02 with paletted textures. Messing with render settings fixed it. Can't repro.
 // got a crash copying and pasting a BSP model without faces. Can't repro.
 // even lower texture quality for maps with huge textures
