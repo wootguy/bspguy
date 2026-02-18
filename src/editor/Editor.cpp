@@ -4939,8 +4939,7 @@ bool Editor::autoSelectEngine(Bsp* map, bool reloadIfChanged) {
 	bool changed = g_settings.engine != oldEngine;
 
 	if (g_settings.engine != oldEngine) {
-		warnf("Engine changed from %s to %s to prevent file format changes\n",
-			g_engine_names[oldEngine], g_engine_names[g_settings.engine]);
+		logf("Auto selected engine: %s\n", g_engine_names[g_settings.engine]);
 
 		if (g_settings.mapsize_auto) {
 			if (g_settings.engine == ENGINE_SVEN_COOP) {

@@ -198,7 +198,7 @@ void BspRenderer::loadTextures() {
 	glPaletteSwap = NULL;
 	if (g_settings.pal_textures) {
 		palAtlasHeight = 16;
-		while (palAtlasHeight < map->textureCount / 4) {
+		while (palAtlasHeight <= map->textureCount / 4) {
 			palAtlasHeight *= 2;
 		}
 
