@@ -1546,16 +1546,27 @@ void MenuBar::drawToolsMenu() {
 		}
 		
 		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Leaves")) {
-			if (ImGui::MenuItem("World Leaf Reduction", 0, false, !app->isLoading)) {
-				LumpReplaceCommand* command = new LumpReplaceCommand("World Leaf Reduction");
+			if (ImGui::MenuItem("Merge World Leaves", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("Merge World Leaves");
 				
 				map->merge_simple_leaf_chains();
 				map->remove_unused_model_structures(false).print_delete_stats(1);
 
 				command->pushUndoState();
 			}
-			tooltip("Merges simple leaf chains which don't split out into different branches in the BSP "
+			tooltip("Merges simple world leaf chains which don't split out into different branches in the BSP "
 				"tree. World leaf count will be reduced and more faces will be visible on average after doing this.");
+
+			if (ImGui::MenuItem("Merge Sky Leaves", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("Merge Sky Leaves");
+
+				map->merge_sky_leaves();
+				map->remove_unused_model_structures(false).print_delete_stats(1);
+
+				command->pushUndoState();
+			}
+			tooltip("Merges sky leaves into a single giant leaf with visibility info discarded. Don't use this if players or cameras are allowed to enter a sky brush.");
+
 
 			ImGui::EndMenu();
 		}

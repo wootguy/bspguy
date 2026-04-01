@@ -2086,7 +2086,7 @@ void Bsp::delete_oob_nodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& c
 	}
 	else if (parentBranch && isoob) {
 		// we know which nodes are OOB now, so it's safe to unlink this node from the paranet
-		*parentBranch = CONTENTS_SOLID;
+		*parentBranch = ~0; // solid leaf
 		removedNodes++;
 	}
 }
@@ -7559,57 +7559,57 @@ void Bsp::merge_simple_leaf_chains() {
 
 	compress_vis(decompressedVis);
 
-	int mergedNormal = totalReduce;
-	int mergedSky = 0;
+	logf("Merged %d world leaves\n", totalReduce);
+}
 
-	{
-		std::queue<int> q;
-		q.push(headNode);
+void Bsp::merge_sky_leaves() {
+	int headNode = models[0].iHeadnodes[0];
 
-		unordered_set<int> skyLeaves;
+	std::queue<int> q;
+	q.push(headNode);
 
-		insert_leaves(models[0].nVisLeafs+1, 1);
-		int sharedSkyLeafIdx = models[0].nVisLeafs+1;
-		leaves[sharedSkyLeafIdx].nContents = CONTENTS_SKY;
+	unordered_set<int> skyLeaves;
 
-		while (!q.empty()) {
-			int idx = q.front();
-			BSPNODE& node = nodes[idx];
-			q.pop();
+	insert_leaves(models[0].nVisLeafs + 1, 1);
+	int sharedSkyLeafIdx = models[0].nVisLeafs + 1;
+	leaves[sharedSkyLeafIdx].nContents = CONTENTS_SKY;
 
-			for (int i = 0; i < 2; i++) {
-				if (node.iChildren[i] >= 0)
-					q.push(node.iChildren[i]);
-				else {
-					int leafIdx = ~node.iChildren[i];
-					BSPLEAF& leaf = leaves[leafIdx];
-					if (leaves[leafIdx].nContents == CONTENTS_SKY) {
+	while (!q.empty()) {
+		int idx = q.front();
+		BSPNODE& node = nodes[idx];
+		q.pop();
 
-						bool anyNormalFaces = false;
-						for (int k = 0; k < leaf.nMarkSurfaces; k++) {
-							BSPFACE& face = faces[marksurfs[leaf.iFirstMarkSurface + k]];
-							if (!(texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)) {
-								anyNormalFaces = true;
-								break;
-							}
+		for (int i = 0; i < 2; i++) {
+			if (node.iChildren[i] >= 0)
+				q.push(node.iChildren[i]);
+			else {
+				int leafIdx = ~node.iChildren[i];
+				BSPLEAF& leaf = leaves[leafIdx];
+				if (leaves[leafIdx].nContents == CONTENTS_SKY) {
+
+					bool anyNormalFaces = false;
+					for (int k = 0; k < leaf.nMarkSurfaces; k++) {
+						BSPFACE& face = faces[marksurfs[leaf.iFirstMarkSurface + k]];
+						if (!(texinfos[face.iTextureInfo].nFlags & TEX_SPECIAL)) {
+							anyNormalFaces = true;
+							break;
 						}
+					}
 
-						if (!anyNormalFaces) {
-							skyLeaves.insert(leafIdx);
-							node.iChildren[i] = ~sharedSkyLeafIdx;
-						}
+					if (!anyNormalFaces) {
+						skyLeaves.insert(leafIdx);
+						node.iChildren[i] = ~sharedSkyLeafIdx;
 					}
 				}
 			}
 		}
-
-		if (skyLeaves.size())
-			mergedSky = skyLeaves.size() - 1;
 	}
 
-	totalReduce += mergedSky;
-	logf("Merged %d world leaves (%d normal + %d sky)\n",
-		totalReduce, mergedNormal, mergedSky);
+	int mergedSky = 0;
+	if (skyLeaves.size())
+		mergedSky = skyLeaves.size() - 1;
+
+	logf("Merged %d sky leaves\n", mergedSky);
 }
 
 void Bsp::add_face_to_leaf(int faceIdx, int leafIdx) {

@@ -345,6 +345,9 @@ void LeafWidget::draw() {
         }
 
         float sz = max(1, 5 - gnode.depth) * 3;
+        if (map->leafCount < 64)
+            sz = 3; // avoid overlapping
+
         ImVec2 rectMin(start.x - sz, start.y - sz);
         ImVec2 rectMax(start.x + sz, start.y + sz);
         bool isHovering = ImGui::IsMouseHoveringRect(rectMin, rectMax);

@@ -217,6 +217,9 @@ public:
 	// merge all branches of the BSP tree which have a leaf at every node until termination
 	void merge_simple_leaf_chains();
 
+	// merge all sky leaves into one (assumes players should never see inside them)
+	void merge_sky_leaves();
+
 	// find the lowest node in the BSP tree that contains all given leaves
 	int get_lowest_common_node(vector<int>& leaves);
 
