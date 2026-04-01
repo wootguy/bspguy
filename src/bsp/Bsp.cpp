@@ -2019,6 +2019,9 @@ STRUCTCOUNT Bsp::delete_unused_hulls(bool noProgress) {
 
 void Bsp::delete_oob_nodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
 	bool* oobHistory, bool isFirstPass, int& removedNodes) {
+	if (iNode < 0 || iNode >= nodeCount)
+		return;
+
 	BSPNODE& node = nodes[iNode];
 	float oob_coord = g_settings.mapsize_max;
 
@@ -2090,6 +2093,8 @@ void Bsp::delete_oob_nodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& c
 
 void Bsp::delete_oob_clipnodes(int iNode, int32_t* parentBranch, vector<BSPPLANE>& clipOrder, int oobFlags, 
 	bool* oobHistory, bool isFirstPass, int& removedNodes)  {
+	if (iNode < 0 || iNode >= clipnodeCount)
+		return;
 	BSPCLIPNODE& node = clipnodes[iNode];
 	float oob_coord = g_settings.mapsize_max;
 

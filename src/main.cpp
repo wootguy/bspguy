@@ -8,6 +8,10 @@
 // fix v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
+// - quake map crashes on conversion to hl/sven, also clean/optimize crashes the program
+// - maps compiled with ericw tools dont work "when merging and moving the worldspawn it mangles the entities"
+// - entities flickering in the void clicking dis_beta after moving it
+// - delete OOB creates giant merged leaves in the void that cause VIS problems later
 
 // todo:
 // warning for solid ents without a hull 0 (server/client crash)
@@ -93,7 +97,7 @@
 // Removing HULL 0 from solid model crashes game when standing on it
 
 
-const char* g_version_string = "bspguy v6 WIP (September 2025)";
+const char* g_version_string = "bspguy v6 WIP (Apr 2025)";
 
 bool g_verbose = false;
 
