@@ -823,6 +823,8 @@ void Editor::clearMapData() {
 	pvsCopyLeaves.clear();
 	hiddenFaces.clear();
 	hiddenLeaves.clear();
+	entLinks.clear();
+	entConnectionGraph.clear();
 	clearStringMap();
 	((FaceEditor*)gui->widgets[WIDGET_FACE_EDITOR])->clearTextureBrowserCache();
 
