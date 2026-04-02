@@ -499,7 +499,7 @@ void KeyvalueEditor::drawSmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, bool
 						KeyvalueChoice& choice = keyvalue.choices[k];
 						bool selected = choice.svalue == value || (value.empty() && choice.svalue == keyvalue.defaultValue);
 
-						if (ImGui::Selectable((choice.name).c_str(), selected)) {
+						if (ImGui::Selectable((choice.name + "##menu" + to_string(bufferIdx) + "_opt" + to_string(k)).c_str(), selected)) {
 							for (int i = 0; i < g_app->pickInfo.ents.size(); i++) {
 								int idx = g_app->pickInfo.ents[i];
 								Entity* ent = g_app->pickInfo.getMap()->ents[idx];
