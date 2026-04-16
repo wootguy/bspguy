@@ -5544,7 +5544,7 @@ bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)
 
 	memset(&state, 0, sizeof(LumpState));
 
-	if (size < sizeof(BSPHEADER) + sizeof(BSPLUMP)*HEADER_LUMPS)
+	if (!fin.is_open() || size < sizeof(BSPHEADER) + sizeof(BSPLUMP)*HEADER_LUMPS)
 		return false;
 
 	fin.read((char*)&head.nVersion, sizeof(int));
@@ -10894,7 +10894,7 @@ unordered_map<string, string> Bsp::get_tex_lights() {
 
 			StringMap::iterator_t iter;
 			while (keys.iterate(iter)) {
-				if (strcmp(iter.key, "classname"))
+				if (strcmp(iter.key, "classname") && strcmp(iter.key, "origin"))
 					texlights[toUpperCase(iter.key)] = iter.value;
 			}
 		}
@@ -10983,9 +10983,12 @@ bool Bsp::add_texlights(const unordered_map<string, string>& newLights) {
 		texlights[toUpperCase(item.first)] = item.second;
 	}
 
+	vec3 ori;
+
 	for (int i = 0; i < ents.size(); i++) {
 		Entity* ent = ents[i];
 		if (ent->getClassname() == "info_texlights") {
+			ori = ent->getOrigin();
 			delete ent;
 			ents.erase(ents.begin() + i);
 			i--;
@@ -11003,6 +11006,9 @@ bool Bsp::add_texlights(const unordered_map<string, string>& newLights) {
 
 	for (const string& key : keys) {
 		texlights_ent->setOrAddKeyvalue(key, texlights[key]);
+	}
+	if (ori != vec3()) {
+		texlights_ent->setOrAddKeyvalue("origin", ori.toKeyvalueString());
 	}
 
 	texlights_ent->setOrAddKeyvalue("classname", "info_texlights");
@@ -11031,15 +11037,6 @@ bool Bsp::replace_texlights(string texlightString) {
 		string name = toUpperCase(line.substr(0, space));
 		string args = trimSpaces(line.substr(space));
 		texlights[name] = args;
-	}
-
-	for (int i = 0; i < ents.size(); i++) {
-		Entity* ent = ents[i];
-		if (ent->getClassname() == "info_texlights") {
-			delete ent;
-			ents.erase(ents.begin() + i);
-			i--;
-		}
 	}
 
 	return add_texlights(texlights);

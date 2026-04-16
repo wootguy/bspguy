@@ -203,7 +203,7 @@ void RadWidget::draw() {
 		sort(keys.begin(), keys.end());
 
 		for (const string& key : keys) {
-			texlightString += key + "\t\t" + texlights[key] + "\n";
+			texlightString += key + "    " + texlights[key] + "\n";
 		}
 		strncpy(buffer, texlightString.c_str(), 65535);
 		buffer[65535] = 0;
@@ -331,6 +331,9 @@ void RadWidget::draw() {
 		else {
 			command->pushUndoState();
 		}
+
+		g_app->deselectObject();
+		g_app->gui->refresh();
 
 		map->update_ent_lump();
 		map->write(map->path);

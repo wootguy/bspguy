@@ -41,7 +41,7 @@ void KeyvalueEditor::draw() {
 		if (cname == "worldspawn") {
 			ImGui::Text(cname.c_str());
 		}
-		else if (ImGui::Button(sameClassesSelected ? (" " + cname + " ").c_str() : "<multiple>")) {
+		else if (ImGui::Button(sameClassesSelected ? (" " + cname + " ##kvcname").c_str() : "<multiple>##kvcname")) {
 			ImGui::OpenPopup("classname_popup");
 		}
 		ImGui::PopFont();
@@ -65,7 +65,7 @@ void KeyvalueEditor::draw() {
 				ImGui::PushFont(gui->defaultFont, g_font_scale_base * 1.1f);
 			}
 			ImGui::SameLine();
-			if (ImGui::Button((" " + fgd->name + " ").c_str()))
+			if (ImGui::Button((" " + fgd->name + " ##kvfdg").c_str()))
 				ImGui::OpenPopup("fgd_popup");
 			ImGui::PopFont();
 		}
