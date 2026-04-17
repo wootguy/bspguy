@@ -6113,54 +6113,66 @@ void Bsp::load_ents(byte* lump, int lumpLen, vector<Entity*>& entList)
 	int lastBracket = -1;
 	Entity* ent = NULL;
 
-	string line = "";
-	while (getline(in, line))
-	{
-		line = trimSpaces(line);
-		lineNum++;
-		if (line.length() < 1 || line[0] == '\n')
-			continue;
+	string current, key, value;
+	bool inString = false;
+	bool readingKey = true;
 
-		if (line[0] == '{')
-		{
-			if (lastBracket == 0)
-			{
-				logf("%s.bsp ent data (line %d): Unexpected '{'\n", path.c_str(), lineNum);
-				continue;
+	char c;
+	while (in.get(c)) {
+		if (inString) {
+			if (c == '"') {
+				inString = false;
+
+				if (readingKey) {
+					key = current;
+					readingKey = false;
+				}
+				else {
+					value = current;
+
+					if (ent && !key.empty())
+						ent->setOrAddKeyvalue(key, value);
+
+					key.clear();
+					value.clear();
+					readingKey = true;
+				}
+
+				current.clear();
 			}
-			lastBracket = 0;
-
-			if (ent != NULL)
-				delete ent;
-			ent = new Entity();
+			else {
+				current += c; // keep everything, including newlines
+			}
+			continue;
 		}
-		else if (line[0] == '}')
-		{
-			if (lastBracket == 1)
-				logf("%s.bsp ent data (line %d): Unexpected '}'\n", path.c_str(), lineNum);
-			lastBracket = 1;
 
-			if (ent == NULL)
+		// not inside string
+		if (c == '"') {
+			inString = true;
+			current.clear();
+		}
+		else if (c == '{') {
+			if (ent)
+				delete ent;
+
+			ent = new Entity();
+			readingKey = true;
+			key.clear();
+			value.clear();
+		}
+		else if (c == '}') {
+			if (!ent)
 				continue;
 
 			if (ent->hasKey("classname"))
 				entList.push_back(ent);
 			else
-				logf("Found unknown classname entity. Skip it.\n");
-			ent = NULL;
+				logf("Removed entity with no classname.\n");
 
-			// you can end/start an ent on the same line, you know
-			if (line.find("{") != string::npos)
-			{
-				ent = new Entity();
-				lastBracket = 0;
-			}
+			ent = NULL;
 		}
-		else if (lastBracket == 0 && ent != NULL) // currently defining an entity
-		{
-			Keyvalue k(line);
-			if (k.key.length() && k.value.length())
-				ent->setOrAddKeyvalue(k.key, k.value);
+		else {
+			// ignore everything else outside strings (whitespace, newlines, etc.)
 		}
 	}
 
