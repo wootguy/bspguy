@@ -60,6 +60,7 @@ BaseHashMap::BaseHashMap(int valueSz) {
 	stringPoolSz = 0;
 	entryCount = 0;
 	delCount = 0;
+	reserveSz = 0;
 	this->entrySz = valueSz + sizeof(entry_header_t);
 	memset(&stats, 0, sizeof(hash_map_stats_t));
 }
@@ -81,6 +82,7 @@ void BaseHashMap::copyFrom(const BaseHashMap& other) {
 	entrySz = other.entrySz;
 	entryCount = other.entryCount;
 	delCount = other.delCount;
+	reserveSz = other.reserveSz;
 
 	if (other.data) {
 		int dataSz = stringPoolSz + maxEntries * entrySz;

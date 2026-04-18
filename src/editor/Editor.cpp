@@ -1087,7 +1087,7 @@ void Editor::drawViewport() {
 	if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
 		mapRenderer->updatePvs(cameraOrigin);
 
-		if ((g_settings.render_flags & RENDER_PVS))
+		if ((g_settings.render_flags & RENDER_PVS) && !previewMode)
 			mapRenderer->drawPvs();
 	}
 
@@ -4733,6 +4733,7 @@ void Editor::merge(string fpath) {
 
 	if (mergeResult.overflow) {
 		delete command;
+		gui->showWidget(WIDGET_MERGE_FAILED, true);
 		return; // map deleted later in gui modal, after displaying limit overflows
 	}
 	

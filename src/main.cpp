@@ -12,6 +12,8 @@
 // - maps compiled with ericw tools dont work "when merging and moving the worldspawn it mangles the entities"
 // - entities flickering in the void clicking dis_beta after moving it
 // - ent links don't move with Grab
+// - some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
+// - don't purge/copy bsp model
 
 // todo:
 // warning for solid ents without a hull 0 (server/client crash)

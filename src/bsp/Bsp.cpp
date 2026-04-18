@@ -6109,8 +6109,6 @@ void Bsp::load_ents(byte* lump, int lumpLen, vector<Entity*>& entList)
 	membuf sbuf((char*)lump, lumpLen);
 	istream in(&sbuf);
 
-	int lineNum = 0;
-	int lastBracket = -1;
 	Entity* ent = NULL;
 
 	string current, key, value;
@@ -6762,7 +6760,7 @@ bool Bsp::validate() {
 		warnf("%d entities outside of the map boundaries\n", oobCount);
 	}
 	if (badOriginCount) {
-		warnf("%d entities have origins that may cause problems (see \"Zero Entity Origins\" tool)\n", badOriginCount);
+		warnf("%d entities have origins that may cause problems (see \"Zero Model Origins\" tool)\n", badOriginCount);
 	}
 
 	for (int i = 0; i < textureCount; i++) {

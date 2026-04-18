@@ -121,10 +121,10 @@ bool Entity::renameKey(string oldName, string newName) {
 		return false;
 	}
 	
-	const char* oldVal = keyvalues.get(oldName.c_str());
+	string oldVal = keyvalues.get(oldName.c_str());
 	keyOrder[hasKey] = newName;
 	keyvalues.del(oldName.c_str());
-	keyvalues.put(newName.c_str(), oldVal ? oldVal : "");
+	keyvalues.put(newName.c_str(), oldVal.size() ? oldVal.c_str() : "");
 	clearCache();
 	return true;
 }
