@@ -14,6 +14,11 @@
 // - ent links don't move with Grab
 // - some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
 // - don't purge/copy bsp model
+// - scaling water textures causes client crash? but subdivide doesn't?
+// - moving map after converting leaves to model corrupts the model
+// - select connected planar texture not working right in multi select, its like each face checks all possible planes
+// - scale/shift face not previewed for func_wall
+// - 3d drag axes dont work if map is moved
 
 // todo:
 // warning for solid ents without a hull 0 (server/client crash)

@@ -1084,11 +1084,13 @@ void Editor::drawViewport() {
 		mapRenderer->renderLeaves();
 	}
 
-	if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
-		mapRenderer->updatePvs(cameraOrigin);
+	if (!mapArrangeMode) {
+		if (g_settings.show_wpoly || (g_settings.render_flags & RENDER_PVS)) {
+			mapRenderer->updatePvs(cameraOrigin);
 
-		if ((g_settings.render_flags & RENDER_PVS) && !previewMode)
-			mapRenderer->drawPvs();
+			if ((g_settings.render_flags & RENDER_PVS) && !previewMode)
+				mapRenderer->drawPvs();
+		}
 	}
 
 	glCheckError("Rendering leaf selection");
@@ -2867,7 +2869,8 @@ void Editor::addMap(Bsp* map) {
 
 	emptyMapLoaded = false;
 
-	logf("Loaded %s: %s\n", g_bsp_format_names[map->lastLoadformat], map->path.c_str());
+	const char* fmt = map->lastLoadformat >= 0 ? g_bsp_format_names[map->lastLoadformat] : "BSP";
+	logf("Loaded %s: %s\n", fmt, map->path.c_str());
 
 	glCheckError("add map");
 }
