@@ -194,6 +194,10 @@ vector<WADTEX> Wad::readAllTextures() {
 	const char* file = (path.c_str());
 	vector<WADTEX> allTextures;
 
+	if (!dirEntries) {
+		return allTextures;
+	}
+
 	ifstream fin(file, ifstream::in | ios::binary);
 	if (!fin.good())
 		return allTextures;
