@@ -13,7 +13,7 @@ CommandLine::CommandLine(int argc, char* argv[]) {
 			command = larg;
 		}
 		if (i == 2) {
-			bspfile = larg;
+			bspfile = arg;
 		}
 		if (i > 2)
 		{
