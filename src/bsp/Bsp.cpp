@@ -533,6 +533,97 @@ void Bsp::get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<Node
 	}
 }
 
+int Bsp::count_clipnode_solids(int iNode) {
+	BSPCLIPNODE& node = clipnodes[iNode];
+
+	if (node.iPlane < 0) {
+		return 0;
+	}
+
+	int totalSolid = 0;
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			totalSolid += count_clipnode_solids(node.iChildren[i]);
+		}
+		else if (node.iChildren[i] < 0 && node.iChildren[0] != CONTENTS_EMPTY) {
+			totalSolid += 1;
+		}
+	}
+
+	return totalSolid;
+}
+
+int Bsp::expand_clipnode_hull_node(int iNode, float vertical, float horizontal) {
+	BSPCLIPNODE& node = clipnodes[iNode];
+
+	if (node.iPlane < 0) {
+		return 0;
+	}
+
+	int planesAdded = 0;
+
+	if ((node.iChildren[0] < 0 || node.iChildren[1] < 0)) {
+		BSPPLANE newPlane = planes[node.iPlane];
+
+		int oldPlane = node.iPlane;
+		const char* dir = "UP";
+
+		if (node.iChildren[0] == CONTENTS_EMPTY) {
+			newPlane.fDist += vertical * dotProduct(newPlane.vNormal, vec3(0, 0, 1));
+		}
+		else if (node.iChildren[1] == CONTENTS_EMPTY) {
+			newPlane.fDist -= vertical * dotProduct(newPlane.vNormal, vec3(0, 0, 1));
+		}
+		else if (node.iChildren[1] < 0) {
+			newPlane.fDist += vertical * dotProduct(newPlane.vNormal, vec3(0, 0, 1));
+		}
+		else if (node.iChildren[0] < 0) {
+			newPlane.fDist -= vertical * dotProduct(newPlane.vNormal, vec3(0, 0, 1));
+		}
+
+		int sharePlaneIdx = -1;
+		for (int i = 0; i < planeCount; i++) {
+			if (!memcmp(&newPlane, &planes[i], sizeof(BSPPLANE))) {
+				sharePlaneIdx = i;
+				break;
+			}
+		}
+
+		if (sharePlaneIdx != -1) {
+			node.iPlane = sharePlaneIdx;
+		}
+		else {
+			int newPlaneIdx = create_plane();
+			planes[newPlaneIdx] = newPlane;
+			node.iPlane = newPlaneIdx;
+			planesAdded++;
+		}
+
+		//logf("Node %d (child %d, %d) move plane %d %s -> ID %d\n", iNode,
+		//	node.iChildren[0], node.iChildren[1], oldPlane, dir, node.iPlane);
+	}
+	else {
+		int solidFront = count_clipnode_solids(node.iChildren[0]);
+		int solidBack = count_clipnode_solids(node.iChildren[1]);
+		// TODO: Need some way to test which side of the node is solid
+		logf("don't know how to move node %d. Solids = %d front, %d back\n", iNode, solidFront, solidBack);
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (node.iChildren[i] >= 0) {
+			planesAdded += expand_clipnode_hull_node(node.iChildren[i], vertical, horizontal);
+		}
+	}
+
+	return planesAdded;
+}
+
+void Bsp::expand_clipnode_hull(int hull, float vertical, float horizontal) {
+	int planesAdded = expand_clipnode_hull_node(models[0].iHeadnodes[1], vertical, horizontal);
+	logf("Created %d new planes\n", planesAdded);
+}
+
 bool Bsp::is_convex(int modelIdx) {
 	return models[modelIdx].iHeadnodes[0] >= 0 && is_node_hull_convex(models[modelIdx].iHeadnodes[0]);
 }

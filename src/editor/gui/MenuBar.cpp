@@ -1523,6 +1523,19 @@ void MenuBar::drawToolsMenu() {
 			ImGui::EndMenu();
 		}
 
+		if (false && !g_settings.ripent_safe_mode && ImGui::BeginMenu("Clipnodes")) {
+			if (ImGui::MenuItem("Convert Quake Clipnodes", 0, false, !app->isLoading)) {
+				LumpReplaceCommand* command = new LumpReplaceCommand("Convert Quake Clipnodes");
+
+				map->expand_clipnode_hull(1, 10, 10);
+
+				command->pushUndoState();
+			}
+			tooltip("Convert Quake clipnode hulls to Half-Life.");
+
+			ImGui::EndMenu();
+		}
+
 		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Faces")) {
 			if (ImGui::MenuItem("Fix Bad Surface Extents", 0, false, !app->isLoading)) {
 				gui->showWidget(WIDGET_FIX_EXTENTS, true);

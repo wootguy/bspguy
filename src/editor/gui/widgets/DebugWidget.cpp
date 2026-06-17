@@ -184,11 +184,23 @@ void DebugWidget::drawSelectionDetails() {
 
 						ImGui::Text("Nav ID: %d", leafNavIdx);
 					}
-					ImGui::Text("Parent Node: %d (child %d)",
-						nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode,
-						childIdx);
+					int parentNodeIdx = nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode;
+					int planeIdx = i == 0 ? map->nodes[parentNodeIdx].iPlane : map->clipnodes[parentNodeIdx].iPlane;
+					int child0 = i == 0 ? map->nodes[parentNodeIdx].iChildren[0] : map->clipnodes[parentNodeIdx].iChildren[0];
+					int child1 = i == 0 ? map->nodes[parentNodeIdx].iChildren[1] : map->clipnodes[parentNodeIdx].iChildren[1];
+					BSPPLANE& plane = map->planes[planeIdx];
+					vec3 n = plane.vNormal;
+					ImGui::Text("Parent Node: %d (child %d, Children: [%d, %d])",
+						parentNodeIdx, childIdx, child0, child1);
+					ImGui::Text("Parent Plane: %d = (%.2f %.2f %.2f) + %.2f",
+						planeIdx, n.x, n.y, n.z, plane.fDist);
 					ImGui::Text("Head Node: %d", headNode);
 					ImGui::Text("Depth: %d", nodeBranch.size());
+
+					if (app->debugClipnodes) {
+						BSPPLANE& plane = map->planes[map->clipnodes[parentNodeIdx].iPlane];
+						drawPlane(plane, COLOR4(255, 255, 255, 255));
+					}
 
 					ImGui::Unindent();
 					ImGui::TreePop();

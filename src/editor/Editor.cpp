@@ -1228,13 +1228,34 @@ void Editor::drawMapBoundary() {
 
 void Editor::drawDebugObjects() {
 	int modelIdx = pickInfo.getModelIndex();
+	Bsp* map = pickInfo.getMap();
 
 	if (debugClipnodes && modelIdx > 0) {
 		BSPMODEL* pickModel = pickInfo.getModel();
 		glDisable(GL_CULL_FACE);
 		int currentPlane = 0;
-		drawClipnodes(pickInfo.getMap(), pickModel->iHeadnodes[1], currentPlane, debugInt);
+		drawClipnodes(map, pickModel->iHeadnodes[1], currentPlane, debugInt);
 		debugIntMax = currentPlane - 1;
+		glEnable(GL_CULL_FACE);
+	}
+
+	if (debugClipnodes && false) {
+		glDisable(GL_CULL_FACE);
+
+		vec3 localCamera = cameraOrigin - mapRenderer->mapOffset;
+		if (pickInfo.getEnt()) {
+			localCamera -= pickInfo.getEnt()->getOrigin();
+		}
+
+		vector<int> nodeBranch;
+		int leafIdx;
+		int childIdx = -1;
+		int headNode = map->models[0].iHeadnodes[1];
+		int contents = map->pointContents(headNode, localCamera, 1, nodeBranch, leafIdx, childIdx);
+		int parentNodeIdx = nodeBranch.size() ? nodeBranch[nodeBranch.size() - 1] : headNode;
+		BSPPLANE& plane = map->planes[map->clipnodes[parentNodeIdx].iPlane];
+		drawPlane(plane, COLOR4(255, 255, 255, 255));
+
 		glEnable(GL_CULL_FACE);
 	}
 
@@ -1242,7 +1263,7 @@ void Editor::drawDebugObjects() {
 		BSPMODEL* pickModel = pickInfo.getModel();
 		glDisable(GL_CULL_FACE);
 		int currentPlane = 0;
-		drawNodes(pickInfo.getMap(), pickModel->iHeadnodes[0], currentPlane, debugNode);
+		drawNodes(map, pickModel->iHeadnodes[0], currentPlane, debugNode);
 		debugNodeMax = currentPlane - 1;
 		glEnable(GL_CULL_FACE);
 	}

@@ -1882,6 +1882,7 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx, bool newOnly) {
 		}
 
 		vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i, CONTENTS_SOLID);
+		//vector<NodeVolumeCuts> solidNodes = map->get_model_leaf_volume_cuts(modelIdx, i, CONTENTS_EMPTY);
 
 		static COLOR4 hullColors[] = {
 			COLOR4(255, 255, 255, 255),
@@ -1894,8 +1895,19 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx, bool newOnly) {
 		vector<clipnodeVert> allVerts;
 
 		for (int k = 0; k < solidNodes.size(); k++) {
+
+			/*
+			for (int j = 0; j < solidNodes[k].cuts.size(); j++) {
+				solidNodes[k].cuts[j].fDist *= -1;
+				solidNodes[k].cuts[j].vNormal *= -1;
+			}
+			*/
+
 			CMesh mesh = clipper.clip(solidNodes[k].cuts);
 			clipnodeLeafCount++;
+			
+			//color = hullColors[k % 4];
+
 			generateNodeMesh(&mesh, color, allVerts, renderClip->faceMathVerts,
 				renderClip->faceMathLocalVerts, renderClip->faceMaths[i], solidNodes[k].nodeIdx);
 		}

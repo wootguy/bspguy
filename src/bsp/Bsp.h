@@ -321,6 +321,14 @@ public:
 	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
 	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
 
+	int count_clipnode_solids(int iNode);
+
+	// returns number of planes created
+	int expand_clipnode_hull_node(int hull, float vertical, float horizontal);
+
+	// expand/shrink clipnode hull planes
+	void expand_clipnode_hull(int hull, float vertical, float horizontal);
+
 	// this a cheat to recalculate plane normals after scaling a solid. Really I should get the plane
 	// intersection code working for nonconvex solids, but that's looking like a ton of work.
 	// Scaling/stretching really only needs 3 verts _anywhere_ on the plane to calculate new normals/origins.
