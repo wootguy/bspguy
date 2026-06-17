@@ -1794,7 +1794,16 @@ void Gui::selectFacesByTexture(uint32_t selectedMiptex, bool badExtentsOnly) {
 	g_app->mapRenderer->highlightPickedFaces(false);
 
 	app->pickInfo.deselect();
-	for (int i = 0; i < map->faceCount; i++) {
+
+	int startIdx = 0;
+	int count = map->faceCount;
+
+	if (!(g_settings.render_flags & RENDER_ENTS)) {
+		startIdx = map->models[0].iFirstFace;
+		count = map->models[0].nFaces;
+	}
+
+	for (int i = startIdx; i < count; i++) {
 		BSPTEXTUREINFO& info = map->texinfos[map->faces[i].iTextureInfo];
 		if (info.iMiptex == selectedMiptex) {
 
