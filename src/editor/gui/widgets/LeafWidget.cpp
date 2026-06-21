@@ -380,8 +380,13 @@ void LeafWidget::draw() {
             if (gnode.nodeType == 0) {
                 BSPNODE& node = map->nodes[gnode.nodeIdx];
                 vec3 sz = node.nMaxs - node.nMins;
-                ImGui::TextUnformatted(cstrf("Node %d\nDepth: %d\nFaces: %d (offset %d)\nSize: %d %d %d",
-                    gnode.nodeIdx, gnode.depth, node.nFaces, node.firstFace, (int)sz.x, (int)sz.y, (int)sz.z));
+                BSPPLANE& plane = map->planes[node.iPlane];
+                ImGui::TextUnformatted(
+                    cstrf("Node %d\nDepth: %d\nPlane: (%.2f %.2f %.2f) * %d\nFaces: %d (offset %d)\nSize: %d %d %d",
+                        gnode.nodeIdx, gnode.depth,
+                        plane.vNormal.x, plane.vNormal.y, plane.vNormal.z, (int)plane.fDist,
+                        node.nFaces, node.firstFace,
+                        (int)sz.x, (int)sz.y, (int)sz.z));
             }
             else {
                 int leafIdx = (gnode.nodeIdx >> 32) - 1;

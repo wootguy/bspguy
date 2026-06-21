@@ -7063,7 +7063,7 @@ int32_t Bsp::pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch,
 	if (iNode < 0) {
 		leafIdx = -1;
 		childIdx = -1;
-		return iNode;
+		return hull == 0 ? leaves[~iNode].nContents : iNode;
 	}
 
 	if (hull == 0) {
@@ -7198,8 +7198,8 @@ bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, v
 	float pdif = p2f - p1f;
 	float midf = p1f + pdif * frac;
 
-	vec3 point = p2 - p1;
-	vec3 mid = p1 + (point * frac);
+	vec3 delta = p2 - p1;
+	vec3 mid = p1 + (delta * frac);
 
 	// check if trace is empty up until this plane that was just intersected
 	if (!recursiveHullCheck(hull, node->iChildren[side], p1f, midf, p1, mid, trace)) {

@@ -1268,6 +1268,17 @@ void Editor::drawDebugObjects() {
 		glEnable(GL_CULL_FACE);
 	}
 
+	if (false) {
+		vec3 start = cameraOrigin;
+		vec3 end = cameraOrigin - vec3(0, 0, 2048);
+		TraceResult tr;
+		map->traceHull(start, end, 0, &tr);
+		end = tr.vecEndPos;
+		vec3 sz = vec3(4, 4, 4);
+
+		drawBox(end - sz, end + sz, COLOR4(0, 255, 0, 128));
+	}
+
 	if (g_app->debugPoly.isValid)
 		drawPolygon3D(g_app->debugPoly, COLOR4(0, 255, 0, 150));
 	if (g_app->debugPoly2.isValid)
