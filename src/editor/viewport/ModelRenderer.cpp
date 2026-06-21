@@ -188,6 +188,8 @@ bool ModelRenderer::drawModelsAndSprites(vec3 renderOffset, vec3 cameraOrigin, v
 
 	bool modelsLoading = false;
 
+	float gamma = 1.0f / 1.5f;
+
 	vector<DepthSortedEnt> depthSortedMdlEnts;
 	for (int i = 0; i < ents.size(); i++) {
 		Entity* ent = ents[i];
@@ -345,7 +347,13 @@ bool ModelRenderer::drawModelsAndSprites(vec3 renderOffset, vec3 cameraOrigin, v
 		vec3 drawAngles = ent->drawAngles;
 
 		if (mdl->isStudioModel()) {
-			((StudioMdlRenderer*)mdl)->draw(drawOri, drawAngles, ent, cameraOrigin, camRight, isSelected);
+			COLOR3 shadeColor = COLOR3(255, 255, 255);
+
+			if (g_app->previewMode) {
+				shadeColor = g_app->mapRenderer->map->get_lighting(drawOri);
+			}
+
+			((StudioMdlRenderer*)mdl)->draw(drawOri, drawAngles, ent, cameraOrigin, camRight, isSelected, shadeColor);
 		}
 		else if (mdl->isSprite()) {
 			COLOR3 color = COLOR3(255, 255, 255);

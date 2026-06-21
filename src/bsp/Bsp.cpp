@@ -7221,6 +7221,7 @@ bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, v
 	// the other side of the node is solid, this is the impact point
 	trace->vecPlaneNormal = plane->vNormal;
 	trace->flPlaneDist = side ? -plane->fDist : plane->fDist;
+	trace->iNode = num;
 
 	// backup the trace if the collision point is considered solid due to poor float precision
 	// shouldn't really happen, but does occasionally
@@ -7247,7 +7248,7 @@ bool Bsp::recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, v
 	return false;
 }
 
-void Bsp::traceHull(vec3 start, vec3 end, int hull, TraceResult* trace)
+bool Bsp::traceHull(vec3 start, vec3 end, int hull, TraceResult* trace)
 {
 	if (hull < 0 || hull > 3)
 		hull = 0;
@@ -7261,7 +7262,78 @@ void Bsp::traceHull(vec3 start, vec3 end, int hull, TraceResult* trace)
 	trace->fAllSolid = true;
 
 	// trace a line through the appropriate clipping hull
-	recursiveHullCheck(hull, headnode, 0.0f, 1.0f, start, end, trace);
+	return recursiveHullCheck(hull, headnode, 0.0f, 1.0f, start, end, trace);
+}
+
+int Bsp::traceFace(vec3 start, vec3 end, int& u, int& v) {
+	u = v = 0;
+
+	TraceResult tr;
+	if (traceHull(start, end, 0, &tr)) {
+		return -1;
+	}
+
+	BSPNODE& node = nodes[tr.iNode];
+
+	for (int i = 0; i < node.nFaces; i++) {
+		int faceIdx = node.firstFace + i;
+		BSPFACE& face = faces[faceIdx];
+		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+
+		int bmins[2];
+		int bmaxs[2];
+		GetFaceExtents(this, faceIdx, bmins, bmaxs);
+
+		int mins[2];
+		int maxs[2];
+		for (int k = 0; k < 2; k++) {
+			maxs[k] = (bmaxs[k] - bmins[k]) * 16;
+			mins[k] = bmins[k] * 16;
+		}
+
+		int ds = (int)(dotProduct(tr.vecEndPos, info.vS) + info.shiftS);
+		int dt = (int)(dotProduct(tr.vecEndPos, info.vT) + info.shiftT);
+
+		if (ds >= mins[0] && dt >= mins[1] && ds - mins[0] <= maxs[0] && dt - mins[1] <= maxs[1]) {
+			u = ds - mins[0];
+			v = dt - mins[1];
+			return faceIdx;
+		}
+	}
+
+	return -1;
+}
+
+COLOR3 Bsp::get_lighting(vec3 pos)
+{
+	COLOR3 light = COLOR3(0, 0, 0);
+	int u, v;
+
+	int faceIdx = traceFace(pos, pos - vec3(0, 0, 2048), u, v);
+	
+	if (faceIdx == -1) {
+		return light;
+	}
+
+	BSPFACE& face = faces[faceIdx];
+
+	int lmap_sz[2];
+	GetFaceLightmapSize(this, faceIdx, lmap_sz);
+
+	int lx = u / 16;
+	int ly = v / 16;
+	int offset = face.nLightmapOffset + (ly * lmap_sz[0] + lx) * 3;
+
+	for (int s = 0; s < MAXLIGHTMAPS; s++) {
+		if (face.nStyles[s] == 255 || !g_app->lightStylesEnabled[s])
+			break;
+		light.r += lightdata[offset];
+		light.g += lightdata[offset + 1];
+		light.b += lightdata[offset + 2];
+		offset += lmap_sz[0] * lmap_sz[1] * 3;
+	}
+
+	return light;
 }
 
 const char* Bsp::getLeafContentsName(int32_t contents) {

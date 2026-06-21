@@ -177,8 +177,12 @@ public:
 	int32_t pointContents(int iNode, vec3 p, int hull, vector<int>& nodeBranch, int& leafIdx, int& childIdx);
 	int32_t pointContents(int iNode, vec3 p, int hull);
 	bool recursiveHullCheck(int hull, int num, float p1f, float p2f, vec3 p1, vec3 p2, TraceResult* trace);
-	void traceHull(vec3 start, vec3 end, int hull, TraceResult* ptr);
+	bool traceHull(vec3 start, vec3 end, int hull, TraceResult* ptr); // true if intersected anything
+	int traceFace(vec3 start, vec3 end, int& u, int& v); // returns -1 if no face intersected. u and v set to texture coordinate intersect
 	const char* getLeafContentsName(int32_t contents);
+
+	// get lightmap value underneath this point, for entity illumination
+	COLOR3 get_lighting(vec3 pos);
 
 	// returns true if leaf is in the PVS from the given position
 	bool is_leaf_visible(int ileaf, vec3 pos);

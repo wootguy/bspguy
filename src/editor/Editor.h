@@ -162,6 +162,8 @@ public:
 	vec3 debugTraceStart;
 	TraceResult debugTrace;
 
+	bool lightStylesEnabled[MAXLIGHTMAPS];
+
 	Editor();
 	~Editor();
 
@@ -306,8 +308,6 @@ private:
 
 	bool isBoxSelecting;
 	vec2 boxSelectStart, boxSelectEnd;
-
-	bool lightStylesEnabled[MAXLIGHTMAPS];
 
 	bool createWindow();
 	void updateGpuSupportFlags();

@@ -527,6 +527,7 @@ void Editor::compileShaderPrograms() {
 			{"viewerOrigin", UNIFORM_VEC3},
 			{"viewerRight", UNIFORM_VEC3},
 			{"boneMatrixTexture", UNIFORM_INT},
+			{"gamma", UNIFORM_FLOAT},
 		});
 	}
 
@@ -1277,6 +1278,9 @@ void Editor::drawDebugObjects() {
 		vec3 sz = vec3(4, 4, 4);
 
 		drawBox(end - sz, end + sz, COLOR4(0, 255, 0, 128));
+
+		COLOR3 color = map->get_lighting(cameraOrigin);
+		logf("COLOR: %d %d %d\n", color.r, color.g, color.b);
 	}
 
 	if (g_app->debugPoly.isValid)

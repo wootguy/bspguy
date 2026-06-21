@@ -1393,7 +1393,7 @@ void StudioMdlRenderer::transformVerts(int body, bool forRender, vec3 viewerOrig
 	}
 }
 
-void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected) {
+void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected, COLOR3 shadeColor) {
 	glCheckError("entering MDL render");
 	
 	if (!valid || loadState != MODEL_LOAD_DONE) {
@@ -1414,7 +1414,7 @@ void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerO
 	if (isSelected)
 		opts.rendercolor = COLOR3(255, 0, 0);
 	else {
-		opts.rendercolor = COLOR3(255, 255, 255);
+		opts.rendercolor = shadeColor;
 	}
 
 	float now = glfwGetTime();
@@ -1473,7 +1473,12 @@ void StudioMdlRenderer::draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerO
 		shader->setUniform("colorMult", vec4(1, 1, 1, 1));
 	}
 
-	
+	if ((g_settings.render_flags & RENDER_LIGHTMAPS) && (g_settings.render_flags & RENDER_TEXTURES)) {
+		shader->setUniform("gamma", 1.5f); // for brighter lighting
+	}
+	else {
+		shader->setUniform("gamma", 1.0f); // for accurate lightmap colors
+	}
 
 	shader->setUniform("sTex", 0);
 	shader->setUniform("elights", 1); // number of active lights

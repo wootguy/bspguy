@@ -317,4 +317,6 @@ struct TraceResult
 	vec3	vecPlaneNormal;		// surface normal at impact
 	//edict_t* pHit;				// entity the surface is on
 	int		iHitgroup;			// 0 == generic, non zero is specific body part
+
+	int iNode;					// node that clipped the trace
 };

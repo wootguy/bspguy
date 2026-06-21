@@ -1,6 +1,7 @@
 varying vec2 fTex;
 varying vec4 fColor;
 
+uniform float gamma;
 uniform vec4 colorMult;
 uniform int additiveEnable;
 uniform sampler2D sTex;
@@ -15,5 +16,6 @@ void main()
 	if (additiveEnable != 0 && texel.xyz == vec3(0,0,0))
 		discard; // additive black textures mess up the transparent background
 	
-	gl_FragColor = texel * fColor * colorMult;
+	texel = vec4(pow(texel.rgb * fColor.rgb, vec3(1.0/gamma)), texel.a*fColor.a);
+	gl_FragColor = texel * colorMult;
 }

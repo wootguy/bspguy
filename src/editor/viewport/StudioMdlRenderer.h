@@ -51,7 +51,7 @@ public:
 	StudioMdlRenderer(string modelPath);
 	~StudioMdlRenderer();
 
-	void draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected);
+	void draw(vec3 origin, vec3 angles, Entity* ent, vec3 viewerOrigin, vec3 viewerRight, bool isSelected, COLOR3 shadeColor);
 
 	void upload() override; // called by main thread to upload data to gpu
 
