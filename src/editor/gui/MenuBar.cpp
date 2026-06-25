@@ -528,6 +528,35 @@ void MenuBar::drawEditOptions(bool isMainMenu) {
 			}
 			tooltip("Select entities that share the selected BSP model(s).");
 
+			if (ImGui::MenuItem("Strip Light Styles")) {
+				vector<int> modelIndexes = app->pickInfo.getModelIndexes();
+
+				LumpReplaceCommand* command = new LumpReplaceCommand("Strip Light Styles");
+
+				int stripCount = 0;
+				for (int i = 0; i < modelIndexes.size(); i++) {
+					int modelIdx = modelIndexes[i];
+
+					BSPMODEL& model = map->models[modelIdx];
+
+					for (int f = 0; f < model.nFaces; f++) {
+						BSPFACE& face = map->faces[model.iFirstFace + f];
+						for (int m = 1; m < MAXLIGHTMAPS; m++) {
+							if (face.nStyles[m] != 255) {
+								face.nStyles[m] = 255;
+								stripCount++;
+							}
+						}
+					}
+				}
+
+				command->pushUndoState();
+
+				logf("Stripped %d lightstyles from %d models\n", stripCount, modelIndexes.size());
+			}
+			tooltip("Strips styled lightmaps from selected models. This reduces AllocBlock."
+				"\n\nBest used with entities that use unlit render modes (Color/Texture/Additive).");
+
 			ImGui::EndMenu();
 		}
 
@@ -1542,7 +1571,7 @@ void MenuBar::drawToolsMenu() {
 			}
 			tooltip("Fix all faces with bad surface extents.");
 
-			if (ImGui::MenuItem("Scale Invisible Faces", 0, false, !app->isLoading)) {
+			if (ImGui::MenuItem("AllocBlock Reduction", 0, false, !app->isLoading)) {
 				LumpReplaceCommand* command = new LumpReplaceCommand("AllocBlock Reduction");
 				if (map->allocblock_reduction() == 0) {
 					delete command;
@@ -1551,9 +1580,9 @@ void MenuBar::drawToolsMenu() {
 					command->pushUndoState();
 				}
 			}
-			tooltip("Scales up textures on invisible model faces to reduce AllocBlock size. "
-				"Manually increase texture scales or downscale large textures to reduce "
-				"AllocBlocks further.");
+			tooltip("Strips light styles from models that are invisible or use unlit render modes. "
+				"Textures are scaled up on invisible models to reduce AllocBlock further. The base "
+				"layer is not deleted because the engine allocates it anyway for dynamic light effects.");
 
 			ImGui::EndMenu();
 		}

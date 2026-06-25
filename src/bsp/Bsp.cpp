@@ -3070,7 +3070,10 @@ float Bsp::calc_allocblock_usage() {
 		int size[2];
 		GetFaceLightmapSize(this, i, size);
 
-		total += size[0] * size[1];
+		for (int m = 0; m < MAXLIGHTMAPS; m++) {
+			if (face.nStyles[m] != 255)
+				total += size[0] * size[1];
+		}		
 	}
 
 	const int allocBlockSize = 128 * 128;
@@ -3192,7 +3195,7 @@ float Bsp::get_scale_to_fix_bad_extents(int textureIdx) {
 }
 
 int Bsp::allocblock_reduction() {
-	int scaleCount = 0;
+	int modifyCount = 0;
 
 	for (int i = 1; i < modelCount; i++) {
 		BSPMODEL& model = models[i];
@@ -3201,49 +3204,115 @@ int Bsp::allocblock_reduction() {
 			continue;
 
 		bool isVisibleModel = false;
+		bool isLightmapModel = false;
 		string usedBy = "";
 
 		for (Entity* ent : ents) {
 			if (ent->getBspModelIdx() == i) {
 				if (ent->isEverVisible()) {
+					int rendermode = atoi(ent->getKeyvalue("rendermode").c_str());
+					if (rendermode != 1 && rendermode != 2 && rendermode != 5) {
+						// texture/color/additive render modes don't use lightmaps
+						isLightmapModel = true;
+					}
 					isVisibleModel = true;
-					break;
 				}
 				usedBy = ent->getTargetname() + " (" + ent->getClassname() + ")";
 			}
 		}
 
-		if (isVisibleModel)
+		if (isVisibleModel && isLightmapModel)
 			continue;
 
+		bool anyStrip = false;
 		bool anyScales = false;
+
 		for (int fa = 0; fa < model.nFaces; fa++) {
 			BSPFACE& face = faces[model.iFirstFace + fa];
 			BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
-			
-			if (info.vS.length() > 0.01f || info.vT.length() > 0.01f) {
-				BSPTEXTUREINFO* newinfo = get_unique_texinfo(model.iFirstFace + fa);
 
-				if (info.vS.length() > 0.01f) {
-					newinfo->vS = info.vS.normalize(0.01f);
-					anyScales = true;
+			if (!isVisibleModel) {
+				if (info.vS.length() > 0.01f || info.vT.length() > 0.01f) {
+					BSPTEXTUREINFO* newinfo = get_unique_texinfo(model.iFirstFace + fa);
+
+					if (info.vS.length() > 0.01f) {
+						newinfo->vS = info.vS.normalize(0.01f);
+						anyScales = true;
+						modifyCount++;
+					}
+					if (info.vT.length() > 0.01f) {
+						newinfo->vT = info.vT.normalize(0.01f);
+						anyScales = true;
+						modifyCount++;
+					}
 				}
-				if (info.vT.length() > 0.01f) {
-					newinfo->vT = info.vT.normalize(0.01f);
-					anyScales = true;
+			}
+
+			if (!isLightmapModel) {
+				// don't remove base lightmap because it gets allocated anyway for dlight effects
+				for (int m = 1; m < MAXLIGHTMAPS; m++) {
+					if (face.nStyles[m] != 255) {
+						face.nStyles[m] = 255;
+						modifyCount++;
+						anyStrip = true;
+					}
 				}
-			}			
+			}
 		}
 
 		if (anyScales) {
-			scaleCount++;
 			logf("Scale up textures on model %d used by %s\n", i, usedBy.c_str());
+		}
+		if (anyStrip) {
+			logf("Stripped light styles on model %d used by %s\n", i, usedBy.c_str());
 		}
 	}
 
-	logf("Scaled up textures on %d invisible models\n", scaleCount);
+	// recompiling with fewer bounces is probably better than doing this.
+	/*
+	int blackStyles = 0;
 
-	return scaleCount;
+	for (int i = 0; i < faceCount; i++) {
+		BSPFACE& face = faces[i];
+		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+		BSPMIPTEX* tex = get_texture(info.iMiptex);
+
+		int size[2];
+		GetFaceLightmapSize(this, i, size);
+		int lightmapSz = size[0] * size[1];
+
+		for (int m = 1; m < MAXLIGHTMAPS; m++) {
+			if (face.nStyles[m] == 255) {
+				continue;
+			}
+
+			int numNonBlackPixels = 0;
+
+			int offsetSrc = face.nLightmapOffset + m * lightmapSz;
+			COLOR3* lightSrc = (COLOR3*)(lightdata + offsetSrc);
+			for (int idx = 0; idx < lightmapSz; idx++) {
+				if (offsetSrc + idx * sizeof(COLOR3) < lightDataLength) {
+					COLOR3& src = lightSrc[idx];
+					if (src.r > 8 || src.g > 8 || src.b > 8) {
+						numNonBlackPixels++;
+					}
+				}
+			}
+
+			if (numNonBlackPixels < lightmapSz * 0.1f) {
+				blackStyles++;
+				modifyCount++;
+				bake_lightmap_style(face.nStyles[m], true, true, i);
+				m--;
+			}
+		}
+	}
+	
+	if (blackStyles)
+		logf("Stripped %d nearly black light styles\n", blackStyles);
+	*/
+
+	return modifyCount;
 }
 
 void Bsp::delete_face(int faceId) {

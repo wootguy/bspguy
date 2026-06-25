@@ -3050,7 +3050,7 @@ void BspRenderer::drawModel(Entity* ent, int modelIdx, bool transparent, bool hi
 			activeShader->setUniform("colorMult", vec4(1, 1, 1, opts.renderamt / 255.0f));
 			activeShader->setUniform("alphaTest", 0);
 			isTransparent = opts.renderamt < 255;
-			useLightmaps = true;
+			useLightmaps = false;
 			break;
 		case RENDER_MODE_GLOW:
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
