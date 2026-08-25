@@ -55,8 +55,8 @@ struct TransformAxes {
 };
 
 struct EntConnection {
-	Entity* self;
-	Entity* target; // TODO: crashed
+	int selfIdx;
+	int targetIdx;
 	COLOR4 color;
 	float dir;
 };

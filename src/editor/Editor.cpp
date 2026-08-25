@@ -2230,7 +2230,7 @@ void Editor::cameraObjectHovering() {
 		pickStart -= offset;
 
 		Bsp* map = mapRenderer->map;
-		vec3 origin = activeAxes.origin;
+		vec3 origin = activeAxes.origin + mapRenderer->mapOffset;
 
 		int axisChecks = transformMode == TRANSFORM_SCALE ? activeAxes.numAxes : 3;
 		for (int i = 0; i < axisChecks; i++) {
@@ -3241,8 +3241,6 @@ void Editor::updateDragAxes() {
 	else if (gui->guiHoverAxis >= 0 && gui->guiHoverAxis < activeAxes.numAxes) {
 		activeAxes.model[gui->guiHoverAxis].setColor(activeAxes.hoverColor[gui->guiHoverAxis]);
 	}
-
-	activeAxes.origin += mapOffset;
 }
 
 vec3 Editor::getAxisDragPoint(vec3 origin) {
@@ -3448,8 +3446,8 @@ void Editor::updateEntConnections() {
 
 				EntConnection link;
 				memset(&link, 0, sizeof(EntConnection));
-				link.self = self;
-				link.target = ent;
+				link.selfIdx = entidx;
+				link.targetIdx = k;
 
 				if (isTarget && isCaller) {
 					link.color = bothColor;
@@ -3490,8 +3488,14 @@ void Editor::updateEntConnections() {
 
 		for (int i = 0; i < entConnectionLinks.size(); i++) {
 			EntConnection& link = entConnectionLinks[i];
-			vec3 srcPos = getEntOrigin(map, link.self).flip();
-			vec3 ori = getEntOrigin(map, link.target).flip();
+
+			if (link.selfIdx >= map->ents.size() || link.targetIdx >= map->ents.size())
+				continue;
+			Entity* self = map->ents[link.selfIdx];
+			Entity* targ = map->ents[link.targetIdx];
+
+			vec3 srcPos = getEntOrigin(map, self).flip();
+			vec3 ori = getEntOrigin(map, targ).flip();
 			float dist = (ori - srcPos).length();
 			points[cidx++] = cCube(ori - extent, ori + extent, link.color);
 			lines[idx++] = eLinkVert(srcPos, link.color, 0, link.dir);
@@ -3517,24 +3521,31 @@ void Editor::updateEntConnectionPositions() {
 	
 	Bsp* map = pickInfo.getMap();
 
-	cVert* lines = (cVert*)entConnections->data;
+	eLinkVert* lines = (eLinkVert*)entConnections->data;
 	cCube* points = (cCube*)entConnectionPoints->data;
+
+	const float s = 1.5f;
+	const vec3 extent = vec3(s, s, s);
 
 	for (int k = 0; k < entConnectionLinks.size(); k++) {
 		EntConnection& link = entConnectionLinks[k];
-		vec3 srcPos = getEntOrigin(map, link.self).flip();
-		vec3 dstPos = getEntOrigin(map, link.target).flip();
 
-		int offset = k * 2;
-		lines[k * 2].x = srcPos.x;
-		lines[k * 2].y = srcPos.y;
-		lines[k * 2].z = srcPos.z;
-		lines[(k * 2)+1].x = dstPos.x;
-		lines[(k * 2)+1].y = dstPos.y;
-		lines[(k * 2)+1].z = dstPos.z;
+		if (link.selfIdx >= map->ents.size() || link.targetIdx >= map->ents.size())
+			continue;
+		Entity* self = map->ents[link.selfIdx];
+		Entity* targ = map->ents[link.targetIdx];
 
-		float s = 1.5f;
-		vec3 extent = vec3(s, s, s);
+		vec3 srcPos = getEntOrigin(map, self).flip();
+		vec3 dstPos = getEntOrigin(map, targ).flip();
+
+		int idx = k * 2;
+		lines[idx].x = srcPos.x;
+		lines[idx].y = srcPos.y;
+		lines[idx].z = srcPos.z;
+		lines[idx + 1].x = dstPos.x;
+		lines[idx + 1].y = dstPos.y;
+		lines[idx + 1].z = dstPos.z;
+
 		points[k] = cCube(dstPos - extent, dstPos + extent, link.color);
 	}
 

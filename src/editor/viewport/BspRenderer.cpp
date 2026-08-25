@@ -2607,6 +2607,9 @@ void BspRenderer::updateFaceUVs(int faceIdx) {
 
 	rgroup->buffer->deleteBuffer();
 	rgroup->buffer->upload();
+
+	if (faceIdx >= map->models[0].nFaces)
+		reloadMegaBuffers(); // solid entities don't update until the megabuffer refreshes
 }
 
 bool BspRenderer::getRenderPointers(int faceIdx, RenderFace** renderFace, RenderGroup** renderGroup) {
@@ -2919,7 +2922,7 @@ void BspRenderer::renderClipnodes(int clipnodeHull) {
 				continue; // skip rendering for models that have faces, if in auto mode
 			}
 
-			*g_shaders.clipnode->modelMat = orderEnt.transform;
+			*g_shaders.clipnode->modelMat = orderEnt.transformWorld;
 			g_shaders.clipnode->updateMatrixes();
 
 			if (ent->highlighted) {

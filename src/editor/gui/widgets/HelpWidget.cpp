@@ -76,8 +76,8 @@ void HelpWidget::draw() {
 			ImGui::BulletText("Redirect Hull 2 --> Hull 1\n");
 			ImGui::Indent();
 			ImGui::BulletText("You will need to address problems with large monster/pushables\n");
-			ImGui::BulletText("Selectively simplify hulls per model (right click solid entities)\n");
 			ImGui::Unindent();
+			ImGui::BulletText("Selectively simplify hulls per model (right click solid entities)\n");
 			ImGui::Unindent();
 			ImGui::BulletText("Models\n");
 			ImGui::Indent();

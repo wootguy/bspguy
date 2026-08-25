@@ -1681,10 +1681,7 @@ void MenuBar::drawToolsMenu() {
 				if (ImGui::MenuItem("Zero Model Origins", 0, false, !app->isLoading)) {
 					LumpReplaceCommand* command = new LumpReplaceCommand("Zero Model Origins");
 
-					int moveCount = 0;
-					moveCount += map->zero_entity_origins("func_ladder");
-					moveCount += map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-					moveCount += map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+					int moveCount = map->zero_sensitive_entity_origins();
 
 					BspRenderer* renderer = app->mapRenderer;
 

@@ -5,22 +5,22 @@
 #include "Editor.h"
 #include "globals.h"
 
-// fix v6:
+// finalize v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - quake map crashes on conversion to hl/sven, also clean/optimize crashes the program
+// - test on windows xp
+
+// fix v6 low prio:
 // - maps compiled with ericw tools dont work "when merging and moving the worldspawn it mangles the entities"
-// - entities flickering in the void clicking dis_beta after moving it
-// - ent links don't move with Grab
 // - some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
-// - don't purge/copy bsp model
 // - scaling water textures causes client crash? but subdivide doesn't?
-// - moving map after converting leaves to model corrupts the model
-// - select connected planar texture not working right in multi select, its like each face checks all possible planes
-// - scale/shift face not previewed for func_wall
-// - 3d drag axes dont work if map is moved
+// - quake map crashes on conversion to hl/sven, also clean/optimize crashes the program (can't repro)
+// - model bbox becoming opaque when moved or keyvalue edited
+
 
 // todo:
+// detail/animated/scroll textures
+// do water textures on ANY solid entity with a non-zero origin flicker? or just func_friction and func_water
 // warning for solid ents without a hull 0 (server/client crash)
 // very broken texture crossedpaths1 propaganda_02 with paletted textures. Messing with render settings fixed it. Can't repro.
 // got a crash copying and pasting a BSP model without faces. Can't repro.

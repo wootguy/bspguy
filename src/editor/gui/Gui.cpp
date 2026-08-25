@@ -911,7 +911,7 @@ void Gui::draw3dContextMenus() {
 					newEnt->setOrAddKeyvalue("model", "*" + to_string(modelIdx));
 					map->ents.push_back(newEnt);
 
-					map->remove_unused_model_structures(false).print_delete_stats(1);
+					map->remove_unused_model_structures(true).print_delete_stats(1);
 
 					command->pushUndoState();
 					app->mapRenderer->reloadLeaves();
@@ -1307,7 +1307,7 @@ void Gui::drawStatusMessage() {
 			if (worldspawnOri) {
 				ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "WORLD ORIGIN");
 				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Worldspawn has an origin. This will break the game.\n\nEither apply the transformation or delete the origin key to fix.\n");
+					ImGui::SetTooltip("Worldspawn has a non-zero origin. This will break the game.\n\nEither apply the transformation or delete the origin key to fix.\n");
 				}
 			}
 			if (app->mapArrangeMode) {

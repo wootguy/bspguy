@@ -119,9 +119,7 @@ MergeResult BspMerger::merge(vector<Bsp*> maps, vec3 gap, string output_name, bo
 	}
 
 	Bsp* output = layerStart.map;
-	output->zero_entity_origins("func_water");
-	output->zero_entity_origins("func_ladder");
-	output->zero_entity_origins("func_mortar_field");
+	output->zero_sensitive_entity_origins();
 
 	if (!noripent) {
 		vector<MAPBLOCK> flattenedBlocks;
@@ -219,9 +217,7 @@ Bsp* BspMerger::createMergedMap(vector<Bsp*> maps, vector<MapMergeOp> merge_opts
 		logf("\nMoving map %s to (%d %d %d)\n", map->name.c_str(), (int)moveAmount.x, (int)moveAmount.y, (int)moveAmount.z);
 
 		map->move(moveAmount);
-		map->zero_entity_origins("func_ladder");
-		map->zero_entity_origins("func_water"); // water is sometimes invisible after moving in sven
-		map->zero_entity_origins("func_mortar_field"); // mortars don't appear in sven
+		map->zero_sensitive_entity_origins();
 
 		MAPBLOCK block;
 		block.map = map;

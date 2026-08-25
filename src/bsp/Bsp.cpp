@@ -4366,6 +4366,23 @@ int Bsp::zero_entity_origins(string classname) {
 	return moveCount;
 }
 
+int Bsp::zero_sensitive_entity_origins() {
+	static const char* sensitive_ents[] = {
+		"func_ladder",			// players crash or get launched at lightning speed in HL
+		"func_water",			// water is sometimes invisible after moving in sven
+		"func_mortar_field",	// mortars don't appear in sven
+		"func_friction",		// flickers if given a water texture (TODO: this probably applies to any visible entity with a water texture)
+		"env_bubbles",			// was told it was needed but I didn't ask why
+	};
+
+	int moveCount = 0;
+	for (int i = 0; i < sizeof(sensitive_ents) / sizeof(sensitive_ents[0]); i++) {
+		moveCount += zero_entity_origins(sensitive_ents[i]);
+	}
+	
+	return moveCount;
+}
+
 vector<string> Bsp::get_wad_names() {
 	vector<string> wadNames;
 
@@ -4818,33 +4835,16 @@ bool Bsp::rename_texture(const char* oldName, const char* newName) {
 }
 
 unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_set<int>& ignoreFaces, bool planarOnly, bool textureOnly) {
+	struct TestPoly {
+		Polygon3D* poly;
+		int miptex;
+		vec3 normal;
+	};
+	
 	unordered_set<int> selected;
-	vector<Polygon3D*> selectedFaces;
-	queue<Polygon3D*> testPolys;
-	unordered_set<int> validMiptex;
-	vector<vec3> validNormals;
+	queue<TestPoly> testPolys;
 	vector<Polygon3D*> polys;
 	vector<int> polyModels; // maps a polygon index to a model index
-
-	for (int idx : srcFaces) {
-		BSPFACE& face = faces[idx];
-		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
-		BSPPLANE& plane = planes[face.iPlane];
-
-		vector<vec3> selectedVerts;
-		for (int e = 0; e < face.nEdges; e++) {
-			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
-			BSPEDGE& edge = edges[abs(edgeIdx)];
-			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
-			selectedVerts.push_back(verts[vertIdx]);
-		}
-
-		Polygon3D* poly = new Polygon3D(selectedVerts, idx, true);
-		selectedFaces.push_back(poly);
-		testPolys.push(poly);
-		validMiptex.insert(info.iMiptex);
-		push_unique_vec3(validNormals, plane.vNormal, 0.0001f);
-	}
 
 	for (int fa = 0; fa < faceCount; fa++) {
 		polyModels.push_back(get_model_from_face(fa));
@@ -4865,14 +4865,35 @@ unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_
 		polys.push_back(poly);
 	}
 
+	for (int idx : srcFaces) {
+		BSPFACE& face = faces[idx];
+		BSPTEXTUREINFO& info = texinfos[face.iTextureInfo];
+		BSPPLANE& plane = planes[face.iPlane];
+
+		vector<vec3> selectedVerts;
+		for (int e = 0; e < face.nEdges; e++) {
+			int32_t edgeIdx = surfedges[face.iFirstEdge + e];
+			BSPEDGE& edge = edges[abs(edgeIdx)];
+			int vertIdx = edgeIdx >= 0 ? edge.iVertex[1] : edge.iVertex[0];
+			selectedVerts.push_back(verts[vertIdx]);
+		}
+
+		TestPoly tpoly;
+		tpoly.poly = polys[idx];
+		tpoly.miptex = info.iMiptex;
+		tpoly.normal = plane.vNormal;
+
+		testPolys.push(tpoly);
+	}
+
 	PolygonOctree* octree = NavMeshGenerator::createPolyOctree(this, polys, 6);
 
 	while (testPolys.size()) {
-		Polygon3D* poly = testPolys.front();
+		TestPoly tpoly = testPolys.front();
 		testPolys.pop();
 
-		int srcModel = polyModels[poly->idx];
-		unordered_set<int> regionPolys = octree->getPolysInRegion(poly);
+		int srcModel = polyModels[tpoly.poly->idx];
+		unordered_set<int> regionPolys = octree->getPolysInRegion(tpoly.poly);
 
 		for (int ridx : regionPolys) {
 			int idx = polys[ridx]->idx;
@@ -4884,21 +4905,12 @@ unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_
 			if (selected.count(idx) || ignoreFaces.count(idx))
 				continue;
 
-			if (textureOnly && !validMiptex.count(texinfos[faceA.iTextureInfo].iMiptex))
+			if (textureOnly && tpoly.miptex != texinfos[faceA.iTextureInfo].iMiptex)
 				continue;
 
 			if (planarOnly) {
 				BSPPLANE& plane = planes[faceA.iPlane];
-
-				bool isPlanar = false;
-				for (const vec3& norm : validNormals) {
-					if (plane.vNormal == norm) {
-						isPlanar = true;
-						break;
-					}
-				}
-
-				if (!isPlanar)
+				if (plane.vNormal != tpoly.normal)
 					continue;
 			}
 
@@ -4911,7 +4923,7 @@ unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_
 				const float epsilon = 1.0f;
 
 				vec3& v2 = verts[vertIdx];
-				for (const vec3& v1 : poly->verts) {
+				for (const vec3& v1 : tpoly.poly->verts) {
 					if ((v1 - v2).length() < epsilon) {
 						isConnected = true;
 						break;
@@ -4928,15 +4940,17 @@ unordered_set<int> Bsp::select_connected_faces(vector<int>& srcFaces, unordered_
 				}
 
 				selected.insert(idx);
-				testPolys.push(polys[ridx]);
+
+				TestPoly newTpoly;
+				newTpoly.poly = polys[ridx];
+				newTpoly.miptex = tpoly.miptex;
+				newTpoly.normal = tpoly.normal;
+				testPolys.push(newTpoly);
 			}
 		}
 	}
 
 	for (Polygon3D* poly : polys) {
-		delete poly;
-	}
-	for (Polygon3D* poly : selectedFaces) {
 		delete poly;
 	}
 	delete octree;
@@ -9806,7 +9820,11 @@ int Bsp::convert_leaves_to_model(vector<int>& leafIndexes) {
 
 	delete_faces(allLeafFaces);
 
-	return modelIdx;
+	// lazy fix for some structures still being shared, which corruptes the model when worldspawn
+	// is transformed.
+	int dupIdx = duplicate_model(modelIdx);
+
+	return dupIdx;
 }
 
 BspModelData::BspModelData() {}

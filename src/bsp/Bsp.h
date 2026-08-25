@@ -478,6 +478,9 @@ public:
 
 	// moves entity models to (0,0,0), duplicating the BSP model if necessary
 	int zero_entity_origins(string classname);
+	
+	// set origins to 0,0,0 on all entities that break with non-zero origins, duplicating BSP models if necesasry
+	int zero_sensitive_entity_origins();
 
 	// reference vector for computing ut angle
 	vec3 get_face_center(int faceIdx);

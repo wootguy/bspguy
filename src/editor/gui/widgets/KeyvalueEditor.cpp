@@ -186,6 +186,9 @@ void KeyvalueEditor::draw() {
 				StringMap allKeys = ent->getAllKeyvalues();
 				allKeys.del("origin");
 				allKeys.del("classname");
+				if (allKeys.get("model", "")[0] == '*') {
+					allKeys.del("model"); // don't ever delete BSP model keys
+				}
 				if (g_settings.ripent_safe_mode && ent->getClassname() == "worldspawn")
 					allKeys.del("wad");
 					
@@ -197,7 +200,7 @@ void KeyvalueEditor::draw() {
 
 			app->pushEntityUndoState("Purge keyvalues");
 		}
-		tooltip("Delete all keyvalues except for origin and classname.");
+		tooltip("Delete all keyvalues except for origin, classname, and BSP model if solid.");
 
 		ImGui::SameLine();
 		ImGui::SetCursorPosY(tabBarY);
@@ -210,6 +213,9 @@ void KeyvalueEditor::draw() {
 				StringMap allKeys = ent->getAllKeyvalues();
 				allKeys.del("origin");
 				allKeys.del("classname");
+				if (allKeys.get("model", "")[0] == '*') {
+					allKeys.del("model"); // BSP model copying does more harm than good
+				}
 				StringMap::iterator_t iter;
 				while (allKeys.iterate(iter)) {
 					if (copiedKeyvalues.find(iter.key) != copiedKeyvalues.end()) {
@@ -226,7 +232,7 @@ void KeyvalueEditor::draw() {
 				copiedKeyvalues.erase(item);
 			}
 		}
-		tooltip("Copy all keyvalues except for origin and classname. Keyvalues with conflicts "
+		tooltip("Copy all keyvalues except for origin, classname, and BSP model if solid. Keyvalues with conflicts "
 			"are excluded when multiple entities are selected.");
 
 		if (copiedKeyvalues.empty())

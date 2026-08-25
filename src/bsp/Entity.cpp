@@ -315,7 +315,15 @@ vec3 Entity::getVisualAngles() {
 
 	string cname = getClassname();
 
-	if (getBspModelIdx() != -1 || cname.find("info_player_") == 0) {
+	static unordered_set<string> invert_pitch_ents = {
+		"info_player_start",
+		"info_player_deathmatch",
+		"info_player_dm2",
+		"info_player_coop",
+		"trigger_camera",
+	};
+
+	if (getBspModelIdx() != -1 || invert_pitch_ents.count(cname)) {
 		angles.x *= -1;
 	}
 
