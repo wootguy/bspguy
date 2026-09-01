@@ -682,6 +682,7 @@ void Editor::drawArrangeMaps() {
 		Entity* controlEnt = mapRenderer->map->ents[idx++];
 		arrangeBsp->map->ents[0]->setOrAddKeyvalue("origin", controlEnt->getOrigin().toKeyvalueString());
 
+		arrangeBsp->delayLoadData();
 		arrangeBsp->updateOrderEnts();
 
 		RenderMap rmap;

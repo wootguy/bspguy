@@ -16,6 +16,7 @@
 #include "quant.h"
 #include "tga.h"
 #include "bmp.h"
+#include "lodepng.h"
 
 #include <algorithm>
 
@@ -538,9 +539,9 @@ void BspRenderer::postLoadTextures() {
 	glCheckError("uploading skybox textures");
 
 	for (int i = 0; i < numTextureAtlases; i++) {
-		//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[1].data,
-		//	glTextureAtlases[i]->mipmaps[1].width, glTextureAtlases[i]->mipmaps[1].height);
-		//lodepng_encode32_file(cstrf("atlas_%d.png", i), glTextureAtlasesSwap[i]->data, textureAtlasSz, textureAtlasSz);
+		//lodepng_encode32_file("atlas_mip.png", (byte*)glTextureAtlases[i]->mipmaps[0].data,
+		//	glTextureAtlases[i]->mipmaps[0].width, glTextureAtlases[i]->mipmaps[0].height);
+		//lodepng_encode32_file(cstrf("atlas_%s_%d.png", map->name.c_str(), i), glTextureAtlases[i]->data, glTextureAtlases[i]->width, glTextureAtlases[i]->height);
 		glTextureAtlases[i]->upload(texFormat);
 
 		// disable mip-maps because they show seams which can't be fixed without 4x texture memory

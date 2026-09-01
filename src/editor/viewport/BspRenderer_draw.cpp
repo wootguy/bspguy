@@ -42,6 +42,7 @@ void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass)
 		glPalette->bind();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		activeShader->setUniform("paletteAtlasScale", vec2(1.0f / palAtlasWidth, 1.0f / palAtlasHeight), true);
 	}
 	bool wireframeOnly = false;
 	if (!(g_settings.render_flags & (RENDER_LIGHTMAPS | RENDER_TEXTURES))) {
@@ -52,6 +53,7 @@ void BspRenderer::renderSolids(bool highlightAlwaysOnTop, bool transparencyPass)
 	if (g_settings.backface_wireframe && shaderbits & SH_BSP_WIREFRAME)
 		glDisable(GL_CULL_FACE); // expensive on fill-rate limited hardware, so only for this special case
 	activeShader->setUniform("wireframeOnly", wireframeOnly ? 1.0f : 0.0f);
+	activeShader->setUniform("textureAtlasScale", 1.0f / textureAtlasSz, true);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -394,7 +396,7 @@ void BspRenderer::drawModelRenderGroup(RenderGroup& rgroup, bool highlight, bool
 		redTex->bind();
 		lightmapMult = vec4(1, 0, 0, 0);
 	}
-	else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps || !lightmapsUploaded) {
+	else if (!(g_settings.render_flags & RENDER_LIGHTMAPS) || !useLightmaps || !lightmapsUploaded || !rgroup.lightmapAtlas) {
 		whiteTex->bind();
 		lightmapMult = vec4(1, 0, 0, 0);
 	}
