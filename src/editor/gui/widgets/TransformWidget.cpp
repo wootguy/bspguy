@@ -15,7 +15,7 @@ void TransformWidget::draw() {
 
 	static int lastPickCount = -1;
 	static int lastVertPickCount = -1;
-	static int oldSnappingEnabled = app->gridSnappingEnabled;
+	static bool oldSnappingEnabled = app->gridSnappingEnabled;
 	static int oldTransformTarget = -1;
 	static int oldMultiselect;
 	static vector<vec3> multiselectOrigins; // reference point for multiselect transforms
@@ -391,7 +391,7 @@ void TransformWidget::draw() {
 	string w = to_string((int)app->selectionSize.x) + "w ";
 	string h = to_string((int)app->selectionSize.y) + "h ";
 	string l = to_string((int)app->selectionSize.z) + "l";
-	ImGui::Text(("Size: " + w + h + l).c_str());
+	ImGui::Text("%s", ("Size: " + w + h + l).c_str());
 
 	if (app->pickInfo.getEntIndex() == 0 && map->ents[0]->getOrigin() != vec3()) {
 		ImGui::SameLine();

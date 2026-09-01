@@ -1020,7 +1020,7 @@ void Gui::drawStatusBar() {
 		float labelW = ImGui::CalcTextSize(selectStr.c_str()).x;
 		float avail = ImGui::GetContentRegionAvail().x;
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - labelW);
-		ImGui::Text(selectStr.c_str());
+		ImGui::Text("%s", selectStr.c_str());
 
 		if (last_cam_origin != app->cameraOrigin) {
 			last_cam_origin = app->cameraOrigin;

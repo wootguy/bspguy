@@ -63,7 +63,7 @@ void DebugWidget::drawSelectionDetails() {
 						uniqueFaces.insert(map->marksurfs[leaf.iFirstMarkSurface + i]);
 					}
 				}
-				ImGui::Text("Leaf faces: %d", uniqueFaces.size());
+				ImGui::Text("Leaf faces: %d", (int)uniqueFaces.size());
 			}
 		}
 		else if (app->pickInfo.getFaceIndex() != -1) {
@@ -195,7 +195,7 @@ void DebugWidget::drawSelectionDetails() {
 					ImGui::Text("Parent Plane: %d = (%.2f %.2f %.2f) + %.2f",
 						planeIdx, n.x, n.y, n.z, plane.fDist);
 					ImGui::Text("Head Node: %d", headNode);
-					ImGui::Text("Depth: %d", nodeBranch.size());
+					ImGui::Text("Depth: %d", (int)nodeBranch.size());
 
 					if (app->debugClipnodes) {
 						BSPPLANE& plane = map->planes[map->clipnodes[parentNodeIdx].iPlane];
@@ -229,12 +229,12 @@ void DebugWidget::draw() {
 		{
 			ImGui::Indent();
 			
-			ImGui::Text("Objects: %d", g_renderStats.numObjects);
-			ImGui::Text("Vertices: %d k", g_renderStats.numVerts / 1000);
-			ImGui::Text("Matrix uploads: %d", g_renderStats.numMatrixUploads);
-			ImGui::Text("Uniform uploads: %d", g_renderStats.numUniformsUploaded);
-			ImGui::Text("Texture binds: %d", g_renderStats.numTextureBinds);
-			ImGui::Text("Shader binds: %d", g_renderStats.numShaderBinds);
+			ImGui::Text("Objects: %d", (int)g_renderStats.numObjects);
+			ImGui::Text("Vertices: %d k", (int)(g_renderStats.numVerts / 1000));
+			ImGui::Text("Matrix uploads: %d", (int)g_renderStats.numMatrixUploads);
+			ImGui::Text("Uniform uploads: %d", (int)g_renderStats.numUniformsUploaded);
+			ImGui::Text("Texture binds: %d", (int)g_renderStats.numTextureBinds);
+			ImGui::Text("Shader binds: %d", (int)g_renderStats.numShaderBinds);
 			g_renderStats.clear();
 
 			ImGui::Unindent();

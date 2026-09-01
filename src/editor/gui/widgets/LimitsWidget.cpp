@@ -113,11 +113,11 @@ void LimitsWidget::drawLimitsSummary(Bsp* map, bool modalMode) {
 		for (int i = 0; i < stats.size(); i++) {
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
-			ImGui::TextColored(stats[i].color, stats[i].name.c_str());
+			ImGui::TextColored(stats[i].color, "%s", stats[i].name.c_str());
 
 			ImGui::TableNextColumn();
 			string val = stats[i].val + " / " + stats[i].max;
-			ImGui::TextColored(stats[i].color, val.c_str());
+			ImGui::TextColored(stats[i].color, "%s", val.c_str());
 
 			ImGui::TableNextColumn();
 			ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.5f, 0.4f, 0, 1));
@@ -190,7 +190,7 @@ void LimitsWidget::drawLimitTab(Bsp* map, int sortMode) {
 
 	ImGui::Text("Classname"); ImGui::NextColumn();
 	ImGui::Text("Model"); ImGui::NextColumn();
-	ImGui::Text(countName); ImGui::NextColumn();
+	ImGui::Text("%s", countName); ImGui::NextColumn();
 	ImGui::Text("Usage"); ImGui::NextColumn();
 
 	ImGui::Columns(1);
@@ -232,17 +232,17 @@ void LimitsWidget::drawLimitTab(Bsp* map, int sortMode) {
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(modelInfos[i].model.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(modelInfos[i].model.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", modelInfos[i].model.c_str()); ImGui::NextColumn();
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(modelInfos[i].val.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(modelInfos[i].val.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", modelInfos[i].val.c_str()); ImGui::NextColumn();
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(modelInfos[i].usage.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(modelInfos[i].usage.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", modelInfos[i].usage.c_str()); ImGui::NextColumn();
 	}
 
 
@@ -258,8 +258,6 @@ bool sortAllocInfos(const AllocInfo& a, const AllocInfo& b) {
 }
 
 void LimitsWidget::drawAllocBlockLimitTab(Bsp* map) {
-
-	int maxCount;
 	const int allocBlockSize = 128 * 128;
 
 	if (!gui->loadedLimit[SORT_ALLOCBLOCK]) {
@@ -383,17 +381,17 @@ void LimitsWidget::drawAllocBlockLimitTab(Bsp* map) {
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(limitAllocs[i].faceCount.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(limitAllocs[i].faceCount.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", limitAllocs[i].faceCount.c_str()); ImGui::NextColumn();
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(limitAllocs[i].val.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(limitAllocs[i].val.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", limitAllocs[i].val.c_str()); ImGui::NextColumn();
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(limitAllocs[i].usage.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(limitAllocs[i].usage.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", limitAllocs[i].usage.c_str()); ImGui::NextColumn();
 	}
 
 
@@ -410,7 +408,6 @@ void LimitsWidget::drawFaceExtentsLimitTab() {
 
 	Bsp* map = app->mapRenderer->map;
 
-	int maxCount;
 	const int allocBlockSize = 128 * 128;
 
 	if (!gui->loadedLimit[SORT_EXTENTS]) {
@@ -511,12 +508,12 @@ void LimitsWidget::drawFaceExtentsLimitTab() {
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(limitExtents[i].faceCount.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(limitExtents[i].faceCount.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", limitExtents[i].faceCount.c_str()); ImGui::NextColumn();
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetColumnWidth()
 			- ImGui::CalcTextSize(limitExtents[i].subsNeeded.c_str()).x
 			- ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-		ImGui::Text(limitExtents[i].subsNeeded.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", limitExtents[i].subsNeeded.c_str()); ImGui::NextColumn();
 	}
 
 

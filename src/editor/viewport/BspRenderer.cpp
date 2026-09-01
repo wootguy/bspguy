@@ -1293,7 +1293,7 @@ int BspRenderer::calcMemoryUsage() {
 		bytes += skyboxTextures[i] ? skyboxTextures[i]->calcMemoryUsage() : 0;
 	}
 
-	bytes += glTextureArray ? sizeof(glTextureArray) : NULL;
+	bytes += glTextureArray ? sizeof(glTextureArray) : 0;
 
 	if (miptexToTexArray)
 		bytes += map->textureCount * sizeof(TexArrayOffset);

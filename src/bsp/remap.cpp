@@ -1,4 +1,3 @@
-#pragma once
 #include "remap.h"
 #include "Bsp.h"
 #include "util.h"

@@ -379,7 +379,6 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 
 	bool notMovingLeaves = modelIdx != 0;
 
-	int startIdx;
 	mark_model_structures(modelIdx, &shouldMove, notMovingLeaves);
 	for (int i = 0; i < modelCount; i++) {
 		if (i != modelIdx)
@@ -1578,7 +1577,7 @@ int Bsp::merge_models(Entity* enta, Entity* entb) {
 	// write new head node (visible BSP)
 	{
 		BSPNODE headNode = {
-			separationPlaneIdx,			// plane idx
+			(uint32_t)separationPlaneIdx,						// plane idx
 			{modelB.iHeadnodes[0], modelA.iHeadnodes[0]},		// child nodes
 			{ mergedModel.nMins.x, mergedModel.nMins.y, mergedModel.nMins.z },	// mins
 			{ mergedModel.nMaxs.x, mergedModel.nMaxs.y, mergedModel.nMaxs.z },	// maxs

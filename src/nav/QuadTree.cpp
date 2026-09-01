@@ -6,7 +6,7 @@
 Quadrant::Quadrant(vec2 min, vec2 max) {
     this->min = min;
     this->max = max;
-    memset(children, NULL, sizeof(Quadrant*) * 4);
+    memset(children, 0, sizeof(Quadrant*) * 4);
 }
 
 Quadrant::~Quadrant() {

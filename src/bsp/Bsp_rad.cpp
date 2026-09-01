@@ -311,7 +311,6 @@ int Bsp::bake_lightmap_style(int style, bool deleteNotBake, bool reduceStyles, i
 		}
 
 		int size[2];
-		int dummy[2];
 		int imins[2];
 		int imaxs[2];
 		GetFaceLightmapSize(this, f, size);

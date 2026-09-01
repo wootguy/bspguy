@@ -113,7 +113,7 @@ void FaceEditor::updateTextureSelection() {
 
 	if (app->pickInfo.faces.empty() || mapRenderer == NULL) {
 		scaleX = scaleY = shiftX = shiftY = width = height = 0;
-		textureId = NULL;
+		textureId = 0;
 		textureName[0] = 0;
 		return;
 	}
@@ -186,10 +186,10 @@ void FaceEditor::updateTextureSelection() {
 		if (scaleY != 1.0f / texinfo2.vT.length()) scaleY = 1.0f;
 		if (shiftX != texinfo2.shiftS) shiftX = 0;
 		if (shiftY != texinfo2.shiftT) shiftY = 0;
-		if (isSpecial != texinfo2.nFlags & TEX_SPECIAL) isSpecial = false;
+		if (isSpecial != (texinfo2.nFlags & TEX_SPECIAL)) isSpecial = false;
 		if (texinfo2.iMiptex != miptex) {
 			validTexture = false;
-			textureId = NULL;
+			textureId = 0;
 			width = 0;
 			height = 0;
 			textureName[0] = 0;
@@ -482,7 +482,7 @@ void FaceEditor::drawTextureEditor() {
 
 	drawTextureButton();
 
-	ImGui::Text(("Source: " + texture_src).c_str());
+	ImGui::Text("%s", ("Source: " + texture_src).c_str());
 	//ImGui::Text(("Size: " + to_string(tex_size_kb) + " KB").c_str());
 
 	drawResizePopup();
@@ -1364,7 +1364,7 @@ void FaceEditor::drawLightmapsEditor() {
 			float textWidth = ImGui::CalcTextSize(text).x;
 
 			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (cellWidth - textWidth) * 0.5f);
-			ImGui::Text(text);
+			ImGui::Text("%s", text);
 
 			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (cellWidth - imgSize.x) * 0.5f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));

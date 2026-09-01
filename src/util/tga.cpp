@@ -1,4 +1,5 @@
 ﻿#include "tga.h"
+#include "util.h"
 #include <cstdio>
 #include <cstdint>
 #include <vector>
@@ -28,12 +29,14 @@ bool loadTGA(const char* filename, COLOR3*& outData, int& width, int& height)
 
     TGAHeader h;
     if (fread(&h, sizeof(h), 1, f) != 1) {
+        logf("Unexpected eof loading TGA\n");
         fclose(f);
         return false;
     }
 
     // Only support uncompressed RGB/RGBA
     if ((h.imageType != 2 && h.imageType != 10) || (h.bpp != 24 && h.bpp != 32)) {
+        logf("Unsupported TGA format\n");
         fclose(f);
         return false;
     }
@@ -59,6 +62,7 @@ bool loadTGA(const char* filename, COLOR3*& outData, int& width, int& height)
     if (h.imageType == 2) {
         // Uncompressed
         if (fread(dst, 1, imageSize, f) != imageSize) {
+            logf("Unexpected eof loading TGA\n");
             fclose(f);
             return false;
         }
@@ -69,14 +73,22 @@ bool loadTGA(const char* filename, COLOR3*& outData, int& width, int& height)
 
         while (pixelsRead < pixelCount) {
             uint8_t header;
-            fread(&header, 1, 1, f);
+            if (fread(&header, 1, 1, f) != 1) {
+                logf("Unexpected eof loading TGA\n");
+                fclose(f);
+                return false;
+            }
 
             int count = (header & 0x7F) + 1;
 
             if (header & 0x80) {
                 // RLE packet
                 uint8_t pixel[4];
-                fread(pixel, 1, pixelSize, f);
+                if (fread(pixel, 1, pixelSize, f) != pixelSize) {
+                    logf("Unexpected eof loading TGA\n");
+                    fclose(f);
+                    return false;
+                }
 
                 for (int i = 0; i < count; i++) {
                     memcpy(dst, pixel, pixelSize);
@@ -87,7 +99,11 @@ bool loadTGA(const char* filename, COLOR3*& outData, int& width, int& height)
             else {
                 // Raw packet
                 size_t bytes = count * pixelSize;
-                fread(dst, 1, bytes, f);
+                if (fread(dst, 1, bytes, f) != bytes) {
+                    logf("Unexpected eof loading TGA\n");
+                    fclose(f);
+                    return false;
+                }
                 dst += bytes;
                 pixelsRead += count;
             }

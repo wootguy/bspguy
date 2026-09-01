@@ -248,7 +248,7 @@ void EntityReport::draw() {
 					ImGui::SetTooltip("%s is not defined in any of your FGDs.\n", cname.c_str());
 				}
 				else if (ent->hidden) {
-					ImGui::SetTooltip("This entity is hidden.\n", cname.c_str());
+					ImGui::SetTooltip("This entity is hidden.\n");
 				}
 			}
 

@@ -13,6 +13,7 @@
 #include <queue>
 #include <algorithm>
 #include <limits.h>
+#include <float.h>
 #include "LeafOctree.h"
 #include "LeafNavMeshGenerator.h"
 #include "VertexBuffer.h"
@@ -314,7 +315,7 @@ vector<int> LeafNavMesh::AStarRoute(int startNodeIdx, int endNodeIdx)
 
 		// get node in openset with lowest cost
 		int current = -1;
-		float bestScore = 9e99;
+		float bestScore = FLT_MAX;
 		for (int nodeId : openSet)
 		{
 			float score = fScore[nodeId];
@@ -376,7 +377,7 @@ vector<int> LeafNavMesh::AStarRoute(int startNodeIdx, int endNodeIdx)
 			float tentative_gScore = gScore[current];
 			tentative_gScore += path_cost(currentNode.id, neighborNode.id);
 
-			float neighbor_gScore = 9e99;
+			float neighbor_gScore = FLT_MAX;
 			if (gScore.count(neighbor))
 				neighbor_gScore = gScore[neighbor];
 
@@ -679,7 +680,7 @@ int LeafNavMesh::calcMemoryUsage() {
 		bytes += node.calcMemoryUsage();
 	}
 
-	bytes += octree ? octree->calcMemoryUsage() : NULL;
+	bytes += octree ? octree->calcMemoryUsage() : 0;
 
 	for (vector<LeafNode>& nodeList : bspModelLeaves) {
 		bytes += sizeof(vector<LeafNode>);

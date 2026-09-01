@@ -1304,7 +1304,7 @@ void Bsp::print_info(bool perModelStats, int perModelLimit, int sortMode) {
 		vector<STRUCTUSAGE*> modelStructs = get_sorted_model_infos(sortMode);
 
 		int maxCount;
-		char* countName;
+		const char* countName;
 
 		switch (g_sort_mode) {
 		case SORT_VERTS:		maxCount = vertCount; countName = "  Verts";  break;

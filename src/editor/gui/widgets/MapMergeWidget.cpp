@@ -7,9 +7,9 @@ void MergeOverlapWidget::draw() {
 	vec3 mergeMove = g_app->mergeResult.moveFixes;
 	vec3 mergeMove2 = g_app->mergeResult.moveFixes2;
 
-	ImGui::Text((map->name + " overlaps " + name + " and must be moved before merging.").c_str());
+	ImGui::Text("%s", (map->name + " overlaps " + name + " and must be moved before merging.").c_str());
 	ImGui::Dummy(ImVec2(0.0f, 20.0f));
-	ImGui::Text(("How do you want to move " + map->name + "?").c_str());
+	ImGui::Text("%s", ("How do you want to move " + map->name + "?").c_str());
 
 	ImGui::Separator();
 	ImGui::Dummy(ImVec2(0.0f, 20.0f));
@@ -86,7 +86,7 @@ void MergeFailedWidget::open() {
 
 void MergeFailedWidget::draw() {
 	string engineName = g_settings.engine == ENGINE_HALF_LIFE ? "Half-Life" : "Sven Co-op";
-	ImGui::Text(("Merging the selected maps would overflow \"" + engineName + "\" engine limits.\n"
+	ImGui::Text("%s", ("Merging the selected maps would overflow \"" + engineName + "\" engine limits.\n"
 		"Optimize the maps or manually remove unused structures before trying again.").c_str());
 
 	ImGui::Dummy(ImVec2(0.0f, 20.0f));
@@ -126,7 +126,7 @@ void MergeMultipleWidget::draw() {
 		dirtyMaplist = false;
 	}
 
-	ImGui::TextWrapped((to_string(numSelected) + " BSPs selected for merging:").c_str());
+	ImGui::TextWrapped("%s", (to_string(numSelected) + " BSPs selected for merging:").c_str());
 
 	ImGui::Columns(2, 0, false);
 	ImGui::SetColumnWidth(0, 450 * uiScale);
@@ -213,7 +213,7 @@ void MergeMultipleWidget::draw() {
 	ImGui::SameLine();
 	ImGui::Dummy(ImVec2(30 * uiScale, 0));
 	ImGui::SameLine();
-	ImGui::Text((string("+/-") + to_string(g_settings.mapsize_max)).c_str());
+	ImGui::Text("%s", (string("+/-") + to_string(g_settings.mapsize_max)).c_str());
 	if (ImGui::IsItemHovered())
 		tooltip("Change the Map Size in the Settings menu to adjust the bounds for merged maps.\n");
 

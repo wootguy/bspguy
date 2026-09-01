@@ -39,7 +39,7 @@ void KeyvalueEditor::draw() {
 		ImGui::Text("Class:");
 		ImGui::SameLine();
 		if (cname == "worldspawn") {
-			ImGui::Text(cname.c_str());
+			ImGui::Text("%s", cname.c_str());
 		}
 		else if (ImGui::Button(sameClassesSelected ? (" " + cname + " ##kvcname").c_str() : "<multiple>##kvcname")) {
 			ImGui::OpenPopup("classname_popup");
@@ -462,7 +462,7 @@ void KeyvalueEditor::drawSmartEditTab_GroupKeys(vector<KeyvalueDef*>& keys, bool
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
 
-			ImGui::Text(keyNames[bufferIdx]);
+			ImGui::Text("%s", keyNames[bufferIdx]);
 			if (ImGui::IsItemHovered()) {
 				string tooltip = key;
 				if (keyvalue.smartName.length())

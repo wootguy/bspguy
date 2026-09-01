@@ -11,8 +11,8 @@ ShaderProgram::ShaderProgram(const char* name)
 	compiled = false;
 	memset(programIds, -1, sizeof(programIds));
 	memset(compileSkipFlags, false, sizeof(compileSkipFlags));
-	memset(vShader, NULL, sizeof(vShader));
-	memset(fShader, NULL, sizeof(fShader));
+	memset(vShader, 0, sizeof(vShader));
+	memset(fShader, 0, sizeof(fShader));
 	memset(modelViewID, -1, sizeof(modelViewID));
 	memset(modelViewProjID, -1, sizeof(modelViewProjID));
 }

@@ -147,7 +147,7 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 		removeCount += !usedStructs[i];
 	}
 
-	int newStructCount = oldStructCount - removeCount;
+	int newStructCount = max(0, oldStructCount - removeCount);
 
 	byte* oldStructs = lumps[lumpIdx];
 	byte* newStructs = new byte[newStructCount * structSize];

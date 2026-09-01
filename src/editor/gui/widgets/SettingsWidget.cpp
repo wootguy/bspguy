@@ -33,7 +33,7 @@ void SettingsWidget::draw() {
 	ImGui::BeginGroup();
 	int footerHeight = hasFooter ? ImGui::GetFrameHeightWithSpacing() + roundf(4 * uiScale) : 0;
 	ImGui::BeginChild("item view", ImVec2(0, -footerHeight)); // Leave room for 1 line below us
-	ImGui::Text(tab_titles[gui->settingsTab]);
+	ImGui::Text("%s", tab_titles[gui->settingsTab]);
 	ImGui::Separator();
 
 	static char gamedir[256];
@@ -314,7 +314,7 @@ void SettingsWidget::draw() {
 					pathStr += "\n" + path;
 				}
 
-				ImGui::SetTooltip(("This asset path adds the following search paths:\n" + pathStr).c_str());
+				ImGui::SetTooltip("%s", ("This asset path adds the following search paths:\n" + pathStr).c_str());
 			}
 
 			ImGui::SameLine();
@@ -365,7 +365,7 @@ void SettingsWidget::draw() {
 						string basePath = isAbsolutePath(paths[k]) ? paths[k] : getAbsolutePath(paths[k]);
 						searched += "\n" + joinPaths(basePath, tmpFgdPaths[i]);
 					}
-					ImGui::SetTooltip(("File not found. The following paths were checked according "
+					ImGui::SetTooltip("%s", ("File not found. The following paths were checked according "
 						"to your configured Asset Paths:\n" + searched).c_str());
 				}
 			}

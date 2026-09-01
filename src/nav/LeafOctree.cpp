@@ -6,7 +6,7 @@
 LeafOctant::LeafOctant(vec3 min, vec3 max) {
     this->min = min;
     this->max = max;
-    memset(children, NULL, sizeof(LeafOctant*) * 8);
+    memset(children, 0, sizeof(LeafOctant*) * 8);
 }
 
 LeafOctant::~LeafOctant() {

@@ -6,7 +6,7 @@
 PolyOctant::PolyOctant(vec3 min, vec3 max) {
     this->min = min;
     this->max = max;
-    memset(children, NULL, sizeof(PolyOctant*) * 8);
+    memset(children, 0, sizeof(PolyOctant*) * 8);
 }
 
 PolyOctant::~PolyOctant() {

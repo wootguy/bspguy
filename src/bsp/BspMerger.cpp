@@ -1281,7 +1281,7 @@ void BspMerger::create_merge_headnodes(Bsp& mapA, Bsp& mapB, BSPPLANE separation
 	// write new head node (visible BSP)
 	{
 		BSPNODE headNode = {
-			separationPlaneIdx,			// plane idx
+			(uint32_t)separationPlaneIdx,	// plane idx
 			{mapA.nodeCount + 1, 1},		// child nodes
 			{ min(amin.x, bmin.x), min(amin.y, bmin.y), min(amin.z, bmin.z) },	// mins
 			{ max(amax.x, bmax.x), max(amax.y, bmax.y), max(amax.z, bmax.z) },	// maxs

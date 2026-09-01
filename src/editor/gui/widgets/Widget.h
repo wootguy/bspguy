@@ -134,7 +134,7 @@ private:
 	float scaleX = 0, scaleY = 0, shiftX = 0, shiftY = 0, rotate = 0;
 	bool isSpecial = false;
 	int width = 0, height = 0;
-	ImTextureID textureId = NULL; // OpenGL ID
+	ImTextureID textureId = 0; // OpenGL ID
 	Texture* buttonTexture = NULL;
 	int lastTextureIdx = 0;
 	char textureName[MAXTEXTURENAME];

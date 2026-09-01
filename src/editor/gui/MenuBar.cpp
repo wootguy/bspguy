@@ -77,11 +77,11 @@ void MenuBar::draw() {
 	float avail = ImGui::GetContentRegionAvail().x;
 	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - totalW);
 
-	ImGui::Text(fpsText.c_str());
+	ImGui::Text("%s", fpsText.c_str());
 
 	if (g_settings.show_wpoly) {
 		ImGui::SameLine(0.0f, 0.0f);
-		ImGui::TextColored(wpolyColor, wpolyText.c_str());
+		ImGui::TextColored(wpolyColor, "%s", wpolyText.c_str());
 		ImGui::SameLine(0.0f, 0.0f);
 		ImGui::Text(" wpoly");
 	}
