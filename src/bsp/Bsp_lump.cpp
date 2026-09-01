@@ -2,6 +2,8 @@
 #include "util.h"
 #include "Entity.h"
 
+#include <algorithm>
+
 LumpState Bsp::duplicate_lumps(int targets) {
 	LumpState state;
 
@@ -147,7 +149,7 @@ int Bsp::remove_unused_structs(int lumpIdx, bool* usedStructs, int* remappedInde
 		removeCount += !usedStructs[i];
 	}
 
-	int newStructCount = max(0, oldStructCount - removeCount);
+	int newStructCount = std::max(0, oldStructCount - removeCount);
 
 	byte* oldStructs = lumps[lumpIdx];
 	byte* newStructs = new byte[newStructCount * structSize];

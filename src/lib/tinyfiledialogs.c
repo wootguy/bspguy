@@ -116,7 +116,7 @@ char tinyfd_version[8] = "3.18";
 #ifdef _WIN32
 /* if you want to use UTF-8 ( instead of the UTF-16/wchar_t functions at the end of tinyfiledialogs.h )
 Make sure your code is really prepared for UTF-8 (on windows, functions like fopen() expect MBCS and not UTF-8) */
-int tinyfd_winUtf8 = 1; /* on windows char strings can be 1:UTF-8(default) or 0:MBCS */
+int tinyfd_winUtf8 = 0; /* on windows char strings can be 1:UTF-8(default) or 0:MBCS */
 /* for MBCS change this to 0, here or in your code */
 #endif
 /******************************************************************************************************/

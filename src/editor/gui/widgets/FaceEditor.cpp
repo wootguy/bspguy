@@ -986,7 +986,7 @@ void FaceEditor::loadBrowserTextures() {
 			btex.width = tex->nWidth;
 			btex.height = tex->nHeight;
 			btex.usedInMap = true;
-			btex.source = -1;
+			btex.source = -3;
 			btex.iMiptex = i;
 			btex.contextId = cstrf("###ctx%d", browserTextures.size());
 
@@ -1012,7 +1012,7 @@ void FaceEditor::filterTextureBrowser() {
 	for (int i = 0; i < browserTextures.size(); i++) {
 		BrowserTexture& btex = browserTextures[i];
 
-		if (filterWad > -2 && btex.source != filterWad)
+		if (filterWad > -2 && (btex.source != filterWad || btex.source == -3))
 			continue;
 		if (onlyUsedTextures && !btex.usedInMap)
 			continue;
@@ -1203,7 +1203,14 @@ void FaceEditor::drawTextureBrowserGrid() {
 			bool ctxOpen = ImGui::IsPopupOpen(btex.contextId.c_str());
 
 			if (!ctxOpen) {
-				string src = btex.source == -1 ? map->name.c_str() : wads[btex.source]->getName();
+				string src = "Not found in any referenced WAD";
+				if (btex.source == -1) {
+					src = map->name + ".bsp";
+				}
+				else if (btex.source >= 0) {
+					src = wads[btex.source]->getName();
+				}
+
 				ImGui::BeginTooltip();
 				ImGui::TextUnformatted(cstrf("%s\n%dx%d\n%s", btex.name.c_str(),
 					btex.width, btex.height, src.c_str()));
@@ -1256,12 +1263,12 @@ void FaceEditor::drawTextureBrowserGrid() {
 			else {
 				static const COLOR3 pink = COLOR3(255, 0, 255);
 				static const COLOR3 black = COLOR3(0, 0, 0);
-				COLOR3* dat = new COLOR3[width * height];
+				COLOR3* dat = new COLOR3[btex.width * btex.height];
 
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
+				for (int y = 0; y < btex.height; y++) {
+					for (int x = 0; x < btex.width; x++) {
 						bool isPink = ((x / 8) + ((y / 8) & 1)) & 1;
-						dat[y * width + x] = isPink ? pink : black;
+						dat[y * btex.width + x] = isPink ? pink : black;
 					}
 				}
 

@@ -8,7 +8,6 @@
 // finalize v6:
 // - guide update: world leaf merging, new tools, rad, different subdivides
 // - update version string
-// - test on windows xp
 
 // fix v6 low prio:
 // - some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
@@ -16,8 +15,8 @@
 // - quake map crashes on conversion to hl/sven, also clean/optimize crashes the program (can't repro)
 // - model bbox becoming opaque when moved or keyvalue edited
 
-
 // todo:
+// vmware winxp mesa opengl driver can't draw wireframes. Faces are inverted (fixable) or black if backface wireframes are off
 // detail/animated/scroll textures
 // do water textures on ANY solid entity with a non-zero origin flicker? or just func_friction and func_water
 // warning for solid ents without a hull 0 (server/client crash)
