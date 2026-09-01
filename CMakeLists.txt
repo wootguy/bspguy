@@ -40,7 +40,19 @@ set(SOURCE_FILES
 	
 	# BSP and related structures
 	src/bsp/BspMerger.h		src/bsp/BspMerger.cpp
+							src/bsp/BspMerger_lumps.cpp
 	src/bsp/Bsp.h			src/bsp/Bsp.cpp
+							src/bsp/Bsp_vis.cpp
+							src/bsp/Bsp_node.cpp
+							src/bsp/Bsp_leaf.cpp
+							src/bsp/Bsp_face.cpp
+							src/bsp/Bsp_rad.cpp
+							src/bsp/Bsp_tex.cpp
+							src/bsp/Bsp_io.cpp
+							src/bsp/Bsp_mdl.cpp
+							src/bsp/Bsp_ent.cpp
+							src/bsp/Bsp_clip.cpp
+							src/bsp/Bsp_lump.cpp
 	src/bsp/bsplimits.h
 	src/bsp/bsptypes.h		src/bsp/bsptypes.cpp
 	src/bsp/Entity.h		src/bsp/Entity.cpp
@@ -88,6 +100,10 @@ set(SOURCE_FILES
 	
 	# Core editor logic
 	src/editor/Editor.h				src/editor/Editor.cpp
+									src/editor/Editor_ctrl.cpp
+									src/editor/Editor_draw.cpp
+									src/editor/Editor_window.cpp
+									src/editor/Editor_ent.cpp
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
@@ -95,6 +111,8 @@ set(SOURCE_FILES
 	
 	# 3D viewport
 	src/editor/viewport/BspRenderer.h		src/editor/viewport/BspRenderer.cpp
+											src/editor/viewport/BspRenderer_draw.cpp
+											src/editor/viewport/BspRenderer_load.cpp
 	src/editor/viewport/PointEntRenderer.h	src/editor/viewport/PointEntRenderer.cpp
 	src/editor/viewport/StudioMdlRenderer.h		src/editor/viewport/StudioMdlRenderer.cpp
 	src/editor/viewport/SprRenderer.h		src/editor/viewport/SprRenderer.cpp
@@ -262,7 +280,19 @@ if(MSVC)
 											src/bsp/remap.h)
 											
 	source_group("Source Files\\bsp" FILES	src/bsp/BspMerger.cpp
+											src/bsp/BspMerger_lumps.cpp
 											src/bsp/Bsp.cpp
+											src/bsp/Bsp_vis.cpp
+											src/bsp/Bsp_tex.cpp
+											src/bsp/Bsp_rad.cpp
+											src/bsp/Bsp_node.cpp
+											src/bsp/Bsp_leaf.cpp
+											src/bsp/Bsp_face.cpp
+											src/bsp/Bsp_io.cpp
+											src/bsp/Bsp_mdl.cpp
+											src/bsp/Bsp_ent.cpp
+											src/bsp/Bsp_clip.cpp
+											src/bsp/Bsp_lump.cpp
 											src/bsp/bsptypes.cpp
 											src/bsp/Entity.cpp
 											src/bsp/Keyvalue.cpp
@@ -307,6 +337,10 @@ if(MSVC)
 												src/editor/AppSettings.h)
 											
 	source_group("Source Files\\editor" FILES	src/editor/Editor.cpp
+												src/editor/Editor_ctrl.cpp
+												src/editor/Editor_draw.cpp
+												src/editor/Editor_window.cpp
+												src/editor/Editor_ent.cpp
 												src/editor/Fgd.cpp
 												src/editor/Command.cpp
 												src/editor/PickInfo.cpp
@@ -322,6 +356,8 @@ if(MSVC)
 											
 	source_group("Source Files\\editor\\viewport" FILES	
 												src/editor/viewport/BspRenderer.cpp
+												src/editor/viewport/BspRenderer_draw.cpp
+												src/editor/viewport/BspRenderer_load.cpp
 												src/editor/viewport/PointEntRenderer.cpp
 												src/editor/viewport/ModelRenderer.cpp
 												src/editor/viewport/NavRenderer.cpp

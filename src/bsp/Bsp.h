@@ -101,6 +101,8 @@ enum BspFormat {
 };
 
 extern const char* g_bsp_format_names[BSP_FORMAT_TYPES];
+extern vec3 default_hull_extents[MAX_MAP_HULLS];
+extern int g_sort_mode;
 
 class Bsp
 {
@@ -752,7 +754,7 @@ private:
 	void print_stat(string name, uint val, uint max, bool isMem);
 	void print_model_stat(STRUCTUSAGE* modelInfo, uint val, uint max, bool isMem);
 
-	string get_model_usage(int modelIdx);
+	string get_model_usage(int modelIdx); // description of the entity that uses this model
 	vector<Entity*> get_model_ents(int modelIdx);
 
 	void write_csg_polys(int32_t nodeIdx, FILE* fout, int flipPlaneSkip, bool debug);	

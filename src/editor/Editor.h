@@ -66,6 +66,8 @@ struct EntityState {
 	Entity* ent;
 };
 
+extern int g_scroll;
+
 class Editor {
 	friend class Gui;
 	friend class MenuBar;
