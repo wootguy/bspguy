@@ -11,7 +11,6 @@
 // - test on windows xp
 
 // fix v6 low prio:
-// - moving Q1 maps sometimes skews the bsp models
 // - some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
 // - scaling water textures causes client crash? but subdivide doesn't?
 // - quake map crashes on conversion to hl/sven, also clean/optimize crashes the program (can't repro)

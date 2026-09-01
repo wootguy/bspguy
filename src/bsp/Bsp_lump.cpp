@@ -422,6 +422,16 @@ void Bsp::remap_face_structures(int faceIdx, STRUCTREMAP* remap) {
 
 	face.iPlane = remap->planes[face.iPlane];
 	face.iTextureInfo = remap->texInfo[face.iTextureInfo];
+
+	for (int i = 0; i < face.nEdges; i++) {
+		int32_t edgeIdx = surfedges[face.iFirstEdge + i];
+		BSPEDGE& edge = edges[abs(edgeIdx)];
+
+		// quake maps will re-use vertices across faces in different models, but the surfedges/edges
+		// are not shared, so this should be enough to fix those maps.
+		int k = edgeIdx >= 0 ? 1 : 0;
+		edge.iVertex[k] = remap->verts[edge.iVertex[k]];
+	}
 	//logf("REMAP FACE %d: %d -> %d\n", faceIdx, face.iFirstEdge, remap->surfEdges[face.iFirstEdge]);
 	//logf("REMAP FACE %d: %d -> %d\n", faceIdx, face.iTextureInfo, remap->texInfo[face.iTextureInfo]);
 	//face.iFirstEdge = remap->surfEdges[face.iFirstEdge];

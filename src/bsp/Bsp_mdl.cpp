@@ -402,10 +402,15 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 			break;
 		}
 	}
-	for (int i = 0; i < shouldNotMove.count.verts; i++) {
-		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
-			// this happens on activist series but doesn't break anything
-			errorf("\nError: vertex shared with multiple models. Something will break.\n");
+	for (int i = 0; i < shouldNotMove.count.surfEdges; i++) {
+		if (shouldMove.surfEdges[i] && shouldNotMove.surfEdges[i]) {
+			errorf("\nError: surfedge shared with multiple models. Something will break.\n");
+			break;
+		}
+	}
+	for (int i = 0; i < shouldNotMove.count.edges; i++) {
+		if (shouldMove.edges[i] && shouldNotMove.edges[i]) {
+			errorf("\nError: edge shared with multiple models. Something will break.\n");
 			break;
 		}
 	}
@@ -413,6 +418,7 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	int duplicatePlanes = 0;
 	int duplicateClipnodes = 0;
 	int duplicateTexinfos = 0;
+	int duplicateVerts = 0;
 
 	for (int i = 0; i < shouldNotMove.count.planes; i++) {
 		duplicatePlanes += shouldMove.planes[i] && shouldNotMove.planes[i];
@@ -423,10 +429,14 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	for (int i = 0; i < shouldNotMove.count.texInfos; i++) {
 		duplicateTexinfos += shouldMove.texInfo[i] && shouldNotMove.texInfo[i];
 	}
+	for (int i = 0; i < shouldNotMove.count.verts; i++) {
+		duplicateVerts += shouldMove.verts[i] && shouldNotMove.verts[i];
+	}
 
 	int newPlaneCount = planeCount + duplicatePlanes;
 	int newClipnodeCount = clipnodeCount + duplicateClipnodes;
 	int newTexinfoCount = texinfoCount + duplicateTexinfos;
+	int newVertCount = vertCount + duplicateVerts;
 
 	BSPPLANE* newPlanes = new BSPPLANE[newPlaneCount];
 	memcpy(newPlanes, planes, planeCount * sizeof(BSPPLANE));
@@ -436,6 +446,9 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 
 	BSPTEXTUREINFO* newTexinfos = new BSPTEXTUREINFO[newTexinfoCount];
 	memcpy(newTexinfos, texinfos, texinfoCount * sizeof(BSPTEXTUREINFO));
+
+	vec3* newVerts = new vec3[newVertCount];
+	memcpy(newVerts, verts, newVertCount * sizeof(vec3));
 
 	int addIdx = planeCount;
 	for (int i = 0; i < shouldNotMove.count.planes; i++) {
@@ -464,9 +477,19 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 		}
 	}
 
+	addIdx = vertCount;
+	for (int i = 0; i < shouldNotMove.count.verts; i++) {
+		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
+			newVerts[addIdx] = verts[i];
+			remappedStuff.verts[i] = addIdx;
+			addIdx++;
+		}
+	}
+
 	replace_lump(LUMP_PLANES, newPlanes, newPlaneCount * sizeof(BSPPLANE));
 	replace_lump(LUMP_CLIPNODES, newClipnodes, newClipnodeCount * sizeof(BSPCLIPNODE));
 	replace_lump(LUMP_TEXINFO, newTexinfos, newTexinfoCount * sizeof(BSPTEXTUREINFO));
+	replace_lump(LUMP_VERTICES, newVerts, newVertCount * sizeof(vec3));
 
 	bool* newVisitedClipnodes = new bool[newClipnodeCount];
 	memset(newVisitedClipnodes, 0, newClipnodeCount);
@@ -483,6 +506,8 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 			debugf("    Added %d clipnodes\n", duplicateClipnodes);
 		if (duplicateTexinfos)
 			debugf("    Added %d texinfos\n", duplicateTexinfos);
+		if (duplicateVerts)
+			debugf("    Added %d verts\n", duplicateVerts);
 	}
 }
 
