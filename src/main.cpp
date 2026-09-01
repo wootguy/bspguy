@@ -5,13 +5,6 @@
 #include "Editor.h"
 #include "globals.h"
 
-// finalize v6:
-// - guide update: world leaf merging, new tools, rad, different subdivides
-// - update version string
-
-// fix v6:
-// - map merge tool crashed
-
 // todo:
 // some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
 // scaling water textures causes client crash? but subdivide doesn't?

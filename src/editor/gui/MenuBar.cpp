@@ -53,8 +53,8 @@ void MenuBar::draw() {
 	string wpolyText;
 	ImVec4 wpolyColor = ImVec4(1, 1, 1, 1);
 
-	if (g_app->mapRenderer->pvsDat && g_settings.show_wpoly) {
-		int wpoly = g_app->mapRenderer->pvsDat->wpoly;
+	if (g_settings.show_wpoly) {
+		int wpoly = g_app->mapRenderer->pvsDat ? g_app->mapRenderer->pvsDat->wpoly : 0;
 		wpolyText = to_string(wpoly);
 		fpsText = fpsText + ",  ";
 		statsText = fpsText + wpolyText + " wpoly";

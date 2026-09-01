@@ -1085,12 +1085,14 @@ bool Bsp::validate() {
 			isValid = false;
 		}
 		if (models[i].iHeadnodes[0] >= nodeCount) {
-			errorf("Bad node reference in model %d hull 0: %d / %d\n", i, models[i].iHeadnodes[0], nodeCount);
+			errorf("Bad node reference in model %d hull 0: %d / %d (fixed!)\n", i, models[i].iHeadnodes[0], nodeCount);
+			models[i].iHeadnodes[0] = -1;
 			isValid = false;
 		}
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
 			if (models[i].iHeadnodes[k] >= clipnodeCount) {
-				errorf("Bad clipnode reference in model %d hull %d: %d / %d\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
+				errorf("Bad clipnode reference in model %d hull %d: %d / %d (fixed!)\n", i, k, models[i].iHeadnodes[k], clipnodeCount);
+				models[i].iHeadnodes[k] = -1;
 				isValid = false;
 			}
 		}

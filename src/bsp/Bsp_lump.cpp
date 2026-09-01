@@ -306,9 +306,13 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool deleteModels) {
 			models[i].iFirstFace = remap.faces[models[i].iFirstFace];
 		else
 			models[i].iFirstFace = 0;
+		if (models[i].iHeadnodes[0] >= nodeCount)
+			models[i].iHeadnodes[0] = -1; // invalid offset
 		if (models[i].iHeadnodes[0] >= 0)
 			models[i].iHeadnodes[0] = remap.nodes[models[i].iHeadnodes[0]];
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			if (models[i].iHeadnodes[k] >= clipnodeCount)
+				models[i].iHeadnodes[k] = -1; // invalid offset
 			if (models[i].iHeadnodes[k] >= 0)
 				models[i].iHeadnodes[k] = remap.clipnodes[models[i].iHeadnodes[k]];
 		}
