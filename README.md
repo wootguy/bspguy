@@ -1,28 +1,28 @@
 # bspguy
-Edit GoldSrc and Quake maps without decompiling.
+A tool for editing GoldSrc maps without decompiling.
 
 # Usage
-Double-click to launch the 3D editor, or run `bspguy -help` for the command-line interface.
+Double-click to launch the 3D editor, or drag a BSP file onto the program, or run `bspguy -help` for the command-line interface.
 
 Supported BSP files: 
 - BSP30 (Half-Life and Half-Life: Blue Shift)
 - BSP29 (Quake 1)
 - BSP2/2PSB (Quake 1 source ports)
 
-See the [wiki](https://github.com/wootguy/bspguy/wiki) for merging and porting tutorials.
+See the [wiki](https://github.com/wootguy/bspguy/wiki) for tutorials.
 
 ## Editor Features
 - Entity editor with FGD support
-- Visualized entity connections with text searching
-- Map merging, splitting, and porting tools
+- Visualized entity connections with search tool
+- Map [merging](https://github.com/wootguy/bspguy/wiki/Merging-workflow), [splitting](https://github.com/wootguy/bspguy/wiki/Porting-Sven-Co%E2%80%90op-Maps-to-Half%E2%80%90Life#split-and-merge-basic), and [other porting tools](https://github.com/wootguy/bspguy/wiki/Porting-Sven-Co%E2%80%90op-Maps-to-Half%E2%80%90Life)
+- [VIS](https://github.com/wootguy/bspguy/wiki/PVS-Editing#vis-recompilation) and [RAD](https://github.com/wootguy/bspguy/wiki/Porting-Sven-Co%E2%80%90op-Maps-to-Half%E2%80%90Life#rad-preparation-tool) recompilation tools
+- [PVS editing](https://github.com/wootguy/bspguy/wiki/PVS-Editing)
 - BSP model editing
-- VIS and RAD recompilation tools
-- Visleaf/PVS editing
 - Face editing (textures, lightmaps)
 - Clipnode/Leaf visualization
 - And more!
 
-![image](https://github.com/user-attachments/assets/1db127c9-e52a-4ca6-a011-ccb2ed2a7407)
+<img width="1823" alt="image" src="https://github.com/user-attachments/assets/8fcf5dc5-448d-41f8-94de-49d02f5c8f58" />
 
 ## System Requirements
 - OpenGL 2.1
