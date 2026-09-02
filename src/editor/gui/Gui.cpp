@@ -865,17 +865,29 @@ void Gui::draw3dContextMenus() {
 
 				if (ImGui::BeginMenu("Apply PVS", app->pickInfo.leaves.size() >= 1 && app->pvsCopyLeaves.size())) {
 					if (ImGui::MenuItem("Add", "", false)) {
+						LumpReplaceCommand* command = new LumpReplaceCommand("Add PVS", true);
+
 						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, 1);
+
+						command->pushUndoState(true);
 					}
 					tooltip("Add copied leaves to the target leaf PVS.");
 
 					if (ImGui::MenuItem("Replace", "", false)) {
+						LumpReplaceCommand* command = new LumpReplaceCommand("Replace PVS", true);
+
 						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, 0);
+
+						command->pushUndoState(true);
 					}
 					tooltip("Replace target leaf PVS with the copied leaves.");
 					
 					if (ImGui::MenuItem("Subtract", "", false)) {
+						LumpReplaceCommand* command = new LumpReplaceCommand("Subtract PVS", true);
+
 						map->apply_pvs(app->pickInfo.leaves, app->pvsCopyLeaves, -1);
+
+						command->pushUndoState(true);
 					}
 					tooltip("Remove copied leaves from the target leaf PVS.");
 
