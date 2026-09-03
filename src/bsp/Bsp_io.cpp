@@ -34,21 +34,21 @@ int Bsp::formatForGameEngine(int engine) {
 	}
 }
 
-void Bsp::write(string path) {
+bool Bsp::write(string path, bool force) {
 	if (path.rfind(".bsp") != path.size() - 4) {
 		path = path + ".bsp";
 	}
 
-	if (!isWritable()) {
+	if (!force && !isWritable()) {
 		Alert("Overflow", cstrf("This map exceeds %s engine limits. "
 			"Choose an engine with higher limits before saving (Settings -> Engine).\n\n"
 			"Open the Map Limits widget to see which limits are exceeded "
 			"(Widgets -> Map Limits).", g_engine_names[g_settings.engine]),
 			"ok", "error", 0);
-		return;
+		return false;
 	}
 
-	if (g_settings.ripent_safe_mode) {
+	if (!force && g_settings.ripent_safe_mode) {
 		LumpState state;
 		BSPHEADER head;
 		if (!load_lumps(path, head, state)) {
@@ -57,7 +57,7 @@ void Bsp::write(string path) {
 			for (int i = 0; i < HEADER_LUMPS; i++) {
 				delete[] state.lumps[i];
 			}
-			return;
+			return false;
 		}
 		int numDiscard = 0;
 		for (int i = 0; i < HEADER_LUMPS; i++) {
@@ -93,7 +93,7 @@ void Bsp::write(string path) {
 					"prevents the map working in Quake 1.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
-					return;
+					return false;
 			}
 			break;
 		case BSP_HALFLIFE:
@@ -106,21 +106,21 @@ void Bsp::write(string path) {
 					"\n\nThe map will no longer work in GoldSrc.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
-					return;
+					return false;
 			}
 			if (formatFrom == BSP_HALFLIFE && formatTo == BSP_BLUESHIFT) {
 				int ret = Alert("Format conversion", "Saving a Half-Life map in the Blue Shift format "
 					"prevents the map working in Half-Life.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
-					return;
+					return false;
 			}
 			if (formatFrom == BSP_BLUESHIFT && formatTo == BSP_HALFLIFE) {
 				int ret = Alert("Format conversion", "Saving a Blue Shift map in the Half-Life format "
 					"prevents the map working in Blue Shift.\n\nSave anyway?",
 					"yesno", "warning", 0);
 				if (ret == 0)
-					return;
+					return false;
 			}
 			break;
 		}
@@ -159,7 +159,7 @@ void Bsp::write(string path) {
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
 	if (!file.is_open()) {
 		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
-		return;
+		return false;
 	}
 
 	file.write((char*)&saveHeader, sizeof(BSPHEADER));
@@ -171,6 +171,7 @@ void Bsp::write(string path) {
 	}
 
 	logf("Wrote %s: %s\n", g_bsp_format_names[formatTo], path.c_str());
+	return true;
 }
 
 bool Bsp::load_lumps(string fpath, BSPHEADER& head, LumpState& state)

@@ -170,7 +170,7 @@ public:
 	bool move(vec3 offset, int modelIdx=0);
 
 	void move_texinfo(int idx, vec3 offset);
-	void write(string path);
+	bool write(string path, bool force = false);
 
 	void print_info(bool perModelStats, int perModelLimit, int sortMode);
 	void print_model_hull(int modelIdx, int hull);

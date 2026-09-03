@@ -3,6 +3,7 @@
 #include <string>
 #include "CommandLine.h"
 #include "Editor.h"
+#include "Entity.h"
 #include "globals.h"
 
 // todo:
@@ -618,6 +619,75 @@ int rename_texture(CommandLine& cli) {
 	return 0;
 }
 
+int strip_map(CommandLine& cli, bool unstrip) {
+	Bsp* map = new Bsp(cli.bspfile);
+	if (!map->valid)
+		return 1;
+
+	// use whatever engine is stored in the BSP
+	g_settings.engine = -1;
+
+	string fname = map->path.substr(0, map->path.size() - 4) + ".ent";
+
+	if (cli.hasOption("-ent")) {
+		fname = cli.getOption("-ent");
+	}
+
+	if (unstrip) {
+		if (map->ents.size() > 1) {
+			logf("Aborting unstrip: %s has entities in it.\n", map->name.c_str());
+			return 1;
+		}
+
+		int len;
+		char* data = loadFile(fname, len);
+		if (!data) {
+			logf("Aborting unstrip. File not found: %s\n", fname.c_str());
+			return 1;
+		}
+
+		map->replace_lump(LUMP_ENTITIES, data, len);
+		map->load_ents(map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength, map->ents);
+
+		if (!map->write(map->path, true))
+			return 1;
+
+		remove(fname.c_str());
+		logf("Deleted %s\n", fname.c_str());
+	}
+	else {
+		if (map->ents.size() == 1) {
+			logf("%s is already stripped (no entities).\n", map->name.c_str());
+			return 0;
+		}
+
+		if (map->ents[0]->getClassname() != "worldspawn") {
+			errorf("Aborting strip. %s is missing a worldspawn entity at index 0\n", map->name.c_str());
+			return 1;
+		}
+
+		FILE* outfile = fopen(fname.c_str(), "w");
+		if (!outfile) {
+			errorf("Failed to open for writing: %s\n", fname.c_str());
+			return 1;
+		}
+
+		fwrite(map->lumps[LUMP_ENTITIES], map->header.lump[LUMP_ENTITIES].nLength, 1, outfile);
+		fclose(outfile);
+		logf("Wrote %s\n", fname.c_str());
+
+		map->ents.resize(1);
+		map->update_ent_lump();
+		if (!map->write(map->path, true)) {
+			return false;
+		}
+	}
+	
+	delete map;
+
+	return 0;
+}
+
 
 void print_help(string command) {
 	if (command == "merge") {
@@ -726,20 +796,40 @@ void print_help(string command) {
 			);
 	}
 	else if (command == "unembed") {
-	logf(
-		"unembed - Deletes embedded texture data, so that they reference WADs instead.\n\n"
+		logf(
+			"unembed - Deletes embedded texture data, so that they reference WADs instead.\n\n"
 
-		"Usage:   bspguy unembed <mapname>\n"
-		"Example: bspguy unembed c1a0.bsp\n"
-	);
+			"Usage:   bspguy unembed <mapname>\n"
+			"Example: bspguy unembed c1a0.bsp\n"
+		);
 	}
 	else if (command == "renametex") {
-	logf(
-		"renametex - Renames a texture. This changes the texture if it's loaded from a WAD.\n\n"
+		logf(
+			"renametex - Renames a texture. This changes the texture if it's loaded from a WAD.\n\n"
 
-		"Usage:   bspguy renametex <mapname> -old <oldname> -new <newname>\n"
-		"Example: bspguy rename c1a0.bsp -old aaatrigger -new aaadigger\n"
-	);
+			"Usage:   bspguy renametex <mapname> -old <oldname> -new <newname>\n"
+			"Example: bspguy rename c1a0.bsp -old aaatrigger -new aaadigger\n"
+		);
+	}
+	else if (command == "strip") {
+		logf(
+			"strip - Strip entities from the map and save them to an .ent file.\n\n"
+
+			"Usage:   bspguy strip <mapname> [options]\n"
+
+			"\n[Options]\n"
+			"  -ent <file> : Custom path to the .ent file.\n"
+		);
+	}
+	else if (command == "unstrip") {
+		logf(
+			"unstrip - Strip entities from the map and save them to an .ent file.\n\n"
+
+			"Usage:   bspguy unstrip <mapname> [options]\n"
+
+			"\n[Options]\n"
+			"  -ent <file> : Custom path to the .ent file.\n"
+		);
 	}
 	else {
 		logf("%s\n\n", g_version_string);
@@ -756,6 +846,8 @@ void print_help(string command) {
 			"  transform : Apply 3D transformations to the BSP\n"
 			"  unembed   : Deletes embedded texture data\n"
 			"  renametex : Renames/replaces a texture in the BSP\n"
+			"  strip     : Strip entities from the map and save them to an .ent file\n"
+			"  unstrip   : Import entities from an .ent file, then delete the .ent\n"
 
 			"\nRun 'bspguy <command> help' to read about a specific command.\n"
 			"\nTo launch the 3D editor, run this program without any arguments."
@@ -895,8 +987,14 @@ int main(int argc, char* argv[])
 		else if (cli.command == "renametex") {
 			return rename_texture(cli);
 		}
+		else if (cli.command == "strip") {
+			return strip_map(cli, false);
+		}
+		else if (cli.command == "unstrip") {
+			return strip_map(cli, true);
+		}
 		else {
-			logf("unrecognized command: %d\n", cli.command.c_str());
+			logf("unrecognized command: %s\n", cli.command.c_str());
 		}
 	}
 
