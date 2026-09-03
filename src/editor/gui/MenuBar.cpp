@@ -1623,7 +1623,7 @@ void MenuBar::drawToolsMenu() {
 				"This does not delete BSP data unless you run the Clean command afterward. Cut/hide problematic entities before "
 				"deduplicating if you don't want their models swapped.");
 
-			if (ImGui::MenuItem("Recover Oprhaned Models", 0, false, !app->isLoading)) {
+			if (ImGui::MenuItem("Recover Orphaned Models", 0, false, !app->isLoading)) {
 				unordered_set<int> usedModels;
 
 				for (Entity* ent : map->ents) {
