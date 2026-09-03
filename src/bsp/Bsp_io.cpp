@@ -65,18 +65,16 @@ bool Bsp::write(string path, bool force) {
 				delete[] state.lumps[i];
 				continue;
 			}
-			if (state.lumpLen[i] == header.lump[i].nLength && !memcmp(state.lumps[i], lumps[i], state.lumpLen[i]))
+			if (state.lumpLen[i] == header.lump[i].nLength && !memcmp(state.lumps[i], lumps[i], state.lumpLen[i])) {
+				delete[] state.lumps[i];
 				continue;
+			}
 			replace_lump(i, state.lumps[i], state.lumpLen[i]);
 			numDiscard++;
 			debugf("Ripent safety: Discarded changes in %s lump\n", g_lump_names[i]);
 		}
 		if (numDiscard)
 			warnf("Ripent safety: Discarded changes in %d lumps during save\n", numDiscard);
-
-		for (int i = 0; i < HEADER_LUMPS; i++) {
-			delete[] state.lumps[i];
-		}
 	}
 
 	int formatFrom = lastSaveFormat != -1 ? lastSaveFormat : lastLoadformat;
