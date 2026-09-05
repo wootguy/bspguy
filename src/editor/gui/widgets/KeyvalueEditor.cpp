@@ -1,6 +1,11 @@
 #include "Widget.h"
 #include "Entity.h"
 
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 void KeyvalueEditor::draw() {
 	static int selectedFgdIdx = -1;
 
@@ -208,10 +213,13 @@ void KeyvalueEditor::draw() {
 			copiedKeyvalues.clear();
 			unordered_set<string> conflictedKeys;
 
+			string className;
+
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
 				StringMap allKeys = ent->getAllKeyvalues();
 				allKeys.del("origin");
+				className = allKeys.get("classname");
 				allKeys.del("classname");
 				if (allKeys.get("model", "")[0] == '*') {
 					allKeys.del("model"); // BSP model copying does more harm than good
@@ -231,6 +239,36 @@ void KeyvalueEditor::draw() {
 			for (string item : conflictedKeys) {
 				copiedKeyvalues.erase(item);
 			}
+
+			static auto CopyToClipboard = []( const char* text ) -> void
+			{
+#ifdef _WIN32
+				if( OpenClipboard( nullptr ) ) {
+					EmptyClipboard();
+					const size_t size = strlen( text ) + 1;
+					HGLOBAL hMem = GlobalAlloc( GMEM_MOVEABLE, size );
+					if( hMem ) {
+						void* ptr = GlobalLock( hMem );
+						if( ptr ) {
+							memcpy( ptr, text, size );
+							GlobalUnlock( hMem );
+							SetClipboardData( CF_TEXT, hMem );
+						}
+						else {
+							GlobalFree( hMem );
+						}
+					}
+					CloseClipboard();
+				}
+// Requiring linux #else
+#endif
+			};
+
+			string epairs = "!!EPAIRS\n\"classname\" " + className + "\"";
+			for( const auto& it : copiedKeyvalues ) {
+				epairs = epairs + "\n\"" + it.first + "\" \"" + it.second + "\"";
+			}
+			CopyToClipboard( epairs.c_str() );
 		}
 		tooltip("Copy all keyvalues except for origin, classname, and BSP model if solid. Keyvalues with conflicts "
 			"are excluded when multiple entities are selected.");
