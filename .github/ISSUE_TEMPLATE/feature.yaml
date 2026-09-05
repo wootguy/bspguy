@@ -1,6 +1,5 @@
 name: Feature request
 description: Request a feature
-title: "[Feature] "
 labels: [ "enhancement" ]
 assignees: [ ]
 
@@ -15,6 +14,5 @@ body:
     attributes:
       label: "Description of feature"
       description: "A clear and concise description of what the feature is."
-      placeholder: ""
     validations:
       required: true

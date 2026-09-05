@@ -1,6 +1,5 @@
 name: Bug
 description: Report a bug with the program.
-title: "[Bug] "
 labels: [ "bug" ]
 assignees: [ ]
 
@@ -10,27 +9,15 @@ body:
       value: |
         Thank you for reporting a bug! Please fill out the details below to help us locate and resolve the issue.
 
-  - type: textarea
-    id: description
-    attributes:
-      label: "Description"
-      description: "A clear and concise description of what the issue is."
-    validations:
-      required: true
-
   - type: dropdown
     id: version
     attributes:
       label: "Program version"
-      description: "Select which bspguy version has this problem"
+      description: "Select which version of bspguy has this problem"
       options:
-        - Up-to-date compiled.
-        - V6
-        - V5
-        - V4
-        - V3
-        - V2
-        - V1
+        - v6
+        - v7 WIP (compiled from master)
+        - v5 or earlier
     validations:
       required: true
 
@@ -38,23 +25,28 @@ body:
     id: engined
     attributes:
       label: "Engine"
-      description: "Select which engine uses the BSP that caused the issue"
+      description: "Select which game engine you used to test the BSP"
       options:
-        - Sven Co-op (Svengine)
-        - Seven Kewp (ReHLDS)
-        - Half-Life (GoldSrc)
-        - Half-Life (GoldSrc pre-25th)
+        - GoldSrc
+        - GoldSrc (steam_legacy beta)
+        - Svengine
+        - ReHLDS
+        - Xash3D
+        - Quake
+        - Other
     validations:
       required: false
 
   - type: textarea
-    id: steps
+    id: description
     attributes:
-      label: "Steps to Reproduce"
-      description: "How can we replicate the bug?"
+      label: "Description"
+      description: "A description of what the problem is, with steps to reproduce it."
       placeholder: |
-        1. Merge infested and infested2.
-        2. Go to infested's elevator.
-        3. Cut the elevator entity.
+        A clear and concise description of what the issue is.
+        
+        Steps to Reproduce:
+        1. Merge the BSP files attached to this issue.
+        2. Use the Validate option.
     validations:
-      required: false
+      required: true
