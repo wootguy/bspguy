@@ -34,6 +34,19 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: engined
+    attributes:
+      label: "Engine"
+      description: "Select which engine uses the BSP that caused the issue"
+      options:
+        - Sven Co-op (Svengine)
+        - Seven Kewp (ReHLDS)
+        - Half-Life (GoldSrc)
+        - Half-Life (GoldSrc pre-25th)
+    validations:
+      required: false
+
   - type: textarea
     id: steps
     attributes:
