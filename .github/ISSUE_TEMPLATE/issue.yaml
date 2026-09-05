@@ -1,0 +1,60 @@
+name: Bug
+description: Report a bug with the program.
+title: "[Bug] "
+labels: [ "bug" ]
+assignees: [ ]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the details below to help us locate and resolve the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "A clear and concise description of what the issue is."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: "Program version"
+      description: "Select which bspguy version has this problem"
+      options:
+        - Up-to-date compiled.
+        - V6
+        - V5
+        - V4
+        - V3
+        - V2
+        - V1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engined
+    attributes:
+      label: "Engine"
+      description: "Select which engine uses the BSP that caused the issue"
+      options:
+        - Sven Co-op (Svengine)
+        - Seven Kewp (ReHLDS)
+        - Half-Life (GoldSrc)
+        - Half-Life (GoldSrc pre-25th)
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "How can we replicate the bug?"
+      placeholder: |
+        1. Merge infested and infested2.
+        2. Go to infested's elevator.
+        3. Cut the elevator entity.
+    validations:
+      required: false
