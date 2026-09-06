@@ -36,6 +36,7 @@ struct AppSettings {
 	int renderer;
 	bool animate_models;
 	bool freetype_font;
+	bool hammer_copyent;
 	bool texture_atlas;
 	bool pal_textures;
 	int max_texture_size;

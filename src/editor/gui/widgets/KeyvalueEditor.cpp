@@ -1,10 +1,6 @@
 #include "Widget.h"
 #include "Entity.h"
-
-#ifdef _WIN32
-#define NOMINMAX
-#include <windows.h>
-#endif
+#include <sstream>
 
 void KeyvalueEditor::draw() {
 	static int selectedFgdIdx = -1;
@@ -184,26 +180,28 @@ void KeyvalueEditor::draw() {
 		ImGui::SetCursorPosX(right - totalW);
 		ImGui::SetCursorPosY(tabBarY);
 
+		static auto getEntitySafeKeys = []( Entity* ent ) -> StringMap {
+			StringMap allKeys = ent->getAllKeyvalues();
+			allKeys.del("origin");
+			allKeys.del("classname");
+			if (allKeys.get("model", "")[0] == '*') {
+				allKeys.del("model"); // don't ever delete BSP model keys
+			}
+			if (g_settings.ripent_safe_mode && ent->getClassname() == "worldspawn")
+				allKeys.del("wad");
+			return allKeys;
+		};
+
 		if (ImGui::Button("Purge")) {
 			app->updateEntityUndoState();
-
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
-				StringMap allKeys = ent->getAllKeyvalues();
-				allKeys.del("origin");
-				allKeys.del("classname");
-				if (allKeys.get("model", "")[0] == '*') {
-					allKeys.del("model"); // don't ever delete BSP model keys
-				}
-				if (g_settings.ripent_safe_mode && ent->getClassname() == "worldspawn")
-					allKeys.del("wad");
-					
+				StringMap allKeys = getEntitySafeKeys(ent);
 				StringMap::iterator_t iter;
 				while (allKeys.iterate(iter)) {
 					ent->removeKeyvalue(iter.key);
 				}
 			}
-
 			app->pushEntityUndoState("Purge keyvalues");
 		}
 		tooltip("Delete all keyvalues except for origin, classname, and BSP model if solid.");
@@ -214,17 +212,18 @@ void KeyvalueEditor::draw() {
 			copiedKeyvalues.clear();
 			unordered_set<string> conflictedKeys;
 
-			string className;
-
 			vector<Entity*> ents = app->pickInfo.getEnts();
-			for (Entity* ent : ents) {
-				StringMap allKeys = ent->getAllKeyvalues();
-				allKeys.del("origin");
-				className = allKeys.get("classname");
-				allKeys.del("classname");
-				if (allKeys.get("model", "")[0] == '*') {
-					allKeys.del("model"); // BSP model copying does more harm than good
+
+			stringstream content;
+			if(g_settings.hammer_copyent) {
+				ImGui::SetClipboardText("");
+				if( ents.size() > 0 ) {
+					content << "!!EPAIRS\n\"classname\" \"" << ents[0]->getClassname() << "\"";
 				}
+			}
+
+			for (Entity* ent : ents) {
+				StringMap allKeys = getEntitySafeKeys(ent);
 				StringMap::iterator_t iter;
 				while (allKeys.iterate(iter)) {
 					if (copiedKeyvalues.find(iter.key) != copiedKeyvalues.end()) {
@@ -232,7 +231,6 @@ void KeyvalueEditor::draw() {
 							conflictedKeys.insert(iter.key);
 						}
 					}
-
 					copiedKeyvalues[iter.key] = iter.value;
 				}
 			}
@@ -241,48 +239,52 @@ void KeyvalueEditor::draw() {
 				copiedKeyvalues.erase(item);
 			}
 
-			static auto CopyToClipboard = []( const char* text ) -> void
-			{
-#ifdef _WIN32
-				if( OpenClipboard( nullptr ) ) {
-					EmptyClipboard();
-					const size_t size = strlen( text ) + 1;
-					HGLOBAL hMem = GlobalAlloc( GMEM_MOVEABLE, size );
-					if( hMem ) {
-						void* ptr = GlobalLock( hMem );
-						if( ptr ) {
-							memcpy( ptr, text, size );
-							GlobalUnlock( hMem );
-							SetClipboardData( CF_TEXT, hMem );
-						}
-						else {
-							GlobalFree( hMem );
-						}
-					}
-					CloseClipboard();
+			if(g_settings.hammer_copyent) {
+				for( const auto& it : copiedKeyvalues ) {
+					content << "\n\"" << it.first << "\" \"" << it.second << "\"";
 				}
-// Requiring linux #else
-#endif
-			};
-
-			string epairs = "!!EPAIRS\n\"classname\" " + className + "\"";
-			for( const auto& it : copiedKeyvalues ) {
-				epairs = epairs + "\n\"" + it.first + "\" \"" + it.second + "\"";
+				string contentString = content.str();
+				ImGui::SetClipboardText(contentString.c_str());
+				copiedKeyvalues.clear();
 			}
-			CopyToClipboard( epairs.c_str() );
 		}
 		tooltip("Copy all keyvalues except for origin, classname, and BSP model if solid. Keyvalues with conflicts "
 			"are excluded when multiple entities are selected.");
 
-		if (copiedKeyvalues.empty())
+		const char* userClipboard = ImGui::GetClipboardText();
+		bool pasteDisabled = ( !g_settings.hammer_copyent ? copiedKeyvalues.empty() : !userClipboard || strncmp(userClipboard, "!!EPAIRS\n", 9) != 0 );
+		if (pasteDisabled)
 			ImGui::BeginDisabled();
 		ImGui::SameLine();
 		ImGui::SetCursorPosY(tabBarY);
 		if (ImGui::Button("Paste")) {
 			app->updateEntityUndoState();
 
+			if(g_settings.hammer_copyent) {
+				if( userClipboard && strncmp(userClipboard, "!!EPAIRS\n", 9) == 0 ) {
+					string l;
+    				stringstream ss( string( userClipboard + 8 ) );
+					while( std::getline(ss, l) ) {
+						size_t s = l.find("\" \"");
+						if( s != string::npos ) {
+							string key = l.substr(1, s - 1);
+							string value =  l.substr(s + 3);
+							value = value.substr(0, value.size() -1);
+							copiedKeyvalues[key] = value;
+						}
+					}
+				}
+			}
+
 			vector<Entity*> ents = app->pickInfo.getEnts();
 			for (Entity* ent : ents) {
+				if(g_settings.hammer_copyent) {
+					StringMap allKeys = getEntitySafeKeys(ent);
+					StringMap::iterator_t iter;
+					while (allKeys.iterate(iter)) {
+						ent->removeKeyvalue(iter.key);
+					}
+				}
 				for (auto item : copiedKeyvalues) {
 					if (g_settings.ripent_safe_mode && item.first == "wad" && ent->getClassname() == "worldspawn")
 						continue;
@@ -294,7 +296,7 @@ void KeyvalueEditor::draw() {
 		}
 		tooltip("Apply copied keyvalues to the selected entities.");
 
-		if (copiedKeyvalues.empty())
+		if (pasteDisabled)
 			ImGui::EndDisabled();
 
 		ImGui::PopStyleVar();

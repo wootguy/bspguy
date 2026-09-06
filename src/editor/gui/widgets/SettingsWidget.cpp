@@ -122,6 +122,11 @@ void SettingsWidget::draw() {
 		
 		ImGui::NextColumn();
 
+		if (ImGui::Checkbox("Hammer-like Entity Copy", &g_settings.hammer_copyent)) {
+		}
+		tooltip("Enable J.A.C.K/Hammer like copy entity button. "
+				"Allows to copy-paste individual entities between J.A.C.K and BSPGuy\n");
+
 		ImGui::Checkbox("Confirm Close", &g_settings.confirm_exit);
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Show a warning dialog if closing the map without saving changes.\n");
