@@ -1,0 +1,52 @@
+name: Bug
+description: Report a bug with the program.
+labels: [ "bug" ]
+assignees: [ ]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the details below to help us locate and resolve the issue.
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: "Program version"
+      description: "Select which version of bspguy has this problem"
+      options:
+        - v6
+        - v7 WIP (compiled from master)
+        - v5 or earlier
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engined
+    attributes:
+      label: "Engine"
+      description: "Select which game engine you used to test the BSP"
+      options:
+        - GoldSrc
+        - GoldSrc (steam_legacy beta)
+        - Svengine
+        - ReHLDS
+        - Xash3D
+        - Quake
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "A description of what the problem is, with steps to reproduce it."
+      placeholder: |
+        A clear and concise description of what the issue is.
+        
+        Steps to Reproduce:
+        1. Merge the BSP files attached to this issue.
+        2. Use the Validate option.
+    validations:
+      required: true

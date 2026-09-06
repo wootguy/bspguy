@@ -47,7 +47,8 @@ void KeyvalueEditor::draw() {
 			ImGui::Text("%s", cname.c_str());
 		}
 		else if (ImGui::Button(sameClassesSelected ? (" " + cname + " ##kvcname").c_str() : "<multiple>##kvcname")) {
-			ImGui::OpenPopup("classname_popup");
+			if(fgd)
+				ImGui::OpenPopup("classname_popup");
 		}
 		ImGui::PopFont();
 
