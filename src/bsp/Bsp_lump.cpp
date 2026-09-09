@@ -176,6 +176,16 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool deleteModels) {
 	// marks which structures should not be moved
 	STRUCTUSAGE usedStructures(this);
 
+	// first make sure no invalid nodes are referenced to prevent crashes
+	for (int i = 0; i < modelCount; i++) {
+		if (models[i].iHeadnodes[0] >= nodeCount)
+			models[i].iHeadnodes[0] = -1; // invalid offset
+		for (int k = 1; k < MAX_MAP_HULLS; k++) {
+			if (models[i].iHeadnodes[k] >= clipnodeCount)
+				models[i].iHeadnodes[k] = -1; // invalid offset
+		}
+	}
+
 	bool* usedModels = new bool[modelCount];
 	memset(usedModels, 0, sizeof(bool) * modelCount);
 	usedModels[0] = true; // never delete worldspawn
@@ -306,13 +316,9 @@ STRUCTCOUNT Bsp::remove_unused_model_structures(bool deleteModels) {
 			models[i].iFirstFace = remap.faces[models[i].iFirstFace];
 		else
 			models[i].iFirstFace = 0;
-		if (models[i].iHeadnodes[0] >= nodeCount)
-			models[i].iHeadnodes[0] = -1; // invalid offset
 		if (models[i].iHeadnodes[0] >= 0)
 			models[i].iHeadnodes[0] = remap.nodes[models[i].iHeadnodes[0]];
 		for (int k = 1; k < MAX_MAP_HULLS; k++) {
-			if (models[i].iHeadnodes[k] >= clipnodeCount)
-				models[i].iHeadnodes[k] = -1; // invalid offset
 			if (models[i].iHeadnodes[k] >= 0)
 				models[i].iHeadnodes[k] = remap.clipnodes[models[i].iHeadnodes[k]];
 		}
