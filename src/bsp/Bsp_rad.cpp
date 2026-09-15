@@ -676,6 +676,10 @@ COLOR3 Bsp::get_lighting(vec3 pos)
 {
 	COLOR3 light = COLOR3(0, 0, 0);
 	int u, v;
+	
+	if (!lightdata) {
+		return COLOR3(255, 255, 255);
+	}
 
 	int faceIdx = traceFace(pos, pos - vec3(0, 0, 2048), u, v);
 
@@ -918,6 +922,9 @@ bool Bsp::replace_texlights(string texlightString) {
 unordered_map<string, string> Bsp::estimate_texlights(int epsilon) {
 	unordered_map<string, string> texlights = get_tex_lights();
 	unordered_map<string, string> newTexlights;
+
+	if (!lightdata)
+		return newTexlights;
 
 	unordered_set<string> light_surface_names;
 	unordered_set<string> global_light_surface_names; // texture names that are always affected by light_surface

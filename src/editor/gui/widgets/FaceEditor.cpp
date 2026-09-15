@@ -1313,7 +1313,7 @@ void FaceEditor::drawLightmapsEditor() {
 				delete currentlightMap[i];
 			currentlightMap[i] = NULL;
 
-			if (face.nStyles[i] == 255)
+			if (face.nStyles[i] == 255 || !map->lightdata)
 				continue;
 
 			currentlightMap[i] = new Texture(size[0], size[1]);
