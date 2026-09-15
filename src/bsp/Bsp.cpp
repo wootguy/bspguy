@@ -1149,6 +1149,11 @@ bool Bsp::validate() {
 					BSPTEXTUREINFO& info = texinfos[faces[k].iTextureInfo];
 					if (info.nFlags & TEX_SPECIAL)
 						continue; // shouldn't be visible anyway
+					
+					BSPMIPTEX* tex = get_texture(info.iMiptex);
+					if (tex && !strcasecmp(tex->szName, "black_hidden"))
+						continue; // meant to be invisible
+
 					unlinkedFaces.push_back(k);
 				}
 			}
