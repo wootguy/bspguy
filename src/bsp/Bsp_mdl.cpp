@@ -402,17 +402,37 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 			break;
 		}
 	}
+
+	bool sharedEdges = false;
+	bool sharedVerts = false;
 	for (int i = 0; i < shouldNotMove.count.surfEdges; i++) {
 		if (shouldMove.surfEdges[i] && shouldNotMove.surfEdges[i]) {
-			errorf("\nError: surfedge shared with multiple models. Something will break.\n");
+			sharedEdges = true;
+			warnf("\nError: surfedge shared with multiple models. Faces may stretch.\n");
 			break;
 		}
 	}
 	for (int i = 0; i < shouldNotMove.count.edges; i++) {
 		if (shouldMove.edges[i] && shouldNotMove.edges[i]) {
-			errorf("\nError: edge shared with multiple models. Something will break.\n");
+			sharedEdges = true;
+			warnf("\nError: edge shared with multiple models. Faces may stretch.\n");
 			break;
 		}
+	}
+	for (int i = 0; i < shouldNotMove.count.verts; i++) {
+		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
+			sharedVerts = true;
+			warnf("\nError: edge shared with multiple models. Faces may stretch.\n");
+			break;
+		}
+	}
+
+	bool moveVerts = true;
+
+	if (sharedVerts && sharedEdges) {
+		// moving verts without edges can cause things to stretch (biglolly_coop2.bsp)
+		// just don't move anything in that case and hope for the best (v5 behavior).
+		moveVerts = false;
 	}
 
 	int duplicatePlanes = 0;
@@ -429,8 +449,10 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 	for (int i = 0; i < shouldNotMove.count.texInfos; i++) {
 		duplicateTexinfos += shouldMove.texInfo[i] && shouldNotMove.texInfo[i];
 	}
-	for (int i = 0; i < shouldNotMove.count.verts; i++) {
-		duplicateVerts += shouldMove.verts[i] && shouldNotMove.verts[i];
+	if (moveVerts) {
+		for (int i = 0; i < shouldNotMove.count.verts; i++) {
+			duplicateVerts += shouldMove.verts[i] && shouldNotMove.verts[i];
+		}
 	}
 
 	int newPlaneCount = planeCount + duplicatePlanes;
@@ -477,19 +499,23 @@ void Bsp::split_shared_model_structures(int modelIdx) {
 		}
 	}
 
-	addIdx = vertCount;
-	for (int i = 0; i < shouldNotMove.count.verts; i++) {
-		if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
-			newVerts[addIdx] = verts[i];
-			remappedStuff.verts[i] = addIdx;
-			addIdx++;
+	if (moveVerts) {
+		addIdx = vertCount;
+		for (int i = 0; i < shouldNotMove.count.verts; i++) {
+			if (shouldMove.verts[i] && shouldNotMove.verts[i]) {
+				newVerts[addIdx] = verts[i];
+				remappedStuff.verts[i] = addIdx;
+				addIdx++;
+			}
 		}
 	}
 
 	replace_lump(LUMP_PLANES, newPlanes, newPlaneCount * sizeof(BSPPLANE));
 	replace_lump(LUMP_CLIPNODES, newClipnodes, newClipnodeCount * sizeof(BSPCLIPNODE));
 	replace_lump(LUMP_TEXINFO, newTexinfos, newTexinfoCount * sizeof(BSPTEXTUREINFO));
-	replace_lump(LUMP_VERTICES, newVerts, newVertCount * sizeof(vec3));
+	
+	if (moveVerts)
+		replace_lump(LUMP_VERTICES, newVerts, newVertCount * sizeof(vec3));
 
 	bool* newVisitedClipnodes = new bool[newClipnodeCount];
 	memset(newVisitedClipnodes, 0, newClipnodeCount);

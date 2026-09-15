@@ -5,6 +5,10 @@
 #include "Editor.h"
 #include "globals.h"
 
+// v7 todo:
+// - fix crash opening empty2.bsp then pressing preview mode
+// - fix crash clean WCA map from inbachi
+
 // todo:
 // some wireframes not showing (botai, crossedpaths3, seems to be extremely thin)
 // scaling water textures causes client crash? but subdivide doesn't?
