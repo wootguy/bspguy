@@ -201,9 +201,12 @@ byte* Bsp::create_ent_lump(vector<Entity*>& entList, int& len, bool stripNodes) 
 			}
 		}
 
+		Entity* ent = entList[i];
+		ent->clearEmptyKeyvalues();
+
 		ent_data << "{\n";
 
-		ent_data << entList[i]->getFullKvString();
+		ent_data << ent->getFullKvString();
 
 		ent_data << "}";
 		if (i < entList.size() - 1) {
