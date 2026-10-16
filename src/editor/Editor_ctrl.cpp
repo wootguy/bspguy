@@ -4,6 +4,7 @@
 #include "MenuBar.h"
 #include "NavRenderer.h"
 #include "Entity.h"
+#include <algorithm>
 
 void Editor::controlsBegin() {
 	for (int i = GLFW_KEY_SPACE; i < GLFW_KEY_LAST; i++) {
@@ -306,6 +307,10 @@ void Editor::cameraRotationControls() {
 
 void Editor::cameraObjectHovering() {
 	originHovered = false;
+	if (pickMode == PICK_CLIPNODE) {
+		hoverAxis = hoverVert = hoverEdge = -1;
+		return;
+	}
 
 	if (modelUsesSharedStructures && (transformTarget != TRANSFORM_OBJECT || transformMode != TRANSFORM_MOVE))
 		return;
@@ -406,6 +411,16 @@ void Editor::cameraContextMenus() {
 	if (draggingAxis == -1 && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE && oldRightMouse != GLFW_RELEASE && !wasTurning) {
 		vec3 pickStart, pickDir;
 		getPickRay(pickStart, pickDir);
+		if (pickMode == PICK_CLIPNODE) {
+			int idx = mapRenderer->pickCollision(pickStart, pickDir, clipnodeRenderHull);
+			if (idx >= 0 && std::find(pickInfo.clipnodes.begin(), pickInfo.clipnodes.end(), idx) == pickInfo.clipnodes.end()) {
+				pickInfo.clipnodes.assign(1, idx);
+				mapRenderer->updateCollisionSelection();
+				pickCount++;
+			}
+			gui->openContextMenu(-1);
+			return;
+		}
 
 		int entIdx, faceIdx, leafIdx;
 		float bestDist = FLT_MAX;
@@ -493,6 +508,10 @@ void Editor::shortcutControls() {
 		if (pressed[GLFW_KEY_P] && !oldPressed[GLFW_KEY_P]) {
 			gui->selectLeafPvs();
 		}
+	}
+	else if (pickMode == PICK_CLIPNODE) {
+		if (pressed[GLFW_KEY_DELETE] && !oldPressed[GLFW_KEY_DELETE])
+			deleteSelectedCollision();
 	}
 }
 

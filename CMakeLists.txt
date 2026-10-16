@@ -104,6 +104,7 @@ set(SOURCE_FILES
 									src/editor/Editor_draw.cpp
 									src/editor/Editor_window.cpp
 									src/editor/Editor_ent.cpp
+									src/editor/Editor_collision.cpp
 	src/editor/Fgd.h				src/editor/Fgd.cpp
 	src/editor/Command.h			src/editor/Command.cpp
 	src/editor/AppSettings.h		src/editor/AppSettings.cpp
@@ -111,6 +112,7 @@ set(SOURCE_FILES
 	
 	# 3D viewport
 	src/editor/viewport/BspRenderer.h		src/editor/viewport/BspRenderer.cpp
+											src/editor/viewport/BspRenderer_collision.cpp
 											src/editor/viewport/BspRenderer_draw.cpp
 											src/editor/viewport/BspRenderer_load.cpp
 	src/editor/viewport/PointEntRenderer.h	src/editor/viewport/PointEntRenderer.cpp
@@ -142,6 +144,7 @@ set(SOURCE_FILES
 	src/editor/gui/widgets/FixExtentsWidget.cpp
 	src/editor/gui/widgets/ModelMergeWidget.cpp
 	src/editor/gui/widgets/LeafWidget.cpp
+	src/editor/gui/widgets/CollisionWidget.cpp
 	
 	# map compiler code
 	src/qtools/rad.h		src/qtools/rad.cpp

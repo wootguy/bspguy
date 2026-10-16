@@ -40,7 +40,8 @@ enum transform_targets {
 enum pick_modes {
 	PICK_OBJECT,
 	PICK_FACE,
-	PICK_LEAF
+	PICK_LEAF,
+	PICK_CLIPNODE
 };
 
 struct TransformAxes {
@@ -80,6 +81,8 @@ class Editor {
 	friend class FaceEditor;
 	friend class RadWidget;
 	friend class LeafWidget;
+	friend class CollisionWidget;
+	friend class CollisionEditCommand;
 	friend class DedupModelsWidget;
 	friend class EditEntitiesCommand;
 	friend class DeleteEntitiesCommand;
@@ -383,6 +386,10 @@ private:
 	void pasteEnts(bool noModifyOrigin);
 	void pasteEntsFromText(string text, bool noModifyOrigin);
 	void deleteEnts();
+	void selectCollisionMode(int hull = 1);
+	void setClipnodeHull(int hull);
+	void deleteSelectedCollision();
+	void pickCollisionVolumes(bool boxSelect);
 	void scaleSelectedObject(float x, float y, float z);
 	void scaleSelectedObject(vec3 dir, vec3 fromDir);
 	void scaleSelectedVerts(float x, float y, float z);

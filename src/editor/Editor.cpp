@@ -495,6 +495,10 @@ void Editor::applyTransform(bool forceUpdate) {
 }
 
 void Editor::pickObject(bool boxSelect) {
+	if (pickMode == PICK_CLIPNODE) {
+		pickCollisionVolumes(boxSelect);
+		return;
+	}
 	vec3 pickStart, pickDir;
 	getPickRay(pickStart, pickDir);
 

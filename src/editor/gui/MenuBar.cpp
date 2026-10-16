@@ -377,8 +377,15 @@ void MenuBar::drawEditOptions(bool isMainMenu) {
 		tooltip("Pastes entities at the locations they were copied from.");
 	}
 
-	if (ImGui::MenuItem("Delete", "Del", false, nonWorldspawnEntSelected)) {
-		app->deleteEnts();
+	bool collisionMode = app->pickMode == PICK_CLIPNODE;
+	bool canDeleteCollision = collisionMode && !app->pickInfo.clipnodes.empty() && !app->isLoading
+		&& !g_settings.ripent_safe_mode && !app->mapArrangeMode;
+	if (ImGui::MenuItem(collisionMode ? "Delete selected collision" : "Delete", "Del", false,
+		collisionMode ? canDeleteCollision : nonWorldspawnEntSelected)) {
+		if (collisionMode)
+			app->deleteSelectedCollision();
+		else
+			app->deleteEnts();
 	}
 
 	Bsp* map = app->pickInfo.getMap();
@@ -886,37 +893,32 @@ void MenuBar::drawViewMenu() {
 			ImGui::Separator();
 
 			if (ImGui::MenuItem("Auto Hulls", 0, app->clipnodeRenderHull == -1)) {
-				app->clipnodeRenderHull = -1;
-				app->mapRenderer->loadMoreClipnodes();
+				app->setClipnodeHull(-1);
 			}
 			tooltip("Render collision hulls for things which would otherwise be invisible."
 				"\n\nAn example of this is a trigger_once which had the NULL texture applied to it by the mapper. "
 				"That entity would have no visible faces and so would be invisible if its collision hull were not rendered instead.");
 
 			if (ImGui::MenuItem("Hull 0 (Point)", 0, app->clipnodeRenderHull == 0)) {
-				app->clipnodeRenderHull = 0;
-				app->mapRenderer->loadMoreClipnodes();
+				app->setClipnodeHull(0);
 			}
 			tooltip("Renders hull 0 regardless of object visibility.\n\n"
 				"This hull is used for point-sized object collision and mesh rendering.");
 
 			if (ImGui::MenuItem("Hull 1 (Human)", 0, app->clipnodeRenderHull == 1)) {
-				app->clipnodeRenderHull = 1;
-				app->mapRenderer->loadMoreClipnodes();
+				app->setClipnodeHull(1);
 			}
 			tooltip("Renders hull 1 regardless of object visibility."
 				"\n\nThis is a collision hull used by standing players and human-sized monsters.");
 
 			if (ImGui::MenuItem("Hull 2 (Large)", 0, app->clipnodeRenderHull == 2)) {
-				app->clipnodeRenderHull = 2;
-				app->mapRenderer->loadMoreClipnodes();
+				app->setClipnodeHull(2);
 			}
 			tooltip("Renders hull 2 regardless of object visibility.\n\n"
 				"This is a collision hull used by large monsters and pushable objects.");
 
 			if (ImGui::MenuItem("Hull 3 (Head)", 0, app->clipnodeRenderHull == 3)) {
-				app->clipnodeRenderHull = 3;
-				app->mapRenderer->loadMoreClipnodes();
+				app->setClipnodeHull(3);
 			}
 			tooltip("Renders hull 3 regardless of object visibility.\n\n"
 				"This is a collision hull used by crouching players and small monsters.");
@@ -1404,6 +1406,10 @@ void MenuBar::drawToolsMenu() {
 		BspRenderer* renderer = app->mapRenderer;
 
 		bool hasAnyCollision = gui->anyHullValid[1] || gui->anyHullValid[2] || gui->anyHullValid[3];
+		if (ImGui::MenuItem("Collision Editor", 0, app->pickMode == PICK_CLIPNODE,
+			!app->isLoading && !g_settings.ripent_safe_mode && !app->mapArrangeMode))
+			app->selectCollisionMode();
+		tooltip("Select and delete individual world collision volumes, with Undo/Redo. Visual faces are preserved.");
 
 		if (!g_settings.ripent_safe_mode && ImGui::BeginMenu("Delete BSP Data", !app->isLoading)) {
 			if (ImGui::MenuItem("Clean", 0, false, !app->isLoading)) {

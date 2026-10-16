@@ -20,9 +20,26 @@ See the [wiki](https://github.com/wootguy/bspguy/wiki) for tutorials.
 - BSP model editing
 - Face editing (textures, lightmaps)
 - Clipnode/Leaf visualization
+- Select and delete individual world collision volumes, with Undo/Redo
 - And more!
 
 <img width="1823" alt="image" src="https://github.com/user-attachments/assets/8fcf5dc5-448d-41f8-94de-49d02f5c8f58" />
+
+### Collision Editor
+
+Click **Clip** in the toolbar or **Tools -> Collision Editor**, select a world
+collision volume, then press **Delete**. Ctrl+click toggles additional volumes;
+drag-selection includes volumes through the scene. Orange volumes show the
+entire selection. Ctrl+Z/Ctrl+Y undo and redo the collision edit.
+
+Choose the hull to edit in the Collision Editor. Deletion affects only that
+hull; check standing (1), crouching (3), and large-object (2) collision as needed.
+Hull 0, visible faces, lightmaps, textures and VIS are preserved. Visual entities
+are removed separately in Object mode. Ripent Safe Mode must be off.
+
+Shared clipnode branches are copied before editing, so deleting one occurrence
+does not alter other volumes or models sharing the same clipnodes. A compiled
+obstacle may span several volumes; select every part you intend to remove.
 
 ## System Requirements
 - OpenGL 2.1
@@ -60,6 +77,7 @@ Run 'bspguy <command> help' to read about a specific command.
 ```
 
 # Building the source
+
 ### Windows users:
 1. Install [CMake](https://cmake.org/download/), [Visual Studio Community](https://visualstudio.microsoft.com/downloads/), and [Git](https://git-scm.com/download/win).
     * Visual Studio: Make sure to checkmark "Desktop development with C++" if you're installing for the first time. 

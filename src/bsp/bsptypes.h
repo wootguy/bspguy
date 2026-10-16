@@ -302,6 +302,9 @@ struct Solid {
 struct NodeVolumeCuts {
 	int nodeIdx;
 	int leafIdx;
+	// Root-to-leaf child choices. Clipnodes can be shared, so nodeIdx alone
+	// does not identify a spatial volume.
+	vector<int> branch;
 	vector<BSPPLANE> cuts; // cuts which define the leaf boundaries when applied to a bounding box, in order.
 };
 

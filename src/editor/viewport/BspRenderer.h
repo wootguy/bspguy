@@ -183,6 +183,13 @@ public:
 	void renderSolids(bool highlightAlwaysOnTop, bool transparencyPass);
 	void renderClipnodes(int clipnodeHull);
 	void renderLeaves();
+	void renderCollisionSelection();
+	void updateCollisionSelection();
+	bool collisionReady(int hull) const;
+	const vector<NodeVolumeCuts>& getCollisionVolumes(int hull) const;
+	int pickCollision(vec3 start, vec3 dir, int hull);
+	int collisionAtPoint(vec3 point, int hull) const;
+	void pickCollisionFrustum(Frustum frustum, int hull, unordered_set<int>& volumes);
 
 	bool willDrawModel(Entity* ent, int modelIdx, bool transparent);
 	void drawModel(Entity* ent, int modelIdx, bool transparent, bool highlight);
@@ -275,6 +282,8 @@ private:
 	int megaGroupUpdateProgress; // used to limit buffers updated per frame to prevent lag on every click
 	float megaGroupUpdateStartTime;
 	RenderClipnodes* renderClipnodeDat = NULL;
+	vector<NodeVolumeCuts> worldCollisionVolumes[MAX_MAP_HULLS];
+	VertexBuffer* collisionSelectionBuffer = NULL;
 	RenderLeaves* renderLeafDat = NULL;
 	FaceMath* faceMaths = NULL;
 	vector<vec3> faceMathVerts;

@@ -125,6 +125,12 @@ void BspRenderer::deleteRenderModel(RenderModel* renderModel) {
 }
 
 void BspRenderer::deleteRenderClipnodes() {
+	delete collisionSelectionBuffer;
+	collisionSelectionBuffer = NULL;
+	for (int i = 0; i < MAX_MAP_HULLS; i++)
+		worldCollisionVolumes[i].clear();
+	if (g_app && g_app->mapRenderer == this)
+		g_app->pickInfo.clipnodes.clear();
 	if (renderClipnodeDat != NULL) {
 		for (int i = 0; i < numRenderClipnodes; i++) {
 			deleteRenderModelClipnodes(&renderClipnodeDat[i]);
@@ -165,6 +171,15 @@ void BspRenderer::deleteRenderModelClipnodes(RenderClipnodes* renderClip) {
 			delete renderClip->clipnodeBuffer[i];
 		}
 		renderClip->clipnodeBuffer[i] = NULL;
+		renderClip->faceMaths[i].clear();
+	}
+	if (renderClip == renderClipnodeDat) {
+		delete collisionSelectionBuffer;
+		collisionSelectionBuffer = NULL;
+		for (int i = 0; i < MAX_MAP_HULLS; i++)
+			worldCollisionVolumes[i].clear();
+		if (g_app && g_app->mapRenderer == this)
+			g_app->pickInfo.clipnodes.clear();
 	}
 }
 

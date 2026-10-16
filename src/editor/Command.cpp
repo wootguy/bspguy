@@ -545,6 +545,16 @@ int ModelEditCommand::memoryUsage() {
 	return LumpReplaceCommand::memoryUsage() + sizeof(ModelEditCommand) - sizeof(LumpReplaceCommand);
 }
 
+void CollisionEditCommand::refresh() {
+	g_app->isLoading = true;
+	g_app->pickInfo.clipnodes.clear();
+	g_app->mapRenderer->reloadClipnodes();
+	g_app->saveLumpState(getBsp(), 0xffffffff, true);
+	g_app->gui->refresh();
+	g_app->pickCount++;
+	g_model_edits++;
+}
+
 
 FacesEditCommand::FacesEditCommand(string desc) : LumpReplaceCommand(desc) {
 	for (int idx : g_app->pickInfo.getModelIndexes()) {

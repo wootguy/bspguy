@@ -134,6 +134,12 @@ public:
 	int memoryUsage() override;
 };
 
+class CollisionEditCommand : public LumpReplaceCommand {
+public:
+	CollisionEditCommand(string desc) : LumpReplaceCommand(desc) {}
+	void refresh() override;
+};
+
 
 // refreshes specific models after face edits
 class FacesEditCommand : public LumpReplaceCommand {

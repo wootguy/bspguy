@@ -12,6 +12,7 @@ public:
 	std::vector<int> ents; // selected entity indexes
 	std::vector<int> faces; // selected face indexes
 	std::vector<int> leaves; // selected leaf indexes
+	std::vector<int> clipnodes; // world collision volume indexes in clipnodeRenderHull
 
 	PickInfo() {}
 

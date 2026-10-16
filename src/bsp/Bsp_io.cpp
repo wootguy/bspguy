@@ -124,9 +124,18 @@ void Bsp::write(string path) {
 		}
 	}
 
-	lastSaveFormat = formatTo;
-
 	LumpState saveLumps = duplicate_lumps(0xffffffff);
+	auto freeSaveLumps = [&]() {
+		for (int i = 0; i < HEADER_LUMPS; i++)
+			delete[] saveLumps.lumps[i];
+	};
+	// Repair older Collision Editor output on save too. Work on the snapshot
+	// so the renderer and undo history keep their existing node references.
+	if (!normalize_clipnode_order(saveLumps)) {
+		freeSaveLumps();
+		errorf("Save aborted because collision hulls cannot be ordered safely.\n");
+		return;
+	}
 
 	// convert from internal format to desired format
 	externalize_lumps(formatTo, saveLumps);
@@ -157,6 +166,7 @@ void Bsp::write(string path) {
 	ofstream file(path, ios::out | ios::binary | ios::trunc);
 	if (!file.is_open()) {
 		logf("Failed to open BSP file for writing:\n%s\n", path.c_str());
+		freeSaveLumps();
 		return;
 	}
 
@@ -168,6 +178,13 @@ void Bsp::write(string path) {
 		//logf("LUMP %10s = %.2f MB\n", g_lump_names[i], (float)header.lump[i].nLength / (1024.0f*1024.0f));
 	}
 
+	freeSaveLumps();
+	file.close();
+	if (!file) {
+		errorf("Failed to write BSP file:\n%s\n", path.c_str());
+		return;
+	}
+	lastSaveFormat = formatTo;
 	logf("Wrote %s: %s\n", g_bsp_format_names[formatTo], path.c_str());
 }
 
@@ -470,6 +487,10 @@ bool Bsp::did_lumps_change(bool ignoreEntLump) {
 
 	if (saveFormat == BSP_BLUESHIFT)
 		saveFormat = BSP_HALFLIFE; // don't complicate comparison
+
+	// Saving can repair clipnode order without changing the live map.
+	if (!normalize_clipnode_order(currentLumps) || !normalize_clipnode_order(fileState))
+		goto cleanup;
 
 	// compare lumps in the output format
 	externalize_lumps(saveFormat, currentLumps);
