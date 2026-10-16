@@ -73,6 +73,119 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 	}
 }
 
+bool Bsp::normalize_clipnode_order(LumpState& state) {
+	int nodeBytes = state.lumpLen[LUMP_CLIPNODES];
+	int modelBytes = state.lumpLen[LUMP_MODELS];
+	if (nodeBytes < 0 || modelBytes < 0 || nodeBytes % sizeof(BSPCLIPNODE)
+		|| modelBytes % sizeof(BSPMODEL) || (nodeBytes && !state.lumps[LUMP_CLIPNODES])
+		|| (modelBytes && !state.lumps[LUMP_MODELS])) {
+		errorf("Invalid collision lump sizes. Cannot order clipnodes.\n");
+		return false;
+	}
+
+	int count = nodeBytes / sizeof(BSPCLIPNODE);
+	int numModels = modelBytes / sizeof(BSPMODEL);
+	BSPCLIPNODE* nodes = (BSPCLIPNODE*)state.lumps[LUMP_CLIPNODES];
+	BSPMODEL* oldModels = (BSPMODEL*)state.lumps[LUMP_MODELS];
+	vector<int> incoming(count, 0);
+	bool needsOrder = false;
+	for (int i = 0; i < count; i++) {
+		for (int side = 0; side < 2; side++) {
+			int child = nodes[i].iChildren[side];
+			if (child < 0)
+				continue;
+			if (child >= count) {
+				errorf("Invalid clipnode child index. Cannot order clipnodes.\n");
+				return false;
+			}
+			incoming[child]++;
+			needsOrder |= child <= i;
+		}
+	}
+	for (int i = 0; i < numModels; i++) {
+		for (int hull = 1; hull < MAX_MAP_HULLS; hull++) {
+			int head = oldModels[i].iHeadnodes[hull];
+			if (head >= count) {
+				errorf("Invalid collision headnode index. Cannot order clipnodes.\n");
+				return false;
+			}
+			needsOrder |= head >= 0 && head == count - 1;
+		}
+	}
+	if (!needsOrder)
+		return true;
+
+	// GoldSrc bounds every traversal by [headnode, clipnodeCount - 1].
+	// A topological order keeps ALL descendants above their hull's head,
+	// including shared nodes and the new paths copied by Collision Editor.
+	vector<int> order;
+	order.reserve(count);
+	for (int i = 0; i < count; i++) {
+		if (!incoming[i])
+			order.push_back(i);
+	}
+	for (size_t i = 0; i < order.size(); i++) {
+		for (int side = 0; side < 2; side++) {
+			int child = nodes[order[i]].iChildren[side];
+			if (child >= 0 && --incoming[child] == 0)
+				order.push_back(child);
+		}
+	}
+	if (order.size() != (size_t)count) {
+		errorf("Cyclic collision tree. Cannot order clipnodes.\n");
+		return false;
+	}
+
+	vector<int> remap(count);
+	for (int i = 0; i < count; i++)
+		remap[order[i]] = i;
+	vector<BSPCLIPNODE> ordered(count);
+	for (int i = 0; i < count; i++) {
+		ordered[i] = nodes[order[i]];
+		for (int side = 0; side < 2; side++) {
+			int& child = ordered[i].iChildren[side];
+			if (child >= 0)
+				child = remap[child];
+		}
+	}
+	vector<BSPMODEL> orderedModels(numModels);
+	bool needsGuard = false;
+	for (int i = 0; i < numModels; i++) {
+		orderedModels[i] = oldModels[i];
+		for (int hull = 1; hull < MAX_MAP_HULLS; hull++) {
+			int& head = orderedModels[i].iHeadnodes[hull];
+			if (head >= 0) {
+				head = remap[head];
+				needsGuard |= head == count - 1;
+			}
+		}
+	}
+	// Player movement treats firstclipnode >= lastclipnode as empty. Keep a
+	// harmless unused node after a one-node hull that would otherwise be last.
+	if (needsGuard) {
+		BSPCLIPNODE guard = { ordered[0].iPlane, { CONTENTS_EMPTY, CONTENTS_EMPTY } };
+		ordered.push_back(guard);
+	}
+	if (ordered.size() >= (size_t)g_limits.max_clipnodes) {
+		errorf("Engine-compatible collision order exceeds the clipnode limit.\n");
+		return false;
+	}
+
+	int orderedBytes = (int)(ordered.size() * sizeof(BSPCLIPNODE));
+	byte* newNodes = new byte[orderedBytes];
+	byte* newModels = new byte[modelBytes];
+	memcpy(newNodes, ordered.data(), orderedBytes);
+	if (modelBytes)
+		memcpy(newModels, orderedModels.data(), modelBytes);
+	delete[] state.lumps[LUMP_CLIPNODES];
+	delete[] state.lumps[LUMP_MODELS];
+	state.lumps[LUMP_CLIPNODES] = newNodes;
+	state.lumpLen[LUMP_CLIPNODES] = orderedBytes;
+	state.lumps[LUMP_MODELS] = newModels;
+	debugf("Ordered collision nodes for engine hull bounds.\n");
+	return true;
+}
+
 int Bsp::delete_clipnode_volumes(int modelIdx, int hullIdx, const vector<vector<int>>& branches) {
 	if (modelIdx < 0 || modelIdx >= modelCount || hullIdx < 1 || hullIdx >= MAX_MAP_HULLS)
 		return -1;
@@ -145,14 +258,25 @@ int Bsp::delete_clipnode_volumes(int modelIdx, int hullIdx, const vector<vector<
 		logf("Collision edit exceeds the clipnode limit. No changes made.\n");
 		return -1;
 	}
+	LumpState pending = {};
+	pending.lumpLen[LUMP_CLIPNODES] = (clipnodeCount + (int)added.size()) * sizeof(BSPCLIPNODE);
+	pending.lumpLen[LUMP_MODELS] = modelCount * sizeof(BSPMODEL);
+	pending.lumps[LUMP_CLIPNODES] = new byte[pending.lumpLen[LUMP_CLIPNODES]];
+	pending.lumps[LUMP_MODELS] = new byte[pending.lumpLen[LUMP_MODELS]];
+	memcpy(pending.lumps[LUMP_CLIPNODES], clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
 	if (!added.empty()) {
-		int newCount = clipnodeCount + (int)added.size();
-		BSPCLIPNODE* newNodes = new BSPCLIPNODE[newCount];
-		memcpy(newNodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
-		memcpy(newNodes + clipnodeCount, added.data(), added.size() * sizeof(BSPCLIPNODE));
-		replace_lump(LUMP_CLIPNODES, newNodes, newCount * sizeof(BSPCLIPNODE));
+		memcpy(pending.lumps[LUMP_CLIPNODES] + clipnodeCount * sizeof(BSPCLIPNODE),
+			added.data(), added.size() * sizeof(BSPCLIPNODE));
 	}
-	models[modelIdx].iHeadnodes[hullIdx] = edits[0].result;
+	memcpy(pending.lumps[LUMP_MODELS], models, pending.lumpLen[LUMP_MODELS]);
+	((BSPMODEL*)pending.lumps[LUMP_MODELS])[modelIdx].iHeadnodes[hullIdx] = edits[0].result;
+	if (!normalize_clipnode_order(pending)) {
+		delete[] pending.lumps[LUMP_CLIPNODES];
+		delete[] pending.lumps[LUMP_MODELS];
+		return -1;
+	}
+	replace_lump(LUMP_CLIPNODES, pending.lumps[LUMP_CLIPNODES], pending.lumpLen[LUMP_CLIPNODES]);
+	replace_lump(LUMP_MODELS, pending.lumps[LUMP_MODELS], pending.lumpLen[LUMP_MODELS]);
 	return removed;
 }
 

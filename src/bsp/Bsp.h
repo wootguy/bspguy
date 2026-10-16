@@ -330,6 +330,9 @@ public:
 	// models and hulls sharing the same clipnodes remain unchanged.
 	// Returns the number deleted, or -1 without modifying the map on error.
 	int delete_clipnode_volumes(int modelIdx, int hullIdx, const vector<vector<int>>& branches);
+	// Order a private internal-format snapshot for engine hull bounds, remapping
+	// every model's collision headnodes. Leaves the snapshot untouched on error.
+	static bool normalize_clipnode_order(LumpState& state);
 	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
 
 	int count_clipnode_solids(int iNode);
