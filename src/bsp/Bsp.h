@@ -324,7 +324,12 @@ public:
 
 	// get cuts required to create bounding volumes for each solid leaf in the model
 	vector<NodeVolumeCuts> get_model_leaf_volume_cuts(int modelIdx, int hullIdx, int32_t contents);
-	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
+	void get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents, vector<int>* branch = NULL);
+
+	// Delete only the selected occurrences of solid leaves. Other paths,
+	// models and hulls sharing the same clipnodes remain unchanged.
+	// Returns the number deleted, or -1 without modifying the map on error.
+	int delete_clipnode_volumes(int modelIdx, int hullIdx, const vector<vector<int>>& branches);
 	void get_node_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents);
 
 	int count_clipnode_solids(int iNode);

@@ -887,8 +887,10 @@ void BspRenderer::generateClipnodeBuffer(int modelIdx, bool newOnly) {
 			//color = hullColors[k % 4];
 
 			generateNodeMesh(&mesh, color, allVerts, renderClip->faceMathVerts,
-				renderClip->faceMathLocalVerts, renderClip->faceMaths[i], solidNodes[k].nodeIdx);
+				renderClip->faceMathLocalVerts, renderClip->faceMaths[i], modelIdx == 0 ? k : solidNodes[k].nodeIdx);
 		}
+		if (modelIdx == 0)
+			worldCollisionVolumes[i] = std::move(solidNodes);
 
 		//logf("Generate node with %d faces and %d verts\n", totalFaces, totalVerts);
 

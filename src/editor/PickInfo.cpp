@@ -45,6 +45,7 @@ void PickInfo::deselect() {
 	ents.clear();
 	faces.clear();
 	leaves.clear();
+	clipnodes.clear();
 	g_app->pickCount++;
 	//logf("Deselect\n");
 }

@@ -382,6 +382,7 @@ void Editor::drawViewport() {
 	// don't draw clipnodes in leaf mode because they're the same color/style and confuse picking
 	if (pickMode != PICK_LEAF)
 		mapRenderer->renderClipnodes(clipnodeRenderHull);
+	mapRenderer->renderCollisionSelection();
 
 	glCheckError("Rendering BSP (transparency pass)");
 

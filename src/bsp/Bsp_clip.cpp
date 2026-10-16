@@ -29,10 +29,15 @@ void Bsp::print_clipnode_tree(int iNode, int depth) {
 	}
 }
 
-void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents) {
+void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<NodeVolumeCuts>& output, int32_t contents, vector<int>* branch) {
+	vector<int> rootBranch;
+	if (!branch)
+		branch = &rootBranch;
+	if (iNode < 0 || iNode >= clipnodeCount || branch->size() > 4096)
+		return;
 	BSPCLIPNODE& node = clipnodes[iNode];
 
-	if (node.iPlane < 0) {
+	if (node.iPlane < 0 || node.iPlane >= planeCount) {
 		return;
 	}
 
@@ -43,14 +48,16 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 			plane.fDist = -plane.fDist;
 		}
 		clipOrder.push_back(plane);
+		branch->push_back(i);
 
 		if (node.iChildren[i] >= 0) {
-			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output, contents);
+			get_clipnode_leaf_cuts(node.iChildren[i], clipOrder, output, contents, branch);
 		}
 		else if (node.iChildren[i] == contents || contents == CONTENTS_ANY || (contents == CONTENTS_NOT_SOLID && node.iChildren[i] != CONTENTS_SOLID)) {
 			NodeVolumeCuts nodeVolumeCuts;
 			nodeVolumeCuts.nodeIdx = iNode;
 			nodeVolumeCuts.leafIdx = -1;
+			nodeVolumeCuts.branch = *branch;
 
 			// reverse order of branched planes = order of cuts to the world which define this node's volume
 			// https://qph.fs.quoracdn.net/main-qimg-2a8faad60cc9d437b58a6e215e6e874d
@@ -62,7 +69,91 @@ void Bsp::get_clipnode_leaf_cuts(int iNode, vector<BSPPLANE>& clipOrder, vector<
 		}
 
 		clipOrder.pop_back();
+		branch->pop_back();
 	}
+}
+
+int Bsp::delete_clipnode_volumes(int modelIdx, int hullIdx, const vector<vector<int>>& branches) {
+	if (modelIdx < 0 || modelIdx >= modelCount || hullIdx < 1 || hullIdx >= MAX_MAP_HULLS)
+		return -1;
+	if (branches.empty())
+		return 0;
+
+	struct BranchEdit {
+		int original;
+		int child[2];
+		int result;
+		bool selected;
+		BranchEdit(int node) : original(node), result(node), selected(false) {
+			child[0] = child[1] = -1;
+		}
+	};
+
+	// A trie groups edits by occurrence, not node index. Two paths to the
+	// same shared node must be allowed to produce different results.
+	vector<BranchEdit> edits;
+	edits.push_back(BranchEdit(models[modelIdx].iHeadnodes[hullIdx]));
+	int removed = 0;
+	for (const vector<int>& branch : branches) {
+		if (branch.empty() || branch.size() > (size_t)clipnodeCount)
+			return -1;
+		int editIdx = 0;
+		for (int side : branch) {
+			int nodeIdx = edits[editIdx].original;
+			if (side < 0 || side > 1 || nodeIdx < 0 || nodeIdx >= clipnodeCount
+				|| clipnodes[nodeIdx].iPlane < 0 || clipnodes[nodeIdx].iPlane >= planeCount)
+				return -1;
+			int next = edits[editIdx].child[side];
+			if (next == -1) {
+				next = (int)edits.size();
+				edits[editIdx].child[side] = next;
+				edits.push_back(BranchEdit(clipnodes[nodeIdx].iChildren[side]));
+			}
+			editIdx = next;
+		}
+		if (edits[editIdx].original != CONTENTS_SOLID)
+			return -1;
+		if (!edits[editIdx].selected) {
+			edits[editIdx].selected = true;
+			removed++;
+		}
+	}
+
+	// Build privately, bottom-up, and commit once validation and limits pass.
+	// Never mutate an original clipnode or remove a partition plane.
+	vector<BSPCLIPNODE> added;
+	for (int i = (int)edits.size() - 1; i >= 0; i--) {
+		BranchEdit& edit = edits[i];
+		if (edit.selected) {
+			edit.result = CONTENTS_EMPTY;
+			continue;
+		}
+		BSPCLIPNODE node = clipnodes[edit.original];
+		for (int side = 0; side < 2; side++) {
+			if (edit.child[side] != -1)
+				node.iChildren[side] = edits[edit.child[side]].result;
+		}
+		if (node.iChildren[0] == node.iChildren[1] && node.iChildren[0] < 0) {
+			edit.result = node.iChildren[0];
+		}
+		else {
+			edit.result = clipnodeCount + (int)added.size();
+			added.push_back(node);
+		}
+	}
+	if ((size_t)clipnodeCount + added.size() >= (size_t)g_limits.max_clipnodes) {
+		logf("Collision edit exceeds the clipnode limit. No changes made.\n");
+		return -1;
+	}
+	if (!added.empty()) {
+		int newCount = clipnodeCount + (int)added.size();
+		BSPCLIPNODE* newNodes = new BSPCLIPNODE[newCount];
+		memcpy(newNodes, clipnodes, clipnodeCount * sizeof(BSPCLIPNODE));
+		memcpy(newNodes + clipnodeCount, added.data(), added.size() * sizeof(BSPCLIPNODE));
+		replace_lump(LUMP_CLIPNODES, newNodes, newCount * sizeof(BSPCLIPNODE));
+	}
+	models[modelIdx].iHeadnodes[hullIdx] = edits[0].result;
+	return removed;
 }
 
 int Bsp::create_clipnode_box(vec3 mins, vec3 maxs, BSPMODEL* targetModel, int targetHull, bool skipEmpty) {

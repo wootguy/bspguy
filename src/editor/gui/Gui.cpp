@@ -183,6 +183,8 @@ void Gui::init() {
 
 	widgets[WIDGET_LEAF] = new LeafWidget(this, "Leaf Graph",
 		ImVec2(500, 500), ImVec2(200, 200), 0);
+	widgets[WIDGET_COLLISION] = new CollisionWidget(this, "Collision Editor",
+		ImVec2(420, 460), ImVec2(300, 240), 0);
 
 	// pop ups
 	widgets[WIDGET_RAD_PREP] = new RadWidget(this, "Configure Texlights",
@@ -262,6 +264,13 @@ void Gui::draw() {
 			emptyContextMenu = 0;
 			contextMenuEnt = -1;
 			ImGui::OpenPopup("leaf_context");
+		}
+	}
+	else if (app->pickMode == PICK_CLIPNODE) {
+		if (contextMenuEnt != -1 || emptyContextMenu) {
+			emptyContextMenu = 0;
+			contextMenuEnt = -1;
+			ImGui::OpenPopup("collision_context");
 		}
 	}
 
@@ -405,7 +414,23 @@ void Gui::draw3dContextMenus() {
 		return;
 	}
 
-	if (app->pickMode == PICK_OBJECT) {
+	if (app->pickMode == PICK_CLIPNODE) {
+		if (ImGui::BeginPopup("collision_context")) {
+			ImGui::BeginDisabled(app->isLoading || g_settings.ripent_safe_mode || app->pickInfo.clipnodes.empty());
+			if (ImGui::MenuItem("Delete selected collision", "Del"))
+				app->deleteSelectedCollision();
+			if (ImGui::MenuItem("Clear selection")) {
+				app->pickInfo.clipnodes.clear();
+				app->mapRenderer->updateCollisionSelection();
+				app->pickCount++;
+			}
+			ImGui::EndDisabled();
+			if (ImGui::MenuItem("Collision Editor"))
+				widgets[WIDGET_COLLISION]->widgetVisible = true;
+			ImGui::EndPopup();
+		}
+	}
+	else if (app->pickMode == PICK_OBJECT) {
 
 		if (ImGui::BeginPopup("ent_context"))
 		{
@@ -971,7 +996,11 @@ void Gui::drawStatusBar() {
 		int faceCount = app->pickInfo.faces.size();
 		int leafCount = app->pickInfo.leaves.size();
 
-		if (entCount > 1) {
+		if (app->pickMode == PICK_CLIPNODE) {
+			selectStr = to_string(app->pickInfo.clipnodes.size()) + " collision volumes selected (Hull "
+				+ to_string(app->clipnodeRenderHull) + ")";
+		}
+		else if (entCount > 1) {
 			selectStr = to_string(entCount) + " entities selected";
 		}
 		else if (entCount == 1) {
@@ -1194,6 +1223,15 @@ void Gui::drawToolbar() {
 			ImGui::TextUnformatted("Leaf selection mode");
 			ImGui::EndTooltip();
 		}
+
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, app->pickMode == PICK_CLIPNODE ? selectColor : dimColor);
+		ImGui::BeginDisabled(app->isLoading || app->emptyMapLoaded);
+		if (ImGui::Button("Clip", ImVec2(iconWidth + style.FramePadding.x * 2, iconWidth + style.FramePadding.y * 2)))
+			app->selectCollisionMode();
+		ImGui::EndDisabled();
+		ImGui::PopStyleColor();
+		tooltip("Collision selection mode. Click a world collision block, Ctrl+click for multiple blocks, then Delete.");
 	}
 	ImGui::End();
 }

@@ -56,6 +56,14 @@ public:
 	}
 };
 
+class CollisionWidget : public Widget {
+	using Widget::Widget;
+	vec3 point;
+	bool addToSelection = false;
+	bool pointIsEmpty = false;
+	void draw() override;
+};
+
 class DebugWidget : public Widget {
 	using Widget::Widget;
 	void setup() override;
