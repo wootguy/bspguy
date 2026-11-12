@@ -287,7 +287,11 @@ void Editor::cameraRotationControls() {
 			lastMousePos = mousePos;
 
 			if (cameraMouseCapture) {
-				glfwSetCursorPos(window, windowWidth / 2.0, windowHeight / 2.0);
+				{
+					int ww, wh;
+					glfwGetWindowSize(window, &ww, &wh);
+					glfwSetCursorPos(window, ww / 2.0, wh / 2.0);
+				}
 				double xpos, ypos;
 				glfwGetCursorPos(window, &xpos, &ypos);
 				lastMousePos.x = xpos;
@@ -641,6 +645,18 @@ bool Editor::transformAxisControls() {
 void Editor::getMousePos(int& x, int& y) {
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
+
+	// cursor is in window (logical) coords, but rendering uses framebuffer (physical) pixels.
+	// These differ on HiDPI / fractional-scaling displays (e.g. Wayland).
+	{
+		int ww, wh, fw, fh;
+		glfwGetWindowSize(window, &ww, &wh);
+		glfwGetFramebufferSize(window, &fw, &fh);
+		if (ww > 0 && wh > 0) {
+			xpos *= fw / (double)ww;
+			ypos *= fh / (double)wh;
+		}
+	}
 
 	if (viewportFbo) {
 		x = xpos * viewportScale;
